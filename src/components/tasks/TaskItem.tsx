@@ -77,7 +77,7 @@ export default function TaskItem({ task, isSelected, onToggle, onSelect, onDelet
   return (
     <>
       <div
-        className={`group flex items-center gap-3 px-6 h-9 mx-2 rounded-xl transition-colors duration-100 cursor-pointer ${
+        className={`group flex items-center gap-3 px-6 h-10 mx-2 rounded-xl transition-colors duration-100 cursor-pointer ${
           isSelected
             ? "bg-black/5"
             : "hover:bg-black/5"
@@ -93,7 +93,7 @@ export default function TaskItem({ task, isSelected, onToggle, onSelect, onDelet
           }}
           className="flex-shrink-0 w-4 h-4 rounded-[3px] flex items-center justify-center transition-all"
           style={{
-            backgroundColor: task.is_completed ? "#9CA3AF" : "transparent",
+            backgroundColor: task.is_completed ? "#D1D5DB" : "transparent",
             border: task.is_completed ? "none" : `1.5px solid ${task.color || "#D1D5DB"}`,
           }}
           aria-label={task.is_completed ? "Mark incomplete" : "Mark complete"}
@@ -108,7 +108,7 @@ export default function TaskItem({ task, isSelected, onToggle, onSelect, onDelet
         {/* Title */}
         <span
           className={`flex-1 min-w-0 truncate text-sm ${
-            task.is_completed ? "text-gray-400 line-through" : "text-gray-800"
+            task.is_completed ? "text-gray-300 line-through" : "text-gray-800"
           }`}
         >
           {task.title}

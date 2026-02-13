@@ -150,15 +150,17 @@ export default function TaskList({
           </button>
           {overdueExpanded && (
             <>
-              {overdueToShow.map((task) => (
-                <TaskItem
-                  key={task.id}
-                  task={task}
-                  isSelected={selectedTaskId === task.id}
-                  onToggle={onToggle}
-                  onSelect={onSelect}
-                  onDelete={onDelete}
-                />
+              {overdueToShow.map((task, i) => (
+                <div key={task.id}>
+                  {i > 0 && <div className="mx-12 h-px bg-gray-100" />}
+                  <TaskItem
+                    task={task}
+                    isSelected={selectedTaskId === task.id}
+                    onToggle={onToggle}
+                    onSelect={onSelect}
+                    onDelete={onDelete}
+                  />
+                </div>
               ))}
               {overdue.length > ITEMS_PER_SECTION && (
                 <button
@@ -191,15 +193,17 @@ export default function TaskList({
           </button>
           {currentExpanded && (
             <>
-              {currentToShow.map((task) => (
-                <TaskItem
-                  key={task.id}
-                  task={task}
-                  isSelected={selectedTaskId === task.id}
-                  onToggle={onToggle}
-                  onSelect={onSelect}
-                  onDelete={onDelete}
-                />
+              {currentToShow.map((task, i) => (
+                <div key={task.id}>
+                  {i > 0 && <div className="mx-12 h-px bg-gray-100" />}
+                  <TaskItem
+                    task={task}
+                    isSelected={selectedTaskId === task.id}
+                    onToggle={onToggle}
+                    onSelect={onSelect}
+                    onDelete={onDelete}
+                  />
+                </div>
               ))}
               {current.length > ITEMS_PER_SECTION && (
                 <button
@@ -223,24 +227,26 @@ export default function TaskList({
           >
             <ChevronRight
               size={12}
-              className={`shrink-0 text-gray-400 transition-transform duration-200 ${
+              className={`shrink-0 text-gray-600 transition-transform duration-200 ${
                 completedExpanded ? "rotate-90" : ""
               }`}
             />
-            <span className="text-sm font-semibold text-gray-500 ml-0.5">Completed</span>
+            <span className="text-sm font-semibold text-gray-800 ml-0.5">Completed</span>
             <span className="text-xs text-gray-400 ml-1.5">{completed.length}</span>
           </button>
           {completedExpanded && (
             <>
-              {completedToShow.map((task) => (
-                <TaskItem
-                  key={task.id}
-                  task={task}
-                  isSelected={selectedTaskId === task.id}
-                  onToggle={onToggle}
-                  onSelect={onSelect}
-                  onDelete={onDelete}
-                />
+              {completedToShow.map((task, i) => (
+                <div key={task.id}>
+                  {i > 0 && <div className="mx-12 h-px bg-gray-100" />}
+                  <TaskItem
+                    task={task}
+                    isSelected={selectedTaskId === task.id}
+                    onToggle={onToggle}
+                    onSelect={onSelect}
+                    onDelete={onDelete}
+                  />
+                </div>
               ))}
               {completed.length > ITEMS_PER_SECTION && (
                 <button
