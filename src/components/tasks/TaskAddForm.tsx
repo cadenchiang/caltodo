@@ -67,7 +67,7 @@ export default function TaskAddForm({ onAdd, defaultDate, placeholder }: TaskAdd
     <div className="relative mx-4 mt-1 mb-3" ref={containerRef} onBlur={handleBlur}>
       <form
         onSubmit={handleSubmit}
-        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-200 border ${
+        className={`flex items-center gap-2 px-4 h-10 rounded-xl transition-all duration-200 border ${
           focused
             ? "border-blue-400 shadow-[0_0_0_1px_rgba(59,130,246,0.3)] bg-white"
             : "border-gray-100 bg-gray-50/60 hover:border-gray-200"
