@@ -158,18 +158,15 @@ export default function CalendarFeedSettings() {
 
   if (loading) {
     return (
-      <div className="mt-8 pt-6 border-t border-gray-100">
-        <div className="flex items-center gap-2 text-gray-400 text-sm">
-          <Calendar size={16} />
-          Loading calendar settings...
-        </div>
+      <div className="flex items-center gap-2 text-gray-400 text-sm py-4">
+        <Calendar size={16} />
+        Loading calendar settings...
       </div>
     );
   }
 
   return (
-    <div className="mt-8 pt-6 border-t border-gray-100">
-      <div className="max-w-xl">
+    <div className="max-w-xl">
         {/* Header */}
         <div className="flex items-center gap-2 mb-1">
           <Calendar size={18} className="text-gray-600" />
@@ -275,7 +272,6 @@ export default function CalendarFeedSettings() {
         {success && (
           <div className="mt-3 bg-emerald-50 text-emerald-600 text-sm p-3 rounded-xl">{success}</div>
         )}
-      </div>
     </div>
   );
 }

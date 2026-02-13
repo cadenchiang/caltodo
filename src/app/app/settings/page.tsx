@@ -9,8 +9,8 @@ import CalendarFeedSettings from "@/components/settings/CalendarFeedSettings";
 import PageTransition from "@/components/ui/PageTransition";
 
 /**
- * Settings page for configuring Canvas and Gradescope integrations.
- * Includes a button to redo the onboarding wizard and delete all tasks.
+ * Settings page with three sections: Integrations, Calendar Feed, and Advanced actions.
+ * Each integration section manages its own Edit/Save/Cancel independently.
  */
 export default function SettingsPage() {
   const router = useRouter();
@@ -40,13 +40,17 @@ export default function SettingsPage() {
             <h1 className="text-xl font-bold text-gray-800">Settings</h1>
           </div>
           <div className="flex-1 overflow-auto px-8 pb-8">
+            {/* Integrations */}
             <div className="animate-stagger stagger-2">
               <IntegrationSettings />
             </div>
-            <div className="animate-stagger stagger-3">
+
+            {/* Calendar Feed */}
+            <div className="mt-8 pt-6 border-t border-gray-100 animate-stagger stagger-3">
               <CalendarFeedSettings />
             </div>
 
+            {/* Advanced actions */}
             <div className="mt-8 pt-6 border-t border-gray-100 flex flex-col gap-2 animate-stagger stagger-4">
               <button
                 onClick={() => router.push("/app/onboarding")}
