@@ -7,8 +7,36 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useLayoutEffect, useCallback, useRef } from "react";
 import { Calendar, Copy, Check, RefreshCw, XCircle } from "lucide-react";
+
+const CAL_CACHE_KEY = "toodoo_calendar_token_cache";
+
+/**
+ * Reads cached calendar token from localStorage.
+ * @returns Cached token string, null (no token), or undefined (no cache)
+ */
+function getCachedToken(): string | null | undefined {
+  try {
+    const raw = localStorage.getItem(CAL_CACHE_KEY);
+    if (raw === null) return undefined;
+    return JSON.parse(raw) as string | null;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Writes calendar token to localStorage cache.
+ * @param token - The token to cache, or null to cache "no token" state
+ */
+function setCachedToken(token: string | null): void {
+  try {
+    localStorage.setItem(CAL_CACHE_KEY, JSON.stringify(token));
+  } catch {
+    /* ignore quota errors */
+  }
+}
 
 /**
  * Inline Google Calendar logo SVG (16x16).
@@ -57,6 +85,17 @@ export default function CalendarFeedSettings() {
   const [copied, setCopied] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [confirmDisable, setConfirmDisable] = useState(false);
+  const hasCacheRef = useRef(false);
+
+  /** Hydrate from localStorage before first paint. */
+  useLayoutEffect(() => {
+    const cached = getCachedToken();
+    if (cached !== undefined) {
+      setCalendarToken(cached);
+      setLoading(false);
+      hasCacheRef.current = true;
+    }
+  }, []);
 
   /**
    * Builds the full feed URL from the current token.
@@ -69,9 +108,12 @@ export default function CalendarFeedSettings() {
 
   /**
    * Fetches the current calendar token from the API.
+   * Skips loading spinner if cache was used.
    */
   const fetchToken = useCallback(async () => {
-    setLoading(true);
+    if (!hasCacheRef.current) {
+      setLoading(true);
+    }
     setError(null);
     try {
       const res = await fetch("/api/calendar/token");
@@ -81,8 +123,11 @@ export default function CalendarFeedSettings() {
       }
       const data = await res.json();
       setCalendarToken(data.calendar_token);
+      setCachedToken(data.calendar_token);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load calendar settings");
+      if (!hasCacheRef.current) {
+        setError(err instanceof Error ? err.message : "Failed to load calendar settings");
+      }
     } finally {
       setLoading(false);
     }
@@ -107,6 +152,7 @@ export default function CalendarFeedSettings() {
       }
       const data = await res.json();
       setCalendarToken(data.calendar_token);
+      setCachedToken(data.calendar_token);
       setSuccess("Calendar feed enabled. Copy the URL below.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to generate token");
@@ -136,6 +182,7 @@ export default function CalendarFeedSettings() {
         throw new Error(body.error || "Failed to disable calendar feed");
       }
       setCalendarToken(null);
+      setCachedToken(null);
       setSuccess("Calendar feed disabled.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to disable feed");

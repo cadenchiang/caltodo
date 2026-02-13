@@ -1,42 +1,98 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
 import type { IntegrationCredentials } from "@/lib/types";
 import CanvasSettings from "./CanvasSettings";
 import GradescopeSettings from "./GradescopeSettings";
 
+const CACHE_KEY = "toodoo_credentials_cache";
+
+/**
+ * Reads cached credentials from localStorage.
+ * @returns Cached IntegrationCredentials or null if not found/invalid
+ */
+function getCachedCredentials(): IntegrationCredentials | null {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as IntegrationCredentials;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Writes credentials to localStorage cache.
+ * @param creds - The credentials to cache
+ */
+function setCachedCredentials(creds: IntegrationCredentials): void {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(creds));
+  } catch {
+    /* ignore quota errors */
+  }
+}
+
 /**
  * Container for Canvas and Gradescope integration settings.
- * Fetches credentials once and passes to self-contained section components.
- * Each section manages its own Edit/Save/Cancel flow independently.
+ * Uses localStorage cache for instant render (stale-while-revalidate).
+ * Fetches fresh data from API in the background.
  */
 export default function IntegrationSettings() {
   const [loading, setLoading] = useState(true);
   const [credentials, setCredentials] = useState<IntegrationCredentials | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const hasCacheRef = useRef(false);
 
-  useEffect(() => {
-    fetchCredentials();
+  /** Hydrate from localStorage before first paint. */
+  useLayoutEffect(() => {
+    const cached = getCachedCredentials();
+    if (cached) {
+      setCredentials(cached);
+      setLoading(false);
+      hasCacheRef.current = true;
+    }
   }, []);
 
   /**
    * Fetches integration credentials from the API.
-   * Called once on mount; individual sections handle their own saves.
+   * Skips loading spinner if cache was used.
    */
-  async function fetchCredentials() {
-    setLoading(true);
+  const fetchCredentials = useCallback(async () => {
+    if (!hasCacheRef.current) {
+      setLoading(true);
+    }
     try {
       const res = await fetch("/api/credentials");
       if (res.ok) {
-        setCredentials(await res.json());
+        const data: IntegrationCredentials = await res.json();
+        setCredentials(data);
+        setCachedCredentials(data);
       } else {
-        setFetchError("Failed to load credentials");
+        if (!hasCacheRef.current) {
+          setFetchError("Failed to load credentials");
+        }
       }
     } catch {
-      setFetchError("Failed to load credentials");
+      if (!hasCacheRef.current) {
+        setFetchError("Failed to load credentials");
+      }
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    fetchCredentials();
+  }, [fetchCredentials]);
+
+  /**
+   * Handles credential updates from child components (Save).
+   * Updates both state and localStorage cache.
+   */
+  function handleUpdate(updated: IntegrationCredentials) {
+    setCredentials(updated);
+    setCachedCredentials(updated);
   }
 
   if (loading) {
@@ -57,8 +113,8 @@ export default function IntegrationSettings() {
 
   return (
     <div className="max-w-xl space-y-8">
-      <CanvasSettings credentials={credentials} onUpdate={setCredentials} />
-      <GradescopeSettings credentials={credentials} onUpdate={setCredentials} />
+      <CanvasSettings credentials={credentials} onUpdate={handleUpdate} />
+      <GradescopeSettings credentials={credentials} onUpdate={handleUpdate} />
     </div>
   );
 }
