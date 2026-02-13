@@ -14,6 +14,7 @@ import CalendarDayCell from "./CalendarDayCell";
 interface CalendarGridProps {
   currentMonth: Date;
   tasks: Task[];
+  addingDate?: string | null;
   onDayClick: (date: string) => void;
   onTaskClick: (task: Task) => void;
 }
@@ -27,6 +28,7 @@ const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 export default function CalendarGrid({
   currentMonth,
   tasks,
+  addingDate,
   onDayClick,
   onTaskClick,
 }: CalendarGridProps) {
@@ -70,6 +72,7 @@ export default function CalendarGrid({
               day={day}
               currentMonth={currentMonth}
               tasks={tasksByDate[dateStr] ?? []}
+              addingDate={addingDate}
               onDayClick={onDayClick}
               onTaskClick={onTaskClick}
             />

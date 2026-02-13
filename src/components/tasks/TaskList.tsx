@@ -67,7 +67,7 @@ export default function TaskList({
 }: TaskListProps) {
   const [overdueExpanded, setOverdueExpanded] = useState(true);
   const [currentExpanded, setCurrentExpanded] = useState(true);
-  const [completedExpanded, setCompletedExpanded] = useState(false);
+  const [completedExpanded, setCompletedExpanded] = useState(true);
   const [showAllOverdue, setShowAllOverdue] = useState(false);
   const [showAllCurrent, setShowAllCurrent] = useState(false);
   const [showAllCompleted, setShowAllCompleted] = useState(false);
@@ -137,16 +137,16 @@ export default function TaskList({
         <div className="mt-1">
           <button
             onClick={() => setOverdueExpanded(!overdueExpanded)}
-            className="flex items-center gap-2 px-6 py-2 hover:bg-black/5 transition-colors w-full text-left rounded-lg mx-2"
+            className="flex items-center pl-2.5 pr-4 py-1.5 hover:bg-black/5 transition-colors w-full text-left rounded-lg mx-2"
           >
             <ChevronRight
-              size={14}
-              className={`text-red-400 transition-transform duration-200 ${
+              size={12}
+              className={`shrink-0 text-red-400 transition-transform duration-200 ${
                 overdueExpanded ? "rotate-90" : ""
               }`}
             />
-            <span className="text-xs font-semibold text-red-500">Overdue</span>
-            <span className="text-xs text-red-300">{overdue.length}</span>
+            <span className="text-sm font-semibold text-red-500 ml-0.5">Overdue</span>
+            <span className="text-xs text-red-300 ml-1.5">{overdue.length}</span>
           </button>
           {overdueExpanded && (
             <>
@@ -178,16 +178,16 @@ export default function TaskList({
         <div className="mt-1">
           <button
             onClick={() => setCurrentExpanded(!currentExpanded)}
-            className="flex items-center gap-2 px-6 py-2 hover:bg-black/5 transition-colors w-full text-left rounded-lg mx-2"
+            className="flex items-center pl-2.5 pr-4 py-1.5 hover:bg-black/5 transition-colors w-full text-left rounded-lg mx-2"
           >
             <ChevronRight
-              size={14}
-              className={`text-blue-400 transition-transform duration-200 ${
+              size={12}
+              className={`shrink-0 text-blue-400 transition-transform duration-200 ${
                 currentExpanded ? "rotate-90" : ""
               }`}
             />
-            <span className="text-xs font-semibold text-blue-500">Current</span>
-            <span className="text-xs text-blue-300">{current.length}</span>
+            <span className="text-sm font-semibold text-blue-500 ml-0.5">Current</span>
+            <span className="text-xs text-blue-300 ml-1.5">{current.length}</span>
           </button>
           {currentExpanded && (
             <>
@@ -219,16 +219,16 @@ export default function TaskList({
         <div className="mt-1">
           <button
             onClick={() => setCompletedExpanded(!completedExpanded)}
-            className="flex items-center gap-2 px-6 py-2 hover:bg-black/5 transition-colors w-full text-left rounded-lg mx-2"
+            className="flex items-center pl-2.5 pr-4 py-1.5 hover:bg-black/5 transition-colors w-full text-left rounded-lg mx-2"
           >
             <ChevronRight
-              size={14}
-              className={`text-gray-400 transition-transform duration-200 ${
+              size={12}
+              className={`shrink-0 text-gray-400 transition-transform duration-200 ${
                 completedExpanded ? "rotate-90" : ""
               }`}
             />
-            <span className="text-xs font-semibold text-gray-500">Completed</span>
-            <span className="text-xs text-gray-400">{completed.length}</span>
+            <span className="text-sm font-semibold text-gray-500 ml-0.5">Completed</span>
+            <span className="text-xs text-gray-400 ml-1.5">{completed.length}</span>
           </button>
           {completedExpanded && (
             <>

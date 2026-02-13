@@ -1,8 +1,63 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useLayoutEffect, useCallback, useRef, type ReactNode } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Task, TaskInsert, TaskUpdate, SyncResult } from "@/lib/types";
+
+/** localStorage key and version for stale-while-revalidate task caching. */
+const CACHE_KEY = "toodoo_tasks_cache";
+const CACHE_VERSION = 1;
+
+interface CachedTasks {
+  version: number;
+  tasks: Task[];
+  timestamp: number;
+}
+
+/**
+ * Reads cached tasks from localStorage.
+ * Returns null if cache is missing, corrupt, or version-mismatched.
+ */
+function getCachedTasks(): Task[] | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    const parsed: CachedTasks = JSON.parse(raw);
+    if (parsed.version !== CACHE_VERSION) return null;
+    return parsed.tasks;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Writes tasks to localStorage cache.
+ * Silently fails if localStorage is full or unavailable.
+ */
+function setCachedTasks(tasks: Task[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    const cache: CachedTasks = {
+      version: CACHE_VERSION,
+      tasks,
+      timestamp: Date.now(),
+    };
+    localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+  } catch {
+    // localStorage full or unavailable — non-critical
+  }
+}
+
+/** Clears the localStorage task cache. */
+function clearCachedTasks(): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.removeItem(CACHE_KEY);
+  } catch {
+    // non-critical
+  }
+}
 
 interface TaskContextValue {
   tasks: Task[];
@@ -16,6 +71,7 @@ interface TaskContextValue {
   updateTask: (id: string, updates: TaskUpdate) => Promise<void>;
   toggleComplete: (id: string) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
+  deleteAllTasks: () => Promise<void>;
   triggerSync: () => Promise<void>;
   fetchTasks: () => Promise<void>;
 }
@@ -23,10 +79,12 @@ interface TaskContextValue {
 const TaskContext = createContext<TaskContextValue | null>(null);
 
 /**
- * Global task state provider. Fetches all tasks (manual + synced assignments)
- * once and shares them across all views so tab switching is instant.
- * Also manages sync state for Canvas/Gradescope integration.
- * Retrieves user_id from auth session to satisfy RLS policies on insert.
+ * Global task state provider using stale-while-revalidate pattern:
+ * 1. On mount: hydrate from localStorage cache (avoids loading spinner)
+ * 2. Fetch fresh data from Supabase in background
+ * 3. Update state + cache on every successful fetch or mutation
+ *
+ * Cache hydration happens in useEffect to avoid SSR/client hydration mismatch.
  */
 export function TaskProvider({ children }: { children: ReactNode }) {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -38,10 +96,25 @@ export function TaskProvider({ children }: { children: ReactNode }) {
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
   const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
   const progressTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const hasCacheRef = useRef(false);
   const supabase = createClient();
 
+  // Hydrate from localStorage before first paint (useLayoutEffect runs synchronously
+  // after DOM mutations but before the browser paints, eliminating the loading flash)
+  useLayoutEffect(() => {
+    const cached = getCachedTasks();
+    if (cached) {
+      setTasks(cached);
+      setLoading(false);
+      hasCacheRef.current = true;
+    }
+  }, []);
+
   const fetchTasks = useCallback(async () => {
-    setLoading(true);
+    // Only show loading spinner if we have no cached data
+    if (!hasCacheRef.current) {
+      setLoading(true);
+    }
     setError(null);
 
     const { data: { user } } = await supabase.auth.getUser();
@@ -60,7 +133,9 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    setTasks(data ?? []);
+    const freshTasks = data ?? [];
+    setTasks(freshTasks);
+    setCachedTasks(freshTasks);
     setLoading(false);
   }, []);
 
@@ -99,17 +174,23 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     }
 
     if (data) {
-      setTasks((prev) => [data, ...prev]);
+      setTasks((prev) => {
+        const updated = [data, ...prev];
+        setCachedTasks(updated);
+        return updated;
+      });
       setError(null);
     }
   }
 
   async function updateTask(id: string, updates: TaskUpdate) {
-    setTasks((prev) =>
-      prev.map((t) =>
+    setTasks((prev) => {
+      const updated = prev.map((t) =>
         t.id === id ? { ...t, ...updates, updated_at: new Date().toISOString() } : t
-      )
-    );
+      );
+      setCachedTasks(updated);
+      return updated;
+    });
 
     const { error: updateError } = await supabase
       .from("tasks")
@@ -129,7 +210,11 @@ export function TaskProvider({ children }: { children: ReactNode }) {
   }
 
   async function deleteTask(id: string) {
-    setTasks((prev) => prev.filter((t) => t.id !== id));
+    setTasks((prev) => {
+      const updated = prev.filter((t) => t.id !== id);
+      setCachedTasks(updated);
+      return updated;
+    });
 
     const { error: deleteError } = await supabase
       .from("tasks")
@@ -138,6 +223,34 @@ export function TaskProvider({ children }: { children: ReactNode }) {
 
     if (deleteError) {
       setError(deleteError.message);
+      fetchTasks();
+    }
+  }
+
+  /**
+   * Deletes all tasks for the current user.
+   * Optimistically clears local state + cache, then deletes from DB.
+   * Falls back to refetching if the DB delete fails.
+   */
+  async function deleteAllTasks() {
+    if (!userId) {
+      setError("Not authenticated. Please sign in again.");
+      return;
+    }
+
+    const previousTasks = [...tasks];
+    setTasks([]);
+    clearCachedTasks();
+
+    const { error: deleteError } = await supabase
+      .from("tasks")
+      .delete()
+      .eq("user_id", userId);
+
+    if (deleteError) {
+      setError(deleteError.message);
+      setTasks(previousTasks);
+      setCachedTasks(previousTasks);
       fetchTasks();
     }
   }
@@ -213,6 +326,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
         updateTask,
         toggleComplete,
         deleteTask,
+        deleteAllTasks,
         triggerSync,
         fetchTasks,
       }}

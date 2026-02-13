@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, type RefObject } from "react";
 import useClickOutside from "@/hooks/useClickOutside";
 
 interface PopoverProps {
@@ -8,6 +8,7 @@ interface PopoverProps {
   onClose: () => void;
   children: React.ReactNode;
   className?: string;
+  triggerRef?: RefObject<HTMLElement | null>;
 }
 
 /**
@@ -18,13 +19,15 @@ interface PopoverProps {
  * @param onClose - Callback to close the popover
  * @param children - Popover content
  * @param className - Additional CSS classes for positioning
+ * @param triggerRef - Optional ref to the trigger button, excluded from click-outside detection
  */
-export default function Popover({ open, onClose, children, className = "" }: PopoverProps) {
+export default function Popover({ open, onClose, children, className = "", triggerRef }: PopoverProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
 
-  useClickOutside(ref, onClose, open);
+  const excludeRefs = triggerRef ? [triggerRef] : undefined;
+  useClickOutside(ref, onClose, open, excludeRefs);
 
   useEffect(() => {
     if (open) {

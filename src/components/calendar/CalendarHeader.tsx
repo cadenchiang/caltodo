@@ -1,7 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface CalendarHeaderProps {
   currentMonth: Date;
@@ -22,7 +22,8 @@ export default function CalendarHeader({
 }: CalendarHeaderProps) {
   return (
     <div className="flex items-center justify-between mb-5">
-      <h1 className="text-2xl font-bold text-gray-800">
+      <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+        <CalendarDays size={22} />
         {format(currentMonth, "MMMM yyyy")}
       </h1>
       <div className="flex items-center gap-1.5">

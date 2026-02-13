@@ -32,6 +32,8 @@ export default function TaskAddForm({ onAdd, defaultDate, placeholder }: TaskAdd
   const [focused, setFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const dateButtonRef = useRef<HTMLButtonElement>(null);
+  const colorButtonRef = useRef<HTMLButtonElement>(null);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -94,6 +96,7 @@ export default function TaskAddForm({ onAdd, defaultDate, placeholder }: TaskAdd
           <>
             {/* Color indicator dot */}
             <button
+              ref={colorButtonRef}
               type="button"
               onClick={() => {
                 setShowColorPicker(!showColorPicker);
@@ -110,6 +113,7 @@ export default function TaskAddForm({ onAdd, defaultDate, placeholder }: TaskAdd
 
             {/* Calendar icon */}
             <button
+              ref={dateButtonRef}
               type="button"
               onClick={() => {
                 setShowDatePicker(!showDatePicker);
@@ -127,6 +131,7 @@ export default function TaskAddForm({ onAdd, defaultDate, placeholder }: TaskAdd
       <Popover
         open={showDatePicker}
         onClose={() => setShowDatePicker(false)}
+        triggerRef={dateButtonRef}
         className="absolute right-2 top-full mt-1 z-20"
       >
         <DatePicker
@@ -142,6 +147,7 @@ export default function TaskAddForm({ onAdd, defaultDate, placeholder }: TaskAdd
       <Popover
         open={showColorPicker}
         onClose={() => setShowColorPicker(false)}
+        triggerRef={colorButtonRef}
         className="absolute right-12 top-full mt-1 z-20"
       >
         <div className="bg-white rounded-xl shadow-2xl border border-gray-100 p-3">

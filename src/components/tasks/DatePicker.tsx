@@ -10,6 +10,8 @@ import {
   eachDayOfInterval,
   isSameMonth,
   isSameDay,
+  isBefore,
+  startOfDay,
   addMonths,
   subMonths,
 } from "date-fns";
@@ -38,6 +40,7 @@ export default function DatePicker({ value, onChange }: DatePickerProps) {
   const days = eachDayOfInterval({ start: calStart, end: calEnd });
 
   const weekDays = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+  const today = startOfDay(new Date());
 
   return (
     <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 p-3 w-64">
@@ -76,7 +79,8 @@ export default function DatePicker({ value, onChange }: DatePickerProps) {
         {days.map((day) => {
           const isCurrentMonth = isSameMonth(day, currentMonth);
           const isSelected = selectedDate && isSameDay(day, selectedDate);
-          const isToday = isSameDay(day, new Date());
+          const isToday = isSameDay(day, today);
+          const isPast = isCurrentMonth && isBefore(day, today) && !isToday;
           const dateStr = format(day, "yyyy-MM-dd");
 
           return (
@@ -89,9 +93,11 @@ export default function DatePicker({ value, onChange }: DatePickerProps) {
                   ? "bg-blue-500 text-white shadow-sm"
                   : isToday
                     ? "bg-blue-500/10 text-blue-600 font-medium"
-                    : isCurrentMonth
-                      ? "text-gray-700 hover:bg-white/50"
-                      : "text-gray-300"
+                    : isPast
+                      ? "text-gray-400 hover:bg-white/50"
+                      : isCurrentMonth
+                        ? "text-gray-700 hover:bg-white/50"
+                        : "text-gray-300"
               }`}
             >
               {format(day, "d")}

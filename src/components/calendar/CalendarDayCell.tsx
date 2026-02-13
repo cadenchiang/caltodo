@@ -8,6 +8,7 @@ interface CalendarDayCellProps {
   day: Date;
   currentMonth: Date;
   tasks: Task[];
+  addingDate?: string | null;
   onDayClick: (date: string) => void;
   onTaskClick: (task: Task) => void;
 }
@@ -26,6 +27,7 @@ export default function CalendarDayCell({
   day,
   currentMonth,
   tasks,
+  addingDate,
   onDayClick,
   onTaskClick,
 }: CalendarDayCellProps) {
@@ -62,6 +64,13 @@ export default function CalendarDayCell({
       >
         {format(day, "d")}
       </div>
+
+      {/* "(No title)" placeholder when this day is being added to */}
+      {addingDate === dateStr && (
+        <div className="bg-blue-500 text-white text-[10px] font-medium px-1.5 py-0.5 rounded truncate mb-0.5">
+          (No title)
+        </div>
+      )}
 
       {/* Task bars */}
       <div className="flex flex-col gap-0.5">

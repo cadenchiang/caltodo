@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { X } from "lucide-react";
 import { useTaskContext } from "@/contexts/TaskContext";
 import CanvasStep from "@/components/onboarding/CanvasStep";
 import GradescopeStep from "@/components/onboarding/GradescopeStep";
@@ -97,6 +98,15 @@ export default function OnboardingPage() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80 backdrop-blur-xl">
+      {/* Close button */}
+      <button
+        onClick={() => router.push("/app/inbox")}
+        className="absolute top-6 right-6 p-2 text-gray-400 hover:text-gray-600 hover:bg-black/5 rounded-lg transition-colors"
+        aria-label="Close onboarding"
+      >
+        <X size={20} />
+      </button>
+
       <div className="w-full max-w-md mx-auto px-6">
         {/* Step indicator */}
         <div className="flex items-center justify-center gap-2 mb-8">

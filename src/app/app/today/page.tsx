@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { useTaskContext } from "@/contexts/TaskContext";
 import TaskList from "@/components/tasks/TaskList";
 import TaskDetailPanel from "@/components/tasks/TaskDetailPanel";
+import PageTransition from "@/components/ui/PageTransition";
 import type { Task } from "@/lib/types";
 
 /**
@@ -25,32 +26,34 @@ export default function TodayPage() {
     : null;
 
   return (
-    <div className="flex h-full -m-10">
-      <div className="flex flex-col flex-1 min-w-0">
-        <div className="px-8 pt-8 pb-4">
-          <h1 className="text-xl font-bold text-gray-800">Today</h1>
+    <PageTransition>
+      <div className="flex h-full -m-10">
+        <div className="flex flex-col flex-1 min-w-0">
+          <div className="px-8 pt-8 pb-4 animate-stagger stagger-1">
+            <h1 className="text-xl font-bold text-gray-800">Today</h1>
+          </div>
+          <div className="flex-1 overflow-auto animate-stagger stagger-2">
+            <TaskList
+              tasks={todayTasks}
+              loading={loading}
+              error={error}
+              selectedTaskId={selectedTask?.id}
+              onAdd={addTask}
+              onToggle={toggleComplete}
+              onSelect={(task) => setSelectedTask(task)}
+              onDelete={deleteTask}
+              defaultDate={today}
+              placeholder='Add task for today. Press Enter to save.'
+            />
+          </div>
         </div>
-        <div className="flex-1 overflow-auto">
-          <TaskList
-            tasks={todayTasks}
-            loading={loading}
-            error={error}
-            selectedTaskId={selectedTask?.id}
-            onAdd={addTask}
-            onToggle={toggleComplete}
-            onSelect={(task) => setSelectedTask(task)}
-            onDelete={deleteTask}
-            defaultDate={today}
-            placeholder='Add task for today. Press Enter to save.'
-          />
-        </div>
-      </div>
 
-      <TaskDetailPanel
-        task={currentSelectedTask}
-        onClose={() => setSelectedTask(null)}
-        onSave={updateTask}
-      />
-    </div>
+        <TaskDetailPanel
+          task={currentSelectedTask}
+          onClose={() => setSelectedTask(null)}
+          onSave={updateTask}
+        />
+      </div>
+    </PageTransition>
   );
 }

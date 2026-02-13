@@ -157,6 +157,7 @@ describe("fetchAllCanvasAssignments", () => {
       due_date: "2026-03-01T23:59:00Z",
       source_url: "https://bcourses.berkeley.edu/courses/1/assignments/101",
       points_possible: 10,
+      is_submitted: false,
     });
     expect(results[1].title).toBe("Lab 1");
     expect(results[1].due_date).toBeNull();
