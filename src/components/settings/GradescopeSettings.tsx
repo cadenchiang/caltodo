@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Eye, EyeOff, Lock, Pencil, Loader2, X } from "lucide-react";
+import { Eye, EyeOff, Lock, Pencil, Loader2, X, Play } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 import type { IntegrationCredentials, CredentialsSavePayload } from "@/lib/types";
 
@@ -37,6 +37,8 @@ export default function GradescopeSettings({ credentials, onUpdate }: Gradescope
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [verifying, setVerifying] = useState(false);
   const [showCourseModal, setShowCourseModal] = useState(false);
+  const [videoExpanded, setVideoExpanded] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   const serverState = useRef({
     gradescopeEmail: credentials.gradescope_email ?? "",
@@ -154,17 +156,82 @@ export default function GradescopeSettings({ credentials, onUpdate }: Gradescope
         )}
       </div>
       <p className="text-xs text-subtle-foreground mb-4">
-        CalNet SSO users must set a Gradescope-specific password via{" "}
+        If you use CalNet SSO, you&apos;ll need to create a Gradescope-specific password first.
+        Go to{" "}
         <a
           href="https://www.gradescope.com/reset_password"
           target="_blank"
           rel="noopener noreferrer"
           className="text-blue-500 hover:text-blue-600 underline"
         >
-          Forgot Password
+          Reset Password
         </a>{" "}
-        first.
+        and enter your Berkeley email — this won&apos;t affect your CalNet login.
       </p>
+
+      {/* Video tutorial with smooth expand/collapse */}
+      <div className="mb-4">
+        <div
+          className="grid overflow-hidden transition-[grid-template-rows,opacity] duration-500"
+          style={{
+            gridTemplateRows: videoExpanded ? "0fr" : "1fr",
+            opacity: videoExpanded ? 0 : 1,
+            transitionTimingFunction: "cubic-bezier(0.33, 1, 0.68, 1)",
+          }}
+        >
+          <div className="min-h-0 overflow-hidden">
+            <button
+              type="button"
+              onClick={() => {
+                setVideoExpanded(true);
+                setTimeout(() => {
+                  if (videoRef.current) {
+                    videoRef.current.currentTime = 0;
+                    videoRef.current.play().catch(() => {});
+                  }
+                }, 400);
+              }}
+              className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs text-muted-foreground hover:text-foreground border border-border hover:bg-accent transition-colors"
+            >
+              <Play size={14} />
+              watch how to sign in
+            </button>
+          </div>
+        </div>
+
+        <div
+          className="grid overflow-hidden transition-[grid-template-rows,opacity] duration-500"
+          style={{
+            gridTemplateRows: videoExpanded ? "1fr" : "0fr",
+            opacity: videoExpanded ? 1 : 0,
+            transitionTimingFunction: "cubic-bezier(0.33, 1, 0.68, 1)",
+          }}
+        >
+          <div className="min-h-0 overflow-hidden">
+            <div className="rounded-xl overflow-hidden shadow-lg mb-3">
+              <video
+                ref={videoRef}
+                src="/gradescope-instructions.mp4"
+                loop
+                muted
+                playsInline
+                controls
+                className="w-full"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setVideoExpanded(false);
+                videoRef.current?.pause();
+              }}
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              hide video
+            </button>
+          </div>
+        </div>
+      </div>
 
       {locked ? (
         <div className="space-y-3">
@@ -275,7 +342,7 @@ export default function GradescopeSettings({ credentials, onUpdate }: Gradescope
             {credentials.selected_gradescope_courses.map((c) => (
               <span
                 key={c.id}
-                className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-300 border border-teal-100 dark:border-teal-800"
+                className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-300"
               >
                 {c.name}
               </span>

@@ -21,6 +21,22 @@ export default function SettingsPage() {
   const { showToast } = useToast();
   const { preference, setPreference } = useTheme();
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmRedo, setConfirmRedo] = useState(false);
+
+  /**
+   * Handles redo setup wizard with double-click confirmation.
+   * First click shows confirmation text, second click navigates.
+   * Resets after 3 seconds if not confirmed.
+   */
+  function handleRedoSetup() {
+    if (!confirmRedo) {
+      setConfirmRedo(true);
+      setTimeout(() => setConfirmRedo(false), 3000);
+      return;
+    }
+    setConfirmRedo(false);
+    router.push("/app/onboarding");
+  }
 
   /**
    * Handles delete all tasks with double-click confirmation.
@@ -72,10 +88,10 @@ export default function SettingsPage() {
                     <button
                       key={value}
                       onClick={() => setPreference(value)}
-                      className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium ${
+                      className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
                         preference === value
-                          ? "border-blue-500 text-blue-600 bg-blue-50 dark:bg-blue-900/20 btn-elevated"
-                          : "text-muted-foreground btn-elevated-secondary"
+                          ? "border border-blue-500 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 shadow-[0_2px_8px_rgba(59,130,246,0.15)]"
+                          : "text-secondary-foreground border border-border-subtle dark:border-[#404040] bg-card hover:bg-accent hover:text-foreground active:scale-[0.98] transition-all duration-200"
                       }`}
                     >
                       <Icon size={16} />
@@ -93,11 +109,15 @@ export default function SettingsPage() {
                 </p>
                 <div className="flex flex-col gap-2">
                   <button
-                    onClick={() => router.push("/app/onboarding")}
-                    className="flex items-center gap-2 px-4 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-accent rounded-xl transition-colors w-fit"
+                    onClick={handleRedoSetup}
+                    className={`flex items-center gap-2 px-4 py-2.5 text-sm rounded-xl transition-colors w-fit ${
+                      confirmRedo
+                        ? "text-amber-600 bg-amber-50 dark:bg-amber-900/30 hover:bg-amber-100 dark:hover:bg-amber-900/50"
+                        : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                    }`}
                   >
                     <RotateCcw size={15} />
-                    Redo Setup Wizard
+                    {confirmRedo ? "Click again to redo setup" : "Redo Setup Wizard"}
                   </button>
 
                   <button

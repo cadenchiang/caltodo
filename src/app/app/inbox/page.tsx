@@ -87,15 +87,24 @@ export default function InboxPage() {
     [tasks, filter]
   );
 
-  // Close filter dropdown on outside click
+  // Close filter dropdown on outside click or scroll
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (filterRef.current && !filterRef.current.contains(e.target as Node)) {
         setShowFilterDropdown(false);
       }
     }
-    if (showFilterDropdown) document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
+    function handleScroll() {
+      setShowFilterDropdown(false);
+    }
+    if (showFilterDropdown) {
+      document.addEventListener("mousedown", handleClick);
+      window.addEventListener("scroll", handleScroll, true);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      window.removeEventListener("scroll", handleScroll, true);
+    };
   }, [showFilterDropdown]);
 
   // Show sync result as a toast notification
@@ -194,7 +203,7 @@ export default function InboxPage() {
                 <ChevronDown size={14} className="text-muted-foreground" />
               </button>
               {showFilterDropdown && (
-                <div className="absolute top-full left-0 mt-1 z-20 rounded-xl shadow-2xl border border-border overflow-hidden animate-in min-w-[160px] bg-white dark:bg-[#1a1a1a]">
+                <div className="absolute top-full left-0 mt-1 z-50 rounded-xl shadow-2xl border border-border overflow-hidden animate-in min-w-[160px] bg-popover">
                   {FILTER_OPTIONS.map(({ key, label, icon: Icon }) => (
                     <button
                       key={key}

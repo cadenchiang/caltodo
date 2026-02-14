@@ -1,14 +1,29 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Mockup, MockupFrame } from "@/components/ui/mockup";
 import { InteractiveHoverButton } from "@/components/ui/interactive-hover-button";
+
+const HERO_IMAGES = [
+  { src: "/app-screenshot-calendar.png", alt: "caltodo calendar view with synced assignments" },
+  { src: "/app-screenshot-inbox.png", alt: "caltodo inbox view with task list and detail panel" },
+];
 
 /**
  * Hero landing page for unauthenticated users.
  * Always white background with black text.
  */
 export default function Hero() {
+  const [activeImage, setActiveImage] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setActiveImage((prev) => (prev + 1) % HERO_IMAGES.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <div className="min-h-screen flex flex-col bg-white text-black">
       {/* Nav */}
@@ -94,13 +109,34 @@ export default function Hero() {
         <div className="mt-20 w-full max-w-5xl mx-auto relative animate-appear opacity-0" style={{ animationDelay: "900ms" }}>
           <MockupFrame className="w-full">
             <Mockup type="responsive" className="w-full">
-              <img
-                src="/app-screenshot.png"
-                alt="caltodo app showing calendar view with synced assignments"
-                className="w-full"
-              />
+              <div className="relative w-full">
+                {HERO_IMAGES.map((img, i) => (
+                  <img
+                    key={img.src}
+                    src={img.src}
+                    alt={img.alt}
+                    className={`w-full transition-opacity duration-700 ease-in-out ${
+                      i === 0 ? "relative" : "absolute inset-0"
+                    }`}
+                    style={{ opacity: activeImage === i ? 1 : 0 }}
+                  />
+                ))}
+              </div>
             </Mockup>
           </MockupFrame>
+          {/* Image indicator dots */}
+          <div className="flex justify-center gap-2 mt-4" style={{ zIndex: 11, position: "relative" }}>
+            {HERO_IMAGES.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setActiveImage(i)}
+                className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                  activeImage === i ? "bg-black w-6" : "bg-black/20"
+                }`}
+                aria-label={`Show screenshot ${i + 1}`}
+              />
+            ))}
+          </div>
           <div
             className="absolute bottom-0 left-0 right-0 w-full h-[303px]"
             style={{

@@ -259,7 +259,7 @@ export default function CanvasSettings({ credentials, onUpdate }: CanvasSettings
             {credentials.selected_canvas_courses.map((c) => (
               <span
                 key={c.id}
-                className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border border-blue-100 dark:border-blue-800"
+                className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
               >
                 {c.name}
               </span>

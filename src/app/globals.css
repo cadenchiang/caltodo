@@ -441,6 +441,19 @@ textarea:-webkit-autofill {
 /* Force light form controls + white autofill on always-white pages */
 .force-light {
   color-scheme: light !important;
+  --background: #ffffff;
+  --card: #ffffff;
+  --popover: #ffffff;
+  --muted: #f9fafb;
+  --accent: #f9fafb;
+  --foreground: #1f2937;
+  --secondary-foreground: #4b5563;
+  --muted-foreground: #6b7280;
+  --subtle-foreground: #9ca3af;
+  --border: #f3f4f6;
+  --input-border: #e5e7eb;
+  --border-subtle: #f9fafb;
+  --ring: #bfdbfe;
 }
 .force-light input,
 .force-light textarea,

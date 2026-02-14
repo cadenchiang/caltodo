@@ -112,23 +112,25 @@ export default function DatePicker({ value, timeValue, onChange, onTimeChange }:
 
       {/* Time input */}
       {onTimeChange && (
-        <div className="mt-2 flex items-center gap-2 px-1">
-          <label className="text-xs text-subtle-foreground">Time</label>
+        <div className="mt-3 pt-3 border-t border-border px-1">
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-xs font-medium text-secondary-foreground">Time</label>
+            {timeValue && (
+              <button
+                type="button"
+                onClick={() => onTimeChange(null)}
+                className="text-xs text-subtle-foreground hover:text-secondary-foreground transition-colors"
+              >
+                Clear
+              </button>
+            )}
+          </div>
           <input
             type="time"
             value={timeValue ?? ""}
             onChange={(e) => onTimeChange(e.target.value || null)}
-            className="flex-1 px-2 py-1 text-xs rounded-lg border border-border bg-transparent text-foreground focus:outline-none"
+            className="w-full px-3 py-2 text-sm rounded-xl border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-blue-400 transition-all"
           />
-          {timeValue && (
-            <button
-              type="button"
-              onClick={() => onTimeChange(null)}
-              className="text-xs text-subtle-foreground hover:text-secondary-foreground"
-            >
-              Clear
-            </button>
-          )}
         </div>
       )}
 

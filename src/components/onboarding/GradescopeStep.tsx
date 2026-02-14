@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { useState, useRef } from "react";
+import { Eye, EyeOff, Loader2, Play } from "lucide-react";
 
 interface GradescopeCourse {
   id: string;
@@ -38,6 +38,8 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
   const [verifying, setVerifying] = useState(false);
   const [courses, setCourses] = useState<GradescopeCourse[] | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [videoExpanded, setVideoExpanded] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   /**
    * Verifies credentials by fetching courses from Gradescope.
@@ -125,11 +127,81 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
             sign in with your Gradescope email and password.
           </p>
           <p className="text-xs text-gray-400 mb-4 animate-drop-in delay-100">
-            use CalNet SSO?{" "}
+            if you use CalNet SSO, you&apos;ll need to create a Gradescope-specific password first.
+            go to{" "}
             <a href="https://www.gradescope.com/reset_password" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline">
-              set a password first
-            </a>
+              Reset Password
+            </a>{" "}
+            and enter your Berkeley email — this won&apos;t affect your CalNet login.
           </p>
+
+          {/* Video section with smooth expand/collapse */}
+          <div className="animate-drop-in delay-150">
+            {/* Button - collapses when video expanded */}
+            <div
+              className="grid overflow-hidden transition-[grid-template-rows,opacity] duration-500"
+              style={{
+                gridTemplateRows: videoExpanded ? "0fr" : "1fr",
+                opacity: videoExpanded ? 0 : 1,
+                transitionTimingFunction: "cubic-bezier(0.33, 1, 0.68, 1)",
+              }}
+            >
+              <div className="min-h-0 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setVideoExpanded(true);
+                    setTimeout(() => {
+                      if (videoRef.current) {
+                        videoRef.current.currentTime = 0;
+                        videoRef.current.play().catch(() => {});
+                      }
+                    }, 400);
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2.5 mb-4 rounded-xl text-xs text-gray-500 bg-white btn-elevated-secondary"
+                >
+                  <Play size={14} />
+                  watch how to sign in
+                </button>
+              </div>
+            </div>
+
+            {/* Video - expands smoothly from 0 height, breaks out of container */}
+            <div
+              className="grid overflow-hidden transition-[grid-template-rows,opacity,margin] duration-500"
+              style={{
+                gridTemplateRows: videoExpanded ? "1fr" : "0fr",
+                opacity: videoExpanded ? 1 : 0,
+                marginLeft: videoExpanded ? "-6rem" : "0",
+                marginRight: videoExpanded ? "-6rem" : "0",
+                transitionTimingFunction: "cubic-bezier(0.33, 1, 0.68, 1)",
+              }}
+            >
+              <div className="min-h-0 overflow-hidden">
+                <div className="rounded-xl overflow-hidden shadow-lg mb-3">
+                  <video
+                    ref={videoRef}
+                    src="/gradescope-instructions.mp4"
+                    loop
+                    muted
+                    playsInline
+                    controls
+                    className="w-full"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setVideoExpanded(false);
+                    videoRef.current?.pause();
+                  }}
+                  className="text-xs text-gray-400 hover:text-gray-600 transition-colors mb-4"
+                >
+                  hide video
+                </button>
+              </div>
+            </div>
+          </div>
 
           <div className="flex flex-col gap-3 mb-5 animate-drop-in delay-200">
             <input

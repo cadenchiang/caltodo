@@ -218,7 +218,6 @@ async function upsertAssignments(
       source_url: a.source_url,
       points_possible: a.points_possible,
       is_submitted: a.is_submitted ?? false,
-      is_completed: a.is_submitted ?? false,
       color,
       description: a.course_name || "",
     }));

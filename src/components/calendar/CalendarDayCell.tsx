@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { format, isSameDay, isSameMonth } from "date-fns";
 import type { Task } from "@/lib/types";
 import CalendarTaskBar from "./CalendarTaskBar";
@@ -31,6 +32,7 @@ export default function CalendarDayCell({
   onDayClick,
   onTaskClick,
 }: CalendarDayCellProps) {
+  const [expanded, setExpanded] = useState(false);
   const isCurrentMonth = isSameMonth(day, currentMonth);
   const isToday = isSameDay(day, new Date());
   const today = new Date();
@@ -38,7 +40,7 @@ export default function CalendarDayCell({
   const isPast = day.getTime() < today.getTime();
   const dateStr = format(day, "yyyy-MM-dd");
   const maxVisible = 3;
-  const visibleTasks = tasks.slice(0, maxVisible);
+  const visibleTasks = expanded ? tasks : tasks.slice(0, maxVisible);
   const overflow = tasks.length - maxVisible;
 
   return (
@@ -77,8 +79,29 @@ export default function CalendarDayCell({
         {visibleTasks.map((task) => (
           <CalendarTaskBar key={task.id} task={task} onClick={onTaskClick} />
         ))}
-        {overflow > 0 && (
-          <span className="text-xs text-subtle-foreground px-1">+{overflow} more</span>
+        {overflow > 0 && !expanded && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setExpanded(true);
+            }}
+            className="text-xs text-blue-500 hover:text-blue-600 px-1 text-left transition-colors"
+          >
+            +{overflow} more
+          </button>
+        )}
+        {expanded && overflow > 0 && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setExpanded(false);
+            }}
+            className="text-xs text-subtle-foreground hover:text-secondary-foreground px-1 text-left transition-colors"
+          >
+            show less
+          </button>
         )}
       </div>
     </div>

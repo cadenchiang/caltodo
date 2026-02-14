@@ -214,7 +214,7 @@ export default function CalendarFeedSettings() {
           <button
             onClick={handleGenerate}
             disabled={generating}
-            className="flex items-center gap-3 px-6 py-3 rounded-xl text-sm font-semibold bg-foreground text-background disabled:opacity-50 disabled:cursor-not-allowed btn-elevated-primary"
+            className="flex items-center gap-3 px-6 py-3 rounded-xl text-sm font-semibold bg-gray-900 text-white dark:bg-white dark:text-gray-900 hover:bg-gray-700 dark:hover:bg-gray-200 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
           >
             <GoogleCalendarIcon size={20} />
             {generating ? "Generating..." : "Enable Calendar Feed"}
