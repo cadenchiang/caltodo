@@ -39,8 +39,9 @@ function sortByDueDate(tasks: Task[]): Task[] {
 }
 
 /**
- * Task list with add input, three sections: Overdue, Current (default), Completed.
- * Tasks sorted by closest due date. Each section truncates at ITEMS_PER_SECTION.
+ * Task list with add input and two areas: active tasks (flat list) and Completed (collapsible).
+ * Active tasks include both overdue and current, sorted by due date.
+ * Overdue dates appear in red on the task item itself.
  *
  * @param tasks - Array of tasks to display
  * @param loading - Whether tasks are being fetched
@@ -65,39 +66,24 @@ export default function TaskList({
   defaultDate,
   placeholder,
 }: TaskListProps) {
-  const [overdueExpanded, setOverdueExpanded] = useState(true);
-  const [currentExpanded, setCurrentExpanded] = useState(true);
   const [completedExpanded, setCompletedExpanded] = useState(true);
-  const [showAllOverdue, setShowAllOverdue] = useState(false);
-  const [showAllCurrent, setShowAllCurrent] = useState(false);
+  const [showAllActive, setShowAllActive] = useState(false);
   const [showAllCompleted, setShowAllCompleted] = useState(false);
 
-  const { overdue, current, completed } = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const overdueList: Task[] = [];
-    const currentList: Task[] = [];
+  const { active, completed } = useMemo(() => {
+    const activeList: Task[] = [];
     const completedList: Task[] = [];
 
     for (const t of tasks) {
       if (t.is_completed) {
         completedList.push(t);
-        continue;
+      } else {
+        activeList.push(t);
       }
-      if (t.due_date) {
-        const due = new Date(t.due_date + "T00:00:00");
-        if (due.getTime() < today.getTime()) {
-          overdueList.push(t);
-          continue;
-        }
-      }
-      currentList.push(t);
     }
 
     return {
-      overdue: sortByDueDate(overdueList),
-      current: sortByDueDate(currentList),
+      active: sortByDueDate(activeList),
       completed: sortByDueDate(completedList),
     };
   }, [tasks]);
@@ -118,107 +104,46 @@ export default function TaskList({
     );
   }
 
-  const overdueToShow = showAllOverdue ? overdue : overdue.slice(0, ITEMS_PER_SECTION);
-  const currentToShow = showAllCurrent ? current : current.slice(0, ITEMS_PER_SECTION);
+  const activeToShow = showAllActive ? active : active.slice(0, ITEMS_PER_SECTION);
   const completedToShow = showAllCompleted ? completed : completed.slice(0, ITEMS_PER_SECTION);
 
   return (
     <div className="flex flex-col">
       <TaskAddForm onAdd={onAdd} defaultDate={defaultDate} placeholder={placeholder} />
 
-      {overdue.length === 0 && current.length === 0 && completed.length === 0 && (
+      {active.length === 0 && completed.length === 0 && (
         <div className="text-center py-12 text-gray-400 text-sm">
           No tasks yet. Type above and press Enter!
         </div>
       )}
 
-      {/* Overdue section */}
-      {overdue.length > 0 && (
+      {/* Active tasks (overdue + current, flat list) */}
+      {active.length > 0 && (
         <div className="mt-1">
-          <button
-            onClick={() => setOverdueExpanded(!overdueExpanded)}
-            className="flex items-center pl-2.5 pr-4 py-1.5 hover:bg-black/5 transition-colors w-full text-left rounded-lg mx-2"
-          >
-            <ChevronRight
-              size={12}
-              className={`shrink-0 text-red-400 transition-transform duration-200 ${
-                overdueExpanded ? "rotate-90" : ""
-              }`}
-            />
-            <span className="text-sm font-semibold text-red-500 ml-0.5">Overdue</span>
-            <span className="text-xs text-red-300 ml-1.5">{overdue.length}</span>
-          </button>
-          {overdueExpanded && (
-            <>
-              {overdueToShow.map((task, i) => (
-                <div key={task.id}>
-                  {i > 0 && <div className="mx-12 h-px bg-gray-100" />}
-                  <TaskItem
-                    task={task}
-                    isSelected={selectedTaskId === task.id}
-                    onToggle={onToggle}
-                    onSelect={onSelect}
-                    onDelete={onDelete}
-                  />
-                </div>
-              ))}
-              {overdue.length > ITEMS_PER_SECTION && (
-                <button
-                  onClick={() => setShowAllOverdue(!showAllOverdue)}
-                  className="px-8 py-2 text-xs text-gray-400 hover:text-gray-600 transition-colors w-full text-left"
-                >
-                  {showAllOverdue ? "Show less" : `+${overdue.length - ITEMS_PER_SECTION} more`}
-                </button>
-              )}
-            </>
+          {activeToShow.map((task, i) => (
+            <div key={task.id}>
+              {i > 0 && <div className="mx-12 h-px bg-gray-100" />}
+              <TaskItem
+                task={task}
+                isSelected={selectedTaskId === task.id}
+                onToggle={onToggle}
+                onSelect={onSelect}
+                onDelete={onDelete}
+              />
+            </div>
+          ))}
+          {active.length > ITEMS_PER_SECTION && (
+            <button
+              onClick={() => setShowAllActive(!showAllActive)}
+              className="px-8 py-2 text-xs text-gray-400 hover:text-gray-600 transition-colors w-full text-left"
+            >
+              {showAllActive ? "Show less" : `+${active.length - ITEMS_PER_SECTION} more`}
+            </button>
           )}
         </div>
       )}
 
-      {/* Current section */}
-      {current.length > 0 && (
-        <div className="mt-1">
-          <button
-            onClick={() => setCurrentExpanded(!currentExpanded)}
-            className="flex items-center pl-2.5 pr-4 py-1.5 hover:bg-black/5 transition-colors w-full text-left rounded-lg mx-2"
-          >
-            <ChevronRight
-              size={12}
-              className={`shrink-0 text-blue-400 transition-transform duration-200 ${
-                currentExpanded ? "rotate-90" : ""
-              }`}
-            />
-            <span className="text-sm font-semibold text-blue-500 ml-0.5">Current</span>
-            <span className="text-xs text-blue-300 ml-1.5">{current.length}</span>
-          </button>
-          {currentExpanded && (
-            <>
-              {currentToShow.map((task, i) => (
-                <div key={task.id}>
-                  {i > 0 && <div className="mx-12 h-px bg-gray-100" />}
-                  <TaskItem
-                    task={task}
-                    isSelected={selectedTaskId === task.id}
-                    onToggle={onToggle}
-                    onSelect={onSelect}
-                    onDelete={onDelete}
-                  />
-                </div>
-              ))}
-              {current.length > ITEMS_PER_SECTION && (
-                <button
-                  onClick={() => setShowAllCurrent(!showAllCurrent)}
-                  className="px-8 py-2 text-xs text-gray-400 hover:text-gray-600 transition-colors w-full text-left"
-                >
-                  {showAllCurrent ? "Show less" : `+${current.length - ITEMS_PER_SECTION} more`}
-                </button>
-              )}
-            </>
-          )}
-        </div>
-      )}
-
-      {/* Completed section */}
+      {/* Completed section (collapsible) */}
       {completed.length > 0 && (
         <div className="mt-1">
           <button

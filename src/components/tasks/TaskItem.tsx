@@ -30,7 +30,9 @@ function getDueDateBadge(dueDate: string | null): { label: string; className: st
   const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
 
   if (diffDays < 0) {
-    return { label: "Overdue", className: "text-red-400" };
+    const month = due.toLocaleString("en-US", { month: "short" });
+    const day = due.getDate();
+    return { label: `${month} ${day}`, className: "text-red-400" };
   }
   if (diffDays === 0) {
     return { label: "Today", className: "text-blue-400" };
