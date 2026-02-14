@@ -19,17 +19,21 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 
 interface DatePickerProps {
   value: string | null;
+  timeValue?: string | null;
   onChange: (date: string | null) => void;
+  onTimeChange?: (time: string | null) => void;
 }
 
 /**
- * Mini calendar date picker popup powered by date-fns.
+ * Mini calendar date picker popup with optional time input, powered by date-fns.
  * Glassy styling with no outline borders.
  *
  * @param value - Currently selected date as YYYY-MM-DD string, or null
+ * @param timeValue - Currently selected time as HH:MM string, or null
  * @param onChange - Callback with the new date string or null
+ * @param onTimeChange - Callback with the new time string or null
  */
-export default function DatePicker({ value, onChange }: DatePickerProps) {
+export default function DatePicker({ value, timeValue, onChange, onTimeChange }: DatePickerProps) {
   const selectedDate = value ? new Date(value + "T00:00:00") : null;
   const [currentMonth, setCurrentMonth] = useState(selectedDate ?? new Date());
 
@@ -106,10 +110,32 @@ export default function DatePicker({ value, onChange }: DatePickerProps) {
         })}
       </div>
 
+      {/* Time input */}
+      {onTimeChange && (
+        <div className="mt-2 flex items-center gap-2 px-1">
+          <label className="text-xs text-subtle-foreground">Time</label>
+          <input
+            type="time"
+            value={timeValue ?? ""}
+            onChange={(e) => onTimeChange(e.target.value || null)}
+            className="flex-1 px-2 py-1 text-xs rounded-lg border border-border bg-transparent text-foreground focus:outline-none"
+          />
+          {timeValue && (
+            <button
+              type="button"
+              onClick={() => onTimeChange(null)}
+              className="text-xs text-subtle-foreground hover:text-secondary-foreground"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Clear button */}
       <button
         type="button"
-        onClick={() => onChange(null)}
+        onClick={() => { onChange(null); onTimeChange?.(null); }}
         className="mt-2 w-full text-xs text-subtle-foreground hover:text-secondary-foreground py-1.5 rounded-lg hover:bg-accent transition-all"
       >
         Clear date

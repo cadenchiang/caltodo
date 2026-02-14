@@ -193,7 +193,7 @@ describe("generateICalFeed", () => {
   it("should set UID using task id", () => {
     const task = makeTask({ id: "abc-123" });
     const feed = generateICalFeed([task]);
-    expect(feed).toContain("UID:abc-123@toodoocal");
+    expect(feed).toContain("UID:abc-123@caltodo");
   });
 
   it("should set TRANSP to TRANSPARENT for all events", () => {

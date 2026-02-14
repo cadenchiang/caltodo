@@ -2,21 +2,24 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { RotateCcw, Trash2, Moon, Sun } from "lucide-react";
+import { RotateCcw, Trash2, Moon, Sun, Monitor } from "lucide-react";
 import { useTaskContext } from "@/contexts/TaskContext";
+import { useToast } from "@/contexts/ToastContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import IntegrationSettings from "@/components/settings/IntegrationSettings";
 import CalendarFeedSettings from "@/components/settings/CalendarFeedSettings";
 import PageTransition from "@/components/ui/PageTransition";
 
 /**
- * Settings page with sections: Integrations, Calendar Feed, Appearance, and Advanced.
- * Each integration section manages its own Edit/Save/Cancel independently.
+ * Settings page with unified section styling.
+ * Sections: Integrations, Calendar Feed, Appearance, Advanced.
+ * Each section has consistent h2 + subtitle + content layout.
  */
 export default function SettingsPage() {
   const router = useRouter();
   const { tasks, deleteAllTasks } = useTaskContext();
-  const { theme, toggleTheme } = useTheme();
+  const { showToast } = useToast();
+  const { preference, setPreference } = useTheme();
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   /**
@@ -32,6 +35,7 @@ export default function SettingsPage() {
     }
     setConfirmDelete(false);
     await deleteAllTasks();
+    showToast("All tasks deleted.");
   }
 
   return (
@@ -42,74 +46,76 @@ export default function SettingsPage() {
             <h1 className="text-xl font-bold text-foreground">Settings</h1>
           </div>
           <div className="flex-1 overflow-auto px-8 pb-8">
-            {/* Integrations */}
-            <div className="animate-stagger stagger-2">
-              <IntegrationSettings />
-            </div>
+            <div className="max-w-xl space-y-10">
+              {/* Integrations */}
+              <section className="animate-stagger stagger-2">
+                <IntegrationSettings />
+              </section>
 
-            {/* Calendar Feed */}
-            <div className="mt-8 pt-6 border-t border-border animate-stagger stagger-3">
-              <CalendarFeedSettings />
-            </div>
+              {/* Calendar Feed */}
+              <section className="pt-6 border-t border-border animate-stagger stagger-3">
+                <CalendarFeedSettings />
+              </section>
 
-            {/* Appearance */}
-            <div className="mt-8 pt-6 border-t border-border animate-stagger stagger-4">
-              <div className="max-w-xl">
+              {/* Appearance */}
+              <section className="pt-6 border-t border-border animate-stagger stagger-4">
                 <h2 className="text-lg font-semibold text-foreground mb-1">Appearance</h2>
                 <p className="text-xs text-subtle-foreground mb-4">
-                  Choose between light and dark theme.
+                  Choose your preferred appearance.
                 </p>
                 <div className="flex gap-3">
+                  {([
+                    { value: "auto" as const, label: "Auto", Icon: Monitor },
+                    { value: "light" as const, label: "Light", Icon: Sun },
+                    { value: "dark" as const, label: "Dark", Icon: Moon },
+                  ]).map(({ value, label, Icon }) => (
+                    <button
+                      key={value}
+                      onClick={() => setPreference(value)}
+                      className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium ${
+                        preference === value
+                          ? "border-blue-500 text-blue-600 bg-blue-50 dark:bg-blue-900/20 btn-elevated"
+                          : "text-muted-foreground btn-elevated-secondary"
+                      }`}
+                    >
+                      <Icon size={16} />
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              {/* Advanced */}
+              <section className="pt-6 border-t border-border animate-stagger stagger-4">
+                <h2 className="text-lg font-semibold text-foreground mb-1">Advanced</h2>
+                <p className="text-xs text-subtle-foreground mb-4">
+                  Data management and setup options.
+                </p>
+                <div className="flex flex-col gap-2">
                   <button
-                    onClick={theme === "dark" ? toggleTheme : undefined}
-                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors border ${
-                      theme === "light"
-                        ? "border-blue-500 text-blue-600 bg-blue-50 dark:bg-blue-900/20"
-                        : "border-border text-muted-foreground hover:text-foreground hover:bg-accent"
-                    }`}
+                    onClick={() => router.push("/app/onboarding")}
+                    className="flex items-center gap-2 px-4 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-accent rounded-xl transition-colors w-fit"
                   >
-                    <Sun size={16} />
-                    Light
+                    <RotateCcw size={15} />
+                    Redo Setup Wizard
                   </button>
+
                   <button
-                    onClick={theme === "light" ? toggleTheme : undefined}
-                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors border ${
-                      theme === "dark"
-                        ? "border-blue-500 text-blue-600 bg-blue-50 dark:bg-blue-900/20"
-                        : "border-border text-muted-foreground hover:text-foreground hover:bg-accent"
+                    onClick={handleDeleteAll}
+                    disabled={tasks.length === 0}
+                    className={`flex items-center gap-2 px-4 py-2.5 text-sm rounded-xl transition-colors w-fit disabled:opacity-40 disabled:cursor-not-allowed ${
+                      confirmDelete
+                        ? "text-red-600 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/50"
+                        : "text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30"
                     }`}
                   >
-                    <Moon size={16} />
-                    Dark
+                    <Trash2 size={15} />
+                    {confirmDelete
+                      ? `Click again to delete all ${tasks.length} tasks`
+                      : `Delete All Tasks (${tasks.length})`}
                   </button>
                 </div>
-              </div>
-            </div>
-
-            {/* Advanced actions */}
-            <div className="mt-8 pt-6 border-t border-border flex flex-col gap-2 animate-stagger stagger-4">
-              <button
-                onClick={() => router.push("/app/onboarding")}
-                className="flex items-center gap-2 px-4 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-accent rounded-xl transition-colors w-fit"
-              >
-                <RotateCcw size={15} />
-                Redo Setup Wizard
-              </button>
-
-              <button
-                onClick={handleDeleteAll}
-                disabled={tasks.length === 0}
-                className={`flex items-center gap-2 px-4 py-2.5 text-sm rounded-xl transition-colors w-fit disabled:opacity-40 disabled:cursor-not-allowed ${
-                  confirmDelete
-                    ? "text-red-600 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/50"
-                    : "text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30"
-                }`}
-              >
-                <Trash2 size={15} />
-                {confirmDelete
-                  ? `Click again to delete all ${tasks.length} tasks`
-                  : `Delete All Tasks (${tasks.length})`}
-              </button>
+              </section>
             </div>
           </div>
         </div>

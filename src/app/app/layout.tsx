@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import Sidebar from "@/components/layout/Sidebar";
 import { TaskProvider } from "@/contexts/TaskContext";
+import { ToastProvider } from "@/contexts/ToastContext";
 
 /**
  * Authenticated app layout with sidebar and main content area.
@@ -27,12 +28,14 @@ export default async function AppLayout({
 
   return (
     <div className="flex h-screen">
-      <TaskProvider>
-        <Sidebar avatarUrl={avatarUrl} fullName={fullName} email={email} />
-        <main className="flex-1 overflow-auto p-10">
-          {children}
-        </main>
-      </TaskProvider>
+      <ToastProvider>
+        <TaskProvider>
+          <Sidebar avatarUrl={avatarUrl} fullName={fullName} email={email} />
+          <main className="flex-1 overflow-auto p-10 dark:bg-black">
+            {children}
+          </main>
+        </TaskProvider>
+      </ToastProvider>
     </div>
   );
 }

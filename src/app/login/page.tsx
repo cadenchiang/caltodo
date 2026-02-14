@@ -1,14 +1,25 @@
 import LoginForm from "@/components/auth/LoginForm";
+import { ToastProvider } from "@/contexts/ToastContext";
 
 /**
- * Login page with centered glassy form card.
+ * Login page with theme-aware styling, centered form, and staggered drop-in animations.
+ * Follows system/user theme preference via ThemeContext.
  */
 export default function LoginPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
-      <div className="glass-strong rounded-3xl shadow-2xl p-8 w-full max-w-sm">
-        <LoginForm />
+    <ToastProvider>
+      <div className="min-h-screen flex items-center justify-center px-4 bg-white force-light">
+        <div className="w-full max-w-sm">
+          <div className="flex justify-center mb-6">
+            <img
+              src="/logo.png"
+              alt="caltodo"
+              className="h-14"
+            />
+          </div>
+          <LoginForm />
+        </div>
       </div>
-    </div>
+    </ToastProvider>
   );
 }

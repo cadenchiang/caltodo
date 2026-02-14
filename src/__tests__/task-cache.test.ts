@@ -7,7 +7,7 @@
 // We test the caching logic by extracting the same functions used in TaskContext.
 // Since they're module-private, we replicate the logic here for testing.
 
-const CACHE_KEY = "toodoo_tasks_cache";
+const CACHE_KEY = "caltodo_tasks_cache";
 const CACHE_VERSION = 1;
 
 interface CachedTasks {

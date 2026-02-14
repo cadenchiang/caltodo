@@ -13,6 +13,7 @@ export const NAV_ITEMS = [
  * Available task colors for the color picker.
  */
 export const TASK_COLORS = [
+  "#9CA3AF", // gray (default)
   "#3B82F6", // blue
   "#EF4444", // red
   "#10B981", // green
@@ -26,4 +27,4 @@ export const TASK_COLORS = [
 /**
  * Default task color.
  */
-export const DEFAULT_TASK_COLOR = "#3B82F6";
+export const DEFAULT_TASK_COLOR = "#9CA3AF";

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import "./globals.css";
 
@@ -13,8 +13,15 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const instrumentSerif = Instrument_Serif({
+  variable: "--font-instrument-serif",
+  weight: "400",
+  subsets: ["latin"],
+  style: ["normal", "italic"],
+});
+
 export const metadata: Metadata = {
-  title: "toodoocal",
+  title: "caltodo",
   description: "Personal todolist tracker with calendar view",
 };
 
@@ -25,8 +32,8 @@ export const metadata: Metadata = {
 const themeScript = `
 (function() {
   try {
-    var t = localStorage.getItem("toodoo_theme");
-    if (t === "dark" || (!t && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
+    var t = localStorage.getItem("caltodo_theme");
+    if (t === "dark" || (t !== "light" && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
       document.documentElement.classList.add("dark");
     }
   } catch(e) {}
@@ -44,7 +51,7 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${instrumentSerif.variable} antialiased`}
       >
         <ThemeProvider>
           {children}

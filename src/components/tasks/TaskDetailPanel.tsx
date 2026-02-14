@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { CalendarDays, Flag } from "lucide-react";
+import { CalendarDays } from "lucide-react";
 import { format } from "date-fns";
 import type { Task, TaskUpdate } from "@/lib/types";
 import { TASK_COLORS } from "@/lib/constants";
@@ -15,12 +15,27 @@ interface TaskDetailPanelProps {
 }
 
 /**
- * Returns a formatted due date label and color for the top bar.
+ * Formats a 24-hour time string "HH:MM" to 12-hour format "h:mm AM/PM".
+ *
+ * @param time24 - Time string in "HH:MM" format
+ * @returns Formatted time string (e.g. "11:59 PM")
+ */
+function formatTime12h(time24: string): string {
+  const [hourStr, minute] = time24.split(":");
+  const hour = parseInt(hourStr, 10);
+  const ampm = hour >= 12 ? "PM" : "AM";
+  const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+  return `${hour12}:${minute} ${ampm}`;
+}
+
+/**
+ * Returns a formatted due date label (with time if available) and color for the top bar.
  *
  * @param dueDate - ISO date string or null
+ * @param dueTime - 24-hour time string ("HH:MM") or null
  * @returns Object with label and className, or null if no date
  */
-function getDateDisplay(dueDate: string | null): { label: string; className: string } | null {
+function getDateDisplay(dueDate: string | null, dueTime: string | null): { label: string; className: string } | null {
   if (!dueDate) return null;
 
   const today = new Date();
@@ -30,11 +45,12 @@ function getDateDisplay(dueDate: string | null): { label: string; className: str
   const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
 
   const formatted = format(due, "EEE, MMM d");
+  const timeSuffix = dueTime ? ` at ${formatTime12h(dueTime)}` : "";
 
-  if (diffDays < 0) return { label: formatted, className: "text-red-500" };
-  if (diffDays === 0) return { label: "Today", className: "text-red-500" };
-  if (diffDays === 1) return { label: "Tomorrow", className: "text-orange-500" };
-  return { label: formatted, className: "text-blue-500" };
+  if (diffDays < 0) return { label: `${formatted}${timeSuffix}`, className: "text-red-500" };
+  if (diffDays === 0) return { label: `Today${timeSuffix}`, className: "text-red-500" };
+  if (diffDays === 1) return { label: `Tomorrow${timeSuffix}`, className: "text-orange-500" };
+  return { label: `${formatted}${timeSuffix}`, className: "text-blue-500" };
 }
 
 /**
@@ -51,6 +67,7 @@ export default function TaskDetailPanel({ task, onClose, onSave }: TaskDetailPan
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState<string | null>(null);
+  const [dueTime, setDueTime] = useState<string | null>(null);
   const [color, setColor] = useState("#3B82F6");
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
@@ -64,11 +81,12 @@ export default function TaskDetailPanel({ task, onClose, onSave }: TaskDetailPan
       setTitle(task.title);
       setDescription(task.description);
       setDueDate(task.due_date);
+      setDueTime(task.due_time);
       setColor(task.color);
       setShowDatePicker(false);
       setShowColorPicker(false);
     }
-  }, [task?.id, task?.title, task?.description, task?.due_date, task?.color]);
+  }, [task?.id, task?.title, task?.description, task?.due_date, task?.due_time, task?.color]);
 
   /**
    * Persists current form state to the backend.
@@ -77,7 +95,7 @@ export default function TaskDetailPanel({ task, onClose, onSave }: TaskDetailPan
     if (!task) return;
     const trimmed = title.trim();
     if (!trimmed) return;
-    onSave(task.id, { title: trimmed, description, due_date: dueDate, color });
+    onSave(task.id, { title: trimmed, description, due_date: dueDate, due_time: dueTime, color });
   }
 
   /**
@@ -86,16 +104,16 @@ export default function TaskDetailPanel({ task, onClose, onSave }: TaskDetailPan
   function saveWith(overrides: Partial<TaskUpdate>) {
     if (!task) return;
     const trimmed = title.trim() || task.title;
-    onSave(task.id, { title: trimmed, description, due_date: dueDate, color, ...overrides });
+    onSave(task.id, { title: trimmed, description, due_date: dueDate, due_time: dueTime, color, ...overrides });
   }
 
-  const dateDisplay = task ? getDateDisplay(dueDate) : null;
+  const dateDisplay = task ? getDateDisplay(dueDate, dueTime) : null;
 
   return (
-    <div className="flex-1 h-full border-l border-border bg-card flex flex-col">
+    <div className="flex-1 h-full border-l border-border flex flex-col">
       {task ? (
         <>
-          {/* Top bar: checkbox | date | color flag */}
+          {/* Top bar: checkbox | date | color circle */}
           <div className="flex items-center gap-3 px-5 py-3 border-b border-border">
             {/* Checkbox */}
             <button
@@ -138,10 +156,15 @@ export default function TaskDetailPanel({ task, onClose, onSave }: TaskDetailPan
               >
                 <DatePicker
                   value={dueDate}
+                  timeValue={dueTime}
                   onChange={(date) => {
                     setDueDate(date);
                     setShowDatePicker(false);
                     saveWith({ due_date: date });
+                  }}
+                  onTimeChange={(time) => {
+                    setDueTime(time);
+                    saveWith({ due_time: time });
                   }}
                 />
               </Popover>
@@ -159,7 +182,7 @@ export default function TaskDetailPanel({ task, onClose, onSave }: TaskDetailPan
                 className="p-1 text-subtle-foreground hover:text-secondary-foreground rounded-lg hover:bg-accent transition-colors"
                 aria-label="Pick color"
               >
-                <Flag size={18} style={{ color }} />
+                <div className="w-4 h-4 rounded-full" style={{ backgroundColor: color }} />
               </button>
               <Popover
                 open={showColorPicker}
@@ -192,6 +215,28 @@ export default function TaskDetailPanel({ task, onClose, onSave }: TaskDetailPan
               </Popover>
             </div>
           </div>
+
+          {/* Source badge */}
+          {(task.source || task.is_submitted) && (
+            <div className="flex items-center gap-2 px-5 pt-3">
+              {task.source && (
+                <span
+                  className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
+                    task.source === "canvas"
+                      ? "text-blue-600 bg-blue-50 dark:bg-blue-900/30"
+                      : "text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30"
+                  }`}
+                >
+                  {task.source === "canvas" ? "bCourses" : "Gradescope"}
+                </span>
+              )}
+              {task.is_submitted && (
+                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded text-green-600 bg-green-50 dark:bg-green-900/30">
+                  Submitted
+                </span>
+              )}
+            </div>
+          )}
 
           {/* Title + Description */}
           <div className="flex-1 overflow-auto px-5 pt-5">

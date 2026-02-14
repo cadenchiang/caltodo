@@ -2,23 +2,24 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { X } from "lucide-react";
+import { X, ChevronLeft } from "lucide-react";
 import { useTaskContext } from "@/contexts/TaskContext";
 import CanvasStep from "@/components/onboarding/CanvasStep";
 import GradescopeStep from "@/components/onboarding/GradescopeStep";
+import CalendarStep from "@/components/onboarding/CalendarStep";
 
-type Step = "welcome" | "canvas" | "gradescope" | "done";
-const STEPS: Step[] = ["welcome", "canvas", "gradescope", "done"];
+type Step = "welcome" | "canvas" | "gradescope" | "calendar" | "done";
+const STEPS: Step[] = ["welcome", "canvas", "gradescope", "calendar", "done"];
 
 /**
- * Full-screen onboarding wizard with 4 steps.
- * 1. Welcome - "Welcome to toodoocal!"
- * 2. Canvas - Token verification + course selection (via CanvasStep)
- * 3. Gradescope - Credential verification + course selection (via GradescopeStep)
- * 4. Done - "Sync Now" button + skip to inbox
+ * Full-screen onboarding wizard with 5 steps, always white background.
+ * 1. Welcome - intro with staggered drop-in animations
+ * 2. Canvas - Token verification + course selection
+ * 3. Gradescope - Credential verification + course selection
+ * 4. Calendar - Google Calendar feed setup
+ * 5. Done - Sync button + skip to inbox
  *
  * Each step saves credentials via PUT /api/credentials.
- * Full-screen overlay with glassmorphism and step transitions.
  */
 export default function OnboardingPage() {
   const router = useRouter();
@@ -81,7 +82,7 @@ export default function OnboardingPage() {
   }): Promise<boolean> {
     const ok = await saveCredentials(payload);
     if (!ok) return false;
-    setCurrentStep("done");
+    setCurrentStep("calendar");
     return true;
   }
 
@@ -97,51 +98,89 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-card/80 backdrop-blur-xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-white force-light">
+      {/* Top bar: logo left, close right */}
+      <div className="absolute top-5 left-4">
+        <img
+          src="/logo.png"
+          alt="caltodo"
+          className="h-10"
+        />
+      </div>
+
       {/* Close button */}
       <button
         onClick={() => router.push("/app/inbox")}
-        className="absolute top-6 right-6 p-2 text-subtle-foreground hover:text-secondary-foreground hover:bg-accent rounded-lg transition-colors"
+        className="absolute top-6 right-6 p-2 text-gray-400 hover:text-gray-800 transition-colors rounded-lg"
         aria-label="Close onboarding"
       >
         <X size={20} />
       </button>
 
       <div className="w-full max-w-md mx-auto px-6">
-        {/* Step indicator */}
-        <div className="flex items-center justify-center gap-2 mb-8">
-          {STEPS.map((_, i) => (
-            <div
-              key={i}
-              className={`h-1.5 rounded-full transition-all duration-300 ${
-                i <= stepIndex ? "bg-blue-500 w-8" : "bg-border w-4"
-              }`}
-            />
-          ))}
+        {/* Step indicator with back button */}
+        <div className="flex items-center gap-3 mb-8">
+          <button
+            onClick={() => {
+              if (stepIndex > 0) setCurrentStep(STEPS[stepIndex - 1]);
+            }}
+            className={`p-1.5 rounded-lg transition-colors ${
+              stepIndex > 0
+                ? "text-gray-400 hover:text-gray-800 cursor-pointer"
+                : "text-transparent pointer-events-none"
+            }`}
+            aria-label="Go back"
+          >
+            <ChevronLeft size={18} />
+          </button>
+          <div className="flex items-center justify-center gap-2 flex-1">
+            {STEPS.map((_, i) => (
+              <div
+                key={i}
+                className={`h-1.5 rounded-full transition-all duration-300 ${
+                  i <= stepIndex ? "bg-gray-800 w-8" : "bg-gray-300 w-4"
+                }`}
+              />
+            ))}
+          </div>
+          {/* Spacer to keep dots centered */}
+          <div className="w-[30px]" />
         </div>
 
-        {/* Step content */}
-        <div className="glass-strong rounded-2xl shadow-2xl p-8 animate-in">
+        {/* Step content — key forces re-mount to re-trigger animation */}
+        <div key={currentStep} className="animate-step-in">
           {error && (
-            <div className="bg-red-50 text-red-500 text-sm p-3 rounded-xl mb-4">
+            <div className="bg-red-500/10 text-red-400 text-sm p-3 rounded-xl mb-4">
               {error}
             </div>
           )}
 
           {currentStep === "welcome" && (
             <div className="text-center">
-              <h1 className="text-2xl font-bold text-foreground mb-2">
-                Welcome to <span className="text-foreground">toodoo</span>
-                <span className="brand-gradient font-black">cal</span>
+              <div className="flex justify-center mb-3 animate-drop-in">
+                <img
+                  src="/logo.png"
+                  alt="caltodo"
+                  className="h-14"
+                />
+              </div>
+              <h1 className="text-2xl font-bold text-gray-800 mb-2 animate-drop-in">
+                welcome to caltodo
               </h1>
-              <p className="text-muted-foreground text-sm mb-8">
-                Connect your Canvas and Gradescope accounts to automatically sync your assignments.
+              <p className="text-gray-500 text-sm mb-8 animate-drop-in delay-100">
+                connect your bCourses and Gradescope accounts to automatically sync your assignments.
               </p>
               <button
                 onClick={() => setCurrentStep("canvas")}
-                className="w-full px-4 py-3 bg-blue-500 text-white rounded-xl font-medium hover:bg-blue-600 transition-colors"
+                className="w-full px-4 py-3 bg-gray-800 text-white rounded-xl font-semibold animate-drop-in delay-200 btn-elevated-primary"
               >
-                Get Started
+                get started
+              </button>
+              <button
+                onClick={() => router.push("/app/inbox")}
+                className="mt-4 px-4 py-2.5 text-sm text-gray-400 rounded-xl bg-white animate-drop-in delay-300 btn-elevated-secondary"
+              >
+                skip for now
               </button>
             </div>
           )}
@@ -159,33 +198,42 @@ export default function OnboardingPage() {
           {currentStep === "gradescope" && (
             <GradescopeStep
               onNext={handleGradescopeNext}
-              onSkip={() => setCurrentStep("done")}
+              onSkip={() => setCurrentStep("calendar")}
               saving={saving}
               error={error}
               setError={setError}
             />
           )}
 
+          {currentStep === "calendar" && (
+            <CalendarStep
+              onNext={() => setCurrentStep("done")}
+              onSkip={() => setCurrentStep("done")}
+            />
+          )}
+
           {currentStep === "done" && (
             <div className="text-center">
-              <h2 className="text-lg font-bold text-foreground mb-2">You&apos;re all set!</h2>
-              <p className="text-sm text-muted-foreground mb-6">
-                Sync your assignments now, or skip and do it later from the inbox.
+              <h2 className="text-lg font-bold text-gray-800 mb-2 animate-drop-in">
+                you&apos;re all set!
+              </h2>
+              <p className="text-sm text-gray-500 mb-6 animate-drop-in delay-100">
+                sync your assignments now, or do it later from the inbox.
               </p>
 
               <div className="flex flex-col gap-3">
                 <button
                   onClick={handleSyncAndGo}
                   disabled={saving}
-                  className="w-full px-4 py-3 bg-blue-500 text-white rounded-xl font-medium hover:bg-blue-600 disabled:opacity-50 transition-colors"
+                  className="w-full px-4 py-3 bg-gray-800 text-white rounded-xl font-semibold disabled:opacity-50 animate-drop-in delay-200 btn-elevated-primary"
                 >
-                  {saving ? "Syncing..." : "Sync Now & Go to Inbox"}
+                  {saving ? "syncing..." : "sync now & go to inbox"}
                 </button>
                 <button
                   onClick={() => router.push("/app/inbox")}
-                  className="text-sm text-subtle-foreground hover:text-secondary-foreground transition-colors"
+                  className="px-4 py-2.5 text-sm text-gray-400 rounded-xl bg-white animate-drop-in delay-300 btn-elevated-secondary"
                 >
-                  Skip to Inbox
+                  skip to inbox
                 </button>
               </div>
             </div>

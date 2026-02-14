@@ -1,16 +1,18 @@
 /**
  * Settings component for managing the iCal calendar feed subscription.
  *
- * - No token: "Enable Calendar Feed" button
+ * - No token: prominent "Enable Calendar Feed" button with Google Calendar icon
  * - Token exists: Shows URL with Copy button, Regenerate, Disable, and Google Calendar instructions
+ * - All notifications use toast popups instead of inline messages
  */
 
 "use client";
 
 import { useState, useEffect, useLayoutEffect, useCallback, useRef } from "react";
-import { Calendar, Copy, Check, RefreshCw, XCircle } from "lucide-react";
+import { Copy, Check, RefreshCw, XCircle } from "lucide-react";
+import { useToast } from "@/contexts/ToastContext";
 
-const CAL_CACHE_KEY = "toodoo_calendar_token_cache";
+const CAL_CACHE_KEY = "caltodo_calendar_token_cache";
 
 /**
  * Reads cached calendar token from localStorage.
@@ -39,49 +41,36 @@ function setCachedToken(token: string | null): void {
 }
 
 /**
- * Inline Google Calendar logo SVG (16x16).
- * Used in the subscription instructions for brand recognition.
+ * Inline Google Calendar logo SVG.
+ * Used in the enable button and subscription instructions for brand recognition.
+ *
+ * @param size - Icon dimensions in pixels (default 16)
  */
 function GoogleCalendarIcon({ size = 16 }: { size?: number }) {
   return (
     <svg
       width={size}
       height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 122.88 122.88"
       className="inline-block shrink-0"
     >
-      <path d="M18.316 5.684H5.684v12.632h12.632V5.684z" fill="#fff" />
-      <path d="M18.316 24l5.684-5.684h-5.684V24z" fill="#EA4335" />
-      <path
-        d="M24 5.684V18.316h-5.684V5.684H24zM18.316 5.684L24 0h-5.684v5.684z"
-        fill="#FBBC04"
-      />
-      <path d="M18.316 18.316H5.684V24h12.632v-5.684z" fill="#34A853" />
-      <path
-        d="M0 18.316V24h5.684v-5.684H0zM5.684 18.316v-12.632H0v12.632h5.684z"
-        fill="#188038"
-      />
-      <path d="M5.684 5.684V0H0v5.684h5.684z" fill="#1967D2" />
-      <path d="M5.684 0h12.632v5.684H5.684V0z" fill="#4285F4" />
-      <path
-        d="M13.553 16.106c-.633.42-1.514.737-2.553.737-1.476 0-2.728-.842-3.265-2.074l1.307-.538.005-.002c.278.663.946 1.139 1.953 1.139.827 0 1.389-.282 1.81-.738.42-.456.42-1.072.42-1.392 0-1.139-.779-1.728-1.81-1.728h-.842v-1.265h.737c.842 0 1.581-.484 1.581-1.412 0-.842-.633-1.476-1.581-1.476-.948 0-1.476.633-1.686 1.265l-1.265-.527c.316-.948 1.265-2.021 2.951-2.021 1.581 0 2.846 1.053 2.846 2.528 0 1.09-.632 1.812-1.265 2.18v.064c.843.368 1.581 1.264 1.581 2.512 0 1.265-.843 2.337-1.824 2.748z"
-        fill="#4285F4"
-      />
-      <path
-        d="M8.842 12l-1.37-.947v-4.79h1.54v4.054L8.842 12z"
-        fill="#EA4335"
-      />
+      <polygon points="93.78,29.1 29.1,29.1 29.1,93.78 93.78,93.78" fill="#fff" />
+      <polygon points="93.78,122.88 122.88,93.78 93.78,93.78" fill="#EA4335" />
+      <polygon points="122.88,29.1 93.78,29.1 93.78,93.78 122.88,93.78" fill="#FBBC04" />
+      <polygon points="93.78,93.78 29.1,93.78 29.1,122.88 93.78,122.88" fill="#34A853" />
+      <path d="M0,93.78v19.4c0,5.36,4.34,9.7,9.7,9.7h19.4v-29.1H0z" fill="#188038" />
+      <path d="M122.88,29.1V9.7c0-5.36-4.34-9.7-9.7-9.7h-19.4v29.1H122.88z" fill="#1967D2" />
+      <path d="M93.78,0H9.7C4.34,0,0,4.34,0,9.7v84.08h29.1V29.1h64.67V0z" fill="#4285F4" />
+      <path d="M42.37,79.27c-2.42-1.63-4.09-4.02-5-7.17l5.61-2.31c0.51,1.94,1.4,3.44,2.67,4.51c1.26,1.07,2.8,1.59,4.59,1.59c1.84,0,3.41-0.56,4.73-1.67c1.32-1.12,1.98-2.54,1.98-4.26c0-1.76-0.7-3.2-2.09-4.32c-1.39-1.12-3.14-1.67-5.22-1.67H46.4v-5.55h2.91c1.79,0,3.31-0.48,4.54-1.46c1.23-0.97,1.84-2.3,1.84-3.99c0-1.5-0.55-2.7-1.65-3.6s-2.49-1.35-4.18-1.35c-1.65,0-2.96,0.44-3.93,1.32c-0.97,0.88-1.7,2-2.12,3.24l-5.55-2.31c0.74-2.09,2.09-3.93,4.07-5.52c1.98-1.59,4.51-2.39,7.58-2.39c2.27,0,4.32,0.44,6.13,1.32c1.81,0.88,3.23,2.1,4.26,3.65c1.03,1.56,1.54,3.31,1.54,5.25c0,1.98-0.48,3.65-1.43,5.03c-0.95,1.37-2.13,2.43-3.52,3.16v0.33c1.79,0.74,3.36,1.96,4.51,3.52c1.17,1.58,1.76,3.46,1.76,5.66c0,2.2-0.56,4.16-1.67,5.88c-1.12,1.72-2.66,3.08-4.62,4.07c-1.96,0.99-4.17,1.49-6.62,1.49C47.41,81.72,44.79,80.91,42.37,79.27z" fill="#1A73E8" />
+      <path d="M76.83,51.43l-6.16,4.45l-3.08-4.67l11.05-7.97h4.24v37.6h-6.05V51.43z" fill="#1A73E8" />
     </svg>
   );
 }
 
 export default function CalendarFeedSettings() {
+  const { showToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [calendarToken, setCalendarToken] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [confirmDisable, setConfirmDisable] = useState(false);
@@ -114,7 +103,6 @@ export default function CalendarFeedSettings() {
     if (!hasCacheRef.current) {
       setLoading(true);
     }
-    setError(null);
     try {
       const res = await fetch("/api/calendar/token");
       if (!res.ok) {
@@ -126,12 +114,12 @@ export default function CalendarFeedSettings() {
       setCachedToken(data.calendar_token);
     } catch (err) {
       if (!hasCacheRef.current) {
-        setError(err instanceof Error ? err.message : "Failed to load calendar settings");
+        showToast(err instanceof Error ? err.message : "Failed to load calendar settings");
       }
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [showToast]);
 
   useEffect(() => {
     fetchToken();
@@ -142,8 +130,6 @@ export default function CalendarFeedSettings() {
    */
   async function handleGenerate() {
     setGenerating(true);
-    setError(null);
-    setSuccess(null);
     try {
       const res = await fetch("/api/calendar/token", { method: "POST" });
       if (!res.ok) {
@@ -153,9 +139,9 @@ export default function CalendarFeedSettings() {
       const data = await res.json();
       setCalendarToken(data.calendar_token);
       setCachedToken(data.calendar_token);
-      setSuccess("Calendar feed enabled. Copy the URL below.");
+      showToast("Calendar feed enabled. Copy the URL below.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to generate token");
+      showToast(err instanceof Error ? err.message : "Failed to generate token");
     } finally {
       setGenerating(false);
     }
@@ -173,8 +159,6 @@ export default function CalendarFeedSettings() {
       return;
     }
     setConfirmDisable(false);
-    setError(null);
-    setSuccess(null);
     try {
       const res = await fetch("/api/calendar/token", { method: "DELETE" });
       if (!res.ok) {
@@ -183,9 +167,9 @@ export default function CalendarFeedSettings() {
       }
       setCalendarToken(null);
       setCachedToken(null);
-      setSuccess("Calendar feed disabled.");
+      showToast("Calendar feed disabled.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to disable feed");
+      showToast(err instanceof Error ? err.message : "Failed to disable feed");
     }
   }
 
@@ -197,16 +181,17 @@ export default function CalendarFeedSettings() {
     try {
       await navigator.clipboard.writeText(feedUrl);
       setCopied(true);
+      showToast("Feed URL copied to clipboard.");
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      setError("Failed to copy URL to clipboard");
+      showToast("Failed to copy URL to clipboard.");
     }
   }
 
   if (loading) {
     return (
       <div className="flex items-center gap-2 text-subtle-foreground text-sm py-4">
-        <Calendar size={16} />
+        <GoogleCalendarIcon size={16} />
         Loading calendar settings...
       </div>
     );
@@ -216,7 +201,7 @@ export default function CalendarFeedSettings() {
     <div className="max-w-xl">
         {/* Header */}
         <div className="flex items-center gap-2 mb-1">
-          <Calendar size={18} className="text-secondary-foreground" />
+          <GoogleCalendarIcon size={18} />
           <h2 className="text-lg font-semibold text-foreground">Calendar Feed</h2>
         </div>
         <p className="text-xs text-subtle-foreground mb-4">
@@ -225,12 +210,13 @@ export default function CalendarFeedSettings() {
         </p>
 
         {!calendarToken ? (
-          /* ---- No token: enable button ---- */
+          /* ---- No token: prominent enable button ---- */
           <button
             onClick={handleGenerate}
             disabled={generating}
-            className="px-5 py-2.5 rounded-xl text-sm font-medium bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+            className="flex items-center gap-3 px-6 py-3 rounded-xl text-sm font-semibold bg-foreground text-background disabled:opacity-50 disabled:cursor-not-allowed btn-elevated-primary"
           >
+            <GoogleCalendarIcon size={20} />
             {generating ? "Generating..." : "Enable Calendar Feed"}
           </button>
         ) : (
@@ -287,22 +273,23 @@ export default function CalendarFeedSettings() {
               </p>
             </div>
 
-            {/* Action buttons */}
-            <div className="flex items-center gap-2 pt-1">
+            {/* Action buttons — clean row */}
+            <div className="flex items-center gap-3 pt-1">
               <button
                 onClick={handleGenerate}
                 disabled={generating}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs text-muted-foreground hover:text-foreground hover:bg-accent border border-input-border transition-colors disabled:opacity-60"
+                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-60"
               >
                 <RefreshCw size={12} className={generating ? "animate-spin" : ""} />
                 {generating ? "Regenerating..." : "Regenerate URL"}
               </button>
+              <span className="text-border">|</span>
               <button
                 onClick={handleDisable}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs transition-colors border ${
+                className={`flex items-center gap-1.5 text-xs transition-colors ${
                   confirmDisable
-                    ? "text-red-600 bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/50"
-                    : "text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 border-input-border"
+                    ? "text-red-500"
+                    : "text-muted-foreground hover:text-red-500"
                 }`}
               >
                 <XCircle size={12} />
@@ -310,14 +297,6 @@ export default function CalendarFeedSettings() {
               </button>
             </div>
           </div>
-        )}
-
-        {/* Status Messages */}
-        {error && (
-          <div className="mt-3 bg-red-50 dark:bg-red-900/20 text-red-500 text-sm p-3 rounded-xl">{error}</div>
-        )}
-        {success && (
-          <div className="mt-3 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 text-sm p-3 rounded-xl">{success}</div>
         )}
     </div>
   );

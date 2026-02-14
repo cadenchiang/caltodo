@@ -68,7 +68,7 @@ export default function ProfilePopup({ avatarUrl, fullName, email }: ProfilePopu
     setOpen(false);
     setConfirmSignOut(false);
     await fetch("/auth/signout", { method: "POST" });
-    router.push("/login");
+    router.push("/");
   }
 
   return (

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { useState, useRef } from "react";
+import { Eye, EyeOff, Loader2, Play } from "lucide-react";
+import { useToast } from "@/contexts/ToastContext";
 
 interface CanvasCourse {
   id: number;
@@ -22,8 +23,8 @@ interface CanvasStepProps {
 }
 
 /**
- * Canvas onboarding step with token verification and course selection.
- * Flow: enter token -> click "Verify & Load Courses" -> show course checkboxes -> save.
+ * Canvas onboarding step with always-white styling.
+ * Flow: enter token -> verify -> select courses -> save.
  *
  * @param onNext - Async callback to save credentials; returns true on success
  * @param onSkip - Callback to skip this step
@@ -32,12 +33,15 @@ interface CanvasStepProps {
  * @param setError - Callback to set/clear error messages
  */
 export default function CanvasStep({ onNext, onSkip, saving, error, setError }: CanvasStepProps) {
+  const { showToast } = useToast();
   const [canvasToken, setCanvasToken] = useState("");
   const [canvasBaseUrl, setCanvasBaseUrl] = useState("https://bcourses.berkeley.edu");
   const [showToken, setShowToken] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [courses, setCourses] = useState<CanvasCourse[] | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [videoExpanded, setVideoExpanded] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   /**
    * Verifies the token by fetching courses from Canvas.
@@ -45,7 +49,7 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError }: 
    */
   async function handleVerify() {
     if (!canvasToken.trim()) {
-      setError("Please enter your Canvas access token.");
+      showToast("Please enter your bCourses access token.");
       return;
     }
 
@@ -65,7 +69,6 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError }: 
       const data = await res.json();
       const fetchedCourses: CanvasCourse[] = data.courses;
       setCourses(fetchedCourses);
-      // Pre-check all courses
       setSelectedIds(new Set(fetchedCourses.map((c) => c.id)));
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -108,76 +111,124 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError }: 
 
   return (
     <div>
-      <h2 className="text-lg font-bold text-foreground mb-1">Canvas Integration</h2>
-      <p className="text-sm text-muted-foreground mb-4">
-        We need a personal access token from Canvas (bCourses) to read your assignments.
-      </p>
-
-      {/* Instructions */}
-      <div className="bg-blue-50/60 rounded-xl px-4 py-3 mb-5 text-xs text-secondary-foreground leading-relaxed">
-        <p className="font-semibold text-secondary-foreground mb-2">How to get your token:</p>
-        <ol className="list-decimal list-inside flex flex-col gap-1.5">
-          <li>Open <a href="https://bcourses.berkeley.edu/profile/settings" target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">bCourses Settings</a> (Profile icon &rarr; Settings)</li>
-          <li>Scroll down to <span className="font-medium text-secondary-foreground">Approved Integrations</span></li>
-          <li>Click <span className="font-medium text-secondary-foreground">+ New Access Token</span></li>
-          <li>Set purpose to <span className="italic">toodoocal</span>, leave expiry blank</li>
-          <li>Click <span className="font-medium text-secondary-foreground">Generate Token</span></li>
-          <li>Copy the token and paste it below &mdash; <span className="text-amber-600 font-medium">you won&apos;t be able to see it again</span></li>
-        </ol>
+      <div className="flex items-center gap-2 mb-2">
+        <img src="/bcourses-logo.png" alt="bCourses" width={22} height={22} className="shrink-0" />
+        <h2 className="text-lg font-bold text-gray-800 animate-drop-in">bCourses</h2>
       </div>
 
-      {/* Token + URL inputs */}
       {!courses && (
         <>
-          <div className="flex flex-col gap-3 mb-5">
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1">Canvas Base URL</label>
-              <input
-                type="url"
-                value={canvasBaseUrl}
-                onChange={(e) => setCanvasBaseUrl(e.target.value)}
-                placeholder="https://bcourses.berkeley.edu"
-                className="w-full px-3 py-2.5 rounded-xl bg-input-bg text-sm text-foreground placeholder-subtle-foreground focus:outline-none focus:bg-input-bg-focus transition-all"
-              />
-              <p className="text-xs text-subtle-foreground mt-1">
-                Change this only if your school doesn&apos;t use bCourses.
-              </p>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1">Access Token</label>
-              <div className="relative">
-                <input
-                  type={showToken ? "text" : "password"}
-                  value={canvasToken}
-                  onChange={(e) => setCanvasToken(e.target.value)}
-                  placeholder="Paste your Canvas access token here"
-                  className="w-full px-3 py-2.5 pr-10 rounded-xl bg-input-bg text-sm text-foreground placeholder-subtle-foreground focus:outline-none focus:bg-input-bg-focus transition-all"
-                />
+          <p className="text-sm text-gray-500 mb-4 animate-drop-in delay-100">
+            paste your access token from{" "}
+            <a href="https://bcourses.berkeley.edu/profile/settings" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline">
+              bCourses Settings
+            </a>{" "}
+            &gt; Approved Integrations &gt; + New Access Token.
+          </p>
+
+          {/* Video section with smooth expand/collapse */}
+          <div className="animate-drop-in delay-150">
+            {/* Button - collapses when video expanded */}
+            <div
+              className="grid overflow-hidden transition-[grid-template-rows,opacity] duration-500"
+              style={{
+                gridTemplateRows: videoExpanded ? "0fr" : "1fr",
+                opacity: videoExpanded ? 0 : 1,
+                transitionTimingFunction: "cubic-bezier(0.33, 1, 0.68, 1)",
+              }}
+            >
+              <div className="min-h-0 overflow-hidden">
                 <button
                   type="button"
-                  onClick={() => setShowToken(!showToken)}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-subtle-foreground hover:text-secondary-foreground transition-colors"
+                  onClick={() => {
+                    setVideoExpanded(true);
+                    setTimeout(() => {
+                      if (videoRef.current) {
+                        videoRef.current.currentTime = 0;
+                        videoRef.current.play().catch(() => {});
+                      }
+                    }, 400);
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2.5 mb-4 rounded-xl text-xs text-gray-500 bg-white btn-elevated-secondary"
                 >
-                  {showToken ? <EyeOff size={15} /> : <Eye size={15} />}
+                  <Play size={14} />
+                  watch how to get your token
+                </button>
+              </div>
+            </div>
+
+            {/* Video - expands smoothly from 0 height, breaks out of container */}
+            <div
+              className="grid overflow-hidden transition-[grid-template-rows,opacity,margin] duration-500"
+              style={{
+                gridTemplateRows: videoExpanded ? "1fr" : "0fr",
+                opacity: videoExpanded ? 1 : 0,
+                marginLeft: videoExpanded ? "-6rem" : "0",
+                marginRight: videoExpanded ? "-6rem" : "0",
+                transitionTimingFunction: "cubic-bezier(0.33, 1, 0.68, 1)",
+              }}
+            >
+              <div className="min-h-0 overflow-hidden">
+                <div className="rounded-xl overflow-hidden shadow-lg mb-3">
+                  <video
+                    ref={videoRef}
+                    src="/bcourses-instructions.mp4"
+                    loop
+                    muted
+                    playsInline
+                    controls
+                    className="w-full"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setVideoExpanded(false);
+                    videoRef.current?.pause();
+                  }}
+                  className="text-xs text-gray-400 hover:text-gray-600 transition-colors mb-4"
+                >
+                  hide video
                 </button>
               </div>
             </div>
           </div>
 
-          <div className="flex gap-3">
+          <div className="mb-5 animate-drop-in delay-200">
+            <div className="relative">
+              <input
+                type={showToken ? "text" : "password"}
+                value={canvasToken}
+                onChange={(e) => setCanvasToken(e.target.value)}
+                placeholder="paste access token"
+                autoComplete="off"
+                name="canvas-token-nofill"
+                className="w-full px-3 py-2.5 pr-10 rounded-xl border border-gray-300 bg-white text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-gray-500 transition-colors"
+              />
+              <button
+                type="button"
+                onClick={() => setShowToken(!showToken)}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-800 transition-colors"
+              >
+                {showToken ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
+            </div>
+          </div>
+
+          <div className="flex gap-3 animate-drop-in delay-300">
             <button
               onClick={onSkip}
-              className="flex-1 px-4 py-2.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              className="flex-1 px-4 py-2.5 text-sm text-gray-400 rounded-xl bg-white btn-elevated-secondary"
             >
-              Skip
+              skip
             </button>
             <button
               onClick={handleVerify}
               disabled={verifying || saving}
-              className="flex-1 px-4 py-2.5 bg-blue-500 text-white rounded-xl text-sm font-medium hover:bg-blue-600 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+              className="flex-1 px-4 py-2.5 bg-gray-800 text-white rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2 btn-elevated-primary"
             >
               {verifying && <Loader2 size={14} className="animate-spin" />}
-              {verifying ? "Verifying..." : "Verify & Load Courses"}
+              {verifying ? "verifying..." : "connect"}
             </button>
           </div>
         </>
@@ -188,8 +239,8 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError }: 
         <>
           <div className="mb-4">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-sm font-medium text-secondary-foreground">
-                Select courses to sync ({selectedIds.size}/{courses.length})
+              <p className="text-sm font-medium text-gray-600">
+                select courses to sync ({selectedIds.size}/{courses.length})
               </p>
               <button
                 type="button"
@@ -200,32 +251,32 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError }: 
                     setSelectedIds(new Set(courses.map((c) => c.id)));
                   }
                 }}
-                className="text-xs text-blue-500 hover:text-blue-600 transition-colors"
+                className="text-xs text-blue-400 hover:text-blue-300 transition-colors duration-100"
               >
-                {selectedIds.size === courses.length ? "Deselect all" : "Select all"}
+                {selectedIds.size === courses.length ? "deselect all" : "select all"}
               </button>
             </div>
-            <div className="max-h-48 overflow-auto rounded-xl bg-input-bg border border-border">
+            <div className="max-h-48 overflow-auto rounded-xl border border-gray-100">
               {courses.map((course) => (
                 <label
                   key={course.id}
-                  className="flex items-center gap-3 px-3 py-2.5 hover:bg-accent transition-colors cursor-pointer border-b border-border-subtle last:border-0"
+                  className="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 transition-colors duration-100 cursor-pointer border-b border-gray-100 last:border-0"
                 >
                   <input
                     type="checkbox"
                     checked={selectedIds.has(course.id)}
                     onChange={() => toggleCourse(course.id)}
-                    className="w-4 h-4 rounded accent-blue-500"
+                    className="w-4 h-4 rounded accent-gray-800"
                   />
                   <div className="flex-1 min-w-0">
-                    <span className="text-sm text-foreground block truncate">{course.name}</span>
-                    <span className="text-xs text-subtle-foreground block truncate">{course.course_code}</span>
+                    <span className="text-sm text-gray-800 block truncate">{course.name}</span>
+                    <span className="text-xs text-gray-400 block truncate">{course.course_code}</span>
                   </div>
                 </label>
               ))}
               {courses.length === 0 && (
-                <div className="px-3 py-4 text-sm text-subtle-foreground text-center">
-                  No active courses found.
+                <div className="px-3 py-4 text-sm text-gray-400 text-center">
+                  no active courses found.
                 </div>
               )}
             </div>
@@ -237,16 +288,16 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError }: 
                 setCourses(null);
                 setSelectedIds(new Set());
               }}
-              className="flex-1 px-4 py-2.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              className="flex-1 px-4 py-2.5 text-sm text-gray-400 rounded-xl bg-white btn-elevated-secondary"
             >
-              Back
+              back
             </button>
             <button
               onClick={handleSaveAndNext}
               disabled={saving || selectedIds.size === 0}
-              className="flex-1 px-4 py-2.5 bg-blue-500 text-white rounded-xl text-sm font-medium hover:bg-blue-600 disabled:opacity-50 transition-colors"
+              className="flex-1 px-4 py-2.5 bg-gray-800 text-white rounded-xl text-sm font-semibold disabled:opacity-50 btn-elevated-primary"
             >
-              {saving ? "Saving..." : "Save & Next"}
+              {saving ? "saving..." : "save & next"}
             </button>
           </div>
         </>

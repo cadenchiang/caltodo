@@ -104,10 +104,10 @@ function buildDescription(task: Task): string {
  * SUMMARY includes [course_name] prefix if present.
  *
  * @param tasks - Array of Task objects (may include tasks without due_date, which are skipped)
- * @param calendarName - Display name for the calendar (default: "toodoocal")
+ * @param calendarName - Display name for the calendar (default: "caltodo")
  * @returns Complete iCal VCALENDAR string with CRLF line endings
  */
-export function generateICalFeed(tasks: Task[], calendarName = "toodoocal"): string {
+export function generateICalFeed(tasks: Task[], calendarName = "caltodo"): string {
   const lines: string[] = [];
 
   lines.push("BEGIN:VCALENDAR");
@@ -127,7 +127,7 @@ export function generateICalFeed(tasks: Task[], calendarName = "toodoocal"): str
     const description = buildDescription(task);
 
     lines.push("BEGIN:VEVENT");
-    lines.push(`UID:${task.id}@toodoocal`);
+    lines.push(`UID:${task.id}@caltodo`);
     lines.push(`DTSTART;VALUE=DATE:${dateStr}`);
     lines.push(`DTEND;VALUE=DATE:${dateStr}`);
     lines.push(foldLine(`SUMMARY:${escapeICalText(summary)}`));

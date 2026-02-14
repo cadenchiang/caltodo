@@ -1,11 +1,13 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, useLayoutEffect, useCallback, useRef, type ReactNode } from "react";
+import { Undo2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/contexts/ToastContext";
 import type { Task, TaskInsert, TaskUpdate, SyncResult } from "@/lib/types";
 
 /** localStorage key and version for stale-while-revalidate task caching. */
-const CACHE_KEY = "toodoo_tasks_cache";
+const CACHE_KEY = "caltodo_tasks_cache";
 const CACHE_VERSION = 1;
 
 interface CachedTasks {
@@ -59,6 +61,12 @@ function clearCachedTasks(): void {
   }
 }
 
+/** How often auto-sync runs in milliseconds (15 minutes). */
+const AUTO_SYNC_INTERVAL_MS = 15 * 60 * 1000;
+
+/** Minimum time between auto-syncs to avoid rapid re-triggers (5 minutes). */
+const AUTO_SYNC_COOLDOWN_MS = 5 * 60 * 1000;
+
 interface TaskContextValue {
   tasks: Task[];
   loading: boolean;
@@ -87,6 +95,7 @@ const TaskContext = createContext<TaskContextValue | null>(null);
  * Cache hydration happens in useEffect to avoid SSR/client hydration mismatch.
  */
 export function TaskProvider({ children }: { children: ReactNode }) {
+  const { showToast } = useToast();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -156,6 +165,47 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     fetchLastSynced();
   }, [fetchTasks, fetchLastSynced]);
 
+  // Auto-sync: runs on initial load (if stale) and every 15 minutes
+  const lastAutoSyncRef = useRef<number>(0);
+  const autoSyncTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  /**
+   * Runs sync silently if enough time has passed since the last sync.
+   * Does not show a progress bar; just refreshes data in the background.
+   */
+  const autoSync = useCallback(async () => {
+    const now = Date.now();
+    if (syncing || now - lastAutoSyncRef.current < AUTO_SYNC_COOLDOWN_MS) return;
+    lastAutoSyncRef.current = now;
+    try {
+      const res = await fetch("/api/assignments/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
+      });
+      if (res.ok) {
+        const result: SyncResult = await res.json();
+        setLastSyncedAt(result.last_synced_at);
+        await fetchTasks();
+      }
+    } catch {
+      // Silent failure for auto-sync — user can still manually sync
+    }
+  }, [syncing, fetchTasks]);
+
+  useEffect(() => {
+    // Auto-sync on mount after a short delay (let initial load finish)
+    const mountTimer = setTimeout(() => autoSync(), 3000);
+
+    // Set up periodic auto-sync
+    autoSyncTimerRef.current = setInterval(() => autoSync(), AUTO_SYNC_INTERVAL_MS);
+
+    return () => {
+      clearTimeout(mountTimer);
+      if (autoSyncTimerRef.current) clearInterval(autoSyncTimerRef.current);
+    };
+  }, [autoSync]);
+
   async function addTask(taskData: TaskInsert) {
     if (!userId) {
       setError("Not authenticated. Please sign in again.");
@@ -206,7 +256,18 @@ export function TaskProvider({ children }: { children: ReactNode }) {
   async function toggleComplete(id: string) {
     const task = tasks.find((t) => t.id === id);
     if (!task) return;
-    await updateTask(id, { is_completed: !task.is_completed });
+    const willComplete = !task.is_completed;
+    await updateTask(id, { is_completed: willComplete });
+
+    if (willComplete) {
+      showToast("Task completed", {
+        action: {
+          label: "Undo",
+          icon: <Undo2 size={14} />,
+          onClick: () => updateTask(id, { is_completed: false }),
+        },
+      });
+    }
   }
 
   async function deleteTask(id: string) {

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { CalendarDays, Flag, Trash2 } from "lucide-react";
+import { CalendarDays, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import type { Task, TaskUpdate } from "@/lib/types";
 import { TASK_COLORS } from "@/lib/constants";
@@ -103,6 +103,7 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description);
   const [dueDate, setDueDate] = useState<string | null>(task.due_date);
+  const [dueTime, setDueTime] = useState<string | null>(task.due_time);
   const [color, setColor] = useState(task.color);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
@@ -114,10 +115,11 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
     setTitle(task.title);
     setDescription(task.description);
     setDueDate(task.due_date);
+    setDueTime(task.due_time);
     setColor(task.color);
     setShowDatePicker(false);
     setShowColorPicker(false);
-  }, [task.id, task.title, task.description, task.due_date, task.color]);
+  }, [task.id, task.title, task.description, task.due_date, task.due_time, task.color]);
 
   useEffect(() => {
     setMounted(true);
@@ -149,7 +151,7 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
   function handleSave() {
     const trimmed = title.trim();
     if (!trimmed) return;
-    onSave(task.id, { title: trimmed, description, due_date: dueDate, color });
+    onSave(task.id, { title: trimmed, description, due_date: dueDate, due_time: dueTime, color });
   }
 
   function handleDelete() {
@@ -171,7 +173,7 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
       }`}
       style={{ top: pos.top, left: pos.left }}
     >
-      {/* Top bar: checkbox | calendar date | color flag */}
+      {/* Top bar: checkbox | calendar date | color circle */}
       <div className="flex items-center gap-2 px-4 pt-4 pb-3 border-b border-border-subtle">
         {/* Checkbox */}
         <button
@@ -211,16 +213,21 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
           >
             <DatePicker
               value={dueDate}
+              timeValue={dueTime}
               onChange={(date) => {
                 setDueDate(date);
                 setShowDatePicker(false);
-                onSave(task.id, { title: title.trim() || task.title, description, due_date: date, color });
+                onSave(task.id, { title: title.trim() || task.title, description, due_date: date, due_time: dueTime, color });
+              }}
+              onTimeChange={(time) => {
+                setDueTime(time);
+                onSave(task.id, { title: title.trim() || task.title, description, due_date: dueDate, due_time: time, color });
               }}
             />
           </Popover>
         </div>
 
-        {/* Color flag (single dot, expands on click) */}
+        {/* Color circle (expands on click) */}
         <div className="relative ml-auto">
           <button
             type="button"
@@ -230,7 +237,7 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
             }}
             className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-accent transition-colors"
           >
-            <Flag size={14} style={{ color: color || "#9CA3AF" }} />
+            <div className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: color || "#9CA3AF" }} />
           </button>
           <Popover
             open={showColorPicker}
@@ -246,7 +253,7 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
                     onClick={() => {
                       setColor(c);
                       setShowColorPicker(false);
-                      onSave(task.id, { title: title.trim() || task.title, description, due_date: dueDate, color: c });
+                      onSave(task.id, { title: title.trim() || task.title, description, due_date: dueDate, due_time: dueTime, color: c });
                     }}
                     className={`w-6 h-6 rounded-full transition-all ${
                       color === c ? "scale-125" : "hover:scale-110"
@@ -272,11 +279,11 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
               <span
                 className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
                   task.source === "canvas"
-                    ? "text-red-600 bg-red-50 dark:bg-red-900/30"
+                    ? "text-blue-600 bg-blue-50 dark:bg-blue-900/30"
                     : "text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30"
                 }`}
               >
-                {task.source === "canvas" ? "Canvas" : "Gradescope"}
+                {task.source === "canvas" ? "bCourses" : "Gradescope"}
               </span>
             )}
             {task.is_submitted && (

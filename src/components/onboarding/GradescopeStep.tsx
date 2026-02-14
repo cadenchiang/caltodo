@@ -22,8 +22,8 @@ interface GradescopeStepProps {
 }
 
 /**
- * Gradescope onboarding step with credential verification and course selection.
- * Flow: enter email/password -> click "Verify & Load Courses" -> show course checkboxes -> save.
+ * Gradescope onboarding step with always-white styling.
+ * Flow: enter email/password -> verify -> select courses -> save.
  *
  * @param onNext - Async callback to save credentials; returns true on success
  * @param onSkip - Callback to skip this step
@@ -107,78 +107,84 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
 
   return (
     <div>
-      <h2 className="text-lg font-bold text-foreground mb-1">Gradescope Integration</h2>
-      <p className="text-sm text-muted-foreground mb-4">
-        We&apos;ll sign into Gradescope on your behalf to pull your upcoming assignments.
-      </p>
-
-      {/* Instructions for CalNet users */}
-      <div className="bg-emerald-50/60 rounded-xl px-4 py-3 mb-5 text-xs text-secondary-foreground leading-relaxed">
-        <p className="font-semibold text-secondary-foreground mb-2">Important for CalNet (Berkeley) users:</p>
-        <p className="mb-1.5">
-          If you normally log into Gradescope via &quot;School Credentials&quot; / CalNet SSO, you&apos;ll need to set a
-          Gradescope-specific password first:
-        </p>
-        <ol className="list-decimal list-inside flex flex-col gap-1.5">
-          <li>Go to <a href="https://www.gradescope.com/reset_password" target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">gradescope.com/reset_password</a></li>
-          <li>Enter your <span className="font-medium text-secondary-foreground">@berkeley.edu</span> email</li>
-          <li>Check your email and set a new password</li>
-          <li>Use that email &amp; password below</li>
-        </ol>
-        <p className="mt-2 text-subtle-foreground">
-          Your credentials are encrypted and only used to fetch assignments.
-        </p>
+      <div className="flex items-center gap-2 mb-2">
+        <svg width="22" height="22" viewBox="0 0 14 14" fill="none" className="shrink-0">
+          <rect width="14" height="14" rx="3" fill="#3AADA8" />
+          <rect x="1.5" y="8.5" width="2" height="3.5" rx="0.5" fill="white" />
+          <rect x="4.5" y="6.5" width="2" height="5.5" rx="0.5" fill="white" />
+          <rect x="7.5" y="4.5" width="2" height="7.5" rx="0.5" fill="white" />
+          <rect x="10.5" y="2.5" width="2" height="9.5" rx="0.5" fill="white" />
+        </svg>
+        <h2 className="text-lg font-bold text-gray-800 animate-drop-in">Gradescope</h2>
       </div>
 
-      {/* Email + Password inputs (before verification) */}
+      {/* Login inputs (no courses loaded yet) */}
       {!courses && (
         <>
-          <div className="flex flex-col gap-3 mb-5">
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1">Email</label>
+          <p className="text-sm text-gray-500 mb-1 animate-drop-in delay-100">
+            sign in with your Gradescope email and password.
+          </p>
+          <p className="text-xs text-gray-400 mb-4 animate-drop-in delay-100">
+            use CalNet SSO?{" "}
+            <a href="https://www.gradescope.com/reset_password" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline">
+              set a password first
+            </a>
+          </p>
+
+          <div className="flex flex-col gap-3 mb-5 animate-drop-in delay-200">
+            <input
+              type="text"
+              inputMode="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="email"
+              autoComplete="new-password"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              data-form-type="other"
+              data-lpignore="true"
+              data-1p-ignore
+              name="gs-email-nofill"
+              className="w-full px-3 py-2.5 rounded-xl border border-gray-300 bg-white text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-gray-500 transition-colors"
+            />
+            <div className="relative">
               <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@berkeley.edu"
-                className="w-full px-3 py-2.5 rounded-xl bg-input-bg text-sm text-foreground placeholder-subtle-foreground focus:outline-none focus:bg-input-bg-focus transition-all"
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="password"
+                autoComplete="new-password"
+                data-form-type="other"
+                data-lpignore="true"
+                data-1p-ignore
+                name="gs-pass-nofill"
+                className="w-full px-3 py-2.5 pr-10 rounded-xl border border-gray-300 bg-white text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-gray-500 transition-colors"
               />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1">Password</label>
-              <div className="relative">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Your Gradescope password"
-                  className="w-full px-3 py-2.5 pr-10 rounded-xl bg-input-bg text-sm text-foreground placeholder-subtle-foreground focus:outline-none focus:bg-input-bg-focus transition-all"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-subtle-foreground hover:text-secondary-foreground transition-colors"
-                >
-                  {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-800 transition-colors"
+              >
+                {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
             </div>
           </div>
 
-          <div className="flex gap-3">
+          <div className="flex gap-3 animate-drop-in delay-300">
             <button
               onClick={onSkip}
-              className="flex-1 px-4 py-2.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              className="flex-1 px-4 py-2.5 text-sm text-gray-400 rounded-xl bg-white btn-elevated-secondary"
             >
-              Skip
+              skip
             </button>
             <button
               onClick={handleVerify}
               disabled={verifying || saving}
-              className="flex-1 px-4 py-2.5 bg-blue-500 text-white rounded-xl text-sm font-medium hover:bg-blue-600 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+              className="flex-1 px-4 py-2.5 bg-gray-800 text-white rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2 btn-elevated-primary"
             >
               {verifying && <Loader2 size={14} className="animate-spin" />}
-              {verifying ? "Verifying..." : "Verify & Load Courses"}
+              {verifying ? "verifying..." : "connect"}
             </button>
           </div>
         </>
@@ -189,8 +195,8 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
         <>
           <div className="mb-4">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-sm font-medium text-secondary-foreground">
-                Select courses to sync ({selectedIds.size}/{courses.length})
+              <p className="text-sm font-medium text-gray-600">
+                select courses to sync ({selectedIds.size}/{courses.length})
               </p>
               <button
                 type="button"
@@ -201,34 +207,34 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
                     setSelectedIds(new Set(courses.map((c) => c.id)));
                   }
                 }}
-                className="text-xs text-blue-500 hover:text-blue-600 transition-colors"
+                className="text-xs text-blue-400 hover:text-blue-300 transition-colors duration-100"
               >
-                {selectedIds.size === courses.length ? "Deselect all" : "Select all"}
+                {selectedIds.size === courses.length ? "deselect all" : "select all"}
               </button>
             </div>
-            <div className="max-h-48 overflow-auto rounded-xl bg-input-bg border border-border">
+            <div className="max-h-48 overflow-auto rounded-xl border border-gray-100">
               {courses.map((course) => (
                 <label
                   key={course.id}
-                  className="flex items-center gap-3 px-3 py-2.5 hover:bg-accent transition-colors cursor-pointer border-b border-border-subtle last:border-0"
+                  className="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 transition-colors duration-100 cursor-pointer border-b border-gray-100 last:border-0"
                 >
                   <input
                     type="checkbox"
                     checked={selectedIds.has(course.id)}
                     onChange={() => toggleCourse(course.id)}
-                    className="w-4 h-4 rounded accent-blue-500"
+                    className="w-4 h-4 rounded accent-gray-800"
                   />
                   <div className="flex-1 min-w-0">
-                    <span className="text-sm text-foreground block truncate">{course.name}</span>
+                    <span className="text-sm text-gray-800 block truncate">{course.name}</span>
                     {course.shortName && (
-                      <span className="text-xs text-subtle-foreground block truncate">{course.shortName}</span>
+                      <span className="text-xs text-gray-400 block truncate">{course.shortName}</span>
                     )}
                   </div>
                 </label>
               ))}
               {courses.length === 0 && (
-                <div className="px-3 py-4 text-sm text-subtle-foreground text-center">
-                  No active courses found.
+                <div className="px-3 py-4 text-sm text-gray-400 text-center">
+                  no active courses found.
                 </div>
               )}
             </div>
@@ -240,16 +246,16 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
                 setCourses(null);
                 setSelectedIds(new Set());
               }}
-              className="flex-1 px-4 py-2.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              className="flex-1 px-4 py-2.5 text-sm text-gray-400 rounded-xl bg-white btn-elevated-secondary"
             >
-              Back
+              back
             </button>
             <button
               onClick={handleSaveAndNext}
               disabled={saving || selectedIds.size === 0}
-              className="flex-1 px-4 py-2.5 bg-blue-500 text-white rounded-xl text-sm font-medium hover:bg-blue-600 disabled:opacity-50 transition-colors"
+              className="flex-1 px-4 py-2.5 bg-gray-800 text-white rounded-xl text-sm font-semibold disabled:opacity-50 btn-elevated-primary"
             >
-              {saving ? "Saving..." : "Save & Next"}
+              {saving ? "saving..." : "save & next"}
             </button>
           </div>
         </>

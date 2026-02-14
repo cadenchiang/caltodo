@@ -13,7 +13,7 @@ export function useAuth() {
 
   async function signOut() {
     await fetch("/auth/signout", { method: "POST" });
-    router.push("/login");
+    router.push("/");
   }
 
   return { signOut };

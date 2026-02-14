@@ -13,8 +13,8 @@ import type { SyncResult, SyncSourceResult } from "@/lib/types";
 
 const UPSERT_BATCH_SIZE = 50;
 
-/** Default color for Canvas assignments (red). */
-const CANVAS_COLOR = "#EF4444";
+/** Default color for Canvas assignments (blue). */
+const CANVAS_COLOR = "#3B82F6";
 /** Default color for Gradescope assignments (green). */
 const GRADESCOPE_COLOR = "#10B981";
 

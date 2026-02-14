@@ -5,7 +5,7 @@ import type { IntegrationCredentials } from "@/lib/types";
 import CanvasSettings from "./CanvasSettings";
 import GradescopeSettings from "./GradescopeSettings";
 
-const CACHE_KEY = "toodoo_credentials_cache";
+const CACHE_KEY = "caltodo_credentials_cache";
 
 /**
  * Reads cached credentials from localStorage.
