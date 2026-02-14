@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { CalendarDays, Trash2 } from "lucide-react";
+import { CalendarDays, Trash2, ExternalLink } from "lucide-react";
 import { format } from "date-fns";
 import type { Task, TaskUpdate } from "@/lib/types";
 import { TASK_COLORS } from "@/lib/constants";
@@ -290,6 +290,17 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
               <span className="text-[10px] font-medium px-1.5 py-0.5 rounded text-green-600 bg-green-50 dark:bg-green-900/30">
                 Submitted
               </span>
+            )}
+            {task.source_url && (
+              <a
+                href={task.source_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded text-muted-foreground hover:text-foreground bg-accent hover:bg-muted transition-colors"
+              >
+                <ExternalLink size={10} />
+                Open
+              </a>
             )}
           </div>
         )}

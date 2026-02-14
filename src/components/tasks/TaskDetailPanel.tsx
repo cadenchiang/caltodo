@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { CalendarDays } from "lucide-react";
+import { CalendarDays, ExternalLink } from "lucide-react";
 import { format } from "date-fns";
 import type { Task, TaskUpdate } from "@/lib/types";
 import { TASK_COLORS } from "@/lib/constants";
@@ -216,7 +216,7 @@ export default function TaskDetailPanel({ task, onClose, onSave }: TaskDetailPan
             </div>
           </div>
 
-          {/* Source badge */}
+          {/* Source badge + submission link */}
           {(task.source || task.is_submitted) && (
             <div className="flex items-center gap-2 px-5 pt-3">
               {task.source && (
@@ -234,6 +234,17 @@ export default function TaskDetailPanel({ task, onClose, onSave }: TaskDetailPan
                 <span className="text-[10px] font-medium px-1.5 py-0.5 rounded text-green-600 bg-green-50 dark:bg-green-900/30">
                   Submitted
                 </span>
+              )}
+              {task.source_url && (
+                <a
+                  href={task.source_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded text-muted-foreground hover:text-foreground bg-accent hover:bg-muted transition-colors"
+                >
+                  <ExternalLink size={10} />
+                  Open
+                </a>
               )}
             </div>
           )}
