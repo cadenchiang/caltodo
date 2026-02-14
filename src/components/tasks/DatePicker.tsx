@@ -43,23 +43,23 @@ export default function DatePicker({ value, onChange }: DatePickerProps) {
   const today = startOfDay(new Date());
 
   return (
-    <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 p-3 w-64">
+    <div className="bg-card rounded-2xl shadow-2xl border border-border p-3 w-64">
       {/* Header */}
       <div className="flex items-center justify-between mb-2">
         <button
           type="button"
           onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
-          className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-white/40 transition-all"
+          className="p-1.5 text-subtle-foreground hover:text-secondary-foreground rounded-lg hover:bg-accent transition-all"
         >
           <ChevronLeft size={16} />
         </button>
-        <span className="text-sm font-medium text-gray-800">
+        <span className="text-sm font-medium text-foreground">
           {format(currentMonth, "MMMM yyyy")}
         </span>
         <button
           type="button"
           onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
-          className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-white/40 transition-all"
+          className="p-1.5 text-subtle-foreground hover:text-secondary-foreground rounded-lg hover:bg-accent transition-all"
         >
           <ChevronRight size={16} />
         </button>
@@ -68,7 +68,7 @@ export default function DatePicker({ value, onChange }: DatePickerProps) {
       {/* Weekday headers */}
       <div className="grid grid-cols-7 mb-1">
         {weekDays.map((day) => (
-          <div key={day} className="text-center text-xs text-gray-400 py-1">
+          <div key={day} className="text-center text-xs text-subtle-foreground py-1">
             {day}
           </div>
         ))}
@@ -94,10 +94,10 @@ export default function DatePicker({ value, onChange }: DatePickerProps) {
                   : isToday
                     ? "bg-blue-500/10 text-blue-600 font-medium"
                     : isPast
-                      ? "text-gray-400 hover:bg-white/50"
+                      ? "text-subtle-foreground hover:bg-accent"
                       : isCurrentMonth
-                        ? "text-gray-700 hover:bg-white/50"
-                        : "text-gray-300"
+                        ? "text-secondary-foreground hover:bg-accent"
+                        : "text-subtle-foreground/50"
               }`}
             >
               {format(day, "d")}
@@ -110,7 +110,7 @@ export default function DatePicker({ value, onChange }: DatePickerProps) {
       <button
         type="button"
         onClick={() => onChange(null)}
-        className="mt-2 w-full text-xs text-gray-400 hover:text-gray-600 py-1.5 rounded-lg hover:bg-white/40 transition-all"
+        className="mt-2 w-full text-xs text-subtle-foreground hover:text-secondary-foreground py-1.5 rounded-lg hover:bg-accent transition-all"
       >
         Clear date
       </button>

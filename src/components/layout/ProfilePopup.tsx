@@ -76,7 +76,7 @@ export default function ProfilePopup({ avatarUrl, fullName, email }: ProfilePopu
       {/* Avatar button */}
       <button
         onClick={() => setOpen(!open)}
-        className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center transition-all hover:ring-2 hover:ring-blue-200"
+        className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center transition-all hover:ring-2 hover:ring-ring"
         aria-label="Profile menu"
       >
         {avatarUrl ? (
@@ -91,15 +91,15 @@ export default function ProfilePopup({ avatarUrl, fullName, email }: ProfilePopu
       {/* Popup */}
       {open && (
         <div
-          className="absolute bottom-full left-0 mb-2 w-64 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden animate-in"
+          className="absolute bottom-full left-0 mb-2 w-64 bg-card rounded-xl shadow-2xl border border-border overflow-hidden animate-in"
         >
           {/* User info */}
-          <div className="px-4 py-3 border-b border-gray-100">
+          <div className="px-4 py-3 border-b border-border">
             {fullName && (
-              <p className="text-sm font-medium text-gray-800 truncate">{fullName}</p>
+              <p className="text-sm font-medium text-foreground truncate">{fullName}</p>
             )}
             {email && (
-              <p className="text-xs text-gray-400 truncate">{email}</p>
+              <p className="text-xs text-subtle-foreground truncate">{email}</p>
             )}
           </div>
 
@@ -110,7 +110,7 @@ export default function ProfilePopup({ avatarUrl, fullName, email }: ProfilePopu
                 setOpen(false);
                 router.push("/app/settings");
               }}
-              className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-gray-600 hover:bg-black/5 transition-colors"
+              className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-secondary-foreground hover:bg-accent transition-colors"
             >
               <Settings size={16} />
               Settings
@@ -119,8 +119,8 @@ export default function ProfilePopup({ avatarUrl, fullName, email }: ProfilePopu
               onClick={handleSignOutClick}
               className={`flex items-center gap-3 w-full px-4 py-2.5 text-sm transition-colors ${
                 confirmSignOut
-                  ? "text-red-500 bg-red-50 hover:bg-red-100"
-                  : "text-gray-600 hover:bg-black/5"
+                  ? "text-red-500 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/50"
+                  : "text-secondary-foreground hover:bg-accent"
               }`}
             >
               <LogOut size={16} />

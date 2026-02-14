@@ -55,10 +55,10 @@ export default function LoginForm() {
 
   return (
     <div className="flex flex-col gap-4 w-full">
-      <h1 className="text-2xl font-bold text-center text-gray-800">
-        <span className="text-gray-800 font-bold">toodoo</span><span className="brand-gradient font-black">cal</span>
+      <h1 className="text-2xl font-bold text-center text-foreground">
+        <span className="text-foreground font-bold">toodoo</span><span className="brand-gradient font-black">cal</span>
       </h1>
-      <p className="text-sm text-center text-gray-500 -mt-2">
+      <p className="text-sm text-center text-muted-foreground -mt-2">
         {isSignUp ? "Create Account" : "Welcome Back"}
       </p>
 
@@ -78,7 +78,7 @@ export default function LoginForm() {
       <button
         type="button"
         onClick={handleGoogleSignIn}
-        className="flex items-center justify-center gap-3 px-4 py-3 bg-white/50 rounded-xl font-medium text-gray-700 hover:bg-white/70 transition-all"
+        className="flex items-center justify-center gap-3 px-4 py-3 bg-input-bg rounded-xl font-medium text-secondary-foreground hover:bg-accent transition-all"
       >
         <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
           <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 01-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
@@ -91,9 +91,9 @@ export default function LoginForm() {
 
       {/* Divider */}
       <div className="flex items-center gap-3">
-        <div className="flex-1 h-px bg-gray-300/40" />
-        <span className="text-xs text-gray-400">or</span>
-        <div className="flex-1 h-px bg-gray-300/40" />
+        <div className="flex-1 h-px bg-border" />
+        <span className="text-xs text-subtle-foreground">or</span>
+        <div className="flex-1 h-px bg-border" />
       </div>
 
       {/* Email/password form */}
@@ -103,7 +103,7 @@ export default function LoginForm() {
           type="email"
           placeholder="Email"
           required
-          className="px-4 py-3 rounded-xl bg-white/50 text-gray-800 placeholder-gray-400 focus:outline-none focus:bg-white/70 transition-all text-sm"
+          className="px-4 py-3 rounded-xl bg-input-bg text-foreground placeholder-subtle-foreground focus:outline-none focus:bg-input-bg-focus transition-all text-sm"
         />
 
         <input
@@ -112,7 +112,7 @@ export default function LoginForm() {
           placeholder="Password"
           required
           minLength={6}
-          className="px-4 py-3 rounded-xl bg-white/50 text-gray-800 placeholder-gray-400 focus:outline-none focus:bg-white/70 transition-all text-sm"
+          className="px-4 py-3 rounded-xl bg-input-bg text-foreground placeholder-subtle-foreground focus:outline-none focus:bg-input-bg-focus transition-all text-sm"
         />
 
         <button
@@ -131,7 +131,7 @@ export default function LoginForm() {
           setError(null);
           setSuccess(null);
         }}
-        className="text-sm text-gray-400 hover:text-gray-600 transition-colors"
+        className="text-sm text-subtle-foreground hover:text-secondary-foreground transition-colors"
       >
         {isSignUp
           ? "Already have an account? Sign in"

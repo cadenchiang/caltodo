@@ -29,8 +29,8 @@ export default function SidebarNavItem({ label, href, icon: Icon }: SidebarNavIt
       prefetch={true}
       className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
         isActive
-          ? "bg-black/5 text-gray-800"
-          : "text-gray-500 hover:bg-black/5 hover:text-gray-800"
+          ? "bg-accent text-foreground"
+          : "text-muted-foreground hover:bg-accent hover:text-foreground"
       }`}
     >
       <Icon size={16} />

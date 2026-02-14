@@ -1,19 +1,77 @@
 @import "tailwindcss";
 
+/* Enable class-based dark mode for manual toggle (used only for status-color overrides) */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ── Semantic color tokens ── */
 :root {
+  /* Backgrounds */
   --background: #ffffff;
-  --foreground: #1a1a2e;
+  --card: #ffffff;
+  --popover: #ffffff;
+  --muted: #f9fafb;
+  --accent: #f9fafb;
+  --input-bg: rgba(255, 255, 255, 0.5);
+  --input-bg-focus: rgba(255, 255, 255, 0.7);
+
+  /* Text */
+  --foreground: #1f2937;
+  --secondary-foreground: #4b5563;
+  --muted-foreground: #6b7280;
+  --subtle-foreground: #9ca3af;
+
+  /* Borders */
+  --border: #f3f4f6;
+  --input-border: #e5e7eb;
+  --border-subtle: #f9fafb;
+
+  /* Interactive */
+  --ring: #bfdbfe;
+}
+
+.dark {
+  --background: #111111;
+  --card: #1a1a1a;
+  --popover: #262626;
+  --muted: #262626;
+  --accent: rgba(255, 255, 255, 0.05);
+  --input-bg: rgba(255, 255, 255, 0.05);
+  --input-bg-focus: rgba(255, 255, 255, 0.1);
+
+  --foreground: #f3f4f6;
+  --secondary-foreground: #d1d5db;
+  --muted-foreground: #9ca3af;
+  --subtle-foreground: #6b7280;
+
+  --border: #404040;
+  --input-border: #525252;
+  --border-subtle: #404040;
+
+  --ring: #1e3a5f;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-popover: var(--popover);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-input-bg: var(--input-bg);
+  --color-input-bg-focus: var(--input-bg-focus);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-subtle-foreground: var(--subtle-foreground);
+  --color-border: var(--border);
+  --color-input-border: var(--input-border);
+  --color-border-subtle: var(--border-subtle);
+  --color-ring: var(--ring);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
 body {
-  background: #ffffff;
+  background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
   min-height: 100vh;
@@ -25,8 +83,16 @@ body {
   -webkit-backdrop-filter: blur(20px);
 }
 
+.dark .glass {
+  background: rgba(30, 30, 30, 0.75);
+}
+
 .glass-strong {
   background: #ffffff;
+}
+
+.dark .glass-strong {
+  background: #1a1a1a;
 }
 
 .glass-subtle {
@@ -35,10 +101,18 @@ body {
   -webkit-backdrop-filter: blur(12px);
 }
 
+.dark .glass-subtle {
+  background: rgba(30, 30, 30, 0.5);
+}
+
 .glass-dark {
   background: rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
+}
+
+.dark .glass-dark {
+  background: rgba(255, 255, 255, 0.04);
 }
 
 /* Subtle fade-in animation for content transitions */

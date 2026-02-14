@@ -144,18 +144,18 @@ export default function GradescopeSettings({ credentials, onUpdate }: Gradescope
   return (
     <section>
       <div className="flex items-center justify-between mb-1">
-        <h2 className="text-lg font-semibold text-gray-800">Gradescope</h2>
+        <h2 className="text-lg font-semibold text-foreground">Gradescope</h2>
         {locked && (
           <button
             onClick={() => { setLocked(false); setShowPassword(false); setSuccess(null); }}
-            className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+            className="flex items-center gap-1.5 text-xs text-subtle-foreground hover:text-secondary-foreground transition-colors"
           >
             <Pencil size={12} />
             Edit
           </button>
         )}
       </div>
-      <p className="text-xs text-gray-400 mb-4">
+      <p className="text-xs text-subtle-foreground mb-4">
         CalNet SSO users must set a Gradescope-specific password via{" "}
         <a
           href="https://www.gradescope.com/reset_password"
@@ -170,15 +170,15 @@ export default function GradescopeSettings({ credentials, onUpdate }: Gradescope
 
       {locked ? (
         <div className="space-y-3">
-          <div className="flex items-center gap-2 px-3 py-2.5 bg-gray-50 rounded-xl border border-gray-100">
-            <Lock size={14} className="text-gray-400 shrink-0" />
-            <span className="text-sm text-gray-500 truncate">
+          <div className="flex items-center gap-2 px-3 py-2.5 bg-muted rounded-xl border border-border">
+            <Lock size={14} className="text-subtle-foreground shrink-0" />
+            <span className="text-sm text-muted-foreground truncate">
               {gradescopeEmail || "No email saved"}
             </span>
           </div>
-          <div className="flex items-center gap-2 px-3 py-2.5 bg-gray-50 rounded-xl border border-gray-100">
-            <Lock size={14} className="text-gray-400 shrink-0" />
-            <span className="text-sm text-gray-500">
+          <div className="flex items-center gap-2 px-3 py-2.5 bg-muted rounded-xl border border-border">
+            <Lock size={14} className="text-subtle-foreground shrink-0" />
+            <span className="text-sm text-muted-foreground">
               {credentials.has_gradescope_password ? "Password saved" : "No password saved"}
             </span>
           </div>
@@ -186,7 +186,7 @@ export default function GradescopeSettings({ credentials, onUpdate }: Gradescope
       ) : (
         <div className="space-y-3">
           <div>
-            <label htmlFor="gs-email" className="block text-sm font-medium text-gray-600 mb-1">
+            <label htmlFor="gs-email" className="block text-sm font-medium text-secondary-foreground mb-1">
               Email
             </label>
             <input
@@ -195,11 +195,11 @@ export default function GradescopeSettings({ credentials, onUpdate }: Gradescope
               value={gradescopeEmail}
               onChange={(e) => setGradescopeEmail(e.target.value)}
               placeholder="your-email@berkeley.edu"
-              className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all"
+              className="w-full px-3 py-2 rounded-xl border border-input-border text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-blue-400 transition-all"
             />
           </div>
           <div>
-            <label htmlFor="gs-password" className="block text-sm font-medium text-gray-600 mb-1">
+            <label htmlFor="gs-password" className="block text-sm font-medium text-secondary-foreground mb-1">
               Password
               {credentials.has_gradescope_password && (
                 <span className="ml-2 text-xs text-emerald-500 font-normal">(saved)</span>
@@ -216,12 +216,12 @@ export default function GradescopeSettings({ credentials, onUpdate }: Gradescope
                     ? "Leave blank to keep existing password"
                     : "Enter your Gradescope password"
                 }
-                className="w-full px-3 py-2 pr-10 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all"
+                className="w-full px-3 py-2 pr-10 rounded-xl border border-input-border text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-blue-400 transition-all"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-subtle-foreground hover:text-secondary-foreground transition-colors"
                 aria-label={showPassword ? "Hide password" : "Show password"}
               >
                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -234,7 +234,7 @@ export default function GradescopeSettings({ credentials, onUpdate }: Gradescope
             <button
               onClick={handleVerify}
               disabled={verifying}
-              className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-blue-500 hover:bg-blue-50 border border-blue-200 transition-colors disabled:opacity-60"
+              className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 border border-blue-200 dark:border-blue-800 transition-colors disabled:opacity-60"
             >
               {verifying && <Loader2 size={14} className="animate-spin" />}
               {verifying ? "Loading courses..." : "Verify & Load Courses"}
@@ -242,7 +242,7 @@ export default function GradescopeSettings({ credentials, onUpdate }: Gradescope
           ) : (
             <div>
               <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-medium text-gray-700">
+                <p className="text-sm font-medium text-secondary-foreground">
                   Select courses ({selectedIds.size}/{courses.length})
                 </p>
                 <button
@@ -259,11 +259,11 @@ export default function GradescopeSettings({ credentials, onUpdate }: Gradescope
                   {selectedIds.size === courses.length ? "Deselect all" : "Select all"}
                 </button>
               </div>
-              <div className="max-h-48 overflow-auto rounded-xl border border-gray-100">
+              <div className="max-h-48 overflow-auto rounded-xl border border-border">
                 {courses.map((course) => (
                   <label
                     key={course.id}
-                    className="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 transition-colors cursor-pointer border-b border-gray-50 last:border-0"
+                    className="flex items-center gap-3 px-3 py-2.5 hover:bg-accent transition-colors cursor-pointer border-b border-border-subtle last:border-0"
                   >
                     <input
                       type="checkbox"
@@ -272,15 +272,15 @@ export default function GradescopeSettings({ credentials, onUpdate }: Gradescope
                       className="w-4 h-4 rounded accent-blue-500"
                     />
                     <div className="flex-1 min-w-0">
-                      <span className="text-sm text-gray-800 block truncate">{course.name}</span>
+                      <span className="text-sm text-foreground block truncate">{course.name}</span>
                       {course.shortName && (
-                        <span className="text-xs text-gray-400 block truncate">{course.shortName}</span>
+                        <span className="text-xs text-subtle-foreground block truncate">{course.shortName}</span>
                       )}
                     </div>
                   </label>
                 ))}
                 {courses.length === 0 && (
-                  <div className="px-3 py-4 text-sm text-gray-400 text-center">No active courses found.</div>
+                  <div className="px-3 py-4 text-sm text-subtle-foreground text-center">No active courses found.</div>
                 )}
               </div>
             </div>
@@ -297,7 +297,7 @@ export default function GradescopeSettings({ credentials, onUpdate }: Gradescope
             </button>
             <button
               onClick={handleCancel}
-              className="px-4 py-2 rounded-xl text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-colors"
+              className="px-4 py-2 rounded-xl text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
             >
               Cancel
             </button>
@@ -307,16 +307,16 @@ export default function GradescopeSettings({ credentials, onUpdate }: Gradescope
 
       {/* Syncing courses (when locked) */}
       {locked && credentials.selected_gradescope_courses && credentials.selected_gradescope_courses.length > 0 && (
-        <div className="mt-3 p-3 bg-gray-50 rounded-xl">
-          <p className="text-xs font-medium text-gray-500 mb-1">Syncing courses:</p>
-          <p className="text-sm text-gray-700">
+        <div className="mt-3 p-3 bg-muted rounded-xl">
+          <p className="text-xs font-medium text-muted-foreground mb-1">Syncing courses:</p>
+          <p className="text-sm text-secondary-foreground">
             {credentials.selected_gradescope_courses.map((c) => c.name).join(", ")}
           </p>
         </div>
       )}
 
-      {error && <div className="mt-3 bg-red-50 text-red-500 text-sm p-3 rounded-xl">{error}</div>}
-      {success && <div className="mt-3 bg-emerald-50 text-emerald-600 text-sm p-3 rounded-xl">{success}</div>}
+      {error && <div className="mt-3 bg-red-50 dark:bg-red-900/20 text-red-500 text-sm p-3 rounded-xl">{error}</div>}
+      {success && <div className="mt-3 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 text-sm p-3 rounded-xl">{success}</div>}
     </section>
   );
 }

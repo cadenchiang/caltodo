@@ -49,14 +49,14 @@ export default function InboxPage() {
         {/* Left: task list */}
         <div className="flex flex-col flex-1 min-w-0">
           <div className="px-8 pt-8 pb-4 flex items-center justify-between animate-stagger stagger-1">
-            <h1 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+            <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
               <Inbox size={20} />
               Inbox
             </h1>
             <button
               onClick={triggerSync}
               disabled={syncing}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-500 hover:text-gray-700 hover:bg-black/5 rounded-lg transition-all disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-all disabled:opacity-50"
               title="Sync assignments from Canvas & Gradescope"
             >
               <RefreshCw size={14} className={syncing ? "animate-spin" : ""} />
@@ -67,7 +67,7 @@ export default function InboxPage() {
           {/* Sync progress bar */}
           {(syncing || syncProgress > 0) && syncProgress < 100 && (
             <div className="mx-8 mb-2">
-              <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
+              <div className="h-1 bg-muted rounded-full overflow-hidden">
                 <div
                   className="h-full bg-blue-500 rounded-full transition-all duration-300 ease-out"
                   style={{ width: `${syncProgress}%` }}
@@ -79,7 +79,7 @@ export default function InboxPage() {
           {/* Auto-dismissing sync toast */}
           {toastVisible && hasRealResults && (
             <div
-              className={`mx-8 mb-2 text-xs text-gray-500 bg-gray-50 rounded-xl px-3 py-2 ${
+              className={`mx-8 mb-2 text-xs text-muted-foreground bg-muted rounded-xl px-3 py-2 ${
                 toastDismissing ? "animate-toast-out" : "animate-toast-in"
               }`}
             >

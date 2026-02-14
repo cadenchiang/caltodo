@@ -34,11 +34,13 @@ interface CredentialsRow {
  *
  * @param supabase - Authenticated Supabase client (with user session)
  * @param userId - The authenticated user's ID
+ * @param timezone - IANA timezone for date/time conversion (default "America/Los_Angeles")
  * @returns SyncResult with counts and errors for each source
  */
 export async function runSync(
   supabase: SupabaseClient,
-  userId: string
+  userId: string,
+  timezone: string = "America/Los_Angeles"
 ): Promise<SyncResult> {
   // Fetch credentials
   const { data: creds, error: credsError } = await supabase
@@ -60,8 +62,8 @@ export async function runSync(
 
   // Run Canvas and Gradescope syncs independently
   const [canvasResult, gradescopeResult] = await Promise.all([
-    syncCanvas(supabase, userId, credentials),
-    syncGradescope(supabase, userId, credentials),
+    syncCanvas(supabase, userId, credentials, timezone),
+    syncGradescope(supabase, userId, credentials, timezone),
   ]);
 
   // Update last_synced_at
@@ -92,7 +94,8 @@ export async function runSync(
 async function syncCanvas(
   supabase: SupabaseClient,
   userId: string,
-  creds: CredentialsRow
+  creds: CredentialsRow,
+  timezone: string
 ): Promise<SyncSourceResult> {
   if (!creds.canvas_token) {
     return { synced: 0, errors: [] };
@@ -103,7 +106,7 @@ async function syncCanvas(
     const assignments = selectedCourses && selectedCourses.length > 0
       ? await fetchCanvasAssignmentsForCourses(creds.canvas_token, creds.canvas_base_url, selectedCourses)
       : await fetchAllCanvasAssignments(creds.canvas_token, creds.canvas_base_url);
-    const synced = await upsertAssignments(supabase, userId, "canvas", assignments);
+    const synced = await upsertAssignments(supabase, userId, "canvas", assignments, timezone);
     return { synced, errors: [] };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -119,7 +122,8 @@ async function syncCanvas(
 async function syncGradescope(
   supabase: SupabaseClient,
   userId: string,
-  creds: CredentialsRow
+  creds: CredentialsRow,
+  timezone: string
 ): Promise<SyncSourceResult> {
   if (!creds.gradescope_email || !creds.gradescope_password_encrypted) {
     return { synced: 0, errors: [] };
@@ -131,7 +135,7 @@ async function syncGradescope(
     const assignments = selectedCourses && selectedCourses.length > 0
       ? await fetchGradescopeAssignmentsForCourses(creds.gradescope_email, password, selectedCourses)
       : await fetchAllGradescopeAssignments(creds.gradescope_email, password);
-    const synced = await upsertAssignments(supabase, userId, "gradescope", assignments);
+    const synced = await upsertAssignments(supabase, userId, "gradescope", assignments, timezone);
     return { synced, errors: [] };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -141,12 +145,39 @@ async function syncGradescope(
 }
 
 /**
- * Converts a TIMESTAMPTZ string to a DATE string for storage.
+ * Converts an ISO datetime string to a local date string (YYYY-MM-DD)
+ * in the given IANA timezone.
+ *
+ * @param isoString - ISO 8601 datetime string (e.g. "2026-02-14T07:59:00Z")
+ * @param tz - IANA timezone identifier (e.g. "America/Los_Angeles")
+ * @returns Local date string "YYYY-MM-DD" or null if input is null/invalid
  */
-function toDateString(isoString: string | null): string | null {
+export function toLocalDateString(isoString: string | null, tz: string): string | null {
   if (!isoString) return null;
   try {
-    return new Date(isoString).toISOString().split("T")[0];
+    return new Intl.DateTimeFormat("en-CA", { timeZone: tz }).format(new Date(isoString));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Converts an ISO datetime string to a local time string (HH:MM, 24-hour)
+ * in the given IANA timezone.
+ *
+ * @param isoString - ISO 8601 datetime string (e.g. "2026-02-14T07:59:00Z")
+ * @param tz - IANA timezone identifier (e.g. "America/Los_Angeles")
+ * @returns Local time string "HH:MM" or null if input is null/invalid
+ */
+export function toLocalTimeString(isoString: string | null, tz: string): string | null {
+  if (!isoString) return null;
+  try {
+    return new Intl.DateTimeFormat("en-US", {
+      timeZone: tz,
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(new Date(isoString));
   } catch {
     return null;
   }
@@ -155,12 +186,21 @@ function toDateString(isoString: string | null): string | null {
 /**
  * Upserts normalized assignments into the tasks table in batches.
  * Course name is stored in description field for display context.
+ * Uses timezone-aware date/time conversion to prevent off-by-one errors.
+ *
+ * @param supabase - Authenticated Supabase client
+ * @param userId - The user's ID
+ * @param source - Assignment source ("canvas" or "gradescope")
+ * @param assignments - Normalized assignments to upsert
+ * @param timezone - IANA timezone for date/time conversion
+ * @returns Number of successfully upserted assignments
  */
 async function upsertAssignments(
   supabase: SupabaseClient,
   userId: string,
   source: "canvas" | "gradescope",
-  assignments: NormalizedAssignment[]
+  assignments: NormalizedAssignment[],
+  timezone: string
 ): Promise<number> {
   let totalUpserted = 0;
   const color = source === "canvas" ? CANVAS_COLOR : GRADESCOPE_COLOR;
@@ -173,10 +213,12 @@ async function upsertAssignments(
       external_id: a.external_id,
       course_name: a.course_name,
       title: a.title,
-      due_date: toDateString(a.due_date),
+      due_date: toLocalDateString(a.due_date, timezone),
+      due_time: toLocalTimeString(a.due_date, timezone),
       source_url: a.source_url,
       points_possible: a.points_possible,
       is_submitted: a.is_submitted ?? false,
+      is_completed: a.is_submitted ?? false,
       color,
       description: a.course_name || "",
     }));

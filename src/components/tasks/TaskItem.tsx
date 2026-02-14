@@ -62,12 +62,27 @@ function GradescopeLogo({ size = 14 }: { size?: number }) {
 }
 
 /**
+ * Formats a 24-hour time string "HH:MM" to 12-hour format "h:mm AM/PM".
+ *
+ * @param time24 - Time string in "HH:MM" format (e.g. "23:59")
+ * @returns Formatted time string (e.g. "11:59 PM")
+ */
+function formatTime12h(time24: string): string {
+  const [hourStr, minute] = time24.split(":");
+  const hour = parseInt(hourStr, 10);
+  const ampm = hour >= 12 ? "PM" : "AM";
+  const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+  return `${hour12}:${minute} ${ampm}`;
+}
+
+/**
  * Returns a human-readable due date label and color class.
  *
  * @param dueDate - ISO date string ("YYYY-MM-DD") or null
+ * @param dueTime - 24-hour time string ("HH:MM") or null
  * @returns Object with label and className, or null if no date
  */
-function getDueDateBadge(dueDate: string | null): { label: string; className: string } | null {
+function getDueDateBadge(dueDate: string | null, dueTime: string | null): { label: string; className: string } | null {
   if (!dueDate) return null;
 
   const today = new Date();
@@ -77,26 +92,28 @@ function getDueDateBadge(dueDate: string | null): { label: string; className: st
   const diffMs = due.getTime() - today.getTime();
   const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
 
+  const timeSuffix = dueTime ? ` ${formatTime12h(dueTime)}` : "";
+
   if (diffDays < 0) {
     const month = due.toLocaleString("en-US", { month: "short" });
     const day = due.getDate();
-    return { label: `${month} ${day}`, className: "text-red-400" };
+    return { label: `${month} ${day}${timeSuffix}`, className: "text-red-400" };
   }
   if (diffDays === 0) {
-    return { label: "Today", className: "text-blue-400" };
+    return { label: `Today${timeSuffix}`, className: "text-blue-400" };
   }
   if (diffDays === 1) {
-    return { label: "Tomorrow", className: "text-blue-400" };
+    return { label: `Tomorrow${timeSuffix}`, className: "text-blue-400" };
   }
   if (diffDays <= 7) {
     const month = due.toLocaleString("en-US", { month: "short" });
     const day = due.getDate();
-    return { label: `${month} ${day}`, className: "text-blue-400" };
+    return { label: `${month} ${day}${timeSuffix}`, className: "text-blue-400" };
   }
 
   const month = due.toLocaleString("en-US", { month: "short" });
   const day = due.getDate();
-  return { label: `${month} ${day}`, className: "text-gray-400" };
+  return { label: `${month} ${day}${timeSuffix}`, className: "text-subtle-foreground" };
 }
 
 /**
@@ -111,7 +128,7 @@ function getDueDateBadge(dueDate: string | null): { label: string; className: st
  * @param onDelete - Callback to delete the task
  */
 export default function TaskItem({ task, isSelected, onToggle, onSelect, onDelete }: TaskItemProps) {
-  const dueBadge = getDueDateBadge(task.due_date);
+  const dueBadge = getDueDateBadge(task.due_date, task.due_time);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
   function handleContextMenu(e: React.MouseEvent) {
@@ -129,8 +146,8 @@ export default function TaskItem({ task, isSelected, onToggle, onSelect, onDelet
       <div
         className={`group flex items-center gap-3 px-6 h-10 mx-2 rounded-xl transition-colors duration-100 cursor-pointer ${
           isSelected
-            ? "bg-black/5"
-            : "hover:bg-black/5"
+            ? "bg-black/5 dark:bg-white/5"
+            : "hover:bg-accent"
         } ${task.is_completed ? "opacity-40" : ""}`}
         onClick={() => onSelect(task)}
         onContextMenu={handleContextMenu}
@@ -158,7 +175,7 @@ export default function TaskItem({ task, isSelected, onToggle, onSelect, onDelet
         {/* Title */}
         <span
           className={`flex-1 min-w-0 truncate text-sm ${
-            task.is_completed ? "text-gray-800 line-through" : "text-gray-800"
+            task.is_completed ? "text-foreground line-through" : "text-foreground"
           }`}
         >
           {task.title}
@@ -166,9 +183,9 @@ export default function TaskItem({ task, isSelected, onToggle, onSelect, onDelet
 
         {/* Source logo with hover tooltip */}
         {task.source && (
-          <div className="relative shrink-0 group/logo">
+          <div className="relative shrink-0 group/logo opacity-40 group-hover/logo:opacity-100 transition-opacity">
             {task.source === "canvas" ? <CanvasLogo /> : <GradescopeLogo />}
-            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 bg-gray-800 text-white text-[10px] rounded-md whitespace-nowrap opacity-0 group-hover/logo:opacity-100 transition-opacity pointer-events-none">
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 bg-card text-secondary-foreground text-[10px] rounded-md whitespace-nowrap opacity-0 group-hover/logo:opacity-100 transition-opacity pointer-events-none shadow-lg border border-border">
               {task.source === "canvas" ? "bCourses (Canvas)" : "Gradescope"}
             </div>
           </div>
@@ -191,12 +208,12 @@ export default function TaskItem({ task, isSelected, onToggle, onSelect, onDelet
             onContextMenu={(e) => { e.preventDefault(); setContextMenu(null); }}
           />
           <div
-            className="fixed z-50 bg-white rounded-lg shadow-xl border border-gray-200 py-1 min-w-[140px]"
+            className="fixed z-50 bg-card rounded-lg shadow-xl border border-input-border py-1 min-w-[140px]"
             style={{ top: contextMenu.y, left: contextMenu.x }}
           >
             <button
               onClick={handleDelete}
-              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-500 hover:bg-red-50 transition-colors"
+              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
             >
               <Trash2 size={14} />
               Delete task

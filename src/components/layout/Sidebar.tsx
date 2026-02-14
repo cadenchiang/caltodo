@@ -3,7 +3,6 @@
 import { NAV_ITEMS } from "@/lib/constants";
 import SidebarNavItem from "./SidebarNavItem";
 import ProfilePopup from "./ProfilePopup";
-
 interface SidebarProps {
   avatarUrl: string | null;
   fullName: string | null;
@@ -11,7 +10,7 @@ interface SidebarProps {
 }
 
 /**
- * Left navigation sidebar with nav links and profile popup.
+ * Left navigation sidebar with nav links, theme toggle, and profile popup.
  * Glassy frosted-glass aesthetic. Branding uses "toodoocal" with gradient.
  *
  * @param avatarUrl - Google avatar URL or null
@@ -20,10 +19,10 @@ interface SidebarProps {
  */
 export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
   return (
-    <aside className="glass-strong w-60 h-screen flex flex-col justify-between py-4 px-3 shrink-0 shadow-lg">
+    <aside className="glass-strong w-60 h-screen flex flex-col justify-between py-4 px-3 shrink-0 shadow-lg dark:shadow-black/30">
       <div>
-        <h2 className="text-xl font-bold text-gray-800 mb-6 px-3 pt-1 tracking-tight">
-          <span className="text-gray-800 font-bold">toodoo</span><span className="brand-gradient font-black">cal</span>
+        <h2 className="text-xl font-bold text-foreground mb-6 px-3 pt-1 tracking-tight">
+          <span className="text-foreground font-bold">toodoo</span><span className="brand-gradient font-black">cal</span>
         </h2>
         <nav className="flex flex-col gap-1">
           {NAV_ITEMS.map((item) => (

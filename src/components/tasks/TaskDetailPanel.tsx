@@ -92,11 +92,11 @@ export default function TaskDetailPanel({ task, onClose, onSave }: TaskDetailPan
   const dateDisplay = task ? getDateDisplay(dueDate) : null;
 
   return (
-    <div className="flex-1 h-full border-l border-gray-100 bg-white flex flex-col">
+    <div className="flex-1 h-full border-l border-border bg-card flex flex-col">
       {task ? (
         <>
           {/* Top bar: checkbox | date | color flag */}
-          <div className="flex items-center gap-3 px-5 py-3 border-b border-gray-100">
+          <div className="flex items-center gap-3 px-5 py-3 border-b border-border">
             {/* Checkbox */}
             <button
               onClick={() => saveWith({ is_completed: !task.is_completed })}
@@ -115,7 +115,7 @@ export default function TaskDetailPanel({ task, onClose, onSave }: TaskDetailPan
             </button>
 
             {/* Divider */}
-            <div className="w-px h-5 bg-gray-200" />
+            <div className="w-px h-5 bg-input-border" />
 
             {/* Date picker trigger */}
             <div className="relative">
@@ -124,7 +124,7 @@ export default function TaskDetailPanel({ task, onClose, onSave }: TaskDetailPan
                 type="button"
                 onClick={() => { setShowDatePicker(!showDatePicker); setShowColorPicker(false); }}
                 className={`flex items-center gap-1.5 text-sm font-medium transition-colors hover:opacity-80 ${
-                  dateDisplay ? dateDisplay.className : "text-gray-400"
+                  dateDisplay ? dateDisplay.className : "text-subtle-foreground"
                 }`}
               >
                 <CalendarDays size={16} />
@@ -156,7 +156,7 @@ export default function TaskDetailPanel({ task, onClose, onSave }: TaskDetailPan
                 ref={colorButtonRef}
                 type="button"
                 onClick={() => { setShowColorPicker(!showColorPicker); setShowDatePicker(false); }}
-                className="p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-50 transition-colors"
+                className="p-1 text-subtle-foreground hover:text-secondary-foreground rounded-lg hover:bg-accent transition-colors"
                 aria-label="Pick color"
               >
                 <Flag size={18} style={{ color }} />
@@ -167,7 +167,7 @@ export default function TaskDetailPanel({ task, onClose, onSave }: TaskDetailPan
                 triggerRef={colorButtonRef}
                 className="absolute right-0 top-full mt-2 z-10"
               >
-                <div className="bg-white rounded-xl shadow-2xl border border-gray-100 p-3">
+                <div className="bg-card rounded-xl shadow-2xl border border-border p-3">
                   <div className="flex gap-2">
                     {TASK_COLORS.map((c) => (
                       <button
@@ -200,7 +200,7 @@ export default function TaskDetailPanel({ task, onClose, onSave }: TaskDetailPan
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               onBlur={save}
-              className="w-full text-lg font-bold text-gray-800 bg-transparent focus:outline-none placeholder-gray-300 mb-2"
+              className="w-full text-lg font-bold text-foreground bg-transparent focus:outline-none placeholder-subtle-foreground mb-2"
               placeholder="Task title"
             />
             <textarea
@@ -209,13 +209,13 @@ export default function TaskDetailPanel({ task, onClose, onSave }: TaskDetailPan
               onChange={(e) => setDescription(e.target.value)}
               onBlur={save}
               placeholder="Write something..."
-              className="w-full text-sm text-gray-600 bg-transparent focus:outline-none resize-none placeholder-gray-400 leading-relaxed min-h-[200px]"
+              className="w-full text-sm text-secondary-foreground bg-transparent focus:outline-none resize-none placeholder-subtle-foreground leading-relaxed min-h-[200px]"
             />
           </div>
         </>
       ) : (
         <div className="flex-1 flex items-center justify-center p-5">
-          <p className="text-sm text-gray-300">Select a task to view details</p>
+          <p className="text-sm text-subtle-foreground">Select a task to view details</p>
         </div>
       )}
     </div>

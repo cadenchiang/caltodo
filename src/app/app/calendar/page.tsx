@@ -1,26 +1,27 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
-import { addMonths, subMonths, format } from "date-fns";
+import { useState, useMemo } from "react";
+import { addMonths, subMonths } from "date-fns";
 import { useTaskContext } from "@/contexts/TaskContext";
 import CalendarHeader from "@/components/calendar/CalendarHeader";
 import CalendarGrid from "@/components/calendar/CalendarGrid";
-import TaskEditModal from "@/components/tasks/TaskEditModal";
-import TaskAddForm from "@/components/tasks/TaskAddForm";
+import TaskPopover from "@/components/tasks/TaskPopover";
+import TaskAddPopover from "@/components/tasks/TaskAddPopover";
 import PageTransition from "@/components/ui/PageTransition";
 import type { Task } from "@/lib/types";
 
 /**
  * Calendar month view page. Filters tasks from shared TaskContext by month.
- * Uses animated modals for adding/editing tasks on specific dates.
+ * Uses Google Calendar-style floating popovers for adding/editing tasks.
  */
 export default function CalendarPage() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [editAnchorRect, setEditAnchorRect] = useState<DOMRect | null>(null);
   const [addingDate, setAddingDate] = useState<string | null>(null);
-  const [addModalVisible, setAddModalVisible] = useState(false);
+  const [addAnchorRect, setAddAnchorRect] = useState<DOMRect | null>(null);
 
-  const { tasks, loading, error, addTask, updateTask } = useTaskContext();
+  const { tasks, loading, error, addTask, updateTask, deleteTask } = useTaskContext();
 
   const monthTasks = useMemo(() => {
     const month = currentMonth.getMonth();
@@ -32,20 +33,28 @@ export default function CalendarPage() {
     });
   }, [tasks, currentMonth]);
 
-  // Animate add-task modal in when addingDate changes
-  useEffect(() => {
-    if (addingDate) {
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          setAddModalVisible(true);
-        });
-      });
-    }
-  }, [addingDate]);
+  function handleTaskClick(task: Task, rect: DOMRect) {
+    setAddingDate(null);
+    setAddAnchorRect(null);
+    setEditingTask(task);
+    setEditAnchorRect(rect);
+  }
 
-  function closeAddModal() {
-    setAddModalVisible(false);
-    setTimeout(() => setAddingDate(null), 200);
+  function handleDayClick(date: string, rect: DOMRect) {
+    setEditingTask(null);
+    setEditAnchorRect(null);
+    setAddingDate(date);
+    setAddAnchorRect(rect);
+  }
+
+  function closeEditPopover() {
+    setEditingTask(null);
+    setEditAnchorRect(null);
+  }
+
+  function closeAddPopover() {
+    setAddingDate(null);
+    setAddAnchorRect(null);
   }
 
   return (
@@ -68,7 +77,7 @@ export default function CalendarPage() {
 
         <div className="animate-stagger stagger-2">
           {loading ? (
-            <div className="glass rounded-2xl p-12 flex items-center justify-center text-gray-400 text-sm">
+            <div className="glass rounded-2xl p-12 flex items-center justify-center text-subtle-foreground text-sm">
               Loading calendar...
             </div>
           ) : (
@@ -76,56 +85,37 @@ export default function CalendarPage() {
               currentMonth={currentMonth}
               tasks={monthTasks}
               addingDate={addingDate}
-              onDayClick={(date) => setAddingDate(date)}
-              onTaskClick={(task) => setEditingTask(task)}
+              onDayClick={handleDayClick}
+              onTaskClick={handleTaskClick}
             />
           )}
         </div>
 
-        {/* Animated add task modal when a day is clicked */}
-        {addingDate && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center">
-            <div
-              className={`absolute inset-0 bg-black/20 backdrop-blur-sm transition-opacity duration-200 ease-out ${
-                addModalVisible ? "opacity-100" : "opacity-0"
-              }`}
-              onClick={closeAddModal}
-            />
-            <div
-              className={`relative glass-strong rounded-3xl shadow-2xl w-full max-w-sm mx-4 p-5 transition-all duration-200 ease-out ${
-                addModalVisible
-                  ? "opacity-100 scale-100 translate-y-0"
-                  : "opacity-0 scale-95 translate-y-2"
-              }`}
-            >
-              <p className="text-sm font-medium text-gray-700 mb-3">
-                Add task for {format(new Date(addingDate + "T00:00:00"), "MMMM d, yyyy")}
-              </p>
-              <TaskAddForm
-                onAdd={(taskData) => {
-                  addTask({ ...taskData, due_date: addingDate });
-                  closeAddModal();
-                }}
-                defaultDate={addingDate}
-              />
-              <button
-                onClick={closeAddModal}
-                className="mt-2 w-full text-sm text-gray-400 hover:text-gray-600 py-1.5 rounded-xl hover:bg-white/40 transition-all"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
+        {/* Floating add-task popover when a day is clicked */}
+        {addingDate && addAnchorRect && (
+          <TaskAddPopover
+            date={addingDate}
+            anchorRect={addAnchorRect}
+            onClose={closeAddPopover}
+            onAdd={(taskData) => {
+              addTask({ ...taskData, due_date: addingDate });
+            }}
+          />
         )}
 
-        {/* Edit modal */}
-        {editingTask && (
-          <TaskEditModal
+        {/* Floating edit popover when a task bar is clicked */}
+        {editingTask && editAnchorRect && (
+          <TaskPopover
             task={editingTask}
-            onClose={() => setEditingTask(null)}
+            anchorRect={editAnchorRect}
+            onClose={closeEditPopover}
             onSave={async (id, updates) => {
               await updateTask(id, updates);
-              setEditingTask(null);
+              closeEditPopover();
+            }}
+            onDelete={async (id) => {
+              await deleteTask(id);
+              closeEditPopover();
             }}
           />
         )}

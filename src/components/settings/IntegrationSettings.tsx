@@ -97,7 +97,7 @@ export default function IntegrationSettings() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12 text-gray-400 text-sm">
+      <div className="flex items-center justify-center py-12 text-subtle-foreground text-sm">
         Loading settings...
       </div>
     );
@@ -105,7 +105,7 @@ export default function IntegrationSettings() {
 
   if (fetchError || !credentials) {
     return (
-      <div className="bg-red-50 text-red-500 text-sm p-3 rounded-xl">
+      <div className="bg-red-50 dark:bg-red-900/20 text-red-500 text-sm p-3 rounded-xl">
         {fetchError || "Failed to load credentials"}
       </div>
     );

@@ -69,11 +69,11 @@ export default function TaskAddForm({ onAdd, defaultDate, placeholder }: TaskAdd
         onSubmit={handleSubmit}
         className={`flex items-center gap-2 px-4 h-10 rounded-xl transition-all duration-200 border ${
           focused
-            ? "border-blue-400 shadow-[0_0_0_1px_rgba(59,130,246,0.3)] bg-white"
-            : "border-gray-100 bg-gray-50/60 hover:border-gray-200"
+            ? "border-blue-400 shadow-[0_0_0_1px_rgba(59,130,246,0.3)] bg-card"
+            : "border-border bg-muted/60 hover:border-input-border"
         }`}
       >
-        <Plus size={16} className={`shrink-0 transition-colors ${focused ? "text-blue-400" : "text-gray-400"}`} />
+        <Plus size={16} className={`shrink-0 transition-colors ${focused ? "text-blue-400" : "text-subtle-foreground"}`} />
         <input
           ref={inputRef}
           type="text"
@@ -81,7 +81,7 @@ export default function TaskAddForm({ onAdd, defaultDate, placeholder }: TaskAdd
           onChange={(e) => setTitle(e.target.value)}
           onFocus={() => setFocused(true)}
           placeholder={placeholder ?? "Add task. Press Enter to save."}
-          className="flex-1 text-sm bg-transparent text-gray-800 placeholder-gray-400 focus:outline-none"
+          className="flex-1 text-sm bg-transparent text-foreground placeholder-subtle-foreground focus:outline-none"
         />
 
         {/* Date badge if a date is selected */}
@@ -102,7 +102,7 @@ export default function TaskAddForm({ onAdd, defaultDate, placeholder }: TaskAdd
                 setShowColorPicker(!showColorPicker);
                 setShowDatePicker(false);
               }}
-              className="p-1 shrink-0 rounded-lg hover:bg-gray-50 transition-colors"
+              className="p-1 shrink-0 rounded-lg hover:bg-accent transition-colors"
               aria-label="Pick color"
             >
               <div
@@ -119,7 +119,7 @@ export default function TaskAddForm({ onAdd, defaultDate, placeholder }: TaskAdd
                 setShowDatePicker(!showDatePicker);
                 setShowColorPicker(false);
               }}
-              className="p-1.5 text-gray-400 hover:text-blue-500 rounded-lg hover:bg-gray-50 transition-colors shrink-0"
+              className="p-1.5 text-subtle-foreground hover:text-blue-500 rounded-lg hover:bg-accent transition-colors shrink-0"
             >
               <CalendarDays size={16} />
             </button>
@@ -150,7 +150,7 @@ export default function TaskAddForm({ onAdd, defaultDate, placeholder }: TaskAdd
         triggerRef={colorButtonRef}
         className="absolute right-12 top-full mt-1 z-20"
       >
-        <div className="bg-white rounded-xl shadow-2xl border border-gray-100 p-3">
+        <div className="bg-card rounded-xl shadow-2xl border border-border p-3">
           <div className="flex gap-2">
             {TASK_COLORS.map((c) => (
               <button

@@ -11,9 +11,10 @@ import { logger } from "@/lib/logger";
 /**
  * POST /api/assignments/sync
  * Triggers a full sync from both Canvas and Gradescope.
+ * Accepts optional { timezone } in request body for timezone-aware date conversion.
  * Returns sync results with counts and any errors per source.
  */
-export async function POST() {
+export async function POST(request: Request) {
   const supabase = await createClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
 
@@ -22,8 +23,11 @@ export async function POST() {
   }
 
   try {
-    logger.info("POST /api/assignments/sync started", { userId: user.id });
-    const result = await runSync(supabase, user.id);
+    const body = await request.json().catch(() => ({}));
+    const timezone = body.timezone || "America/Los_Angeles";
+
+    logger.info("POST /api/assignments/sync started", { userId: user.id, timezone });
+    const result = await runSync(supabase, user.id, timezone);
     return NextResponse.json(result);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

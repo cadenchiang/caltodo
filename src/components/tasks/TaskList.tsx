@@ -90,7 +90,7 @@ export default function TaskList({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12 text-gray-400 text-sm">
+      <div className="flex items-center justify-center py-12 text-subtle-foreground text-sm">
         Loading tasks...
       </div>
     );
@@ -98,7 +98,7 @@ export default function TaskList({
 
   if (error) {
     return (
-      <div className="bg-red-50 text-red-500 text-sm p-4 rounded-xl mx-4">
+      <div className="bg-red-50 dark:bg-red-900/20 text-red-500 text-sm p-4 rounded-xl mx-4">
         Error loading tasks: {error}
       </div>
     );
@@ -112,7 +112,7 @@ export default function TaskList({
       <TaskAddForm onAdd={onAdd} defaultDate={defaultDate} placeholder={placeholder} />
 
       {active.length === 0 && completed.length === 0 && (
-        <div className="text-center py-12 text-gray-400 text-sm">
+        <div className="text-center py-12 text-subtle-foreground text-sm">
           No tasks yet. Type above and press Enter!
         </div>
       )}
@@ -122,7 +122,7 @@ export default function TaskList({
         <div className="mt-1">
           {activeToShow.map((task, i) => (
             <div key={task.id}>
-              {i > 0 && <div className="mx-12 h-px bg-gray-100" />}
+              {i > 0 && <div className="mx-12 h-px bg-border" />}
               <TaskItem
                 task={task}
                 isSelected={selectedTaskId === task.id}
@@ -135,7 +135,7 @@ export default function TaskList({
           {active.length > ITEMS_PER_SECTION && (
             <button
               onClick={() => setShowAllActive(!showAllActive)}
-              className="px-8 py-2 text-xs text-gray-400 hover:text-gray-600 transition-colors w-full text-left"
+              className="px-8 py-2 text-xs text-subtle-foreground hover:text-secondary-foreground transition-colors w-full text-left"
             >
               {showAllActive ? "Show less" : `+${active.length - ITEMS_PER_SECTION} more`}
             </button>
@@ -148,22 +148,22 @@ export default function TaskList({
         <div className="mt-1">
           <button
             onClick={() => setCompletedExpanded(!completedExpanded)}
-            className="flex items-center pl-2.5 pr-4 py-1.5 hover:bg-black/5 transition-colors w-full text-left rounded-lg mx-2"
+            className="flex items-center pl-2.5 pr-4 py-1.5 hover:bg-accent transition-colors w-full text-left rounded-lg mx-2"
           >
             <ChevronRight
               size={12}
-              className={`shrink-0 text-gray-600 transition-transform duration-200 ${
+              className={`shrink-0 text-secondary-foreground transition-transform duration-200 ${
                 completedExpanded ? "rotate-90" : ""
               }`}
             />
-            <span className="text-sm font-semibold text-gray-800 ml-0.5">Completed</span>
-            <span className="text-xs text-gray-400 ml-1.5">{completed.length}</span>
+            <span className="text-sm font-semibold text-foreground ml-0.5">Completed</span>
+            <span className="text-xs text-subtle-foreground ml-1.5">{completed.length}</span>
           </button>
           {completedExpanded && (
             <>
               {completedToShow.map((task, i) => (
                 <div key={task.id}>
-                  {i > 0 && <div className="mx-12 h-px bg-gray-100" />}
+                  {i > 0 && <div className="mx-12 h-px bg-border" />}
                   <TaskItem
                     task={task}
                     isSelected={selectedTaskId === task.id}
@@ -176,7 +176,7 @@ export default function TaskList({
               {completed.length > ITEMS_PER_SECTION && (
                 <button
                   onClick={() => setShowAllCompleted(!showAllCompleted)}
-                  className="px-8 py-2 text-xs text-gray-400 hover:text-gray-600 transition-colors w-full text-left"
+                  className="px-8 py-2 text-xs text-subtle-foreground hover:text-secondary-foreground transition-colors w-full text-left"
                 >
                   {showAllCompleted ? "Show less" : `+${completed.length - ITEMS_PER_SECTION} more`}
                 </button>

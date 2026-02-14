@@ -13,7 +13,7 @@ export default function Hero() {
       {/* Nav */}
       <nav className="flex items-center justify-between px-8 py-5">
         <h1 className="text-lg font-bold tracking-tight">
-          <span className="text-gray-800">toodoo</span>
+          <span className="text-foreground">toodoo</span>
           <span className="brand-gradient font-black">cal</span>
         </h1>
         <Link
@@ -34,13 +34,13 @@ export default function Hero() {
           </div>
 
           {/* Heading */}
-          <h2 className="opacity-0 animate-appear delay-100 text-5xl sm:text-6xl font-bold text-gray-900 tracking-tight leading-[1.1] mb-6">
+          <h2 className="opacity-0 animate-appear delay-100 text-5xl sm:text-6xl font-bold text-foreground tracking-tight leading-[1.1] mb-6">
             Your assignments,{" "}
             <span className="brand-gradient">one calendar.</span>
           </h2>
 
           {/* Subtitle */}
-          <p className="opacity-0 animate-appear delay-300 text-lg text-gray-500 max-w-lg mx-auto mb-10 leading-relaxed">
+          <p className="opacity-0 animate-appear delay-300 text-lg text-muted-foreground max-w-lg mx-auto mb-10 leading-relaxed">
             toodoocal syncs your Canvas and Gradescope assignments into a single, clean inbox and calendar. Never miss a deadline again.
           </p>
 
@@ -54,7 +54,7 @@ export default function Hero() {
             </Link>
             <Link
               href="/login"
-              className="px-8 py-3 text-sm font-semibold text-gray-600 bg-gray-50 rounded-full hover:bg-gray-100 transition-colors"
+              className="px-8 py-3 text-sm font-semibold text-secondary-foreground bg-muted rounded-full hover:bg-accent transition-colors"
             >
               Learn more
             </Link>
@@ -72,7 +72,7 @@ export default function Hero() {
           ].map((feature) => (
             <span
               key={feature}
-              className="px-4 py-1.5 text-xs font-medium text-gray-500 bg-white border border-gray-100 rounded-full"
+              className="px-4 py-1.5 text-xs font-medium text-muted-foreground bg-card border border-border rounded-full"
             >
               {feature}
             </span>
@@ -81,7 +81,7 @@ export default function Hero() {
       </main>
 
       {/* Footer */}
-      <footer className="py-6 text-center text-xs text-gray-400">
+      <footer className="py-6 text-center text-xs text-subtle-foreground">
         Built for Bears, by Bears.
       </footer>
     </div>

@@ -205,7 +205,7 @@ export default function CalendarFeedSettings() {
 
   if (loading) {
     return (
-      <div className="flex items-center gap-2 text-gray-400 text-sm py-4">
+      <div className="flex items-center gap-2 text-subtle-foreground text-sm py-4">
         <Calendar size={16} />
         Loading calendar settings...
       </div>
@@ -216,10 +216,10 @@ export default function CalendarFeedSettings() {
     <div className="max-w-xl">
         {/* Header */}
         <div className="flex items-center gap-2 mb-1">
-          <Calendar size={18} className="text-gray-600" />
-          <h2 className="text-lg font-semibold text-gray-800">Calendar Feed</h2>
+          <Calendar size={18} className="text-secondary-foreground" />
+          <h2 className="text-lg font-semibold text-foreground">Calendar Feed</h2>
         </div>
-        <p className="text-xs text-gray-400 mb-4">
+        <p className="text-xs text-subtle-foreground mb-4">
           Subscribe to your tasks as an iCal feed in Google Calendar, Apple Calendar, or any
           calendar app that supports URL subscriptions.
         </p>
@@ -242,12 +242,12 @@ export default function CalendarFeedSettings() {
                 type="text"
                 readOnly
                 value={feedUrl || ""}
-                className="flex-1 px-3 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 bg-white focus:outline-none select-all"
+                className="flex-1 px-3 py-2 rounded-xl border border-input-border text-sm text-secondary-foreground bg-card focus:outline-none select-all"
                 onClick={(e) => (e.target as HTMLInputElement).select()}
               />
               <button
                 onClick={handleCopy}
-                className="shrink-0 px-3 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors flex items-center gap-1.5"
+                className="shrink-0 px-3 py-2 rounded-xl border border-input-border text-sm text-secondary-foreground hover:bg-accent transition-colors flex items-center gap-1.5"
                 title="Copy URL"
               >
                 {copied ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
@@ -256,12 +256,12 @@ export default function CalendarFeedSettings() {
             </div>
 
             {/* Google Calendar instructions */}
-            <div className="p-3 bg-gray-50 rounded-xl space-y-2">
+            <div className="p-3 bg-muted rounded-xl space-y-2">
               <div className="flex items-center gap-2">
                 <GoogleCalendarIcon size={16} />
-                <span className="text-xs font-medium text-gray-600">Sync with Google Calendar</span>
+                <span className="text-xs font-medium text-secondary-foreground">Sync with Google Calendar</span>
               </div>
-              <ol className="text-xs text-gray-400 space-y-1 ml-6 list-decimal">
+              <ol className="text-xs text-subtle-foreground space-y-1 ml-6 list-decimal">
                 <li>
                   Open{" "}
                   <a
@@ -274,16 +274,16 @@ export default function CalendarFeedSettings() {
                   </a>
                 </li>
                 <li>
-                  Click <span className="font-medium text-gray-500">+</span> next to{" "}
-                  <span className="font-medium text-gray-500">Other calendars</span>
+                  Click <span className="font-medium text-muted-foreground">+</span> next to{" "}
+                  <span className="font-medium text-muted-foreground">Other calendars</span>
                 </li>
                 <li>
-                  Select <span className="font-medium text-gray-500">From URL</span>
+                  Select <span className="font-medium text-muted-foreground">From URL</span>
                 </li>
                 <li>Paste the feed URL above and click Add calendar</li>
               </ol>
-              <p className="text-xs text-gray-400 ml-6">
-                Google Calendar refreshes subscriptions every 6–24 hours.
+              <p className="text-xs text-subtle-foreground ml-6">
+                Google Calendar refreshes subscriptions every 6-24 hours.
               </p>
             </div>
 
@@ -292,7 +292,7 @@ export default function CalendarFeedSettings() {
               <button
                 onClick={handleGenerate}
                 disabled={generating}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-50 border border-gray-200 transition-colors disabled:opacity-60"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs text-muted-foreground hover:text-foreground hover:bg-accent border border-input-border transition-colors disabled:opacity-60"
               >
                 <RefreshCw size={12} className={generating ? "animate-spin" : ""} />
                 {generating ? "Regenerating..." : "Regenerate URL"}
@@ -301,8 +301,8 @@ export default function CalendarFeedSettings() {
                 onClick={handleDisable}
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs transition-colors border ${
                   confirmDisable
-                    ? "text-red-600 bg-red-50 border-red-200 hover:bg-red-100"
-                    : "text-gray-500 hover:text-red-600 hover:bg-red-50 border-gray-200"
+                    ? "text-red-600 bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/50"
+                    : "text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 border-input-border"
                 }`}
               >
                 <XCircle size={12} />
@@ -314,10 +314,10 @@ export default function CalendarFeedSettings() {
 
         {/* Status Messages */}
         {error && (
-          <div className="mt-3 bg-red-50 text-red-500 text-sm p-3 rounded-xl">{error}</div>
+          <div className="mt-3 bg-red-50 dark:bg-red-900/20 text-red-500 text-sm p-3 rounded-xl">{error}</div>
         )}
         {success && (
-          <div className="mt-3 bg-emerald-50 text-emerald-600 text-sm p-3 rounded-xl">{success}</div>
+          <div className="mt-3 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 text-sm p-3 rounded-xl">{success}</div>
         )}
     </div>
   );

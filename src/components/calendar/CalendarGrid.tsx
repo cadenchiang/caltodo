@@ -15,8 +15,8 @@ interface CalendarGridProps {
   currentMonth: Date;
   tasks: Task[];
   addingDate?: string | null;
-  onDayClick: (date: string) => void;
-  onTaskClick: (task: Task) => void;
+  onDayClick: (date: string, rect: DOMRect) => void;
+  onTaskClick: (task: Task, rect: DOMRect) => void;
 }
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -51,11 +51,11 @@ export default function CalendarGrid({
   return (
     <div className="glass rounded-2xl overflow-hidden shadow-sm">
       {/* Weekday headers */}
-      <div className="grid grid-cols-7 bg-white/30 border-b border-gray-300/50">
+      <div className="grid grid-cols-7 bg-input-bg border-b border-border">
         {WEEKDAY_LABELS.map((label) => (
           <div
             key={label}
-            className="text-center text-xs font-medium text-gray-500 py-3 border-r border-gray-300/50 last:border-r-0"
+            className="text-center text-xs font-medium text-muted-foreground py-3 border-r border-border last:border-r-0"
           >
             {label}
           </div>

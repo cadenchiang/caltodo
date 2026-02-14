@@ -97,11 +97,11 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80 backdrop-blur-xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-card/80 backdrop-blur-xl">
       {/* Close button */}
       <button
         onClick={() => router.push("/app/inbox")}
-        className="absolute top-6 right-6 p-2 text-gray-400 hover:text-gray-600 hover:bg-black/5 rounded-lg transition-colors"
+        className="absolute top-6 right-6 p-2 text-subtle-foreground hover:text-secondary-foreground hover:bg-accent rounded-lg transition-colors"
         aria-label="Close onboarding"
       >
         <X size={20} />
@@ -114,7 +114,7 @@ export default function OnboardingPage() {
             <div
               key={i}
               className={`h-1.5 rounded-full transition-all duration-300 ${
-                i <= stepIndex ? "bg-blue-500 w-8" : "bg-gray-200 w-4"
+                i <= stepIndex ? "bg-blue-500 w-8" : "bg-border w-4"
               }`}
             />
           ))}
@@ -130,11 +130,11 @@ export default function OnboardingPage() {
 
           {currentStep === "welcome" && (
             <div className="text-center">
-              <h1 className="text-2xl font-bold text-gray-800 mb-2">
-                Welcome to <span className="text-gray-800">toodoo</span>
+              <h1 className="text-2xl font-bold text-foreground mb-2">
+                Welcome to <span className="text-foreground">toodoo</span>
                 <span className="brand-gradient font-black">cal</span>
               </h1>
-              <p className="text-gray-500 text-sm mb-8">
+              <p className="text-muted-foreground text-sm mb-8">
                 Connect your Canvas and Gradescope accounts to automatically sync your assignments.
               </p>
               <button
@@ -168,8 +168,8 @@ export default function OnboardingPage() {
 
           {currentStep === "done" && (
             <div className="text-center">
-              <h2 className="text-lg font-bold text-gray-800 mb-2">You&apos;re all set!</h2>
-              <p className="text-sm text-gray-500 mb-6">
+              <h2 className="text-lg font-bold text-foreground mb-2">You&apos;re all set!</h2>
+              <p className="text-sm text-muted-foreground mb-6">
                 Sync your assignments now, or skip and do it later from the inbox.
               </p>
 
@@ -183,7 +183,7 @@ export default function OnboardingPage() {
                 </button>
                 <button
                   onClick={() => router.push("/app/inbox")}
-                  className="text-sm text-gray-400 hover:text-gray-600 transition-colors"
+                  className="text-sm text-subtle-foreground hover:text-secondary-foreground transition-colors"
                 >
                   Skip to Inbox
                 </button>

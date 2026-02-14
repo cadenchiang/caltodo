@@ -107,25 +107,25 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
 
   return (
     <div>
-      <h2 className="text-lg font-bold text-gray-800 mb-1">Gradescope Integration</h2>
-      <p className="text-sm text-gray-500 mb-4">
+      <h2 className="text-lg font-bold text-foreground mb-1">Gradescope Integration</h2>
+      <p className="text-sm text-muted-foreground mb-4">
         We&apos;ll sign into Gradescope on your behalf to pull your upcoming assignments.
       </p>
 
       {/* Instructions for CalNet users */}
-      <div className="bg-emerald-50/60 rounded-xl px-4 py-3 mb-5 text-xs text-gray-600 leading-relaxed">
-        <p className="font-semibold text-gray-700 mb-2">Important for CalNet (Berkeley) users:</p>
+      <div className="bg-emerald-50/60 rounded-xl px-4 py-3 mb-5 text-xs text-secondary-foreground leading-relaxed">
+        <p className="font-semibold text-secondary-foreground mb-2">Important for CalNet (Berkeley) users:</p>
         <p className="mb-1.5">
           If you normally log into Gradescope via &quot;School Credentials&quot; / CalNet SSO, you&apos;ll need to set a
           Gradescope-specific password first:
         </p>
         <ol className="list-decimal list-inside flex flex-col gap-1.5">
           <li>Go to <a href="https://www.gradescope.com/reset_password" target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">gradescope.com/reset_password</a></li>
-          <li>Enter your <span className="font-medium text-gray-700">@berkeley.edu</span> email</li>
+          <li>Enter your <span className="font-medium text-secondary-foreground">@berkeley.edu</span> email</li>
           <li>Check your email and set a new password</li>
           <li>Use that email &amp; password below</li>
         </ol>
-        <p className="mt-2 text-gray-400">
+        <p className="mt-2 text-subtle-foreground">
           Your credentials are encrypted and only used to fetch assignments.
         </p>
       </div>
@@ -135,29 +135,29 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
         <>
           <div className="flex flex-col gap-3 mb-5">
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Email</label>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Email</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@berkeley.edu"
-                className="w-full px-3 py-2.5 rounded-xl bg-white/50 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:bg-white/70 transition-all"
+                className="w-full px-3 py-2.5 rounded-xl bg-input-bg text-sm text-foreground placeholder-subtle-foreground focus:outline-none focus:bg-input-bg-focus transition-all"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Password</label>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Password</label>
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Your Gradescope password"
-                  className="w-full px-3 py-2.5 pr-10 rounded-xl bg-white/50 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:bg-white/70 transition-all"
+                  className="w-full px-3 py-2.5 pr-10 rounded-xl bg-input-bg text-sm text-foreground placeholder-subtle-foreground focus:outline-none focus:bg-input-bg-focus transition-all"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-subtle-foreground hover:text-secondary-foreground transition-colors"
                 >
                   {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
                 </button>
@@ -168,7 +168,7 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
           <div className="flex gap-3">
             <button
               onClick={onSkip}
-              className="flex-1 px-4 py-2.5 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+              className="flex-1 px-4 py-2.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               Skip
             </button>
@@ -189,7 +189,7 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
         <>
           <div className="mb-4">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-sm font-medium text-gray-700">
+              <p className="text-sm font-medium text-secondary-foreground">
                 Select courses to sync ({selectedIds.size}/{courses.length})
               </p>
               <button
@@ -206,11 +206,11 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
                 {selectedIds.size === courses.length ? "Deselect all" : "Select all"}
               </button>
             </div>
-            <div className="max-h-48 overflow-auto rounded-xl bg-white/50 border border-gray-100">
+            <div className="max-h-48 overflow-auto rounded-xl bg-input-bg border border-border">
               {courses.map((course) => (
                 <label
                   key={course.id}
-                  className="flex items-center gap-3 px-3 py-2.5 hover:bg-white/60 transition-colors cursor-pointer border-b border-gray-50 last:border-0"
+                  className="flex items-center gap-3 px-3 py-2.5 hover:bg-accent transition-colors cursor-pointer border-b border-border-subtle last:border-0"
                 >
                   <input
                     type="checkbox"
@@ -219,15 +219,15 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
                     className="w-4 h-4 rounded accent-blue-500"
                   />
                   <div className="flex-1 min-w-0">
-                    <span className="text-sm text-gray-800 block truncate">{course.name}</span>
+                    <span className="text-sm text-foreground block truncate">{course.name}</span>
                     {course.shortName && (
-                      <span className="text-xs text-gray-400 block truncate">{course.shortName}</span>
+                      <span className="text-xs text-subtle-foreground block truncate">{course.shortName}</span>
                     )}
                   </div>
                 </label>
               ))}
               {courses.length === 0 && (
-                <div className="px-3 py-4 text-sm text-gray-400 text-center">
+                <div className="px-3 py-4 text-sm text-subtle-foreground text-center">
                   No active courses found.
                 </div>
               )}
@@ -240,7 +240,7 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
                 setCourses(null);
                 setSelectedIds(new Set());
               }}
-              className="flex-1 px-4 py-2.5 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+              className="flex-1 px-4 py-2.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               Back
             </button>

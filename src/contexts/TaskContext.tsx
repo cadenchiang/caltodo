@@ -293,7 +293,11 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     startProgressTimer();
 
     try {
-      const res = await fetch("/api/assignments/sync", { method: "POST" });
+      const res = await fetch("/api/assignments/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
+      });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error || `Sync failed: ${res.status}`);

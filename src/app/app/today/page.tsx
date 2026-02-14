@@ -30,7 +30,7 @@ export default function TodayPage() {
       <div className="flex h-full -m-10">
         <div className="flex flex-col flex-1 min-w-0">
           <div className="px-8 pt-8 pb-4 animate-stagger stagger-1">
-            <h1 className="text-xl font-bold text-gray-800">Today</h1>
+            <h1 className="text-xl font-bold text-foreground">Today</h1>
           </div>
           <div className="flex-1 overflow-auto animate-stagger stagger-2">
             <TaskList

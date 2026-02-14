@@ -9,8 +9,8 @@ interface CalendarDayCellProps {
   currentMonth: Date;
   tasks: Task[];
   addingDate?: string | null;
-  onDayClick: (date: string) => void;
-  onTaskClick: (task: Task) => void;
+  onDayClick: (date: string, rect: DOMRect) => void;
+  onTaskClick: (task: Task, rect: DOMRect) => void;
 }
 
 /**
@@ -20,8 +20,8 @@ interface CalendarDayCellProps {
  * @param day - The date this cell represents
  * @param currentMonth - The currently displayed month
  * @param tasks - Tasks assigned to this day
- * @param onDayClick - Callback when the cell is clicked (to add a task)
- * @param onTaskClick - Callback when a task bar is clicked (to edit)
+ * @param onDayClick - Callback when the cell is clicked, includes bounding rect for popover positioning
+ * @param onTaskClick - Callback when a task bar is clicked, includes bounding rect for popover positioning
  */
 export default function CalendarDayCell({
   day,
@@ -43,14 +43,14 @@ export default function CalendarDayCell({
 
   return (
     <div
-      className={`min-h-[140px] p-1.5 cursor-pointer border-r border-b border-gray-300/50 transition-colors ${
+      className={`min-h-[140px] p-1.5 cursor-pointer border-r border-b border-border transition-colors ${
         !isCurrentMonth
-          ? "bg-gray-50/80"
+          ? "bg-muted/80"
           : isPast
-            ? "bg-gray-50/50"
-            : "bg-white/30"
-      } hover:bg-blue-50/40`}
-      onClick={() => onDayClick(dateStr)}
+            ? "bg-muted/50"
+            : "bg-card/30"
+      } hover:bg-blue-50/40 dark:hover:bg-blue-900/20`}
+      onClick={(e) => onDayClick(dateStr, e.currentTarget.getBoundingClientRect())}
     >
       {/* Day number */}
       <div
@@ -58,8 +58,8 @@ export default function CalendarDayCell({
           isToday
             ? "bg-blue-500 text-white font-bold shadow-sm"
             : isCurrentMonth
-              ? "text-gray-700"
-              : "text-gray-300"
+              ? "text-secondary-foreground"
+              : "text-subtle-foreground"
         }`}
       >
         {format(day, "d")}
@@ -78,7 +78,7 @@ export default function CalendarDayCell({
           <CalendarTaskBar key={task.id} task={task} onClick={onTaskClick} />
         ))}
         {overflow > 0 && (
-          <span className="text-xs text-gray-400 px-1">+{overflow} more</span>
+          <span className="text-xs text-subtle-foreground px-1">+{overflow} more</span>
         )}
       </div>
     </div>

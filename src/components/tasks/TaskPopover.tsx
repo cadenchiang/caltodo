@@ -50,12 +50,27 @@ function computePosition(anchorRect: DOMRect): { top: number; left: number } {
 }
 
 /**
- * Formats a due date into a friendly string like "Today, Feb 13".
+ * Formats a 24-hour time string "HH:MM" to 12-hour format "h:mm AM/PM".
+ *
+ * @param time24 - Time string in "HH:MM" format (e.g. "23:59")
+ * @returns Formatted time string (e.g. "11:59 PM")
+ */
+function formatTime12h(time24: string): string {
+  const [hourStr, minute] = time24.split(":");
+  const hour = parseInt(hourStr, 10);
+  const ampm = hour >= 12 ? "PM" : "AM";
+  const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+  return `${hour12}:${minute} ${ampm}`;
+}
+
+/**
+ * Formats a due date into a friendly string like "Today, Feb 13 at 11:59 PM".
  *
  * @param dueDate - ISO date string or null
+ * @param dueTime - 24-hour time string ("HH:MM") or null
  * @returns Formatted date string or "No date"
  */
-function formatDueDate(dueDate: string | null): string {
+function formatDueDate(dueDate: string | null, dueTime?: string | null): string {
   if (!dueDate) return "No date";
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -64,10 +79,11 @@ function formatDueDate(dueDate: string | null): string {
   const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
 
   const dateStr = format(due, "MMM d");
-  if (diffDays === 0) return `Today, ${dateStr}`;
-  if (diffDays === 1) return `Tomorrow, ${dateStr}`;
-  if (diffDays === -1) return `Yesterday, ${dateStr}`;
-  return dateStr;
+  const timeSuffix = dueTime ? ` at ${formatTime12h(dueTime)}` : "";
+  if (diffDays === 0) return `Today, ${dateStr}${timeSuffix}`;
+  if (diffDays === 1) return `Tomorrow, ${dateStr}${timeSuffix}`;
+  if (diffDays === -1) return `Yesterday, ${dateStr}${timeSuffix}`;
+  return `${dateStr}${timeSuffix}`;
 }
 
 /**
@@ -148,7 +164,7 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
   return createPortal(
     <div
       ref={ref}
-      className={`fixed z-50 w-[380px] bg-white rounded-2xl shadow-2xl border border-gray-100 transition-all duration-150 ease-out ${
+      className={`fixed z-50 w-[380px] bg-card rounded-2xl shadow-2xl border border-border transition-all duration-150 ease-out ${
         visible
           ? "opacity-100 scale-100 translate-y-0"
           : "opacity-0 scale-95 -translate-y-1"
@@ -156,7 +172,7 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
       style={{ top: pos.top, left: pos.left }}
     >
       {/* Top bar: checkbox | calendar date | color flag */}
-      <div className="flex items-center gap-2 px-4 pt-4 pb-3 border-b border-gray-50">
+      <div className="flex items-center gap-2 px-4 pt-4 pb-3 border-b border-border-subtle">
         {/* Checkbox */}
         <button
           onClick={() => {
@@ -183,10 +199,10 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
               setShowDatePicker(!showDatePicker);
               setShowColorPicker(false);
             }}
-            className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs text-gray-600 hover:bg-gray-50 transition-colors"
+            className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs text-secondary-foreground hover:bg-accent transition-colors"
           >
-            <CalendarDays size={14} className="text-gray-400" />
-            <span>{formatDueDate(dueDate)}</span>
+            <CalendarDays size={14} className="text-subtle-foreground" />
+            <span>{formatDueDate(dueDate, task.due_time)}</span>
           </button>
           <Popover
             open={showDatePicker}
@@ -212,7 +228,7 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
               setShowColorPicker(!showColorPicker);
               setShowDatePicker(false);
             }}
-            className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-gray-50 transition-colors"
+            className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-accent transition-colors"
           >
             <Flag size={14} style={{ color: color || "#9CA3AF" }} />
           </button>
@@ -221,7 +237,7 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
             onClose={() => setShowColorPicker(false)}
             className="absolute right-0 top-full mt-1 z-10"
           >
-            <div className="bg-white rounded-xl shadow-2xl border border-gray-100 p-3">
+            <div className="bg-card rounded-xl shadow-2xl border border-border p-3">
               <div className="flex gap-2">
                 {TASK_COLORS.map((c) => (
                   <button
@@ -256,15 +272,15 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
               <span
                 className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
                   task.source === "canvas"
-                    ? "text-red-600 bg-red-50"
-                    : "text-emerald-600 bg-emerald-50"
+                    ? "text-red-600 bg-red-50 dark:bg-red-900/30"
+                    : "text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30"
                 }`}
               >
                 {task.source === "canvas" ? "Canvas" : "Gradescope"}
               </span>
             )}
             {task.is_submitted && (
-              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded text-green-600 bg-green-50">
+              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded text-green-600 bg-green-50 dark:bg-green-900/30">
                 Submitted
               </span>
             )}
@@ -277,7 +293,7 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           onBlur={handleSave}
-          className="w-full text-base font-semibold text-gray-800 bg-transparent focus:outline-none placeholder-gray-300"
+          className="w-full text-base font-semibold text-foreground bg-transparent focus:outline-none placeholder-subtle-foreground"
           placeholder="Task title"
         />
 
@@ -288,15 +304,15 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
           onBlur={handleSave}
           rows={3}
           placeholder="Write a description..."
-          className="w-full text-sm text-gray-600 bg-transparent rounded-lg focus:outline-none resize-none placeholder-gray-300"
+          className="w-full text-sm text-secondary-foreground bg-transparent rounded-lg focus:outline-none resize-none placeholder-subtle-foreground"
         />
       </div>
 
       {/* Footer: delete */}
-      <div className="px-4 pb-3 pt-1 border-t border-gray-50">
+      <div className="px-4 pb-3 pt-1 border-t border-border-subtle">
         <button
           onClick={handleDelete}
-          className="flex items-center gap-1.5 px-2 py-1.5 text-xs text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+          className="flex items-center gap-1.5 px-2 py-1.5 text-xs text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
         >
           <Trash2 size={13} />
           Delete task

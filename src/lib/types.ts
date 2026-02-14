@@ -9,6 +9,7 @@ export interface Task {
   title: string;
   description: string;
   due_date: string | null;
+  due_time: string | null;
   is_completed: boolean;
   color: string;
   created_at: string;

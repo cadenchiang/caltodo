@@ -76,42 +76,42 @@ export default function TaskEditModal({ task, onClose, onSave }: TaskEditModalPr
         {/* Close button */}
         <button
           onClick={handleClose}
-          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-xl hover:bg-white/40"
+          className="absolute top-4 right-4 text-subtle-foreground hover:text-secondary-foreground transition-colors p-1 rounded-xl hover:bg-accent"
         >
           <X size={18} />
         </button>
 
-        <h2 className="text-lg font-semibold text-gray-800 mb-5">Edit Task</h2>
+        <h2 className="text-lg font-semibold text-foreground mb-5">Edit Task</h2>
 
         {/* Title */}
         <div className="mb-4">
-          <label className="block text-xs font-medium text-gray-500 mb-1.5 uppercase tracking-wider">Title</label>
+          <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wider">Title</label>
           <input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="w-full px-4 py-2.5 rounded-xl bg-white/50 text-sm text-gray-800 focus:outline-none focus:bg-white/70 transition-all"
+            className="w-full px-4 py-2.5 rounded-xl bg-input-bg text-sm text-foreground focus:outline-none focus:bg-input-bg-focus transition-all"
           />
         </div>
 
         {/* Description */}
         <div className="mb-4">
-          <label className="block text-xs font-medium text-gray-500 mb-1.5 uppercase tracking-wider">Description</label>
+          <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wider">Description</label>
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={3}
-            className="w-full px-4 py-2.5 rounded-xl bg-white/50 text-sm text-gray-800 focus:outline-none focus:bg-white/70 transition-all resize-none"
+            className="w-full px-4 py-2.5 rounded-xl bg-input-bg text-sm text-foreground focus:outline-none focus:bg-input-bg-focus transition-all resize-none"
           />
         </div>
 
         {/* Due Date */}
         <div className="mb-4 relative">
-          <label className="block text-xs font-medium text-gray-500 mb-1.5 uppercase tracking-wider">Due Date</label>
+          <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wider">Due Date</label>
           <button
             type="button"
             onClick={() => setShowDatePicker(!showDatePicker)}
-            className="w-full text-left px-4 py-2.5 rounded-xl bg-white/50 text-sm text-gray-800 hover:bg-white/70 transition-all"
+            className="w-full text-left px-4 py-2.5 rounded-xl bg-input-bg text-sm text-foreground hover:bg-accent transition-all"
           >
             {dueDate ?? "No date"}
           </button>
@@ -132,7 +132,7 @@ export default function TaskEditModal({ task, onClose, onSave }: TaskEditModalPr
 
         {/* Color */}
         <div className="mb-6">
-          <label className="block text-xs font-medium text-gray-500 mb-2 uppercase tracking-wider">Color</label>
+          <label className="block text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">Color</label>
           <div className="flex gap-2.5">
             {TASK_COLORS.map((c) => (
               <button
@@ -155,7 +155,7 @@ export default function TaskEditModal({ task, onClose, onSave }: TaskEditModalPr
         <div className="flex justify-end gap-2">
           <button
             onClick={handleClose}
-            className="px-5 py-2.5 text-sm text-gray-500 hover:text-gray-800 rounded-xl hover:bg-white/40 transition-all"
+            className="px-5 py-2.5 text-sm text-muted-foreground hover:text-foreground rounded-xl hover:bg-accent transition-all"
           >
             Cancel
           </button>
