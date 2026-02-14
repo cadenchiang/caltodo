@@ -94,7 +94,7 @@ export default function TaskItem({ task, isSelected, onToggle, onSelect, onDelet
           className="flex-shrink-0 w-4 h-4 rounded-[3px] flex items-center justify-center transition-all"
           style={{
             backgroundColor: task.is_completed ? "#D1D5DB" : "transparent",
-            border: task.is_completed ? "none" : `1.5px solid ${task.color || "#D1D5DB"}`,
+            border: task.is_completed ? "none" : "1px solid #D1D5DB",
           }}
           aria-label={task.is_completed ? "Mark incomplete" : "Mark complete"}
         >
