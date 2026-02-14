@@ -14,44 +14,49 @@ interface TaskItemProps {
 }
 
 /**
- * Inline bCourses (Canvas) logo SVG.
- * Red circle with a stylized "C" arc representing the Canvas mark.
+ * bCourses (Canvas LMS) logo — red circle with white compass pattern.
+ * Sourced from the official Canvas LMS logomark at instructure/canvas-lms.
  *
  * @param size - Icon dimensions in pixels
  */
 function CanvasLogo({ size = 14 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 14 14" fill="none" className="shrink-0">
-      <circle cx="7" cy="7" r="7" fill="#E03C31" />
-      <path
-        d="M9.5 4.5C8.8 3.7 7.9 3.2 7 3.2c-2.1 0-3.8 1.7-3.8 3.8s1.7 3.8 3.8 3.8c.9 0 1.8-.4 2.5-1.1"
-        stroke="white"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        fill="none"
-      />
+    <svg width={size} height={size} viewBox="-0.5 -0.4 27.7 27.7" fill="none" className="shrink-0">
+      <circle cx="13.35" cy="13.45" r="13.85" fill="#D64027" />
+      <path fill="white" d="M3.9,13.5c0-2-1.5-3.6-3.4-3.8C0.2,10.9,0,12.1,0,13.5s0.2,2.6,0.5,3.8C2.4,17.1,3.9,15.4,3.9,13.5z" />
+      <circle fill="white" cx="6.2" cy="13.4" r="1.2" />
+      <path fill="white" d="M22.8,13.5c0,2,1.5,3.6,3.4,3.8c0.3-1.2,0.5-2.5,0.5-3.8s-0.2-2.6-0.5-3.8C24.3,9.9,22.8,11.5,22.8,13.5z" />
+      <circle fill="white" cx="20.2" cy="13.4" r="1.2" />
+      <path fill="white" d="M13.3,23c-2,0-3.6,1.5-3.8,3.4c1.2,0.3,2.5,0.5,3.8,0.5c1.3,0,2.6-0.2,3.8-0.5C16.9,24.5,15.3,23,13.3,23z" />
+      <circle fill="white" cx="13.2" cy="20.4" r="1.2" />
+      <path fill="white" d="M13.3,4c2,0,3.6-1.5,3.8-3.4c-1.2-0.3-2.5-0.5-3.8-0.5c-1.3,0-2.6,0.2-3.8,0.5C9.7,2.5,11.3,4,13.3,4z" />
+      <circle fill="white" cx="13.2" cy="6.4" r="1.2" />
+      <path fill="white" d="M20,20.2c-1.4,1.4-1.5,3.6-0.3,5.1c2.2-1.3,4.1-3.2,5.4-5.4C23.6,18.7,21.4,18.8,20,20.2z" />
+      <circle fill="white" cx="18.2" cy="18.4" r="1.2" />
+      <path fill="white" d="M6.6,6.8C8,5.4,8.1,3.2,6.9,1.7C4.7,3,2.8,4.9,1.5,7.1C3,8.3,5.2,8.2,6.6,6.8z" />
+      <circle fill="white" cx="8.2" cy="8.4" r="1.2" />
+      <path fill="white" d="M20,6.8c1.4,1.4,3.6,1.5,5.1,0.3c-1.3-2.2-3.2-4.1-5.4-5.4C18.5,3.2,18.6,5.4,20,6.8z" />
+      <circle fill="white" cx="18.2" cy="8.4" r="1.2" />
+      <path fill="white" d="M6.6,20.2c-1.4-1.4-3.6-1.5-5.1-0.3c1.3,2.2,3.2,4.1,5.4,5.4C8.1,23.7,8,21.6,6.6,20.2z" />
+      <circle fill="white" cx="8.2" cy="18.4" r="1.2" />
     </svg>
   );
 }
 
 /**
- * Inline Gradescope logo SVG.
- * Teal circle with a stylized checkmark representing grading.
+ * Gradescope logo — teal rounded rectangle with 4 ascending white bars.
+ * Sourced from the official Gradescope apple-touch-icon.
  *
  * @param size - Icon dimensions in pixels
  */
 function GradescopeLogo({ size = 14 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 14 14" fill="none" className="shrink-0">
-      <circle cx="7" cy="7" r="7" fill="#00A67E" />
-      <path
-        d="M4.2 7.2l1.8 1.8 3.8-3.8"
-        stroke="white"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill="none"
-      />
+      <rect width="14" height="14" rx="3" fill="#3AADA8" />
+      <rect x="1.5" y="8.5" width="2" height="3.5" rx="0.5" fill="white" />
+      <rect x="4.5" y="6.5" width="2" height="5.5" rx="0.5" fill="white" />
+      <rect x="7.5" y="4.5" width="2" height="7.5" rx="0.5" fill="white" />
+      <rect x="10.5" y="2.5" width="2" height="9.5" rx="0.5" fill="white" />
     </svg>
   );
 }
