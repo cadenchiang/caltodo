@@ -14,6 +14,49 @@ interface TaskItemProps {
 }
 
 /**
+ * Inline bCourses (Canvas) logo SVG.
+ * Red circle with a stylized "C" arc representing the Canvas mark.
+ *
+ * @param size - Icon dimensions in pixels
+ */
+function CanvasLogo({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 14 14" fill="none" className="shrink-0">
+      <circle cx="7" cy="7" r="7" fill="#E03C31" />
+      <path
+        d="M9.5 4.5C8.8 3.7 7.9 3.2 7 3.2c-2.1 0-3.8 1.7-3.8 3.8s1.7 3.8 3.8 3.8c.9 0 1.8-.4 2.5-1.1"
+        stroke="white"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        fill="none"
+      />
+    </svg>
+  );
+}
+
+/**
+ * Inline Gradescope logo SVG.
+ * Teal circle with a stylized checkmark representing grading.
+ *
+ * @param size - Icon dimensions in pixels
+ */
+function GradescopeLogo({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 14 14" fill="none" className="shrink-0">
+      <circle cx="7" cy="7" r="7" fill="#00A67E" />
+      <path
+        d="M4.2 7.2l1.8 1.8 3.8-3.8"
+        stroke="white"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+    </svg>
+  );
+}
+
+/**
  * Returns a human-readable due date label and color class.
  *
  * @param dueDate - ISO date string ("YYYY-MM-DD") or null
@@ -52,9 +95,9 @@ function getDueDateBadge(dueDate: string | null): { label: string; className: st
 }
 
 /**
- * Single task row with thin square checkbox, title, source tag, and due date.
- * No outlines — hover shows dark gray background like sidebar selectors.
- * Right-click opens a context menu with delete option.
+ * Single task row with checkbox, title, source logo, and due date.
+ * Hover shows dark gray background. Right-click opens delete context menu.
+ * Completed tasks render with reduced opacity for a faded look.
  *
  * @param task - The task data to display
  * @param isSelected - Whether this task is currently selected
@@ -83,11 +126,11 @@ export default function TaskItem({ task, isSelected, onToggle, onSelect, onDelet
           isSelected
             ? "bg-black/5"
             : "hover:bg-black/5"
-        }`}
+        } ${task.is_completed ? "opacity-40" : ""}`}
         onClick={() => onSelect(task)}
         onContextMenu={handleContextMenu}
       >
-        {/* Thin square checkbox */}
+        {/* Checkbox */}
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -110,23 +153,20 @@ export default function TaskItem({ task, isSelected, onToggle, onSelect, onDelet
         {/* Title */}
         <span
           className={`flex-1 min-w-0 truncate text-sm ${
-            task.is_completed ? "text-gray-300 line-through" : "text-gray-800"
+            task.is_completed ? "text-gray-800 line-through" : "text-gray-800"
           }`}
         >
           {task.title}
         </span>
 
-        {/* Source tag with background */}
+        {/* Source logo with hover tooltip */}
         {task.source && (
-          <span
-            className={`text-[10px] font-medium px-1.5 py-0.5 rounded shrink-0 ${
-              task.source === "canvas"
-                ? "text-red-600 bg-red-50"
-                : "text-emerald-600 bg-emerald-50"
-            }`}
-          >
-            {task.source === "canvas" ? "Canvas" : "Gradescope"}
-          </span>
+          <div className="relative shrink-0 group/logo">
+            {task.source === "canvas" ? <CanvasLogo /> : <GradescopeLogo />}
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 bg-gray-800 text-white text-[10px] rounded-md whitespace-nowrap opacity-0 group-hover/logo:opacity-100 transition-opacity pointer-events-none">
+              {task.source === "canvas" ? "bCourses (Canvas)" : "Gradescope"}
+            </div>
+          </div>
         )}
 
         {/* Due date */}
