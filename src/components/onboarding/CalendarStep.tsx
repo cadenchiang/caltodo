@@ -70,7 +70,7 @@ export default function CalendarStep({ onNext, onSkip }: CalendarStepProps) {
     <div>
       <div className="flex items-center gap-2 mb-1">
         <GoogleCalendarIcon size={22} />
-        <h2 className="text-lg font-bold text-gray-800 animate-drop-in">Google Calendar</h2>
+        <h2 className="text-lg font-bold text-gray-800 animate-drop-in">Sync to Google Calendar</h2>
       </div>
       <p className="text-sm text-gray-500 mb-6 animate-drop-in delay-100">
         add your bCourses and Gradescope assignments to Google Calendar so deadlines show up alongside your classes.
@@ -101,7 +101,7 @@ export default function CalendarStep({ onNext, onSkip }: CalendarStepProps) {
               className="flex-1 px-4 py-2.5 bg-gray-800 text-white rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2 btn-elevated-primary"
             >
               {enabling && <Loader2 size={14} className="animate-spin" />}
-              {enabling ? "enabling..." : "enable calendar feed"}
+              {enabling ? "enabling..." : "sync to Google Calendar"}
             </button>
           </div>
         </div>

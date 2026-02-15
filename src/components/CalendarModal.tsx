@@ -71,7 +71,7 @@ export default function CalendarModal({ onClose }: CalendarModalProps) {
         <div className="px-5 py-4 border-b border-border flex items-center justify-between">
           <div className="flex items-center gap-2">
             <GoogleCalendarIcon size={20} />
-            <h3 className="text-sm font-semibold text-foreground">Google Calendar</h3>
+            <h3 className="text-sm font-semibold text-foreground">Sync to Google Calendar</h3>
           </div>
           <button
             onClick={onClose}
@@ -111,7 +111,7 @@ export default function CalendarModal({ onClose }: CalendarModalProps) {
                   className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium bg-foreground text-background hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2 transition-all"
                 >
                   {enabling && <Loader2 size={14} className="animate-spin" />}
-                  {enabling ? "Enabling..." : "Enable feed"}
+                  {enabling ? "Enabling..." : "Sync to Google Calendar"}
                 </button>
               </div>
             </>

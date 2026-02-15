@@ -202,7 +202,7 @@ export default function CalendarFeedSettings() {
         {/* Header */}
         <div className="flex items-center gap-2 mb-1">
           <GoogleCalendarIcon size={18} />
-          <h2 className="text-lg font-semibold text-foreground">Calendar Feed</h2>
+          <h2 className="text-lg font-semibold text-foreground">Sync to Google Calendar</h2>
         </div>
         <p className="text-xs text-subtle-foreground mb-4">
           Subscribe to your tasks as an iCal feed in Google Calendar, Apple Calendar, or any
@@ -217,7 +217,7 @@ export default function CalendarFeedSettings() {
             className="flex items-center gap-3 px-6 py-3 rounded-xl text-sm font-semibold bg-gray-900 text-white dark:bg-white dark:text-gray-900 hover:bg-gray-700 dark:hover:bg-gray-200 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
           >
             <GoogleCalendarIcon size={20} />
-            {generating ? "Generating..." : "Enable Calendar Feed"}
+            {generating ? "Generating..." : "Sync to Google Calendar"}
           </button>
         ) : (
           /* ---- Token exists: show URL, copy, instructions ---- */
