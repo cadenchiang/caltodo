@@ -139,6 +139,24 @@ export default function TaskItem({ task, isSelected, onToggle, onSelect, onDelet
         </span>
 
 
+        {/* Source + course badges */}
+        {task.source && (
+          <span
+            className={`text-[9px] font-medium px-1.5 py-0.5 rounded shrink-0 ${
+              task.source === "canvas"
+                ? "text-blue-600 bg-blue-50 dark:bg-blue-900/30"
+                : "text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30"
+            }`}
+          >
+            {task.source === "canvas" ? "bCourses" : "Gradescope"}
+          </span>
+        )}
+        {task.course_name && (
+          <span className="text-[9px] font-medium px-1.5 py-0.5 rounded shrink-0 text-purple-600 bg-purple-50 dark:bg-purple-900/30">
+            {task.course_name}
+          </span>
+        )}
+
         {/* Due time and date */}
         {dueBadge && (
           <span className={`text-[11px] shrink-0 font-medium ${dueBadge.className}`}>

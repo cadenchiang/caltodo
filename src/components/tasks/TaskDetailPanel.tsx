@@ -217,8 +217,8 @@ export default function TaskDetailPanel({ task, onClose, onSave }: TaskDetailPan
           </div>
 
           {/* Source badge + submission link */}
-          {(task.source || task.is_submitted) && (
-            <div className="flex items-center gap-2 px-5 pt-3">
+          {(task.source || task.course_name || task.is_submitted) && (
+            <div className="flex items-center gap-2 px-5 pt-3 flex-wrap">
               {task.source && (
                 <span
                   className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
@@ -228,6 +228,11 @@ export default function TaskDetailPanel({ task, onClose, onSave }: TaskDetailPan
                   }`}
                 >
                   {task.source === "canvas" ? "bCourses" : "Gradescope"}
+                </span>
+              )}
+              {task.course_name && (
+                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded text-purple-600 bg-purple-50 dark:bg-purple-900/30">
+                  {task.course_name}
                 </span>
               )}
               {task.is_submitted && (
