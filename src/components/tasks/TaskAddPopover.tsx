@@ -22,8 +22,8 @@ interface TaskAddPopoverProps {
  * @returns CSS position properties for the popover
  */
 function computePosition(anchorRect: DOMRect): { top: number; left: number } {
-  const popoverWidth = 380;
-  const popoverHeight = 260;
+  const popoverWidth = 340;
+  const popoverHeight = 230;
   const margin = 8;
 
   let left = anchorRect.left + anchorRect.width / 2 - popoverWidth / 2;
@@ -104,7 +104,7 @@ export default function TaskAddPopover({ date, anchorRect, onClose, onAdd }: Tas
   return createPortal(
     <div
       ref={ref}
-      className={`fixed z-50 w-[380px] bg-card rounded-2xl shadow-2xl border border-border transition-all duration-150 ease-out ${
+      className={`fixed z-50 w-[340px] bg-card rounded-2xl shadow-2xl border border-border transition-all duration-150 ease-out ${
         visible
           ? "opacity-100 scale-100 translate-y-0"
           : "opacity-0 scale-95 -translate-y-1"
@@ -126,18 +126,17 @@ export default function TaskAddPopover({ date, anchorRect, onClose, onAdd }: Tas
           />
 
           {/* Color picker row */}
-          <div className="flex items-center gap-1.5 mb-2">
+          <div className="flex items-center gap-2 mb-2">
             {TASK_COLORS.map((c) => (
               <button
                 key={c}
                 type="button"
                 onClick={() => setColor(c)}
-                className={`w-5 h-5 rounded-full transition-all ${
-                  color === c ? "scale-125" : "hover:scale-110"
-                }`}
+                className="w-3.5 h-3.5 rounded-full transition-all hover:scale-110"
                 style={{
                   backgroundColor: c,
-                  boxShadow: color === c ? `0 0 0 2px var(--color-card, white), 0 0 0 3.5px ${c}` : "none",
+                  outline: color === c ? `2px solid ${c}` : "none",
+                  outlineOffset: "2px",
                 }}
               />
             ))}
@@ -149,7 +148,7 @@ export default function TaskAddPopover({ date, anchorRect, onClose, onAdd }: Tas
             onChange={(e) => setDescription(e.target.value)}
             rows={2}
             placeholder="Description (optional)"
-            className="w-full text-xs text-secondary-foreground bg-transparent rounded-lg focus:outline-none resize-none placeholder-subtle-foreground mb-3"
+            className="w-full text-xs text-secondary-foreground bg-transparent rounded-lg focus:outline-none resize-none placeholder-subtle-foreground mb-2"
           />
 
           <div className="flex justify-end gap-2">
