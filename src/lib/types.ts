@@ -29,6 +29,7 @@ export interface TaskInsert {
   title: string;
   description?: string;
   due_date?: string | null;
+  due_time?: string | null;
   color?: string;
 }
 

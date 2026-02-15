@@ -121,7 +121,7 @@ export default function CalendarPage() {
             anchorRect={addAnchorRect}
             onClose={closeAddPopover}
             onAdd={(taskData) => {
-              addTask({ ...taskData, due_date: addingDate });
+              addTask(taskData);
             }}
           />
         )}

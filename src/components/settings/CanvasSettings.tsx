@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Eye, EyeOff, Lock, Pencil, Loader2, X } from "lucide-react";
+import { Eye, EyeOff, Lock, Pencil, Loader2 } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
+import CourseSelectModal from "@/components/ui/CourseSelectModal";
 import type { IntegrationCredentials, CredentialsSavePayload } from "@/lib/types";
 
 interface CanvasCourse {
@@ -269,75 +270,17 @@ export default function CanvasSettings({ credentials, onUpdate }: CanvasSettings
       )}
 
       {/* Course selection modal */}
-      {showCourseModal && courses && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-lg mx-4 max-h-[80vh] flex flex-col animate-in">
-            {/* Modal header */}
-            <div className="px-5 py-4 border-b border-border flex items-center justify-between shrink-0">
-              <div>
-                <h3 className="text-sm font-semibold text-foreground">
-                  Select courses ({selectedIds.size}/{courses.length})
-                </h3>
-              </div>
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setSelectedIds(
-                      selectedIds.size === courses.length
-                        ? new Set()
-                        : new Set(courses.map((c) => c.id))
-                    )
-                  }
-                  className="text-xs text-blue-500 hover:text-blue-600 transition-colors"
-                >
-                  {selectedIds.size === courses.length ? "Deselect all" : "Select all"}
-                </button>
-                <button
-                  onClick={() => setShowCourseModal(false)}
-                  className="p-1 text-subtle-foreground hover:text-foreground transition-colors rounded-lg hover:bg-accent"
-                  aria-label="Close"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-            </div>
-
-            {/* Course list */}
-            <div className="flex-1 overflow-auto">
-              {courses.map((course) => (
-                <label
-                  key={course.id}
-                  className="flex items-center gap-3 px-5 py-3 hover:bg-accent transition-colors cursor-pointer border-b border-border-subtle last:border-0"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.has(course.id)}
-                    onChange={() => toggleCourse(course.id)}
-                    className="w-4 h-4 rounded accent-blue-500 shrink-0"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <span className="text-sm text-foreground block truncate">{course.name}</span>
-                    <span className="text-xs text-subtle-foreground block truncate">{course.course_code}</span>
-                  </div>
-                </label>
-              ))}
-              {courses.length === 0 && (
-                <div className="px-5 py-8 text-sm text-subtle-foreground text-center">No active courses found.</div>
-              )}
-            </div>
-
-            {/* Modal footer */}
-            <div className="px-5 py-4 border-t border-border shrink-0">
-              <button
-                onClick={() => setShowCourseModal(false)}
-                className="w-full px-4 py-2.5 rounded-xl text-sm font-medium bg-blue-500 text-white hover:bg-blue-600 transition-all"
-              >
-                Done
-              </button>
-            </div>
-          </div>
-        </div>
+      {courses && (
+        <CourseSelectModal
+          open={showCourseModal}
+          onClose={() => setShowCourseModal(false)}
+          title="Select bCourses"
+          courses={courses.map((c) => ({ id: c.id, name: c.name, subtitle: c.course_code }))}
+          selectedIds={selectedIds}
+          onToggle={toggleCourse}
+          onSelectAll={() => setSelectedIds(new Set(courses.map((c) => c.id)))}
+          onDeselectAll={() => setSelectedIds(new Set())}
+        />
       )}
     </section>
   );

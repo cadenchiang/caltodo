@@ -203,7 +203,7 @@ export default function InboxPage() {
                 <ChevronDown size={14} className="text-muted-foreground" />
               </button>
               {showFilterDropdown && (
-                <div className="absolute top-full left-0 mt-1 z-50 rounded-xl shadow-2xl border border-border overflow-hidden animate-in min-w-[160px] bg-popover">
+                <div className="absolute top-full left-0 mt-1 z-50 rounded-xl shadow-2xl border border-border overflow-hidden animate-in min-w-[160px] bg-white dark:bg-neutral-800">
                   {FILTER_OPTIONS.map(({ key, label, icon: Icon }) => (
                     <button
                       key={key}
