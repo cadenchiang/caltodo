@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
+import { createPortal } from "react-dom";
 import { Inbox, RefreshCw, ChevronDown, X, Sun, CalendarRange } from "lucide-react";
 import { useTaskContext } from "@/contexts/TaskContext";
 import { useToast } from "@/contexts/ToastContext";
@@ -183,7 +184,7 @@ export default function InboxPage() {
       <div className="flex -m-10" style={{ height: "calc(100vh)" }}>
         {/* Left: task list */}
         <div className="flex flex-col flex-1 min-w-0">
-          <div className="px-8 pt-8 pb-4 flex items-center justify-between animate-stagger stagger-1 relative z-50">
+          <div className="px-8 pt-8 pb-4 flex items-center justify-between animate-stagger stagger-1">
             {/* Clickable title = filter selector */}
             <div ref={filterRef} className="relative">
               <button
@@ -202,10 +203,13 @@ export default function InboxPage() {
                 })()}
                 <ChevronDown size={14} className="text-muted-foreground" />
               </button>
-              {showFilterDropdown && (
+              {showFilterDropdown && filterRef.current && createPortal(
                 <div
-                  className="absolute top-full left-0 mt-1 z-50 rounded-xl shadow-2xl border border-border overflow-hidden animate-in min-w-[160px]"
-                  style={{ backgroundColor: "var(--card)" }}
+                  className="fixed z-[9999] rounded-xl shadow-2xl border border-border overflow-hidden animate-in min-w-[160px] bg-white dark:bg-[#1a1a1a]"
+                  style={{
+                    top: filterRef.current.getBoundingClientRect().bottom + 4,
+                    left: filterRef.current.getBoundingClientRect().left,
+                  }}
                 >
                   {FILTER_OPTIONS.map(({ key, label, icon: Icon }) => (
                     <button
@@ -220,14 +224,15 @@ export default function InboxPage() {
                           : "text-muted-foreground hover:text-foreground"
                       }`}
                       style={{
-                        backgroundColor: filter === key ? "rgba(255,255,255,0.08)" : undefined,
+                        backgroundColor: filter === key ? "rgba(255,255,255,0.08)" : "transparent",
                       }}
                     >
                       <Icon size={16} />
                       {label}
                     </button>
                   ))}
-                </div>
+                </div>,
+                document.body
               )}
             </div>
 
