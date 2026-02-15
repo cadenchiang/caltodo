@@ -38,7 +38,9 @@ export default function SidebarNavItem({ label, href, icon: Icon, badge }: Sideb
       <Icon size={16} />
       <span>{label}</span>
       {badge && (
-        <span className="ml-auto w-2 h-2 rounded-full bg-blue-500 shrink-0" />
+        <span className="ml-auto min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center shrink-0">
+          1
+        </span>
       )}
     </Link>
   );
