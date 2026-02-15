@@ -8,6 +8,7 @@ import type { TaskInsert } from "@/lib/types";
 import { TASK_COLORS, DEFAULT_TASK_COLOR } from "@/lib/constants";
 import useClickOutside from "@/hooks/useClickOutside";
 import DatePicker from "./DatePicker";
+import Popover from "@/components/ui/Popover";
 
 interface TaskAddPopoverProps {
   date: string;
@@ -25,7 +26,7 @@ interface TaskAddPopoverProps {
  */
 function computePosition(anchorRect: DOMRect): { top: number; left: number } {
   const popoverWidth = 340;
-  const popoverHeight = 360;
+  const popoverHeight = 230;
   const margin = 8;
 
   let left = anchorRect.left + anchorRect.width / 2 - popoverWidth / 2;
@@ -47,12 +48,10 @@ function computePosition(anchorRect: DOMRect): { top: number; left: number } {
   return { top, left };
 }
 
-type ExpandedPanel = "none" | "color" | "date";
-
 /**
  * Google Calendar-style quick-add popup for creating a task on a specific date.
  * Rendered via portal, positioned next to the clicked day cell.
- * Features a compact toolbar with expandable color picker and date/time picker.
+ * Color picker and date/time picker appear as floating popups above the toolbar.
  *
  * @param date - The date string (YYYY-MM-DD) for the new task
  * @param anchorRect - DOMRect from the clicked day cell for positioning
@@ -65,11 +64,14 @@ export default function TaskAddPopover({ date, anchorRect, onClose, onAdd }: Tas
   const [color, setColor] = useState(DEFAULT_TASK_COLOR);
   const [dueDate, setDueDate] = useState<string>(date);
   const [dueTime, setDueTime] = useState<string | null>(null);
-  const [expandedPanel, setExpandedPanel] = useState<ExpandedPanel>("none");
+  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const colorButtonRef = useRef<HTMLButtonElement>(null);
+  const dateButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -84,26 +86,26 @@ export default function TaskAddPopover({ date, anchorRect, onClose, onAdd }: Tas
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") {
+        if (showColorPicker || showDatePicker) {
+          setShowColorPicker(false);
+          setShowDatePicker(false);
+        } else {
+          onClose();
+        }
+      }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
+  }, [onClose, showColorPicker, showDatePicker]);
 
   const handleClickOutside = useCallback(() => {
-    onClose();
-  }, [onClose]);
+    if (!showColorPicker && !showDatePicker) {
+      onClose();
+    }
+  }, [onClose, showColorPicker, showDatePicker]);
 
   useClickOutside(ref, handleClickOutside, mounted);
-
-  /**
-   * Toggles an expandable panel (color or date). Opening one closes the other.
-   *
-   * @param panel - The panel to toggle
-   */
-  function togglePanel(panel: "color" | "date") {
-    setExpandedPanel((prev) => (prev === panel ? "none" : panel));
-  }
 
   /**
    * Handles form submission — creates a task with title, date, time, color, description.
@@ -151,13 +153,17 @@ export default function TaskAddPopover({ date, anchorRect, onClose, onAdd }: Tas
           />
 
           {/* Toolbar row: color dot + calendar icon with date badge */}
-          <div className="flex items-center gap-2 mb-2">
+          <div className="relative flex items-center gap-2 mb-2">
             {/* Color dot toggle */}
             <button
+              ref={colorButtonRef}
               type="button"
-              onClick={() => togglePanel("color")}
+              onClick={() => {
+                setShowColorPicker(!showColorPicker);
+                setShowDatePicker(false);
+              }}
               className={`p-1.5 rounded-lg transition-colors ${
-                expandedPanel === "color" ? "bg-accent" : "hover:bg-accent"
+                showColorPicker ? "bg-accent" : "hover:bg-accent"
               }`}
               aria-label="Pick color"
             >
@@ -169,10 +175,14 @@ export default function TaskAddPopover({ date, anchorRect, onClose, onAdd }: Tas
 
             {/* Calendar icon + date badge */}
             <button
+              ref={dateButtonRef}
               type="button"
-              onClick={() => togglePanel("date")}
+              onClick={() => {
+                setShowDatePicker(!showDatePicker);
+                setShowColorPicker(false);
+              }}
               className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs transition-colors ${
-                expandedPanel === "date"
+                showDatePicker
                   ? "bg-accent text-foreground"
                   : "text-muted-foreground hover:bg-accent hover:text-foreground"
               }`}
@@ -184,34 +194,44 @@ export default function TaskAddPopover({ date, anchorRect, onClose, onAdd }: Tas
                 <span className="text-blue-500 font-medium">{dueTime}</span>
               )}
             </button>
-          </div>
 
-          {/* Expandable color picker */}
-          {expandedPanel === "color" && (
-            <div className="flex items-center gap-2 mb-2 px-1 py-2 rounded-xl bg-accent/50">
-              {TASK_COLORS.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => {
-                    setColor(c);
-                    setExpandedPanel("none");
-                  }}
-                  className={`w-5 h-5 rounded-full transition-all ${
-                    color === c ? "scale-125" : "hover:scale-110"
-                  }`}
-                  style={{
-                    backgroundColor: c,
-                    boxShadow: color === c ? `0 0 0 2px white, 0 0 0 3.5px ${c}` : "none",
-                  }}
-                />
-              ))}
-            </div>
-          )}
+            {/* Color picker popup */}
+            <Popover
+              open={showColorPicker}
+              onClose={() => setShowColorPicker(false)}
+              triggerRef={colorButtonRef}
+              className="absolute left-0 top-full mt-1 z-10"
+            >
+              <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-2xl border border-border p-3">
+                <div className="flex gap-2">
+                  {TASK_COLORS.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => {
+                        setColor(c);
+                        setShowColorPicker(false);
+                      }}
+                      className={`w-6 h-6 rounded-full transition-all ${
+                        color === c ? "scale-125" : "hover:scale-110"
+                      }`}
+                      style={{
+                        backgroundColor: c,
+                        boxShadow: color === c ? `0 0 0 2px white, 0 0 0 3.5px ${c}` : "none",
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+            </Popover>
 
-          {/* Expandable date/time picker */}
-          {expandedPanel === "date" && (
-            <div className="mb-2">
+            {/* Date picker popup */}
+            <Popover
+              open={showDatePicker}
+              onClose={() => setShowDatePicker(false)}
+              triggerRef={dateButtonRef}
+              className="absolute left-0 top-full mt-1 z-10"
+            >
               <DatePicker
                 value={dueDate}
                 timeValue={dueTime}
@@ -220,8 +240,8 @@ export default function TaskAddPopover({ date, anchorRect, onClose, onAdd }: Tas
                 }}
                 onTimeChange={(t) => setDueTime(t)}
               />
-            </div>
-          )}
+            </Popover>
+          </div>
 
           {/* Description textarea */}
           <textarea

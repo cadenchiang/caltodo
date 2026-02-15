@@ -183,7 +183,7 @@ export default function InboxPage() {
       <div className="flex -m-10" style={{ height: "calc(100vh)" }}>
         {/* Left: task list */}
         <div className="flex flex-col flex-1 min-w-0">
-          <div className="px-8 pt-8 pb-4 flex items-center justify-between animate-stagger stagger-1">
+          <div className="px-8 pt-8 pb-4 flex items-center justify-between animate-stagger stagger-1 relative z-50">
             {/* Clickable title = filter selector */}
             <div ref={filterRef} className="relative">
               <button
@@ -203,7 +203,10 @@ export default function InboxPage() {
                 <ChevronDown size={14} className="text-muted-foreground" />
               </button>
               {showFilterDropdown && (
-                <div className="absolute top-full left-0 mt-1 z-50 rounded-xl shadow-2xl border border-border overflow-hidden animate-in min-w-[160px] bg-white dark:bg-neutral-800">
+                <div
+                  className="absolute top-full left-0 mt-1 z-50 rounded-xl shadow-2xl border border-border overflow-hidden animate-in min-w-[160px]"
+                  style={{ backgroundColor: "var(--card)" }}
+                >
                   {FILTER_OPTIONS.map(({ key, label, icon: Icon }) => (
                     <button
                       key={key}
@@ -213,9 +216,12 @@ export default function InboxPage() {
                       }}
                       className={`flex items-center gap-2 w-full text-left px-3 py-2 text-sm transition-colors ${
                         filter === key
-                          ? "text-foreground bg-accent font-medium"
-                          : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                          ? "text-foreground font-medium"
+                          : "text-muted-foreground hover:text-foreground"
                       }`}
+                      style={{
+                        backgroundColor: filter === key ? "rgba(255,255,255,0.08)" : undefined,
+                      }}
                     >
                       <Icon size={16} />
                       {label}

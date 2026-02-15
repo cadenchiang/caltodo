@@ -173,8 +173,8 @@ export function generateICalFeed(tasks: Task[], calendarName = "caltodo"): strin
   for (const task of tasks) {
     if (!task.due_date) continue;
 
-    // Build summary — title only, no course prefix
-    let summary = task.title;
+    // Build summary — prefix with ✓ if completed
+    let summary = task.is_completed ? `✓ ${task.title}` : task.title;
     if (task.due_time) {
       summary += ` due @ ${format12Hour(task.due_time)}`;
     }
@@ -190,6 +190,11 @@ export function generateICalFeed(tasks: Task[], calendarName = "caltodo"): strin
 
     lines.push(foldLine(`SUMMARY:${escapeICalText(summary)}`));
     lines.push(foldLine(`DESCRIPTION:${escapeICalText(description)}`));
+
+    // Mark completed tasks as cancelled so GCal shows strikethrough
+    if (task.is_completed) {
+      lines.push("STATUS:CANCELLED");
+    }
 
     if (task.source) {
       lines.push(`CATEGORIES:${task.source}`);
