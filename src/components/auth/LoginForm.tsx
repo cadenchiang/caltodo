@@ -106,7 +106,7 @@ export default function LoginForm() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full px-4 py-3 bg-gray-800 text-white rounded-xl font-semibold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-sm animate-drop-in delay-350 !transition-none"
+          className="w-full px-4 py-3 bg-gray-800 text-white rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed text-sm animate-drop-in delay-350 btn-elevated-primary"
         >
           {loading ? "loading..." : isSignUp ? "sign up" : "sign in"}
         </button>
@@ -119,7 +119,7 @@ export default function LoginForm() {
           setIsSignUp(!isSignUp);
           setError(null);
         }}
-        className="text-sm text-gray-500 hover:text-gray-800 hover:underline animate-drop-in delay-400 !transition-none"
+        className="text-sm text-gray-500 hover:text-gray-800 hover:underline animate-drop-in delay-400 transition-colors"
       >
         {isSignUp
           ? "already have an account? sign in"
@@ -137,7 +137,7 @@ export default function LoginForm() {
       <button
         type="button"
         onClick={handleGoogleSignIn}
-        className="flex items-center justify-center gap-3 w-full px-4 py-3 rounded-xl bg-white text-gray-500 text-sm animate-drop-in delay-550 border border-gray-200 shadow-sm hover:shadow-none hover:bg-gray-50 active:scale-[0.98] transition-all duration-200"
+        className="flex items-center justify-center gap-3 w-full px-4 py-3 rounded-xl bg-white text-gray-500 text-sm animate-drop-in delay-550 btn-elevated-secondary"
       >
         <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
           <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 01-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
