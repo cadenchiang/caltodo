@@ -5,7 +5,15 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { escapeICalText, foldLine, formatICalDate, generateICalFeed } from "@/lib/ical";
+import {
+  escapeICalText,
+  foldLine,
+  formatICalDate,
+  formatICalDateNextDay,
+  format12Hour,
+  formatDTStamp,
+  generateICalFeed,
+} from "@/lib/ical";
 import type { Task } from "@/lib/types";
 
 /**
@@ -21,6 +29,7 @@ function makeTask(overrides: Partial<Task> = {}): Task {
     title: "Test Assignment",
     description: "",
     due_date: "2026-02-15",
+    due_time: null,
     is_completed: false,
     color: "#EF4444",
     created_at: "2026-02-10T00:00:00Z",
@@ -134,12 +143,26 @@ describe("generateICalFeed", () => {
     expect(withoutCRLF).not.toContain("\r");
   });
 
-  it("should create a VEVENT for a task with due_date", () => {
+  it("should create an all-day VEVENT with exclusive DTEND (next day)", () => {
     const feed = generateICalFeed([makeTask()]);
     expect(feed).toContain("BEGIN:VEVENT");
     expect(feed).toContain("END:VEVENT");
     expect(feed).toContain("DTSTART;VALUE=DATE:20260215");
-    expect(feed).toContain("DTEND;VALUE=DATE:20260215");
+    expect(feed).toContain("DTEND;VALUE=DATE:20260216");
+  });
+
+  it("should include DTSTAMP in every VEVENT", () => {
+    const feed = generateICalFeed([makeTask()]);
+    expect(feed).toMatch(/DTSTAMP:\d{8}T\d{6}Z/);
+  });
+
+  it("should append due time to SUMMARY when due_time is present", () => {
+    const task = makeTask({ due_date: "2026-02-15", due_time: "23:59", title: "HW 1" });
+    const feed = generateICalFeed([task]);
+    expect(feed).toContain("HW 1 due @ 11:59pm");
+    // Should still be an all-day event
+    expect(feed).toContain("DTSTART;VALUE=DATE:20260215");
+    expect(feed).toContain("DTEND;VALUE=DATE:20260216");
   });
 
   it("should skip tasks without due_date", () => {
@@ -217,5 +240,52 @@ describe("generateICalFeed", () => {
     // Two VEVENTs (third has no due_date)
     const eventCount = (feed.match(/BEGIN:VEVENT/g) || []).length;
     expect(eventCount).toBe(2);
+  });
+});
+
+describe("formatICalDateNextDay", () => {
+  it("should return the next day", () => {
+    expect(formatICalDateNextDay("2026-02-15")).toBe("20260216");
+  });
+
+  it("should handle end of month", () => {
+    expect(formatICalDateNextDay("2026-01-31")).toBe("20260201");
+  });
+
+  it("should handle end of year", () => {
+    expect(formatICalDateNextDay("2025-12-31")).toBe("20260101");
+  });
+
+  it("should handle leap year boundary", () => {
+    expect(formatICalDateNextDay("2028-02-28")).toBe("20280229");
+  });
+});
+
+describe("format12Hour", () => {
+  it("should format 23:59 as 11:59pm", () => {
+    expect(format12Hour("23:59")).toBe("11:59pm");
+  });
+
+  it("should format 00:00 as 12:00am", () => {
+    expect(format12Hour("00:00")).toBe("12:00am");
+  });
+
+  it("should format 12:00 as 12:00pm", () => {
+    expect(format12Hour("12:00")).toBe("12:00pm");
+  });
+
+  it("should format 14:30 as 2:30pm", () => {
+    expect(format12Hour("14:30")).toBe("2:30pm");
+  });
+
+  it("should format 09:05 as 9:05am", () => {
+    expect(format12Hour("09:05")).toBe("9:05am");
+  });
+});
+
+describe("formatDTStamp", () => {
+  it("should return a UTC timestamp in iCal format", () => {
+    const stamp = formatDTStamp();
+    expect(stamp).toMatch(/^\d{8}T\d{6}Z$/);
   });
 });

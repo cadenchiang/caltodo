@@ -1,8 +1,12 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { NAV_ITEMS } from "@/lib/constants";
 import SidebarNavItem from "./SidebarNavItem";
 import ProfilePopup from "./ProfilePopup";
+
+const GCAL_DISMISSED_KEY = "caltodo_gcal_prompt_dismissed";
+
 interface SidebarProps {
   avatarUrl: string | null;
   fullName: string | null;
@@ -12,12 +16,26 @@ interface SidebarProps {
 /**
  * Left navigation sidebar with nav links, theme toggle, and profile popup.
  * Glassy frosted-glass aesthetic. Branding uses "caltodo" with gradient.
+ * Shows a notification badge on Calendar when Google Calendar setup is pending.
  *
  * @param avatarUrl - Google avatar URL or null
  * @param fullName - User's full name
  * @param email - User's email
  */
 export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
+  const [gcalDismissed, setGcalDismissed] = useState(true);
+
+  useEffect(() => {
+    setGcalDismissed(localStorage.getItem(GCAL_DISMISSED_KEY) === "1");
+
+    /** Listens for dismissal from the CalendarPage. */
+    function handleDismiss() {
+      setGcalDismissed(true);
+    }
+    window.addEventListener("gcal-dismissed", handleDismiss);
+    return () => window.removeEventListener("gcal-dismissed", handleDismiss);
+  }, []);
+
   return (
     <aside className="glass-strong w-60 h-screen flex flex-col justify-between py-4 px-3 shrink-0 shadow-lg dark:shadow-black/30">
       <div>
@@ -35,6 +53,7 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
               label={item.label}
               href={item.href}
               icon={item.icon}
+              badge={item.href === "/app/calendar" && !gcalDismissed}
             />
           ))}
         </nav>

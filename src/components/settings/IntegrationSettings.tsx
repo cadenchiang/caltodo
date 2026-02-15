@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import type { IntegrationCredentials } from "@/lib/types";
 import CanvasSettings from "./CanvasSettings";
 import GradescopeSettings from "./GradescopeSettings";
@@ -12,6 +12,7 @@ const CACHE_KEY = "caltodo_credentials_cache";
  * @returns Cached IntegrationCredentials or null if not found/invalid
  */
 function getCachedCredentials(): IntegrationCredentials | null {
+  if (typeof window === "undefined") return null;
   try {
     const raw = localStorage.getItem(CACHE_KEY);
     if (!raw) return null;
@@ -35,52 +36,39 @@ function setCachedCredentials(creds: IntegrationCredentials): void {
 
 /**
  * Container for Canvas and Gradescope integration settings.
- * Uses localStorage cache for instant render (stale-while-revalidate).
+ * Initializes state from localStorage synchronously in useState
+ * for zero-flash rendering (stale-while-revalidate pattern).
  * Fetches fresh data from API in the background.
  */
 export default function IntegrationSettings() {
-  const [loading, setLoading] = useState(true);
-  const [credentials, setCredentials] = useState<IntegrationCredentials | null>(null);
+  const [credentials, setCredentials] = useState<IntegrationCredentials | null>(
+    () => getCachedCredentials()
+  );
+  const [loading, setLoading] = useState(() => getCachedCredentials() === null);
   const [fetchError, setFetchError] = useState<string | null>(null);
-  const hasCacheRef = useRef(false);
-
-  /** Hydrate from localStorage before first paint. */
-  useLayoutEffect(() => {
-    const cached = getCachedCredentials();
-    if (cached) {
-      setCredentials(cached);
-      setLoading(false);
-      hasCacheRef.current = true;
-    }
-  }, []);
 
   /**
    * Fetches integration credentials from the API.
-   * Skips loading spinner if cache was used.
+   * Skips loading spinner if cache was used for initial render.
    */
   const fetchCredentials = useCallback(async () => {
-    if (!hasCacheRef.current) {
-      setLoading(true);
-    }
     try {
       const res = await fetch("/api/credentials");
       if (res.ok) {
         const data: IntegrationCredentials = await res.json();
         setCredentials(data);
         setCachedCredentials(data);
-      } else {
-        if (!hasCacheRef.current) {
-          setFetchError("Failed to load credentials");
-        }
+      } else if (!credentials) {
+        setFetchError("Failed to load credentials");
       }
     } catch {
-      if (!hasCacheRef.current) {
+      if (!credentials) {
         setFetchError("Failed to load credentials");
       }
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [credentials]);
 
   useEffect(() => {
     fetchCredentials();

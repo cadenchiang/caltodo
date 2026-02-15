@@ -76,6 +76,54 @@ export function formatICalDate(dateStr: string): string {
 }
 
 /**
+ * Returns the next day after dateStr in iCal DATE format (YYYYMMDD).
+ * Used for all-day event DTEND, which is exclusive per RFC 5545.
+ *
+ * @param dateStr - Date in YYYY-MM-DD format
+ * @returns Next day in YYYYMMDD format
+ */
+export function formatICalDateNextDay(dateStr: string): string {
+  const d = new Date(dateStr + "T00:00:00");
+  d.setDate(d.getDate() + 1);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}${m}${day}`;
+}
+
+/**
+ * Converts a 24h time string (HH:MM or HH:MM:SS) to 12h format (e.g. "11:59pm").
+ *
+ * @param timeStr - Time in HH:MM or HH:MM:SS format
+ * @returns Formatted 12h time string like "11:59pm" or "2:00am"
+ */
+export function format12Hour(timeStr: string): string {
+  const [hStr, mStr] = timeStr.split(":");
+  let h = parseInt(hStr, 10);
+  const m = mStr;
+  const suffix = h >= 12 ? "pm" : "am";
+  if (h === 0) h = 12;
+  else if (h > 12) h -= 12;
+  return `${h}:${m}${suffix}`;
+}
+
+/**
+ * Returns a DTSTAMP value for the current UTC time in iCal format.
+ *
+ * @returns Current UTC timestamp as YYYYMMDDTHHMMSSZ
+ */
+export function formatDTStamp(): string {
+  const now = new Date();
+  const y = now.getUTCFullYear();
+  const mo = String(now.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(now.getUTCDate()).padStart(2, "0");
+  const h = String(now.getUTCHours()).padStart(2, "0");
+  const mi = String(now.getUTCMinutes()).padStart(2, "0");
+  const s = String(now.getUTCSeconds()).padStart(2, "0");
+  return `${y}${mo}${d}T${h}${mi}${s}Z`;
+}
+
+/**
  * Builds a DESCRIPTION property value from task metadata.
  *
  * @param task - Task object
@@ -104,10 +152,10 @@ function buildDescription(task: Task): string {
  * SUMMARY includes [course_name] prefix if present.
  *
  * @param tasks - Array of Task objects (may include tasks without due_date, which are skipped)
- * @param calendarName - Display name for the calendar (default: "caltodo")
+ * @param calendarName - Display name for the calendar (default: "todo")
  * @returns Complete iCal VCALENDAR string with CRLF line endings
  */
-export function generateICalFeed(tasks: Task[], calendarName = "caltodo"): string {
+export function generateICalFeed(tasks: Task[], calendarName = "todo"): string {
   const lines: string[] = [];
 
   lines.push("BEGIN:VCALENDAR");
@@ -117,19 +165,28 @@ export function generateICalFeed(tasks: Task[], calendarName = "caltodo"): strin
   lines.push("CALSCALE:GREGORIAN");
   lines.push("METHOD:PUBLISH");
 
+  const stamp = formatDTStamp();
+
   for (const task of tasks) {
     if (!task.due_date) continue;
 
-    const dateStr = formatICalDate(task.due_date);
-    const summary = task.course_name
+    // Build summary with optional course prefix and due time suffix
+    let summary = task.course_name
       ? `[${task.course_name}] ${task.title}`
       : task.title;
+    if (task.due_time) {
+      summary += ` due @ ${format12Hour(task.due_time)}`;
+    }
     const description = buildDescription(task);
 
     lines.push("BEGIN:VEVENT");
     lines.push(`UID:${task.id}@caltodo`);
-    lines.push(`DTSTART;VALUE=DATE:${dateStr}`);
-    lines.push(`DTEND;VALUE=DATE:${dateStr}`);
+    lines.push(`DTSTAMP:${stamp}`);
+
+    // Always all-day: DTEND must be exclusive (next day) per RFC 5545
+    lines.push(`DTSTART;VALUE=DATE:${formatICalDate(task.due_date)}`);
+    lines.push(`DTEND;VALUE=DATE:${formatICalDateNextDay(task.due_date)}`);
+
     lines.push(foldLine(`SUMMARY:${escapeICalText(summary)}`));
     lines.push(foldLine(`DESCRIPTION:${escapeICalText(description)}`));
 

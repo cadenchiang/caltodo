@@ -8,6 +8,7 @@ interface SidebarNavItemProps {
   label: string;
   href: string;
   icon: LucideIcon;
+  badge?: boolean;
 }
 
 /**
@@ -18,8 +19,9 @@ interface SidebarNavItemProps {
  * @param label - Display text for the nav item
  * @param href - Route path to link to
  * @param icon - Lucide icon component
+ * @param badge - Whether to show a notification dot next to the label
  */
-export default function SidebarNavItem({ label, href, icon: Icon }: SidebarNavItemProps) {
+export default function SidebarNavItem({ label, href, icon: Icon, badge }: SidebarNavItemProps) {
   const pathname = usePathname();
   const isActive = pathname === href;
 
@@ -35,6 +37,9 @@ export default function SidebarNavItem({ label, href, icon: Icon }: SidebarNavIt
     >
       <Icon size={16} />
       <span>{label}</span>
+      {badge && (
+        <span className="ml-auto w-2 h-2 rounded-full bg-blue-500 shrink-0" />
+      )}
     </Link>
   );
 }
