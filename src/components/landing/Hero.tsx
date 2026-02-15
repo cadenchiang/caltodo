@@ -94,7 +94,7 @@ export default function Hero() {
 
         {/* Subtitle */}
         <p className="text-lg sm:text-xl text-center font-sans font-light mb-12 leading-relaxed text-black/70 animate-appear opacity-0 delay-500">
-          bCourses, Gradescope, and Notion — synced into a single inbox.
+          Never miss an assignment again. bCourses and Gradescope, one calendar.
         </p>
 
         {/* CTA */}
