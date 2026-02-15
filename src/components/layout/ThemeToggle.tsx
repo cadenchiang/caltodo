@@ -1,27 +1,63 @@
 "use client";
 
-import { Moon, Sun, Monitor } from "lucide-react";
+import { Moon, Sun } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
-
-const ICON_MAP = { light: Sun, dark: Moon, auto: Monitor } as const;
-const LABEL_MAP = { light: "Light mode", dark: "Dark mode", auto: "System mode" } as const;
+import { cn } from "@/lib/utils";
 
 /**
- * Theme toggle button for the sidebar.
- * Cycles through light → dark → auto with matching icon and label.
+ * Pill-style theme toggle switch.
+ * Slides between light (sun) and dark (moon) modes.
+ *
+ * @param className - Optional additional CSS classes
  */
-export default function ThemeToggle() {
-  const { preference, toggleTheme } = useTheme();
-  const Icon = ICON_MAP[preference];
+export default function ThemeToggle({ className }: { className?: string }) {
+  const { theme, toggleTheme } = useTheme();
+  const isDark = theme === "dark";
 
   return (
-    <button
+    <div
+      className={cn(
+        "flex w-16 h-8 p-1 rounded-full cursor-pointer transition-all duration-300",
+        isDark
+          ? "bg-zinc-950 border border-zinc-800"
+          : "bg-white border border-zinc-200",
+        className
+      )}
       onClick={toggleTheme}
-      className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-      aria-label={`Current: ${LABEL_MAP[preference]}. Click to switch.`}
+      role="button"
+      tabIndex={0}
+      aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
     >
-      <Icon size={16} />
-      <span>{LABEL_MAP[preference]}</span>
-    </button>
+      <div className="flex justify-between items-center w-full">
+        <div
+          className={cn(
+            "flex justify-center items-center w-6 h-6 rounded-full transition-transform duration-300",
+            isDark
+              ? "transform translate-x-0 bg-zinc-800"
+              : "transform translate-x-8 bg-gray-200"
+          )}
+        >
+          {isDark ? (
+            <Moon className="w-4 h-4 text-white" strokeWidth={1.5} />
+          ) : (
+            <Sun className="w-4 h-4 text-gray-700" strokeWidth={1.5} />
+          )}
+        </div>
+        <div
+          className={cn(
+            "flex justify-center items-center w-6 h-6 rounded-full transition-transform duration-300",
+            isDark
+              ? "bg-transparent"
+              : "transform -translate-x-8"
+          )}
+        >
+          {isDark ? (
+            <Sun className="w-4 h-4 text-gray-500" strokeWidth={1.5} />
+          ) : (
+            <Moon className="w-4 h-4 text-black" strokeWidth={1.5} />
+          )}
+        </div>
+      </div>
+    </div>
   );
 }

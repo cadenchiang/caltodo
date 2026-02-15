@@ -2,12 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { RotateCcw, Trash2, Moon, Sun, Monitor } from "lucide-react";
+import { RotateCcw, Trash2 } from "lucide-react";
 import { useTaskContext } from "@/contexts/TaskContext";
 import { useToast } from "@/contexts/ToastContext";
-import { useTheme } from "@/contexts/ThemeContext";
 import IntegrationSettings from "@/components/settings/IntegrationSettings";
 import CalendarFeedSettings from "@/components/settings/CalendarFeedSettings";
+import ThemeToggle from "@/components/layout/ThemeToggle";
 import PageTransition from "@/components/ui/PageTransition";
 
 /**
@@ -19,7 +19,6 @@ export default function SettingsPage() {
   const router = useRouter();
   const { tasks, deleteAllTasks } = useTaskContext();
   const { showToast } = useToast();
-  const { preference, setPreference } = useTheme();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmRedo, setConfirmRedo] = useState(false);
 
@@ -79,26 +78,7 @@ export default function SettingsPage() {
                 <p className="text-xs text-subtle-foreground mb-4">
                   Choose your preferred appearance.
                 </p>
-                <div className="flex gap-3">
-                  {([
-                    { value: "auto" as const, label: "Auto", Icon: Monitor },
-                    { value: "light" as const, label: "Light", Icon: Sun },
-                    { value: "dark" as const, label: "Dark", Icon: Moon },
-                  ]).map(({ value, label, Icon }) => (
-                    <button
-                      key={value}
-                      onClick={() => setPreference(value)}
-                      className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
-                        preference === value
-                          ? "border border-blue-500 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 shadow-[0_2px_8px_rgba(59,130,246,0.15)]"
-                          : "text-secondary-foreground border border-border-subtle dark:border-[#404040] bg-card hover:bg-accent hover:text-foreground active:scale-[0.98] transition-all duration-200"
-                      }`}
-                    >
-                      <Icon size={16} />
-                      {label}
-                    </button>
-                  ))}
-                </div>
+                <ThemeToggle />
               </section>
 
               {/* Advanced */}

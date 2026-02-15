@@ -5,29 +5,28 @@ import { createContext, useContext, useState, useEffect, useCallback, type React
 /** localStorage key for persisting theme preference. */
 const THEME_KEY = "caltodo_theme";
 
-type ThemePreference = "light" | "dark" | "auto";
-type ResolvedTheme = "light" | "dark";
+type ThemePreference = "light" | "dark";
 
 interface ThemeContextValue {
-  /** The user's preference: "light", "dark", or "auto". */
+  /** The user's preference: "light" or "dark". */
   preference: ThemePreference;
-  /** The resolved theme actually applied: "light" or "dark". */
-  theme: ResolvedTheme;
+  /** The resolved theme actually applied (same as preference). */
+  theme: ThemePreference;
   /** Set the theme preference explicitly. */
   setPreference: (pref: ThemePreference) => void;
-  /** Legacy toggle: cycles light → dark → auto → light. */
+  /** Toggle between light and dark. */
   toggleTheme: () => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 /**
- * Applies the resolved theme class to the <html> element.
+ * Applies the theme class to the <html> element.
  * Adds or removes the "dark" class to enable Tailwind dark: variants.
  *
- * @param theme - The resolved theme to apply ("light" or "dark")
+ * @param theme - The theme to apply ("light" or "dark")
  */
-function applyTheme(theme: ResolvedTheme, animate = false): void {
+function applyTheme(theme: ThemePreference, animate = false): void {
   if (typeof document === "undefined") return;
 
   if (!animate) {
@@ -57,85 +56,42 @@ function applyTheme(theme: ResolvedTheme, animate = false): void {
 }
 
 /**
- * Returns the system's preferred color scheme.
- *
- * @returns "dark" if the system prefers dark mode, "light" otherwise
- */
-function getSystemTheme(): ResolvedTheme {
-  if (typeof window === "undefined") return "light";
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-}
-
-/**
- * Resolves a theme preference into an actual theme.
- *
- * @param pref - The user's preference ("light", "dark", or "auto")
- * @returns The resolved theme ("light" or "dark")
- */
-function resolveTheme(pref: ThemePreference): ResolvedTheme {
-  if (pref === "auto") return getSystemTheme();
-  return pref;
-}
-
-/**
  * Reads the stored theme preference from localStorage.
- * Falls back to "auto" if no valid preference is stored.
+ * Falls back to "light" if no valid preference is stored.
  *
- * @returns The stored preference, defaulting to "auto"
+ * @returns The stored preference, defaulting to "light"
  */
 function getInitialPreference(): ThemePreference {
-  if (typeof window === "undefined") return "auto";
+  if (typeof window === "undefined") return "light";
   try {
     const stored = localStorage.getItem(THEME_KEY);
-    if (stored === "dark" || stored === "light" || stored === "auto") return stored;
+    if (stored === "dark" || stored === "light") return stored;
   } catch {
     // localStorage unavailable
   }
-  return "auto";
+  return "light";
 }
 
 /**
- * Theme provider that manages light/dark/auto mode state.
+ * Theme provider that manages light/dark mode state.
  * Persists preference in localStorage and applies .dark class to <html>.
- * In "auto" mode, listens for system preference changes and updates accordingly.
+ * Defaults to light mode.
  *
  * @param children - App content
  */
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  // Always start with "auto" for SSR/hydration consistency.
-  // The stored preference is loaded in the mount effect below.
-  const [preference, setPreferenceState] = useState<ThemePreference>("auto");
-  const [resolved, setResolved] = useState<ResolvedTheme>("light");
+  const [preference, setPreferenceState] = useState<ThemePreference>("light");
 
   // On mount, read the stored preference from localStorage and apply it.
   useEffect(() => {
     const stored = getInitialPreference();
     setPreferenceState(stored);
-    const theme = resolveTheme(stored);
-    setResolved(theme);
-    applyTheme(theme);
+    applyTheme(stored);
   }, []);
-
-  // Listen for system preference changes when in "auto" mode
-  useEffect(() => {
-    if (preference !== "auto") return;
-
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const handler = () => {
-      const next = getSystemTheme();
-      setResolved(next);
-      applyTheme(next, true);
-    };
-
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, [preference]);
 
   const setPreference = useCallback((pref: ThemePreference) => {
     setPreferenceState(pref);
-    const next = resolveTheme(pref);
-    setResolved(next);
-    applyTheme(next, true);
+    applyTheme(pref, true);
     try {
       localStorage.setItem(THEME_KEY, pref);
     } catch {
@@ -145,10 +101,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   const toggleTheme = useCallback(() => {
     setPreferenceState((prev) => {
-      const next: ThemePreference = prev === "light" ? "dark" : prev === "dark" ? "auto" : "light";
-      const nextResolved = resolveTheme(next);
-      setResolved(nextResolved);
-      applyTheme(nextResolved, true);
+      const next: ThemePreference = prev === "light" ? "dark" : "light";
+      applyTheme(next, true);
       try {
         localStorage.setItem(THEME_KEY, next);
       } catch {
@@ -159,7 +113,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <ThemeContext.Provider value={{ preference, theme: resolved, setPreference, toggleTheme }}>
+    <ThemeContext.Provider value={{ preference, theme: preference, setPreference, toggleTheme }}>
       {children}
     </ThemeContext.Provider>
   );
