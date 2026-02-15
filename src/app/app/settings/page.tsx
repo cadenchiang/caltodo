@@ -12,7 +12,7 @@ import PageTransition from "@/components/ui/PageTransition";
 
 /**
  * Settings page with unified section styling.
- * Sections: Integrations, Calendar Feed, Appearance, Advanced.
+ * Sections: Integrations, Sync to Google Calendar, Appearance, Advanced.
  * Each section has consistent h2 + subtitle + content layout.
  */
 export default function SettingsPage() {
@@ -68,7 +68,7 @@ export default function SettingsPage() {
                 <IntegrationSettings />
               </section>
 
-              {/* Calendar Feed */}
+              {/* Sync to Google Calendar */}
               <section className="pt-6 border-t border-border animate-stagger stagger-3">
                 <CalendarFeedSettings />
               </section>

@@ -1,7 +1,7 @@
 /**
  * Settings component for managing the iCal calendar feed subscription.
  *
- * - No token: prominent "Enable Calendar Feed" button with Google Calendar icon
+ * - No token: prominent "Sync to Google Calendar" button with Google Calendar icon
  * - Token exists: Shows URL with Copy button, Regenerate, Disable, and Google Calendar instructions
  * - All notifications use toast popups instead of inline messages
  */
