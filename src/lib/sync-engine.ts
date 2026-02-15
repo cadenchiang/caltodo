@@ -219,7 +219,7 @@ async function upsertAssignments(
       points_possible: a.points_possible,
       is_submitted: a.is_submitted ?? false,
       color,
-      description: a.course_name || "",
+      description: "",
     }));
 
     const { error } = await supabase
