@@ -132,6 +132,9 @@ export function formatDTStamp(): string {
 function buildDescription(task: Task): string {
   const parts: string[] = [];
 
+  if (task.course_name) {
+    parts.push(`Course: ${task.course_name}`);
+  }
   if (task.description) {
     parts.push(task.description);
   }
@@ -149,7 +152,7 @@ function buildDescription(task: Task): string {
 /**
  * Generates a complete VCALENDAR string from an array of tasks.
  * Only tasks with a due_date are included as all-day VEVENTs.
- * SUMMARY includes [course_name] prefix if present.
+ * Course name is placed in DESCRIPTION, not SUMMARY.
  *
  * @param tasks - Array of Task objects (may include tasks without due_date, which are skipped)
  * @param calendarName - Display name for the calendar (default: "todo")
@@ -170,10 +173,8 @@ export function generateICalFeed(tasks: Task[], calendarName = "todo"): string {
   for (const task of tasks) {
     if (!task.due_date) continue;
 
-    // Build summary with optional course prefix and due time suffix
-    let summary = task.course_name
-      ? `[${task.course_name}] ${task.title}`
-      : task.title;
+    // Build summary — title only, no course prefix
+    let summary = task.title;
     if (task.due_time) {
       summary += ` due @ ${format12Hour(task.due_time)}`;
     }

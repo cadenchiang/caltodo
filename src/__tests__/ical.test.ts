@@ -172,13 +172,15 @@ describe("generateICalFeed", () => {
     expect(feed).not.toContain("END:VEVENT");
   });
 
-  it("should include course_name in SUMMARY when present", () => {
+  it("should not include course_name in SUMMARY, only in DESCRIPTION", () => {
     const task = makeTask({
       course_name: "CS 61A",
       title: "Homework 1",
     });
     const feed = generateICalFeed([task]);
-    expect(feed).toContain("[CS 61A] Homework 1");
+    expect(feed).toContain("SUMMARY:Homework 1");
+    expect(feed).not.toContain("[CS 61A] Homework 1");
+    expect(feed).toContain("Course: CS 61A");
   });
 
   it("should use plain title as SUMMARY when no course_name", () => {
