@@ -105,6 +105,7 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
   const [dueDate, setDueDate] = useState<string | null>(task.due_date);
   const [dueTime, setDueTime] = useState<string | null>(task.due_time);
   const [color, setColor] = useState(task.color);
+  const [localCompleted, setLocalCompleted] = useState(task.is_completed);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -117,9 +118,10 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
     setDueDate(task.due_date);
     setDueTime(task.due_time);
     setColor(task.color);
+    setLocalCompleted(task.is_completed);
     setShowDatePicker(false);
     setShowColorPicker(false);
-  }, [task.id, task.title, task.description, task.due_date, task.due_time, task.color]);
+  }, [task.id, task.title, task.description, task.due_date, task.due_time, task.color, task.is_completed]);
 
   useEffect(() => {
     setMounted(true);
@@ -175,20 +177,26 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
     >
       {/* Top bar: checkbox | calendar date | color circle */}
       <div className="flex items-center gap-2 px-4 pt-4 pb-3 border-b border-border-subtle">
-        {/* Checkbox */}
+        {/* Checkbox — local optimistic state for instant feedback */}
         <button
           onClick={() => {
-            onSave(task.id, { is_completed: !task.is_completed });
+            const next = !localCompleted;
+            setLocalCompleted(next);
+            onSave(task.id, { is_completed: next });
           }}
-          className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center transition-all"
+          className="group/check flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center transition-all duration-200"
           style={{
-            backgroundColor: task.is_completed ? (color || "#9CA3AF") : "transparent",
-            border: task.is_completed ? "none" : `1.5px solid ${color || "#D1D5DB"}`,
+            backgroundColor: localCompleted ? (color || "#9CA3AF") : "transparent",
+            border: localCompleted ? "none" : `1.5px solid ${color || "#D1D5DB"}`,
           }}
         >
-          {task.is_completed && (
-            <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+          {localCompleted ? (
+            <svg width="10" height="8" viewBox="0 0 10 8" fill="none" className="animate-[checkScale_0.2s_ease-out]">
               <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          ) : (
+            <svg width="9" height="7" viewBox="0 0 10 8" fill="none" className="opacity-0 group-hover/check:opacity-40 transition-opacity">
+              <path d="M1 4L3.5 6.5L9 1" stroke={color || "#D1D5DB"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           )}
         </button>

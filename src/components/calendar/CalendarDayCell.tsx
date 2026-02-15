@@ -52,7 +52,10 @@ export default function CalendarDayCell({
             ? "bg-muted/50"
             : "bg-card/30"
       } hover:bg-blue-50/40 dark:hover:bg-blue-900/20`}
-      onClick={(e) => onDayClick(dateStr, e.currentTarget.getBoundingClientRect())}
+      onClick={(e) => {
+        const rect = new DOMRect(e.clientX - 40, e.clientY, 80, 1);
+        onDayClick(dateStr, rect);
+      }}
     >
       {/* Day number */}
       <div

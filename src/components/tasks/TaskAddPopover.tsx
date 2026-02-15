@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { format } from "date-fns";
 import type { TaskInsert } from "@/lib/types";
+import { TASK_COLORS, DEFAULT_TASK_COLOR } from "@/lib/constants";
 import useClickOutside from "@/hooks/useClickOutside";
 
 interface TaskAddPopoverProps {
@@ -21,8 +22,8 @@ interface TaskAddPopoverProps {
  * @returns CSS position properties for the popover
  */
 function computePosition(anchorRect: DOMRect): { top: number; left: number } {
-  const popoverWidth = 320;
-  const popoverHeight = 180;
+  const popoverWidth = 380;
+  const popoverHeight = 260;
   const margin = 8;
 
   let left = anchorRect.left + anchorRect.width / 2 - popoverWidth / 2;
@@ -56,6 +57,8 @@ function computePosition(anchorRect: DOMRect): { top: number; left: number } {
  */
 export default function TaskAddPopover({ date, anchorRect, onClose, onAdd }: TaskAddPopoverProps) {
   const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [color, setColor] = useState(DEFAULT_TASK_COLOR);
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -90,7 +93,7 @@ export default function TaskAddPopover({ date, anchorRect, onClose, onAdd }: Tas
     e.preventDefault();
     const trimmed = title.trim();
     if (!trimmed) return;
-    onAdd({ title: trimmed, due_date: date });
+    onAdd({ title: trimmed, due_date: date, description: description.trim() || "", color });
     onClose();
   }
 
@@ -101,7 +104,7 @@ export default function TaskAddPopover({ date, anchorRect, onClose, onAdd }: Tas
   return createPortal(
     <div
       ref={ref}
-      className={`fixed z-50 w-[320px] bg-card rounded-2xl shadow-2xl border border-border transition-all duration-150 ease-out ${
+      className={`fixed z-50 w-[380px] bg-card rounded-2xl shadow-2xl border border-border transition-all duration-150 ease-out ${
         visible
           ? "opacity-100 scale-100 translate-y-0"
           : "opacity-0 scale-95 -translate-y-1"
@@ -119,8 +122,36 @@ export default function TaskAddPopover({ date, anchorRect, onClose, onAdd }: Tas
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Task title"
-            className="w-full text-sm text-foreground bg-transparent focus:outline-none placeholder-subtle-foreground mb-3"
+            className="w-full text-sm text-foreground bg-transparent focus:outline-none placeholder-subtle-foreground mb-2"
           />
+
+          {/* Color picker row */}
+          <div className="flex items-center gap-1.5 mb-2">
+            {TASK_COLORS.map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setColor(c)}
+                className={`w-5 h-5 rounded-full transition-all ${
+                  color === c ? "scale-125" : "hover:scale-110"
+                }`}
+                style={{
+                  backgroundColor: c,
+                  boxShadow: color === c ? `0 0 0 2px var(--color-card, white), 0 0 0 3.5px ${c}` : "none",
+                }}
+              />
+            ))}
+          </div>
+
+          {/* Description textarea */}
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={2}
+            placeholder="Description (optional)"
+            className="w-full text-xs text-secondary-foreground bg-transparent rounded-lg focus:outline-none resize-none placeholder-subtle-foreground mb-3"
+          />
+
           <div className="flex justify-end gap-2">
             <button
               type="button"

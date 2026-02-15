@@ -259,6 +259,22 @@ body {
   animation: popoverIn 200ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* Checkbox checkmark pop-in animation */
+@keyframes checkScale {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
 /* Toast slide-in animation (slides up from bottom) */
 @keyframes toastIn {
   from {
