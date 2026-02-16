@@ -22,6 +22,7 @@ interface ProfilePopupProps {
 export default function ProfilePopup({ avatarUrl, fullName, email }: ProfilePopupProps) {
   const [open, setOpen] = useState(false);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
+  const [imgError, setImgError] = useState(false);
   const popupRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
@@ -79,8 +80,14 @@ export default function ProfilePopup({ avatarUrl, fullName, email }: ProfilePopu
         className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center transition-all hover:ring-2 hover:ring-ring"
         aria-label="Profile menu"
       >
-        {avatarUrl ? (
-          <img src={avatarUrl} alt="Profile" className="w-full h-full object-cover" />
+        {avatarUrl && !imgError ? (
+          <img
+            src={avatarUrl}
+            alt="Profile"
+            className="w-full h-full object-cover"
+            referrerPolicy="no-referrer"
+            onError={() => setImgError(true)}
+          />
         ) : (
           <div className="w-full h-full bg-blue-500 flex items-center justify-center text-white text-sm font-medium">
             {getInitials()}

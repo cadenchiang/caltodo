@@ -287,11 +287,47 @@ export async function fetchGradescopeAssignments(
 
     if (!title) return;
 
-    // Extract assignment ID from href
+    // Extract assignment ID from href, data-url attribute, or row id
+    let assignmentId = "";
     const idMatch = href.match(/\/assignments\/(\d+)/);
-    const externalId = idMatch
-      ? idMatch[1]
+    if (idMatch) {
+      assignmentId = idMatch[1];
+    } else {
+      // Fallback: check data-url attribute on the row
+      const dataUrl = $row.attr("data-url") || "";
+      const dataIdMatch = dataUrl.match(/\/assignments\/(\d+)/);
+      if (dataIdMatch) {
+        assignmentId = dataIdMatch[1];
+        if (!href) href = dataUrl;
+      } else {
+        // Fallback: extract from row id attribute (e.g. "assignment_12345")
+        const rowId = $row.attr("id") || "";
+        const rowIdMatch = rowId.match(/assignment[_-]?(\d+)/);
+        if (rowIdMatch) assignmentId = rowIdMatch[1];
+      }
+    }
+
+    const externalId = assignmentId
+      ? assignmentId
       : `gs-${courseId}-${title.replace(/\s+/g, "-")}`;
+
+    // Build source_url with fallback from courseId + assignmentId
+    let sourceUrl: string | null = null;
+    if (href) {
+      sourceUrl = href.startsWith("http") ? href : `${GRADESCOPE_BASE}${href}`;
+    } else if (assignmentId) {
+      sourceUrl = `${GRADESCOPE_BASE}/courses/${courseId}/assignments/${assignmentId}/submissions`;
+    }
+
+    // Detect submission status from row content
+    const hasScoreBadge = $row.find(".submissionStatus--score").length > 0;
+    const statusText = $row.find(".submissionStatus--text").text().toLowerCase();
+    const rowClasses = $row.attr("class") || "";
+    const isSubmitted =
+      hasScoreBadge ||
+      statusText.includes("submitted") ||
+      statusText.includes("graded") ||
+      rowClasses.includes("submitted");
 
     // Reference: due_date_element = .submissionTimeChart--dueDate
     //            due_date_unformatted = due_date_element.get_attribute("datetime")
@@ -319,8 +355,9 @@ export async function fetchGradescopeAssignments(
       course_id: courseId,
       title,
       due_date: dueDate,
-      source_url: href ? `${GRADESCOPE_BASE}${href}` : null,
+      source_url: sourceUrl,
       points_possible: pointsPossible,
+      is_submitted: isSubmitted,
     });
   });
 

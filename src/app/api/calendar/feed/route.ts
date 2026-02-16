@@ -76,7 +76,10 @@ export async function GET(request: NextRequest) {
     headers: {
       "Content-Type": "text/calendar; charset=utf-8",
       "Content-Disposition": 'inline; filename="caltodo.ics"',
-      "Cache-Control": "no-cache, no-store, must-revalidate",
+      // Allow Vercel CDN to cache for 60s, but clients always revalidate.
+      // This ensures fresh data on subscription while reducing origin load.
+      "Cache-Control": "public, max-age=0, s-maxage=60, stale-while-revalidate=300",
+      "CDN-Cache-Control": "public, s-maxage=60",
     },
   });
 }

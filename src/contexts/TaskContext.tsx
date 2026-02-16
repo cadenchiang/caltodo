@@ -80,7 +80,7 @@ interface TaskContextValue {
   toggleComplete: (id: string) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
   deleteAllTasks: () => Promise<void>;
-  triggerSync: () => Promise<void>;
+  triggerSync: (courseOverrides?: { canvas_courses?: Array<{ id: number; name: string }>; gradescope_courses?: Array<{ id: string; name: string }> }) => Promise<void>;
   fetchTasks: () => Promise<void>;
 }
 
@@ -206,12 +206,45 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     };
   }, [autoSync]);
 
+  /**
+   * Adds a task with optimistic UI: immediately shows in the list with a temp ID,
+   * then replaces with the real record on Supabase success. Reverts on failure.
+   */
   async function addTask(taskData: TaskInsert) {
     if (!userId) {
       setError("Not authenticated. Please sign in again.");
       return;
     }
 
+    // Optimistic: create a temporary task object that appears instantly
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const optimisticTask: Task = {
+      id: tempId,
+      user_id: userId,
+      title: taskData.title,
+      description: taskData.description ?? "",
+      due_date: taskData.due_date ?? null,
+      due_time: taskData.due_time ?? null,
+      is_completed: false,
+      color: taskData.color ?? "#D1D5DB",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      source: null,
+      external_id: null,
+      course_name: null,
+      source_url: null,
+      points_possible: null,
+      is_submitted: false,
+    };
+
+    setTasks((prev) => {
+      const updated = [optimisticTask, ...prev];
+      setCachedTasks(updated);
+      return updated;
+    });
+    setError(null);
+
+    // Persist to Supabase and replace temp with real record
     const { data, error: insertError } = await supabase
       .from("tasks")
       .insert({ ...taskData, user_id: userId })
@@ -219,17 +252,23 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       .single();
 
     if (insertError) {
+      // Revert: remove the optimistic task
+      setTasks((prev) => {
+        const reverted = prev.filter((t) => t.id !== tempId);
+        setCachedTasks(reverted);
+        return reverted;
+      });
       setError(insertError.message);
       return;
     }
 
     if (data) {
+      // Replace optimistic task with real DB record
       setTasks((prev) => {
-        const updated = [data, ...prev];
+        const updated = prev.map((t) => (t.id === tempId ? data : t));
         setCachedTasks(updated);
         return updated;
       });
-      setError(null);
     }
   }
 
@@ -347,7 +386,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
    * Triggers a full sync from Canvas + Gradescope, then refreshes tasks.
    * Manages a simulated progress bar during the sync.
    */
-  async function triggerSync() {
+  async function triggerSync(courseOverrides?: { canvas_courses?: Array<{ id: number; name: string }>; gradescope_courses?: Array<{ id: string; name: string }> }) {
     setSyncing(true);
     setError(null);
     setSyncResult(null);
@@ -357,7 +396,10 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       const res = await fetch("/api/assignments/sync", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
+        body: JSON.stringify({
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          ...courseOverrides,
+        }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));

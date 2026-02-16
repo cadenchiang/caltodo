@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Eye, EyeOff, Lock, Pencil, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Lock, Pencil, Loader2, Play } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 import CourseSelectModal from "@/components/ui/CourseSelectModal";
 import type { IntegrationCredentials, CredentialsSavePayload } from "@/lib/types";
@@ -38,6 +38,8 @@ export default function CanvasSettings({ credentials, onUpdate }: CanvasSettings
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [verifying, setVerifying] = useState(false);
   const [showCourseModal, setShowCourseModal] = useState(false);
+  const [videoExpanded, setVideoExpanded] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   const serverState = useRef({
     canvasToken: credentials.canvas_token ?? "",
@@ -160,6 +162,70 @@ export default function CanvasSettings({ credentials, onUpdate }: CanvasSettings
         </span>
         .
       </p>
+
+      {/* Video tutorial with smooth expand/collapse */}
+      <div className="mb-4">
+        <div
+          className="grid overflow-hidden transition-[grid-template-rows,opacity] duration-500"
+          style={{
+            gridTemplateRows: videoExpanded ? "0fr" : "1fr",
+            opacity: videoExpanded ? 0 : 1,
+            transitionTimingFunction: "cubic-bezier(0.33, 1, 0.68, 1)",
+          }}
+        >
+          <div className="min-h-0 overflow-hidden">
+            <button
+              type="button"
+              onClick={() => {
+                setVideoExpanded(true);
+                setTimeout(() => {
+                  if (videoRef.current) {
+                    videoRef.current.currentTime = 0;
+                    videoRef.current.play().catch(() => {});
+                  }
+                }, 400);
+              }}
+              className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs text-muted-foreground hover:text-foreground border border-border hover:bg-accent transition-colors"
+            >
+              <Play size={14} />
+              watch how to generate a token
+            </button>
+          </div>
+        </div>
+
+        <div
+          className="grid overflow-hidden transition-[grid-template-rows,opacity] duration-500"
+          style={{
+            gridTemplateRows: videoExpanded ? "1fr" : "0fr",
+            opacity: videoExpanded ? 1 : 0,
+            transitionTimingFunction: "cubic-bezier(0.33, 1, 0.68, 1)",
+          }}
+        >
+          <div className="min-h-0 overflow-hidden">
+            <div className="rounded-xl overflow-hidden shadow-lg mb-3">
+              <video
+                ref={videoRef}
+                src="/bcourses-instructions.mp4"
+                loop
+                muted
+                playsInline
+                controls
+                className="w-full"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setVideoExpanded(false);
+                videoRef.current?.pause();
+              }}
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              hide video
+            </button>
+          </div>
+        </div>
+      </div>
 
       {locked ? (
         <div className="space-y-3">

@@ -1,16 +1,19 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { Inbox, RefreshCw, ChevronDown, X, Sun, CalendarRange } from "lucide-react";
+import { Inbox, RefreshCw, ChevronDown, X, Sun, CalendarRange, MoreVertical, List, LayoutGrid } from "lucide-react";
 import { useTaskContext } from "@/contexts/TaskContext";
 import { useToast } from "@/contexts/ToastContext";
 import TaskList from "@/components/tasks/TaskList";
+import TaskBoardView from "@/components/tasks/TaskBoardView";
 import TaskDetailPanel from "@/components/tasks/TaskDetailPanel";
+import TaskPopover from "@/components/tasks/TaskPopover";
 import PageTransition from "@/components/ui/PageTransition";
 import type { Task, IntegrationCredentials } from "@/lib/types";
 
 type InboxFilter = "all" | "today" | "7days";
+type ViewMode = "list" | "board";
 
 const FILTER_OPTIONS: { key: InboxFilter; label: string; icon: React.ComponentType<{ size?: number; className?: string }> }[] = [
   { key: "all", label: "Inbox", icon: Inbox },
@@ -51,11 +54,43 @@ function filterTasksByDate(tasks: Task[], filter: InboxFilter): Task[] {
   });
 }
 
+/** localStorage key for remembering sync course selections. */
+const SYNC_COURSES_KEY = "caltodo_sync_course_selections";
+
 interface SelectedCourse {
   id: string | number;
   name: string;
   source: "canvas" | "gradescope";
   checked: boolean;
+}
+
+/**
+ * Loads saved sync course selection states from localStorage.
+ * Returns a Map of "source:id" → checked boolean.
+ */
+function loadSavedSelections(): Map<string, boolean> {
+  try {
+    const raw = localStorage.getItem(SYNC_COURSES_KEY);
+    if (!raw) return new Map();
+    const entries: Array<[string, boolean]> = JSON.parse(raw);
+    return new Map(entries);
+  } catch {
+    return new Map();
+  }
+}
+
+/**
+ * Saves sync course selection states to localStorage.
+ *
+ * @param courses - Current course selections to persist
+ */
+function saveSelections(courses: SelectedCourse[]): void {
+  try {
+    const entries = courses.map((c) => [`${c.source}:${c.id}`, c.checked] as [string, boolean]);
+    localStorage.setItem(SYNC_COURSES_KEY, JSON.stringify(entries));
+  } catch {
+    // non-critical
+  }
 }
 
 /**
@@ -69,17 +104,47 @@ export default function InboxPage() {
   } = useTaskContext();
   const { showToast } = useToast();
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const prevSyncResultRef = useRef<string | null>(null);
+  const prevSyncResultRef = useRef<string | null>(syncResult?.last_synced_at ?? null);
   const [filter, setFilter] = useState<InboxFilter>("all");
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [showSyncModal, setShowSyncModal] = useState(false);
   const [syncCourses, setSyncCourses] = useState<SelectedCourse[]>([]);
   const [loadingCourses, setLoadingCourses] = useState(false);
   const filterRef = useRef<HTMLDivElement>(null);
+  const filterDropdownRef = useRef<HTMLDivElement>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    if (typeof window !== "undefined") {
+      return (localStorage.getItem("inbox-view-mode") as ViewMode) || "list";
+    }
+    return "list";
+  });
+  const [showViewMenu, setShowViewMenu] = useState(false);
+  const viewMenuRef = useRef<HTMLButtonElement>(null);
+  const viewMenuDropdownRef = useRef<HTMLDivElement>(null);
+  const [boardPopoverTask, setBoardPopoverTaskRaw] = useState<Task | null>(null);
+  const [boardAnchorRect, setBoardAnchorRect] = useState<DOMRect | null>(null);
+
+  /** Opens board popover centered on screen. */
+  const setBoardPopoverTask = useCallback((task: Task | null) => {
+    setBoardPopoverTaskRaw(task);
+    if (task) {
+      // Create a centered anchor rect so TaskPopover positions near center
+      const cx = window.innerWidth / 2;
+      const cy = window.innerHeight / 2;
+      setBoardAnchorRect(new DOMRect(cx - 50, cy - 20, 100, 40));
+    } else {
+      setBoardAnchorRect(null);
+    }
+  }, []);
 
   // Keep selected task in sync with context after updates
   const currentSelectedTask = selectedTask
     ? tasks.find((t) => t.id === selectedTask.id) ?? null
+    : null;
+
+  // Keep board popover task in sync with context after updates
+  const currentBoardPopoverTask = boardPopoverTask
+    ? tasks.find((t) => t.id === boardPopoverTask.id) ?? null
     : null;
 
   // Filter tasks by date
@@ -91,7 +156,11 @@ export default function InboxPage() {
   // Close filter dropdown on outside click or scroll
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (filterRef.current && !filterRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (
+        filterRef.current && !filterRef.current.contains(target) &&
+        !filterDropdownRef.current?.contains(target)
+      ) {
         setShowFilterDropdown(false);
       }
     }
@@ -107,6 +176,30 @@ export default function InboxPage() {
       window.removeEventListener("scroll", handleScroll, true);
     };
   }, [showFilterDropdown]);
+
+  // Persist view mode to localStorage
+  useEffect(() => {
+    localStorage.setItem("inbox-view-mode", viewMode);
+  }, [viewMode]);
+
+  // Close view menu on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      const target = e.target as Node;
+      if (
+        viewMenuRef.current && !viewMenuRef.current.contains(target) &&
+        !viewMenuDropdownRef.current?.contains(target)
+      ) {
+        setShowViewMenu(false);
+      }
+    }
+    if (showViewMenu) {
+      document.addEventListener("mousedown", handleClick);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+    };
+  }, [showViewMenu]);
 
   // Show sync result as a toast notification
   useEffect(() => {
@@ -125,30 +218,39 @@ export default function InboxPage() {
   }, [syncResult, syncing, showToast]);
 
   /**
-   * Opens the sync modal and loads the user's selected courses from credentials.
+   * Opens the sync modal and loads ALL available courses from Canvas and Gradescope.
+   * Restores previous check/uncheck selections from localStorage.
    */
   async function handleSyncClick() {
-    setLoadingCourses(true);
     setShowSyncModal(true);
+    setLoadingCourses(true);
     try {
-      const res = await fetch("/api/credentials");
-      if (!res.ok) throw new Error("Failed to load courses");
-      const creds: IntegrationCredentials = await res.json();
-
       const courses: SelectedCourse[] = [];
-      if (creds.selected_canvas_courses) {
-        for (const c of creds.selected_canvas_courses) {
-          courses.push({ id: c.id, name: c.name, source: "canvas", checked: true });
+      const saved = loadSavedSelections();
+
+      // Fetch all Canvas courses and all Gradescope courses in parallel
+      const [canvasRes, gradescopeRes] = await Promise.all([
+        fetch("/api/canvas/courses").catch(() => null),
+        fetch("/api/gradescope/courses", { method: "POST" }).catch(() => null),
+      ]);
+
+      if (canvasRes?.ok) {
+        const { courses: canvasCourses } = await canvasRes.json();
+        for (const c of canvasCourses) {
+          const key = `canvas:${c.id}`;
+          courses.push({ id: c.id, name: c.name, source: "canvas", checked: saved.has(key) ? saved.get(key)! : true });
         }
       }
-      if (creds.selected_gradescope_courses) {
-        for (const c of creds.selected_gradescope_courses) {
-          courses.push({ id: c.id, name: c.name, source: "gradescope", checked: true });
+
+      if (gradescopeRes?.ok) {
+        const { courses: gsCoures } = await gradescopeRes.json();
+        for (const c of gsCoures) {
+          const key = `gradescope:${c.id}`;
+          courses.push({ id: c.id, name: c.name, source: "gradescope", checked: saved.has(key) ? saved.get(key)! : true });
         }
       }
 
       if (courses.length === 0) {
-        // No courses configured — just sync directly
         setShowSyncModal(false);
         triggerSync();
         return;
@@ -157,23 +259,50 @@ export default function InboxPage() {
       setSyncCourses(courses);
     } catch {
       setShowSyncModal(false);
-      triggerSync(); // fallback to normal sync
+      triggerSync();
     } finally {
       setLoadingCourses(false);
     }
   }
 
-  /** Toggles a course in the sync modal. */
+  /** Toggles a course in the sync modal and persists the change. */
   function toggleSyncCourse(id: string | number) {
-    setSyncCourses((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, checked: !c.checked } : c))
-    );
+    setSyncCourses((prev) => {
+      const updated = prev.map((c) => (c.id === id ? { ...c, checked: !c.checked } : c));
+      saveSelections(updated);
+      return updated;
+    });
   }
 
-  /** Confirms sync with selected courses. */
+  /** Toggles all courses of a specific source in the sync modal. */
+  function toggleSourceCourses(source: "canvas" | "gradescope") {
+    setSyncCourses((prev) => {
+      const sourceCourses = prev.filter((c) => c.source === source);
+      const allChecked = sourceCourses.every((c) => c.checked);
+      const updated = prev.map((c) =>
+        c.source === source ? { ...c, checked: !allChecked } : c
+      );
+      saveSelections(updated);
+      return updated;
+    });
+  }
+
+  /** Confirms sync with selected courses, passing overrides to sync engine. */
   function handleConfirmSync() {
+    saveSelections(syncCourses);
+    const checkedCourses = syncCourses.filter((c) => c.checked);
+    const canvasCourses = checkedCourses
+      .filter((c) => c.source === "canvas")
+      .map((c) => ({ id: Number(c.id), name: c.name }));
+    const gradescopeCourses = checkedCourses
+      .filter((c) => c.source === "gradescope")
+      .map((c) => ({ id: String(c.id), name: c.name }));
+
     setShowSyncModal(false);
-    triggerSync();
+    triggerSync({
+      canvas_courses: canvasCourses.length > 0 ? canvasCourses : undefined,
+      gradescope_courses: gradescopeCourses.length > 0 ? gradescopeCourses : undefined,
+    });
   }
 
   const canvasCourses = syncCourses.filter((c) => c.source === "canvas");
@@ -205,6 +334,7 @@ export default function InboxPage() {
               </button>
               {showFilterDropdown && filterRef.current && createPortal(
                 <div
+                  ref={filterDropdownRef}
                   className="fixed z-[9999] rounded-xl shadow-2xl border border-border overflow-hidden animate-in min-w-[160px] bg-white dark:bg-[#1a1a1a]"
                   style={{
                     top: filterRef.current.getBoundingClientRect().bottom + 4,
@@ -236,23 +366,70 @@ export default function InboxPage() {
               )}
             </div>
 
-            <button
-              onClick={handleSyncClick}
-              disabled={syncing}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-all disabled:opacity-50"
-              title="Sync assignments from bCourses & Gradescope"
-            >
-              <RefreshCw size={14} className={syncing ? "animate-spin" : ""} />
-              {syncing ? "Syncing..." : "Sync"}
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={handleSyncClick}
+                disabled={syncing}
+                className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-all disabled:opacity-50"
+                title="Sync assignments from bCourses & Gradescope"
+              >
+                <RefreshCw size={16} className={syncing ? "animate-spin" : ""} />
+              </button>
+
+              <button
+                ref={viewMenuRef}
+                onClick={() => setShowViewMenu(!showViewMenu)}
+                className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-all"
+                title="View options"
+              >
+                <MoreVertical size={16} />
+              </button>
+
+              {showViewMenu && viewMenuRef.current && createPortal(
+                <div
+                  ref={viewMenuDropdownRef}
+                  className="fixed z-[9999] rounded-xl shadow-2xl border border-border overflow-hidden animate-in min-w-[140px] bg-white dark:bg-[#1a1a1a]"
+                  style={{
+                    top: viewMenuRef.current.getBoundingClientRect().bottom + 4,
+                    right: window.innerWidth - viewMenuRef.current.getBoundingClientRect().right,
+                  }}
+                >
+                  <button
+                    onClick={() => { setViewMode("list"); setShowViewMenu(false); }}
+                    className={`flex items-center gap-2 w-full text-left px-3 py-2 text-sm transition-colors ${
+                      viewMode === "list"
+                        ? "text-foreground font-medium"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                    style={{ backgroundColor: viewMode === "list" ? "rgba(255,255,255,0.08)" : "transparent" }}
+                  >
+                    <List size={14} />
+                    List
+                  </button>
+                  <button
+                    onClick={() => { setViewMode("board"); setShowViewMenu(false); }}
+                    className={`flex items-center gap-2 w-full text-left px-3 py-2 text-sm transition-colors ${
+                      viewMode === "board"
+                        ? "text-foreground font-medium"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                    style={{ backgroundColor: viewMode === "board" ? "rgba(255,255,255,0.08)" : "transparent" }}
+                  >
+                    <LayoutGrid size={14} />
+                    Board
+                  </button>
+                </div>,
+                document.body
+              )}
+            </div>
           </div>
 
-          {/* Sync progress bar */}
+          {/* Sync progress bar with glow */}
           {(syncing || syncProgress > 0) && syncProgress < 100 && (
             <div className="mx-8 mb-2">
               <div className="h-1 bg-muted rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-blue-500 rounded-full transition-all duration-300 ease-out"
+                  className="h-full bg-blue-500 rounded-full transition-all duration-300 ease-out animate-sync-glow"
                   style={{ width: `${syncProgress}%` }}
                 />
               </div>
@@ -260,32 +437,66 @@ export default function InboxPage() {
           )}
 
           <div className="flex-1 overflow-auto animate-stagger stagger-2">
-            <TaskList
-              tasks={filteredTasks}
-              loading={loading}
-              error={error}
-              selectedTaskId={selectedTask?.id}
-              onAdd={addTask}
-              onToggle={toggleComplete}
-              onSelect={(task) => setSelectedTask(task)}
-              onDelete={deleteTask}
-              placeholder='Add task to "Inbox". Press Enter to save.'
-            />
+            <div key={viewMode} className="animate-view-switch h-full">
+              {viewMode === "list" ? (
+                <TaskList
+                  tasks={filteredTasks}
+                  loading={loading}
+                  error={error}
+                  selectedTaskId={selectedTask?.id}
+                  onAdd={addTask}
+                  onToggle={toggleComplete}
+                  onSelect={(task) => setSelectedTask(task)}
+                  onDelete={deleteTask}
+                  placeholder='Add task to "Inbox". Press Enter to save.'
+                />
+              ) : (
+                <TaskBoardView
+                  tasks={filteredTasks}
+                  loading={loading}
+                  error={error}
+                  selectedTaskId={boardPopoverTask?.id}
+                  onAdd={addTask}
+                  onToggle={toggleComplete}
+                  onSelect={(task) => setBoardPopoverTask(task)}
+                  onDelete={deleteTask}
+                />
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Right: detail panel */}
-        <TaskDetailPanel
-          task={currentSelectedTask}
-          onClose={() => setSelectedTask(null)}
-          onSave={updateTask}
-        />
+        {/* Right: detail panel (list view only) */}
+        {viewMode === "list" && (
+          <TaskDetailPanel
+            task={currentSelectedTask}
+            onClose={() => setSelectedTask(null)}
+            onSave={updateTask}
+          />
+        )}
       </div>
 
-      {/* Sync class selection modal */}
-      {showSyncModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-md mx-4 flex flex-col animate-in">
+      {/* Board view: floating task popover instead of split-screen detail panel */}
+      {viewMode === "board" && currentBoardPopoverTask && boardAnchorRect && (
+        <TaskPopover
+          task={currentBoardPopoverTask}
+          anchorRect={boardAnchorRect}
+          onClose={() => { setBoardPopoverTask(null); setBoardAnchorRect(null); }}
+          onSave={async (id, updates) => {
+            await updateTask(id, updates);
+          }}
+          onDelete={async (id) => {
+            await deleteTask(id);
+            setBoardPopoverTask(null);
+            setBoardAnchorRect(null);
+          }}
+        />
+      )}
+
+      {/* Sync class selection modal — portaled to escape transform stacking context */}
+      {showSyncModal && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-md mx-4 flex flex-col animate-modal-in">
             {/* Header */}
             <div className="px-5 py-4 border-b border-border flex items-center justify-between">
               <h3 className="text-sm font-semibold text-foreground">Sync Assignments</h3>
@@ -299,16 +510,29 @@ export default function InboxPage() {
             </div>
 
             {loadingCourses ? (
-              <div className="px-5 py-8 text-sm text-subtle-foreground text-center">
-                Loading courses...
+              <div className="max-h-[60vh] overflow-auto px-5 py-4 space-y-3">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="flex items-center gap-3 animate-pulse">
+                    <div className="w-4 h-4 rounded bg-muted shrink-0" />
+                    <div className="h-4 bg-muted rounded flex-1" style={{ maxWidth: `${60 + (i * 7) % 30}%` }} />
+                  </div>
+                ))}
               </div>
             ) : (
               <div className="max-h-[60vh] overflow-auto">
                 {canvasCourses.length > 0 && (
                   <div>
-                    <p className="px-5 pt-4 pb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                      bCourses
-                    </p>
+                    <div className="px-5 pt-4 pb-2 flex items-center justify-between">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                        bCourses
+                      </p>
+                      <button
+                        onClick={() => toggleSourceCourses("canvas")}
+                        className="text-[11px] text-blue-500 hover:text-blue-600 transition-colors"
+                      >
+                        {canvasCourses.every((c) => c.checked) ? "Deselect all" : "Select all"}
+                      </button>
+                    </div>
                     {canvasCourses.map((course) => (
                       <label
                         key={`canvas-${course.id}`}
@@ -328,9 +552,17 @@ export default function InboxPage() {
 
                 {gradescopeCourses.length > 0 && (
                   <div>
-                    <p className="px-5 pt-4 pb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                      Gradescope
-                    </p>
+                    <div className="px-5 pt-4 pb-2 flex items-center justify-between">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                        Gradescope
+                      </p>
+                      <button
+                        onClick={() => toggleSourceCourses("gradescope")}
+                        className="text-[11px] text-blue-500 hover:text-blue-600 transition-colors"
+                      >
+                        {gradescopeCourses.every((c) => c.checked) ? "Deselect all" : "Select all"}
+                      </button>
+                    </div>
                     {gradescopeCourses.map((course) => (
                       <label
                         key={`gs-${course.id}`}
@@ -356,7 +588,9 @@ export default function InboxPage() {
                 onClick={() => {
                   setSyncCourses((prev) => {
                     const allChecked = prev.every((c) => c.checked);
-                    return prev.map((c) => ({ ...c, checked: !allChecked }));
+                    const updated = prev.map((c) => ({ ...c, checked: !allChecked }));
+                    saveSelections(updated);
+                    return updated;
                   });
                 }}
                 className="text-xs text-blue-500 hover:text-blue-600 transition-colors"
@@ -372,7 +606,8 @@ export default function InboxPage() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </PageTransition>
   );

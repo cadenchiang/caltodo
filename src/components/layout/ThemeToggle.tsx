@@ -28,7 +28,7 @@ export default function ThemeToggle({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        "relative flex h-8 w-24 rounded-full p-1 transition-colors duration-300",
+        "relative flex h-9 rounded-full p-1 transition-colors duration-300",
         isDark
           ? "bg-zinc-950 border border-zinc-800"
           : "bg-white border border-zinc-200",
@@ -38,11 +38,11 @@ export default function ThemeToggle({ className }: { className?: string }) {
       {/* Sliding highlight indicator */}
       <div
         className={cn(
-          "absolute top-1 h-6 w-6 rounded-full transition-all duration-300 ease-in-out",
+          "absolute top-1 h-7 w-7 rounded-full transition-all duration-300 ease-in-out",
           isDark ? "bg-zinc-800" : "bg-gray-200"
         )}
         style={{
-          transform: `translateX(${activeIndex * 28}px)`,
+          transform: `translateX(${activeIndex * 32}px)`,
         }}
         aria-hidden
       />
@@ -58,13 +58,13 @@ export default function ThemeToggle({ className }: { className?: string }) {
             aria-label={label}
             aria-pressed={isActive}
             className={cn(
-              "relative z-10 flex h-6 w-6 items-center justify-center rounded-full transition-colors duration-200",
+              "relative z-10 flex h-7 w-8 items-center justify-center rounded-full transition-colors duration-200",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
             )}
           >
             <Icon
               className={cn(
-                "h-3.5 w-3.5 transition-colors duration-200",
+                "h-4 w-4 transition-colors duration-200",
                 isActive
                   ? isDark
                     ? "text-white"

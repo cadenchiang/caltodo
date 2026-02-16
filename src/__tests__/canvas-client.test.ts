@@ -158,6 +158,7 @@ describe("fetchAllCanvasAssignments", () => {
       source_url: "https://bcourses.berkeley.edu/courses/1/assignments/101",
       points_possible: 10,
       is_submitted: false,
+      description: "",
     });
     expect(results[1].title).toBe("Lab 1");
     expect(results[1].due_date).toBeNull();
@@ -204,5 +205,41 @@ describe("fetchAllCanvasAssignments", () => {
     // Only course 2 assignments should be returned (course 1 failed gracefully)
     expect(results).toHaveLength(1);
     expect(results[0].course_name).toBe("Math 54");
+  });
+
+  it("should extract description text and file links from HTML", async () => {
+    // Courses request
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => [
+        { id: 1, name: "CS 61A", course_code: "CS61A" },
+      ],
+      headers: new Headers(),
+    });
+
+    // Assignments with HTML description containing a PDF link
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => [
+        {
+          id: 301,
+          name: "PS2-FRQ",
+          due_at: "2026-03-10T23:59:00Z",
+          html_url: "https://bcourses.berkeley.edu/courses/1/assignments/301",
+          points_possible: 50,
+          course_id: 1,
+          description: '<p>Complete the problems.</p><a href="https://example.com/files/PROBLEM-SET02-1.pdf?download=1">PROBLEM-SET02-1.pdf</a>',
+        },
+      ],
+      headers: new Headers(),
+    });
+
+    const results = await fetchAllCanvasAssignments(TOKEN, BASE_URL);
+    expect(results).toHaveLength(1);
+    expect(results[0].description).toContain("Complete the problems.");
+    expect(results[0].description).toContain("Attached files:");
+    expect(results[0].description).toContain("PROBLEM-SET02-1.pdf");
   });
 });

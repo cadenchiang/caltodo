@@ -28,6 +28,15 @@ interface CredentialsRow {
 }
 
 /**
+ * Optional course overrides for syncing specific courses instead of stored selections.
+ * When provided, these override the selected_*_courses from credentials.
+ */
+export interface SyncCourseOverrides {
+  canvas_courses?: Array<{ id: number; name: string }>;
+  gradescope_courses?: Array<{ id: string; name: string }>;
+}
+
+/**
  * Runs a full sync: fetches assignments from Canvas and Gradescope,
  * upserts them into the tasks table, and updates last_synced_at.
  * One source failing does not block the other.
@@ -35,12 +44,14 @@ interface CredentialsRow {
  * @param supabase - Authenticated Supabase client (with user session)
  * @param userId - The authenticated user's ID
  * @param timezone - IANA timezone for date/time conversion (default "America/Los_Angeles")
+ * @param courseOverrides - Optional course lists to override stored selections
  * @returns SyncResult with counts and errors for each source
  */
 export async function runSync(
   supabase: SupabaseClient,
   userId: string,
-  timezone: string = "America/Los_Angeles"
+  timezone: string = "America/Los_Angeles",
+  courseOverrides?: SyncCourseOverrides
 ): Promise<SyncResult> {
   // Fetch credentials
   const { data: creds, error: credsError } = await supabase
@@ -59,6 +70,14 @@ export async function runSync(
   }
 
   const credentials = creds as CredentialsRow;
+
+  // Apply course overrides if provided
+  if (courseOverrides?.canvas_courses) {
+    credentials.selected_canvas_courses = courseOverrides.canvas_courses;
+  }
+  if (courseOverrides?.gradescope_courses) {
+    credentials.selected_gradescope_courses = courseOverrides.gradescope_courses;
+  }
 
   // Run Canvas and Gradescope syncs independently
   const [canvasResult, gradescopeResult] = await Promise.all([
@@ -219,7 +238,7 @@ async function upsertAssignments(
       points_possible: a.points_possible,
       is_submitted: a.is_submitted ?? false,
       color,
-      description: "",
+      description: a.description || "",
     }));
 
     const { error } = await supabase

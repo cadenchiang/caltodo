@@ -83,6 +83,7 @@ export default function TaskItem({ task, isSelected, onToggle, onSelect, onDelet
   const rawBadge = getDueDateBadge(task.due_date, task.due_time);
   const dueBadge = rawBadge && task.is_completed ? { ...rawBadge, className: "text-subtle-foreground" } : rawBadge;
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const isOptimistic = task.id.startsWith("temp-");
 
   function handleContextMenu(e: React.MouseEvent) {
     e.preventDefault();
@@ -101,7 +102,7 @@ export default function TaskItem({ task, isSelected, onToggle, onSelect, onDelet
           isSelected
             ? "bg-black/5 dark:bg-white/5"
             : "hover:bg-accent"
-        } ${task.is_completed ? "opacity-40" : ""}`}
+        } ${task.is_completed ? "opacity-40" : ""} ${isOptimistic ? "animate-task-slide-in" : ""}`}
         onClick={() => onSelect(task)}
         onContextMenu={handleContextMenu}
       >
@@ -111,20 +112,20 @@ export default function TaskItem({ task, isSelected, onToggle, onSelect, onDelet
             e.stopPropagation();
             onToggle(task.id);
           }}
-          className="group/check flex-shrink-0 w-4 h-4 rounded-[3px] flex items-center justify-center transition-all"
+          className="group/check flex-shrink-0 w-3.5 h-3.5 rounded-[3px] flex items-center justify-center transition-all"
           style={{
-            backgroundColor: task.is_completed ? (task.color || "#D1D5DB") : "transparent",
+            backgroundColor: task.is_completed ? `color-mix(in srgb, ${task.color || "#D1D5DB"} 35%, #9CA3AF)` : "transparent",
             border: task.is_completed ? "none" : `1px solid ${task.color || "#D1D5DB"}`,
           }}
           aria-label={task.is_completed ? "Mark incomplete" : "Mark complete"}
         >
           {task.is_completed ? (
-            <svg width="9" height="7" viewBox="0 0 10 8" fill="none">
-              <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <svg width="8" height="6" viewBox="0 0 10 8" fill="none">
+              <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           ) : (
-            <svg width="9" height="7" viewBox="0 0 10 8" fill="none" className="opacity-0 group-hover/check:opacity-40 transition-opacity">
-              <path d="M1 4L3.5 6.5L9 1" stroke={task.color || "#D1D5DB"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <svg width="8" height="6" viewBox="0 0 10 8" fill="none" className="opacity-0 group-hover/check:opacity-40 transition-opacity">
+              <path d="M1 4L3.5 6.5L9 1" stroke={task.color || "#D1D5DB"} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           )}
         </button>
@@ -141,9 +142,9 @@ export default function TaskItem({ task, isSelected, onToggle, onSelect, onDelet
 
         {/* Due time and date */}
         {dueBadge && (
-          <span className={`text-[11px] shrink-0 font-medium ${dueBadge.className}`}>
+          <span className={`text-[11px] shrink-0 font-normal ${dueBadge.className}`}>
             {dueBadge.timeLabel && (
-              <span className="opacity-50">{dueBadge.timeLabel} </span>
+              <span className="text-muted-foreground opacity-60">{dueBadge.timeLabel} </span>
             )}
             {dueBadge.dateLabel}
           </span>

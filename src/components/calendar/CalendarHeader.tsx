@@ -55,6 +55,7 @@ export default function CalendarHeader({
               <path d="M76.83,51.43l-6.16,4.45l-3.08-4.67l11.05-7.97h4.24v37.6h-6.05V51.43z" fill="#1A73E8" />
             </svg>
             Sync to Google Calendar
+            <span className="ml-1 inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold text-white bg-red-500 rounded-full leading-none">1</span>
           </button>
         )}
       </div>

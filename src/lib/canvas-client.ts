@@ -5,6 +5,55 @@
 
 import { logger } from "@/lib/logger";
 
+/**
+ * Extracts plain text and file links from Canvas HTML description.
+ * Strips HTML tags, preserves link URLs inline, and lists attached file links.
+ *
+ * @param html - Raw HTML description from Canvas API (may be null)
+ * @returns Plain text with file links appended, or empty string if null
+ */
+function extractDescriptionAndFiles(html: string | null): string {
+  if (!html) return "";
+
+  // Extract file links (href ending in /download or common file extensions)
+  const fileLinks: string[] = [];
+  const linkRegex = /<a[^>]+href="([^"]+)"[^>]*>([^<]*)<\/a>/gi;
+  let match: RegExpExecArray | null;
+  while ((match = linkRegex.exec(html)) !== null) {
+    const href = match[1];
+    const text = match[2].trim();
+    if (
+      href.includes("/download") ||
+      /\.(pdf|docx?|xlsx?|pptx?|zip|csv|txt)(\?|$)/i.test(href)
+    ) {
+      fileLinks.push(`${text || "File"}: ${href}`);
+    }
+  }
+
+  // Strip HTML tags to get plain text
+  let text = html
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n")
+    .replace(/<\/li>/gi, "\n")
+    .replace(/<li[^>]*>/gi, "- ")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+  // Append file links if found
+  if (fileLinks.length > 0) {
+    text += (text ? "\n\n" : "") + "Attached files:\n" + fileLinks.join("\n");
+  }
+
+  return text;
+}
+
 interface CanvasCourse {
   id: number;
   name: string;
@@ -18,6 +67,7 @@ interface CanvasAssignment {
   html_url: string;
   points_possible: number | null;
   course_id: number;
+  description: string | null;
   submission?: { workflow_state: string };
 }
 
@@ -30,6 +80,7 @@ export interface NormalizedAssignment {
   source_url: string | null;
   points_possible: number | null;
   is_submitted?: boolean;
+  description?: string | null;
 }
 
 /**
@@ -141,6 +192,7 @@ export async function fetchAllCanvasAssignments(
           source_url: a.html_url,
           points_possible: a.points_possible,
           is_submitted: ws === "submitted" || ws === "graded",
+          description: extractDescriptionAndFiles(a.description),
         });
       }
     } catch (err) {
@@ -186,6 +238,7 @@ export async function fetchCanvasAssignmentsForCourses(
           source_url: a.html_url,
           points_possible: a.points_possible,
           is_submitted: ws === "submitted" || ws === "graded",
+          description: extractDescriptionAndFiles(a.description),
         });
       }
     } catch (err) {

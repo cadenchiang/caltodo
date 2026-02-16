@@ -12,6 +12,7 @@ import {
   formatICalDateNextDay,
   format12Hour,
   formatDTStamp,
+  formatDTStampFromDate,
   generateICalFeed,
 } from "@/lib/ical";
 import type { Task } from "@/lib/types";
@@ -289,5 +290,37 @@ describe("formatDTStamp", () => {
   it("should return a UTC timestamp in iCal format", () => {
     const stamp = formatDTStamp();
     expect(stamp).toMatch(/^\d{8}T\d{6}Z$/);
+  });
+});
+
+describe("formatDTStampFromDate", () => {
+  it("should format a specific date as iCal UTC timestamp", () => {
+    const date = new Date("2026-02-10T15:30:45Z");
+    expect(formatDTStampFromDate(date)).toBe("20260210T153045Z");
+  });
+
+  it("should handle midnight UTC", () => {
+    const date = new Date("2026-01-01T00:00:00Z");
+    expect(formatDTStampFromDate(date)).toBe("20260101T000000Z");
+  });
+
+  it("should handle end-of-day UTC", () => {
+    const date = new Date("2025-12-31T23:59:59Z");
+    expect(formatDTStampFromDate(date)).toBe("20251231T235959Z");
+  });
+});
+
+describe("generateICalFeed - LAST-MODIFIED and SEQUENCE", () => {
+  it("should include LAST-MODIFIED and SEQUENCE in each VEVENT", () => {
+    const task = makeTask({ updated_at: "2026-02-10T12:00:00Z" });
+    const feed = generateICalFeed([task]);
+    expect(feed).toContain("LAST-MODIFIED:20260210T120000Z");
+    expect(feed).toMatch(/SEQUENCE:\d+/);
+  });
+
+  it("should include REFRESH-INTERVAL in calendar header", () => {
+    const feed = generateICalFeed([]);
+    expect(feed).toContain("REFRESH-INTERVAL;VALUE=DURATION:PT5M");
+    expect(feed).toContain("X-PUBLISHED-TTL:PT5M");
   });
 });

@@ -31,7 +31,8 @@ export default function CalendarTaskBar({ task, onClick }: CalendarTaskBarProps)
       }`}
       style={{
         backgroundColor: task.color + (hovered ? "40" : "20"),
-        color: hovered ? "#ffffff" : task.color,
+        color: task.color,
+        fontWeight: hovered ? 600 : 400,
         borderLeft: `2px solid ${task.color}`,
       }}
       title={task.title}

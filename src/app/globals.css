@@ -532,3 +532,48 @@ textarea:-webkit-autofill {
 .animate-row-fade-in {
   animation: rowFadeIn 250ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
+
+/* Sync progress bar — subtle pulsing glow */
+@keyframes syncGlow {
+  0%, 100% {
+    box-shadow: 0 0 4px rgba(59, 130, 246, 0.3), 0 0 8px rgba(59, 130, 246, 0.15);
+  }
+  50% {
+    box-shadow: 0 0 8px rgba(59, 130, 246, 0.5), 0 0 16px rgba(59, 130, 246, 0.25);
+  }
+}
+
+.animate-sync-glow {
+  animation: syncGlow 1.5s ease-in-out infinite;
+}
+
+/* Task item entrance animation for optimistic add */
+@keyframes taskSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scaleY(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scaleY(1);
+  }
+}
+
+.animate-task-slide-in {
+  animation: taskSlideIn 250ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes viewSwitch {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-view-switch {
+  animation: viewSwitch 200ms ease-out both;
+}

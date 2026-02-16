@@ -5,7 +5,7 @@
 
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { runSync } from "@/lib/sync-engine";
+import { runSync, type SyncCourseOverrides } from "@/lib/sync-engine";
 import { logger } from "@/lib/logger";
 
 /**
@@ -26,8 +26,17 @@ export async function POST(request: Request) {
     const body = await request.json().catch(() => ({}));
     const timezone = body.timezone || "America/Los_Angeles";
 
-    logger.info("POST /api/assignments/sync started", { userId: user.id, timezone });
-    const result = await runSync(supabase, user.id, timezone);
+    // Build course overrides if provided by the client
+    const courseOverrides: SyncCourseOverrides | undefined =
+      (body.canvas_courses || body.gradescope_courses)
+        ? {
+            canvas_courses: body.canvas_courses,
+            gradescope_courses: body.gradescope_courses,
+          }
+        : undefined;
+
+    logger.info("POST /api/assignments/sync started", { userId: user.id, timezone, hasOverrides: !!courseOverrides });
+    const result = await runSync(supabase, user.id, timezone, courseOverrides);
     return NextResponse.json(result);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

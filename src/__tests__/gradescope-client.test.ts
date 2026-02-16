@@ -340,4 +340,126 @@ describe("fetchGradescopeAssignments", () => {
       fetchGradescopeAssignments({} as any, "999", "Unknown")
     ).rejects.toThrow("Gradescope course page 999 returned 404");
   });
+
+  it("should fallback to data-url when primary link has no href", async () => {
+    const html = `
+      <html><body>
+        <table><tbody>
+          <tr data-url="/courses/100/assignments/300">
+            <td><div class="table--primaryLink">HW 2</div></td>
+          </tr>
+        </tbody></table>
+      </body></html>
+    `;
+    mockFetch.mockResolvedValueOnce({ ok: true, text: async () => html });
+
+    const result = await fetchGradescopeAssignments({} as any, "100", "CS 61A");
+    expect(result).toHaveLength(1);
+    expect(result[0].source_url).toBe("https://www.gradescope.com/courses/100/assignments/300");
+    expect(result[0].external_id).toBe("300");
+  });
+
+  it("should fallback to row id for assignment ID and build submissions URL", async () => {
+    const html = `
+      <html><body>
+        <table><tbody>
+          <tr id="assignment_400">
+            <td><div class="table--primaryLink">HW 3</div></td>
+          </tr>
+        </tbody></table>
+      </body></html>
+    `;
+    mockFetch.mockResolvedValueOnce({ ok: true, text: async () => html });
+
+    const result = await fetchGradescopeAssignments({} as any, "100", "CS 61A");
+    expect(result).toHaveLength(1);
+    expect(result[0].source_url).toBe("https://www.gradescope.com/courses/100/assignments/400/submissions");
+    expect(result[0].external_id).toBe("400");
+  });
+
+  it("should detect is_submitted from .submissionStatus--score", async () => {
+    const html = `
+      <html><body>
+        <table><tbody>
+          <tr>
+            <td><div class="table--primaryLink"><a href="/courses/100/assignments/500">HW 4</a></div></td>
+            <td><span class="submissionStatus--score">95/100</span></td>
+          </tr>
+        </tbody></table>
+      </body></html>
+    `;
+    mockFetch.mockResolvedValueOnce({ ok: true, text: async () => html });
+
+    const result = await fetchGradescopeAssignments({} as any, "100", "CS 61A");
+    expect(result[0].is_submitted).toBe(true);
+  });
+
+  it("should detect is_submitted from status text 'submitted'", async () => {
+    const html = `
+      <html><body>
+        <table><tbody>
+          <tr>
+            <td><div class="table--primaryLink"><a href="/courses/100/assignments/600">HW 5</a></div></td>
+            <td><span class="submissionStatus--text">Submitted</span></td>
+          </tr>
+        </tbody></table>
+      </body></html>
+    `;
+    mockFetch.mockResolvedValueOnce({ ok: true, text: async () => html });
+
+    const result = await fetchGradescopeAssignments({} as any, "100", "CS 61A");
+    expect(result[0].is_submitted).toBe(true);
+  });
+
+  it("should detect is_submitted from status text 'graded'", async () => {
+    const html = `
+      <html><body>
+        <table><tbody>
+          <tr>
+            <td><div class="table--primaryLink"><a href="/courses/100/assignments/700">HW 6</a></div></td>
+            <td><span class="submissionStatus--text">Graded</span></td>
+          </tr>
+        </tbody></table>
+      </body></html>
+    `;
+    mockFetch.mockResolvedValueOnce({ ok: true, text: async () => html });
+
+    const result = await fetchGradescopeAssignments({} as any, "100", "CS 61A");
+    expect(result[0].is_submitted).toBe(true);
+  });
+
+  it("should set is_submitted false when no submission indicators", async () => {
+    const html = `
+      <html><body>
+        <table><tbody>
+          <tr>
+            <td><div class="table--primaryLink"><a href="/courses/100/assignments/800">HW 7</a></div></td>
+            <td><span class="submissionStatus--text">No submission</span></td>
+          </tr>
+        </tbody></table>
+      </body></html>
+    `;
+    mockFetch.mockResolvedValueOnce({ ok: true, text: async () => html });
+
+    const result = await fetchGradescopeAssignments({} as any, "100", "CS 61A");
+    expect(result[0].is_submitted).toBe(false);
+  });
+
+  it("should generate fallback external_id when no assignment ID found", async () => {
+    const html = `
+      <html><body>
+        <table><tbody>
+          <tr>
+            <td><div class="table--primaryLink">Midterm Review</div></td>
+          </tr>
+        </tbody></table>
+      </body></html>
+    `;
+    mockFetch.mockResolvedValueOnce({ ok: true, text: async () => html });
+
+    const result = await fetchGradescopeAssignments({} as any, "100", "CS 61A");
+    expect(result).toHaveLength(1);
+    expect(result[0].external_id).toBe("gs-100-Midterm-Review");
+    expect(result[0].source_url).toBeNull();
+  });
 });

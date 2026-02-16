@@ -100,7 +100,7 @@ export default function Hero() {
         {/* CTA */}
         <Link href="/login" className="animate-appear opacity-0 delay-700">
           <InteractiveHoverButton
-            text="FREE access"
+            text="Get Started"
             className="w-56 text-base border-black bg-black text-white"
           />
         </Link>

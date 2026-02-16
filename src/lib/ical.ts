@@ -113,13 +113,23 @@ export function format12Hour(timeStr: string): string {
  * @returns Current UTC timestamp as YYYYMMDDTHHMMSSZ
  */
 export function formatDTStamp(): string {
-  const now = new Date();
-  const y = now.getUTCFullYear();
-  const mo = String(now.getUTCMonth() + 1).padStart(2, "0");
-  const d = String(now.getUTCDate()).padStart(2, "0");
-  const h = String(now.getUTCHours()).padStart(2, "0");
-  const mi = String(now.getUTCMinutes()).padStart(2, "0");
-  const s = String(now.getUTCSeconds()).padStart(2, "0");
+  return formatDTStampFromDate(new Date());
+}
+
+/**
+ * Formats a Date object as an iCal UTC timestamp (YYYYMMDDTHHMMSSZ).
+ * Used for DTSTAMP, LAST-MODIFIED, and other datetime properties.
+ *
+ * @param date - The Date object to format
+ * @returns UTC timestamp as YYYYMMDDTHHMMSSZ
+ */
+export function formatDTStampFromDate(date: Date): string {
+  const y = date.getUTCFullYear();
+  const mo = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(date.getUTCDate()).padStart(2, "0");
+  const h = String(date.getUTCHours()).padStart(2, "0");
+  const mi = String(date.getUTCMinutes()).padStart(2, "0");
+  const s = String(date.getUTCSeconds()).padStart(2, "0");
   return `${y}${mo}${d}T${h}${mi}${s}Z`;
 }
 
@@ -167,6 +177,9 @@ export function generateICalFeed(tasks: Task[], calendarName = "caltodo"): strin
   lines.push(`X-WR-CALNAME:${escapeICalText(calendarName)}`);
   lines.push("CALSCALE:GREGORIAN");
   lines.push("METHOD:PUBLISH");
+  // Hint to calendar clients to refresh every 5 minutes (RFC 7986 + Apple extension)
+  lines.push("REFRESH-INTERVAL;VALUE=DURATION:PT5M");
+  lines.push("X-PUBLISHED-TTL:PT5M");
 
   const stamp = formatDTStamp();
 
@@ -183,6 +196,12 @@ export function generateICalFeed(tasks: Task[], calendarName = "caltodo"): strin
     lines.push("BEGIN:VEVENT");
     lines.push(`UID:${task.id}@caltodo`);
     lines.push(`DTSTAMP:${stamp}`);
+
+    // SEQUENCE and LAST-MODIFIED help Google Calendar detect event updates
+    const updatedAt = task.updated_at ? new Date(task.updated_at) : new Date();
+    const lastMod = formatDTStampFromDate(updatedAt);
+    lines.push(`LAST-MODIFIED:${lastMod}`);
+    lines.push(`SEQUENCE:${Math.floor(updatedAt.getTime() / 1000) % 100000}`);
 
     // Always all-day: DTEND must be exclusive (next day) per RFC 5545
     lines.push(`DTSTART;VALUE=DATE:${formatICalDate(task.due_date)}`);
