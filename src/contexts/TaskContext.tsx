@@ -396,11 +396,11 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     progressTimerRef.current = setInterval(() => {
       setSyncProgress((prev) => {
         if (prev >= 90) return prev;
-        // Advance quickly at first, slower as it approaches 90
+        // Small frequent ticks for smooth continuous motion
         const remaining = 90 - prev;
-        return prev + remaining * 0.06;
+        return prev + remaining * 0.02;
       });
-    }, 300);
+    }, 80);
   }
 
   /** Stops the progress timer and sets progress to 100%, then resets after a brief delay. */

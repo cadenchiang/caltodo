@@ -110,20 +110,23 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError }: 
   }
 
   return (
-    <div>
-      <div className="flex items-center gap-2 mb-2">
+    <div className="text-center">
+      <div className="flex items-center justify-center gap-2 mb-2">
         <img src="/bcourses-logo.png" alt="bCourses" width={22} height={22} className="shrink-0" />
         <h2 className="text-lg font-bold text-gray-800 animate-drop-in">bCourses</h2>
       </div>
 
       {!courses && (
         <>
-          <p className="text-sm text-gray-500 mb-4 animate-drop-in delay-100">
+          <p className="text-sm text-gray-500 mb-2 animate-drop-in delay-100">
             paste your access token from{" "}
             <a href="https://bcourses.berkeley.edu/profile/settings" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline">
               bCourses Settings
             </a>{" "}
             &gt; Approved Integrations &gt; + New Access Token.
+          </p>
+          <p className="text-xs text-gray-400 mb-4 animate-drop-in delay-100">
+            set the expiration to the <strong className="text-gray-500">maximum (120 days)</strong> so your token lasts the full semester.
           </p>
 
           {/* Video section with smooth expand/collapse */}

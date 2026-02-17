@@ -90,13 +90,11 @@ export default function GoogleCalendarSettings() {
   // Hydrate from localStorage cache immediately on mount (client-only)
   useEffect(() => {
     const cached = getCachedStatus();
-    if (cached.connected) {
-      setConnected(true);
-      setSelectedCalendarId(cached.calendarId);
-      setGoogleEmail(cached.email);
-      setGooglePhotoUrl(cached.photoUrl);
-      setLoading(false);
-    }
+    setConnected(cached.connected);
+    setSelectedCalendarId(cached.calendarId);
+    setGoogleEmail(cached.email);
+    setGooglePhotoUrl(cached.photoUrl);
+    setLoading(false);
   }, []);
 
   /**

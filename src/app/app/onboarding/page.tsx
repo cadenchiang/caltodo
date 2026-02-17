@@ -156,22 +156,8 @@ export default function OnboardingPage() {
 
   return (
     <div className={`fixed inset-0 z-50 flex flex-col bg-white force-light transition-opacity duration-500 ${exiting ? "opacity-0" : "opacity-100"}`}>
-      {/* Top bar: logo left, close right */}
-      <div className="flex items-center justify-between px-6 pt-5 pb-4">
-        <a href="/" className="cursor-pointer">
-          <img src="/logo.png" alt="caltodo" className="h-8" />
-        </a>
-        <button
-          onClick={() => router.push("/app/inbox")}
-          className="p-2 text-gray-400 hover:text-gray-800 transition-colors rounded-lg"
-          aria-label="Close onboarding"
-        >
-          <X size={20} />
-        </button>
-      </div>
-
-      {/* Stepper bar with back button inline to its left */}
-      <div className="px-8 pb-2">
+      {/* Stepper bar — flush to the very top */}
+      <div className="px-8 pt-0 pb-2">
         <div className="flex items-center gap-1.5 max-w-2xl mx-auto">
           {/* Back button */}
           <button
@@ -193,11 +179,6 @@ export default function OnboardingPage() {
             const state = i < stepIndex ? "completed" : i === stepIndex ? "active" : "inactive";
             return (
               <div key={step} className="flex-1 flex flex-col gap-1.5">
-                <div
-                  className={`h-1 rounded-full transition-all duration-500 ${
-                    state === "completed" ? "bg-green-500" : state === "active" ? "bg-gray-800" : "bg-gray-200"
-                  }`}
-                />
                 <span
                   className={`text-[11px] font-medium transition-colors duration-300 ${
                     state === "completed" ? "text-green-600" : state === "active" ? "text-gray-800" : "text-gray-400"
@@ -205,10 +186,29 @@ export default function OnboardingPage() {
                 >
                   {STEP_LABELS[step]}
                 </span>
+                <div
+                  className={`h-1 rounded-full transition-all duration-500 ${
+                    state === "completed" ? "bg-green-500" : state === "active" ? "bg-gray-800" : "bg-gray-200"
+                  }`}
+                />
               </div>
             );
           })}
         </div>
+      </div>
+
+      {/* Logo left, close right */}
+      <div className="flex items-center justify-between px-6 pt-3 pb-2">
+        <a href="/" className="cursor-pointer">
+          <img src="/logo.png" alt="caltodo" className="h-8" />
+        </a>
+        <button
+          onClick={() => router.push("/app/inbox")}
+          className="p-2 text-gray-400 hover:text-gray-800 transition-colors rounded-lg"
+          aria-label="Close onboarding"
+        >
+          <X size={20} />
+        </button>
       </div>
 
       {/* Step content — centered in remaining space */}

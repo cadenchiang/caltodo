@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { TourProvider, TourStartDialog, useTour, type TourStep } from "./AppTour";
+import { useEffect, useRef } from "react";
+import { usePathname } from "next/navigation";
+import { TourProvider, useTour, type TourStep } from "./AppTour";
 
 /** localStorage key set by onboarding to trigger the tour. */
 const TOUR_PENDING_KEY = "caltodo_tour_pending";
@@ -47,12 +48,19 @@ const TOUR_STEPS: TourStep[] = [
   {
     targetId: "tour-task-list",
     title: "Board View",
-    description: "Switch between List and Board views. Board view organizes your tasks into columns by class or category — like a Kanban board.",
+    description: "Click the menu icon, then select Board to organize your tasks into columns by class or category — like a Kanban board.",
     position: "top",
     route: "/app/inbox",
-    onEnter: () => setTourViewMode("board"),
+    onEnter: () => {
+      // Close the dropdown before switching view
+      document.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+      setTimeout(() => setTourViewMode("board"), 50);
+    },
     onExit: () => setTourViewMode("list"),
-    clickTargetId: "tour-view-toggle",
+    clickSequence: [
+      { targetId: "tour-view-toggle", action: () => document.getElementById("tour-view-toggle")?.click() },
+      { targetId: "tour-board-option" },
+    ],
   },
   {
     targetId: "tour-sidebar-nav",
@@ -76,35 +84,43 @@ const TOUR_STEPS: TourStep[] = [
  * Must be rendered inside TourProvider.
  */
 function TourTrigger() {
-  const [showDialog, setShowDialog] = useState(false);
-  const { isCompleted } = useTour();
+  const { isCompleted, startTour } = useTour();
+  const pathname = usePathname();
+  const hasStartedRef = useRef(false);
 
-  // Check if tour should start (set by onboarding completion)
+  // Auto-start tour after onboarding — re-check when route changes
   useEffect(() => {
-    if (isCompleted) return;
+    if (isCompleted || hasStartedRef.current) return;
     try {
       const pending = localStorage.getItem(TOUR_PENDING_KEY);
       if (pending === "true") {
-        const timer = setTimeout(() => setShowDialog(true), 800);
+        hasStartedRef.current = true;
+        localStorage.removeItem(TOUR_PENDING_KEY);
+        const timer = setTimeout(() => startTour(), 800);
         return () => clearTimeout(timer);
       }
     } catch {
       /* non-critical */
     }
-  }, [isCompleted]);
+  }, [isCompleted, pathname, startTour]);
 
-  /** Handles dialog dismissal — clears pending flag. */
-  function handleClose() {
-    setShowDialog(false);
-    try {
-      localStorage.removeItem(TOUR_PENDING_KEY);
-      localStorage.setItem(TOUR_COMPLETED_KEY, "true");
-    } catch {
-      /* non-critical */
-    }
-  }
+  // Poll briefly in case the flag was set just before navigation (race condition)
+  useEffect(() => {
+    if (isCompleted || hasStartedRef.current) return;
+    const pollTimer = setInterval(() => {
+      try {
+        if (localStorage.getItem(TOUR_PENDING_KEY) === "true") {
+          hasStartedRef.current = true;
+          localStorage.removeItem(TOUR_PENDING_KEY);
+          clearInterval(pollTimer);
+          startTour();
+        }
+      } catch { /* non-critical */ }
+    }, 500);
+    return () => clearInterval(pollTimer);
+  }, [isCompleted, startTour]);
 
-  return <TourStartDialog open={showDialog} onClose={handleClose} />;
+  return null;
 }
 
 /**

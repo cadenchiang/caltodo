@@ -108,8 +108,8 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
   }
 
   return (
-    <div>
-      <div className="flex items-center gap-2 mb-2">
+    <div className="text-center">
+      <div className="flex items-center justify-center gap-2 mb-2">
         <svg width="22" height="22" viewBox="0 0 14 14" fill="none" className="shrink-0">
           <rect width="14" height="14" rx="3" fill="#3AADA8" />
           <rect x="1.5" y="8.5" width="2" height="3.5" rx="0.5" fill="white" />
@@ -123,17 +123,22 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
       {/* Login inputs (no courses loaded yet) */}
       {!courses && (
         <>
-          <p className="text-sm text-gray-500 mb-1 animate-drop-in delay-100">
-            sign in with your Gradescope email and password.
+          <p className="text-sm text-gray-500 mb-3 animate-drop-in delay-100">
+            sign in with your <strong className="text-gray-700">Berkeley email</strong> and a <strong className="text-gray-700">Gradescope password</strong>.
           </p>
-          <p className="text-xs text-gray-400 mb-4 animate-drop-in delay-100">
-            if you use CalNet SSO, you&apos;ll need to create a Gradescope-specific password first.
-            go to{" "}
-            <a href="https://www.gradescope.com/reset_password" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline">
-              Reset Password
-            </a>{" "}
-            and enter your Berkeley email — this won&apos;t affect your CalNet login.
-          </p>
+          <div className="text-xs text-gray-400 mb-4 animate-drop-in delay-100 bg-gray-50 rounded-xl px-3.5 py-2.5 border border-gray-100">
+            <p className="font-medium text-gray-500 mb-1">most Berkeley students use CalNet SSO and don&apos;t have a Gradescope password yet. to create one:</p>
+            <ol className="list-decimal list-inside space-y-0.5 text-gray-400">
+              <li>go to{" "}
+                <a href="https://www.gradescope.com/reset_password" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline">
+                  gradescope.com/reset_password
+                </a>
+              </li>
+              <li>enter your Berkeley email</li>
+              <li>check your email and set a new password</li>
+            </ol>
+            <p className="mt-1.5 text-gray-400">this won&apos;t affect your CalNet login — it just adds a password to your existing account.</p>
+          </div>
 
           {/* Video section with smooth expand/collapse */}
           <div className="animate-drop-in delay-150">

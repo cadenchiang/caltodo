@@ -35,6 +35,8 @@ export interface TourStep {
   onExit?: () => void;
   /** ID of an intermediate element to animate a "click" on before showing this step's target. */
   clickTargetId?: string;
+  /** Sequence of element IDs to animate clicks on. Each is highlighted, pulsed, then the next fires. Overrides clickTargetId. */
+  clickSequence?: Array<{ targetId: string; action?: () => void }>;
 }
 
 interface TourContextValue {
@@ -201,29 +203,42 @@ export function TourProvider({ children, steps, onComplete }: TourProviderProps)
     const step = steps[stepIndex];
     const needsNavigation = step.route && pathname !== step.route;
 
-    // ── Click animation sequence ──
-    if (step.clickTargetId) {
+    // ── Multi-click animation sequence ──
+    const clickTargets = step.clickSequence
+      || (step.clickTargetId ? [{ targetId: step.clickTargetId }] : null);
+
+    if (clickTargets) {
       setIsClickAnimating(true);
       setCardPos(null);
 
-      // Wait for the click target element to appear
-      const clickEl = await waitForElement(step.clickTargetId, TARGET_WAIT_TIMEOUT);
-      if (!clickEl) {
-        setIsClickAnimating(false);
-        return;
+      for (let i = 0; i < clickTargets.length; i++) {
+        const ct = clickTargets[i];
+
+        // Wait for the click target element to appear
+        const clickEl = await waitForElement(ct.targetId, TARGET_WAIT_TIMEOUT);
+        if (!clickEl) {
+          setIsClickAnimating(false);
+          return;
+        }
+
+        // Position highlight on the click target
+        const clickRect = clickEl.getBoundingClientRect();
+        setTargetRect(clickRect);
+
+        // Let highlight slide into position
+        await new Promise((r) => setTimeout(r, 600));
+
+        // Add pulse class to the click target element
+        clickEl.classList.add("tour-click-pulse");
+        await new Promise((r) => setTimeout(r, 500));
+        clickEl.classList.remove("tour-click-pulse");
+
+        // Fire this click target's action (e.g. open a dropdown)
+        ct.action?.();
+
+        // Pause so user can see what was "clicked"
+        await new Promise((r) => setTimeout(r, 400));
       }
-
-      // Position highlight on the click target
-      const clickRect = clickEl.getBoundingClientRect();
-      setTargetRect(clickRect);
-
-      // Let highlight slide into position (300ms transition)
-      await new Promise((r) => setTimeout(r, 350));
-
-      // Add pulse class to the click target element
-      clickEl.classList.add("tour-click-pulse");
-      await new Promise((r) => setTimeout(r, 400));
-      clickEl.classList.remove("tour-click-pulse");
 
       // Fire onEnter (e.g. switch view mode) and navigate if needed
       step.onEnter?.();
@@ -232,7 +247,7 @@ export function TourProvider({ children, steps, onComplete }: TourProviderProps)
       }
 
       // Let side effects settle
-      await new Promise((r) => setTimeout(r, 150));
+      await new Promise((r) => setTimeout(r, 400));
 
       // Wait for the final target element
       const finalEl = await waitForElement(step.targetId, TARGET_WAIT_TIMEOUT);

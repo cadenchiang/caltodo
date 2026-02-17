@@ -574,6 +574,7 @@ export default function InboxPage() {
                     List
                   </button>
                   <button
+                    id="tour-board-option"
                     onClick={() => { setViewMode("board"); setShowViewMenu(false); }}
                     className={`flex items-center gap-2 w-full text-left px-3 py-2 text-sm transition-colors ${
                       viewMode === "board"
@@ -596,7 +597,7 @@ export default function InboxPage() {
             <div className="mx-8 mb-2">
               <div className="h-1 bg-muted rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-blue-500 rounded-full transition-all duration-300 ease-out animate-sync-glow"
+                  className="h-full bg-blue-500 rounded-full transition-all duration-700 ease-in-out animate-sync-glow"
                   style={{ width: `${syncProgress}%` }}
                 />
               </div>
