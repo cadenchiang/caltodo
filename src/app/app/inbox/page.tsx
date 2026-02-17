@@ -441,8 +441,8 @@ export default function InboxPage() {
   return (
     <PageTransition>
       <div className="flex flex-col md:flex-row -m-4 md:-m-10" style={{ height: "calc(100dvh)" }}>
-        {/* Left: task list */}
-        <div className="flex flex-col flex-1 min-w-0">
+        {/* Left: task list (60%) */}
+        <div className="flex flex-col min-w-0" style={{ flex: "3 1 0%" }}>
           <div className="px-4 pt-4 pb-3 md:px-8 md:pt-8 md:pb-4 flex items-center justify-between animate-stagger stagger-1">
             {/* Clickable title = filter selector */}
             <div id="tour-filter" ref={filterRef} className="relative">
@@ -676,9 +676,9 @@ export default function InboxPage() {
           </div>
         </div>
 
-        {/* Right: detail panel (list view only, hidden on mobile) */}
+        {/* Right: detail panel (40%, list view only, hidden on mobile) */}
         {viewMode === "list" && (
-          <div className="hidden md:flex">
+          <div className="hidden md:flex" style={{ flex: "2 1 0%" }}>
             <TaskDetailPanel
               task={currentSelectedTask}
               onClose={() => setSelectedTask(null)}

@@ -226,7 +226,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       due_date: taskData.due_date ?? null,
       due_time: taskData.due_time ?? null,
       is_completed: false,
-      color: taskData.color ?? "#D1D5DB",
+      color: taskData.color ?? "#3B82F6",
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       source: null,

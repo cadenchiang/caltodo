@@ -27,4 +27,4 @@ export const TASK_COLORS = [
 /**
  * Default task color.
  */
-export const DEFAULT_TASK_COLOR = "#9CA3AF";
+export const DEFAULT_TASK_COLOR = "#3B82F6";

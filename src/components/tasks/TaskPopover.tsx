@@ -281,7 +281,7 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
             <MoreHorizontal size={15} />
           </button>
           {showMenu && menuBtnRef.current && createPortal(
-            <>
+            <div onMouseDown={(e) => e.stopPropagation()}>
               <div className="fixed inset-0 z-[60]" onClick={() => setShowMenu(false)} />
               <div
                 ref={menuDropdownRef}
@@ -299,7 +299,7 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
                   Delete
                 </button>
               </div>
-            </>,
+            </div>,
             document.body
           )}
         </div>
