@@ -108,7 +108,7 @@ export default function ProfilePopup({ avatarUrl, fullName, email }: ProfilePopu
       {/* Popup */}
       {open && (
         <div
-          className="absolute bottom-full left-0 mb-2 w-[min(256px,calc(100vw-16px))] bg-card rounded-xl shadow-2xl border border-border overflow-hidden animate-in"
+          className="absolute bottom-full left-0 mb-2 z-50 w-[min(256px,calc(100vw-16px))] bg-card rounded-xl shadow-2xl border border-border overflow-hidden animate-in"
         >
           {/* User info */}
           <div className="px-4 py-3 border-b border-border">
