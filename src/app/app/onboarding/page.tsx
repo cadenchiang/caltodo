@@ -9,6 +9,17 @@ import GradescopeStep from "@/components/onboarding/GradescopeStep";
 type Step = "welcome" | "canvas" | "gradescope" | "done";
 const STEPS: Step[] = ["welcome", "canvas", "gradescope", "done"];
 
+/** Display labels for each step in the stepper bar. */
+const STEP_LABELS: Record<Step, string> = {
+  welcome: "Welcome",
+  canvas: "bCourses",
+  gradescope: "Gradescope",
+  done: "Finish",
+};
+
+/** localStorage key to signal the app tour should start after onboarding. */
+const TOUR_PENDING_KEY = "caltodo_tour_pending";
+
 /**
  * Auto-syncing "done" step. Triggers sync on mount (fire-and-forget),
  * then fades out the overlay and navigates to /app/inbox.
@@ -43,12 +54,14 @@ function DoneStep({ onSyncAndGo }: { onSyncAndGo: () => void }) {
 
 /**
  * Full-screen onboarding wizard with 4 steps, always white background.
+ * Features stepper-bar progress indicators with step labels.
  * 1. Welcome - intro with staggered drop-in animations
  * 2. Canvas - Token verification + course selection
  * 3. Gradescope - Credential verification + course selection
  * 4. Done - Auto-syncs assignments and navigates to inbox
  *
  * Each step saves credentials via PUT /api/credentials.
+ * Sets a localStorage flag on completion to trigger the app tour.
  */
 export default function OnboardingPage() {
   const router = useRouter();
@@ -124,10 +137,17 @@ export default function OnboardingPage() {
 
   /**
    * Starts fade-out, fires sync in background, then navigates to inbox.
+   * Sets tour pending flag so the app tour starts on first inbox visit.
    * Sync continues via TaskContext even after navigation.
    */
   function handleSyncAndGo() {
     setExiting(true);
+    // Signal the app tour to start after landing on inbox
+    try {
+      localStorage.setItem(TOUR_PENDING_KEY, "true");
+    } catch {
+      /* non-critical */
+    }
     // Fire sync in background — it runs in TaskContext and survives navigation
     triggerSync().catch(() => {});
     // Navigate after fade-out animation completes
@@ -154,34 +174,52 @@ export default function OnboardingPage() {
         <X size={20} />
       </button>
 
-      <div className="w-full max-w-md mx-auto px-6">
-        {/* Step indicator with back button */}
-        <div className="flex items-center gap-3 mb-8">
-          <button
-            onClick={() => {
-              if (stepIndex > 0) setCurrentStep(STEPS[stepIndex - 1]);
-            }}
-            className={`p-1.5 rounded-lg transition-colors ${
-              stepIndex > 0
-                ? "text-gray-400 hover:text-gray-800 cursor-pointer"
-                : "text-transparent pointer-events-none"
-            }`}
-            aria-label="Go back"
-          >
-            <ChevronLeft size={18} />
-          </button>
-          <div className="flex items-center justify-center gap-2 flex-1">
-            {STEPS.map((_, i) => (
-              <div
-                key={i}
-                className={`h-1.5 rounded-full transition-all duration-300 ${
-                  i <= stepIndex ? "bg-gray-800 w-8" : "bg-gray-300 w-4"
-                }`}
-              />
-            ))}
+      <div className="w-full max-w-xl mx-auto px-6">
+        {/* Stepper bar progress indicator */}
+        <div className="mb-10">
+          <div className="flex items-center gap-1 mb-0">
+            {/* Back button (inline with stepper) */}
+            <button
+              onClick={() => {
+                if (stepIndex > 0) setCurrentStep(STEPS[stepIndex - 1]);
+              }}
+              className={`p-1 rounded-lg transition-colors mr-1 shrink-0 ${
+                stepIndex > 0
+                  ? "text-gray-400 hover:text-gray-800 cursor-pointer"
+                  : "text-transparent pointer-events-none"
+              }`}
+              aria-label="Go back"
+            >
+              <ChevronLeft size={16} />
+            </button>
+
+            {/* Stepper bars with labels */}
+            {STEPS.map((step, i) => {
+              const state = i < stepIndex ? "completed" : i === stepIndex ? "active" : "inactive";
+              return (
+                <div key={step} className="flex-1 flex flex-col gap-2">
+                  {/* Bar */}
+                  <div
+                    className={`h-1 rounded-full transition-all duration-500 ${
+                      state === "inactive"
+                        ? "bg-gray-200"
+                        : "bg-gray-800"
+                    }`}
+                  />
+                  {/* Label */}
+                  <span
+                    className={`text-xs font-medium transition-colors duration-300 ${
+                      state === "inactive"
+                        ? "text-gray-400"
+                        : "text-gray-800"
+                    }`}
+                  >
+                    {STEP_LABELS[step]}
+                  </span>
+                </div>
+              );
+            })}
           </div>
-          {/* Spacer to keep dots centered */}
-          <div className="w-[30px]" />
         </div>
 
         {/* Step content — key forces re-mount to re-trigger animation */}

@@ -83,9 +83,10 @@ export async function GET(request: NextRequest) {
   // Exchange authorization code for tokens
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  const redirectUri = process.env.GOOGLE_REDIRECT_URI;
+  // Derive redirect URI from env var or dynamically from the request origin
+  const redirectUri = process.env.GOOGLE_REDIRECT_URI || `${new URL(request.url).origin}/api/gcal/callback`;
 
-  if (!clientId || !clientSecret || !redirectUri) {
+  if (!clientId || !clientSecret) {
     logger.error("GET /api/gcal/callback: missing Google OAuth env vars");
     return NextResponse.redirect(
       new URL("/app/settings?gcal=error&reason=config", request.url)

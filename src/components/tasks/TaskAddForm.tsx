@@ -64,7 +64,7 @@ export default function TaskAddForm({ onAdd, defaultDate, placeholder }: TaskAdd
   }
 
   return (
-    <div className="relative mx-4 mt-1 mb-3" ref={containerRef} onBlur={handleBlur}>
+    <div id="tour-add-task" className="relative mx-4 mt-1 mb-3" ref={containerRef} onBlur={handleBlur}>
       <form
         onSubmit={handleSubmit}
         className={`flex items-center gap-2 px-4 h-10 rounded-xl transition-all duration-200 border ${

@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import Sidebar from "@/components/layout/Sidebar";
 import { TaskProvider } from "@/contexts/TaskContext";
 import { ToastProvider } from "@/contexts/ToastContext";
+import InboxTour from "@/components/ui/InboxTour";
 
 /**
  * Authenticated app layout with sidebar and main content area.
@@ -30,10 +31,12 @@ export default async function AppLayout({
     <div className="flex h-screen">
       <ToastProvider>
         <TaskProvider>
-          <Sidebar avatarUrl={avatarUrl} fullName={fullName} email={email} />
-          <main className="flex-1 overflow-auto p-10 dark:bg-black">
-            {children}
-          </main>
+          <InboxTour>
+            <Sidebar avatarUrl={avatarUrl} fullName={fullName} email={email} />
+            <main className="flex-1 overflow-auto p-10 dark:bg-black">
+              {children}
+            </main>
+          </InboxTour>
         </TaskProvider>
       </ToastProvider>
     </div>

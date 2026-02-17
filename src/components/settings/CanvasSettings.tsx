@@ -1,16 +1,9 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Eye, EyeOff, Lock, Pencil, Loader2, Play, Check } from "lucide-react";
+import { Eye, EyeOff, Lock, LockOpen, Play, Check } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
-import CourseSelectModal from "@/components/ui/CourseSelectModal";
 import type { IntegrationCredentials, CredentialsSavePayload } from "@/lib/types";
-
-interface CanvasCourse {
-  id: number;
-  name: string;
-  course_code: string;
-}
 
 interface CanvasSettingsProps {
   credentials: IntegrationCredentials;
@@ -18,9 +11,10 @@ interface CanvasSettingsProps {
 }
 
 /**
- * Self-contained Canvas settings section with Edit/Save/Cancel and course selection modal.
- * Locked by default. Edit unlocks credential fields and "Verify & Load Courses".
- * Course selection opens as a full-screen modal for easier browsing.
+ * Canvas (bCourses) credential settings with lock/unlock icon toggle.
+ * Locked by default — shows masked token and URL with Lock icons.
+ * Unlocked — same layout with editable inputs and LockOpen icons.
+ * Course selection has been moved to the unified ClassesSection.
  *
  * @param credentials - Current integration credentials from parent
  * @param onUpdate - Callback with updated credentials after save
@@ -33,12 +27,6 @@ export default function CanvasSettings({ credentials, onUpdate }: CanvasSettings
   const [canvasToken, setCanvasToken] = useState(credentials.canvas_token ?? "");
   const [canvasBaseUrl, setCanvasBaseUrl] = useState(credentials.canvas_base_url);
   const [showToken, setShowToken] = useState(false);
-
-  const [courses, setCourses] = useState<CanvasCourse[] | null>(null);
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-  const [verifying, setVerifying] = useState(false);
-  const [showCourseModal, setShowCourseModal] = useState(false);
-  const [coursesFromSaved, setCoursesFromSaved] = useState(false);
   const [videoExpanded, setVideoExpanded] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -48,51 +36,8 @@ export default function CanvasSettings({ credentials, onUpdate }: CanvasSettings
   });
 
   /**
-   * Verifies the Canvas token by fetching courses from the Canvas API.
-   * On success, opens the course selection modal with previous selections pre-checked.
-   */
-  async function handleVerify() {
-    if (!canvasToken.trim()) {
-      showToast("Please enter your Canvas access token.");
-      return;
-    }
-    setVerifying(true);
-    try {
-      const params = new URLSearchParams({
-        token: canvasToken.trim(),
-        base_url: canvasBaseUrl.trim(),
-      });
-      const res = await fetch(`/api/canvas/courses?${params}`);
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || "Verification failed");
-      }
-      const data = await res.json();
-      const fetched: CanvasCourse[] = data.courses;
-      setCourses(fetched);
-      setCoursesFromSaved(false);
-      const prevIds = new Set(credentials.selected_canvas_courses?.map((c) => c.id) ?? []);
-      setSelectedIds(prevIds.size > 0 ? prevIds : new Set(fetched.map((c) => c.id)));
-      setShowCourseModal(true);
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : "Failed to verify");
-    } finally {
-      setVerifying(false);
-    }
-  }
-
-  /** Toggles a single course's selected state. */
-  function toggleCourse(id: number) {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
-  }
-
-  /**
-   * Saves Canvas credentials and optionally course selection to the API.
-   * Only includes course selection if courses were loaded during this edit.
+   * Saves Canvas credentials (token + URL) to the API.
+   * Does not handle course selection — that is managed by ClassesSection.
    */
   async function handleSave() {
     setSaving(true);
@@ -101,11 +46,6 @@ export default function CanvasSettings({ credentials, onUpdate }: CanvasSettings
       canvas_token: trimmedToken || null,
       canvas_base_url: canvasBaseUrl.trim(),
     };
-    if (courses) {
-      payload.selected_canvas_courses = courses
-        .filter((c) => selectedIds.has(c.id))
-        .map((c) => ({ id: c.id, name: c.name }));
-    }
     try {
       const res = await fetch("/api/credentials", {
         method: "PUT",
@@ -125,7 +65,6 @@ export default function CanvasSettings({ credentials, onUpdate }: CanvasSettings
       setCanvasToken(updated.canvas_token ?? "");
       showToast("bCourses settings saved.");
       setLocked(true);
-      setCourses(null);
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Failed to save");
     } finally {
@@ -138,9 +77,6 @@ export default function CanvasSettings({ credentials, onUpdate }: CanvasSettings
     setCanvasToken(serverState.current.canvasToken);
     setCanvasBaseUrl(serverState.current.canvasBaseUrl);
     setShowToken(false);
-    setCourses(null);
-    setSelectedIds(new Set());
-    setCoursesFromSaved(false);
     setLocked(true);
   }
 
@@ -148,25 +84,20 @@ export default function CanvasSettings({ credentials, onUpdate }: CanvasSettings
     <section>
       <div className="flex items-center justify-between mb-1">
         <h2 className="text-lg font-semibold text-foreground">bCourses</h2>
-        {locked && (
-          <button
-            onClick={() => {
+        <button
+          onClick={() => {
+            if (locked) {
               setLocked(false);
               setShowToken(false);
-              // Pre-load saved courses for immediate summary display
-              if (credentials.selected_canvas_courses && credentials.selected_canvas_courses.length > 0) {
-                const saved = credentials.selected_canvas_courses;
-                setCourses(saved.map((c) => ({ id: c.id, name: c.name, course_code: "" })));
-                setSelectedIds(new Set(saved.map((c) => c.id)));
-                setCoursesFromSaved(true);
-              }
-            }}
-            className="flex items-center gap-1.5 text-xs text-subtle-foreground hover:text-secondary-foreground transition-colors"
-          >
-            <Pencil size={12} />
-            Edit
-          </button>
-        )}
+            } else {
+              handleCancel();
+            }
+          }}
+          className="flex items-center gap-1.5 text-xs text-subtle-foreground hover:text-secondary-foreground transition-colors"
+          aria-label={locked ? "Unlock credentials" : "Lock credentials"}
+        >
+          {locked ? <Lock size={12} /> : <LockOpen size={12} />}
+        </button>
       </div>
       <p className="text-xs text-subtle-foreground mb-4">
         Generate a token from{" "}
@@ -240,87 +171,73 @@ export default function CanvasSettings({ credentials, onUpdate }: CanvasSettings
         </div>
       </div>
 
-      {locked ? (
-        <div className="space-y-3">
-          <div className="flex items-center gap-2 px-3 py-2.5 bg-muted rounded-xl border border-border">
+      {/* Credential fields — unified layout for locked/unlocked */}
+      <div className="space-y-3">
+        {/* Token row */}
+        <div
+          className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border transition-colors ${
+            locked ? "bg-muted border-border" : "bg-card border-input-border"
+          }`}
+        >
+          {locked ? (
             <Lock size={14} className="text-subtle-foreground shrink-0" />
+          ) : (
+            <LockOpen size={14} className="text-subtle-foreground shrink-0" />
+          )}
+          {locked ? (
             <span className="text-sm text-muted-foreground truncate flex-1">
               {canvasToken ? `••••••••${canvasToken.slice(-6)}` : "No token saved"}
             </span>
-            {canvasToken && <Check size={14} className="text-emerald-500 shrink-0" />}
-          </div>
-          <div className="flex items-center gap-2 px-3 py-2.5 bg-muted rounded-xl border border-border">
-            <Lock size={14} className="text-subtle-foreground shrink-0" />
-            <span className="text-sm text-muted-foreground truncate flex-1">{canvasBaseUrl}</span>
-            <Check size={14} className="text-emerald-500 shrink-0" />
-          </div>
+          ) : (
+            <input
+              id="canvas-token"
+              type={showToken ? "text" : "password"}
+              value={canvasToken}
+              onChange={(e) => setCanvasToken(e.target.value)}
+              placeholder="Paste your bCourses access token"
+              className="flex-1 bg-transparent text-sm text-foreground focus:outline-none min-w-0"
+            />
+          )}
+          {!locked && (
+            <button
+              type="button"
+              onClick={() => setShowToken(!showToken)}
+              className="text-subtle-foreground hover:text-secondary-foreground transition-colors shrink-0"
+              aria-label={showToken ? "Hide token" : "Show token"}
+            >
+              {showToken ? <EyeOff size={14} /> : <Eye size={14} />}
+            </button>
+          )}
+          {locked && canvasToken && <Check size={14} className="text-emerald-500 shrink-0" />}
         </div>
-      ) : (
-        <div className="space-y-3">
-          <div>
-            <label htmlFor="canvas-token" className="block text-sm font-medium text-secondary-foreground mb-1">
-              Access Token
-            </label>
-            <div className="relative">
-              <input
-                id="canvas-token"
-                type={showToken ? "text" : "password"}
-                value={canvasToken}
-                onChange={(e) => setCanvasToken(e.target.value)}
-                placeholder="Paste your bCourses access token"
-                className="w-full px-3 py-2 pr-10 rounded-xl border border-input-border bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-blue-400 transition-all"
-              />
-              <button
-                type="button"
-                onClick={() => setShowToken(!showToken)}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-subtle-foreground hover:text-secondary-foreground transition-colors"
-                aria-label={showToken ? "Hide token" : "Show token"}
-              >
-                {showToken ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
-            </div>
-          </div>
-          <div>
-            <label htmlFor="canvas-url" className="block text-sm font-medium text-secondary-foreground mb-1">
-              bCourses URL
-            </label>
+
+        {/* URL row */}
+        <div
+          className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border transition-colors ${
+            locked ? "bg-muted border-border" : "bg-card border-input-border"
+          }`}
+        >
+          {locked ? (
+            <Lock size={14} className="text-subtle-foreground shrink-0" />
+          ) : (
+            <LockOpen size={14} className="text-subtle-foreground shrink-0" />
+          )}
+          {locked ? (
+            <span className="text-sm text-muted-foreground truncate flex-1">{canvasBaseUrl}</span>
+          ) : (
             <input
               id="canvas-url"
               type="text"
               value={canvasBaseUrl}
               onChange={(e) => setCanvasBaseUrl(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl border border-input-border bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-blue-400 transition-all"
+              className="flex-1 bg-transparent text-sm text-foreground focus:outline-none min-w-0"
             />
-          </div>
-
-          {/* Verify button / course summary */}
-          {!courses ? (
-            <button
-              onClick={handleVerify}
-              disabled={verifying}
-              className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 border border-blue-200 dark:border-blue-800 transition-colors disabled:opacity-60"
-            >
-              {verifying && <Loader2 size={14} className="animate-spin" />}
-              {verifying ? "Loading courses..." : "Verify & Load Courses"}
-            </button>
-          ) : (
-            <button
-              onClick={() => {
-                if (coursesFromSaved) {
-                  handleVerify();
-                } else {
-                  setShowCourseModal(true);
-                }
-              }}
-              disabled={verifying}
-              className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 border border-blue-200 dark:border-blue-800 transition-colors disabled:opacity-60"
-            >
-              {verifying && <Loader2 size={14} className="animate-spin" />}
-              {verifying ? "Loading courses..." : `${selectedIds.size}/${courses.length} courses selected — tap to change`}
-            </button>
           )}
+          {locked && <Check size={14} className="text-emerald-500 shrink-0" />}
+        </div>
 
-          {/* Save / Cancel */}
+        {/* Save / Cancel — only when unlocked */}
+        {!locked && (
           <div className="flex items-center gap-2 pt-1">
             <button
               onClick={handleSave}
@@ -336,41 +253,8 @@ export default function CanvasSettings({ credentials, onUpdate }: CanvasSettings
               Cancel
             </button>
           </div>
-        </div>
-      )}
-
-      {/* Syncing courses (when locked) */}
-      {locked && credentials.selected_canvas_courses && credentials.selected_canvas_courses.length > 0 && (
-        <div className="mt-3">
-          <p className="text-xs font-medium text-muted-foreground mb-2">
-            Syncing {credentials.selected_canvas_courses.length} course{credentials.selected_canvas_courses.length !== 1 ? "s" : ""}
-          </p>
-          <div className="flex flex-wrap gap-1.5">
-            {credentials.selected_canvas_courses.map((c) => (
-              <span
-                key={c.id}
-                className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
-              >
-                {c.name}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Course selection modal */}
-      {courses && (
-        <CourseSelectModal
-          open={showCourseModal}
-          onClose={() => setShowCourseModal(false)}
-          title="Select bCourses"
-          courses={courses.map((c) => ({ id: c.id, name: c.name, subtitle: c.course_code }))}
-          selectedIds={selectedIds}
-          onToggle={toggleCourse}
-          onSelectAll={() => setSelectedIds(new Set(courses.map((c) => c.id)))}
-          onDeselectAll={() => setSelectedIds(new Set())}
-        />
-      )}
+        )}
+      </div>
     </section>
   );
 }

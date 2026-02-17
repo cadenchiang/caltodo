@@ -315,7 +315,7 @@ export default function InboxPage() {
         <div className="flex flex-col flex-1 min-w-0">
           <div className="px-8 pt-8 pb-4 flex items-center justify-between animate-stagger stagger-1">
             {/* Clickable title = filter selector */}
-            <div ref={filterRef} className="relative">
+            <div id="tour-filter" ref={filterRef} className="relative">
               <button
                 onClick={() => setShowFilterDropdown(!showFilterDropdown)}
                 className="flex items-center gap-2 text-xl font-bold text-foreground hover:opacity-80 transition-opacity"
@@ -368,6 +368,7 @@ export default function InboxPage() {
 
             <div className="flex items-center gap-1">
               <button
+                id="tour-sync-button"
                 onClick={handleSyncClick}
                 disabled={syncing}
                 className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-all disabled:opacity-50"

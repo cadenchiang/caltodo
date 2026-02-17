@@ -9,6 +9,15 @@ interface CourseItem<T extends string | number> {
   subtitle?: string;
 }
 
+interface CourseGroup<T extends string | number> {
+  /** Section header label (e.g. "bCourses", "Gradescope"). */
+  label: string;
+  /** Courses in this group. */
+  courses: CourseItem<T>[];
+  /** Accent color for the section header dot. */
+  color?: string;
+}
+
 interface CourseSelectModalProps<T extends string | number> {
   /** Whether the modal is open. */
   open: boolean;
@@ -16,8 +25,10 @@ interface CourseSelectModalProps<T extends string | number> {
   onClose: () => void;
   /** Modal heading text. */
   title: string;
-  /** List of courses to display. */
+  /** Flat list of courses (used when groups is not provided). */
   courses: CourseItem<T>[];
+  /** Optional grouped sections — overrides flat `courses` list when provided. */
+  groups?: CourseGroup<T>[];
   /** Currently selected course IDs. */
   selectedIds: Set<T>;
   /** Toggle a single course selection. */
@@ -34,14 +45,74 @@ const MAX_STAGGER = 8;
 const EXIT_DURATION = 200;
 
 /**
- * Shared animated course selection modal used by Canvas and Gradescope settings.
- * Features: backdrop fade, spring-scale card entrance, staggered course row fade-in,
+ * Renders a single course row with custom checkbox.
+ *
+ * @param course - The course item to render
+ * @param checked - Whether the course is selected
+ * @param index - Row index for stagger animation
+ */
+function CourseRow<T extends string | number>({
+  course,
+  checked,
+  index,
+}: {
+  course: CourseItem<T>;
+  checked: boolean;
+  index: number;
+}) {
+  return (
+    <label
+      key={String(course.id)}
+      className="flex items-center gap-3 px-5 py-3 hover:bg-accent transition-colors cursor-pointer border-b border-border-subtle last:border-0 animate-row-fade-in"
+      style={{
+        animationDelay: index < MAX_STAGGER ? `${index * 40}ms` : `${MAX_STAGGER * 40}ms`,
+      }}
+    >
+      <div
+        className="w-[18px] h-[18px] rounded-full shrink-0 flex items-center justify-center transition-all duration-150"
+        style={{
+          backgroundColor: checked ? "#3b82f6" : "transparent",
+          border: checked ? "none" : "2px solid var(--input-border)",
+        }}
+      >
+        {checked && (
+          <svg
+            width="10"
+            height="8"
+            viewBox="0 0 10 8"
+            fill="none"
+            className="animate-[checkScale_0.2s_ease-out]"
+          >
+            <path
+              d="M1 4L3.5 6.5L9 1"
+              stroke="white"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        <span className="text-sm text-foreground block truncate">{course.name}</span>
+        {course.subtitle && (
+          <span className="text-xs text-subtle-foreground block truncate">{course.subtitle}</span>
+        )}
+      </div>
+    </label>
+  );
+}
+
+/**
+ * Full-screen animated course selection modal with optional grouped sections.
+ * Features: backdrop fade, slide-up entrance, staggered course row fade-in,
  * smooth exit animation, and custom checkbox with animated fill + checkmark.
  *
  * @param open - Controls mount/unmount with enter/exit animation
  * @param onClose - Called after exit animation finishes
  * @param title - Header text
- * @param courses - Array of { id, name, subtitle? }
+ * @param courses - Flat array of { id, name, subtitle? } (ignored if groups provided)
+ * @param groups - Optional grouped sections with label, courses, and color
  * @param selectedIds - Set of selected course IDs
  * @param onToggle - Toggle handler for a single course
  * @param onSelectAll - Select all handler
@@ -52,6 +123,7 @@ export default function CourseSelectModal<T extends string | number>({
   onClose,
   title,
   courses,
+  groups,
   selectedIds,
   onToggle,
   onSelectAll,
@@ -60,11 +132,14 @@ export default function CourseSelectModal<T extends string | number>({
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
 
-  // Mount → make visible (triggers enter animation)
+  // Compute total courses from groups or flat list
+  const allCourses = groups ? groups.flatMap((g) => g.courses) : courses;
+  const totalCount = allCourses.length;
+
+  // Mount -> make visible (triggers enter animation)
   useEffect(() => {
     if (open) {
       setMounted(true);
-      // RAF ensures DOM is painted before applying visible class
       requestAnimationFrame(() => setVisible(true));
     } else {
       setVisible(false);
@@ -96,30 +171,27 @@ export default function CourseSelectModal<T extends string | number>({
 
   if (!mounted) return null;
 
-  const allSelected = courses.length > 0 && selectedIds.size === courses.length;
+  const allSelected = totalCount > 0 && selectedIds.size === totalCount;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
-      onClick={handleClose}
-    >
+    <div className="fixed inset-0 z-50 flex items-end justify-center">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-200 ease-out"
         style={{ opacity: visible ? 1 : 0 }}
+        onClick={handleClose}
       />
 
-      {/* Modal card */}
+      {/* Full-screen modal */}
       <div
-        className={`relative bg-card rounded-2xl border border-border shadow-2xl w-full max-w-lg mx-4 max-h-[80vh] flex flex-col ${
+        className={`relative bg-card w-full h-full flex flex-col ${
           visible ? "animate-modal-in" : "animate-modal-out"
         }`}
-        onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="px-5 py-4 border-b border-border flex items-center justify-between shrink-0">
           <h3 className="text-sm font-semibold text-foreground">
-            {title} ({selectedIds.size}/{courses.length})
+            {title} ({selectedIds.size}/{totalCount})
           </h3>
           <div className="flex items-center gap-3">
             <button
@@ -141,53 +213,88 @@ export default function CourseSelectModal<T extends string | number>({
 
         {/* Course list */}
         <div className="flex-1 overflow-auto">
-          {courses.map((course, i) => {
-            const checked = selectedIds.has(course.id);
-            return (
-              <label
-                key={String(course.id)}
-                className="flex items-center gap-3 px-5 py-3 hover:bg-accent transition-colors cursor-pointer border-b border-border-subtle last:border-0 animate-row-fade-in"
-                style={{
-                  animationDelay: i < MAX_STAGGER ? `${i * 40}ms` : `${MAX_STAGGER * 40}ms`,
-                }}
-              >
-                {/* Custom checkbox */}
-                <div
-                  className="w-[18px] h-[18px] rounded-full shrink-0 flex items-center justify-center transition-all duration-150"
-                  style={{
-                    backgroundColor: checked ? "#3b82f6" : "transparent",
-                    border: checked ? "none" : "2px solid var(--input-border)",
-                  }}
-                >
-                  {checked && (
-                    <svg
-                      width="10"
-                      height="8"
-                      viewBox="0 0 10 8"
-                      fill="none"
-                      className="animate-[checkScale_0.2s_ease-out]"
-                    >
-                      <path
-                        d="M1 4L3.5 6.5L9 1"
-                        stroke="white"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
+          {groups ? (
+            // Grouped display with section headers
+            groups.map((group) => {
+              if (group.courses.length === 0) return null;
+              return (
+                <div key={group.label}>
+                  <div className="sticky top-0 z-10 bg-muted px-5 py-2 border-b border-border-subtle flex items-center gap-2">
+                    {group.color && (
+                      <span
+                        className="w-2 h-2 rounded-full shrink-0"
+                        style={{ backgroundColor: group.color }}
                       />
-                    </svg>
-                  )}
+                    )}
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      {group.label}
+                    </span>
+                    <span className="text-xs text-subtle-foreground">
+                      ({group.courses.filter((c) => selectedIds.has(c.id)).length}/{group.courses.length})
+                    </span>
+                  </div>
+                  {group.courses.map((course, i) => (
+                    <label
+                      key={String(course.id)}
+                      className="flex items-center gap-3 px-5 py-3 hover:bg-accent transition-colors cursor-pointer border-b border-border-subtle last:border-0 animate-row-fade-in"
+                      style={{
+                        animationDelay: i < MAX_STAGGER ? `${i * 40}ms` : `${MAX_STAGGER * 40}ms`,
+                      }}
+                      onClick={() => onToggle(course.id)}
+                    >
+                      <div
+                        className="w-[18px] h-[18px] rounded-full shrink-0 flex items-center justify-center transition-all duration-150"
+                        style={{
+                          backgroundColor: selectedIds.has(course.id) ? "#3b82f6" : "transparent",
+                          border: selectedIds.has(course.id) ? "none" : "2px solid var(--input-border)",
+                        }}
+                      >
+                        {selectedIds.has(course.id) && (
+                          <svg
+                            width="10"
+                            height="8"
+                            viewBox="0 0 10 8"
+                            fill="none"
+                            className="animate-[checkScale_0.2s_ease-out]"
+                          >
+                            <path
+                              d="M1 4L3.5 6.5L9 1"
+                              stroke="white"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <span className="text-sm text-foreground block truncate">{course.name}</span>
+                        {course.subtitle && (
+                          <span className="text-xs text-subtle-foreground block truncate">{course.subtitle}</span>
+                        )}
+                      </div>
+                    </label>
+                  ))}
                 </div>
-
-                <div className="flex-1 min-w-0">
-                  <span className="text-sm text-foreground block truncate">{course.name}</span>
-                  {course.subtitle && (
-                    <span className="text-xs text-subtle-foreground block truncate">{course.subtitle}</span>
-                  )}
+              );
+            })
+          ) : (
+            // Flat list (backward-compatible)
+            <>
+              {courses.map((course, i) => {
+                const checked = selectedIds.has(course.id);
+                return (
+                  <CourseRow key={String(course.id)} course={course} checked={checked} index={i} />
+                );
+              })}
+              {courses.length === 0 && (
+                <div className="px-5 py-8 text-sm text-subtle-foreground text-center">
+                  No active courses found.
                 </div>
-              </label>
-            );
-          })}
-          {courses.length === 0 && (
+              )}
+            </>
+          )}
+          {groups && allCourses.length === 0 && (
             <div className="px-5 py-8 text-sm text-subtle-foreground text-center">
               No active courses found.
             </div>

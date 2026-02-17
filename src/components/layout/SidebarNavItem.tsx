@@ -9,6 +9,8 @@ interface SidebarNavItemProps {
   href: string;
   icon: LucideIcon;
   badge?: boolean;
+  /** Optional HTML id for tour targeting. */
+  id?: string;
 }
 
 /**
@@ -21,12 +23,13 @@ interface SidebarNavItemProps {
  * @param icon - Lucide icon component
  * @param badge - Whether to show a notification dot next to the label
  */
-export default function SidebarNavItem({ label, href, icon: Icon, badge }: SidebarNavItemProps) {
+export default function SidebarNavItem({ label, href, icon: Icon, badge, id }: SidebarNavItemProps) {
   const pathname = usePathname();
   const isActive = pathname === href;
 
   return (
     <Link
+      id={id}
       href={href}
       prefetch={true}
       className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${

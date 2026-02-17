@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import type { IntegrationCredentials } from "@/lib/types";
 import CanvasSettings from "./CanvasSettings";
 import GradescopeSettings from "./GradescopeSettings";
+import ClassesSection from "./ClassesSection";
 
 const CACHE_KEY = "caltodo_credentials_cache";
 
@@ -108,6 +109,7 @@ export default function IntegrationSettings() {
     <div className="max-w-xl space-y-8">
       <CanvasSettings credentials={credentials} onUpdate={handleUpdate} />
       <GradescopeSettings credentials={credentials} onUpdate={handleUpdate} />
+      <ClassesSection credentials={credentials} onUpdate={handleUpdate} />
     </div>
   );
 }

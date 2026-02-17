@@ -29,13 +29,14 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
             className="h-10 dark:invert"
           />
         </div>
-        <nav className="flex flex-col gap-1">
+        <nav id="tour-sidebar-nav" className="flex flex-col gap-1">
           {NAV_ITEMS.map((item) => (
             <SidebarNavItem
               key={item.href}
               label={item.label}
               href={item.href}
               icon={item.icon}
+              id={`tour-nav-${item.label.toLowerCase()}`}
             />
           ))}
         </nav>
