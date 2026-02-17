@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { signIn, signUp } from "@/app/login/actions";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/contexts/ToastContext";
@@ -11,7 +12,8 @@ import { useToast } from "@/contexts/ToastContext";
  */
 export default function LoginForm() {
   const { showToast } = useToast();
-  const [isSignUp, setIsSignUp] = useState(false);
+  const searchParams = useSearchParams();
+  const [isSignUp, setIsSignUp] = useState(searchParams.get("signup") === "true");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 

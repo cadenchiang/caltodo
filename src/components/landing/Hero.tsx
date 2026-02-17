@@ -38,7 +38,7 @@ export default function Hero() {
         </div>
         <div className="flex items-center gap-3">
           <Link
-            href="/login"
+            href="/login?signup=true"
             className="px-5 py-2 text-sm font-medium rounded-full bg-black text-white btn-elevated-primary"
           >
             Get Started
@@ -105,7 +105,7 @@ export default function Hero() {
         </p>
 
         {/* CTA */}
-        <Link href="/login" className="animate-appear opacity-0 delay-700">
+        <Link href="/login?signup=true" className="animate-appear opacity-0 delay-700">
           <InteractiveHoverButton
             text="Get Started"
             className="w-56 text-base border-black bg-black text-white"

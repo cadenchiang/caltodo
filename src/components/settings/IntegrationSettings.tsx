@@ -41,43 +41,45 @@ function setCachedCredentials(creds: IntegrationCredentials): void {
  * hydration mismatch. useEffect on mount hydrates from localStorage
  * cache, then fetches fresh data from API in the background.
  */
+/** Default empty credentials used for instant render before API responds. */
+const EMPTY_CREDENTIALS: IntegrationCredentials = {
+  canvas_token: null,
+  canvas_base_url: "",
+  gradescope_email: null,
+  has_gradescope_password: false,
+  last_synced_at: null,
+  selected_canvas_courses: null,
+  selected_gradescope_courses: null,
+  has_google_calendar: false,
+  google_calendar_id: null,
+  google_email: null,
+  google_photo_url: null,
+};
+
 export default function IntegrationSettings() {
-  const [credentials, setCredentials] = useState<IntegrationCredentials | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [credentials, setCredentials] = useState<IntegrationCredentials>(
+    () => getCachedCredentials() ?? EMPTY_CREDENTIALS
+  );
 
   /**
    * Fetches integration credentials from the API.
    * Updates both state and localStorage cache on success.
-   *
-   * @param cached - Whether a cache hit was used for initial render
    */
-  const fetchCredentials = useCallback(async (cached: boolean) => {
+  const fetchCredentials = useCallback(async () => {
     try {
       const res = await fetch("/api/credentials");
       if (res.ok) {
         const data: IntegrationCredentials = await res.json();
         setCredentials(data);
         setCachedCredentials(data);
-      } else if (!cached) {
-        setFetchError("Failed to load credentials");
       }
     } catch {
-      if (!cached) {
-        setFetchError("Failed to load credentials");
-      }
-    } finally {
-      setLoading(false);
+      /* silently fail — cached or empty state is already shown */
     }
   }, []);
 
   useEffect(() => {
-    const cached = getCachedCredentials();
-    if (cached) {
-      setCredentials(cached);
-      setLoading(false);
-    }
-    fetchCredentials(!!cached);
+    fetchCredentials();
   }, [fetchCredentials]);
 
   /**
@@ -87,22 +89,6 @@ export default function IntegrationSettings() {
   function handleUpdate(updated: IntegrationCredentials) {
     setCredentials(updated);
     setCachedCredentials(updated);
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12 text-subtle-foreground text-sm">
-        Loading settings...
-      </div>
-    );
-  }
-
-  if (fetchError || !credentials) {
-    return (
-      <div className="bg-red-50 dark:bg-red-900/20 text-red-500 text-sm p-3 rounded-xl">
-        {fetchError || "Failed to load credentials"}
-      </div>
-    );
   }
 
   return (
