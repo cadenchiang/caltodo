@@ -214,9 +214,22 @@ export default function TaskDetailPanel({ task, onClose, onSave }: TaskDetailPan
                 </div>
               </Popover>
             </div>
+
+            {/* Open source link */}
+            {task.source_url && (
+              <a
+                href={task.source_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-1 text-subtle-foreground hover:text-foreground rounded-lg hover:bg-accent transition-colors"
+                aria-label="Open in source"
+              >
+                <ExternalLink size={14} />
+              </a>
+            )}
           </div>
 
-          {/* Source badge + submission link */}
+          {/* Source badge + course name */}
           {(task.source || task.course_name || task.is_submitted) && (
             <div className="flex items-center gap-2 px-5 pt-3 flex-wrap">
               {task.source && (
@@ -231,7 +244,7 @@ export default function TaskDetailPanel({ task, onClose, onSave }: TaskDetailPan
                 </span>
               )}
               {task.course_name && (
-                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded text-purple-600 bg-purple-50 dark:bg-purple-900/30">
+                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded text-black bg-gray-100 dark:text-white dark:bg-white/10">
                   {task.course_name}
                 </span>
               )}
@@ -239,17 +252,6 @@ export default function TaskDetailPanel({ task, onClose, onSave }: TaskDetailPan
                 <span className="text-[10px] font-medium px-1.5 py-0.5 rounded text-green-600 bg-green-50 dark:bg-green-900/30">
                   Submitted
                 </span>
-              )}
-              {task.source_url && (
-                <a
-                  href={task.source_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded text-muted-foreground hover:text-foreground bg-accent hover:bg-muted transition-colors"
-                >
-                  <ExternalLink size={10} />
-                  Open
-                </a>
               )}
             </div>
           )}

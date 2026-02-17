@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { RotateCcw, Trash2 } from "lucide-react";
+import { RotateCcw, Trash2, Play } from "lucide-react";
 import { useTaskContext } from "@/contexts/TaskContext";
 import { useToast } from "@/contexts/ToastContext";
 import IntegrationSettings from "@/components/settings/IntegrationSettings";
@@ -40,6 +40,20 @@ export default function SettingsPage() {
     }
     setConfirmRedo(false);
     router.push("/app/onboarding");
+  }
+
+  /**
+   * Restarts the app tour by clearing completion flag and setting pending flag,
+   * then navigating to the inbox where the tour dialog will appear.
+   */
+  function handleRestartTour() {
+    try {
+      localStorage.removeItem("caltodo_tour_completed");
+      localStorage.setItem("caltodo_tour_pending", "true");
+    } catch {
+      /* non-critical */
+    }
+    router.push("/app/inbox");
   }
 
   /**
@@ -94,6 +108,14 @@ export default function SettingsPage() {
                   Data management and setup options.
                 </p>
                 <div className="flex flex-col gap-2">
+                  <button
+                    onClick={handleRestartTour}
+                    className="flex items-center gap-2 px-4 py-2.5 text-sm rounded-xl transition-colors w-fit text-muted-foreground hover:text-foreground hover:bg-accent"
+                  >
+                    <Play size={15} />
+                    Restart Tutorial
+                  </button>
+
                   <button
                     onClick={handleRedoSetup}
                     className={`flex items-center gap-2 px-4 py-2.5 text-sm rounded-xl transition-colors w-fit ${

@@ -12,6 +12,19 @@ const TOUR_COMPLETED_KEY = "caltodo_tour_completed";
  * Tour step definitions for the full app tour.
  * Steps can specify a route to navigate to before highlighting the target.
  */
+/**
+ * Simulates a click on the filter button to open/close the dropdown.
+ * Used by the tour to demonstrate the filter UI.
+ */
+function clickFilterButton() {
+  const btn = document.querySelector("#tour-filter button") as HTMLElement | null;
+  btn?.click();
+}
+
+/**
+ * Tour step definitions for the full app tour.
+ * Steps can specify a route to navigate to before highlighting the target.
+ */
 const TOUR_STEPS: TourStep[] = [
   {
     targetId: "tour-sidebar-nav",
@@ -26,6 +39,8 @@ const TOUR_STEPS: TourStep[] = [
     description: "Click here to filter your tasks — view all, just today's, or the next 7 days. Keep focused on what matters most.",
     position: "bottom",
     route: "/app/inbox",
+    onEnter: () => clickFilterButton(),
+    onExit: () => clickFilterButton(),
   },
   {
     targetId: "tour-add-task",

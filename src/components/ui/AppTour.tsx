@@ -29,6 +29,10 @@ export interface TourStep {
   position?: TourPosition;
   /** Route to navigate to before showing this step (e.g. "/app/calendar"). */
   route?: string;
+  /** Called when this step becomes active (e.g. to open a dropdown). */
+  onEnter?: () => void;
+  /** Called when leaving this step (e.g. to close a dropdown). */
+  onExit?: () => void;
 }
 
 interface TourContextValue {
@@ -197,8 +201,11 @@ export function TourProvider({ children, steps, onComplete }: TourProviderProps)
     // Scroll the target into view smoothly
     el.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
 
-    // Small delay for scroll to settle, then position the spotlight
-    await new Promise((r) => setTimeout(r, 350));
+    // Fire onEnter callback (e.g. open a dropdown)
+    step.onEnter?.();
+
+    // Small delay for scroll + onEnter effects to settle, then position the spotlight
+    await new Promise((r) => setTimeout(r, 450));
 
     const rect = el.getBoundingClientRect();
     setTargetRect(rect);
@@ -245,6 +252,10 @@ export function TourProvider({ children, steps, onComplete }: TourProviderProps)
   }, [steps.length]);
 
   const endTour = useCallback(() => {
+    // Fire onExit for current step
+    if (currentStep >= 0 && currentStep < steps.length) {
+      steps[currentStep].onExit?.();
+    }
     setCurrentStep(-1);
     setTargetRect(null);
     setCardPos(null);
@@ -259,26 +270,33 @@ export function TourProvider({ children, steps, onComplete }: TourProviderProps)
     // Navigate back to inbox when tour ends
     router.push("/app/inbox");
     onComplete?.();
-  }, [onComplete, router]);
+  }, [onComplete, router, currentStep, steps]);
 
   const nextStep = useCallback(() => {
+    // Fire onExit for current step
+    if (currentStep >= 0 && currentStep < steps.length) {
+      steps[currentStep].onExit?.();
+    }
     if (currentStep >= steps.length - 1) {
       endTour();
     } else {
       setVisible(false);
       setTargetRect(null);
       setCardPos(null);
-      // Brief delay so fade-out completes before next step activates
       setTimeout(() => setCurrentStep((prev) => prev + 1), 150);
     }
-  }, [currentStep, steps.length, endTour]);
+  }, [currentStep, steps, endTour]);
 
   const prevStep = useCallback(() => {
+    // Fire onExit for current step
+    if (currentStep >= 0 && currentStep < steps.length) {
+      steps[currentStep].onExit?.();
+    }
     setVisible(false);
     setTargetRect(null);
     setCardPos(null);
     setTimeout(() => setCurrentStep((prev) => Math.max(0, prev - 1)), 150);
-  }, []);
+  }, [currentStep, steps]);
 
   // Close on Escape
   useEffect(() => {
