@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { X, ChevronLeft } from "lucide-react";
 import { useTaskContext } from "@/contexts/TaskContext";
+import { trackEvent } from "@/lib/analytics";
 import CanvasStep from "@/components/onboarding/CanvasStep";
 import GradescopeStep from "@/components/onboarding/GradescopeStep";
 type Step = "welcome" | "canvas" | "gradescope" | "done";
@@ -72,6 +73,11 @@ export default function OnboardingPage() {
 
   const stepIndex = STEPS.indexOf(currentStep);
 
+  // Track when each step is viewed
+  useEffect(() => {
+    trackEvent("onboarding_step_viewed", { step: currentStep });
+  }, [currentStep]);
+
   // Prefetch inbox route so post-onboarding navigation is instant
   useEffect(() => {
     router.prefetch("/app/inbox");
@@ -115,6 +121,7 @@ export default function OnboardingPage() {
   }): Promise<boolean> {
     const ok = await saveCredentials(payload);
     if (!ok) return false;
+    trackEvent("onboarding_step_completed", { step: "canvas" });
     setCurrentStep("gradescope");
     return true;
   }
@@ -129,6 +136,7 @@ export default function OnboardingPage() {
   }): Promise<boolean> {
     const ok = await saveCredentials(payload);
     if (!ok) return false;
+    trackEvent("onboarding_step_completed", { step: "gradescope" });
     setCurrentStep("done");
     return true;
   }
@@ -141,6 +149,7 @@ export default function OnboardingPage() {
    * Sync continues via TaskContext even after navigation.
    */
   function handleSyncAndGo() {
+    trackEvent("onboarding_completed");
     setExiting(true);
     // Signal the app tour to start after landing on inbox
     try {
@@ -203,7 +212,7 @@ export default function OnboardingPage() {
 
         {/* Close button */}
         <button
-          onClick={() => router.push("/app/inbox")}
+          onClick={() => { trackEvent("onboarding_exited", { step: currentStep }); router.push("/app/inbox"); }}
           className="p-1.5 text-gray-400 hover:text-gray-800 transition-colors rounded-lg shrink-0"
           aria-label="Close onboarding"
         >
@@ -243,7 +252,7 @@ export default function OnboardingPage() {
                   get started
                 </button>
                 <button
-                  onClick={() => router.push("/app/inbox")}
+                  onClick={() => { trackEvent("onboarding_step_skipped", { step: "welcome" }); router.push("/app/inbox"); }}
                   className="mt-4 px-4 py-2.5 text-sm text-gray-400 rounded-xl bg-white animate-drop-in delay-300 btn-elevated-secondary"
                 >
                   skip for now
@@ -254,7 +263,7 @@ export default function OnboardingPage() {
             {currentStep === "canvas" && (
               <CanvasStep
                 onNext={handleCanvasNext}
-                onSkip={() => setCurrentStep("gradescope")}
+                onSkip={() => { trackEvent("onboarding_step_skipped", { step: "canvas" }); setCurrentStep("gradescope"); }}
                 saving={saving}
                 error={error}
                 setError={setError}
@@ -264,7 +273,7 @@ export default function OnboardingPage() {
             {currentStep === "gradescope" && (
               <GradescopeStep
                 onNext={handleGradescopeNext}
-                onSkip={() => setCurrentStep("done")}
+                onSkip={() => { trackEvent("onboarding_step_skipped", { step: "gradescope" }); setCurrentStep("done"); }}
                 saving={saving}
                 error={error}
                 setError={setError}

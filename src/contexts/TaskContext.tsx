@@ -5,6 +5,7 @@ import { Undo2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/contexts/ToastContext";
 import type { Task, TaskInsert, TaskUpdate, SyncResult } from "@/lib/types";
+import { trackEvent } from "@/lib/analytics";
 
 /** localStorage key and version for stale-while-revalidate task caching. */
 const CACHE_KEY = "caltodo_tasks_cache";
@@ -244,6 +245,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       return updated;
     });
     setError(null);
+    trackEvent("task_created");
 
     // Persist to Supabase and replace temp with real record
     const { data, error: insertError } = await supabase
@@ -283,6 +285,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
   }
 
   async function updateTask(id: string, updates: TaskUpdate) {
+    trackEvent("task_updated");
     setTasks((prev) => {
       const updated = prev.map((t) =>
         t.id === id ? { ...t, ...updates, updated_at: new Date().toISOString() } : t
@@ -313,6 +316,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     const task = tasks.find((t) => t.id === id);
     if (!task) return;
     const willComplete = !task.is_completed;
+    trackEvent(willComplete ? "task_completed" : "task_uncompleted");
     await updateTask(id, { is_completed: willComplete });
 
     if (willComplete) {
@@ -327,6 +331,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
   }
 
   async function deleteTask(id: string) {
+    trackEvent("task_deleted");
     // Capture task before optimistic removal for GCal cleanup
     const taskToDelete = tasks.find((t) => t.id === id);
 
@@ -369,6 +374,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    trackEvent("all_tasks_deleted");
     const previousTasks = [...tasks];
     setTasks([]);
     clearCachedTasks();
@@ -422,6 +428,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     setError(null);
     setSyncResult(null);
     startProgressTimer();
+    trackEvent("sync_started");
 
     try {
       const res = await fetch("/api/assignments/sync", {
@@ -439,11 +446,17 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       const result: SyncResult = await res.json();
       setSyncResult(result);
       setLastSyncedAt(result.last_synced_at);
+      trackEvent("sync_completed", {
+        added: result.canvas.synced + result.gradescope.synced,
+        errors: result.canvas.errors.length + result.gradescope.errors.length,
+      });
 
       // Refresh tasks list after sync to include new assignments
       await fetchTasks();
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      const message = err instanceof Error ? err.message : String(err);
+      trackEvent("sync_failed", { error: message });
+      setError(message);
     } finally {
       stopProgressTimer();
       setSyncing(false);

@@ -11,6 +11,7 @@ import TaskDetailPanel from "@/components/tasks/TaskDetailPanel";
 import TaskPopover from "@/components/tasks/TaskPopover";
 import PageTransition from "@/components/ui/PageTransition";
 import type { Task, IntegrationCredentials } from "@/lib/types";
+import { trackEvent } from "@/lib/analytics";
 
 type InboxFilter = "all" | "today" | "7days";
 type ViewMode = "list" | "board";
@@ -135,6 +136,7 @@ export default function InboxPage() {
 
   /** Sets filter, persists to localStorage, and dispatches event for sidebar. */
   const setFilter = useCallback((f: InboxFilter) => {
+    trackEvent("filter_changed", { filter: f });
     setFilterRaw(f);
     localStorage.setItem("inbox-filter", f);
     window.dispatchEvent(new CustomEvent("inbox-filter-change", { detail: f }));
@@ -532,7 +534,7 @@ export default function InboxPage() {
                       return (
                         <>
                           <button
-                            onClick={() => { setValue("date"); setShowSortMenu(false); }}
+                            onClick={() => { trackEvent("sort_mode_changed", { sort: "date" }); setValue("date"); setShowSortMenu(false); }}
                             className={`flex items-center gap-2 w-full text-left px-3 py-2 text-sm transition-colors ${
                               currentValue === "date"
                                 ? "text-foreground font-medium"
@@ -543,7 +545,7 @@ export default function InboxPage() {
                             Date
                           </button>
                           <button
-                            onClick={() => { setValue("class"); setShowSortMenu(false); }}
+                            onClick={() => { trackEvent("sort_mode_changed", { sort: "class" }); setValue("class"); setShowSortMenu(false); }}
                             className={`flex items-center gap-2 w-full text-left px-3 py-2 text-sm transition-colors ${
                               currentValue === "class"
                                 ? "text-foreground font-medium"
@@ -580,7 +582,7 @@ export default function InboxPage() {
                   }}
                 >
                   <button
-                    onClick={() => { setViewMode("list"); setShowViewMenu(false); }}
+                    onClick={() => { trackEvent("view_mode_changed", { mode: "list" }); setViewMode("list"); setShowViewMenu(false); }}
                     className={`flex items-center gap-2 w-full text-left px-3 py-2 text-sm transition-colors ${
                       viewMode === "list"
                         ? "text-foreground font-medium"
@@ -593,7 +595,7 @@ export default function InboxPage() {
                   </button>
                   <button
                     id="tour-board-option"
-                    onClick={() => { setViewMode("board"); setShowViewMenu(false); }}
+                    onClick={() => { trackEvent("view_mode_changed", { mode: "board" }); setViewMode("board"); setShowViewMenu(false); }}
                     className={`flex items-center gap-2 w-full text-left px-3 py-2 text-sm transition-colors ${
                       viewMode === "board"
                         ? "text-foreground font-medium"

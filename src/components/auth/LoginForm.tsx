@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { signIn, signUp } from "@/app/login/actions";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/contexts/ToastContext";
+import { trackEvent } from "@/lib/analytics";
 
 /**
  * Login/signup form with always-white styling, clean minimal layout, and staggered
@@ -23,6 +24,7 @@ export default function LoginForm() {
     setLoading(true);
 
     const formData = new FormData(e.currentTarget);
+    trackEvent(isSignUp ? "sign_up_submitted" : "sign_in_submitted", { method: "email" });
     const action = isSignUp ? signUp : signIn;
     const result = await action(formData);
 
@@ -30,6 +32,7 @@ export default function LoginForm() {
 
     if (result && "error" in result) {
       setError(result.error);
+      trackEvent("auth_error", { error: result.error, mode: isSignUp ? "sign_up" : "sign_in" });
     } else if (result && "success" in result) {
       showToast(result.success);
     }
@@ -41,6 +44,7 @@ export default function LoginForm() {
    */
   async function handleGoogleSignIn() {
     setError(null);
+    trackEvent("google_oauth_clicked");
     const supabase = createClient();
 
     const { error: oauthError } = await supabase.auth.signInWithOAuth({

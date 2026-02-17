@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
+import { trackEvent } from "@/lib/analytics";
 
 /** localStorage key for persisting theme preference. */
 const THEME_KEY = "caltodo_theme";
@@ -143,6 +144,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, [preference]);
 
   const setPreference = useCallback((pref: ThemePreference) => {
+    trackEvent("theme_changed", { theme: pref });
     const resolved = resolveTheme(pref);
     setPreferenceState(pref);
     setResolvedTheme(resolved);
@@ -157,6 +159,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const toggleTheme = useCallback(() => {
     setPreferenceState((prev) => {
       const next = CYCLE[prev];
+      trackEvent("theme_changed", { theme: next });
       const resolved = resolveTheme(next);
       setResolvedTheme(resolved);
       applyTheme(resolved, true);
