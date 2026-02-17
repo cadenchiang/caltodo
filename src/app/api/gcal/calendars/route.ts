@@ -10,6 +10,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getValidAccessToken, getCalendarId } from "@/lib/gcal/token-manager";
 import { listWritableCalendars } from "@/lib/gcal/calendar-client";
 import { logger } from "@/lib/logger";
+import { rateLimit } from "@/lib/rate-limit";
 
 export async function GET() {
   const supabase = await createClient();
@@ -17,6 +18,11 @@ export async function GET() {
 
   if (authError || !user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { allowed } = rateLimit(`gcal-calendars:${user.id}`, 30, 60_000);
+  if (!allowed) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
 
   const accessToken = await getValidAccessToken(supabase, user.id);

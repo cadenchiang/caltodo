@@ -11,6 +11,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { generateCalendarToken } from "@/lib/calendar-token";
 import { logger } from "@/lib/logger";
+import { rateLimit } from "@/lib/rate-limit";
 
 /**
  * GET /api/calendar/token
@@ -22,6 +23,11 @@ export async function GET() {
 
   if (authError || !user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { allowed } = rateLimit(`calendar-token:${user.id}`, 30, 60_000);
+  if (!allowed) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
 
   const { data, error } = await supabase
@@ -37,7 +43,7 @@ export async function GET() {
       code: error.code,
     });
     return NextResponse.json(
-      { error: `Failed to fetch calendar token: ${error.message}` },
+      { error: "Failed to fetch calendar token" },
       { status: 500 }
     );
   }
@@ -58,6 +64,11 @@ export async function POST() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const { allowed } = rateLimit(`calendar-token:${user.id}`, 30, 60_000);
+  if (!allowed) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
+
   const newToken = generateCalendarToken();
 
   // Check if user already has a credentials row
@@ -74,7 +85,7 @@ export async function POST() {
       code: fetchError.code,
     });
     return NextResponse.json(
-      { error: `Failed to check credentials: ${fetchError.message}` },
+      { error: "Failed to check credentials" },
       { status: 500 }
     );
   }
@@ -104,7 +115,7 @@ export async function POST() {
       hint: dbError.hint,
     });
     return NextResponse.json(
-      { error: `Failed to generate calendar token: ${dbError.message}` },
+      { error: "Failed to generate calendar token" },
       { status: 500 }
     );
   }
@@ -126,6 +137,11 @@ export async function DELETE() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const { allowed } = rateLimit(`calendar-token:${user.id}`, 30, 60_000);
+  if (!allowed) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
+
   const { error } = await supabase
     .from("integration_credentials")
     .update({ calendar_token: null })
@@ -138,7 +154,7 @@ export async function DELETE() {
       code: error.code,
     });
     return NextResponse.json(
-      { error: `Failed to disable calendar feed: ${error.message}` },
+      { error: "Failed to disable calendar feed" },
       { status: 500 }
     );
   }

@@ -21,6 +21,7 @@ import {
   deleteCalendarEvent,
 } from "@/lib/gcal/calendar-client";
 import { logger } from "@/lib/logger";
+import { rateLimit } from "@/lib/rate-limit";
 import type { GCalSyncResponse, Task } from "@/lib/types";
 
 interface SyncRequestBody {
@@ -35,6 +36,11 @@ export async function POST(request: NextRequest) {
 
   if (authError || !user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { allowed } = rateLimit(`gcal-sync:${user.id}`, 30, 60_000);
+  if (!allowed) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
 
   let body: SyncRequestBody;

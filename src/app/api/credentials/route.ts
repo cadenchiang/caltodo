@@ -8,6 +8,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { encrypt } from "@/lib/crypto";
 import { logger } from "@/lib/logger";
+import { rateLimit } from "@/lib/rate-limit";
 import type { IntegrationCredentials, CredentialsSavePayload } from "@/lib/types";
 
 /**
@@ -21,6 +22,11 @@ export async function GET() {
 
   if (authError || !user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { allowed } = rateLimit(`credentials:${user.id}`, 30, 60_000);
+  if (!allowed) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
 
   const { data, error } = await supabase
@@ -64,6 +70,11 @@ export async function PUT(request: Request) {
 
   if (authError || !user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { allowed } = rateLimit(`credentials:${user.id}`, 30, 60_000);
+  if (!allowed) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
 
   let body: CredentialsSavePayload;

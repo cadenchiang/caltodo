@@ -7,6 +7,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { runSync, type SyncCourseOverrides } from "@/lib/sync-engine";
 import { logger } from "@/lib/logger";
+import { rateLimit } from "@/lib/rate-limit";
 
 /**
  * POST /api/assignments/sync
@@ -22,9 +23,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const { allowed } = rateLimit(`assignments-sync:${user.id}`, 30, 60_000);
+  if (!allowed) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
+
   try {
     const body = await request.json().catch(() => ({}));
-    const timezone = body.timezone || "America/Los_Angeles";
+    const rawTimezone = body.timezone || "America/Los_Angeles";
+
+    // Validate timezone against IANA database to prevent injection of arbitrary strings
+    const validTimezones = Intl.supportedValuesOf("timeZone");
+    const timezone = validTimezones.includes(rawTimezone) ? rawTimezone : "America/Los_Angeles";
 
     // Build course overrides if provided by the client
     const courseOverrides: SyncCourseOverrides | undefined =

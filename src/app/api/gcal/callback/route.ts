@@ -11,6 +11,7 @@ import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { encrypt } from "@/lib/crypto";
 import { logger } from "@/lib/logger";
+import { rateLimit } from "@/lib/rate-limit";
 
 /** Google OAuth2 token endpoint. */
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
@@ -43,6 +44,11 @@ export async function GET(request: NextRequest) {
 
   if (authError || !user) {
     return NextResponse.redirect(new URL("/login", request.url));
+  }
+
+  const { allowed } = rateLimit(`gcal-callback:${user.id}`, 30, 60_000);
+  if (!allowed) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
 
   const { searchParams } = new URL(request.url);

@@ -10,6 +10,7 @@ import { createClient } from "@/lib/supabase/server";
 import { gradescopeLogin, fetchGradescopeCourses } from "@/lib/gradescope-client";
 import { decrypt } from "@/lib/crypto";
 import { logger } from "@/lib/logger";
+import { rateLimit } from "@/lib/rate-limit";
 
 /**
  * POST /api/gradescope/courses
@@ -22,6 +23,11 @@ export async function POST(request: NextRequest) {
 
   if (authError || !user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { allowed } = rateLimit(`gradescope-courses:${user.id}`, 30, 60_000);
+  if (!allowed) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
 
   let email: string;

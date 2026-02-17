@@ -12,9 +12,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateICalFeed } from "@/lib/ical";
 import { logger } from "@/lib/logger";
+import { rateLimit } from "@/lib/rate-limit";
 import type { Task } from "@/lib/types";
 
 export async function GET(request: NextRequest) {
+  // Rate limit by IP since this endpoint uses token auth, not session cookies
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const { allowed } = rateLimit(`calendar-feed:${ip}`, 10, 60_000);
+  if (!allowed) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
+
   const token = request.nextUrl.searchParams.get("token");
 
   if (!token) {

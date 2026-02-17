@@ -21,6 +21,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getValidAccessToken, getCalendarId } from "@/lib/gcal/token-manager";
 import { createCalendarEvent } from "@/lib/gcal/calendar-client";
 import { logger } from "@/lib/logger";
+import { rateLimit } from "@/lib/rate-limit";
 import type { Task } from "@/lib/types";
 
 /** Max concurrent Google Calendar API requests (kept low to avoid 403 rate limits). */
@@ -32,6 +33,11 @@ export async function POST() {
 
   if (authError || !user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { allowed } = rateLimit(`gcal-initial-sync:${user.id}`, 30, 60_000);
+  if (!allowed) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
 
   const accessToken = await getValidAccessToken(supabase, user.id);

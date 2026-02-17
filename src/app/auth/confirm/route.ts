@@ -10,7 +10,11 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const token_hash = searchParams.get("token_hash");
   const type = searchParams.get("type");
-  const next = searchParams.get("next") ?? "/app/inbox";
+  const rawNext = searchParams.get("next") ?? "/app/inbox";
+
+  // Validate redirect target: must be a relative path starting with "/" but not "//"
+  // to prevent open redirect attacks (e.g. "//evil.com" resolves as protocol-relative URL).
+  const next = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/app/inbox";
 
   const redirectTo = request.nextUrl.clone();
   redirectTo.pathname = next;

@@ -13,6 +13,7 @@ import { createClient } from "@/lib/supabase/server";
 import { decrypt } from "@/lib/crypto";
 import { deleteCaltodoCalendar } from "@/lib/gcal/calendar-client";
 import { logger } from "@/lib/logger";
+import { rateLimit } from "@/lib/rate-limit";
 
 /** Google OAuth2 token revocation endpoint. */
 const GOOGLE_REVOKE_URL = "https://oauth2.googleapis.com/revoke";
@@ -23,6 +24,11 @@ export async function POST() {
 
   if (authError || !user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { allowed } = rateLimit(`gcal-disconnect:${user.id}`, 30, 60_000);
+  if (!allowed) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
 
   // Fetch stored tokens and calendar ID

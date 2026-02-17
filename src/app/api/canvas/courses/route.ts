@@ -10,6 +10,28 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { fetchCanvasCourses } from "@/lib/canvas-client";
 import { logger } from "@/lib/logger";
+import { rateLimit } from "@/lib/rate-limit";
+
+/**
+ * Validates that a Canvas base URL belongs to a known, trusted domain.
+ * Prevents SSRF by rejecting arbitrary URLs.
+ *
+ * @param url - The base URL to validate.
+ * @returns true if the URL is on an allowed Canvas domain.
+ */
+function isAllowedCanvasUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    const hostname = parsed.hostname.toLowerCase();
+    return (
+      hostname === "bcourses.berkeley.edu" ||
+      hostname === "instructure.com" ||
+      hostname.endsWith(".instructure.com")
+    );
+  } catch {
+    return false;
+  }
+}
 
 /**
  * GET /api/canvas/courses
@@ -26,6 +48,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const { allowed } = rateLimit(`canvas-courses:${user.id}`, 30, 60_000);
+  if (!allowed) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
+
   const { searchParams } = new URL(request.url);
   const queryToken = searchParams.get("token");
   const queryBaseUrl = searchParams.get("base_url");
@@ -35,6 +62,16 @@ export async function GET(request: NextRequest) {
 
   // Fall back to stored credentials if no query params
   if (queryToken && queryBaseUrl) {
+    if (!isAllowedCanvasUrl(queryBaseUrl)) {
+      logger.warn("GET /api/canvas/courses: rejected disallowed base_url", {
+        userId: user.id,
+        baseUrl: queryBaseUrl,
+      });
+      return NextResponse.json(
+        { error: "Invalid Canvas base URL. Only bcourses.berkeley.edu and *.instructure.com are allowed." },
+        { status: 400 }
+      );
+    }
     token = queryToken;
     baseUrl = queryBaseUrl;
   } else {
