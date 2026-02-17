@@ -98,7 +98,7 @@ export async function POST() {
        */
       async function syncTask(task: Task): Promise<void> {
         try {
-          const eventId = await createCalendarEvent(accessToken, calendarId, task);
+          const eventId = await createCalendarEvent(accessToken!, calendarId!, task);
           if (eventId) {
             await supabase
               .from("tasks")

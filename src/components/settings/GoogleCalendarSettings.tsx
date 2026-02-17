@@ -148,7 +148,7 @@ export default function GoogleCalendarSettings() {
   }
 
   /** Helper: only update state if component is still mounted. */
-  function ifMounted<T>(setter: React.Dispatch<React.SetStateAction<T>>, value: T) {
+  function ifMounted<T>(setter: React.Dispatch<React.SetStateAction<T>>, value: NoInfer<T>) {
     if (mountedRef.current) setter(value);
   }
 
