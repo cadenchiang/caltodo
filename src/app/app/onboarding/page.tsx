@@ -224,7 +224,7 @@ export default function OnboardingPage() {
 
       {/* Step content — vertically centered */}
       <div className="flex-1 overflow-y-auto">
-        <div className="min-h-full flex items-center justify-center px-6 py-8">
+        <div className="min-h-full flex items-center justify-center px-6 pt-4 pb-[20vh]">
           <div className="w-full max-w-md">
           <div key={currentStep} className="animate-step-in">
             {error && (
