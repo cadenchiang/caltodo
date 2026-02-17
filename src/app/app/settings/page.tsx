@@ -62,14 +62,14 @@ export default function SettingsPage() {
           </div>
           <div className="flex-1 overflow-auto px-8 pb-8">
             <div className="max-w-xl space-y-10">
-              {/* Integrations */}
+              {/* Google Calendar (Real-time) */}
               <section className="animate-stagger stagger-2">
-                <IntegrationSettings />
+                <GoogleCalendarSettings />
               </section>
 
-              {/* Google Calendar (Real-time) */}
+              {/* Integrations */}
               <section className="pt-6 border-t border-border animate-stagger stagger-3">
-                <GoogleCalendarSettings />
+                <IntegrationSettings />
               </section>
 
 

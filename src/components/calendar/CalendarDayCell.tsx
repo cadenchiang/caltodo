@@ -51,7 +51,7 @@ export default function CalendarDayCell({
           : isPast
             ? "bg-muted/50"
             : "bg-card/30"
-      } hover:bg-blue-50/50 dark:hover:bg-blue-900/20 hover:shadow-[inset_0_0_0_1.5px_var(--color-blue-300)] dark:hover:shadow-[inset_0_0_0_1.5px_var(--color-blue-600)] hover:z-10`}
+      } hover:bg-blue-50/50 dark:hover:bg-blue-900/20 hover:shadow-md hover:z-10`}
       onClick={(e) => {
         const rect = new DOMRect(e.clientX - 40, e.clientY, 80, 1);
         onDayClick(dateStr, rect);

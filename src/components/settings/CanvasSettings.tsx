@@ -185,7 +185,7 @@ export default function CanvasSettings({ credentials, onUpdate }: CanvasSettings
                   }
                 }, 400);
               }}
-              className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs text-muted-foreground hover:text-foreground border border-border hover:bg-accent hover:shadow-sm hover:border-blue-300 dark:hover:border-blue-600 active:scale-[0.98] transition-all duration-150"
+              className="w-full flex items-center gap-2.5 px-3.5 py-3 rounded-xl text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 hover:bg-blue-100 dark:hover:bg-blue-500/20 active:scale-[0.98] transition-all duration-150"
             >
               <Play size={14} />
               watch how to generate a token

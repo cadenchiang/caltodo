@@ -23,8 +23,8 @@ import { createCalendarEvent } from "@/lib/gcal/calendar-client";
 import { logger } from "@/lib/logger";
 import type { Task } from "@/lib/types";
 
-/** Max concurrent Google Calendar API requests. */
-const CONCURRENCY_LIMIT = 5;
+/** Max concurrent Google Calendar API requests (kept low to avoid 403 rate limits). */
+const CONCURRENCY_LIMIT = 2;
 
 export async function POST() {
   const supabase = await createClient();

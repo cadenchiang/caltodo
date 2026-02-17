@@ -54,23 +54,33 @@ describe("buildEventPayload", () => {
     expect(payload.status).toBeUndefined();
   });
 
-  it("should build a timed event (30-min) when due_time is set", () => {
+  it("should build an all-day event with time in title when due_time is set", () => {
     const task = createMockTask({ due_date: "2026-03-15", due_time: "14:30" });
     const payload = buildEventPayload(task);
 
-    expect(payload.summary).toBe("Test Task");
-    expect(payload.start).toEqual({ dateTime: "2026-03-15T14:30:00" });
-    // End time should be 30 minutes later
-    expect(payload.end).toHaveProperty("dateTime");
-    const endDateTime = (payload.end as { dateTime: string }).dateTime;
-    expect(endDateTime).toContain("15:00:00");
+    expect(payload.summary).toBe("Test Task [due @ 2:30 PM]");
+    expect(payload.start).toEqual({ date: "2026-03-15" });
+    expect(payload.end).toEqual({ date: "2026-03-16" });
+  });
+
+  it("should format midnight and noon times correctly in title", () => {
+    const midnight = createMockTask({ due_date: "2026-03-15", due_time: "00:00" });
+    expect(buildEventPayload(midnight).summary).toBe("Test Task [due @ 12:00 AM]");
+
+    const noon = createMockTask({ due_date: "2026-03-15", due_time: "12:00" });
+    expect(buildEventPayload(noon).summary).toBe("Test Task [due @ 12:00 PM]");
+
+    const evening = createMockTask({ due_date: "2026-03-15", due_time: "23:59" });
+    expect(buildEventPayload(evening).summary).toBe("Test Task [due @ 11:59 PM]");
   });
 
   it("should prefix completed tasks with checkmark and set cancelled status", () => {
     const task = createMockTask({ is_completed: true });
     const payload = buildEventPayload(task);
 
-    expect(payload.summary).toBe("\u2713 Test Task");
+    // Completed: checkmark + strikethrough via U+0336 combining chars
+    expect(payload.summary).toContain("\u2713");
+    expect(payload.summary).toContain("\u0336");
     expect(payload.status).toBe("cancelled");
   });
 
@@ -78,25 +88,24 @@ describe("buildEventPayload", () => {
     const task = createMockTask({ course_name: "CS 61A" });
     const payload = buildEventPayload(task);
 
-    expect(payload.description).toContain("Course: CS 61A");
+    expect(payload.description).toContain("CS 61A");
   });
 
-  it("should include source info in description", () => {
+  it("should include source URL in description", () => {
     const task = createMockTask({
       source: "canvas",
       source_url: "https://example.com/assignment/1",
     });
     const payload = buildEventPayload(task);
 
-    expect(payload.description).toContain("Source: canvas");
     expect(payload.description).toContain("https://example.com/assignment/1");
   });
 
-  it("should always include caltodo footer in description", () => {
+  it("should not include footer text in description", () => {
     const task = createMockTask();
     const payload = buildEventPayload(task);
 
-    expect(payload.description).toContain("Managed by caltodo");
+    expect(payload.description).not.toContain("Managed by caltodo");
   });
 });
 
@@ -140,11 +149,13 @@ describe("createCalendarEvent", () => {
 
   it("should return null on 429 rate limit", async () => {
     vi.useFakeTimers();
-    global.fetch = vi.fn().mockResolvedValue({
+    const mockResponse = {
       ok: false,
       status: 429,
       text: () => Promise.resolve("Rate limit exceeded"),
-    });
+      clone: () => mockResponse,
+    };
+    global.fetch = vi.fn().mockResolvedValue(mockResponse);
 
     const task = createMockTask();
     const promise = createCalendarEvent("access-token", TEST_CALENDAR_ID, task);
@@ -156,6 +167,30 @@ describe("createCalendarEvent", () => {
 
     const eventId = await promise;
     expect(eventId).toBeNull();
+    vi.useRealTimers();
+  });
+
+  it("should retry on 403 rateLimitExceeded", async () => {
+    vi.useFakeTimers();
+    const rateLimitBody = JSON.stringify({ error: { errors: [{ reason: "rateLimitExceeded" }] } });
+    const mockRateLimited = {
+      ok: false,
+      status: 403,
+      text: () => Promise.resolve(rateLimitBody),
+      clone: () => mockRateLimited,
+    };
+    global.fetch = vi.fn()
+      .mockResolvedValueOnce(mockRateLimited)
+      .mockResolvedValue({ ok: true, json: () => Promise.resolve({ id: "gcal-event-456" }) });
+
+    const task = createMockTask();
+    const promise = createCalendarEvent("access-token", TEST_CALENDAR_ID, task);
+
+    await vi.advanceTimersByTimeAsync(1500);
+
+    const eventId = await promise;
+    expect(eventId).toBe("gcal-event-456");
+    expect(fetch).toHaveBeenCalledTimes(2);
     vi.useRealTimers();
   });
 });

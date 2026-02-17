@@ -65,10 +65,9 @@ describe("sync: create action", () => {
     const task = createMockTask();
     const payload = buildEventPayload(task);
 
-    expect(payload.summary).toBe("Homework 5");
+    expect(payload.summary).toBe("Homework 5 [due @ 11:59 PM]");
     expect(payload.description).toContain("Complete chapter exercises");
-    expect(payload.description).toContain("Course: CS 61A");
-    expect(payload.description).toContain("Source: canvas");
+    expect(payload.description).toContain("CS 61A");
     expect(payload.description).toContain("bcourses.berkeley.edu");
   });
 });
@@ -98,7 +97,8 @@ describe("sync: update action", () => {
     const task = createMockTask({ is_completed: true, google_event_id: "event-1" });
     const payload = buildEventPayload(task);
 
-    expect(payload.summary).toBe("\u2713 Homework 5");
+    expect(payload.summary).toContain("\u2713");
+    expect(payload.summary).toContain("\u0336");
     expect(payload.status).toBe("cancelled");
   });
 });

@@ -11,10 +11,16 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { Check, XCircle, Unlink, ExternalLink } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
+
+/**
+ * Module-level ref for showToast so sync can fire toasts after navigation.
+ * Updated every render by the component.
+ */
+let globalShowToast: ((msg: string, opts?: Parameters<ReturnType<typeof useToast>["showToast"]>[1]) => void) | null = null;
 
 /**
  * Inline Google Calendar logo SVG for brand recognition.
@@ -42,6 +48,23 @@ function GoogleCalendarIcon({ size = 16 }: { size?: number }) {
   );
 }
 
+/** localStorage key for caching GCal connection state. */
+const GCAL_CACHE_KEY = "gcal_status";
+
+/** Reads cached GCal status from localStorage for instant render. */
+function getCachedStatus(): {
+  connected: boolean;
+  calendarId: string | null;
+  email: string | null;
+  photoUrl: string | null;
+} {
+  try {
+    const raw = localStorage.getItem(GCAL_CACHE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch { /* ignore */ }
+  return { connected: false, calendarId: null, email: null, photoUrl: null };
+}
+
 export default function GoogleCalendarSettings() {
   const { showToast } = useToast();
   const searchParams = useSearchParams();
@@ -55,6 +78,26 @@ export default function GoogleCalendarSettings() {
   const [googlePhotoUrl, setGooglePhotoUrl] = useState<string | null>(null);
   const [syncProgress, setSyncProgress] = useState<{ synced: number; total: number } | null>(null);
   const [syncComplete, setSyncComplete] = useState(false);
+  const mountedRef = useRef(true);
+
+  // Keep global toast ref updated so sync can fire toasts after navigation
+  globalShowToast = showToast;
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+
+  // Hydrate from localStorage cache immediately on mount (client-only)
+  useEffect(() => {
+    const cached = getCachedStatus();
+    if (cached.connected) {
+      setConnected(true);
+      setSelectedCalendarId(cached.calendarId);
+      setGoogleEmail(cached.email);
+      setGooglePhotoUrl(cached.photoUrl);
+      setLoading(false);
+    }
+  }, []);
 
   /**
    * Fetches Google Calendar connection status from credentials API.
@@ -64,10 +107,21 @@ export default function GoogleCalendarSettings() {
       const res = await fetch("/api/credentials");
       if (res.ok) {
         const data = await res.json();
-        setConnected(!!data.has_google_calendar);
+        const isConnected = !!data.has_google_calendar;
+        setConnected(isConnected);
         setSelectedCalendarId(data.google_calendar_id ?? null);
         setGoogleEmail(data.google_email ?? null);
         setGooglePhotoUrl(data.google_photo_url ?? null);
+
+        // Cache for instant render on next visit
+        try {
+          localStorage.setItem(GCAL_CACHE_KEY, JSON.stringify({
+            connected: isConnected,
+            calendarId: data.google_calendar_id ?? null,
+            email: data.google_email ?? null,
+            photoUrl: data.google_photo_url ?? null,
+          }));
+        } catch { /* ignore quota errors */ }
       }
     } catch {
       // Non-critical — default to not connected
@@ -86,11 +140,22 @@ export default function GoogleCalendarSettings() {
    * Shows a "View in Google Calendar" link on completion instead of
    * using window.open (which gets blocked by popup blockers).
    */
+  /**
+   * Helper: fire toast via globalShowToast (survives navigation) or local fallback.
+   */
+  function toast(msg: string, opts?: Parameters<typeof showToast>[1]) {
+    (globalShowToast ?? showToast)(msg, opts);
+  }
+
+  /** Helper: only update state if component is still mounted. */
+  function ifMounted<T>(setter: React.Dispatch<React.SetStateAction<T>>, value: T) {
+    if (mountedRef.current) setter(value);
+  }
+
   async function autoSetupCalendar() {
     setSyncing(true);
     setSyncComplete(false);
     try {
-      // Also refresh profile info (may have been stored during callback)
       await fetchStatus();
 
       const selectRes = await fetch("/api/gcal/select-calendar", {
@@ -101,34 +166,39 @@ export default function GoogleCalendarSettings() {
 
       if (!selectRes.ok) {
         const err = await selectRes.json();
-        showToast(`Failed to create calendar: ${err.error || selectRes.status}`);
+        toast(`Failed to create calendar: ${err.error || selectRes.status}`);
         return;
       }
 
       const selectResult = await selectRes.json();
-      setSelectedCalendarId(selectResult.calendarId);
+      ifMounted(setSelectedCalendarId, selectResult.calendarId);
+
+      const openAction = {
+        action: {
+          label: "Open",
+          icon: <ExternalLink size={14} />,
+          onClick: () => window.open("https://calendar.google.com", "_blank"),
+        },
+      };
 
       if (selectResult.needsSync) {
         const syncRes = await fetch("/api/gcal/initial-sync", { method: "POST" });
 
-        // Handle non-streaming error responses (JSON)
         const contentType = syncRes.headers.get("Content-Type") ?? "";
         if (contentType.includes("application/json")) {
           const syncResult = await syncRes.json();
           if (syncRes.ok && syncResult.synced === 0 && syncResult.total === 0) {
-            showToast("Calendar created! No tasks with due dates to sync.");
+            toast("Calendar created! No tasks with due dates to sync.", openAction);
           } else if (!syncRes.ok) {
-            showToast(`Sync failed: ${syncResult.error || syncRes.status}`);
+            toast(`Sync failed: ${syncResult.error || syncRes.status}`);
           }
-          setSyncComplete(true);
-          window.open("https://calendar.google.com", "_blank");
+          ifMounted(setSyncComplete, true);
           return;
         }
 
-        // Read NDJSON stream for progress updates
         const reader = syncRes.body?.getReader();
         if (!reader) {
-          showToast("Sync failed: no response stream.");
+          toast("Sync failed: no response stream.");
           return;
         }
 
@@ -149,10 +219,10 @@ export default function GoogleCalendarSettings() {
             try {
               const event = JSON.parse(line);
               if (event.type === "start" || event.type === "progress") {
-                setSyncProgress({ synced: event.synced ?? 0, total: event.total });
+                ifMounted(setSyncProgress, { synced: event.synced ?? 0, total: event.total });
               } else if (event.type === "done") {
                 finalResult = event;
-                setSyncProgress(null);
+                ifMounted(setSyncProgress, null);
               }
             } catch {
               // Skip malformed lines
@@ -161,28 +231,27 @@ export default function GoogleCalendarSettings() {
         }
 
         if (finalResult && finalResult.synced > 0) {
-          showToast(
-            `Synced ${finalResult.synced} of ${finalResult.total} task${finalResult.total === 1 ? "" : "s"} to Google Calendar.`
+          toast(
+            `Synced ${finalResult.synced} of ${finalResult.total} task${finalResult.total === 1 ? "" : "s"} to Google Calendar.`,
+            openAction
           );
         } else if (finalResult && finalResult.total > 0 && finalResult.synced === 0) {
-          showToast(`Sync failed for all ${finalResult.total} tasks. Check your Google Calendar permissions.`);
+          toast(`Sync failed for all ${finalResult.total} tasks. Check your Google Calendar permissions.`);
         } else if (finalResult && finalResult.total === 0) {
-          showToast("Calendar created! No tasks with due dates to sync.");
+          toast("Calendar created! No tasks with due dates to sync.", openAction);
         }
 
-        setSyncComplete(true);
-        window.open("https://calendar.google.com", "_blank");
+        ifMounted(setSyncComplete, true);
       } else {
-        showToast("Calendar created.");
-        setSyncComplete(true);
-        window.open("https://calendar.google.com", "_blank");
+        toast("Calendar created.", openAction);
+        ifMounted(setSyncComplete, true);
       }
     } catch (err) {
       console.error("Auto-setup calendar error:", err);
-      showToast("Failed to set up calendar. Please try again.");
+      toast("Failed to set up calendar. Please try again.");
     } finally {
-      setSyncing(false);
-      setSyncProgress(null);
+      ifMounted(setSyncing, false);
+      ifMounted(setSyncProgress, null);
     }
   }
 
@@ -228,31 +297,24 @@ export default function GoogleCalendarSettings() {
   /**
    * Disconnects Google Calendar with double-click confirmation.
    */
-  async function handleDisconnect() {
+  function handleDisconnect() {
     if (!confirmDisconnect) {
       setConfirmDisconnect(true);
       setTimeout(() => setConfirmDisconnect(false), 3000);
       return;
     }
     setConfirmDisconnect(false);
-    setDisconnecting(true);
-    try {
-      const res = await fetch("/api/gcal/disconnect", { method: "POST" });
-      if (res.ok) {
-        setConnected(false);
-        setSelectedCalendarId(null);
-        setGoogleEmail(null);
-        setGooglePhotoUrl(null);
-        setSyncComplete(false);
-        showToast("Google Calendar disconnected.");
-      } else {
-        showToast("Failed to disconnect. Please try again.");
-      }
-    } catch {
-      showToast("Failed to disconnect. Please try again.");
-    } finally {
-      setDisconnecting(false);
-    }
+
+    // Optimistic: update UI instantly, fire API in background
+    setConnected(false);
+    setSelectedCalendarId(null);
+    setGoogleEmail(null);
+    setGooglePhotoUrl(null);
+    setSyncComplete(false);
+    try { localStorage.removeItem(GCAL_CACHE_KEY); } catch { /* ignore */ }
+    showToast("Google Calendar disconnected.");
+
+    fetch("/api/gcal/disconnect", { method: "POST" }).catch(() => {});
   }
 
   if (loading) {
@@ -325,9 +387,10 @@ export default function GoogleCalendarSettings() {
                   style={{ width: `${Math.round((syncProgress.synced / syncProgress.total) * 100)}%` }}
                 />
               </div>
-              <p className="text-xs text-subtle-foreground">
-                Syncing {syncProgress.synced} of {syncProgress.total} — {Math.round((syncProgress.synced / syncProgress.total) * 100)}%
-              </p>
+              <div className="flex items-center justify-between text-xs text-subtle-foreground">
+                <span>Syncing {syncProgress.synced} of {syncProgress.total} tasks</span>
+                <span className="font-medium">{Math.round((syncProgress.synced / syncProgress.total) * 100)}%</span>
+              </div>
             </div>
           )}
 

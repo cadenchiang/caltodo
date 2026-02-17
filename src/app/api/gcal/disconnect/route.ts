@@ -2,18 +2,16 @@
  * POST /api/gcal/disconnect
  *
  * Disconnects Google Calendar integration:
- * 1. Deletes individual synced events from the selected calendar (best-effort)
+ * 1. Deletes the entire caltodo calendar (and all its events)
  * 2. Revokes the access token via Google's revoke endpoint
  * 3. Clears all Google OAuth columns from integration_credentials
  * 4. Clears google_event_id from all user's tasks
- *
- * The calendar itself is preserved — only caltodo-created events are removed.
  */
 
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { decrypt } from "@/lib/crypto";
-import { deleteCalendarEvent } from "@/lib/gcal/calendar-client";
+import { deleteCaltodoCalendar } from "@/lib/gcal/calendar-client";
 import { logger } from "@/lib/logger";
 
 /** Google OAuth2 token revocation endpoint. */
@@ -56,30 +54,13 @@ export async function POST() {
     }
 
     if (accessToken) {
-      // Delete individual synced events from the selected calendar (best-effort)
+      // Delete the entire caltodo calendar (removes all events with it)
       if (data.google_calendar_id) {
-        logger.info("POST /api/gcal/disconnect: deleting synced events", {
+        logger.info("POST /api/gcal/disconnect: deleting caltodo calendar", {
           userId: user.id,
           calendarId: data.google_calendar_id,
         });
-
-        const { data: tasks } = await supabase
-          .from("tasks")
-          .select("id, google_event_id")
-          .eq("user_id", user.id)
-          .not("google_event_id", "is", null);
-
-        if (tasks && tasks.length > 0) {
-          for (const task of tasks) {
-            if (task.google_event_id) {
-              await deleteCalendarEvent(accessToken, data.google_calendar_id, task.google_event_id);
-            }
-          }
-          logger.info("POST /api/gcal/disconnect: deleted events", {
-            userId: user.id,
-            count: tasks.length,
-          });
-        }
+        await deleteCaltodoCalendar(accessToken, data.google_calendar_id);
       }
 
       // Revoke the token (best-effort)

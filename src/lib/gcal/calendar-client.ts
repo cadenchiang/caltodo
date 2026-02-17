@@ -18,6 +18,15 @@ const DEFAULT_EVENT_DURATION_MIN = 30;
 /** Name for the dedicated caltodo calendar. */
 const CALTODO_CALENDAR_NAME = "caltodo";
 
+/** Preferred calendar color (Citron). */
+const PREFERRED_COLOR_ID = "11";
+
+/** All 24 Google Calendar color IDs in preference order (citron first). */
+const ALL_COLOR_IDS = [
+  "11", "9", "10", "7", "8", "13", "14", "15", "16", "6", "12",
+  "17", "18", "23", "24", "2", "4", "5", "3", "22", "21", "1", "20", "19",
+];
+
 /**
  * Google Calendar event payload shape (subset of fields we use).
  */
@@ -61,10 +70,70 @@ export async function createCaltodoCalendar(
   }
 
   const data = await res.json();
-  logger.info("createCaltodoCalendar: calendar created", {
-    calendarId: data.id,
-  });
-  return data.id as string;
+  const calendarId = data.id as string;
+  logger.info("createCaltodoCalendar: calendar created", { calendarId });
+
+  // Set calendar color (citron by default, or first unused color)
+  await setCalendarColor(accessToken, calendarId);
+
+  return calendarId;
+}
+
+/**
+ * Sets the color of a calendar in the user's calendar list.
+ * Defaults to citron; if already in use, picks the first unused color.
+ *
+ * @param accessToken - Valid Google OAuth2 access token
+ * @param calendarId - The calendar ID to colorize
+ */
+async function setCalendarColor(accessToken: string, calendarId: string): Promise<void> {
+  // Fetch existing calendars to see which colors are in use
+  const usedColors = new Set<string>();
+  try {
+    const listRes = await fetch(`${GCAL_API_BASE}/users/me/calendarList`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (listRes.ok) {
+      const listData = await listRes.json();
+      for (const cal of listData.items ?? []) {
+        if (cal.colorId && cal.id !== calendarId) {
+          usedColors.add(cal.colorId);
+        }
+      }
+    }
+  } catch {
+    // Non-critical — fall back to citron
+  }
+
+  // Pick citron if available, otherwise first unused color
+  let colorId = PREFERRED_COLOR_ID;
+  if (usedColors.has(PREFERRED_COLOR_ID)) {
+    colorId = ALL_COLOR_IDS.find((id) => !usedColors.has(id)) ?? PREFERRED_COLOR_ID;
+  }
+
+  try {
+    const patchRes = await fetch(
+      `${GCAL_API_BASE}/users/me/calendarList/${encodeURIComponent(calendarId)}`,
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ colorId }),
+      }
+    );
+    if (patchRes.ok) {
+      logger.info("setCalendarColor: color set", { calendarId, colorId });
+    } else {
+      const body = await patchRes.text();
+      logger.warn("setCalendarColor: failed to set color", { status: patchRes.status, body });
+    }
+  } catch (err) {
+    logger.warn("setCalendarColor: error", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
 }
 
 /**
@@ -149,25 +218,53 @@ export async function listWritableCalendars(
 }
 
 /**
+ * Formats a 24h time string (e.g. "14:30") to 12h format (e.g. "2:30 PM").
+ *
+ * @param time24 - Time in "HH:MM" format
+ * @returns Formatted time string like "2:30 PM"
+ */
+function formatTime12h(time24: string): string {
+  const [hourStr, minStr] = time24.split(":");
+  let hour = parseInt(hourStr, 10);
+  const min = minStr;
+  const ampm = hour >= 12 ? "PM" : "AM";
+  if (hour === 0) hour = 12;
+  else if (hour > 12) hour -= 12;
+  return `${hour}:${min} ${ampm}`;
+}
+
+/**
  * Builds a Google Calendar event payload from a Task.
- * - All-day event if task has due_date but no due_time.
- * - Timed event (30-min duration) if task has due_time.
- * - Completed tasks get "cancelled" status and a checkmark prefix.
+ * Always creates an all-day event. If the task has a due_time, it is
+ * appended to the title as "[due @ 11:59 PM]".
+ * Completed tasks get "cancelled" status and a checkmark prefix.
  *
  * @param task - The task to convert to a GCal event payload
  * @returns GCalEventPayload ready for the Google Calendar API
  */
 export function buildEventPayload(task: Task): GCalEventPayload {
   const isCompleted = task.is_completed;
-  const summary = isCompleted ? `✓ ${task.title}` : task.title;
+  let title = task.title;
+  if (task.due_time) {
+    title += ` [due @ ${formatTime12h(task.due_time)}]`;
+  }
+  const summary = isCompleted
+    ? `✓ ${title.split("").join("\u0336")}\u0336`
+    : title;
 
-  const descriptionParts: string[] = [];
-  if (task.description) descriptionParts.push(task.description);
-  if (task.course_name) descriptionParts.push(`Course: ${task.course_name}`);
-  if (task.source) descriptionParts.push(`Source: ${task.source}`);
-  if (task.source_url) descriptionParts.push(task.source_url);
-  descriptionParts.push("Managed by caltodo");
-  const description = descriptionParts.join("\n");
+  // Build description with clear sections separated by blank lines
+  const sections: string[] = [];
+
+  // Section 1: Course + source tag
+  if (task.course_name) sections.push(task.course_name);
+
+  // Section 2: Assignment description
+  if (task.description) sections.push(task.description);
+
+  // Section 3: Link
+  if (task.source_url) sections.push(task.source_url);
+
+  const description = sections.join("\n\n");
 
   const payload: GCalEventPayload = {
     summary,
@@ -180,21 +277,7 @@ export function buildEventPayload(task: Task): GCalEventPayload {
     payload.status = "cancelled";
   }
 
-  if (task.due_date && task.due_time) {
-    // Timed event: combine date + time, 30-min duration
-    // Compute end time via simple arithmetic to avoid timezone issues
-    const startDateTime = `${task.due_date}T${task.due_time}:00`;
-    const [hourStr, minStr] = task.due_time.split(":");
-    const totalMin = parseInt(hourStr, 10) * 60 + parseInt(minStr, 10) + DEFAULT_EVENT_DURATION_MIN;
-    const endHour = String(Math.floor(totalMin / 60) % 24).padStart(2, "0");
-    const endMin = String(totalMin % 60).padStart(2, "0");
-    const endDateTime = `${task.due_date}T${endHour}:${endMin}:00`;
-
-    payload.start = { dateTime: startDateTime };
-    payload.end = { dateTime: endDateTime };
-    payload.transparency = "transparent";
-  } else if (task.due_date) {
-    // All-day event
+  if (task.due_date) {
     const nextDay = new Date(task.due_date);
     nextDay.setDate(nextDay.getDate() + 1);
     const endDate = nextDay.toISOString().split("T")[0];
@@ -256,8 +339,10 @@ export async function createCalendarEvent(
       return data.id as string;
     }
 
-    // Retry on 429 rate limit with exponential backoff
-    if (res.status === 429 && attempt < MAX_RETRIES) {
+    // Retry on rate limit (429 or 403 rateLimitExceeded) with exponential backoff
+    const isRateLimited = res.status === 429 ||
+      (res.status === 403 && (await res.clone().text()).includes("rateLimitExceeded"));
+    if (isRateLimited && attempt < MAX_RETRIES) {
       const delay = RETRY_BASE_DELAY_MS * Math.pow(2, attempt);
       logger.warn("createCalendarEvent: rate limited, retrying", {
         taskId: task.id,
