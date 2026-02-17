@@ -156,29 +156,29 @@ export default function OnboardingPage() {
 
   return (
     <div className={`fixed inset-0 z-50 flex flex-col bg-white force-light transition-opacity duration-500 ${exiting ? "opacity-0" : "opacity-100"}`}>
-      {/* Stepper bar — flush to the very top */}
-      <div className="px-8 pt-0 pb-2">
-        <div className="flex items-center gap-1.5 max-w-2xl mx-auto">
-          {/* Back button */}
-          <button
-            onClick={() => {
-              if (stepIndex > 0) setCurrentStep(STEPS[stepIndex - 1]);
-            }}
-            className={`p-1 rounded-lg transition-colors shrink-0 ${
-              stepIndex > 0
-                ? "text-gray-400 hover:text-gray-800 cursor-pointer"
-                : "text-transparent pointer-events-none"
-            }`}
-            aria-label="Go back"
-          >
-            <ChevronLeft size={16} />
-          </button>
+      {/* Top bar: back + stepper + logo + close — all on one row */}
+      <div className="flex items-center gap-3 px-6 pt-5 pb-3">
+        {/* Back button */}
+        <button
+          onClick={() => {
+            if (stepIndex > 0) setCurrentStep(STEPS[stepIndex - 1]);
+          }}
+          className={`p-1 rounded-lg transition-colors shrink-0 ${
+            stepIndex > 0
+              ? "text-gray-400 hover:text-gray-800 cursor-pointer"
+              : "text-transparent pointer-events-none"
+          }`}
+          aria-label="Go back"
+        >
+          <ChevronLeft size={16} />
+        </button>
 
-          {/* Bars + labels */}
+        {/* Stepper bars + labels */}
+        <div className="flex items-center gap-1.5 flex-1 min-w-0">
           {STEPS.map((step, i) => {
             const state = i < stepIndex ? "completed" : i === stepIndex ? "active" : "inactive";
             return (
-              <div key={step} className="flex-1 flex flex-col gap-1.5">
+              <div key={step} className="flex-1 flex flex-col gap-1">
                 <span
                   className={`text-[11px] font-medium transition-colors duration-300 ${
                     state === "completed" ? "text-green-600" : state === "active" ? "text-gray-800" : "text-gray-400"
@@ -195,25 +195,25 @@ export default function OnboardingPage() {
             );
           })}
         </div>
-      </div>
 
-      {/* Logo left, close right */}
-      <div className="flex items-center justify-between px-6 pt-3 pb-2">
-        <a href="/" className="cursor-pointer">
-          <img src="/logo.png" alt="caltodo" className="h-8" />
+        {/* Logo */}
+        <a href="/" className="cursor-pointer shrink-0 ml-4">
+          <img src="/logo.png" alt="caltodo" className="h-7" />
         </a>
+
+        {/* Close button */}
         <button
           onClick={() => router.push("/app/inbox")}
-          className="p-2 text-gray-400 hover:text-gray-800 transition-colors rounded-lg"
+          className="p-1.5 text-gray-400 hover:text-gray-800 transition-colors rounded-lg shrink-0"
           aria-label="Close onboarding"
         >
-          <X size={20} />
+          <X size={18} />
         </button>
       </div>
 
-      {/* Step content — centered in remaining space */}
-      <div className="flex-1 flex items-center justify-center overflow-y-auto">
-        <div className="w-full max-w-xl mx-auto px-6 py-8">
+      {/* Step content — visually centered (shifted up so it doesn't feel bottom-heavy) */}
+      <div className="flex-1 flex items-start justify-center overflow-y-auto pt-[12vh]">
+        <div className="w-full max-w-xl mx-auto px-6 pb-8">
           <div key={currentStep} className="animate-step-in">
             {error && (
               <div className="bg-red-500/10 text-red-400 text-sm p-3 rounded-xl mb-4">

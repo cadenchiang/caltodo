@@ -69,7 +69,7 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError }: 
       const data = await res.json();
       const fetchedCourses: CanvasCourse[] = data.courses;
       setCourses(fetchedCourses);
-      setSelectedIds(new Set(fetchedCourses.map((c) => c.id)));
+      setSelectedIds(new Set());
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -259,7 +259,7 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError }: 
                 {selectedIds.size === courses.length ? "deselect all" : "select all"}
               </button>
             </div>
-            <div className="max-h-48 overflow-auto rounded-xl border border-gray-100">
+            <div className="max-h-80 overflow-auto rounded-xl border border-gray-100">
               {courses.map((course) => (
                 <label
                   key={course.id}

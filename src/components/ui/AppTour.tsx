@@ -23,6 +23,8 @@ export interface TourStep {
   targetId: string;
   /** Step title text. */
   title: string;
+  /** Optional icon rendered before the title. */
+  icon?: React.ReactNode;
   /** Step description text. */
   description: string;
   /** Preferred position of the content card relative to the target. */
@@ -221,7 +223,15 @@ export function TourProvider({ children, steps, onComplete }: TourProviderProps)
           return;
         }
 
-        // Position highlight on the click target
+        // Scroll click target into view if off-screen (prevents layout jump later)
+        const clickElRect = clickEl.getBoundingClientRect();
+        const clickVisible = clickElRect.top >= 0 && clickElRect.bottom <= window.innerHeight;
+        if (!clickVisible) {
+          clickEl.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+          await new Promise((r) => setTimeout(r, 200));
+        }
+
+        // Position highlight on the click target (re-read rect after possible scroll)
         const clickRect = clickEl.getBoundingClientRect();
         setTargetRect(clickRect);
 
@@ -256,14 +266,8 @@ export function TourProvider({ children, steps, onComplete }: TourProviderProps)
         return;
       }
 
-      // Scroll into view if needed
-      const finalRect = finalEl.getBoundingClientRect();
-      const isVisible = finalRect.top >= 0 && finalRect.bottom <= window.innerHeight;
-      if (!isVisible) {
-        finalEl.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
-        await new Promise((r) => setTimeout(r, 200));
-      }
-
+      // Position on the final target without scrolling — the click sequence
+      // already ensured the relevant area is in view
       const settledRect = finalEl.getBoundingClientRect();
       setTargetRect(settledRect);
       setCardPos(computeCardPosition(settledRect, step.position));
@@ -287,10 +291,10 @@ export function TourProvider({ children, steps, onComplete }: TourProviderProps)
 
     if (!el) return;
 
-    // Scroll into view only if element is off-screen
+    // Scroll into view only if the element is completely off-screen
     const rect = el.getBoundingClientRect();
-    const isVisible = rect.top >= 0 && rect.bottom <= window.innerHeight;
-    if (!isVisible) {
+    const completelyOffScreen = rect.bottom < 0 || rect.top > window.innerHeight;
+    if (completelyOffScreen) {
       el.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
       await new Promise((r) => setTimeout(r, 200));
     }
@@ -303,9 +307,17 @@ export function TourProvider({ children, steps, onComplete }: TourProviderProps)
       await new Promise((r) => setTimeout(r, 150));
     }
 
+    // For large elements that extend beyond viewport, clamp the highlight
+    // to the visible portion to avoid glitchy shifts
     const finalRect = el.getBoundingClientRect();
-    setTargetRect(finalRect);
-    setCardPos(computeCardPosition(finalRect, step.position));
+    const clampedRect = new DOMRect(
+      finalRect.x,
+      Math.max(finalRect.y, 0),
+      finalRect.width,
+      Math.min(finalRect.bottom, window.innerHeight) - Math.max(finalRect.y, 0),
+    );
+    setTargetRect(clampedRect);
+    setCardPos(computeCardPosition(clampedRect, step.position));
   }, [steps, pathname, router]);
 
   // Activate step whenever currentStep changes
@@ -364,10 +376,9 @@ export function TourProvider({ children, steps, onComplete }: TourProviderProps)
     } catch {
       /* non-critical */
     }
-    // Navigate back to inbox when tour ends
-    router.push("/app/inbox");
+    // Stay on current page — don't navigate away
     onComplete?.();
-  }, [onComplete, router, currentStep, steps]);
+  }, [onComplete, currentStep, steps]);
 
   /** Closes any open dropdowns/popovers before transitioning steps. */
   const dismissOpenUI = useCallback(() => {
@@ -481,7 +492,10 @@ export function TourProvider({ children, steps, onComplete }: TourProviderProps)
               </div>
 
               {/* Content */}
-              <h3 className="text-sm font-semibold text-foreground mb-1">{step.title}</h3>
+              <h3 className="text-base font-semibold text-foreground mb-1 flex items-center gap-1.5">
+                {step.icon && <span className="shrink-0">{step.icon}</span>}
+                {step.title}
+              </h3>
               <p className="text-xs text-muted-foreground leading-relaxed mb-4">{step.description}</p>
 
               {/* Navigation */}

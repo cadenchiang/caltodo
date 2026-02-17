@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
-import { TourProvider, useTour, type TourStep } from "./AppTour";
+import { ClipboardList, PlusCircle, Search, LayoutGrid, Compass, CalendarDays } from "lucide-react";
+import { TourProvider, TourStartDialog, useTour, type TourStep } from "./AppTour";
 
 /** localStorage key set by onboarding to trigger the tour. */
 const TOUR_PENDING_KEY = "caltodo_tour_pending";
@@ -23,40 +24,44 @@ function setTourViewMode(mode: "list" | "board") {
  * Tour step definitions for the full app tour.
  * Steps include cross-page navigation (inbox + calendar) and interactive demos.
  */
+const ICON_SIZE = 16;
+
 const TOUR_STEPS: TourStep[] = [
   {
     targetId: "tour-task-list",
     title: "Your Tasks",
-    description: "All your tasks live here — assignments, personal to-dos, reminders, anything you want to track. They're sorted by due date so you always know what's next.",
+    icon: <ClipboardList size={ICON_SIZE} />,
+    description: "All your synced assignments and to-dos, sorted by due date.",
     position: "right",
     route: "/app/inbox",
   },
   {
     targetId: "tour-add-task",
     title: "Add Tasks",
-    description: "Type a task and press Enter to add it. Use the calendar icon to set a due date, or the color dot to categorize it. Add anything — homework, errands, goals.",
+    icon: <PlusCircle size={ICON_SIZE} />,
+    description: "Type and press Enter. Use the calendar icon for a due date or the dot to categorize.",
     position: "bottom",
     route: "/app/inbox",
   },
   {
     targetId: "tour-filter",
-    title: "Filter Tasks",
-    description: "Filter your tasks by time — view all, just today's, or the next 7 days. Stay focused on what matters most.",
+    title: "Filter",
+    icon: <Search size={ICON_SIZE} />,
+    description: "Show all tasks, just today's, or the next 7 days.",
     position: "bottom",
     route: "/app/inbox",
   },
   {
     targetId: "tour-task-list",
     title: "Board View",
-    description: "Click the menu icon, then select Board to organize your tasks into columns by class or category — like a Kanban board.",
+    icon: <LayoutGrid size={ICON_SIZE} />,
+    description: "Organize tasks into columns by class — like a Kanban board.",
     position: "top",
     route: "/app/inbox",
     onEnter: () => {
-      // Close the dropdown before switching view
       document.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
       setTimeout(() => setTourViewMode("board"), 50);
     },
-    onExit: () => setTourViewMode("list"),
     clickSequence: [
       { targetId: "tour-view-toggle", action: () => document.getElementById("tour-view-toggle")?.click() },
       { targetId: "tour-board-option" },
@@ -65,14 +70,16 @@ const TOUR_STEPS: TourStep[] = [
   {
     targetId: "tour-sidebar-nav",
     title: "Navigation",
-    description: "Switch between your Inbox and Calendar views. Your Inbox shows all tasks, while Calendar gives you a monthly overview.",
+    icon: <Compass size={ICON_SIZE} />,
+    description: "Switch between Inbox and Calendar views from the sidebar.",
     position: "right",
     route: "/app/inbox",
   },
   {
     targetId: "tour-calendar-grid",
-    title: "Calendar View",
-    description: "See all your tasks and deadlines on a monthly calendar. Click any day to add a task, or click an existing task to edit it.",
+    title: "Calendar",
+    icon: <CalendarDays size={ICON_SIZE} />,
+    description: "See deadlines on a monthly view. Click a day to add or edit tasks.",
     position: "top",
     route: "/app/calendar",
     clickTargetId: "tour-nav-calendar",
@@ -80,47 +87,49 @@ const TOUR_STEPS: TourStep[] = [
 ];
 
 /**
- * Inner component that checks for tour pending flag and shows the dialog.
- * Must be rendered inside TourProvider.
+ * Inner component that checks for tour pending flag and shows the start dialog.
+ * Must be rendered inside TourProvider. Shows a "Start tour?" dialog with
+ * skip option rather than auto-starting.
  */
 function TourTrigger() {
-  const { isCompleted, startTour } = useTour();
+  const { isCompleted } = useTour();
   const pathname = usePathname();
-  const hasStartedRef = useRef(false);
+  const [showDialog, setShowDialog] = useState(false);
+  const hasTriggeredRef = useRef(false);
 
-  // Auto-start tour after onboarding — re-check when route changes
+  // Show dialog after onboarding — re-check when route changes
   useEffect(() => {
-    if (isCompleted || hasStartedRef.current) return;
+    if (isCompleted || hasTriggeredRef.current) return;
     try {
       const pending = localStorage.getItem(TOUR_PENDING_KEY);
       if (pending === "true") {
-        hasStartedRef.current = true;
+        hasTriggeredRef.current = true;
         localStorage.removeItem(TOUR_PENDING_KEY);
-        const timer = setTimeout(() => startTour(), 800);
+        const timer = setTimeout(() => setShowDialog(true), 800);
         return () => clearTimeout(timer);
       }
     } catch {
       /* non-critical */
     }
-  }, [isCompleted, pathname, startTour]);
+  }, [isCompleted, pathname]);
 
   // Poll briefly in case the flag was set just before navigation (race condition)
   useEffect(() => {
-    if (isCompleted || hasStartedRef.current) return;
+    if (isCompleted || hasTriggeredRef.current) return;
     const pollTimer = setInterval(() => {
       try {
         if (localStorage.getItem(TOUR_PENDING_KEY) === "true") {
-          hasStartedRef.current = true;
+          hasTriggeredRef.current = true;
           localStorage.removeItem(TOUR_PENDING_KEY);
           clearInterval(pollTimer);
-          startTour();
+          setShowDialog(true);
         }
       } catch { /* non-critical */ }
     }, 500);
     return () => clearInterval(pollTimer);
-  }, [isCompleted, startTour]);
+  }, [isCompleted]);
 
-  return null;
+  return <TourStartDialog open={showDialog} onClose={() => setShowDialog(false)} />;
 }
 
 /**

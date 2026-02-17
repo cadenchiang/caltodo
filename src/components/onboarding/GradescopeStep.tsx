@@ -67,7 +67,7 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
       const data = await res.json();
       const fetchedCourses: GradescopeCourse[] = data.courses;
       setCourses(fetchedCourses);
-      setSelectedIds(new Set(fetchedCourses.map((c) => c.id)));
+      setSelectedIds(new Set());
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -123,22 +123,13 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
       {/* Login inputs (no courses loaded yet) */}
       {!courses && (
         <>
-          <p className="text-sm text-gray-500 mb-3 animate-drop-in delay-100">
-            sign in with your <strong className="text-gray-700">Berkeley email</strong> and a <strong className="text-gray-700">Gradescope password</strong>.
+          <p className="text-sm text-gray-500 mb-4 animate-drop-in delay-100">
+            CalNet SSO doesn&apos;t set a Gradescope password.{" "}
+            <a href="https://www.gradescope.com/reset_password" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline">
+              reset your password
+            </a>{" "}
+            to create one, then sign in below.
           </p>
-          <div className="text-xs text-gray-400 mb-4 animate-drop-in delay-100 bg-gray-50 rounded-xl px-3.5 py-2.5 border border-gray-100">
-            <p className="font-medium text-gray-500 mb-1">most Berkeley students use CalNet SSO and don&apos;t have a Gradescope password yet. to create one:</p>
-            <ol className="list-decimal list-inside space-y-0.5 text-gray-400">
-              <li>go to{" "}
-                <a href="https://www.gradescope.com/reset_password" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline">
-                  gradescope.com/reset_password
-                </a>
-              </li>
-              <li>enter your Berkeley email</li>
-              <li>check your email and set a new password</li>
-            </ol>
-            <p className="mt-1.5 text-gray-400">this won&apos;t affect your CalNet login — it just adds a password to your existing account.</p>
-          </div>
 
           {/* Video section with smooth expand/collapse */}
           <div className="animate-drop-in delay-150">
@@ -289,7 +280,7 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
                 {selectedIds.size === courses.length ? "deselect all" : "select all"}
               </button>
             </div>
-            <div className="max-h-48 overflow-auto rounded-xl border border-gray-100">
+            <div className="max-h-80 overflow-auto rounded-xl border border-gray-100">
               {courses.map((course) => (
                 <label
                   key={course.id}

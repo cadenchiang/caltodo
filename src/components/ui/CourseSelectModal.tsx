@@ -174,22 +174,22 @@ export default function CourseSelectModal<T extends string | number>({
   const allSelected = totalCount > 0 && selectedIds.size === totalCount;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center">
-      {/* Backdrop */}
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {/* Backdrop with blur */}
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-200 ease-out"
         style={{ opacity: visible ? 1 : 0 }}
         onClick={handleClose}
       />
 
-      {/* Full-screen modal */}
+      {/* Centered modal */}
       <div
-        className={`relative bg-card w-full h-full flex flex-col ${
+        className={`relative bg-card w-full max-w-lg mx-4 max-h-[80vh] flex flex-col rounded-2xl border border-border shadow-2xl ${
           visible ? "animate-modal-in" : "animate-modal-out"
         }`}
       >
         {/* Header */}
-        <div className="px-5 py-4 border-b border-border flex items-center justify-between shrink-0">
+        <div className="px-5 py-4 border-b border-border flex items-center justify-between shrink-0 rounded-t-2xl">
           <h3 className="text-sm font-semibold text-foreground">
             {title} ({selectedIds.size}/{totalCount})
           </h3>
@@ -302,7 +302,7 @@ export default function CourseSelectModal<T extends string | number>({
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-4 border-t border-border shrink-0">
+        <div className="px-5 py-4 border-t border-border shrink-0 rounded-b-2xl">
           <button
             onClick={handleClose}
             className="w-full px-4 py-2.5 rounded-xl text-sm font-medium bg-blue-500 text-white hover:bg-blue-600 transition-all"
