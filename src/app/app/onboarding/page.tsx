@@ -156,33 +156,11 @@ export default function OnboardingPage() {
 
   return (
     <div className={`fixed inset-0 z-50 flex flex-col bg-white force-light transition-opacity duration-500 ${exiting ? "opacity-0" : "opacity-100"}`}>
-      {/* Top bar: back / logo / close */}
-      <div className="flex items-center justify-between px-6 pt-5 pb-3">
-        {/* Back button */}
-        <button
-          onClick={() => {
-            if (stepIndex > 0) setCurrentStep(STEPS[stepIndex - 1]);
-          }}
-          className={`p-2 rounded-lg transition-colors shrink-0 ${
-            stepIndex > 0
-              ? "text-gray-400 hover:text-gray-800 cursor-pointer"
-              : "text-transparent pointer-events-none"
-          }`}
-          aria-label="Go back"
-        >
-          <ChevronLeft size={20} />
-        </button>
-
-        {/* Logo — links back to hero page */}
+      {/* Top bar: logo left, close right */}
+      <div className="flex items-center justify-between px-6 pt-5 pb-4">
         <a href="/" className="cursor-pointer">
-          <img
-            src="/logo.png"
-            alt="caltodo"
-            className="h-8"
-          />
+          <img src="/logo.png" alt="caltodo" className="h-8" />
         </a>
-
-        {/* Close button */}
         <button
           onClick={() => router.push("/app/inbox")}
           className="p-2 text-gray-400 hover:text-gray-800 transition-colors rounded-lg"
@@ -192,27 +170,37 @@ export default function OnboardingPage() {
         </button>
       </div>
 
-      {/* Stepper bar — full width at top */}
+      {/* Stepper bar with back button inline to its left */}
       <div className="px-8 pb-2">
-        <div className="flex items-center gap-2 max-w-2xl mx-auto">
+        <div className="flex items-center gap-1.5 max-w-2xl mx-auto">
+          {/* Back button */}
+          <button
+            onClick={() => {
+              if (stepIndex > 0) setCurrentStep(STEPS[stepIndex - 1]);
+            }}
+            className={`p-1 rounded-lg transition-colors shrink-0 ${
+              stepIndex > 0
+                ? "text-gray-400 hover:text-gray-800 cursor-pointer"
+                : "text-transparent pointer-events-none"
+            }`}
+            aria-label="Go back"
+          >
+            <ChevronLeft size={16} />
+          </button>
+
+          {/* Bars + labels */}
           {STEPS.map((step, i) => {
             const state = i < stepIndex ? "completed" : i === stepIndex ? "active" : "inactive";
             return (
               <div key={step} className="flex-1 flex flex-col gap-1.5">
-                {/* Bar */}
                 <div
                   className={`h-1 rounded-full transition-all duration-500 ${
-                    state === "inactive"
-                      ? "bg-gray-200"
-                      : "bg-gray-800"
+                    state === "completed" ? "bg-green-500" : state === "active" ? "bg-gray-800" : "bg-gray-200"
                   }`}
                 />
-                {/* Label */}
                 <span
                   className={`text-[11px] font-medium transition-colors duration-300 ${
-                    state === "inactive"
-                      ? "text-gray-400"
-                      : "text-gray-800"
+                    state === "completed" ? "text-green-600" : state === "active" ? "text-gray-800" : "text-gray-400"
                   }`}
                 >
                   {STEP_LABELS[step]}
