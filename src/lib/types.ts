@@ -20,6 +20,7 @@ export interface Task {
   source_url: string | null;
   points_possible: number | null;
   is_submitted: boolean;
+  google_event_id: string | null;
 }
 
 /**
@@ -46,6 +47,23 @@ export interface TaskUpdate {
 }
 
 /**
+ * A Google Calendar entry as returned by the calendarList API.
+ *
+ * @param id - The calendar's unique ID (email-like string)
+ * @param summary - Display name of the calendar
+ * @param primary - Whether this is the user's primary calendar
+ * @param backgroundColor - Hex color assigned to this calendar
+ * @param accessRole - User's access level ("owner", "writer", "reader", "freeBusyReader")
+ */
+export interface GCalCalendarEntry {
+  id: string;
+  summary: string;
+  primary: boolean;
+  backgroundColor: string;
+  accessRole: string;
+}
+
+/**
  * Integration credentials as returned by the API.
  * Gradescope password is never returned — only a boolean flag.
  */
@@ -57,6 +75,10 @@ export interface IntegrationCredentials {
   last_synced_at: string | null;
   selected_canvas_courses: Array<{ id: number; name: string }> | null;
   selected_gradescope_courses: Array<{ id: string; name: string }> | null;
+  has_google_calendar: boolean;
+  google_calendar_id: string | null;
+  google_email: string | null;
+  google_photo_url: string | null;
 }
 
 /**
@@ -91,4 +113,19 @@ export interface SyncResult {
   canvas: SyncSourceResult;
   gradescope: SyncSourceResult;
   last_synced_at: string;
+}
+
+/**
+ * Response from the Google Calendar sync endpoint.
+ *
+ * @param synced - Whether the event was synced to Google Calendar
+ * @param googleEventId - The Google Calendar event ID (on create/update)
+ * @param reason - Why sync was skipped (e.g. "not_connected", "no_due_date")
+ * @param error - Error message if sync failed
+ */
+export interface GCalSyncResponse {
+  synced: boolean;
+  googleEventId?: string;
+  reason?: string;
+  error?: string;
 }

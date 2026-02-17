@@ -235,6 +235,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       source_url: null,
       points_possible: null,
       is_submitted: false,
+      google_event_id: null,
     };
 
     setTasks((prev) => {
@@ -269,6 +270,15 @@ export function TaskProvider({ children }: { children: ReactNode }) {
         setCachedTasks(updated);
         return updated;
       });
+
+      // Fire-and-forget: sync to Google Calendar if task has a due date
+      if (data.due_date) {
+        fetch("/api/gcal/sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "create", taskId: data.id }),
+        }).catch(() => {});
+      }
     }
   }
 
@@ -289,6 +299,13 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     if (updateError) {
       setError(updateError.message);
       fetchTasks();
+    } else {
+      // Fire-and-forget: sync update to Google Calendar
+      fetch("/api/gcal/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "update", taskId: id }),
+      }).catch(() => {});
     }
   }
 
@@ -310,6 +327,9 @@ export function TaskProvider({ children }: { children: ReactNode }) {
   }
 
   async function deleteTask(id: string) {
+    // Capture task before optimistic removal for GCal cleanup
+    const taskToDelete = tasks.find((t) => t.id === id);
+
     setTasks((prev) => {
       const updated = prev.filter((t) => t.id !== id);
       setCachedTasks(updated);
@@ -324,6 +344,17 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     if (deleteError) {
       setError(deleteError.message);
       fetchTasks();
+    } else if (taskToDelete?.google_event_id) {
+      // Fire-and-forget: delete Google Calendar event
+      fetch("/api/gcal/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "delete",
+          taskId: id,
+          googleEventId: taskToDelete.google_event_id,
+        }),
+      }).catch(() => {});
     }
   }
 

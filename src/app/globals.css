@@ -66,6 +66,20 @@
   --color-input-border: var(--input-border);
   --color-border-subtle: var(--border-subtle);
   --color-ring: var(--ring);
+
+  /* Slightly darker blues for a richer accent tone */
+  --color-blue-50: #e8f0fe;
+  --color-blue-100: #d0e0fc;
+  --color-blue-200: #a3c4f7;
+  --color-blue-300: #6da1ef;
+  --color-blue-400: #4280e0;
+  --color-blue-500: #2e6ad4;
+  --color-blue-600: #2557b3;
+  --color-blue-700: #1d4491;
+  --color-blue-800: #163370;
+  --color-blue-900: #0f234f;
+  --color-blue-950: #091530;
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --font-serif: var(--font-instrument-serif);

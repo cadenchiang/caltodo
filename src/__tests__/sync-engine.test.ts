@@ -37,10 +37,40 @@ import { fetchAllGradescopeAssignments } from "@/lib/gradescope-client";
 const mockCanvasFetch = vi.mocked(fetchAllCanvasAssignments);
 const mockGradescopeFetch = vi.mocked(fetchAllGradescopeAssignments);
 
+/**
+ * Creates a chainable mock that returns itself for any chained method call.
+ * Terminates the chain by resolving with { error: null }.
+ */
+function createChainMock() {
+  const mock: Record<string, ReturnType<typeof vi.fn>> & { _self: unknown } = {} as any;
+  const handler: ProxyHandler<typeof mock> = {
+    get(target, prop) {
+      if (prop === "_self") return target;
+      if (typeof prop === "string" && !target[prop]) {
+        target[prop] = vi.fn().mockReturnValue(new Proxy({} as typeof mock, handler));
+      }
+      if (typeof prop === "string") return target[prop];
+      return undefined;
+    },
+  };
+  // The final call in the chain (e.g. gte) should resolve with { error: null }
+  // We use a Proxy that auto-creates chainable mocks
+  return new Proxy(mock, handler);
+}
+
 function createMockSupabase(credentialsData: Record<string, unknown> | null = null) {
   const upsertMock = vi.fn().mockReturnValue({ error: null });
   const updateMock = vi.fn().mockReturnValue({
     eq: vi.fn().mockReturnValue({ error: null }),
+  });
+
+  // Chainable mock for auto-complete update (tasks.update().eq().eq().eq().eq().gte())
+  const tasksAutoCompleteMock = vi.fn().mockImplementation(() => {
+    const chain = {
+      eq: vi.fn().mockReturnThis(),
+      gte: vi.fn().mockResolvedValue({ error: null }),
+    };
+    return chain;
   });
 
   return {
@@ -61,12 +91,14 @@ function createMockSupabase(credentialsData: Record<string, unknown> | null = nu
       if (table === "tasks") {
         return {
           upsert: upsertMock,
+          update: tasksAutoCompleteMock,
         };
       }
       return {};
     }),
     _upsertMock: upsertMock,
     _updateMock: updateMock,
+    _tasksAutoCompleteMock: tasksAutoCompleteMock,
   };
 }
 
@@ -227,5 +259,52 @@ describe("runSync", () => {
 
     expect(result.last_synced_at).toBeDefined();
     expect(new Date(result.last_synced_at).getTime()).not.toBeNaN();
+  });
+
+  it("should auto-complete newly synced submitted assignments", async () => {
+    const supabase = createMockSupabase({
+      canvas_token: "canvas-token-123",
+      canvas_base_url: "https://bcourses.berkeley.edu",
+      gradescope_email: null,
+      gradescope_password_encrypted: null,
+    });
+
+    mockCanvasFetch.mockResolvedValueOnce([
+      {
+        external_id: "201",
+        course_name: "CS 61A",
+        course_id: "1",
+        title: "Attendance-04",
+        due_date: "2026-02-10T07:59:00Z",
+        source_url: "https://bcourses.berkeley.edu/courses/1/assignments/201",
+        points_possible: 1,
+        is_submitted: true,
+      },
+      {
+        external_id: "202",
+        course_name: "CS 61A",
+        course_id: "1",
+        title: "HW 5",
+        due_date: "2026-02-15T23:59:00Z",
+        source_url: "https://bcourses.berkeley.edu/courses/1/assignments/202",
+        points_possible: 10,
+        is_submitted: false,
+      },
+    ]);
+
+    const result = await runSync(supabase as any, "user-123");
+
+    expect(result.canvas.synced).toBe(2);
+
+    // Verify that auto-complete update was called on tasks table
+    // The from("tasks") call should include an update() for auto-completing
+    const tasksFromCalls = supabase.from.mock.calls.filter(
+      (c: string[]) => c[0] === "tasks"
+    );
+    // Should have 2 calls: one for upsert, one for auto-complete update
+    expect(tasksFromCalls.length).toBe(2);
+
+    // Verify the auto-complete mock was invoked with { is_completed: true }
+    expect(supabase._tasksAutoCompleteMock).toHaveBeenCalledWith({ is_completed: true });
   });
 });

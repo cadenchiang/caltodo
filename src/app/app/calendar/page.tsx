@@ -1,22 +1,19 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { addMonths, subMonths } from "date-fns";
 import { useTaskContext } from "@/contexts/TaskContext";
 import CalendarHeader from "@/components/calendar/CalendarHeader";
 import CalendarGrid from "@/components/calendar/CalendarGrid";
 import TaskPopover from "@/components/tasks/TaskPopover";
 import TaskAddPopover from "@/components/tasks/TaskAddPopover";
-import CalendarModal from "@/components/CalendarModal";
 import PageTransition from "@/components/ui/PageTransition";
 import type { Task } from "@/lib/types";
-
-const GCAL_DISMISSED_KEY = "caltodo_gcal_prompt_dismissed";
 
 /**
  * Calendar month view page. Filters tasks from shared TaskContext by month.
  * Uses Google Calendar-style floating popovers for adding/editing tasks.
- * Shows a persistent banner prompting Google Calendar sync until dismissed.
+ * CalendarHeader self-manages GCal sync status display.
  */
 export default function CalendarPage() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -24,25 +21,8 @@ export default function CalendarPage() {
   const [editAnchorRect, setEditAnchorRect] = useState<DOMRect | null>(null);
   const [addingDate, setAddingDate] = useState<string | null>(null);
   const [addAnchorRect, setAddAnchorRect] = useState<DOMRect | null>(null);
-  const [showGcalBanner, setShowGcalBanner] = useState(false);
-  const [showCalendarModal, setShowCalendarModal] = useState(false);
 
   const { tasks, loading, error, addTask, updateTask, deleteTask } = useTaskContext();
-
-  // Check localStorage on mount to decide whether to show the gcal banner
-  useEffect(() => {
-    setShowGcalBanner(localStorage.getItem(GCAL_DISMISSED_KEY) !== "1");
-  }, []);
-
-  /**
-   * Dismisses the Google Calendar banner permanently.
-   * Sets localStorage flag and dispatches event so the sidebar badge updates.
-   */
-  function dismissGcalBanner() {
-    setShowGcalBanner(false);
-    localStorage.setItem(GCAL_DISMISSED_KEY, "1");
-    window.dispatchEvent(new Event("gcal-dismissed"));
-  }
 
   const monthTasks = useMemo(() => {
     const month = currentMonth.getMonth();
@@ -87,8 +67,6 @@ export default function CalendarPage() {
             onPrevMonth={() => setCurrentMonth(subMonths(currentMonth, 1))}
             onNextMonth={() => setCurrentMonth(addMonths(currentMonth, 1))}
             onToday={() => setCurrentMonth(new Date())}
-            showGcalSync={showGcalBanner}
-            onGcalSync={() => setShowCalendarModal(true)}
           />
         </div>
 
@@ -139,16 +117,6 @@ export default function CalendarPage() {
             onDelete={async (id) => {
               await deleteTask(id);
               closeEditPopover();
-            }}
-          />
-        )}
-
-        {/* Google Calendar feed setup modal */}
-        {showCalendarModal && (
-          <CalendarModal
-            onClose={() => {
-              setShowCalendarModal(false);
-              dismissGcalBanner();
             }}
           />
         )}

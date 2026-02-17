@@ -6,7 +6,7 @@ import { RotateCcw, Trash2 } from "lucide-react";
 import { useTaskContext } from "@/contexts/TaskContext";
 import { useToast } from "@/contexts/ToastContext";
 import IntegrationSettings from "@/components/settings/IntegrationSettings";
-import CalendarFeedSettings from "@/components/settings/CalendarFeedSettings";
+import GoogleCalendarSettings from "@/components/settings/GoogleCalendarSettings";
 import ThemeToggle from "@/components/layout/ThemeToggle";
 import PageTransition from "@/components/ui/PageTransition";
 
@@ -67,10 +67,11 @@ export default function SettingsPage() {
                 <IntegrationSettings />
               </section>
 
-              {/* Sync to Google Calendar */}
+              {/* Google Calendar (Real-time) */}
               <section className="pt-6 border-t border-border animate-stagger stagger-3">
-                <CalendarFeedSettings />
+                <GoogleCalendarSettings />
               </section>
+
 
               {/* Appearance */}
               <section className="pt-6 border-t border-border animate-stagger stagger-4">

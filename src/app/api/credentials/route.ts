@@ -25,7 +25,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("integration_credentials")
-    .select("canvas_token, canvas_base_url, gradescope_email, gradescope_password_encrypted, last_synced_at, selected_canvas_courses, selected_gradescope_courses")
+    .select("canvas_token, canvas_base_url, gradescope_email, gradescope_password_encrypted, last_synced_at, selected_canvas_courses, selected_gradescope_courses, google_access_token_encrypted, google_calendar_id, google_email, google_photo_url")
     .eq("user_id", user.id)
     .single();
 
@@ -43,6 +43,10 @@ export async function GET() {
     last_synced_at: data?.last_synced_at ?? null,
     selected_canvas_courses: data?.selected_canvas_courses ?? null,
     selected_gradescope_courses: data?.selected_gradescope_courses ?? null,
+    has_google_calendar: !!data?.google_access_token_encrypted,
+    google_calendar_id: data?.google_calendar_id ?? null,
+    google_email: data?.google_email ?? null,
+    google_photo_url: data?.google_photo_url ?? null,
   };
 
   return NextResponse.json(credentials);
@@ -111,7 +115,7 @@ export async function PUT(request: Request) {
   // Return updated credentials
   const { data: updated } = await supabase
     .from("integration_credentials")
-    .select("canvas_token, canvas_base_url, gradescope_email, gradescope_password_encrypted, last_synced_at, selected_canvas_courses, selected_gradescope_courses")
+    .select("canvas_token, canvas_base_url, gradescope_email, gradescope_password_encrypted, last_synced_at, selected_canvas_courses, selected_gradescope_courses, google_access_token_encrypted, google_calendar_id, google_email, google_photo_url")
     .eq("user_id", user.id)
     .single();
 
@@ -123,6 +127,10 @@ export async function PUT(request: Request) {
     last_synced_at: updated?.last_synced_at ?? null,
     selected_canvas_courses: updated?.selected_canvas_courses ?? null,
     selected_gradescope_courses: updated?.selected_gradescope_courses ?? null,
+    has_google_calendar: !!updated?.google_access_token_encrypted,
+    google_calendar_id: updated?.google_calendar_id ?? null,
+    google_email: updated?.google_email ?? null,
+    google_photo_url: updated?.google_photo_url ?? null,
   };
 
   return NextResponse.json(credentials);

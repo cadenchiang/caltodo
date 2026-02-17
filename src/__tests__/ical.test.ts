@@ -41,6 +41,7 @@ function makeTask(overrides: Partial<Task> = {}): Task {
     source_url: null,
     points_possible: null,
     is_submitted: false,
+    google_event_id: null,
     ...overrides,
   };
 }

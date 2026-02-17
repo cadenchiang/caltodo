@@ -36,42 +36,47 @@ function setCachedCredentials(creds: IntegrationCredentials): void {
 
 /**
  * Container for Canvas and Gradescope integration settings.
- * Initializes state from localStorage synchronously in useState
- * for zero-flash rendering (stale-while-revalidate pattern).
- * Fetches fresh data from API in the background.
+ * Initializes with loading=true on both server and client to avoid
+ * hydration mismatch. useEffect on mount hydrates from localStorage
+ * cache, then fetches fresh data from API in the background.
  */
 export default function IntegrationSettings() {
-  const [credentials, setCredentials] = useState<IntegrationCredentials | null>(
-    () => getCachedCredentials()
-  );
-  const [loading, setLoading] = useState(() => getCachedCredentials() === null);
+  const [credentials, setCredentials] = useState<IntegrationCredentials | null>(null);
+  const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
   /**
    * Fetches integration credentials from the API.
-   * Skips loading spinner if cache was used for initial render.
+   * Updates both state and localStorage cache on success.
+   *
+   * @param cached - Whether a cache hit was used for initial render
    */
-  const fetchCredentials = useCallback(async () => {
+  const fetchCredentials = useCallback(async (cached: boolean) => {
     try {
       const res = await fetch("/api/credentials");
       if (res.ok) {
         const data: IntegrationCredentials = await res.json();
         setCredentials(data);
         setCachedCredentials(data);
-      } else if (!credentials) {
+      } else if (!cached) {
         setFetchError("Failed to load credentials");
       }
     } catch {
-      if (!credentials) {
+      if (!cached) {
         setFetchError("Failed to load credentials");
       }
     } finally {
       setLoading(false);
     }
-  }, [credentials]);
+  }, []);
 
   useEffect(() => {
-    fetchCredentials();
+    const cached = getCachedCredentials();
+    if (cached) {
+      setCredentials(cached);
+      setLoading(false);
+    }
+    fetchCredentials(!!cached);
   }, [fetchCredentials]);
 
   /**

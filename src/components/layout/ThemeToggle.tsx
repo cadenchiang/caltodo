@@ -28,7 +28,7 @@ export default function ThemeToggle({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        "relative flex h-9 rounded-full p-1 transition-colors duration-300",
+        "relative flex w-fit h-9 rounded-full p-1 transition-colors duration-300",
         isDark
           ? "bg-zinc-950 border border-zinc-800"
           : "bg-white border border-zinc-200",
@@ -38,7 +38,7 @@ export default function ThemeToggle({ className }: { className?: string }) {
       {/* Sliding highlight indicator */}
       <div
         className={cn(
-          "absolute top-1 h-7 w-7 rounded-full transition-all duration-300 ease-in-out",
+          "absolute top-1 left-1 h-7 w-8 rounded-full transition-all duration-300 ease-in-out",
           isDark ? "bg-zinc-800" : "bg-gray-200"
         )}
         style={{

@@ -202,7 +202,7 @@ export default function CalendarFeedSettings() {
         {/* Header */}
         <div className="flex items-center gap-2 mb-1">
           <GoogleCalendarIcon size={18} />
-          <h2 className="text-lg font-semibold text-foreground">Sync to Google Calendar</h2>
+          <h2 className="text-lg font-semibold text-foreground">iCal Feed (Manual)</h2>
         </div>
         <p className="text-xs text-subtle-foreground mb-4">
           Subscribe to your tasks as an iCal feed in Google Calendar, Apple Calendar, or any

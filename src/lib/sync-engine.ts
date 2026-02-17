@@ -207,6 +207,10 @@ export function toLocalTimeString(isoString: string | null, tz: string): string 
  * Course name is stored in description field for display context.
  * Uses timezone-aware date/time conversion to prevent off-by-one errors.
  *
+ * After upserting, auto-completes newly inserted rows where is_submitted is true.
+ * Only targets rows created during this sync (created_at >= syncStartTime) so that
+ * user manual un-checks on previously synced assignments are not overwritten.
+ *
  * @param supabase - Authenticated Supabase client
  * @param userId - The user's ID
  * @param source - Assignment source ("canvas" or "gradescope")
@@ -223,6 +227,7 @@ async function upsertAssignments(
 ): Promise<number> {
   let totalUpserted = 0;
   const color = source === "canvas" ? CANVAS_COLOR : GRADESCOPE_COLOR;
+  const syncStartTime = new Date().toISOString();
 
   for (let i = 0; i < assignments.length; i += UPSERT_BATCH_SIZE) {
     const batch = assignments.slice(i, i + UPSERT_BATCH_SIZE);
@@ -254,6 +259,24 @@ async function upsertAssignments(
     } else {
       totalUpserted += batch.length;
     }
+  }
+
+  // Auto-complete newly inserted submitted assignments.
+  // created_at is only set on INSERT, so >= syncStartTime targets only new rows.
+  const { error: autoCompleteError } = await supabase
+    .from("tasks")
+    .update({ is_completed: true })
+    .eq("user_id", userId)
+    .eq("source", source)
+    .eq("is_submitted", true)
+    .eq("is_completed", false)
+    .gte("created_at", syncStartTime);
+
+  if (autoCompleteError) {
+    logger.error("upsertAssignments auto-complete failed", {
+      source,
+      error: autoCompleteError.message,
+    });
   }
 
   return totalUpserted;

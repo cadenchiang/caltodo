@@ -49,13 +49,13 @@ export default function CalendarGrid({
   }
 
   return (
-    <div className="glass rounded-2xl overflow-hidden shadow-sm">
+    <div className="glass rounded-2xl overflow-hidden shadow-md dark:shadow-black/30">
       {/* Weekday headers */}
-      <div className="grid grid-cols-7 bg-input-bg border-b border-border">
+      <div className="grid grid-cols-7 bg-input-bg border-b-2 border-border">
         {WEEKDAY_LABELS.map((label) => (
           <div
             key={label}
-            className="text-center text-xs font-medium text-muted-foreground py-3 border-r border-border last:border-r-0"
+            className="text-center text-[11px] font-semibold uppercase tracking-wider text-muted-foreground py-3.5 border-r border-border last:border-r-0"
           >
             {label}
           </div>
