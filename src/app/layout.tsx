@@ -24,7 +24,7 @@ export const metadata: Metadata = {
   title: "caltodo",
   description: "Personal todolist tracker with calendar view",
   icons: {
-    icon: "/favicon.ico",
+    icon: "/icon.png",
   },
 };
 
