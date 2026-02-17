@@ -123,10 +123,10 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
       {/* Login inputs (no courses loaded yet) */}
       {!courses && (
         <>
-          <p className="text-sm text-gray-500 mb-4 animate-drop-in delay-100">
-            CalNet SSO doesn&apos;t set a Gradescope password.{" "}
-            <a href="https://www.gradescope.com/reset_password" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline">
-              reset your password
+          <p className="text-sm text-gray-800 font-medium mb-4 animate-drop-in delay-100">
+            Your CalNet ID password is <strong>not</strong> your Gradescope password. CalNet SSO doesn&apos;t set one.{" "}
+            <a href="https://www.gradescope.com/reset_password" target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">
+              Reset your password
             </a>{" "}
             to create one, then sign in below.
           </p>
