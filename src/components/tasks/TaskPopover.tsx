@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { CalendarDays, Trash2, ExternalLink } from "lucide-react";
+import { CalendarDays, Trash2, ExternalLink, MoreHorizontal } from "lucide-react";
 import { format } from "date-fns";
 import type { Task, TaskUpdate } from "@/lib/types";
 import { TASK_COLORS } from "@/lib/constants";
@@ -108,9 +108,12 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
   const [localCompleted, setLocalCompleted] = useState(task.is_completed);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const menuBtnRef = useRef<HTMLButtonElement>(null);
+  const menuDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setTitle(task.title);
@@ -285,10 +288,49 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
             rel="noopener noreferrer"
             className="p-1 text-subtle-foreground hover:text-foreground rounded-lg hover:bg-accent transition-colors"
             aria-label="Open in source"
+            onClick={(e) => e.stopPropagation()}
           >
             <ExternalLink size={14} />
           </a>
         )}
+
+        {/* Three-dot menu */}
+        <div className="relative">
+          <button
+            ref={menuBtnRef}
+            type="button"
+            onClick={() => setShowMenu(!showMenu)}
+            className="p-1 text-subtle-foreground hover:text-foreground rounded-lg hover:bg-accent transition-colors"
+            aria-label="Task options"
+          >
+            <MoreHorizontal size={14} />
+          </button>
+          {showMenu && menuBtnRef.current && createPortal(
+            <>
+              <div className="fixed inset-0 z-[60]" onClick={() => setShowMenu(false)} />
+              <div
+                ref={menuDropdownRef}
+                className="fixed z-[60] bg-card rounded-lg shadow-xl border border-input-border py-1 min-w-[120px]"
+                style={{
+                  top: menuBtnRef.current.getBoundingClientRect().bottom + 4,
+                  left: Math.min(
+                    menuBtnRef.current.getBoundingClientRect().left,
+                    window.innerWidth - 140
+                  ),
+                }}
+              >
+                <button
+                  onClick={() => { setShowMenu(false); handleDelete(); }}
+                  className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
+                >
+                  <Trash2 size={13} />
+                  Delete
+                </button>
+              </div>
+            </>,
+            document.body
+          )}
+        </div>
       </div>
 
       {/* Content: title + description */}
@@ -341,16 +383,8 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
         />
       </div>
 
-      {/* Footer: delete */}
-      <div className="px-4 pb-3 pt-1 border-t border-border-subtle">
-        <button
-          onClick={handleDelete}
-          className="flex items-center gap-1.5 px-2 py-1.5 text-xs text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
-        >
-          <Trash2 size={13} />
-          Delete task
-        </button>
-      </div>
+      {/* Bottom padding */}
+      <div className="pb-2" />
     </div>,
     document.body
   );
