@@ -153,15 +153,19 @@ export default function CalendarHeader({
     }
   }
 
-  /** Compute popover position anchored below the Synced button. */
+  /**
+   * Compute popover position anchored directly below the Synced button.
+   * Uses pre-calculated left offset instead of CSS transform to avoid
+   * a visual glitch where the popover briefly renders off-center.
+   */
   function getPopoverStyle(): React.CSSProperties {
     if (!buttonRef.current) return {};
     const rect = buttonRef.current.getBoundingClientRect();
+    const popoverWidth = 220;
     return {
       position: "fixed",
       top: rect.bottom + 8,
-      left: rect.left + rect.width / 2,
-      transform: "translateX(-50%)",
+      left: Math.max(8, rect.left + rect.width / 2 - popoverWidth / 2),
     };
   }
 

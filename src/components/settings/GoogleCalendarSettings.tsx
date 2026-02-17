@@ -173,11 +173,14 @@ export default function GoogleCalendarSettings() {
       const selectResult = await selectRes.json();
       ifMounted(setSelectedCalendarId, selectResult.calendarId);
 
+      const gcalUrl = googleEmail
+        ? `https://calendar.google.com/calendar/r?authuser=${encodeURIComponent(googleEmail)}`
+        : "https://calendar.google.com";
       const openAction = {
         action: {
           label: "Open",
           icon: <ExternalLink size={14} />,
-          onClick: () => window.open("https://calendar.google.com", "_blank"),
+          onClick: () => window.open(gcalUrl, "_blank"),
         },
       };
 
@@ -192,7 +195,7 @@ export default function GoogleCalendarSettings() {
           const syncResult = await syncRes.json();
           if (syncRes.ok && syncResult.synced === 0 && syncResult.total === 0) {
             toast("Calendar created! No tasks with due dates to sync.", openAction);
-            window.open("https://calendar.google.com", "_blank");
+            window.open(gcalUrl, "_blank");
           } else if (!syncRes.ok) {
             toast(`Sync failed: ${syncResult.error || syncRes.status}`);
           }
@@ -256,19 +259,19 @@ export default function GoogleCalendarSettings() {
             `Synced ${finalResult.synced} of ${finalResult.total} task${finalResult.total === 1 ? "" : "s"} to Google Calendar.`,
             openAction
           );
-          window.open("https://calendar.google.com", "_blank");
+          window.open(gcalUrl, "_blank");
         } else if (finalResult && finalResult.total > 0 && finalResult.synced === 0) {
           toast(`Sync failed for all ${finalResult.total} tasks. Check your Google Calendar permissions.`);
         } else if (finalResult && finalResult.total === 0) {
           toast("Calendar created! No tasks with due dates to sync.", openAction);
-          window.open("https://calendar.google.com", "_blank");
+          window.open(gcalUrl, "_blank");
         }
 
         ifMounted(setSyncComplete, true);
       } else {
         toast("Calendar created.", openAction);
         ifMounted(setSyncComplete, true);
-        window.open("https://calendar.google.com", "_blank");
+        window.open(gcalUrl, "_blank");
       }
     } catch (err) {
       console.error("Auto-setup calendar error:", err);
@@ -432,7 +435,7 @@ export default function GoogleCalendarSettings() {
           {/* View in Google Calendar link (shown after sync completes) */}
           {syncComplete && (
             <a
-              href="https://calendar.google.com"
+              href={googleEmail ? `https://calendar.google.com/calendar/r?authuser=${encodeURIComponent(googleEmail)}` : "https://calendar.google.com"}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"

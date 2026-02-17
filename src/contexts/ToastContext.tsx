@@ -21,6 +21,8 @@ interface ToastAction {
 interface ToastOptions {
   action?: ToastAction;
   duration?: number;
+  /** Optional progress value (0–100). Prevents auto-dismiss while < 100. */
+  progress?: number;
 }
 
 /** Internal representation of a single toast notification. */
@@ -30,10 +32,14 @@ interface ToastItem {
   action?: ToastAction;
   duration: number;
   dismissing: boolean;
+  /** Optional progress value (0–100). */
+  progress?: number;
 }
 
 interface ToastContextValue {
   showToast: (message: string, options?: ToastOptions) => void;
+  /** Updates progress of the current toast without replacing it. */
+  updateToastProgress: (progress: number) => void;
 }
 
 const ToastContext = createContext<ToastContextValue | null>(null);
@@ -80,6 +86,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       clearDismissTimer();
       const id = ++idCounter.current;
       const duration = options?.duration ?? DEFAULT_DURATION;
+      const hasProgress = typeof options?.progress === "number";
 
       setToast({
         id,
@@ -87,23 +94,38 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         action: options?.action,
         duration,
         dismissing: false,
+        progress: options?.progress,
       });
 
-      dismissTimerRef.current = setTimeout(() => {
-        dismissToast();
-      }, duration);
+      // Don't auto-dismiss while progress is active
+      if (!hasProgress) {
+        dismissTimerRef.current = setTimeout(() => {
+          dismissToast();
+        }, duration);
+      }
     },
     [clearDismissTimer, dismissToast]
   );
 
+  /**
+   * Updates the progress value of the current toast without replacing it.
+   * Does not restart the dismiss timer.
+   *
+   * @param progress - New progress value (0–100)
+   */
+  const updateToastProgress = useCallback((progress: number) => {
+    setToast((prev) => (prev ? { ...prev, progress } : null));
+  }, []);
+
   return (
-    <ToastContext.Provider value={{ showToast }}>
+    <ToastContext.Provider value={{ showToast, updateToastProgress }}>
       {children}
       {toast && (
         <Toast
           key={toast.id}
           message={toast.message}
           action={toast.action}
+          progress={toast.progress}
           dismissing={toast.dismissing}
           onDismiss={dismissToast}
         />

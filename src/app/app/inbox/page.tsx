@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { Inbox, RefreshCw, ChevronDown, X, Sun, CalendarRange, MoreVertical, List, LayoutGrid } from "lucide-react";
+import { Inbox, ChevronDown, X, Sun, CalendarRange, MoreVertical, List, LayoutGrid } from "lucide-react";
 import { useTaskContext } from "@/contexts/TaskContext";
 import { useToast } from "@/contexts/ToastContext";
 import TaskList from "@/components/tasks/TaskList";
@@ -102,10 +102,22 @@ export default function InboxPage() {
     tasks, loading, error, addTask, toggleComplete, deleteTask, updateTask,
     syncing, syncProgress, syncResult, triggerSync,
   } = useTaskContext();
-  const { showToast } = useToast();
+  const { showToast, updateToastProgress } = useToast();
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const prevSyncResultRef = useRef<string | null>(syncResult?.last_synced_at ?? null);
-  const [filter, setFilter] = useState<InboxFilter>("all");
+  const [filter, setFilterRaw] = useState<InboxFilter>(() => {
+    if (typeof window !== "undefined") {
+      return (localStorage.getItem("inbox-filter") as InboxFilter) || "all";
+    }
+    return "all";
+  });
+
+  /** Sets filter, persists to localStorage, and dispatches event for sidebar. */
+  const setFilter = useCallback((f: InboxFilter) => {
+    setFilterRaw(f);
+    localStorage.setItem("inbox-filter", f);
+    window.dispatchEvent(new CustomEvent("inbox-filter-change", { detail: f }));
+  }, []);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [showSyncModal, setShowSyncModal] = useState(false);
   const [syncCourses, setSyncCourses] = useState<SelectedCourse[]>([]);
@@ -124,14 +136,11 @@ export default function InboxPage() {
   const [boardPopoverTask, setBoardPopoverTaskRaw] = useState<Task | null>(null);
   const [boardAnchorRect, setBoardAnchorRect] = useState<DOMRect | null>(null);
 
-  /** Opens board popover centered on screen. */
-  const setBoardPopoverTask = useCallback((task: Task | null) => {
+  /** Opens board popover near the clicked task card. */
+  const setBoardPopoverTask = useCallback((task: Task | null, anchorRect?: DOMRect) => {
     setBoardPopoverTaskRaw(task);
-    if (task) {
-      // Create a centered anchor rect so TaskPopover positions near center
-      const cx = window.innerWidth / 2;
-      const cy = window.innerHeight / 2;
-      setBoardAnchorRect(new DOMRect(cx - 50, cy - 20, 100, 40));
+    if (task && anchorRect) {
+      setBoardAnchorRect(anchorRect);
     } else {
       setBoardAnchorRect(null);
     }
@@ -182,6 +191,16 @@ export default function InboxPage() {
     localStorage.setItem("inbox-view-mode", viewMode);
   }, [viewMode]);
 
+  // Listen for tour-triggered view mode changes
+  useEffect(() => {
+    function handleTourViewChange(e: Event) {
+      const mode = (e as CustomEvent).detail as ViewMode;
+      setViewMode(mode);
+    }
+    window.addEventListener("tour-set-view-mode", handleTourViewChange);
+    return () => window.removeEventListener("tour-set-view-mode", handleTourViewChange);
+  }, []);
+
   // Close view menu on outside click
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -201,7 +220,23 @@ export default function InboxPage() {
     };
   }, [showViewMenu]);
 
-  // Show sync result as a toast notification
+  // Show progress toast when sync starts
+  const wasSyncingRef = useRef(false);
+  useEffect(() => {
+    if (syncing && !wasSyncingRef.current) {
+      showToast("Syncing assignments...", { progress: 0 });
+    }
+    wasSyncingRef.current = syncing;
+  }, [syncing, showToast]);
+
+  // Update toast progress during sync
+  useEffect(() => {
+    if (syncing && syncProgress > 0) {
+      updateToastProgress(syncProgress);
+    }
+  }, [syncProgress, syncing, updateToastProgress]);
+
+  // Show sync result as a toast notification (replaces progress toast)
   useEffect(() => {
     if (!syncResult || syncing) return;
     const syncKey = syncResult.last_synced_at;
@@ -368,16 +403,7 @@ export default function InboxPage() {
 
             <div className="flex items-center gap-1">
               <button
-                id="tour-sync-button"
-                onClick={handleSyncClick}
-                disabled={syncing}
-                className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-all disabled:opacity-50"
-                title="Sync assignments from bCourses & Gradescope"
-              >
-                <RefreshCw size={16} className={syncing ? "animate-spin" : ""} />
-              </button>
-
-              <button
+                id="tour-view-toggle"
                 ref={viewMenuRef}
                 onClick={() => setShowViewMenu(!showViewMenu)}
                 className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-all"
@@ -437,7 +463,7 @@ export default function InboxPage() {
             </div>
           )}
 
-          <div className="flex-1 overflow-auto animate-stagger stagger-2">
+          <div id="tour-task-list" className="flex-1 overflow-auto animate-stagger stagger-2">
             <div key={viewMode} className="animate-view-switch h-full">
               {viewMode === "list" ? (
                 <TaskList
@@ -459,7 +485,7 @@ export default function InboxPage() {
                   selectedTaskId={boardPopoverTask?.id}
                   onAdd={addTask}
                   onToggle={toggleComplete}
-                  onSelect={(task) => setBoardPopoverTask(task)}
+                  onSelect={(task, anchorRect) => setBoardPopoverTask(task, anchorRect)}
                   onDelete={deleteTask}
                 />
               )}

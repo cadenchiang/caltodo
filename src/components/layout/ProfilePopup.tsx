@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Settings, LogOut } from "lucide-react";
+import { Settings, LogOut, MessageCircle } from "lucide-react";
+import ContactModal from "@/components/ui/ContactModal";
 
 interface ProfilePopupProps {
   avatarUrl: string | null;
@@ -23,6 +24,7 @@ export default function ProfilePopup({ avatarUrl, fullName, email }: ProfilePopu
   const [open, setOpen] = useState(false);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
   const [imgError, setImgError] = useState(false);
+  const [showContact, setShowContact] = useState(false);
   const popupRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
@@ -95,6 +97,14 @@ export default function ProfilePopup({ avatarUrl, fullName, email }: ProfilePopu
         )}
       </button>
 
+      {/* Contact modal */}
+      <ContactModal
+        open={showContact}
+        onClose={() => setShowContact(false)}
+        userName={fullName}
+        userEmail={email}
+      />
+
       {/* Popup */}
       {open && (
         <div
@@ -121,6 +131,16 @@ export default function ProfilePopup({ avatarUrl, fullName, email }: ProfilePopu
             >
               <Settings size={16} />
               Settings
+            </button>
+            <button
+              onClick={() => {
+                setOpen(false);
+                setShowContact(true);
+              }}
+              className="flex items-center gap-3 w-full px-4 py-3 text-sm text-secondary-foreground hover:bg-accent transition-colors"
+            >
+              <MessageCircle size={16} />
+              Contact
             </button>
             <button
               onClick={handleSignOutClick}

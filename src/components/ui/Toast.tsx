@@ -13,6 +13,8 @@ interface ToastAction {
 interface ToastProps {
   message: string;
   action?: ToastAction;
+  /** Optional progress value (0–100). Shows a thin bar at the bottom of the toast. */
+  progress?: number;
   dismissing: boolean;
   onDismiss: () => void;
 }
@@ -30,13 +32,16 @@ interface ToastProps {
 export default function Toast({
   message,
   action,
+  progress,
   dismissing,
   onDismiss,
 }: ToastProps) {
+  const showProgress = typeof progress === "number" && progress < 100;
+
   return (
     <div className="fixed bottom-6 left-0 right-0 z-50 flex justify-center pointer-events-none">
       <div
-        className={`pointer-events-auto flex items-center gap-3 rounded-full px-5 py-3 text-sm text-white shadow-lg backdrop-blur-md bg-neutral-800/90 dark:bg-neutral-900/90 ${
+        className={`pointer-events-auto relative flex items-center gap-3 rounded-full px-5 py-3 text-sm text-white shadow-lg backdrop-blur-md bg-neutral-800/90 dark:bg-neutral-900/90 overflow-hidden ${
           dismissing ? "animate-toast-out" : "animate-toast-in"
         }`}
       >
@@ -62,6 +67,16 @@ export default function Toast({
       >
         <X size={16} />
       </button>
+
+      {/* Subtle progress bar at the very bottom */}
+      {showProgress && (
+        <div className="absolute bottom-0 left-0 right-0 h-[2px]">
+          <div
+            className="h-full bg-blue-400 transition-all duration-300 ease-out"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      )}
       </div>
     </div>
   );

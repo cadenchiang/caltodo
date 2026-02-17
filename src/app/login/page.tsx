@@ -1,9 +1,10 @@
+import { Suspense } from "react";
 import LoginForm from "@/components/auth/LoginForm";
 import { ToastProvider } from "@/contexts/ToastContext";
 
 /**
  * Login page with theme-aware styling, centered form, and staggered drop-in animations.
- * Follows system/user theme preference via ThemeContext.
+ * Suspense boundary required because LoginForm uses useSearchParams.
  */
 export default function LoginPage() {
   return (
@@ -17,7 +18,9 @@ export default function LoginPage() {
               className="h-14"
             />
           </div>
-          <LoginForm />
+          <Suspense>
+            <LoginForm />
+          </Suspense>
         </div>
       </div>
     </ToastProvider>

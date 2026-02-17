@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDown, MoreVertical, Pencil, Plus, RotateCcw } from "lucide-react";
+import { ChevronDown, ExternalLink, MoreHorizontal, MoreVertical, Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
 import type { Task, TaskInsert } from "@/lib/types";
 import BoardTaskAddForm from "./BoardTaskAddForm";
 
@@ -48,7 +48,7 @@ interface TaskBoardViewProps {
   selectedTaskId?: string | null;
   onAdd: (task: TaskInsert) => void;
   onToggle: (id: string) => void;
-  onSelect: (task: Task) => void;
+  onSelect: (task: Task, anchorRect?: DOMRect) => void;
   onDelete: (id: string) => void;
 }
 
@@ -255,7 +255,7 @@ interface BoardColumnProps {
   selectedTaskId?: string | null;
   onAdd: (task: TaskInsert) => void;
   onToggle: (id: string) => void;
-  onSelect: (task: Task) => void;
+  onSelect: (task: Task, anchorRect?: DOMRect) => void;
   onDelete: (id: string) => void;
   onRename: (originalName: string, newDisplayName: string) => void;
   onResetName: (originalName: string) => void;
@@ -491,39 +491,80 @@ interface TaskCardProps {
   task: Task;
   isSelected: boolean;
   onToggle: (id: string) => void;
-  onSelect: (task: Task) => void;
+  onSelect: (task: Task, anchorRect?: DOMRect) => void;
   onDelete: (id: string) => void;
 }
 
 /**
  * Individual task card for board view. Rounded card with subtle border,
- * hover shadow, checkbox + title, and due date / source label below.
+ * hover shadow, three-dot menu, optional source link, checkbox + title,
+ * and combined due date + time label.
  *
  * @param props - TaskCardProps
  */
 function TaskCard({ task, isSelected, onToggle, onSelect, onDelete }: TaskCardProps) {
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const [showMenu, setShowMenu] = useState(false);
+  const menuBtnRef = useRef<HTMLButtonElement>(null);
+  const menuDropdownRef = useRef<HTMLDivElement>(null);
   const isCompleted = task.is_completed || task.is_submitted;
   const rawBadge = getDueDateLabel(task.due_date, task.due_time);
   const dueBadge = isCompleted && rawBadge
     ? { ...rawBadge, className: "text-muted-foreground" }
     : rawBadge;
 
+  // Close menu on outside click
+  useEffect(() => {
+    if (!showMenu) return;
+    function handleClick(e: MouseEvent) {
+      const target = e.target as Node;
+      if (
+        menuBtnRef.current && !menuBtnRef.current.contains(target) &&
+        !menuDropdownRef.current?.contains(target)
+      ) {
+        setShowMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showMenu]);
+
   return (
     <>
       <div
-        className={`rounded-xl border bg-card px-3.5 py-3 cursor-pointer transition-all duration-150 shadow-[0_1px_3px_rgba(0,0,0,0.04)] ${
+        className={`group relative rounded-xl border bg-card px-3.5 py-3 cursor-pointer transition-all duration-150 shadow-[0_1px_3px_rgba(0,0,0,0.04)] ${
           isSelected
             ? "border-blue-400 shadow-sm"
             : "border-border hover:shadow-md"
         } ${isCompleted ? "opacity-50" : ""}`}
-        onClick={() => onSelect(task)}
-        onContextMenu={(e) => {
-          e.preventDefault();
-          setContextMenu({ x: e.clientX, y: e.clientY });
-        }}
+        onClick={(e) => onSelect(task, e.currentTarget.getBoundingClientRect())}
       >
-        {/* Row 1: checkbox + title */}
+        {/* Three-dot menu — top right, visible on hover */}
+        <button
+          ref={menuBtnRef}
+          onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }}
+          className="absolute top-2 right-2 p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-all opacity-0 group-hover:opacity-100 z-10"
+          aria-label="Task options"
+        >
+          <MoreHorizontal size={14} />
+        </button>
+
+        {/* Source link icon at top */}
+        {task.source_url && (
+          <div className="mb-2">
+            <a
+              href={task.source_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="inline-flex p-0.5 text-subtle-foreground hover:text-foreground transition-colors"
+              aria-label="Open in source"
+            >
+              <ExternalLink size={12} />
+            </a>
+          </div>
+        )}
+
+        {/* Checkbox + title */}
         <div className="flex items-start gap-2.5">
           <button
             onClick={(e) => {
@@ -556,36 +597,40 @@ function TaskCard({ task, isSelected, onToggle, onSelect, onDelete }: TaskCardPr
           </span>
         </div>
 
-        {/* Row 2: date then time */}
+        {/* Date + time combined */}
         {dueBadge && (
           <div className="mt-1.5 pl-[24px]">
             <span className={`text-[11px] font-normal ${dueBadge.className} ${isCompleted ? "opacity-70" : ""}`}>
-              {dueBadge.dateLabel}
+              {dueBadge.dateLabel}{dueBadge.timeLabel ? ` ${dueBadge.timeLabel}` : ""}
             </span>
-            {dueBadge.timeLabel && (
-              <span className={`text-[11px] font-normal text-muted-foreground ${isCompleted ? "opacity-40" : "opacity-60"}`}> {dueBadge.timeLabel}</span>
-            )}
           </div>
         )}
       </div>
 
-      {/* Right-click context menu */}
-      {contextMenu && typeof document !== "undefined" && createPortal(
+      {/* Three-dot dropdown menu */}
+      {showMenu && menuBtnRef.current && typeof document !== "undefined" && createPortal(
         <>
           <div
             className="fixed inset-0 z-50"
-            onClick={() => setContextMenu(null)}
-            onContextMenu={(e) => { e.preventDefault(); setContextMenu(null); }}
+            onClick={() => setShowMenu(false)}
           />
           <div
-            className="fixed z-50 bg-card rounded-lg shadow-xl border border-input-border py-1 min-w-[140px]"
-            style={{ top: contextMenu.y, left: contextMenu.x }}
+            ref={menuDropdownRef}
+            className="fixed z-50 bg-card rounded-lg shadow-xl border border-input-border py-1 min-w-[120px]"
+            style={{
+              top: menuBtnRef.current.getBoundingClientRect().bottom + 4,
+              left: Math.min(
+                menuBtnRef.current.getBoundingClientRect().left,
+                window.innerWidth - 140
+              ),
+            }}
           >
             <button
-              onClick={() => { setContextMenu(null); onDelete(task.id); }}
+              onClick={() => { setShowMenu(false); onDelete(task.id); }}
               className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
             >
-              Delete task
+              <Trash2 size={13} />
+              Delete
             </button>
           </div>
         </>,

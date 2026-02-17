@@ -9,10 +9,6 @@ const TOUR_PENDING_KEY = "caltodo_tour_pending";
 const TOUR_COMPLETED_KEY = "caltodo_tour_completed";
 
 /**
- * Tour step definitions for the full app tour.
- * Steps can specify a route to navigate to before highlighting the target.
- */
-/**
  * Simulates a click on the filter button to open/close the dropdown.
  * Used by the tour to demonstrate the filter UI.
  */
@@ -22,44 +18,63 @@ function clickFilterButton() {
 }
 
 /**
+ * Dispatches a custom event to switch the inbox view mode.
+ * Listened for by InboxPage to toggle between list and board views.
+ *
+ * @param mode - "list" or "board"
+ */
+function setTourViewMode(mode: "list" | "board") {
+  window.dispatchEvent(new CustomEvent("tour-set-view-mode", { detail: mode }));
+}
+
+/**
  * Tour step definitions for the full app tour.
- * Steps can specify a route to navigate to before highlighting the target.
+ * Steps include cross-page navigation (inbox + calendar) and interactive demos.
  */
 const TOUR_STEPS: TourStep[] = [
   {
     targetId: "tour-sidebar-nav",
     title: "Navigation",
-    description: "Switch between your Inbox and Calendar views here. Your Inbox shows all tasks, while Calendar gives you a monthly overview.",
+    description: "Switch between your Inbox and Calendar views. Your Inbox shows all tasks, while Calendar gives you a monthly overview.",
     position: "right",
     route: "/app/inbox",
   },
   {
     targetId: "tour-filter",
     title: "Filter Tasks",
-    description: "Click here to filter your tasks — view all, just today's, or the next 7 days. Keep focused on what matters most.",
+    description: "Filter your tasks by time — view all, just today's, or the next 7 days. Stay focused on what matters most.",
     position: "bottom",
     route: "/app/inbox",
     onEnter: () => clickFilterButton(),
     onExit: () => clickFilterButton(),
   },
   {
+    targetId: "tour-task-list",
+    title: "Your Tasks",
+    description: "All your tasks live here — assignments, personal to-dos, reminders, anything you want to track. They're sorted by due date so you always know what's next.",
+    position: "right",
+    route: "/app/inbox",
+  },
+  {
     targetId: "tour-add-task",
-    title: "Create Tasks",
-    description: "Type a task name and press Enter to add it. Click the calendar icon to set a due date, or the color dot to categorize it.",
+    title: "Add Tasks",
+    description: "Type a task and press Enter to add it. Use the calendar icon to set a due date, or the color dot to categorize it. Add anything — homework, errands, goals.",
     position: "bottom",
     route: "/app/inbox",
   },
   {
-    targetId: "tour-sync-button",
-    title: "Sync Assignments",
-    description: "Click the refresh icon to pull in new assignments from bCourses and Gradescope. You can choose which courses to sync.",
+    targetId: "tour-view-toggle",
+    title: "Board View",
+    description: "Switch between List and Board views. Board view organizes your tasks into columns by class or category — like a Kanban board.",
     position: "bottom",
     route: "/app/inbox",
+    onEnter: () => setTourViewMode("board"),
+    onExit: () => setTourViewMode("list"),
   },
   {
     targetId: "tour-calendar-grid",
     title: "Calendar View",
-    description: "See all your tasks and deadlines laid out on a monthly calendar. Click any day to add a task, or click a task to edit it.",
+    description: "See all your tasks and deadlines on a monthly calendar. Click any day to add a task, or click an existing task to edit it.",
     position: "top",
     route: "/app/calendar",
   },
