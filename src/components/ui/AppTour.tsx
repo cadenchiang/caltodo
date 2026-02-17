@@ -172,11 +172,10 @@ export function TourProvider({ children, steps, onComplete }: TourProviderProps)
     }
   }, []);
 
-  // Listen for restart-tour event — directly starts the tour (no dialog)
+  // Listen for restart-tour event — resets completed state so dialog can show
   useEffect(() => {
     function handleRestart() {
       setIsCompleted(false);
-      setCurrentStep(0);
     }
     window.addEventListener("caltodo-restart-tour", handleRestart);
     return () => window.removeEventListener("caltodo-restart-tour", handleRestart);

@@ -10,6 +10,7 @@ import TaskAddPopover from "@/components/tasks/TaskAddPopover";
 import PageTransition from "@/components/ui/PageTransition";
 import type { Task } from "@/lib/types";
 
+
 /**
  * Calendar month view page. Filters tasks from shared TaskContext by month.
  * Uses Google Calendar-style floating popovers for adding/editing tasks.

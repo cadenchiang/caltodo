@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import Sidebar from "@/components/layout/Sidebar";
+import MobileTabBar from "@/components/layout/MobileTabBar";
 import { TaskProvider } from "@/contexts/TaskContext";
 import { ToastProvider } from "@/contexts/ToastContext";
 import InboxTour from "@/components/ui/InboxTour";
@@ -28,14 +29,15 @@ export default async function AppLayout({
   const email = session.user.email ?? null;
 
   return (
-    <div className="flex h-screen">
+    <div className="flex flex-col md:flex-row h-dvh">
       <ToastProvider>
         <TaskProvider>
           <InboxTour>
             <Sidebar avatarUrl={avatarUrl} fullName={fullName} email={email} />
-            <main className="flex-1 overflow-auto p-10 dark:bg-black">
+            <main className="flex-1 overflow-auto p-4 md:p-10 pb-20 md:pb-10 dark:bg-black">
               {children}
             </main>
+            <MobileTabBar />
           </InboxTour>
         </TaskProvider>
       </ToastProvider>

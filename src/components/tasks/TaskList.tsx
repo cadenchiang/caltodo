@@ -16,7 +16,7 @@ interface TaskListProps {
   selectedTaskId?: string | null;
   onAdd: (task: TaskInsert) => void;
   onToggle: (id: string) => void;
-  onSelect: (task: Task) => void;
+  onSelect: (task: Task, anchorRect?: DOMRect) => void;
   onDelete: (id: string) => void;
   defaultDate?: string | null;
   placeholder?: string;

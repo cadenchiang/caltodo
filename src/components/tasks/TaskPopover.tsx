@@ -26,19 +26,27 @@ interface TaskPopoverProps {
  * @returns CSS position properties for the popover
  */
 function computePosition(anchorRect: DOMRect): { top: number; left: number } {
-  const popoverWidth = 380;
+  const popoverWidth = Math.min(380, window.innerWidth - 16);
   const popoverHeight = 420;
   const margin = 8;
+  const isMobile = window.innerWidth < 768;
 
-  let left = anchorRect.right + margin;
+  let left: number;
   let top = anchorRect.top;
 
-  if (left + popoverWidth > window.innerWidth) {
-    left = anchorRect.left - popoverWidth - margin;
+  if (isMobile) {
+    // Center horizontally on mobile
+    left = (window.innerWidth - popoverWidth) / 2;
+  } else {
+    left = anchorRect.right + margin;
+    if (left + popoverWidth > window.innerWidth) {
+      left = anchorRect.left - popoverWidth - margin;
+    }
+    if (left < margin) {
+      left = margin;
+    }
   }
-  if (left < margin) {
-    left = margin;
-  }
+
   if (top + popoverHeight > window.innerHeight) {
     top = window.innerHeight - popoverHeight - margin;
   }
@@ -198,7 +206,7 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
   return createPortal(
     <div
       ref={ref}
-      className={`fixed z-50 w-[380px] bg-card rounded-2xl shadow-2xl border border-border transition-all duration-150 ease-out ${
+      className={`fixed z-50 w-[min(380px,calc(100vw-16px))] bg-card rounded-2xl shadow-2xl border border-border transition-all duration-150 ease-out ${
         visible
           ? "opacity-100 scale-100 translate-y-0"
           : "opacity-0 scale-95 -translate-y-1"

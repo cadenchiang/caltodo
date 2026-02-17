@@ -9,7 +9,7 @@ interface TaskItemProps {
   task: Task;
   isSelected?: boolean;
   onToggle: (id: string) => void;
-  onSelect: (task: Task) => void;
+  onSelect: (task: Task, anchorRect?: DOMRect) => void;
   onDelete: (id: string) => void;
 }
 
@@ -103,7 +103,7 @@ export default function TaskItem({ task, isSelected, onToggle, onSelect, onDelet
             ? "bg-black/5 dark:bg-white/5"
             : "hover:bg-accent"
         } ${task.is_completed ? "opacity-40" : ""} ${isOptimistic ? "animate-task-slide-in" : ""}`}
-        onClick={() => onSelect(task)}
+        onClick={(e) => onSelect(task, e.currentTarget.getBoundingClientRect())}
         onContextMenu={handleContextMenu}
       >
         {/* Checkbox */}

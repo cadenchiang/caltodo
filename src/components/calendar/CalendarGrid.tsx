@@ -20,6 +20,7 @@ interface CalendarGridProps {
 }
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const WEEKDAY_LABELS_SHORT = ["S", "M", "T", "W", "T", "F", "S"];
 
 /**
  * Month grid layout displaying a 7-column calendar.
@@ -52,12 +53,13 @@ export default function CalendarGrid({
     <div id="tour-calendar-grid" className="glass rounded-2xl overflow-hidden shadow-md dark:shadow-black/30">
       {/* Weekday headers */}
       <div className="grid grid-cols-7 bg-input-bg border-b-2 border-border">
-        {WEEKDAY_LABELS.map((label) => (
+        {WEEKDAY_LABELS.map((label, i) => (
           <div
             key={label}
             className="text-center text-[11px] font-semibold uppercase tracking-wider text-muted-foreground py-3.5 border-r border-border last:border-r-0"
           >
-            {label}
+            <span className="hidden md:inline">{label}</span>
+            <span className="md:hidden">{WEEKDAY_LABELS_SHORT[i]}</span>
           </div>
         ))}
       </div>

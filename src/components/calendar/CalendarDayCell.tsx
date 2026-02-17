@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { format, isSameDay, isSameMonth } from "date-fns";
 import type { Task } from "@/lib/types";
 import CalendarTaskBar from "./CalendarTaskBar";
@@ -33,19 +33,26 @@ export default function CalendarDayCell({
   onTaskClick,
 }: CalendarDayCellProps) {
   const [expanded, setExpanded] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const isCurrentMonth = isSameMonth(day, currentMonth);
   const isToday = isSameDay(day, new Date());
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const isPast = day.getTime() < today.getTime();
   const dateStr = format(day, "yyyy-MM-dd");
-  const maxVisible = 3;
+
+  // Detect mobile for limiting visible tasks per cell
+  useEffect(() => {
+    setIsMobile(window.innerWidth < 768);
+  }, []);
+
+  const maxVisible = isMobile ? 1 : 3;
   const visibleTasks = expanded ? tasks : tasks.slice(0, maxVisible);
   const overflow = tasks.length - maxVisible;
 
   return (
     <div
-      className={`min-h-[140px] p-1.5 cursor-pointer border-r border-b border-border transition-all duration-150 ${
+      className={`min-h-[72px] md:min-h-[140px] p-1.5 cursor-pointer border-r border-b border-border transition-all duration-150 ${
         !isCurrentMonth
           ? "bg-muted/80"
           : isPast
@@ -59,7 +66,7 @@ export default function CalendarDayCell({
     >
       {/* Day number */}
       <div
-        className={`w-7 h-7 text-xs rounded-full flex items-center justify-center mb-1 ${
+        className={`w-6 h-6 md:w-7 md:h-7 text-xs rounded-full flex items-center justify-center mb-1 ${
           isToday
             ? "bg-blue-500 text-white font-bold shadow-sm"
             : isCurrentMonth

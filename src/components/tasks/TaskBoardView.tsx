@@ -711,7 +711,7 @@ function TaskCard({ task, isSelected, onToggle, onSelect, onDelete }: TaskCardPr
           <button
             ref={menuBtnRef}
             onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }}
-            className="flex-shrink-0 p-0.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-all opacity-0 group-hover:opacity-100"
+            className="flex-shrink-0 p-0.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-all opacity-0 group-hover:opacity-100 [@media(pointer:coarse)]:opacity-100"
             aria-label="Task options"
           >
             <MoreHorizontal size={14} />

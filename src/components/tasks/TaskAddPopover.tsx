@@ -25,7 +25,7 @@ interface TaskAddPopoverProps {
  * @returns CSS position properties for the popover
  */
 function computePosition(anchorRect: DOMRect): { top: number; left: number } {
-  const popoverWidth = 340;
+  const popoverWidth = Math.min(340, window.innerWidth - 16);
   const popoverHeight = 230;
   const margin = 8;
 
@@ -133,7 +133,7 @@ export default function TaskAddPopover({ date, anchorRect, onClose, onAdd }: Tas
   return createPortal(
     <div
       ref={ref}
-      className={`fixed z-50 w-[340px] bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl border border-border transition-all duration-150 ease-out ${
+      className={`fixed z-50 w-[min(340px,calc(100vw-16px))] bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl border border-border transition-all duration-150 ease-out ${
         visible
           ? "opacity-100 scale-100 translate-y-0"
           : "opacity-0 scale-95 -translate-y-1"

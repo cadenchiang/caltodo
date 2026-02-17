@@ -90,6 +90,7 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
   min-height: 100vh;
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 

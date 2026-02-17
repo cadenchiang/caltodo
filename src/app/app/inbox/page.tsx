@@ -171,6 +171,8 @@ export default function InboxPage() {
   });
   const [boardPopoverTask, setBoardPopoverTaskRaw] = useState<Task | null>(null);
   const [boardAnchorRect, setBoardAnchorRect] = useState<DOMRect | null>(null);
+  const [mobilePopoverTask, setMobilePopoverTaskRaw] = useState<Task | null>(null);
+  const [mobileAnchorRect, setMobileAnchorRect] = useState<DOMRect | null>(null);
 
   /** Opens board popover near the clicked task card. */
   const setBoardPopoverTask = useCallback((task: Task | null, anchorRect?: DOMRect) => {
@@ -182,6 +184,16 @@ export default function InboxPage() {
     }
   }, []);
 
+  /** Opens mobile popover near the tapped task row. */
+  const setMobilePopoverTask = useCallback((task: Task | null, anchorRect?: DOMRect) => {
+    setMobilePopoverTaskRaw(task);
+    if (task && anchorRect) {
+      setMobileAnchorRect(anchorRect);
+    } else {
+      setMobileAnchorRect(null);
+    }
+  }, []);
+
   // Keep selected task in sync with context after updates
   const currentSelectedTask = selectedTask
     ? tasks.find((t) => t.id === selectedTask.id) ?? null
@@ -190,6 +202,11 @@ export default function InboxPage() {
   // Keep board popover task in sync with context after updates
   const currentBoardPopoverTask = boardPopoverTask
     ? tasks.find((t) => t.id === boardPopoverTask.id) ?? null
+    : null;
+
+  // Keep mobile popover task in sync with context after updates
+  const currentMobilePopoverTask = mobilePopoverTask
+    ? tasks.find((t) => t.id === mobilePopoverTask.id) ?? null
     : null;
 
   // Filter tasks by date
@@ -423,10 +440,10 @@ export default function InboxPage() {
 
   return (
     <PageTransition>
-      <div className="flex -m-10" style={{ height: "calc(100vh)" }}>
+      <div className="flex flex-col md:flex-row -m-4 md:-m-10" style={{ height: "calc(100dvh)" }}>
         {/* Left: task list */}
         <div className="flex flex-col flex-1 min-w-0">
-          <div className="px-8 pt-8 pb-4 flex items-center justify-between animate-stagger stagger-1">
+          <div className="px-4 pt-4 pb-3 md:px-8 md:pt-8 md:pb-4 flex items-center justify-between animate-stagger stagger-1">
             {/* Clickable title = filter selector */}
             <div id="tour-filter" ref={filterRef} className="relative">
               <button
@@ -594,7 +611,7 @@ export default function InboxPage() {
 
           {/* Sync progress bar with glow */}
           {(syncing || syncProgress > 0) && syncProgress < 100 && (
-            <div className="mx-8 mb-2">
+            <div className="mx-4 md:mx-8 mb-2">
               <div className="h-1 bg-muted rounded-full overflow-hidden">
                 <div
                   className="h-full bg-blue-500 rounded-full transition-all duration-700 ease-in-out animate-sync-glow"
@@ -614,7 +631,14 @@ export default function InboxPage() {
                   selectedTaskId={selectedTask?.id}
                   onAdd={addTask}
                   onToggle={toggleComplete}
-                  onSelect={(task) => setSelectedTask(task)}
+                  onSelect={(task, anchorRect) => {
+                    // On mobile, open popover instead of side panel
+                    if (typeof window !== "undefined" && window.innerWidth < 768 && anchorRect) {
+                      setMobilePopoverTask(task, anchorRect);
+                    } else {
+                      setSelectedTask(task);
+                    }
+                  }}
                   onDelete={deleteTask}
                   placeholder='Add task to "Inbox". Press Enter to save.'
                 />
@@ -651,13 +675,15 @@ export default function InboxPage() {
           </div>
         </div>
 
-        {/* Right: detail panel (list view only) */}
+        {/* Right: detail panel (list view only, hidden on mobile) */}
         {viewMode === "list" && (
-          <TaskDetailPanel
-            task={currentSelectedTask}
-            onClose={() => setSelectedTask(null)}
-            onSave={updateTask}
-          />
+          <div className="hidden md:flex">
+            <TaskDetailPanel
+              task={currentSelectedTask}
+              onClose={() => setSelectedTask(null)}
+              onSave={updateTask}
+            />
+          </div>
         )}
       </div>
 
@@ -674,6 +700,23 @@ export default function InboxPage() {
             await deleteTask(id);
             setBoardPopoverTask(null);
             setBoardAnchorRect(null);
+          }}
+        />
+      )}
+
+      {/* Mobile list view: floating task popover instead of side panel */}
+      {viewMode === "list" && currentMobilePopoverTask && mobileAnchorRect && (
+        <TaskPopover
+          task={currentMobilePopoverTask}
+          anchorRect={mobileAnchorRect}
+          onClose={() => { setMobilePopoverTask(null); setMobileAnchorRect(null); }}
+          onSave={async (id, updates) => {
+            await updateTask(id, updates);
+          }}
+          onDelete={async (id) => {
+            await deleteTask(id);
+            setMobilePopoverTask(null);
+            setMobileAnchorRect(null);
           }}
         />
       )}

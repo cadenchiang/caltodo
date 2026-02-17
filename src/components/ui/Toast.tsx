@@ -39,13 +39,13 @@ export default function Toast({
   const showProgress = typeof progress === "number" && progress < 100;
 
   return (
-    <div className="fixed bottom-6 left-0 right-0 z-50 flex justify-center pointer-events-none">
+    <div className="fixed bottom-24 md:bottom-6 left-0 right-0 z-50 flex justify-center pointer-events-none px-4">
       <div
-        className={`pointer-events-auto relative flex items-center gap-3 rounded-full px-5 py-3 text-sm text-white shadow-lg backdrop-blur-md bg-neutral-800/90 dark:bg-neutral-900/90 overflow-hidden ${
+        className={`pointer-events-auto relative flex items-center gap-3 rounded-full px-5 py-3 text-sm text-white shadow-lg backdrop-blur-md bg-neutral-800/90 dark:bg-neutral-900/90 overflow-hidden max-w-[calc(100vw-2rem)] ${
           dismissing ? "animate-toast-out" : "animate-toast-in"
         }`}
       >
-      <span className="whitespace-nowrap">{message}</span>
+      <span>{message}</span>
 
       {action && (
         <button

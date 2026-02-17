@@ -71,12 +71,12 @@ export default function SettingsPage() {
 
   return (
     <PageTransition>
-      <div className="flex h-full -m-10">
+      <div className="flex h-full -m-4 md:-m-10">
         <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="px-8 pt-8 pb-4 animate-stagger stagger-1">
+          <div className="px-4 pt-4 pb-3 md:px-8 md:pt-8 md:pb-4 animate-stagger stagger-1">
             <h1 className="text-xl font-bold text-foreground">Settings</h1>
           </div>
-          <div className="flex-1 overflow-auto px-8 pb-8">
+          <div className="flex-1 overflow-auto px-4 md:px-8 pb-8">
             <div className="max-w-xl space-y-10">
               {/* Google Calendar (Real-time) */}
               <section className="animate-stagger stagger-2">

@@ -50,6 +50,15 @@ const TOUR_STEPS: TourStep[] = [
     description: "Show all tasks, just today's, or the next 7 days.",
     position: "bottom",
     route: "/app/inbox",
+    onEnter: () => {
+      // Click the filter button to open the dropdown
+      const btn = document.querySelector("#tour-filter button") as HTMLElement | null;
+      btn?.click();
+    },
+    onExit: () => {
+      // Close the dropdown by dispatching a mousedown outside
+      document.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+    },
   },
   {
     targetId: "tour-task-list",
@@ -98,8 +107,10 @@ function TourTrigger() {
   const hasTriggeredRef = useRef(false);
 
   // Show dialog after onboarding — re-check when route changes
+  // Tour is desktop-only: the steps reference sidebar and split-screen layout
   useEffect(() => {
     if (isCompleted || hasTriggeredRef.current) return;
+    if (typeof window !== "undefined" && window.innerWidth < 768) return;
     try {
       const pending = localStorage.getItem(TOUR_PENDING_KEY);
       if (pending === "true") {
@@ -114,8 +125,10 @@ function TourTrigger() {
   }, [isCompleted, pathname]);
 
   // Poll briefly in case the flag was set just before navigation (race condition)
+  // Tour is desktop-only
   useEffect(() => {
     if (isCompleted || hasTriggeredRef.current) return;
+    if (typeof window !== "undefined" && window.innerWidth < 768) return;
     const pollTimer = setInterval(() => {
       try {
         if (localStorage.getItem(TOUR_PENDING_KEY) === "true") {
@@ -129,6 +142,16 @@ function TourTrigger() {
     return () => clearInterval(pollTimer);
   }, [isCompleted]);
 
+  // Listen for restart-tour event from settings — show the dialog
+  useEffect(() => {
+    function handleRestart() {
+      hasTriggeredRef.current = false;
+      setShowDialog(true);
+    }
+    window.addEventListener("caltodo-restart-tour", handleRestart);
+    return () => window.removeEventListener("caltodo-restart-tour", handleRestart);
+  }, []);
+
   return <TourStartDialog open={showDialog} onClose={() => setShowDialog(false)} />;
 }
 
@@ -141,7 +164,7 @@ function TourTrigger() {
  */
 export default function InboxTour({ children }: { children: React.ReactNode }) {
   return (
-    <TourProvider steps={TOUR_STEPS}>
+    <TourProvider steps={TOUR_STEPS} onComplete={() => setTourViewMode("list")}>
       {children}
       <TourTrigger />
     </TourProvider>
