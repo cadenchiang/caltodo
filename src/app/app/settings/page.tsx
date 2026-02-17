@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { RotateCcw, Trash2 } from "lucide-react";
 import { useTaskContext } from "@/contexts/TaskContext";
@@ -21,6 +21,11 @@ export default function SettingsPage() {
   const { showToast } = useToast();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmRedo, setConfirmRedo] = useState(false);
+
+  // Prefetch onboarding route so "Redo Setup Wizard" navigates instantly
+  useEffect(() => {
+    router.prefetch("/app/onboarding");
+  }, [router]);
 
   /**
    * Handles redo setup wizard with double-click confirmation.

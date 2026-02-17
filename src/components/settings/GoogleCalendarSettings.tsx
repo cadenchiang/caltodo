@@ -182,6 +182,9 @@ export default function GoogleCalendarSettings() {
       };
 
       if (selectResult.needsSync) {
+        // Show progress bar immediately so user knows sync is starting
+        ifMounted(setSyncProgress, { synced: 0, total: 0 });
+
         const syncRes = await fetch("/api/gcal/initial-sync", { method: "POST" });
 
         const contentType = syncRes.headers.get("Content-Type") ?? "";
@@ -189,6 +192,7 @@ export default function GoogleCalendarSettings() {
           const syncResult = await syncRes.json();
           if (syncRes.ok && syncResult.synced === 0 && syncResult.total === 0) {
             toast("Calendar created! No tasks with due dates to sync.", openAction);
+            window.open("https://calendar.google.com", "_blank");
           } else if (!syncRes.ok) {
             toast(`Sync failed: ${syncResult.error || syncRes.status}`);
           }
@@ -208,7 +212,11 @@ export default function GoogleCalendarSettings() {
 
         while (true) {
           const { done, value } = await reader.read();
-          if (done) break;
+          if (done) {
+            // Flush decoder and process any remaining buffered data
+            buffer += decoder.decode();
+            break;
+          }
 
           buffer += decoder.decode(value, { stream: true });
           const lines = buffer.split("\n");
@@ -230,21 +238,37 @@ export default function GoogleCalendarSettings() {
           }
         }
 
+        // Process any remaining data left in the buffer after stream closed
+        if (buffer.trim()) {
+          try {
+            const event = JSON.parse(buffer);
+            if (event.type === "done") {
+              finalResult = event;
+              ifMounted(setSyncProgress, null);
+            }
+          } catch {
+            // Skip malformed data
+          }
+        }
+
         if (finalResult && finalResult.synced > 0) {
           toast(
             `Synced ${finalResult.synced} of ${finalResult.total} task${finalResult.total === 1 ? "" : "s"} to Google Calendar.`,
             openAction
           );
+          window.open("https://calendar.google.com", "_blank");
         } else if (finalResult && finalResult.total > 0 && finalResult.synced === 0) {
           toast(`Sync failed for all ${finalResult.total} tasks. Check your Google Calendar permissions.`);
         } else if (finalResult && finalResult.total === 0) {
           toast("Calendar created! No tasks with due dates to sync.", openAction);
+          window.open("https://calendar.google.com", "_blank");
         }
 
         ifMounted(setSyncComplete, true);
       } else {
         toast("Calendar created.", openAction);
         ifMounted(setSyncComplete, true);
+        window.open("https://calendar.google.com", "_blank");
       }
     } catch (err) {
       console.error("Auto-setup calendar error:", err);
@@ -369,6 +393,7 @@ export default function GoogleCalendarSettings() {
             <span className="font-medium">
               {googleEmail ? `Connected as ${googleEmail}` : "Connected to Google Calendar"}
             </span>
+            <Check size={14} className="shrink-0 text-emerald-500" />
           </div>
 
           {/* Setting up indicator (connected but no calendar yet, syncing) */}
@@ -382,14 +407,24 @@ export default function GoogleCalendarSettings() {
           {syncProgress && (
             <div className="space-y-1.5">
               <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-blue-500 transition-all duration-300 ease-out"
-                  style={{ width: `${Math.round((syncProgress.synced / syncProgress.total) * 100)}%` }}
-                />
+                {syncProgress.total > 0 ? (
+                  <div
+                    className="h-full rounded-full bg-blue-500 transition-all duration-300 ease-out"
+                    style={{ width: `${Math.round((syncProgress.synced / syncProgress.total) * 100)}%` }}
+                  />
+                ) : (
+                  <div className="h-full w-full rounded-full bg-blue-500/30 animate-pulse" />
+                )}
               </div>
               <div className="flex items-center justify-between text-xs text-subtle-foreground">
-                <span>Syncing {syncProgress.synced} of {syncProgress.total} tasks</span>
-                <span className="font-medium">{Math.round((syncProgress.synced / syncProgress.total) * 100)}%</span>
+                {syncProgress.total > 0 ? (
+                  <>
+                    <span>Syncing {syncProgress.synced} of {syncProgress.total} tasks</span>
+                    <span className="font-medium">{Math.round((syncProgress.synced / syncProgress.total) * 100)}%</span>
+                  </>
+                ) : (
+                  <span>Preparing sync...</span>
+                )}
               </div>
             </div>
           )}

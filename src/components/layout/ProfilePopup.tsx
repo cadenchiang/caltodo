@@ -111,20 +111,20 @@ export default function ProfilePopup({ avatarUrl, fullName, email }: ProfilePopu
           </div>
 
           {/* Menu items */}
-          <div className="py-1">
+          <div>
             <button
               onClick={() => {
                 setOpen(false);
                 router.push("/app/settings");
               }}
-              className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-secondary-foreground hover:bg-accent transition-colors"
+              className="flex items-center gap-3 w-full px-4 py-3 text-sm text-secondary-foreground hover:bg-accent transition-colors"
             >
               <Settings size={16} />
               Settings
             </button>
             <button
               onClick={handleSignOutClick}
-              className={`flex items-center gap-3 w-full px-4 py-2.5 text-sm transition-colors ${
+              className={`flex items-center gap-3 w-full px-4 py-3 text-sm rounded-b-xl transition-colors ${
                 confirmSignOut
                   ? "text-red-500 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/50"
                   : "text-secondary-foreground hover:bg-accent"

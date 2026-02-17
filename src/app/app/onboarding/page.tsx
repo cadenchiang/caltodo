@@ -10,19 +10,21 @@ type Step = "welcome" | "canvas" | "gradescope" | "done";
 const STEPS: Step[] = ["welcome", "canvas", "gradescope", "done"];
 
 /**
- * Auto-syncing "done" step. Triggers sync on mount and shows a spinner
- * while syncing. Navigates to /app/inbox on completion.
+ * Auto-syncing "done" step. Triggers sync on mount (fire-and-forget),
+ * then fades out the overlay and navigates to /app/inbox.
  *
- * @param handleSyncAndGo - Async function that triggers sync and navigates to inbox
+ * @param onSyncAndGo - Fires background sync and navigates after fade-out
  */
-function DoneStep({ handleSyncAndGo }: { handleSyncAndGo: () => Promise<void> }) {
+function DoneStep({ onSyncAndGo }: { onSyncAndGo: () => void }) {
   const hasFired = useRef(false);
 
   useEffect(() => {
     if (hasFired.current) return;
     hasFired.current = true;
-    handleSyncAndGo();
-  }, [handleSyncAndGo]);
+    // Brief pause so user can read "you're all set", then transition out
+    const timer = setTimeout(onSyncAndGo, 1200);
+    return () => clearTimeout(timer);
+  }, [onSyncAndGo]);
 
   return (
     <div className="text-center">
@@ -56,6 +58,11 @@ export default function OnboardingPage() {
   const [error, setError] = useState<string | null>(null);
 
   const stepIndex = STEPS.indexOf(currentStep);
+
+  // Prefetch inbox route so post-onboarding navigation is instant
+  useEffect(() => {
+    router.prefetch("/app/inbox");
+  }, [router]);
 
   /**
    * Saves credentials to the API via PUT /api/credentials.
@@ -113,19 +120,22 @@ export default function OnboardingPage() {
     return true;
   }
 
-  async function handleSyncAndGo() {
-    setSaving(true);
-    try {
-      await triggerSync();
-    } catch {
-      // Non-critical — user can sync from inbox later
-    }
-    setSaving(false);
-    router.push("/app/inbox");
+  const [exiting, setExiting] = useState(false);
+
+  /**
+   * Starts fade-out, fires sync in background, then navigates to inbox.
+   * Sync continues via TaskContext even after navigation.
+   */
+  function handleSyncAndGo() {
+    setExiting(true);
+    // Fire sync in background — it runs in TaskContext and survives navigation
+    triggerSync().catch(() => {});
+    // Navigate after fade-out animation completes
+    setTimeout(() => router.push("/app/inbox"), 500);
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-white force-light">
+    <div className={`fixed inset-0 z-50 flex items-center justify-center bg-white force-light transition-opacity duration-500 ${exiting ? "opacity-0" : "opacity-100"}`}>
       {/* Top bar: logo left, close right */}
       <div className="absolute top-5 left-4">
         <img
@@ -233,7 +243,7 @@ export default function OnboardingPage() {
           )}
 
           {currentStep === "done" && (
-            <DoneStep handleSyncAndGo={handleSyncAndGo} />
+            <DoneStep onSyncAndGo={handleSyncAndGo} />
           )}
         </div>
       </div>

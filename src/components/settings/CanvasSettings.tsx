@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Eye, EyeOff, Lock, Pencil, Loader2, Play } from "lucide-react";
+import { Eye, EyeOff, Lock, Pencil, Loader2, Play, Check } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 import CourseSelectModal from "@/components/ui/CourseSelectModal";
 import type { IntegrationCredentials, CredentialsSavePayload } from "@/lib/types";
@@ -38,6 +38,7 @@ export default function CanvasSettings({ credentials, onUpdate }: CanvasSettings
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [verifying, setVerifying] = useState(false);
   const [showCourseModal, setShowCourseModal] = useState(false);
+  const [coursesFromSaved, setCoursesFromSaved] = useState(false);
   const [videoExpanded, setVideoExpanded] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -69,6 +70,7 @@ export default function CanvasSettings({ credentials, onUpdate }: CanvasSettings
       const data = await res.json();
       const fetched: CanvasCourse[] = data.courses;
       setCourses(fetched);
+      setCoursesFromSaved(false);
       const prevIds = new Set(credentials.selected_canvas_courses?.map((c) => c.id) ?? []);
       setSelectedIds(prevIds.size > 0 ? prevIds : new Set(fetched.map((c) => c.id)));
       setShowCourseModal(true);
@@ -138,6 +140,7 @@ export default function CanvasSettings({ credentials, onUpdate }: CanvasSettings
     setShowToken(false);
     setCourses(null);
     setSelectedIds(new Set());
+    setCoursesFromSaved(false);
     setLocked(true);
   }
 
@@ -147,7 +150,17 @@ export default function CanvasSettings({ credentials, onUpdate }: CanvasSettings
         <h2 className="text-lg font-semibold text-foreground">bCourses</h2>
         {locked && (
           <button
-            onClick={() => { setLocked(false); setShowToken(false); }}
+            onClick={() => {
+              setLocked(false);
+              setShowToken(false);
+              // Pre-load saved courses for immediate summary display
+              if (credentials.selected_canvas_courses && credentials.selected_canvas_courses.length > 0) {
+                const saved = credentials.selected_canvas_courses;
+                setCourses(saved.map((c) => ({ id: c.id, name: c.name, course_code: "" })));
+                setSelectedIds(new Set(saved.map((c) => c.id)));
+                setCoursesFromSaved(true);
+              }
+            }}
             className="flex items-center gap-1.5 text-xs text-subtle-foreground hover:text-secondary-foreground transition-colors"
           >
             <Pencil size={12} />
@@ -231,13 +244,15 @@ export default function CanvasSettings({ credentials, onUpdate }: CanvasSettings
         <div className="space-y-3">
           <div className="flex items-center gap-2 px-3 py-2.5 bg-muted rounded-xl border border-border">
             <Lock size={14} className="text-subtle-foreground shrink-0" />
-            <span className="text-sm text-muted-foreground truncate">
+            <span className="text-sm text-muted-foreground truncate flex-1">
               {canvasToken ? `••••••••${canvasToken.slice(-6)}` : "No token saved"}
             </span>
+            {canvasToken && <Check size={14} className="text-emerald-500 shrink-0" />}
           </div>
           <div className="flex items-center gap-2 px-3 py-2.5 bg-muted rounded-xl border border-border">
             <Lock size={14} className="text-subtle-foreground shrink-0" />
-            <span className="text-sm text-muted-foreground truncate">{canvasBaseUrl}</span>
+            <span className="text-sm text-muted-foreground truncate flex-1">{canvasBaseUrl}</span>
+            <Check size={14} className="text-emerald-500 shrink-0" />
           </div>
         </div>
       ) : (
@@ -290,10 +305,18 @@ export default function CanvasSettings({ credentials, onUpdate }: CanvasSettings
             </button>
           ) : (
             <button
-              onClick={() => setShowCourseModal(true)}
-              className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 border border-blue-200 dark:border-blue-800 transition-colors"
+              onClick={() => {
+                if (coursesFromSaved) {
+                  handleVerify();
+                } else {
+                  setShowCourseModal(true);
+                }
+              }}
+              disabled={verifying}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 border border-blue-200 dark:border-blue-800 transition-colors disabled:opacity-60"
             >
-              {selectedIds.size}/{courses.length} courses selected — tap to change
+              {verifying && <Loader2 size={14} className="animate-spin" />}
+              {verifying ? "Loading courses..." : `${selectedIds.size}/${courses.length} courses selected — tap to change`}
             </button>
           )}
 

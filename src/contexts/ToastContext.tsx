@@ -38,7 +38,7 @@ interface ToastContextValue {
 
 const ToastContext = createContext<ToastContextValue | null>(null);
 
-const DEFAULT_DURATION = 4000;
+const DEFAULT_DURATION = 6000;
 const DISMISS_ANIMATION_MS = 300;
 
 /**

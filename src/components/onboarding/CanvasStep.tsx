@@ -149,10 +149,10 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError }: 
                       }
                     }, 400);
                   }}
-                  className="w-full flex items-center gap-2 px-3 py-2.5 mb-4 rounded-xl text-xs text-gray-500 bg-white btn-elevated-secondary"
+                  className="w-full flex items-center gap-2.5 px-3.5 py-3 mb-4 rounded-xl text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 hover:bg-blue-100 active:scale-[0.98] transition-all duration-150"
                 >
                   <Play size={14} />
-                  watch how to get your token
+                  watch how to generate a token
                 </button>
               </div>
             </div>
