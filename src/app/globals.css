@@ -608,3 +608,28 @@ textarea:-webkit-autofill {
 .animate-view-switch {
   animation: viewSwitch 200ms ease-out both;
 }
+
+/* Tour click pulse — press-down + spring-back with expanding ring ripple */
+@keyframes tourClickPulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.5);
+  }
+  30% {
+    transform: scale(0.92);
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.5);
+  }
+  60% {
+    transform: scale(1.02);
+    box-shadow: 0 0 0 8px rgba(255, 255, 255, 0);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 12px rgba(255, 255, 255, 0);
+  }
+}
+
+.tour-click-pulse {
+  animation: tourClickPulse 400ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  z-index: 10000;
+}

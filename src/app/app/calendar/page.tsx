@@ -112,7 +112,6 @@ export default function CalendarPage() {
             onClose={closeEditPopover}
             onSave={async (id, updates) => {
               await updateTask(id, updates);
-              closeEditPopover();
             }}
             onDelete={async (id) => {
               await deleteTask(id);

@@ -33,6 +33,8 @@ export interface TourStep {
   onEnter?: () => void;
   /** Called when leaving this step (e.g. to close a dropdown). */
   onExit?: () => void;
+  /** ID of an intermediate element to animate a "click" on before showing this step's target. */
+  clickTargetId?: string;
 }
 
 interface TourContextValue {
@@ -152,6 +154,7 @@ export function TourProvider({ children, steps, onComplete }: TourProviderProps)
   const [cardPos, setCardPos] = useState<{ top: number; left: number } | null>(null);
   const [visible, setVisible] = useState(false);
   const [navigating, setNavigating] = useState(false);
+  const [isClickAnimating, setIsClickAnimating] = useState(false);
   const rafRef = useRef<number | null>(null);
 
   // Check if tour was already completed
@@ -165,11 +168,11 @@ export function TourProvider({ children, steps, onComplete }: TourProviderProps)
     }
   }, []);
 
-  // Listen for restart-tour event (dispatched from settings page)
+  // Listen for restart-tour event — directly starts the tour (no dialog)
   useEffect(() => {
     function handleRestart() {
       setIsCompleted(false);
-      setCurrentStep(-1);
+      setCurrentStep(0);
     }
     window.addEventListener("caltodo-restart-tour", handleRestart);
     return () => window.removeEventListener("caltodo-restart-tour", handleRestart);
@@ -178,22 +181,82 @@ export function TourProvider({ children, steps, onComplete }: TourProviderProps)
   /** Updates target rect and card position on resize/scroll. */
   const updatePosition = useCallback(() => {
     if (currentStep < 0 || currentStep >= steps.length) return;
+    if (isClickAnimating) return;
     const step = steps[currentStep];
     const el = document.getElementById(step.targetId);
     if (!el) return;
     const rect = el.getBoundingClientRect();
     setTargetRect(rect);
     setCardPos(computeCardPosition(rect, step.position));
-  }, [currentStep, steps]);
+  }, [currentStep, steps, isClickAnimating]);
 
   /**
    * Navigates to the step's route (if needed), waits for the target element,
    * scrolls it into view, then positions the spotlight.
+   * When clickTargetId is set, runs an intermediate click animation on that
+   * element before proceeding to the final target.
    */
   const activateStep = useCallback(async (stepIndex: number) => {
     if (stepIndex < 0 || stepIndex >= steps.length) return;
     const step = steps[stepIndex];
     const needsNavigation = step.route && pathname !== step.route;
+
+    // ── Click animation sequence ──
+    if (step.clickTargetId) {
+      setIsClickAnimating(true);
+      setCardPos(null);
+
+      // Wait for the click target element to appear
+      const clickEl = await waitForElement(step.clickTargetId, TARGET_WAIT_TIMEOUT);
+      if (!clickEl) {
+        setIsClickAnimating(false);
+        return;
+      }
+
+      // Position highlight on the click target
+      const clickRect = clickEl.getBoundingClientRect();
+      setTargetRect(clickRect);
+
+      // Let highlight slide into position (300ms transition)
+      await new Promise((r) => setTimeout(r, 350));
+
+      // Add pulse class to the click target element
+      clickEl.classList.add("tour-click-pulse");
+      await new Promise((r) => setTimeout(r, 400));
+      clickEl.classList.remove("tour-click-pulse");
+
+      // Fire onEnter (e.g. switch view mode) and navigate if needed
+      step.onEnter?.();
+      if (needsNavigation) {
+        router.push(step.route!);
+      }
+
+      // Let side effects settle
+      await new Promise((r) => setTimeout(r, 150));
+
+      // Wait for the final target element
+      const finalEl = await waitForElement(step.targetId, TARGET_WAIT_TIMEOUT);
+      if (!finalEl) {
+        setIsClickAnimating(false);
+        return;
+      }
+
+      // Scroll into view if needed
+      const finalRect = finalEl.getBoundingClientRect();
+      const isVisible = finalRect.top >= 0 && finalRect.bottom <= window.innerHeight;
+      if (!isVisible) {
+        finalEl.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+        await new Promise((r) => setTimeout(r, 200));
+      }
+
+      const settledRect = finalEl.getBoundingClientRect();
+      setTargetRect(settledRect);
+      setCardPos(computeCardPosition(settledRect, step.position));
+      setIsClickAnimating(false);
+      return;
+    }
+
+    // ── Standard step activation (no click animation) ──
 
     // Navigate if the step requires a different route
     if (needsNavigation) {
@@ -278,6 +341,7 @@ export function TourProvider({ children, steps, onComplete }: TourProviderProps)
     setTargetRect(null);
     setCardPos(null);
     setNavigating(false);
+    setIsClickAnimating(false);
     setIsCompleted(true);
     try {
       localStorage.setItem(TOUR_COMPLETED_KEY, "true");
@@ -337,7 +401,8 @@ export function TourProvider({ children, steps, onComplete }: TourProviderProps)
           className="fixed inset-0 z-[9998] transition-opacity duration-150"
           style={{ opacity: targetRect ? 1 : 0 }}
         >
-          {targetRect && cardPos && step && (
+          {/* Overlay + highlight — always visible when target exists (including during click animation) */}
+          {targetRect && (
             <>
               {/* Overlay with spotlight cutout — clip-path animates between steps */}
               <div
@@ -373,60 +438,62 @@ export function TourProvider({ children, steps, onComplete }: TourProviderProps)
                   transition: "all 300ms ease-in-out",
                 }}
               />
+            </>
+          )}
 
-              {/* Content card */}
-              <div
-                className="absolute bg-card rounded-xl border border-border shadow-2xl p-4 transition-all duration-300 ease-in-out z-[9999]"
-                style={{
-                  top: cardPos.top,
-                  left: cardPos.left,
-                  width: CARD_WIDTH,
-                }}
-              >
-                {/* Step counter + close */}
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs text-muted-foreground">
-                    {currentStep + 1} / {steps.length}
-                  </span>
+          {/* Content card — hidden during click animation */}
+          {targetRect && cardPos && step && !isClickAnimating && (
+            <div
+              className="absolute bg-card rounded-xl border border-border shadow-2xl p-4 transition-all duration-300 ease-in-out z-[9999]"
+              style={{
+                top: cardPos.top,
+                left: cardPos.left,
+                width: CARD_WIDTH,
+              }}
+            >
+              {/* Step counter + close */}
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs text-muted-foreground">
+                  {currentStep + 1} / {steps.length}
+                </span>
+                <button
+                  onClick={endTour}
+                  className="p-0.5 text-muted-foreground hover:text-foreground transition-colors rounded"
+                  aria-label="Close tour"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+
+              {/* Content */}
+              <h3 className="text-sm font-semibold text-foreground mb-1">{step.title}</h3>
+              <p className="text-xs text-muted-foreground leading-relaxed mb-4">{step.description}</p>
+
+              {/* Navigation */}
+              <div className="flex items-center justify-between">
+                {currentStep > 0 ? (
+                  <button
+                    onClick={prevStep}
+                    className="text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded hover:bg-accent"
+                  >
+                    Previous
+                  </button>
+                ) : (
                   <button
                     onClick={endTour}
-                    className="p-0.5 text-muted-foreground hover:text-foreground transition-colors rounded"
-                    aria-label="Close tour"
+                    className="text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded hover:bg-accent"
                   >
-                    <X size={14} />
+                    Skip
                   </button>
-                </div>
-
-                {/* Content */}
-                <h3 className="text-sm font-semibold text-foreground mb-1">{step.title}</h3>
-                <p className="text-xs text-muted-foreground leading-relaxed mb-4">{step.description}</p>
-
-                {/* Navigation */}
-                <div className="flex items-center justify-between">
-                  {currentStep > 0 ? (
-                    <button
-                      onClick={prevStep}
-                      className="text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded hover:bg-accent"
-                    >
-                      Previous
-                    </button>
-                  ) : (
-                    <button
-                      onClick={endTour}
-                      className="text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded hover:bg-accent"
-                    >
-                      Skip
-                    </button>
-                  )}
-                  <button
-                    onClick={nextStep}
-                    className="text-xs font-medium bg-gray-900 text-white dark:bg-white dark:text-gray-900 hover:opacity-80 px-3 py-1.5 rounded-lg transition-colors"
-                  >
-                    {currentStep === steps.length - 1 ? "Finish" : "Next"}
-                  </button>
-                </div>
+                )}
+                <button
+                  onClick={nextStep}
+                  className="text-xs font-medium bg-gray-900 text-white dark:bg-white dark:text-gray-900 hover:opacity-80 px-3 py-1.5 rounded-lg transition-colors"
+                >
+                  {currentStep === steps.length - 1 ? "Finish" : "Next"}
+                </button>
               </div>
-            </>
+            </div>
           )}
 
           {/* Navigating indicator (shown briefly while waiting for route change) */}

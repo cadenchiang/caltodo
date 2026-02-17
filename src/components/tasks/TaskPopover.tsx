@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { Trash2, ExternalLink, MoreHorizontal, X, AlignLeft, Tag } from "lucide-react";
+import { Trash2, ExternalLink, MoreHorizontal, X, AlignLeft } from "lucide-react";
 import { format } from "date-fns";
 import type { Task, TaskUpdate } from "@/lib/types";
 import { TASK_COLORS } from "@/lib/constants";
@@ -116,6 +116,9 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
   const menuBtnRef = useRef<HTMLButtonElement>(null);
   const menuDropdownRef = useRef<HTMLDivElement>(null);
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
+  const titleRef = useRef<HTMLTextAreaElement>(null);
+  const colorBtnRef = useRef<HTMLButtonElement>(null);
+  const dateBtnRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     setTitle(task.title);
@@ -162,6 +165,21 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
     }
   }, [isEditingDescription]);
 
+  /**
+   * Auto-resizes a textarea to fit its content.
+   *
+   * @param el - The textarea element to resize
+   */
+  function autoResize(el: HTMLTextAreaElement) {
+    el.style.height = "auto";
+    el.style.height = el.scrollHeight + "px";
+  }
+
+  // Auto-resize title textarea on mount and when title changes
+  useEffect(() => {
+    if (titleRef.current) autoResize(titleRef.current);
+  }, [title]);
+
   function handleSave() {
     const trimmed = title.trim();
     if (!trimmed) return;
@@ -192,6 +210,7 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
         {/* Color circle */}
         <div className="relative">
           <button
+            ref={colorBtnRef}
             type="button"
             onClick={() => { setShowColorPicker(!showColorPicker); setShowDatePicker(false); }}
             className="p-1.5 rounded-lg hover:bg-accent transition-colors"
@@ -203,6 +222,7 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
             open={showColorPicker}
             onClose={() => setShowColorPicker(false)}
             className="absolute right-0 top-full mt-1 z-10"
+            triggerRef={colorBtnRef}
           >
             <div className="bg-card rounded-xl shadow-2xl border border-border p-3">
               <div className="flex gap-2">
@@ -312,13 +332,15 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
               </svg>
             )}
           </button>
-          {/* Title input */}
-          <input
-            type="text"
+          {/* Title input — auto-growing textarea for long titles */}
+          <textarea
+            ref={titleRef}
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(e) => { setTitle(e.target.value); autoResize(e.target); }}
             onBlur={handleSave}
-            className="flex-1 min-w-0 text-lg font-semibold text-foreground bg-transparent focus:outline-none placeholder-subtle-foreground"
+            onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }}
+            rows={1}
+            className="flex-1 min-w-0 text-lg font-semibold text-foreground bg-transparent focus:outline-none placeholder-subtle-foreground resize-none overflow-hidden"
             placeholder="Task title"
           />
         </div>
@@ -326,6 +348,7 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
         {/* Date line — below title, aligned with title text */}
         <div className="relative pl-8 mt-1">
           <button
+            ref={dateBtnRef}
             type="button"
             onClick={() => { setShowDatePicker(!showDatePicker); setShowColorPicker(false); }}
             className="text-sm text-secondary-foreground hover:text-foreground transition-colors"
@@ -336,6 +359,7 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
             open={showDatePicker}
             onClose={() => setShowDatePicker(false)}
             className="absolute left-8 top-full mt-1 z-10"
+            triggerRef={dateBtnRef}
           >
             <DatePicker
               value={dueDate}
@@ -352,6 +376,33 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
             />
           </Popover>
         </div>
+
+        {/* Tags — source, course, submission badges */}
+        {(task.source || task.course_name || task.is_submitted) && (
+          <div className="pl-8 mt-2 flex items-center gap-2 flex-wrap">
+            {task.source && (
+              <span
+                className={`text-xs font-medium px-2 py-0.5 rounded ${
+                  task.source === "canvas"
+                    ? "text-blue-600 bg-blue-50 dark:bg-blue-900/30"
+                    : "text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30"
+                }`}
+              >
+                {task.source === "canvas" ? "bCourses" : "Gradescope"}
+              </span>
+            )}
+            {task.course_name && (
+              <span className="text-xs font-medium px-2 py-0.5 rounded text-black bg-gray-100 dark:text-white dark:bg-white/10 max-w-[120px] truncate inline-block align-middle">
+                {task.course_name}
+              </span>
+            )}
+            {task.is_submitted && (
+              <span className="text-xs font-medium px-2 py-0.5 rounded text-green-600 bg-green-50 dark:bg-green-900/30">
+                Submitted
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="border-t border-border-subtle" />
@@ -368,44 +419,12 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             onBlur={() => { handleSave(); if (!description) setIsEditingDescription(false); }}
-            rows={Math.max(2, Math.min(6, (description || "").split("\n").length + 1))}
-            className="flex-1 min-w-0 text-sm text-secondary-foreground bg-transparent focus:outline-none resize-none"
+            rows={Math.max(2, (description || "").split("\n").length + 1)}
+            className="flex-1 min-w-0 text-sm text-secondary-foreground bg-transparent focus:outline-none resize-none max-h-[200px] overflow-y-auto"
           />
         ) : null}
       </div>
 
-      {/* ── Source / course section ── */}
-      {(task.source || task.course_name || task.is_submitted) && (
-        <>
-          <div className="border-t border-border-subtle" />
-          <div className="flex items-start gap-3 px-5 py-3">
-            <Tag size={18} className="text-subtle-foreground flex-shrink-0 mt-0.5" />
-            <div className="flex items-center gap-2 flex-wrap">
-              {task.source && (
-                <span
-                  className={`text-xs font-medium px-2 py-0.5 rounded ${
-                    task.source === "canvas"
-                      ? "text-blue-600 bg-blue-50 dark:bg-blue-900/30"
-                      : "text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30"
-                  }`}
-                >
-                  {task.source === "canvas" ? "bCourses" : "Gradescope"}
-                </span>
-              )}
-              {task.course_name && (
-                <span className="text-xs font-medium px-2 py-0.5 rounded text-black bg-gray-100 dark:text-white dark:bg-white/10">
-                  {task.course_name}
-                </span>
-              )}
-              {task.is_submitted && (
-                <span className="text-xs font-medium px-2 py-0.5 rounded text-green-600 bg-green-50 dark:bg-green-900/30">
-                  Submitted
-                </span>
-              )}
-            </div>
-          </div>
-        </>
-      )}
 
       <div className="pb-1" />
     </div>,

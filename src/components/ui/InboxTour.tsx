@@ -52,6 +52,7 @@ const TOUR_STEPS: TourStep[] = [
     route: "/app/inbox",
     onEnter: () => setTourViewMode("board"),
     onExit: () => setTourViewMode("list"),
+    clickTargetId: "tour-view-toggle",
   },
   {
     targetId: "tour-sidebar-nav",
@@ -66,6 +67,7 @@ const TOUR_STEPS: TourStep[] = [
     description: "See all your tasks and deadlines on a monthly calendar. Click any day to add a task, or click an existing task to edit it.",
     position: "top",
     route: "/app/calendar",
+    clickTargetId: "tour-nav-calendar",
   },
 ];
 
@@ -90,15 +92,6 @@ function TourTrigger() {
       /* non-critical */
     }
   }, [isCompleted]);
-
-  // Listen for restart event directly (from settings page)
-  useEffect(() => {
-    function handleRestart() {
-      setTimeout(() => setShowDialog(true), 1000);
-    }
-    window.addEventListener("caltodo-restart-tour", handleRestart);
-    return () => window.removeEventListener("caltodo-restart-tour", handleRestart);
-  }, []);
 
   /** Handles dialog dismissal — clears pending flag. */
   function handleClose() {

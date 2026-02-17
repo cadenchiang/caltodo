@@ -155,134 +155,136 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className={`fixed inset-0 z-50 flex items-center justify-center bg-white force-light transition-opacity duration-500 ${exiting ? "opacity-0" : "opacity-100"}`}>
-      {/* Top bar: logo left, close right */}
-      <div className="absolute top-5 left-4">
+    <div className={`fixed inset-0 z-50 flex flex-col bg-white force-light transition-opacity duration-500 ${exiting ? "opacity-0" : "opacity-100"}`}>
+      {/* Top bar: back / logo / close */}
+      <div className="flex items-center justify-between px-6 pt-5 pb-3">
+        {/* Back button */}
+        <button
+          onClick={() => {
+            if (stepIndex > 0) setCurrentStep(STEPS[stepIndex - 1]);
+          }}
+          className={`p-2 rounded-lg transition-colors shrink-0 ${
+            stepIndex > 0
+              ? "text-gray-400 hover:text-gray-800 cursor-pointer"
+              : "text-transparent pointer-events-none"
+          }`}
+          aria-label="Go back"
+        >
+          <ChevronLeft size={20} />
+        </button>
+
+        {/* Logo */}
         <img
           src="/logo.png"
           alt="caltodo"
-          className="h-10"
+          className="h-8"
         />
+
+        {/* Close button */}
+        <button
+          onClick={() => router.push("/app/inbox")}
+          className="p-2 text-gray-400 hover:text-gray-800 transition-colors rounded-lg"
+          aria-label="Close onboarding"
+        >
+          <X size={20} />
+        </button>
       </div>
 
-      {/* Close button */}
-      <button
-        onClick={() => router.push("/app/inbox")}
-        className="absolute top-6 right-6 p-2 text-gray-400 hover:text-gray-800 transition-colors rounded-lg"
-        aria-label="Close onboarding"
-      >
-        <X size={20} />
-      </button>
-
-      <div className="w-full max-w-xl mx-auto px-6">
-        {/* Stepper bar progress indicator */}
-        <div className="mb-10">
-          <div className="flex items-center gap-1 mb-0">
-            {/* Back button (inline with stepper) */}
-            <button
-              onClick={() => {
-                if (stepIndex > 0) setCurrentStep(STEPS[stepIndex - 1]);
-              }}
-              className={`p-1 rounded-lg transition-colors mr-1 shrink-0 ${
-                stepIndex > 0
-                  ? "text-gray-400 hover:text-gray-800 cursor-pointer"
-                  : "text-transparent pointer-events-none"
-              }`}
-              aria-label="Go back"
-            >
-              <ChevronLeft size={16} />
-            </button>
-
-            {/* Stepper bars with labels */}
-            {STEPS.map((step, i) => {
-              const state = i < stepIndex ? "completed" : i === stepIndex ? "active" : "inactive";
-              return (
-                <div key={step} className="flex-1 flex flex-col gap-2">
-                  {/* Bar */}
-                  <div
-                    className={`h-1 rounded-full transition-all duration-500 ${
-                      state === "inactive"
-                        ? "bg-gray-200"
-                        : "bg-gray-800"
-                    }`}
-                  />
-                  {/* Label */}
-                  <span
-                    className={`text-xs font-medium transition-colors duration-300 ${
-                      state === "inactive"
-                        ? "text-gray-400"
-                        : "text-gray-800"
-                    }`}
-                  >
-                    {STEP_LABELS[step]}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Step content — key forces re-mount to re-trigger animation */}
-        <div key={currentStep} className="animate-step-in">
-          {error && (
-            <div className="bg-red-500/10 text-red-400 text-sm p-3 rounded-xl mb-4">
-              {error}
-            </div>
-          )}
-
-          {currentStep === "welcome" && (
-            <div className="text-center">
-              <div className="flex justify-center mb-3 animate-drop-in">
-                <img
-                  src="/logo.png"
-                  alt="caltodo"
-                  className="h-14"
+      {/* Stepper bar — full width at top */}
+      <div className="px-8 pb-2">
+        <div className="flex items-center gap-2 max-w-2xl mx-auto">
+          {STEPS.map((step, i) => {
+            const state = i < stepIndex ? "completed" : i === stepIndex ? "active" : "inactive";
+            return (
+              <div key={step} className="flex-1 flex flex-col gap-1.5">
+                {/* Bar */}
+                <div
+                  className={`h-1 rounded-full transition-all duration-500 ${
+                    state === "inactive"
+                      ? "bg-gray-200"
+                      : "bg-gray-800"
+                  }`}
                 />
+                {/* Label */}
+                <span
+                  className={`text-[11px] font-medium transition-colors duration-300 ${
+                    state === "inactive"
+                      ? "text-gray-400"
+                      : "text-gray-800"
+                  }`}
+                >
+                  {STEP_LABELS[step]}
+                </span>
               </div>
-              <h1 className="text-2xl font-bold text-gray-800 mb-2 animate-drop-in">
-                welcome to caltodo
-              </h1>
-              <p className="text-gray-500 text-sm mb-8 animate-drop-in delay-100">
-                connect your bCourses and Gradescope accounts to automatically sync your assignments.
-              </p>
-              <button
-                onClick={() => setCurrentStep("canvas")}
-                className="w-full px-4 py-3 bg-gray-800 text-white rounded-xl font-semibold animate-drop-in delay-200 btn-elevated-primary"
-              >
-                get started
-              </button>
-              <button
-                onClick={() => router.push("/app/inbox")}
-                className="mt-4 px-4 py-2.5 text-sm text-gray-400 rounded-xl bg-white animate-drop-in delay-300 btn-elevated-secondary"
-              >
-                skip for now
-              </button>
-            </div>
-          )}
+            );
+          })}
+        </div>
+      </div>
 
-          {currentStep === "canvas" && (
-            <CanvasStep
-              onNext={handleCanvasNext}
-              onSkip={() => setCurrentStep("gradescope")}
-              saving={saving}
-              error={error}
-              setError={setError}
-            />
-          )}
+      {/* Step content — centered in remaining space */}
+      <div className="flex-1 flex items-center justify-center overflow-y-auto">
+        <div className="w-full max-w-xl mx-auto px-6 py-8">
+          <div key={currentStep} className="animate-step-in">
+            {error && (
+              <div className="bg-red-500/10 text-red-400 text-sm p-3 rounded-xl mb-4">
+                {error}
+              </div>
+            )}
 
-          {currentStep === "gradescope" && (
-            <GradescopeStep
-              onNext={handleGradescopeNext}
-              onSkip={() => setCurrentStep("done")}
-              saving={saving}
-              error={error}
-              setError={setError}
-            />
-          )}
+            {currentStep === "welcome" && (
+              <div className="text-center">
+                <div className="flex justify-center mb-3 animate-drop-in">
+                  <img
+                    src="/logo.png"
+                    alt="caltodo"
+                    className="h-14"
+                  />
+                </div>
+                <h1 className="text-2xl font-bold text-gray-800 mb-2 animate-drop-in">
+                  welcome to caltodo
+                </h1>
+                <p className="text-gray-500 text-sm mb-8 animate-drop-in delay-100">
+                  connect your bCourses and Gradescope accounts to automatically sync your assignments.
+                </p>
+                <button
+                  onClick={() => setCurrentStep("canvas")}
+                  className="w-full px-4 py-3 bg-gray-800 text-white rounded-xl font-semibold animate-drop-in delay-200 btn-elevated-primary"
+                >
+                  get started
+                </button>
+                <button
+                  onClick={() => router.push("/app/inbox")}
+                  className="mt-4 px-4 py-2.5 text-sm text-gray-400 rounded-xl bg-white animate-drop-in delay-300 btn-elevated-secondary"
+                >
+                  skip for now
+                </button>
+              </div>
+            )}
 
-          {currentStep === "done" && (
-            <DoneStep onSyncAndGo={handleSyncAndGo} />
-          )}
+            {currentStep === "canvas" && (
+              <CanvasStep
+                onNext={handleCanvasNext}
+                onSkip={() => setCurrentStep("gradescope")}
+                saving={saving}
+                error={error}
+                setError={setError}
+              />
+            )}
+
+            {currentStep === "gradescope" && (
+              <GradescopeStep
+                onNext={handleGradescopeNext}
+                onSkip={() => setCurrentStep("done")}
+                saving={saving}
+                error={error}
+                setError={setError}
+              />
+            )}
+
+            {currentStep === "done" && (
+              <DoneStep onSyncAndGo={handleSyncAndGo} />
+            )}
+          </div>
         </div>
       </div>
     </div>

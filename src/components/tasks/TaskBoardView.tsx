@@ -2,8 +2,9 @@
 
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDown, MoreHorizontal, MoreVertical, Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { ChevronDown, MoreHorizontal, MoreVertical, Palette, Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
 import type { Task, TaskInsert } from "@/lib/types";
+import { TASK_COLORS } from "@/lib/constants";
 import BoardTaskAddForm from "./BoardTaskAddForm";
 
 /** localStorage key for column name aliases. */
@@ -46,10 +47,13 @@ interface TaskBoardViewProps {
   loading: boolean;
   error: string | null;
   selectedTaskId?: string | null;
+  groupBy?: "class" | "date";
   onAdd: (task: TaskInsert) => void;
   onToggle: (id: string) => void;
   onSelect: (task: Task, anchorRect?: DOMRect) => void;
   onDelete: (id: string) => void;
+  onColorChange?: (courseName: string, color: string) => void;
+  onDeleteClass?: (courseName: string) => void;
 }
 
 /**
@@ -85,6 +89,49 @@ function groupByCourse(tasks: Task[]): Map<string, Task[]> {
   }
 
   return sorted;
+}
+
+/** Date bucket labels used for date group-by mode. */
+const DATE_BUCKETS = ["Today", "Next 3 Days", "Next 7 Days", "Later"] as const;
+
+/**
+ * Groups tasks into 4 date-based columns: Today, Next 3 Days, Next 7 Days, Later.
+ * Overdue tasks go into "Today". Tasks without a due_date go into "Later".
+ * Empty buckets are preserved so the layout always shows all 4 columns.
+ *
+ * @param tasks - Array of tasks to group
+ * @returns Map of date bucket name to tasks array, in chronological order
+ */
+function groupByDate(tasks: Task[]): Map<string, Task[]> {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const d3 = new Date(today);
+  d3.setDate(d3.getDate() + 3);
+  const d7 = new Date(today);
+  d7.setDate(d7.getDate() + 7);
+
+  const groups = new Map<string, Task[]>(
+    DATE_BUCKETS.map((b) => [b, []])
+  );
+
+  for (const task of tasks) {
+    if (!task.due_date) {
+      groups.get("Later")!.push(task);
+      continue;
+    }
+    const due = new Date(task.due_date + "T00:00:00");
+    if (due <= today) {
+      groups.get("Today")!.push(task);
+    } else if (due <= d3) {
+      groups.get("Next 3 Days")!.push(task);
+    } else if (due <= d7) {
+      groups.get("Next 7 Days")!.push(task);
+    } else {
+      groups.get("Later")!.push(task);
+    }
+  }
+
+  return groups;
 }
 
 /**
@@ -162,10 +209,13 @@ export default function TaskBoardView({
   loading,
   error,
   selectedTaskId,
+  groupBy = "class",
   onAdd,
   onToggle,
   onSelect,
   onDelete,
+  onColorChange,
+  onDeleteClass,
 }: TaskBoardViewProps) {
   const [aliases, setAliases] = useState<Map<string, string>>(() => loadColumnAliases());
 
@@ -210,9 +260,10 @@ export default function TaskBoardView({
     );
   }
 
-  const columns = groupByCourse(tasks);
+  const columns = groupBy === "date" ? groupByDate(tasks) : groupByCourse(tasks);
+  const isDateMode = groupBy === "date";
 
-  if (columns.size === 0) {
+  if (columns.size === 0 && !isDateMode) {
     return (
       <div className="px-6">
         <div className="max-w-[320px]">
@@ -231,8 +282,9 @@ export default function TaskBoardView({
         <BoardColumn
           key={columnName}
           name={columnName}
-          displayName={aliases.get(columnName) || columnName}
-          hasAlias={aliases.has(columnName)}
+          displayName={isDateMode ? columnName : (aliases.get(columnName) || columnName)}
+          hasAlias={isDateMode ? false : aliases.has(columnName)}
+          hideMenu={isDateMode}
           tasks={columnTasks}
           selectedTaskId={selectedTaskId}
           onAdd={onAdd}
@@ -241,6 +293,8 @@ export default function TaskBoardView({
           onDelete={onDelete}
           onRename={renameColumn}
           onResetName={resetColumnName}
+          onColorChange={onColorChange}
+          onDeleteClass={onDeleteClass}
         />
       ))}
     </div>
@@ -251,6 +305,7 @@ interface BoardColumnProps {
   name: string;
   displayName: string;
   hasAlias: boolean;
+  hideMenu?: boolean;
   tasks: Task[];
   selectedTaskId?: string | null;
   onAdd: (task: TaskInsert) => void;
@@ -259,6 +314,8 @@ interface BoardColumnProps {
   onDelete: (id: string) => void;
   onRename: (originalName: string, newDisplayName: string) => void;
   onResetName: (originalName: string) => void;
+  onColorChange?: (courseName: string, color: string) => void;
+  onDeleteClass?: (courseName: string) => void;
 }
 
 /**
@@ -271,6 +328,7 @@ function BoardColumn({
   name,
   displayName,
   hasAlias,
+  hideMenu = false,
   tasks,
   selectedTaskId,
   onAdd,
@@ -279,12 +337,16 @@ function BoardColumn({
   onDelete,
   onRename,
   onResetName,
+  onColorChange,
+  onDeleteClass,
 }: BoardColumnProps) {
   const [completedExpanded, setCompletedExpanded] = useState(true);
   const [showMenu, setShowMenu] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState(displayName);
+  const [showColorGrid, setShowColorGrid] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const menuBtnRef = useRef<HTMLButtonElement>(null);
   const menuDropdownRef = useRef<HTMLDivElement>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
@@ -299,6 +361,8 @@ function BoardColumn({
         !menuDropdownRef.current?.contains(target)
       ) {
         setShowMenu(false);
+        setShowColorGrid(false);
+        setShowDeleteConfirm(false);
       }
     }
     document.addEventListener("mousedown", handleClick);
@@ -358,23 +422,25 @@ function BoardColumn({
           )}
           <span className="text-xs text-muted-foreground shrink-0">{active.length}</span>
         </div>
-        <div className="flex items-center shrink-0">
-          <button
-            onClick={() => setShowAddForm(!showAddForm)}
-            className="p-1 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors"
-            title="Add task"
-          >
-            <Plus size={14} />
-          </button>
-          <button
-            ref={menuBtnRef}
-            onClick={() => setShowMenu(!showMenu)}
-            className="p-1 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors"
-            title="Column options"
-          >
-            <MoreVertical size={14} />
-          </button>
-        </div>
+        {!hideMenu && (
+          <div className="flex items-center shrink-0">
+            <button
+              onClick={() => setShowAddForm(!showAddForm)}
+              className="p-1 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors"
+              title="Add task"
+            >
+              <Plus size={14} />
+            </button>
+            <button
+              ref={menuBtnRef}
+              onClick={() => setShowMenu(!showMenu)}
+              className="p-1 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors"
+              title="Column options"
+            >
+              <MoreVertical size={14} />
+            </button>
+          </div>
+        )}
         {showMenu && menuBtnRef.current && createPortal(
           <div
             ref={menuDropdownRef}
@@ -410,6 +476,73 @@ function BoardColumn({
                 Reset name
               </button>
             )}
+            {/* Change color option */}
+            {onColorChange && (
+              <>
+                <button
+                  onClick={() => setShowColorGrid(!showColorGrid)}
+                  className="flex items-center gap-2 w-full text-left px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                >
+                  <Palette size={13} />
+                  Change color
+                </button>
+                {showColorGrid && (
+                  <div className="flex gap-1.5 px-3 py-2 flex-wrap">
+                    {TASK_COLORS.map((c) => (
+                      <button
+                        key={c}
+                        onClick={() => {
+                          onColorChange(name, c);
+                          setShowMenu(false);
+                          setShowColorGrid(false);
+                        }}
+                        className="w-5 h-5 rounded-full hover:scale-110 transition-all"
+                        style={{ backgroundColor: c }}
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+            {/* Delete class option */}
+            {onDeleteClass && name !== GENERAL_COLUMN && (
+              <>
+                <div className="border-t border-border my-1" />
+                {!showDeleteConfirm ? (
+                  <button
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="flex items-center gap-2 w-full text-left px-3 py-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
+                  >
+                    <Trash2 size={13} />
+                    Delete class
+                  </button>
+                ) : (
+                  <div className="px-3 py-2">
+                    <p className="text-xs text-muted-foreground mb-2">
+                      Delete {tasks.length} task{tasks.length !== 1 ? "s" : ""}?
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setShowDeleteConfirm(false)}
+                        className="px-2.5 py-1 text-xs rounded-lg text-muted-foreground hover:bg-accent transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={() => {
+                          onDeleteClass(name);
+                          setShowMenu(false);
+                          setShowDeleteConfirm(false);
+                        }}
+                        className="px-2.5 py-1 text-xs rounded-lg text-white bg-red-500 hover:bg-red-600 transition-colors"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
           </div>,
           document.body
         )}
@@ -441,13 +574,19 @@ function BoardColumn({
         ))}
 
         {active.length === 0 && completed.length === 0 && (
-          <div
-            className="rounded-xl bg-muted/50 dark:bg-muted/30 min-h-[200px]"
-            style={{
-              maskImage: "linear-gradient(to bottom, black 30%, transparent 100%)",
-              WebkitMaskImage: "linear-gradient(to bottom, black 30%, transparent 100%)",
-            }}
-          />
+          hideMenu ? (
+            <div className="rounded-xl border border-dashed border-border/50 py-8 flex items-center justify-center">
+              <span className="text-xs text-muted-foreground">No tasks</span>
+            </div>
+          ) : (
+            <div
+              className="rounded-xl bg-muted/50 dark:bg-muted/30 min-h-[200px]"
+              style={{
+                maskImage: "linear-gradient(to bottom, black 30%, transparent 100%)",
+                WebkitMaskImage: "linear-gradient(to bottom, black 30%, transparent 100%)",
+              }}
+            />
+          )
         )}
 
         {/* Completed section — expanded by default */}

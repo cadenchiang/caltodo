@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { Inbox, ChevronDown, X, Sun, CalendarRange, MoreVertical, List, LayoutGrid } from "lucide-react";
+import { Inbox, ChevronDown, X, Sun, CalendarRange, MoreVertical, List, LayoutGrid, ArrowUpDown } from "lucide-react";
 import { useTaskContext } from "@/contexts/TaskContext";
 import { useToast } from "@/contexts/ToastContext";
 import TaskList from "@/components/tasks/TaskList";
@@ -51,6 +51,27 @@ function filterTasksByDate(tasks: Task[], filter: InboxFilter): Task[] {
     if (!t.due_date) return true;
     const due = new Date(t.due_date + "T23:59:59");
     return due <= cutoff;
+  });
+}
+
+type SortMode = "date" | "class";
+
+/**
+ * Sorts tasks by course_name alphabetically (null → last), then by due_date within each class.
+ *
+ * @param tasks - Array of tasks to sort
+ * @returns New sorted array (does not mutate input)
+ */
+function sortByClass(tasks: Task[]): Task[] {
+  return [...tasks].sort((a, b) => {
+    const ca = a.course_name || "\uffff";
+    const cb = b.course_name || "\uffff";
+    const cmp = ca.localeCompare(cb);
+    if (cmp !== 0) return cmp;
+    if (!a.due_date && !b.due_date) return 0;
+    if (!a.due_date) return 1;
+    if (!b.due_date) return -1;
+    return a.due_date.localeCompare(b.due_date);
   });
 }
 
@@ -133,6 +154,21 @@ export default function InboxPage() {
   const [showViewMenu, setShowViewMenu] = useState(false);
   const viewMenuRef = useRef<HTMLButtonElement>(null);
   const viewMenuDropdownRef = useRef<HTMLDivElement>(null);
+  const [sortMode, setSortMode] = useState<SortMode>(() => {
+    if (typeof window !== "undefined") {
+      return (localStorage.getItem("inbox-sort-mode") as SortMode) || "date";
+    }
+    return "date";
+  });
+  const [showSortMenu, setShowSortMenu] = useState(false);
+  const sortMenuRef = useRef<HTMLButtonElement>(null);
+  const sortMenuDropdownRef = useRef<HTMLDivElement>(null);
+  const [boardGroupBy, setBoardGroupBy] = useState<"class" | "date">(() => {
+    if (typeof window !== "undefined") {
+      return (localStorage.getItem("inbox-board-group") as "class" | "date") || "class";
+    }
+    return "class";
+  });
   const [boardPopoverTask, setBoardPopoverTaskRaw] = useState<Task | null>(null);
   const [boardAnchorRect, setBoardAnchorRect] = useState<DOMRect | null>(null);
 
@@ -160,6 +196,12 @@ export default function InboxPage() {
   const filteredTasks = useMemo(
     () => filterTasksByDate(tasks, filter),
     [tasks, filter]
+  );
+
+  // Apply sort mode to filtered tasks
+  const sortedTasks = useMemo(
+    () => sortMode === "class" ? sortByClass(filteredTasks) : filteredTasks,
+    [filteredTasks, sortMode]
   );
 
   // Close filter dropdown on outside click or scroll
@@ -190,6 +232,42 @@ export default function InboxPage() {
   useEffect(() => {
     localStorage.setItem("inbox-view-mode", viewMode);
   }, [viewMode]);
+
+  // Persist sort mode to localStorage
+  useEffect(() => {
+    localStorage.setItem("inbox-sort-mode", sortMode);
+  }, [sortMode]);
+
+  // Persist board group-by to localStorage
+  useEffect(() => {
+    localStorage.setItem("inbox-board-group", boardGroupBy);
+  }, [boardGroupBy]);
+
+  // Auto-reset filter to "all" when board view is in date group mode
+  useEffect(() => {
+    if (viewMode === "board" && boardGroupBy === "date" && filter !== "all") {
+      setFilter("all");
+    }
+  }, [viewMode, boardGroupBy, filter, setFilter]);
+
+  // Close sort menu on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      const target = e.target as Node;
+      if (
+        sortMenuRef.current && !sortMenuRef.current.contains(target) &&
+        !sortMenuDropdownRef.current?.contains(target)
+      ) {
+        setShowSortMenu(false);
+      }
+    }
+    if (showSortMenu) {
+      document.addEventListener("mousedown", handleClick);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+    };
+  }, [showSortMenu]);
 
   // Listen for tour-triggered view mode changes
   useEffect(() => {
@@ -376,32 +454,94 @@ export default function InboxPage() {
                     left: filterRef.current.getBoundingClientRect().left,
                   }}
                 >
-                  {FILTER_OPTIONS.map(({ key, label, icon: Icon }) => (
-                    <button
-                      key={key}
-                      onClick={() => {
-                        setFilter(key);
-                        setShowFilterDropdown(false);
-                      }}
-                      className={`flex items-center gap-2 w-full text-left px-3 py-2 text-sm transition-colors ${
-                        filter === key
-                          ? "text-foreground font-medium"
-                          : "text-muted-foreground hover:text-foreground"
-                      }`}
-                      style={{
-                        backgroundColor: filter === key ? "rgba(255,255,255,0.08)" : "transparent",
-                      }}
-                    >
-                      <Icon size={16} />
-                      {label}
-                    </button>
-                  ))}
+                  {FILTER_OPTIONS.map(({ key, label, icon: Icon }) => {
+                    const isDisabled = viewMode === "board" && boardGroupBy === "date" && key !== "all";
+                    return (
+                      <button
+                        key={key}
+                        disabled={isDisabled}
+                        onClick={() => {
+                          if (isDisabled) return;
+                          setFilter(key);
+                          setShowFilterDropdown(false);
+                        }}
+                        className={`flex items-center gap-2 w-full text-left px-3 py-2 text-sm transition-colors ${
+                          isDisabled
+                            ? "opacity-40 cursor-not-allowed pointer-events-none"
+                            : filter === key
+                              ? "text-foreground font-medium"
+                              : "text-muted-foreground hover:text-foreground"
+                        }`}
+                        style={{
+                          backgroundColor: !isDisabled && filter === key ? "rgba(255,255,255,0.08)" : "transparent",
+                        }}
+                      >
+                        <Icon size={16} />
+                        {label}
+                      </button>
+                    );
+                  })}
                 </div>,
                 document.body
               )}
             </div>
 
             <div className="flex items-center gap-1">
+              {/* Sort / group-by button — works for both list and board */}
+              <div className="relative">
+                <button
+                  ref={sortMenuRef}
+                  onClick={() => setShowSortMenu(!showSortMenu)}
+                  className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-all"
+                  title={viewMode === "list" ? "Sort tasks" : "Group by"}
+                >
+                  <ArrowUpDown size={16} />
+                </button>
+                {showSortMenu && sortMenuRef.current && createPortal(
+                  <div
+                    ref={sortMenuDropdownRef}
+                    className="fixed z-[9999] rounded-xl shadow-2xl border border-border overflow-hidden animate-in min-w-[120px] bg-white dark:bg-[#1a1a1a]"
+                    style={{
+                      top: sortMenuRef.current.getBoundingClientRect().bottom + 4,
+                      right: window.innerWidth - sortMenuRef.current.getBoundingClientRect().right,
+                    }}
+                  >
+                    {(() => {
+                      const currentValue = viewMode === "list" ? sortMode : boardGroupBy;
+                      const setValue = viewMode === "list"
+                        ? (v: "date" | "class") => setSortMode(v)
+                        : (v: "date" | "class") => setBoardGroupBy(v);
+                      return (
+                        <>
+                          <button
+                            onClick={() => { setValue("date"); setShowSortMenu(false); }}
+                            className={`flex items-center gap-2 w-full text-left px-3 py-2 text-sm transition-colors ${
+                              currentValue === "date"
+                                ? "text-foreground font-medium"
+                                : "text-muted-foreground hover:text-foreground"
+                            }`}
+                            style={{ backgroundColor: currentValue === "date" ? "rgba(255,255,255,0.08)" : "transparent" }}
+                          >
+                            Date
+                          </button>
+                          <button
+                            onClick={() => { setValue("class"); setShowSortMenu(false); }}
+                            className={`flex items-center gap-2 w-full text-left px-3 py-2 text-sm transition-colors ${
+                              currentValue === "class"
+                                ? "text-foreground font-medium"
+                                : "text-muted-foreground hover:text-foreground"
+                            }`}
+                            style={{ backgroundColor: currentValue === "class" ? "rgba(255,255,255,0.08)" : "transparent" }}
+                          >
+                            Class
+                          </button>
+                        </>
+                      );
+                    })()}
+                  </div>,
+                  document.body
+                )}
+              </div>
               <button
                 id="tour-view-toggle"
                 ref={viewMenuRef}
@@ -467,7 +607,7 @@ export default function InboxPage() {
             <div key={viewMode} className="animate-view-switch h-full">
               {viewMode === "list" ? (
                 <TaskList
-                  tasks={filteredTasks}
+                  tasks={sortedTasks}
                   loading={loading}
                   error={error}
                   selectedTaskId={selectedTask?.id}
@@ -483,10 +623,27 @@ export default function InboxPage() {
                   loading={loading}
                   error={error}
                   selectedTaskId={boardPopoverTask?.id}
+                  groupBy={boardGroupBy}
                   onAdd={addTask}
                   onToggle={toggleComplete}
                   onSelect={(task, anchorRect) => setBoardPopoverTask(task, anchorRect)}
                   onDelete={deleteTask}
+                  onColorChange={async (courseName, color) => {
+                    const matching = filteredTasks.filter(
+                      (t) => (t.course_name || "General") === courseName
+                    );
+                    for (const t of matching) {
+                      await updateTask(t.id, { color });
+                    }
+                  }}
+                  onDeleteClass={async (courseName) => {
+                    const matching = filteredTasks.filter(
+                      (t) => (t.course_name || "General") === courseName
+                    );
+                    for (const t of matching) {
+                      await deleteTask(t.id);
+                    }
+                  }}
                 />
               )}
             </div>

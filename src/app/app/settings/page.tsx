@@ -42,19 +42,15 @@ export default function SettingsPage() {
     router.push("/app/onboarding");
   }
 
-  /**
-   * Restarts the app tour by clearing completion flag and setting pending flag,
-   * then navigating to the inbox where the tour dialog will appear.
-   */
+  /** Restarts the tour immediately — dispatches event, tour handles navigation. */
   function handleRestartTour() {
     try {
       localStorage.removeItem("caltodo_tour_completed");
-      localStorage.setItem("caltodo_tour_pending", "true");
+      localStorage.removeItem("caltodo_tour_pending");
     } catch {
       /* non-critical */
     }
     window.dispatchEvent(new CustomEvent("caltodo-restart-tour"));
-    router.push("/app/inbox");
   }
 
   /**
