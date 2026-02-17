@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { CalendarDays, Trash2, ExternalLink, MoreHorizontal } from "lucide-react";
+import { Trash2, ExternalLink, MoreHorizontal, X, AlignLeft, Tag } from "lucide-react";
 import { format } from "date-fns";
 import type { Task, TaskUpdate } from "@/lib/types";
 import { TASK_COLORS } from "@/lib/constants";
@@ -64,7 +64,8 @@ function formatTime12h(time24: string): string {
 }
 
 /**
- * Formats a due date into a friendly string like "Today, Feb 13 at 11:59 PM".
+ * Formats a due date into a long friendly string like "Wednesday, February 18 at 11:59 PM".
+ * Shows "Today" or "Tomorrow" prefix for nearby dates.
  *
  * @param dueDate - ISO date string or null
  * @param dueTime - 24-hour time string ("HH:MM") or null
@@ -78,19 +79,18 @@ function formatDueDate(dueDate: string | null, dueTime?: string | null): string 
   const diffMs = due.getTime() - today.getTime();
   const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
 
-  const dateStr = format(due, "MMM d");
   const timeSuffix = dueTime ? ` at ${formatTime12h(dueTime)}` : "";
-  if (diffDays === 0) return `Today, ${dateStr}${timeSuffix}`;
-  if (diffDays === 1) return `Tomorrow, ${dateStr}${timeSuffix}`;
-  if (diffDays === -1) return `Yesterday, ${dateStr}${timeSuffix}`;
-  return `${dateStr}${timeSuffix}`;
+  if (diffDays === 0) return `Today, ${format(due, "MMMM d")}${timeSuffix}`;
+  if (diffDays === 1) return `Tomorrow, ${format(due, "MMMM d")}${timeSuffix}`;
+  return `${format(due, "EEEE, MMMM d")}${timeSuffix}`;
 }
 
 /**
- * Todoist-style task popup rendered via portal.
- * Top bar: checkbox | calendar date | flag (color).
- * Body: editable title, plain white description area with placeholder.
- * Bottom: source/submitted badges, delete.
+ * Google Calendar-style task detail popover rendered via portal.
+ * Top right: action icons (color, source link, menu, close).
+ * Title section: checkbox + large title, date below.
+ * Description section: icon + editable text (blank if empty).
+ * Source section: badges for platform, course, submission status.
  * Auto-saves on blur. Closes on click-outside, scroll, or Escape.
  *
  * @param task - The task to view/edit
@@ -109,11 +109,13 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const menuBtnRef = useRef<HTMLButtonElement>(null);
   const menuDropdownRef = useRef<HTMLDivElement>(null);
+  const descriptionRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     setTitle(task.title);
@@ -124,6 +126,7 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
     setLocalCompleted(task.is_completed);
     setShowDatePicker(false);
     setShowColorPicker(false);
+    setIsEditingDescription(false);
   }, [task.id, task.title, task.description, task.due_date, task.due_time, task.color, task.is_completed]);
 
   useEffect(() => {
@@ -153,6 +156,12 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
 
   useClickOutside(ref, handleClickOutside, mounted);
 
+  useEffect(() => {
+    if (isEditingDescription && descriptionRef.current) {
+      descriptionRef.current.focus();
+    }
+  }, [isEditingDescription]);
+
   function handleSave() {
     const trimmed = title.trim();
     if (!trimmed) return;
@@ -178,75 +187,15 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
       }`}
       style={{ top: pos.top, left: pos.left }}
     >
-      {/* Top bar: checkbox | calendar date | color circle */}
-      <div className="flex items-center gap-2 px-4 pt-4 pb-3 border-b border-border-subtle">
-        {/* Checkbox — local optimistic state for instant feedback */}
-        <button
-          onClick={() => {
-            const next = !localCompleted;
-            setLocalCompleted(next);
-            onSave(task.id, { is_completed: next });
-          }}
-          className="group/check flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center transition-all duration-200"
-          style={{
-            backgroundColor: localCompleted ? (color || "#9CA3AF") : "transparent",
-            border: localCompleted ? "none" : `1.5px solid ${color || "#D1D5DB"}`,
-          }}
-        >
-          {localCompleted ? (
-            <svg width="10" height="8" viewBox="0 0 10 8" fill="none" className="animate-[checkScale_0.2s_ease-out]">
-              <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          ) : (
-            <svg width="9" height="7" viewBox="0 0 10 8" fill="none" className="opacity-0 group-hover/check:opacity-40 transition-opacity">
-              <path d="M1 4L3.5 6.5L9 1" stroke={color || "#D1D5DB"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          )}
-        </button>
-
-        {/* Calendar date */}
+      {/* ── Top action bar — right-aligned icons ── */}
+      <div className="flex items-center justify-end gap-0.5 px-3 pt-3">
+        {/* Color circle */}
         <div className="relative">
           <button
             type="button"
-            onClick={() => {
-              setShowDatePicker(!showDatePicker);
-              setShowColorPicker(false);
-            }}
-            className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs text-secondary-foreground hover:bg-accent transition-colors"
-          >
-            <CalendarDays size={14} className="text-subtle-foreground" />
-            <span>{formatDueDate(dueDate, task.due_time)}</span>
-          </button>
-          <Popover
-            open={showDatePicker}
-            onClose={() => setShowDatePicker(false)}
-            className="absolute left-0 top-full mt-1 z-10"
-          >
-            <DatePicker
-              value={dueDate}
-              timeValue={dueTime}
-              onChange={(date) => {
-                setDueDate(date);
-                setShowDatePicker(false);
-                onSave(task.id, { title: title.trim() || task.title, description, due_date: date, due_time: dueTime, color });
-              }}
-              onTimeChange={(time) => {
-                setDueTime(time);
-                onSave(task.id, { title: title.trim() || task.title, description, due_date: dueDate, due_time: time, color });
-              }}
-            />
-          </Popover>
-        </div>
-
-        {/* Color circle (expands on click) */}
-        <div className="relative ml-auto">
-          <button
-            type="button"
-            onClick={() => {
-              setShowColorPicker(!showColorPicker);
-              setShowDatePicker(false);
-            }}
-            className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-accent transition-colors"
+            onClick={() => { setShowColorPicker(!showColorPicker); setShowDatePicker(false); }}
+            className="p-1.5 rounded-lg hover:bg-accent transition-colors"
+            aria-label="Change color"
           >
             <div className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: color || "#9CA3AF" }} />
           </button>
@@ -266,9 +215,7 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
                       setShowColorPicker(false);
                       onSave(task.id, { title: title.trim() || task.title, description, due_date: dueDate, due_time: dueTime, color: c });
                     }}
-                    className={`w-6 h-6 rounded-full transition-all ${
-                      color === c ? "scale-125" : "hover:scale-110"
-                    }`}
+                    className={`w-6 h-6 rounded-full transition-all ${color === c ? "scale-125" : "hover:scale-110"}`}
                     style={{
                       backgroundColor: c,
                       boxShadow: color === c ? `0 0 0 2px white, 0 0 0 3.5px ${c}` : "none",
@@ -280,17 +227,17 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
           </Popover>
         </div>
 
-        {/* Open source link */}
+        {/* Source link */}
         {task.source_url && (
           <a
             href={task.source_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="p-1 text-subtle-foreground hover:text-foreground rounded-lg hover:bg-accent transition-colors"
+            className="p-1.5 text-subtle-foreground hover:text-foreground rounded-lg hover:bg-accent transition-colors"
             aria-label="Open in source"
             onClick={(e) => e.stopPropagation()}
           >
-            <ExternalLink size={14} />
+            <ExternalLink size={15} />
           </a>
         )}
 
@@ -300,10 +247,10 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
             ref={menuBtnRef}
             type="button"
             onClick={() => setShowMenu(!showMenu)}
-            className="p-1 text-subtle-foreground hover:text-foreground rounded-lg hover:bg-accent transition-colors"
+            className="p-1.5 text-subtle-foreground hover:text-foreground rounded-lg hover:bg-accent transition-colors"
             aria-label="Task options"
           >
-            <MoreHorizontal size={14} />
+            <MoreHorizontal size={15} />
           </button>
           {showMenu && menuBtnRef.current && createPortal(
             <>
@@ -313,10 +260,7 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
                 className="fixed z-[60] bg-card rounded-lg shadow-xl border border-input-border py-1 min-w-[120px]"
                 style={{
                   top: menuBtnRef.current.getBoundingClientRect().bottom + 4,
-                  left: Math.min(
-                    menuBtnRef.current.getBoundingClientRect().left,
-                    window.innerWidth - 140
-                  ),
+                  left: Math.min(menuBtnRef.current.getBoundingClientRect().left, window.innerWidth - 140),
                 }}
               >
                 <button
@@ -331,60 +275,139 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
             document.body
           )}
         </div>
+
+        {/* Close button */}
+        <button
+          onClick={onClose}
+          className="p-1.5 text-subtle-foreground hover:text-foreground rounded-lg hover:bg-accent transition-colors"
+          aria-label="Close"
+        >
+          <X size={15} />
+        </button>
       </div>
 
-      {/* Content: title + description */}
-      <div className="px-4 pt-3 pb-2 flex flex-col gap-2">
-        {/* Source / course badges */}
-        {(task.source || task.course_name || task.is_submitted) && (
-          <div className="flex items-center gap-2 mb-1 flex-wrap">
-            {task.source && (
-              <span
-                className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
-                  task.source === "canvas"
-                    ? "text-blue-600 bg-blue-50 dark:bg-blue-900/30"
-                    : "text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30"
-                }`}
-              >
-                {task.source === "canvas" ? "bCourses" : "Gradescope"}
-              </span>
+      {/* ── Title section: checkbox + title, date below ── */}
+      <div className="px-5 pt-2 pb-4">
+        <div className="flex items-start gap-3">
+          {/* Checkbox */}
+          <button
+            onClick={() => {
+              const next = !localCompleted;
+              setLocalCompleted(next);
+              onSave(task.id, { is_completed: next });
+            }}
+            className="group/check flex-shrink-0 w-5 h-5 mt-1 rounded-full flex items-center justify-center transition-all duration-200"
+            style={{
+              backgroundColor: localCompleted ? (color || "#9CA3AF") : "transparent",
+              border: localCompleted ? "none" : `1.5px solid ${color || "#D1D5DB"}`,
+            }}
+          >
+            {localCompleted ? (
+              <svg width="10" height="8" viewBox="0 0 10 8" fill="none" className="animate-[checkScale_0.2s_ease-out]">
+                <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            ) : (
+              <svg width="9" height="7" viewBox="0 0 10 8" fill="none" className="opacity-0 group-hover/check:opacity-40 transition-opacity">
+                <path d="M1 4L3.5 6.5L9 1" stroke={color || "#D1D5DB"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
             )}
-            {task.course_name && (
-              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded text-black bg-gray-100 dark:text-white dark:bg-white/10">
-                {task.course_name}
-              </span>
-            )}
-            {task.is_submitted && (
-              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded text-green-600 bg-green-50 dark:bg-green-900/30">
-                Submitted
-              </span>
-            )}
+          </button>
+          {/* Title input */}
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            onBlur={handleSave}
+            className="flex-1 min-w-0 text-lg font-semibold text-foreground bg-transparent focus:outline-none placeholder-subtle-foreground"
+            placeholder="Task title"
+          />
+        </div>
+
+        {/* Date line — below title, aligned with title text */}
+        <div className="relative pl-8 mt-1">
+          <button
+            type="button"
+            onClick={() => { setShowDatePicker(!showDatePicker); setShowColorPicker(false); }}
+            className="text-sm text-secondary-foreground hover:text-foreground transition-colors"
+          >
+            {formatDueDate(dueDate, dueTime)}
+          </button>
+          <Popover
+            open={showDatePicker}
+            onClose={() => setShowDatePicker(false)}
+            className="absolute left-8 top-full mt-1 z-10"
+          >
+            <DatePicker
+              value={dueDate}
+              timeValue={dueTime}
+              onChange={(date) => {
+                setDueDate(date);
+                setShowDatePicker(false);
+                onSave(task.id, { title: title.trim() || task.title, description, due_date: date, due_time: dueTime, color });
+              }}
+              onTimeChange={(time) => {
+                setDueTime(time);
+                onSave(task.id, { title: title.trim() || task.title, description, due_date: dueDate, due_time: time, color });
+              }}
+            />
+          </Popover>
+        </div>
+      </div>
+
+      <div className="border-t border-border-subtle" />
+
+      {/* ── Description section — icon + text ── */}
+      <div
+        className={`flex items-start gap-3 px-5 py-3 min-h-[44px] ${!description && !isEditingDescription ? "cursor-pointer" : ""}`}
+        onClick={() => { if (!description && !isEditingDescription) setIsEditingDescription(true); }}
+      >
+        <AlignLeft size={18} className="text-subtle-foreground flex-shrink-0 mt-0.5" />
+        {(description || isEditingDescription) ? (
+          <textarea
+            ref={descriptionRef}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            onBlur={() => { handleSave(); if (!description) setIsEditingDescription(false); }}
+            rows={Math.max(2, Math.min(6, (description || "").split("\n").length + 1))}
+            className="flex-1 min-w-0 text-sm text-secondary-foreground bg-transparent focus:outline-none resize-none"
+          />
+        ) : null}
+      </div>
+
+      {/* ── Source / course section ── */}
+      {(task.source || task.course_name || task.is_submitted) && (
+        <>
+          <div className="border-t border-border-subtle" />
+          <div className="flex items-start gap-3 px-5 py-3">
+            <Tag size={18} className="text-subtle-foreground flex-shrink-0 mt-0.5" />
+            <div className="flex items-center gap-2 flex-wrap">
+              {task.source && (
+                <span
+                  className={`text-xs font-medium px-2 py-0.5 rounded ${
+                    task.source === "canvas"
+                      ? "text-blue-600 bg-blue-50 dark:bg-blue-900/30"
+                      : "text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30"
+                  }`}
+                >
+                  {task.source === "canvas" ? "bCourses" : "Gradescope"}
+                </span>
+              )}
+              {task.course_name && (
+                <span className="text-xs font-medium px-2 py-0.5 rounded text-black bg-gray-100 dark:text-white dark:bg-white/10">
+                  {task.course_name}
+                </span>
+              )}
+              {task.is_submitted && (
+                <span className="text-xs font-medium px-2 py-0.5 rounded text-green-600 bg-green-50 dark:bg-green-900/30">
+                  Submitted
+                </span>
+              )}
+            </div>
           </div>
-        )}
+        </>
+      )}
 
-        {/* Title input */}
-        <input
-          type="text"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          onBlur={handleSave}
-          className="w-full text-base font-semibold text-foreground bg-transparent focus:outline-none placeholder-subtle-foreground"
-          placeholder="Task title"
-        />
-
-        {/* Description — plain white, just a placeholder */}
-        <textarea
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          onBlur={handleSave}
-          rows={3}
-          placeholder="Write a description..."
-          className="w-full text-sm text-secondary-foreground bg-transparent rounded-lg focus:outline-none resize-none placeholder-subtle-foreground"
-        />
-      </div>
-
-      {/* Bottom padding */}
-      <div className="pb-2" />
+      <div className="pb-1" />
     </div>,
     document.body
   );

@@ -53,6 +53,7 @@ export default function SettingsPage() {
     } catch {
       /* non-critical */
     }
+    window.dispatchEvent(new CustomEvent("caltodo-restart-tour"));
     router.push("/app/inbox");
   }
 

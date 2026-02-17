@@ -9,15 +9,6 @@ const TOUR_PENDING_KEY = "caltodo_tour_pending";
 const TOUR_COMPLETED_KEY = "caltodo_tour_completed";
 
 /**
- * Simulates a click on the filter button to open/close the dropdown.
- * Used by the tour to demonstrate the filter UI.
- */
-function clickFilterButton() {
-  const btn = document.querySelector("#tour-filter button") as HTMLElement | null;
-  btn?.click();
-}
-
-/**
  * Dispatches a custom event to switch the inbox view mode.
  * Listened for by InboxPage to toggle between list and board views.
  *
@@ -33,22 +24,6 @@ function setTourViewMode(mode: "list" | "board") {
  */
 const TOUR_STEPS: TourStep[] = [
   {
-    targetId: "tour-sidebar-nav",
-    title: "Navigation",
-    description: "Switch between your Inbox and Calendar views. Your Inbox shows all tasks, while Calendar gives you a monthly overview.",
-    position: "right",
-    route: "/app/inbox",
-  },
-  {
-    targetId: "tour-filter",
-    title: "Filter Tasks",
-    description: "Filter your tasks by time — view all, just today's, or the next 7 days. Stay focused on what matters most.",
-    position: "bottom",
-    route: "/app/inbox",
-    onEnter: () => clickFilterButton(),
-    onExit: () => clickFilterButton(),
-  },
-  {
     targetId: "tour-task-list",
     title: "Your Tasks",
     description: "All your tasks live here — assignments, personal to-dos, reminders, anything you want to track. They're sorted by due date so you always know what's next.",
@@ -63,13 +38,27 @@ const TOUR_STEPS: TourStep[] = [
     route: "/app/inbox",
   },
   {
-    targetId: "tour-view-toggle",
+    targetId: "tour-filter",
+    title: "Filter Tasks",
+    description: "Filter your tasks by time — view all, just today's, or the next 7 days. Stay focused on what matters most.",
+    position: "bottom",
+    route: "/app/inbox",
+  },
+  {
+    targetId: "tour-task-list",
     title: "Board View",
     description: "Switch between List and Board views. Board view organizes your tasks into columns by class or category — like a Kanban board.",
-    position: "bottom",
+    position: "top",
     route: "/app/inbox",
     onEnter: () => setTourViewMode("board"),
     onExit: () => setTourViewMode("list"),
+  },
+  {
+    targetId: "tour-sidebar-nav",
+    title: "Navigation",
+    description: "Switch between your Inbox and Calendar views. Your Inbox shows all tasks, while Calendar gives you a monthly overview.",
+    position: "right",
+    route: "/app/inbox",
   },
   {
     targetId: "tour-calendar-grid",
@@ -94,7 +83,6 @@ function TourTrigger() {
     try {
       const pending = localStorage.getItem(TOUR_PENDING_KEY);
       if (pending === "true") {
-        // Small delay so the inbox has time to render and IDs are in the DOM
         const timer = setTimeout(() => setShowDialog(true), 800);
         return () => clearTimeout(timer);
       }
@@ -102,6 +90,15 @@ function TourTrigger() {
       /* non-critical */
     }
   }, [isCompleted]);
+
+  // Listen for restart event directly (from settings page)
+  useEffect(() => {
+    function handleRestart() {
+      setTimeout(() => setShowDialog(true), 1000);
+    }
+    window.addEventListener("caltodo-restart-tour", handleRestart);
+    return () => window.removeEventListener("caltodo-restart-tour", handleRestart);
+  }, []);
 
   /** Handles dialog dismissal — clears pending flag. */
   function handleClose() {

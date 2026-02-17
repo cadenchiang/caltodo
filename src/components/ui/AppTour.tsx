@@ -165,6 +165,16 @@ export function TourProvider({ children, steps, onComplete }: TourProviderProps)
     }
   }, []);
 
+  // Listen for restart-tour event (dispatched from settings page)
+  useEffect(() => {
+    function handleRestart() {
+      setIsCompleted(false);
+      setCurrentStep(-1);
+    }
+    window.addEventListener("caltodo-restart-tour", handleRestart);
+    return () => window.removeEventListener("caltodo-restart-tour", handleRestart);
+  }, []);
+
   /** Updates target rect and card position on resize/scroll. */
   const updatePosition = useCallback(() => {
     if (currentStep < 0 || currentStep >= steps.length) return;
@@ -183,13 +193,14 @@ export function TourProvider({ children, steps, onComplete }: TourProviderProps)
   const activateStep = useCallback(async (stepIndex: number) => {
     if (stepIndex < 0 || stepIndex >= steps.length) return;
     const step = steps[stepIndex];
+    const needsNavigation = step.route && pathname !== step.route;
 
     // Navigate if the step requires a different route
-    if (step.route && pathname !== step.route) {
+    if (needsNavigation) {
       setNavigating(true);
       setTargetRect(null);
       setCardPos(null);
-      router.push(step.route);
+      router.push(step.route!);
     }
 
     // Wait for the target element to appear in the DOM
@@ -198,18 +209,25 @@ export function TourProvider({ children, steps, onComplete }: TourProviderProps)
 
     if (!el) return;
 
-    // Scroll the target into view smoothly
-    el.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+    // Scroll into view only if element is off-screen
+    const rect = el.getBoundingClientRect();
+    const isVisible = rect.top >= 0 && rect.bottom <= window.innerHeight;
+    if (!isVisible) {
+      el.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+      await new Promise((r) => setTimeout(r, 200));
+    }
 
-    // Fire onEnter callback (e.g. open a dropdown)
+    // Fire onEnter callback (e.g. switch view mode)
     step.onEnter?.();
 
-    // Small delay for scroll + onEnter effects to settle, then position the spotlight
-    await new Promise((r) => setTimeout(r, 450));
+    // Brief settle only when needed (navigation or onEnter side effects)
+    if (step.onEnter || needsNavigation) {
+      await new Promise((r) => setTimeout(r, 150));
+    }
 
-    const rect = el.getBoundingClientRect();
-    setTargetRect(rect);
-    setCardPos(computeCardPosition(rect, step.position));
+    const finalRect = el.getBoundingClientRect();
+    setTargetRect(finalRect);
+    setCardPos(computeCardPosition(finalRect, step.position));
   }, [steps, pathname, router]);
 
   // Activate step whenever currentStep changes
@@ -272,31 +290,30 @@ export function TourProvider({ children, steps, onComplete }: TourProviderProps)
     onComplete?.();
   }, [onComplete, router, currentStep, steps]);
 
+  /** Closes any open dropdowns/popovers before transitioning steps. */
+  const dismissOpenUI = useCallback(() => {
+    document.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+  }, []);
+
   const nextStep = useCallback(() => {
-    // Fire onExit for current step
+    dismissOpenUI();
     if (currentStep >= 0 && currentStep < steps.length) {
       steps[currentStep].onExit?.();
     }
     if (currentStep >= steps.length - 1) {
       endTour();
     } else {
-      setVisible(false);
-      setTargetRect(null);
-      setCardPos(null);
-      setTimeout(() => setCurrentStep((prev) => prev + 1), 150);
+      setCurrentStep((prev) => prev + 1);
     }
-  }, [currentStep, steps, endTour]);
+  }, [currentStep, steps, endTour, dismissOpenUI]);
 
   const prevStep = useCallback(() => {
-    // Fire onExit for current step
+    dismissOpenUI();
     if (currentStep >= 0 && currentStep < steps.length) {
       steps[currentStep].onExit?.();
     }
-    setVisible(false);
-    setTargetRect(null);
-    setCardPos(null);
-    setTimeout(() => setCurrentStep((prev) => Math.max(0, prev - 1)), 150);
-  }, [currentStep, steps]);
+    setCurrentStep((prev) => Math.max(0, prev - 1));
+  }, [currentStep, steps, dismissOpenUI]);
 
   // Close on Escape
   useEffect(() => {
@@ -317,12 +334,12 @@ export function TourProvider({ children, steps, onComplete }: TourProviderProps)
 
       {isActive && createPortal(
         <div
-          className="fixed inset-0 z-[9998] transition-opacity duration-200"
-          style={{ opacity: visible && targetRect ? 1 : 0 }}
+          className="fixed inset-0 z-[9998] transition-opacity duration-150"
+          style={{ opacity: targetRect ? 1 : 0 }}
         >
           {targetRect && cardPos && step && (
             <>
-              {/* Overlay with spotlight cutout */}
+              {/* Overlay with spotlight cutout — clip-path animates between steps */}
               <div
                 className="absolute inset-0 bg-black/60"
                 style={{
@@ -338,24 +355,28 @@ export function TourProvider({ children, steps, onComplete }: TourProviderProps)
                     100% 100%,
                     100% 0%
                   )`,
+                  transition: "clip-path 300ms ease-in-out",
                 }}
                 onClick={endTour}
               />
 
-              {/* Highlight border */}
+              {/* Glowing white highlight border */}
               <div
-                className="absolute rounded-xl border-2 border-foreground/40 transition-all duration-300 pointer-events-none"
+                className="absolute rounded-xl pointer-events-none"
                 style={{
                   top: targetRect.top - HIGHLIGHT_PAD,
                   left: targetRect.left - HIGHLIGHT_PAD,
                   width: targetRect.width + HIGHLIGHT_PAD * 2,
                   height: targetRect.height + HIGHLIGHT_PAD * 2,
+                  border: "2px solid rgba(255, 255, 255, 0.6)",
+                  boxShadow: "0 0 12px 2px rgba(255, 255, 255, 0.3), inset 0 0 12px 2px rgba(255, 255, 255, 0.1)",
+                  transition: "all 300ms ease-in-out",
                 }}
               />
 
               {/* Content card */}
               <div
-                className="absolute bg-card rounded-xl border border-border shadow-2xl p-4 transition-all duration-300 z-[9999]"
+                className="absolute bg-card rounded-xl border border-border shadow-2xl p-4 transition-all duration-300 ease-in-out z-[9999]"
                 style={{
                   top: cardPos.top,
                   left: cardPos.left,
@@ -470,7 +491,7 @@ export function TourStartDialog({ open, onClose }: TourStartDialogProps) {
             <button
               onClick={() => {
                 onClose();
-                setTimeout(startTour, 200);
+                setTimeout(startTour, 50);
               }}
               className="w-full px-4 py-2.5 rounded-xl text-sm font-medium bg-gray-900 text-white dark:bg-white dark:text-gray-900 hover:opacity-80 transition-all"
             >

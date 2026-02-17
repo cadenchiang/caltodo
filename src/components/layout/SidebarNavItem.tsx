@@ -38,8 +38,8 @@ export default function SidebarNavItem({ label, href, icon: Icon, badge, id }: S
           : "text-muted-foreground hover:bg-accent hover:text-foreground"
       }`}
     >
-      <Icon size={16} className="transition-all duration-200" />
-      <span className="transition-all duration-200">{label}</span>
+      <Icon key={label} size={16} className="animate-[fadeIn_150ms_ease-out]" />
+      <span key={`label-${label}`} className="animate-[fadeIn_150ms_ease-out]">{label}</span>
       {badge && (
         <span className="ml-auto min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center shrink-0">
           1

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { X, Send } from "lucide-react";
+import { X, Send, MessageCircle } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 
 interface ContactModalProps {
@@ -100,7 +100,10 @@ export default function ContactModal({ open, onClose, userName, userEmail }: Con
       <div className="relative bg-card rounded-2xl border border-border shadow-2xl w-full max-w-md mx-4 animate-modal-in">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-          <h2 className="text-sm font-semibold text-foreground">Contact Us</h2>
+          <div className="flex items-center gap-2">
+            <MessageCircle size={15} className="text-subtle-foreground" />
+            <h2 className="text-sm font-semibold text-foreground">Contact Us</h2>
+          </div>
           <button
             onClick={onClose}
             className="p-1 text-subtle-foreground hover:text-foreground transition-colors rounded-lg hover:bg-accent"

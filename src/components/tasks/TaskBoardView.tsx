@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDown, ExternalLink, MoreHorizontal, MoreVertical, Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { ChevronDown, MoreHorizontal, MoreVertical, Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
 import type { Task, TaskInsert } from "@/lib/types";
 import BoardTaskAddForm from "./BoardTaskAddForm";
 
@@ -538,33 +538,7 @@ function TaskCard({ task, isSelected, onToggle, onSelect, onDelete }: TaskCardPr
         } ${isCompleted ? "opacity-50" : ""}`}
         onClick={(e) => onSelect(task, e.currentTarget.getBoundingClientRect())}
       >
-        {/* Three-dot menu — top right, visible on hover */}
-        <button
-          ref={menuBtnRef}
-          onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }}
-          className="absolute top-2 right-2 p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-all opacity-0 group-hover:opacity-100 z-10"
-          aria-label="Task options"
-        >
-          <MoreHorizontal size={14} />
-        </button>
-
-        {/* Source link icon at top */}
-        {task.source_url && (
-          <div className="mb-2">
-            <a
-              href={task.source_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              className="inline-flex p-0.5 text-subtle-foreground hover:text-foreground transition-colors"
-              aria-label="Open in source"
-            >
-              <ExternalLink size={12} />
-            </a>
-          </div>
-        )}
-
-        {/* Checkbox + title */}
+        {/* Checkbox + title + three-dot menu */}
         <div className="flex items-start gap-2.5">
           <button
             onClick={(e) => {
@@ -589,12 +563,20 @@ function TaskCard({ task, isSelected, onToggle, onSelect, onDelete }: TaskCardPr
             )}
           </button>
           <span
-            className={`text-sm leading-snug ${
+            className={`text-sm leading-snug flex-1 min-w-0 ${
               isCompleted ? "text-foreground line-through" : "text-foreground"
             }`}
           >
             {task.title}
           </span>
+          <button
+            ref={menuBtnRef}
+            onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }}
+            className="flex-shrink-0 p-0.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-all opacity-0 group-hover:opacity-100"
+            aria-label="Task options"
+          >
+            <MoreHorizontal size={14} />
+          </button>
         </div>
 
         {/* Date + time combined */}
