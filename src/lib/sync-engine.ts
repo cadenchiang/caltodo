@@ -64,7 +64,7 @@ export async function runSync(
     logger.warn("runSync: no credentials found", { userId });
     return {
       canvas: { synced: 0, errors: ["No integration credentials configured. Go to Settings to add them."] },
-      gradescope: { synced: 0, errors: ["No integration credentials configured. Go to Settings to add them."] },
+      gradescope: { synced: 0, errors: [] },
       last_synced_at: new Date().toISOString(),
     };
   }
