@@ -166,14 +166,14 @@ export default function OnboardingPage() {
   return (
     <div className={`fixed inset-0 z-50 flex flex-col bg-white force-light transition-opacity duration-500 ${exiting ? "opacity-0" : "opacity-100"}`}>
       {/* Top bar: logo left, centered stepper, close right */}
-      <div className="relative flex items-center px-6 pt-5 pb-3">
+      <div className="flex items-center justify-between px-6 pt-5 pb-3">
         {/* Logo — left corner */}
         <a href="/" className="cursor-pointer shrink-0">
           <img src="/logo.png" alt="caltodo" className="h-7" />
         </a>
 
         {/* Stepper bars + back button — centered with constrained width */}
-        <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2 w-full max-w-sm px-4">
+        <div className="flex items-center gap-2 w-full max-w-md mx-6">
           {/* Back button */}
           <button
             onClick={() => {
@@ -215,16 +215,17 @@ export default function OnboardingPage() {
         {/* Close button — right corner */}
         <button
           onClick={() => { trackEvent("onboarding_exited", { step: currentStep }); router.push("/app/inbox"); }}
-          className="ml-auto p-1.5 text-gray-400 hover:text-gray-800 transition-colors rounded-lg shrink-0"
+          className="p-1.5 text-gray-400 hover:text-gray-800 transition-colors rounded-lg shrink-0"
           aria-label="Close onboarding"
         >
           <X size={18} />
         </button>
       </div>
 
-      {/* Step content — visually centered (shifted up so it doesn't feel bottom-heavy) */}
-      <div className="flex-1 flex items-start justify-center overflow-y-auto pt-[12vh]">
-        <div className="w-full max-w-xl mx-auto px-6 pb-8">
+      {/* Step content — vertically centered */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="min-h-full flex items-center justify-center px-6 py-8">
+          <div className="w-full max-w-md">
           <div key={currentStep} className="animate-step-in">
             {error && (
               <div className="bg-red-500/10 text-red-400 text-sm p-3 rounded-xl mb-4">
@@ -286,6 +287,7 @@ export default function OnboardingPage() {
               <DoneStep onSyncAndGo={handleSyncAndGo} />
             )}
           </div>
+        </div>
         </div>
       </div>
     </div>
