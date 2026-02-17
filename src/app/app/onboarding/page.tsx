@@ -173,12 +173,14 @@ export default function OnboardingPage() {
           <ChevronLeft size={20} />
         </button>
 
-        {/* Logo */}
-        <img
-          src="/logo.png"
-          alt="caltodo"
-          className="h-8"
-        />
+        {/* Logo — links back to hero page */}
+        <a href="/" className="cursor-pointer">
+          <img
+            src="/logo.png"
+            alt="caltodo"
+            className="h-8"
+          />
+        </a>
 
         {/* Close button */}
         <button
