@@ -9,8 +9,8 @@ const TOUR_PENDING_KEY = "caltodo_tour_pending";
 const TOUR_COMPLETED_KEY = "caltodo_tour_completed";
 
 /**
- * Tour step definitions for the inbox page.
- * Each step targets a DOM element by ID and provides guidance text.
+ * Tour step definitions for the full app tour.
+ * Steps can specify a route to navigate to before highlighting the target.
  */
 const TOUR_STEPS: TourStep[] = [
   {
@@ -18,24 +18,35 @@ const TOUR_STEPS: TourStep[] = [
     title: "Navigation",
     description: "Switch between your Inbox and Calendar views here. Your Inbox shows all tasks, while Calendar gives you a monthly overview.",
     position: "right",
+    route: "/app/inbox",
   },
   {
     targetId: "tour-filter",
     title: "Filter Tasks",
     description: "Click here to filter your tasks — view all, just today's, or the next 7 days. Keep focused on what matters most.",
     position: "bottom",
+    route: "/app/inbox",
   },
   {
     targetId: "tour-add-task",
     title: "Create Tasks",
     description: "Type a task name and press Enter to add it. Click the calendar icon to set a due date, or the color dot to categorize it.",
     position: "bottom",
+    route: "/app/inbox",
   },
   {
     targetId: "tour-sync-button",
     title: "Sync Assignments",
     description: "Click the refresh icon to pull in new assignments from bCourses and Gradescope. You can choose which courses to sync.",
     position: "bottom",
+    route: "/app/inbox",
+  },
+  {
+    targetId: "tour-calendar-grid",
+    title: "Calendar View",
+    description: "See all your tasks and deadlines laid out on a monthly calendar. Click any day to add a task, or click a task to edit it.",
+    position: "top",
+    route: "/app/calendar",
   },
 ];
 
@@ -77,8 +88,9 @@ function TourTrigger() {
 }
 
 /**
- * Wraps children in a TourProvider with inbox-specific tour steps.
+ * Wraps children in a TourProvider with app-wide tour steps.
  * Automatically shows the tour start dialog if the onboarding just completed.
+ * Steps include cross-page navigation (inbox + calendar).
  *
  * @param children - App content to render inside the tour provider
  */

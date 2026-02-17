@@ -49,7 +49,7 @@ export default function CalendarGrid({
   }
 
   return (
-    <div className="glass rounded-2xl overflow-hidden shadow-md dark:shadow-black/30">
+    <div id="tour-calendar-grid" className="glass rounded-2xl overflow-hidden shadow-md dark:shadow-black/30">
       {/* Weekday headers */}
       <div className="grid grid-cols-7 bg-input-bg border-b-2 border-border">
         {WEEKDAY_LABELS.map((label) => (
