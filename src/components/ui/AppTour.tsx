@@ -39,6 +39,8 @@ export interface TourStep {
   clickTargetId?: string;
   /** Sequence of element IDs to animate clicks on. Each is highlighted, pulsed, then the next fires. Overrides clickTargetId. */
   clickSequence?: Array<{ targetId: string; action?: () => void }>;
+  /** Optional secondary element to include in the highlight area (e.g. a dropdown opened by onEnter). */
+  secondaryTargetId?: string;
 }
 
 interface TourContextValue {
@@ -115,6 +117,21 @@ function computeCardPosition(
 }
 
 /**
+ * Computes the union bounding rect of two DOMRects.
+ *
+ * @param a - First rect
+ * @param b - Second rect
+ * @returns A DOMRect covering both inputs
+ */
+function unionRects(a: DOMRect, b: DOMRect): DOMRect {
+  const top = Math.min(a.top, b.top);
+  const left = Math.min(a.left, b.left);
+  const right = Math.max(a.right, b.right);
+  const bottom = Math.max(a.bottom, b.bottom);
+  return new DOMRect(left, top, right - left, bottom - top);
+}
+
+/**
  * Waits for a DOM element by ID, polling until found or timeout.
  *
  * @param targetId - DOM element ID to wait for
@@ -188,7 +205,13 @@ export function TourProvider({ children, steps, onComplete }: TourProviderProps)
     const step = steps[currentStep];
     const el = document.getElementById(step.targetId);
     if (!el) return;
-    const rect = el.getBoundingClientRect();
+    let rect = el.getBoundingClientRect();
+    if (step.secondaryTargetId) {
+      const secondaryEl = document.getElementById(step.secondaryTargetId);
+      if (secondaryEl) {
+        rect = unionRects(rect, secondaryEl.getBoundingClientRect());
+      }
+    }
     setTargetRect(rect);
     setCardPos(computeCardPosition(rect, step.position));
   }, [currentStep, steps, isClickAnimating]);
@@ -308,7 +331,16 @@ export function TourProvider({ children, steps, onComplete }: TourProviderProps)
 
     // For large elements that extend beyond viewport, clamp the highlight
     // to the visible portion to avoid glitchy shifts
-    const finalRect = el.getBoundingClientRect();
+    let finalRect = el.getBoundingClientRect();
+
+    // Merge secondary target (e.g. dropdown opened by onEnter)
+    if (step.secondaryTargetId) {
+      const secondaryEl = await waitForElement(step.secondaryTargetId, 500);
+      if (secondaryEl) {
+        finalRect = unionRects(finalRect, secondaryEl.getBoundingClientRect());
+      }
+    }
+
     const clampedRect = new DOMRect(
       finalRect.x,
       Math.max(finalRect.y, 0),

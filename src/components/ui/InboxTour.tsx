@@ -50,6 +50,7 @@ const TOUR_STEPS: TourStep[] = [
     description: "Show all tasks, just today's, or the next 7 days.",
     position: "bottom",
     route: "/app/inbox",
+    secondaryTargetId: "tour-filter-dropdown",
     onEnter: () => {
       // Click the filter button to open the dropdown
       const btn = document.querySelector("#tour-filter button") as HTMLElement | null;

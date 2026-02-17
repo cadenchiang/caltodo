@@ -464,6 +464,7 @@ export default function InboxPage() {
               </button>
               {showFilterDropdown && filterRef.current && createPortal(
                 <div
+                  id="tour-filter-dropdown"
                   ref={filterDropdownRef}
                   className="fixed z-[9999] rounded-xl shadow-2xl border border-border overflow-hidden animate-in min-w-[160px] bg-white dark:bg-[#1a1a1a]"
                   style={{
