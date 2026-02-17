@@ -58,6 +58,22 @@ function filterTasksByDate(tasks: Task[], filter: InboxFilter): Task[] {
 type SortMode = "date" | "class";
 
 /**
+ * Sorts tasks by due_date ascending, with undated tasks (null due_date) first.
+ * Within each group (undated vs dated), preserves original order.
+ *
+ * @param tasks - Array of tasks to sort
+ * @returns New sorted array (does not mutate input)
+ */
+function sortByDate(tasks: Task[]): Task[] {
+  return [...tasks].sort((a, b) => {
+    if (!a.due_date && !b.due_date) return 0;
+    if (!a.due_date) return -1;
+    if (!b.due_date) return 1;
+    return a.due_date.localeCompare(b.due_date);
+  });
+}
+
+/**
  * Sorts tasks by course_name alphabetically (null → last), then by due_date within each class.
  *
  * @param tasks - Array of tasks to sort
@@ -219,7 +235,7 @@ export default function InboxPage() {
 
   // Apply sort mode to filtered tasks
   const sortedTasks = useMemo(
-    () => sortMode === "class" ? sortByClass(filteredTasks) : filteredTasks,
+    () => sortMode === "class" ? sortByClass(filteredTasks) : sortByDate(filteredTasks),
     [filteredTasks, sortMode]
   );
 
