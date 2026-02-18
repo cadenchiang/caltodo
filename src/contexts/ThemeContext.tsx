@@ -57,6 +57,12 @@ export function resolveTheme(pref: ThemePreference): ResolvedTheme {
 function applyTheme(theme: ResolvedTheme, animate = false): void {
   if (typeof document === "undefined") return;
 
+  // Sync favicon with theme
+  const link = document.querySelector('link[rel="icon"]') as HTMLLinkElement | null;
+  if (link) {
+    link.href = theme === "dark" ? "/icon-dark.png" : "/icon-light.png";
+  }
+
   if (!animate) {
     if (theme === "dark") {
       document.documentElement.classList.add("dark");
