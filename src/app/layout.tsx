@@ -25,7 +25,10 @@ export const metadata: Metadata = {
   title: "caltodo",
   description: "Personal todolist tracker with calendar view",
   icons: {
-    icon: "/icon-light.png",
+    icon: [
+      { url: "/icon-light.png", media: "(prefers-color-scheme: light)" },
+      { url: "/icon-dark.png", media: "(prefers-color-scheme: dark)" },
+    ],
   },
 };
 
@@ -37,8 +40,13 @@ const themeScript = `
 (function() {
   try {
     var t = localStorage.getItem("caltodo_theme");
-    if (t === "dark" || (t !== "light" && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
+    var isDark = t === "dark" || (t !== "light" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    if (isDark) {
       document.documentElement.classList.add("dark");
+    }
+    var link = document.querySelector('link[rel="icon"]');
+    if (link) {
+      link.href = isDark ? "/icon-dark.png" : "/icon-light.png";
     }
   } catch(e) {}
 })();
