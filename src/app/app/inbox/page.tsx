@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { Inbox, ChevronDown, X, Sun, CalendarRange, MoreVertical, List, LayoutGrid, ArrowUpDown } from "lucide-react";
+import { Inbox, ChevronDown, X, Sun, CalendarRange, MoreVertical, List, LayoutGrid, ArrowUpDown, RefreshCw } from "lucide-react";
 import { useTaskContext } from "@/contexts/TaskContext";
 import { useToast } from "@/contexts/ToastContext";
 import TaskList from "@/components/tasks/TaskList";
@@ -621,6 +621,15 @@ export default function InboxPage() {
                   >
                     <LayoutGrid size={14} />
                     Board
+                  </button>
+                  <div className="border-t border-border my-1" />
+                  <button
+                    onClick={() => { setShowViewMenu(false); handleSyncClick(); }}
+                    disabled={syncing}
+                    className="flex items-center gap-2 w-full text-left px-3 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                  >
+                    <RefreshCw size={14} className={syncing ? "animate-spin" : ""} />
+                    {syncing ? "Syncing..." : "Sync"}
                   </button>
                 </div>,
                 document.body
