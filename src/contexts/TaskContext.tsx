@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/contexts/ToastContext";
 import type { Task, TaskInsert, TaskUpdate, SyncResult } from "@/lib/types";
 import { trackEvent } from "@/lib/analytics";
+import { computeNextDueDate } from "@/lib/repeat";
 
 /** localStorage key and version for stale-while-revalidate task caching. */
 const CACHE_KEY = "caltodo_tasks_cache";
@@ -239,6 +240,8 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       is_submitted: false,
       google_event_id: null,
       dismissed_at: null,
+      repeat_interval: taskData.repeat_interval ?? null,
+      repeat_unit: taskData.repeat_unit ?? null,
     };
 
     setTasks((prev) => {
@@ -320,6 +323,27 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     const willComplete = !task.is_completed;
     trackEvent(willComplete ? "task_completed" : "task_uncompleted");
     await updateTask(id, { is_completed: willComplete });
+
+    // Spawn next occurrence for repeating tasks
+    if (
+      willComplete &&
+      task.repeat_interval &&
+      task.repeat_unit &&
+      task.due_date &&
+      !task.source
+    ) {
+      const nextDueDate = computeNextDueDate(task.due_date, task.repeat_interval, task.repeat_unit);
+      await addTask({
+        title: task.title,
+        description: task.description || undefined,
+        due_date: nextDueDate,
+        due_time: task.due_time,
+        color: task.color,
+        repeat_interval: task.repeat_interval,
+        repeat_unit: task.repeat_unit,
+      });
+      trackEvent("repeat_task_spawned");
+    }
 
     if (willComplete) {
       showToast("Task completed", {

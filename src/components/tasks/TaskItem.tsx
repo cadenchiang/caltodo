@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import { Trash2 } from "lucide-react";
+import { Trash2, Repeat } from "lucide-react";
 import type { Task } from "@/lib/types";
 
 interface TaskItemProps {
@@ -139,6 +139,11 @@ export default function TaskItem({ task, isSelected, onToggle, onSelect, onDelet
           {task.title}
         </span>
 
+
+        {/* Repeat indicator */}
+        {task.repeat_interval && task.repeat_unit && (
+          <Repeat size={12} className="text-purple-400 shrink-0" />
+        )}
 
         {/* Due time and date */}
         {dueBadge && (

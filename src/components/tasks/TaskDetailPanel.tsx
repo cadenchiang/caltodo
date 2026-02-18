@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { CalendarDays, ExternalLink } from "lucide-react";
+import { CalendarDays, ExternalLink, Repeat } from "lucide-react";
 import { format } from "date-fns";
 import type { Task, TaskUpdate } from "@/lib/types";
 import { TASK_COLORS } from "@/lib/constants";
+import { getRepeatLabel } from "@/lib/repeat";
 import DatePicker from "./DatePicker";
+import RepeatPicker from "./RepeatPicker";
 import Popover from "@/components/ui/Popover";
 
 interface TaskDetailPanelProps {
@@ -69,11 +71,15 @@ export default function TaskDetailPanel({ task, onClose, onSave }: TaskDetailPan
   const [dueDate, setDueDate] = useState<string | null>(null);
   const [dueTime, setDueTime] = useState<string | null>(null);
   const [color, setColor] = useState("#3B82F6");
+  const [repeatInterval, setRepeatInterval] = useState<number | null>(null);
+  const [repeatUnit, setRepeatUnit] = useState<"day" | "week" | "month" | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const [showRepeatPicker, setShowRepeatPicker] = useState(false);
   const descRef = useRef<HTMLTextAreaElement>(null);
   const dateButtonRef = useRef<HTMLButtonElement>(null);
   const colorButtonRef = useRef<HTMLButtonElement>(null);
+  const repeatButtonRef = useRef<HTMLButtonElement>(null);
 
   // Sync state when a different task is selected
   useEffect(() => {
@@ -83,10 +89,13 @@ export default function TaskDetailPanel({ task, onClose, onSave }: TaskDetailPan
       setDueDate(task.due_date);
       setDueTime(task.due_time);
       setColor(task.color);
+      setRepeatInterval(task.repeat_interval);
+      setRepeatUnit(task.repeat_unit);
       setShowDatePicker(false);
       setShowColorPicker(false);
+      setShowRepeatPicker(false);
     }
-  }, [task?.id, task?.title, task?.description, task?.due_date, task?.due_time, task?.color]);
+  }, [task?.id, task?.title, task?.description, task?.due_date, task?.due_time, task?.color, task?.repeat_interval, task?.repeat_unit]);
 
   /**
    * Persists current form state to the backend.
@@ -95,7 +104,7 @@ export default function TaskDetailPanel({ task, onClose, onSave }: TaskDetailPan
     if (!task) return;
     const trimmed = title.trim();
     if (!trimmed) return;
-    onSave(task.id, { title: trimmed, description, due_date: dueDate, due_time: dueTime, color });
+    onSave(task.id, { title: trimmed, description, due_date: dueDate, due_time: dueTime, color, repeat_interval: repeatInterval, repeat_unit: repeatUnit });
   }
 
   /**
@@ -104,7 +113,7 @@ export default function TaskDetailPanel({ task, onClose, onSave }: TaskDetailPan
   function saveWith(overrides: Partial<TaskUpdate>) {
     if (!task) return;
     const trimmed = title.trim() || task.title;
-    onSave(task.id, { title: trimmed, description, due_date: dueDate, due_time: dueTime, color, ...overrides });
+    onSave(task.id, { title: trimmed, description, due_date: dueDate, due_time: dueTime, color, repeat_interval: repeatInterval, repeat_unit: repeatUnit, ...overrides });
   }
 
   const dateDisplay = task ? getDateDisplay(dueDate, dueTime) : null;
@@ -170,6 +179,40 @@ export default function TaskDetailPanel({ task, onClose, onSave }: TaskDetailPan
               </Popover>
             </div>
 
+            {/* Repeat picker trigger — hidden for synced tasks */}
+            {!task.source && (
+              <div className="relative">
+                <button
+                  ref={repeatButtonRef}
+                  type="button"
+                  onClick={() => { setShowRepeatPicker(!showRepeatPicker); setShowDatePicker(false); setShowColorPicker(false); }}
+                  className={`flex items-center gap-1.5 text-sm font-medium transition-colors hover:opacity-80 ${
+                    repeatInterval ? "text-purple-500" : "text-subtle-foreground"
+                  }`}
+                >
+                  <Repeat size={16} />
+                  {repeatInterval && repeatUnit ? getRepeatLabel(repeatInterval, repeatUnit) : null}
+                </button>
+                <Popover
+                  open={showRepeatPicker}
+                  onClose={() => setShowRepeatPicker(false)}
+                  triggerRef={repeatButtonRef}
+                  className="absolute left-0 top-full mt-2 z-10"
+                >
+                  <RepeatPicker
+                    interval={repeatInterval}
+                    unit={repeatUnit}
+                    onChange={(interval, unit) => {
+                      setRepeatInterval(interval);
+                      setRepeatUnit(unit);
+                      setShowRepeatPicker(false);
+                      saveWith({ repeat_interval: interval, repeat_unit: unit });
+                    }}
+                  />
+                </Popover>
+              </div>
+            )}
+
             {/* Spacer */}
             <div className="flex-1" />
 
@@ -178,7 +221,7 @@ export default function TaskDetailPanel({ task, onClose, onSave }: TaskDetailPan
               <button
                 ref={colorButtonRef}
                 type="button"
-                onClick={() => { setShowColorPicker(!showColorPicker); setShowDatePicker(false); }}
+                onClick={() => { setShowColorPicker(!showColorPicker); setShowDatePicker(false); setShowRepeatPicker(false); }}
                 className="p-1 text-subtle-foreground hover:text-secondary-foreground rounded-lg hover:bg-accent transition-colors"
                 aria-label="Pick color"
               >

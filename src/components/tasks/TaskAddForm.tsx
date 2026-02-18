@@ -1,12 +1,16 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Plus, CalendarDays } from "lucide-react";
+import { Plus, CalendarDays, Repeat } from "lucide-react";
 import { format } from "date-fns";
 import type { TaskInsert } from "@/lib/types";
 import { TASK_COLORS, DEFAULT_TASK_COLOR } from "@/lib/constants";
+import { getRepeatLabel } from "@/lib/repeat";
 import DatePicker from "./DatePicker";
+import RepeatPicker from "./RepeatPicker";
 import Popover from "@/components/ui/Popover";
+
+type RepeatUnit = "day" | "week" | "month";
 
 interface TaskAddFormProps {
   onAdd: (task: TaskInsert) => void;
@@ -16,7 +20,7 @@ interface TaskAddFormProps {
 
 /**
  * Inline input for adding tasks with gradient border on focus.
- * Calendar and color icons are hidden until the input is focused.
+ * Calendar, color, and repeat icons are hidden until the input is focused.
  * Type and press Enter to save.
  *
  * @param onAdd - Callback with the new task data
@@ -26,14 +30,19 @@ interface TaskAddFormProps {
 export default function TaskAddForm({ onAdd, defaultDate, placeholder }: TaskAddFormProps) {
   const [title, setTitle] = useState("");
   const [dueDate, setDueDate] = useState<string | null>(defaultDate ?? null);
+  const [dueTime, setDueTime] = useState<string | null>(null);
   const [color, setColor] = useState<string>(DEFAULT_TASK_COLOR);
+  const [repeatInterval, setRepeatInterval] = useState<number | null>(null);
+  const [repeatUnit, setRepeatUnit] = useState<RepeatUnit | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const [showRepeatPicker, setShowRepeatPicker] = useState(false);
   const [focused, setFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const dateButtonRef = useRef<HTMLButtonElement>(null);
   const colorButtonRef = useRef<HTMLButtonElement>(null);
+  const repeatButtonRef = useRef<HTMLButtonElement>(null);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -43,14 +52,21 @@ export default function TaskAddForm({ onAdd, defaultDate, placeholder }: TaskAdd
     onAdd({
       title: trimmed,
       due_date: dueDate,
+      due_time: dueTime,
       color,
+      repeat_interval: repeatInterval,
+      repeat_unit: repeatUnit,
     });
 
     setTitle("");
     setDueDate(defaultDate ?? null);
+    setDueTime(null);
     setColor(DEFAULT_TASK_COLOR);
+    setRepeatInterval(null);
+    setRepeatUnit(null);
     setShowDatePicker(false);
     setShowColorPicker(false);
+    setShowRepeatPicker(false);
     inputRef.current?.focus();
   }
 
@@ -60,7 +76,19 @@ export default function TaskAddForm({ onAdd, defaultDate, placeholder }: TaskAdd
       setFocused(false);
       setShowDatePicker(false);
       setShowColorPicker(false);
+      setShowRepeatPicker(false);
     }
+  }
+
+  /**
+   * Formats a 24-hour time string "HH:MM" to 12-hour format "h:mm AM/PM".
+   */
+  function formatTime12h(time24: string): string {
+    const [hourStr, minute] = time24.split(":");
+    const hour = parseInt(hourStr, 10);
+    const ampm = hour >= 12 ? "PM" : "AM";
+    const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+    return `${hour12}:${minute} ${ampm}`;
   }
 
   return (
@@ -86,8 +114,16 @@ export default function TaskAddForm({ onAdd, defaultDate, placeholder }: TaskAdd
 
         {/* Date badge if a date is selected */}
         {dueDate && (
-          <span className="text-xs text-blue-500 bg-blue-50 px-2 py-0.5 rounded-md shrink-0">
+          <span className="text-xs text-blue-500 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded-md shrink-0">
             {format(new Date(dueDate + "T00:00:00"), "MMM d")}
+            {dueTime && ` ${formatTime12h(dueTime)}`}
+          </span>
+        )}
+
+        {/* Repeat badge if set */}
+        {repeatInterval && repeatUnit && (
+          <span className="text-xs text-purple-500 bg-purple-50 dark:bg-purple-900/30 px-2 py-0.5 rounded-md shrink-0">
+            {getRepeatLabel(repeatInterval, repeatUnit)}
           </span>
         )}
 
@@ -101,6 +137,7 @@ export default function TaskAddForm({ onAdd, defaultDate, placeholder }: TaskAdd
               onClick={() => {
                 setShowColorPicker(!showColorPicker);
                 setShowDatePicker(false);
+                setShowRepeatPicker(false);
               }}
               className="p-1 shrink-0 rounded-lg hover:bg-accent transition-colors"
               aria-label="Pick color"
@@ -118,10 +155,27 @@ export default function TaskAddForm({ onAdd, defaultDate, placeholder }: TaskAdd
               onClick={() => {
                 setShowDatePicker(!showDatePicker);
                 setShowColorPicker(false);
+                setShowRepeatPicker(false);
               }}
               className="p-1.5 text-subtle-foreground hover:text-blue-500 rounded-lg hover:bg-accent transition-colors shrink-0"
             >
               <CalendarDays size={16} />
+            </button>
+
+            {/* Repeat icon */}
+            <button
+              ref={repeatButtonRef}
+              type="button"
+              onClick={() => {
+                setShowRepeatPicker(!showRepeatPicker);
+                setShowDatePicker(false);
+                setShowColorPicker(false);
+              }}
+              className={`p-1.5 rounded-lg hover:bg-accent transition-colors shrink-0 ${
+                repeatInterval ? "text-purple-500" : "text-subtle-foreground hover:text-purple-500"
+              }`}
+            >
+              <Repeat size={16} />
             </button>
           </>
         )}
@@ -136,8 +190,30 @@ export default function TaskAddForm({ onAdd, defaultDate, placeholder }: TaskAdd
       >
         <DatePicker
           value={dueDate}
+          timeValue={dueTime}
           onChange={(date) => {
             setDueDate(date);
+            inputRef.current?.focus();
+          }}
+          onTimeChange={(time) => {
+            setDueTime(time);
+          }}
+        />
+      </Popover>
+
+      {/* Repeat picker popup */}
+      <Popover
+        open={showRepeatPicker}
+        onClose={() => setShowRepeatPicker(false)}
+        triggerRef={repeatButtonRef}
+        className="absolute right-2 top-full mt-1 z-20"
+      >
+        <RepeatPicker
+          interval={repeatInterval}
+          unit={repeatUnit}
+          onChange={(interval, unit) => {
+            setRepeatInterval(interval);
+            setRepeatUnit(unit);
             inputRef.current?.focus();
           }}
         />

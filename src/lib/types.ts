@@ -22,6 +22,8 @@ export interface Task {
   is_submitted: boolean;
   google_event_id: string | null;
   dismissed_at: string | null;
+  repeat_interval: number | null;
+  repeat_unit: "day" | "week" | "month" | null;
 }
 
 /**
@@ -33,6 +35,8 @@ export interface TaskInsert {
   due_date?: string | null;
   due_time?: string | null;
   color?: string;
+  repeat_interval?: number | null;
+  repeat_unit?: "day" | "week" | "month" | null;
 }
 
 /**
@@ -45,6 +49,8 @@ export interface TaskUpdate {
   due_time?: string | null;
   is_completed?: boolean;
   color?: string;
+  repeat_interval?: number | null;
+  repeat_unit?: "day" | "week" | "month" | null;
 }
 
 /**

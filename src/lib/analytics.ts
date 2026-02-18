@@ -28,6 +28,8 @@ type AnalyticsEvent =
   | "sync_started"
   | "sync_completed"
   | "sync_failed"
+  // Repeat
+  | "repeat_task_spawned"
   // Features
   | "view_mode_changed"
   | "filter_changed"
