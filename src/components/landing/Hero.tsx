@@ -56,7 +56,7 @@ export default function Hero() {
       <main className="flex flex-col items-center px-6 lg:px-10">
         {/* Eyebrow */}
         <p className="font-sans uppercase tracking-[0.51em] leading-[133%] text-center text-base mt-20 mb-8 text-black animate-appear opacity-0">
-          Built for UC Berkeley students
+          Built for students
         </p>
 
         {/* Heading */}
