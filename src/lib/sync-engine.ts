@@ -244,6 +244,7 @@ async function upsertAssignments(
       is_submitted: a.is_submitted ?? false,
       color,
       description: a.description || "",
+      updated_at: new Date().toISOString(),
     }));
 
     const { error } = await supabase
@@ -261,16 +262,15 @@ async function upsertAssignments(
     }
   }
 
-  // Auto-complete newly inserted submitted assignments.
-  // created_at is only set on INSERT, so >= syncStartTime targets only new rows.
+  // Auto-complete all submitted assignments that aren't yet marked complete.
+  // Removed created_at filter so assignments submitted between syncs get auto-completed.
   const { error: autoCompleteError } = await supabase
     .from("tasks")
-    .update({ is_completed: true })
+    .update({ is_completed: true, updated_at: new Date().toISOString() })
     .eq("user_id", userId)
     .eq("source", source)
     .eq("is_submitted", true)
-    .eq("is_completed", false)
-    .gte("created_at", syncStartTime);
+    .eq("is_completed", false);
 
   if (autoCompleteError) {
     logger.error("upsertAssignments auto-complete failed", {

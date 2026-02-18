@@ -219,19 +219,122 @@ function parseGradescopeDate(raw: string | null): string | null {
 }
 
 /**
- * Fetches assignments for a single Gradescope course.
+ * Extracts the assignment title from a table row using multiple selector strategies.
+ * Tries: .table--primaryLink, th cell text, first anchor text.
  *
- * Reference repo flow (seleniumscraping.py assignment_scrape):
- *   1. driver.get(course_href)
- *   2. Wait for .courseHeader--title
- *   3. course = .courseHeader--title text
- *   4. tbody = driver.find_element(By.TAG_NAME, 'tbody')
- *   5. assignments = tbody.find_elements(By.TAG_NAME, 'tr')
- *   6. For each row:
- *      - assignment_primary = .table--primaryLink
- *      - name = assignment_primary.text
- *      - href = assignment_primary > a[href]
- *      - due_date = .submissionTimeChart--dueDate[datetime]
+ * @param $row - Cheerio element for the row
+ * @param $ - Cheerio root instance
+ * @returns Object with title and href, or null if no title found
+ */
+function extractTitleAndHref(
+  $row: ReturnType<cheerio.CheerioAPI>,
+  $: cheerio.CheerioAPI
+): { title: string; href: string } | null {
+  // Strategy 1: .table--primaryLink (original Gradescope layout)
+  const primaryLink = $row.find(".table--primaryLink");
+  if (primaryLink.length) {
+    const title = primaryLink.text().trim();
+    const href = primaryLink.find("a").first().attr("href") || "";
+    if (title) return { title, href };
+  }
+
+  // Strategy 2: First <th> cell text (newer Gradescope student view)
+  const thCell = $row.find("th").first();
+  if (thCell.length) {
+    const anchor = thCell.find("a").first();
+    const title = anchor.length ? anchor.text().trim() : thCell.text().trim();
+    const href = anchor.attr("href") || "";
+    if (title) return { title, href };
+  }
+
+  // Strategy 3: First anchor in the row
+  const anchor = $row.find("a").first();
+  if (anchor.length) {
+    const title = anchor.text().trim();
+    const href = anchor.attr("href") || "";
+    if (title) return { title, href };
+  }
+
+  return null;
+}
+
+/**
+ * Extracts the assignment ID from a row using multiple strategies.
+ * Tries: href path, submit button data attr, data-url attr, row id attr.
+ *
+ * @param $row - Cheerio element for the row
+ * @param href - Already-extracted href string
+ * @returns Object with assignmentId and possibly updated href
+ */
+function extractAssignmentId(
+  $row: ReturnType<cheerio.CheerioAPI>,
+  href: string
+): { assignmentId: string; href: string } {
+  // Strategy 1: Extract from href
+  const idMatch = href.match(/\/assignments\/(\d+)/);
+  if (idMatch) return { assignmentId: idMatch[1], href };
+
+  // Strategy 2: Submit button with data-assignment-id (newer Gradescope layout)
+  const submitBtn = $row.find("button.js-submitAssignment, button[data-assignment-id]");
+  if (submitBtn.length) {
+    const id = submitBtn.attr("data-assignment-id") || "";
+    if (id) return { assignmentId: id, href };
+  }
+
+  // Strategy 3: data-url attribute on the row
+  const dataUrl = $row.attr("data-url") || "";
+  const dataIdMatch = dataUrl.match(/\/assignments\/(\d+)/);
+  if (dataIdMatch) {
+    return { assignmentId: dataIdMatch[1], href: href || dataUrl };
+  }
+
+  // Strategy 4: Row id attribute (e.g. "assignment_12345")
+  const rowId = $row.attr("id") || "";
+  const rowIdMatch = rowId.match(/assignment[_-]?(\d+)/);
+  if (rowIdMatch) return { assignmentId: rowIdMatch[1], href };
+
+  return { assignmentId: "", href };
+}
+
+/**
+ * Detects submission status from row content using multiple indicators.
+ *
+ * @param $row - Cheerio element for the row
+ * @returns true if the assignment appears to be submitted
+ */
+function detectSubmissionStatus(
+  $row: ReturnType<cheerio.CheerioAPI>
+): boolean {
+  // Score badge present
+  if ($row.find(".submissionStatus--score").length > 0) return true;
+
+  // Status text contains submitted/graded
+  const statusText = $row.find(".submissionStatus--text").text().toLowerCase();
+  if (statusText.includes("submitted") || statusText.includes("graded")) return true;
+
+  // Row class indicates submitted
+  const rowClasses = $row.attr("class") || "";
+  if (rowClasses.includes("submitted")) return true;
+
+  // Check for grade in td cells (newer layout: "X / Y" format)
+  const cells = $row.find("td");
+  let hasGrade = false;
+  cells.each((_, cell) => {
+    const text = $row.find(cell).text().trim();
+    if (/^\d+(\.\d+)?\s*\/\s*\d+(\.\d+)?$/.test(text)) hasGrade = true;
+  });
+  if (hasGrade) return true;
+
+  return false;
+}
+
+/**
+ * Fetches assignments for a single Gradescope course using multiple
+ * selector strategies for maximum compatibility across Gradescope layouts.
+ *
+ * Combines selectors from:
+ *   - bennet-m/Google-Calendar-for-Gradescope (original)
+ *   - nyuoss/gradescope-api (newer student view with tr[role="row"])
  *
  * @param jar - Authenticated cookie jar
  * @param courseId - Gradescope course ID
@@ -258,60 +361,45 @@ export async function fetchGradescopeAssignments(
   const html = await pageRes.text();
   const $ = cheerio.load(html);
   const assignments: NormalizedAssignment[] = [];
+  const seenIds = new Set<string>();
 
-  // Reference: course = driver.find_element(By.CLASS_NAME, "courseHeader--title").text
   const pageTitle = $(".courseHeader--title").text().trim();
   const resolvedCourseName = pageTitle || courseName;
 
-  // Reference: tbody > tr
-  $("tbody > tr").each((_, row) => {
+  // Collect rows using multiple selectors for broad compatibility
+  // tr[role="row"] covers newer Gradescope layouts; tbody > tr covers legacy
+  const rows = $('tr[role="row"], tbody > tr');
+
+  rows.each((_, row) => {
     const $row = $(row);
 
-    // Reference: assignment_primary = .table--primaryLink
-    //            assignment_name = assignment_primary.text
-    //            assignment_href = assignment_primary > a[href]
-    const primaryLink = $row.find(".table--primaryLink");
-    let title = "";
-    let href = "";
-
-    if (primaryLink.length) {
-      title = primaryLink.text().trim();
-      const anchor = primaryLink.find("a").first();
-      href = anchor.attr("href") || "";
-    } else {
-      // Fallback: first anchor in the row
-      const anchor = $row.find("a").first();
-      title = anchor.text().trim();
-      href = anchor.attr("href") || "";
+    // Skip header rows
+    if ($row.find("th").length > 0 && $row.closest("thead").length > 0) return;
+    if ($row.children("th").length === $row.children().length) {
+      // All children are <th> — likely a header row
+      const hasDatetime = $row.find("[datetime]").length > 0;
+      const hasLink = $row.find("a[href*='/assignments/']").length > 0;
+      if (!hasDatetime && !hasLink) return;
     }
 
-    if (!title) return;
+    const extracted = extractTitleAndHref($row, $);
+    if (!extracted) return;
 
-    // Extract assignment ID from href, data-url attribute, or row id
-    let assignmentId = "";
-    const idMatch = href.match(/\/assignments\/(\d+)/);
-    if (idMatch) {
-      assignmentId = idMatch[1];
-    } else {
-      // Fallback: check data-url attribute on the row
-      const dataUrl = $row.attr("data-url") || "";
-      const dataIdMatch = dataUrl.match(/\/assignments\/(\d+)/);
-      if (dataIdMatch) {
-        assignmentId = dataIdMatch[1];
-        if (!href) href = dataUrl;
-      } else {
-        // Fallback: extract from row id attribute (e.g. "assignment_12345")
-        const rowId = $row.attr("id") || "";
-        const rowIdMatch = rowId.match(/assignment[_-]?(\d+)/);
-        if (rowIdMatch) assignmentId = rowIdMatch[1];
-      }
-    }
+    const { title } = extracted;
+    let { href } = extracted;
+
+    const { assignmentId, href: updatedHref } = extractAssignmentId($row, href);
+    href = updatedHref;
 
     const externalId = assignmentId
       ? assignmentId
       : `gs-${courseId}-${title.replace(/\s+/g, "-")}`;
 
-    // Build source_url with fallback from courseId + assignmentId
+    // Deduplicate (multiple selectors may match the same row)
+    if (seenIds.has(externalId)) return;
+    seenIds.add(externalId);
+
+    // Build source URL
     let sourceUrl: string | null = null;
     if (href) {
       sourceUrl = href.startsWith("http") ? href : `${GRADESCOPE_BASE}${href}`;
@@ -319,35 +407,41 @@ export async function fetchGradescopeAssignments(
       sourceUrl = `${GRADESCOPE_BASE}/courses/${courseId}/assignments/${assignmentId}/submissions`;
     }
 
-    // Detect submission status from row content
-    const hasScoreBadge = $row.find(".submissionStatus--score").length > 0;
-    const statusText = $row.find(".submissionStatus--text").text().toLowerCase();
-    const rowClasses = $row.attr("class") || "";
-    const isSubmitted =
-      hasScoreBadge ||
-      statusText.includes("submitted") ||
-      statusText.includes("graded") ||
-      rowClasses.includes("submitted");
+    const isSubmitted = detectSubmissionStatus($row);
 
-    // Reference: due_date_element = .submissionTimeChart--dueDate
-    //            due_date_unformatted = due_date_element.get_attribute("datetime")
+    // Due date: try .submissionTimeChart--dueDate, then any [datetime] element
     const dueDateEl = $row.find(".submissionTimeChart--dueDate");
     let rawDate = dueDateEl.attr("datetime") || null;
-
-    // Fallback: any element with datetime attribute
     if (!rawDate) {
-      rawDate = $row.find("[datetime]").attr("datetime") || null;
+      // Get the last [datetime] element (usually the due date, not the release date)
+      const datetimeEls = $row.find("[datetime]");
+      if (datetimeEls.length > 0) {
+        rawDate = datetimeEls.last().attr("datetime") || null;
+      }
     }
-
     const dueDate = parseGradescopeDate(rawDate);
 
-    // Points from submission score
-    const pointsText = $row
-      .find(".submissionStatus--score, .points-column")
-      .text()
-      .trim();
-    const pointsMatch = pointsText.match(/([\d.]+)/);
-    const pointsPossible = pointsMatch ? parseFloat(pointsMatch[1]) : null;
+    // Points from submission score, grade cell, or any td with "X / Y" format
+    let pointsPossible: number | null = null;
+    const scoreBadge = $row.find(".submissionStatus--score, .points-column").text().trim();
+    const gradeMatch = scoreBadge.match(/([\d.]+)\s*\/\s*([\d.]+)/);
+    if (gradeMatch) {
+      pointsPossible = parseFloat(gradeMatch[2]);
+    } else if (scoreBadge) {
+      const simpleMatch = scoreBadge.match(/([\d.]+)/);
+      if (simpleMatch) pointsPossible = parseFloat(simpleMatch[1]);
+    }
+    // Fallback: scan td cells for "X / Y" grade format (newer layout)
+    if (pointsPossible === null) {
+      $row.find("td").each((_, cell) => {
+        if (pointsPossible !== null) return;
+        const text = $(cell).text().trim();
+        const cellGrade = text.match(/^([\d.]+)\s*\/\s*([\d.]+)$/);
+        if (cellGrade) {
+          pointsPossible = parseFloat(cellGrade[2]);
+        }
+      });
+    }
 
     assignments.push({
       external_id: externalId,
@@ -364,6 +458,7 @@ export async function fetchGradescopeAssignments(
   logger.info("fetchGradescopeAssignments", {
     courseId,
     count: assignments.length,
+    totalRows: rows.length,
   });
   return assignments;
 }

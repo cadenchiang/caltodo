@@ -259,7 +259,8 @@ describe("fetchGradescopeAssignments", () => {
     expect(assignments[0].due_date).toBeTruthy();
     expect(new Date(assignments[0].due_date!).getTime()).not.toBeNaN();
     expect(assignments[0].source_url).toBe("https://www.gradescope.com/courses/123/assignments/456");
-    expect(assignments[0].points_possible).toBe(85);
+    // "85.0 / 100" → points_possible is the denominator (total possible)
+    expect(assignments[0].points_possible).toBe(100);
 
     expect(assignments[1].title).toBe("Lab 2");
     expect(assignments[1].due_date).toBeNull();
@@ -461,5 +462,93 @@ describe("fetchGradescopeAssignments", () => {
     expect(result).toHaveLength(1);
     expect(result[0].external_id).toBe("gs-100-Midterm-Review");
     expect(result[0].source_url).toBeNull();
+  });
+
+  it("should parse assignments from tr[role='row'] with th cells (newer layout)", async () => {
+    const html = `
+      <html><body>
+        <h1 class="courseHeader--title">DATA 100</h1>
+        <table>
+          <thead><tr role="row"><th>Name</th><th>Grade</th><th>Due</th></tr></thead>
+          <tbody>
+            <tr role="row">
+              <th><a href="/courses/200/assignments/901">Lab 01</a></th>
+              <td>10 / 10</td>
+              <td><span class="submissionTimeChart--dueDate" datetime="2026-02-20 23:59:00 -0800">Feb 20</span></td>
+            </tr>
+            <tr role="row">
+              <th><a href="/courses/200/assignments/902">Homework 01</a></th>
+              <td></td>
+              <td><span class="submissionTimeChart--dueDate" datetime="2026-02-25 23:59:00 -0800">Feb 25</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </body></html>
+    `;
+    mockFetch.mockResolvedValueOnce({ ok: true, text: async () => html });
+
+    const result = await fetchGradescopeAssignments({} as any, "200", "DATA 100");
+    expect(result).toHaveLength(2);
+    expect(result[0].title).toBe("Lab 01");
+    expect(result[0].external_id).toBe("901");
+    expect(result[0].is_submitted).toBe(true);
+    expect(result[0].points_possible).toBe(10);
+    expect(result[1].title).toBe("Homework 01");
+    expect(result[1].external_id).toBe("902");
+    expect(result[1].is_submitted).toBe(false);
+  });
+
+  it("should extract ID from button.js-submitAssignment", async () => {
+    const html = `
+      <html><body>
+        <table><tbody>
+          <tr role="row">
+            <th>Project 1</th>
+            <td><button class="js-submitAssignment" data-assignment-id="1050">Submit</button></td>
+            <td><span class="submissionTimeChart--dueDate" datetime="2026-03-01 23:59:00 -0800">Mar 1</span></td>
+          </tr>
+        </tbody></table>
+      </body></html>
+    `;
+    mockFetch.mockResolvedValueOnce({ ok: true, text: async () => html });
+
+    const result = await fetchGradescopeAssignments({} as any, "200", "CS 61A");
+    expect(result).toHaveLength(1);
+    expect(result[0].external_id).toBe("1050");
+    expect(result[0].title).toBe("Project 1");
+  });
+
+  it("should deduplicate assignments matched by multiple selectors", async () => {
+    const html = `
+      <html><body>
+        <table><tbody>
+          <tr role="row">
+            <td><div class="table--primaryLink"><a href="/courses/123/assignments/456">HW 1</a></div></td>
+          </tr>
+        </tbody></table>
+      </body></html>
+    `;
+    mockFetch.mockResolvedValueOnce({ ok: true, text: async () => html });
+
+    const result = await fetchGradescopeAssignments({} as any, "123", "CS 61A");
+    expect(result).toHaveLength(1);
+  });
+
+  it("should parse points from 'X / Y' grade format", async () => {
+    const html = `
+      <html><body>
+        <table><tbody>
+          <tr role="row">
+            <th><a href="/courses/200/assignments/999">HW 2</a></th>
+            <td><span class="submissionStatus--score">8.5 / 10</span></td>
+          </tr>
+        </tbody></table>
+      </body></html>
+    `;
+    mockFetch.mockResolvedValueOnce({ ok: true, text: async () => html });
+
+    const result = await fetchGradescopeAssignments({} as any, "200", "CS 61A");
+    expect(result[0].points_possible).toBe(10);
+    expect(result[0].is_submitted).toBe(true);
   });
 });

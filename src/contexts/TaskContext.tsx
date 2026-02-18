@@ -62,11 +62,11 @@ function clearCachedTasks(): void {
   }
 }
 
-/** How often auto-sync runs in milliseconds (15 minutes). */
-const AUTO_SYNC_INTERVAL_MS = 15 * 60 * 1000;
+/** How often auto-sync runs in milliseconds (5 minutes). */
+const AUTO_SYNC_INTERVAL_MS = 5 * 60 * 1000;
 
-/** Minimum time between auto-syncs to avoid rapid re-triggers (5 minutes). */
-const AUTO_SYNC_COOLDOWN_MS = 5 * 60 * 1000;
+/** Minimum time between auto-syncs to avoid rapid re-triggers (2 minutes). */
+const AUTO_SYNC_COOLDOWN_MS = 2 * 60 * 1000;
 
 interface TaskContextValue {
   tasks: Task[];

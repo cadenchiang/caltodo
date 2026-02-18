@@ -64,11 +64,17 @@ function createMockSupabase(credentialsData: Record<string, unknown> | null = nu
     eq: vi.fn().mockReturnValue({ error: null }),
   });
 
-  // Chainable mock for auto-complete update (tasks.update().eq().eq().eq().eq().gte())
+  // Chainable mock for auto-complete update (tasks.update().eq().eq().eq().eq())
   const tasksAutoCompleteMock = vi.fn().mockImplementation(() => {
     const chain = {
       eq: vi.fn().mockReturnThis(),
-      gte: vi.fn().mockResolvedValue({ error: null }),
+    };
+    // Final .eq() resolves the chain
+    chain.eq.mockReturnValue(chain);
+    // Make the chain thenable so await resolves it
+    (chain as any).then = (resolve: (v: { error: null }) => void) => {
+      resolve({ error: null });
+      return chain;
     };
     return chain;
   });
@@ -304,7 +310,9 @@ describe("runSync", () => {
     // Should have 2 calls: one for upsert, one for auto-complete update
     expect(tasksFromCalls.length).toBe(2);
 
-    // Verify the auto-complete mock was invoked with { is_completed: true }
-    expect(supabase._tasksAutoCompleteMock).toHaveBeenCalledWith({ is_completed: true });
+    // Verify the auto-complete mock was invoked with is_completed: true and updated_at
+    const autoCompleteArg = supabase._tasksAutoCompleteMock.mock.calls[0][0];
+    expect(autoCompleteArg.is_completed).toBe(true);
+    expect(autoCompleteArg.updated_at).toBeDefined();
   });
 });
