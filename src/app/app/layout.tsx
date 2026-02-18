@@ -5,6 +5,7 @@ import MobileTabBar from "@/components/layout/MobileTabBar";
 import { TaskProvider } from "@/contexts/TaskContext";
 import { ToastProvider } from "@/contexts/ToastContext";
 import InboxTour from "@/components/ui/InboxTour";
+import PostHogIdentify from "@/components/PostHogIdentify";
 
 /**
  * Authenticated app layout with sidebar and main content area.
@@ -30,6 +31,7 @@ export default async function AppLayout({
 
   return (
     <div className="flex flex-col md:flex-row h-dvh">
+      <PostHogIdentify userId={session.user.id} email={email} />
       <ToastProvider>
         <TaskProvider>
           <InboxTour>

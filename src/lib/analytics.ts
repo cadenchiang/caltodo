@@ -1,4 +1,5 @@
 import { track } from "@vercel/analytics";
+import posthog from "posthog-js";
 
 /**
  * All tracked event names in the application.
@@ -34,8 +35,8 @@ type AnalyticsEvent =
   | "theme_changed";
 
 /**
- * Tracks a user analytics event via Vercel Analytics.
- * Thin wrapper around `track()` with typed event names to prevent typos.
+ * Tracks a user analytics event via Vercel Analytics and PostHog.
+ * Sends the same event to both platforms for redundancy and richer analysis.
  *
  * @param name - The event name (must be a valid AnalyticsEvent)
  * @param properties - Optional key-value properties to attach to the event
@@ -45,4 +46,5 @@ export function trackEvent(
   properties?: Record<string, string | number | boolean | null>,
 ): void {
   track(name, properties ?? {});
+  posthog.capture(name, properties ?? {});
 }
