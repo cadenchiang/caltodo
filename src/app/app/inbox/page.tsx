@@ -143,12 +143,7 @@ export default function InboxPage() {
   const { showToast, updateToastProgress } = useToast();
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const prevSyncResultRef = useRef<string | null>(syncResult?.last_synced_at ?? null);
-  const [filter, setFilterRaw] = useState<InboxFilter>(() => {
-    if (typeof window !== "undefined") {
-      return (localStorage.getItem("inbox-filter") as InboxFilter) || "all";
-    }
-    return "all";
-  });
+  const [filter, setFilterRaw] = useState<InboxFilter>("all");
 
   /** Sets filter, persists to localStorage, and dispatches event for sidebar. */
   const setFilter = useCallback((f: InboxFilter) => {
@@ -163,30 +158,28 @@ export default function InboxPage() {
   const [loadingCourses, setLoadingCourses] = useState(false);
   const filterRef = useRef<HTMLDivElement>(null);
   const filterDropdownRef = useRef<HTMLDivElement>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>(() => {
-    if (typeof window !== "undefined") {
-      return (localStorage.getItem("inbox-view-mode") as ViewMode) || "list";
-    }
-    return "list";
-  });
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [showViewMenu, setShowViewMenu] = useState(false);
   const viewMenuRef = useRef<HTMLButtonElement>(null);
   const viewMenuDropdownRef = useRef<HTMLDivElement>(null);
-  const [sortMode, setSortMode] = useState<SortMode>(() => {
-    if (typeof window !== "undefined") {
-      return (localStorage.getItem("inbox-sort-mode") as SortMode) || "date";
-    }
-    return "date";
-  });
+  const [sortMode, setSortMode] = useState<SortMode>("date");
   const [showSortMenu, setShowSortMenu] = useState(false);
   const sortMenuRef = useRef<HTMLButtonElement>(null);
   const sortMenuDropdownRef = useRef<HTMLDivElement>(null);
-  const [boardGroupBy, setBoardGroupBy] = useState<"class" | "date">(() => {
-    if (typeof window !== "undefined") {
-      return (localStorage.getItem("inbox-board-group") as "class" | "date") || "class";
-    }
-    return "class";
-  });
+  const [boardGroupBy, setBoardGroupBy] = useState<"class" | "date">("class");
+
+  // Hydrate persisted preferences from localStorage after mount to avoid SSR mismatch
+  useEffect(() => {
+    const savedFilter = localStorage.getItem("inbox-filter") as InboxFilter | null;
+    if (savedFilter) setFilterRaw(savedFilter);
+    const savedView = localStorage.getItem("inbox-view-mode") as ViewMode | null;
+    if (savedView) setViewMode(savedView);
+    const savedSort = localStorage.getItem("inbox-sort-mode") as SortMode | null;
+    if (savedSort) setSortMode(savedSort);
+    const savedGroup = localStorage.getItem("inbox-board-group") as "class" | "date" | null;
+    if (savedGroup) setBoardGroupBy(savedGroup);
+  }, []);
+
   const [boardPopoverTask, setBoardPopoverTaskRaw] = useState<Task | null>(null);
   const [boardAnchorRect, setBoardAnchorRect] = useState<DOMRect | null>(null);
   const [mobilePopoverTask, setMobilePopoverTaskRaw] = useState<Task | null>(null);
