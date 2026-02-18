@@ -479,7 +479,6 @@ export function TourProvider({ children, steps, onComplete }: TourProviderProps)
                   )`,
                   transition: "clip-path 300ms ease-in-out",
                 }}
-                onClick={endTour}
               />
 
               {/* Glowing white highlight border */}
@@ -592,10 +591,9 @@ export function TourStartDialog({ open, onClose }: TourStartDialogProps) {
 
   return createPortal(
     <div className="fixed inset-0 z-[9997] flex items-center justify-center">
-      {/* Backdrop */}
+      {/* Backdrop — no click-to-dismiss; use Skip or X to exit */}
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
       />
 
       {/* Dialog */}
