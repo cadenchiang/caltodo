@@ -24,6 +24,7 @@ export interface Task {
   dismissed_at: string | null;
   repeat_interval: number | null;
   repeat_unit: "day" | "week" | "month" | null;
+  late_due_date: string | null;
 }
 
 /**

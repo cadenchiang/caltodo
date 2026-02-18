@@ -242,6 +242,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       dismissed_at: null,
       repeat_interval: taskData.repeat_interval ?? null,
       repeat_unit: taskData.repeat_unit ?? null,
+      late_due_date: null,
     };
 
     setTasks((prev) => {

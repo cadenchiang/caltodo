@@ -409,17 +409,36 @@ export async function fetchGradescopeAssignments(
 
     const isSubmitted = detectSubmissionStatus($row);
 
-    // Due date: try .submissionTimeChart--dueDate, then any [datetime] element
-    const dueDateEl = $row.find(".submissionTimeChart--dueDate");
-    let rawDate = dueDateEl.attr("datetime") || null;
+    // Due date: first .submissionTimeChart--dueDate is the primary deadline,
+    // second (if present) is the late submission deadline.
+    // Fallback: use [datetime] elements if the class-based selector misses.
+    const dueDateEls = $row.find(".submissionTimeChart--dueDate");
+    let rawDate: string | null = null;
+    let rawLateDueDate: string | null = null;
+
+    if (dueDateEls.length >= 1) {
+      rawDate = dueDateEls.eq(0).attr("datetime") || null;
+    }
+    if (dueDateEls.length >= 2) {
+      rawLateDueDate = dueDateEls.eq(1).attr("datetime") || null;
+    }
+
+    // Fallback when no .submissionTimeChart--dueDate found
     if (!rawDate) {
-      // Get the last [datetime] element (usually the due date, not the release date)
       const datetimeEls = $row.find("[datetime]");
-      if (datetimeEls.length > 0) {
-        rawDate = datetimeEls.last().attr("datetime") || null;
+      if (datetimeEls.length >= 2) {
+        // First is usually release date, second is due date
+        rawDate = datetimeEls.eq(1).attr("datetime") || null;
+        if (datetimeEls.length >= 3) {
+          rawLateDueDate = datetimeEls.eq(2).attr("datetime") || null;
+        }
+      } else if (datetimeEls.length === 1) {
+        rawDate = datetimeEls.eq(0).attr("datetime") || null;
       }
     }
+
     const dueDate = parseGradescopeDate(rawDate);
+    const lateDueDate = parseGradescopeDate(rawLateDueDate);
 
     // Points from submission score, grade cell, or any td with "X / Y" format
     let pointsPossible: number | null = null;
@@ -449,6 +468,7 @@ export async function fetchGradescopeAssignments(
       course_id: courseId,
       title,
       due_date: dueDate,
+      late_due_date: lateDueDate,
       source_url: sourceUrl,
       points_possible: pointsPossible,
       is_submitted: isSubmitted,

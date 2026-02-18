@@ -272,8 +272,8 @@ export default function TaskDetailPanel({ task, onClose, onSave }: TaskDetailPan
             )}
           </div>
 
-          {/* Source badge + course name */}
-          {(task.source || task.course_name || task.is_submitted) && (
+          {/* Source badge + course name + late due date */}
+          {(task.source || task.course_name || task.is_submitted || task.late_due_date) && (
             <div className="flex items-center gap-2 px-5 pt-3 flex-wrap">
               {task.source && (
                 <span
@@ -294,6 +294,11 @@ export default function TaskDetailPanel({ task, onClose, onSave }: TaskDetailPan
               {task.is_submitted && (
                 <span className="text-[10px] font-medium px-1.5 py-0.5 rounded text-green-600 bg-green-50 dark:bg-green-900/30">
                   Submitted
+                </span>
+              )}
+              {task.late_due_date && (
+                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded text-orange-600 bg-orange-50 dark:bg-orange-900/30">
+                  Late due {format(new Date(task.late_due_date + "T00:00:00"), "MMM d")}
                 </span>
               )}
             </div>

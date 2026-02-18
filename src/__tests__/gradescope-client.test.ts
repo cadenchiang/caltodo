@@ -289,6 +289,52 @@ describe("fetchGradescopeAssignments", () => {
     expect(assignments[0].due_date).toBe("2026-03-15T23:59:00.000Z");
   });
 
+  it("should parse primary due date and late due date separately", async () => {
+    const courseHtml = `
+      <html><body>
+        <table><tbody>
+          <tr>
+            <td><div class="table--primaryLink"><a href="/courses/123/assignments/456">HW 1</a></div></td>
+            <td>
+              <div class="submissionTimeChart--dueDate" datetime="2026-03-15 23:59:00 -0700">Mar 15</div>
+              <div class="submissionTimeChart--dueDate" datetime="2026-03-18 23:59:00 -0700">Mar 18</div>
+            </td>
+          </tr>
+        </tbody></table>
+      </body></html>
+    `;
+
+    mockFetch.mockResolvedValueOnce({ ok: true, text: async () => courseHtml });
+
+    const assignments = await fetchGradescopeAssignments({} as any, "123", "CS 61A");
+    expect(assignments).toHaveLength(1);
+    // First .submissionTimeChart--dueDate is the primary due date
+    expect(assignments[0].due_date).toBeTruthy();
+    expect(assignments[0].due_date!).toContain("2026-03-16"); // UTC conversion of Mar 15 23:59 -0700
+    // Second .submissionTimeChart--dueDate is the late due date
+    expect(assignments[0].late_due_date).toBeTruthy();
+    expect(assignments[0].late_due_date!).toContain("2026-03-19"); // UTC conversion of Mar 18 23:59 -0700
+  });
+
+  it("should set late_due_date to null when only one due date exists", async () => {
+    const courseHtml = `
+      <html><body>
+        <table><tbody>
+          <tr>
+            <td><div class="table--primaryLink"><a href="/courses/123/assignments/456">HW 1</a></div></td>
+            <td><div class="submissionTimeChart--dueDate" datetime="2026-03-15T23:59:00Z">Mar 15</div></td>
+          </tr>
+        </tbody></table>
+      </body></html>
+    `;
+
+    mockFetch.mockResolvedValueOnce({ ok: true, text: async () => courseHtml });
+
+    const assignments = await fetchGradescopeAssignments({} as any, "123", "CS 61A");
+    expect(assignments[0].due_date).toBe("2026-03-15T23:59:00.000Z");
+    expect(assignments[0].late_due_date).toBeNull();
+  });
+
   it("should fallback to first anchor when .table--primaryLink not found", async () => {
     const courseHtml = `
       <html><body>

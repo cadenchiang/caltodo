@@ -428,8 +428,8 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
           </div>
         )}
 
-        {/* Tags — source, course, submission badges */}
-        {(task.source || task.course_name || task.is_submitted) && (
+        {/* Tags — source, course, submission, late due date badges */}
+        {(task.source || task.course_name || task.is_submitted || task.late_due_date) && (
           <div className="pl-8 mt-2 flex items-center gap-2 flex-wrap">
             {task.source && (
               <span
@@ -450,6 +450,11 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
             {task.is_submitted && (
               <span className="text-xs font-medium px-2 py-0.5 rounded text-green-600 bg-green-50 dark:bg-green-900/30">
                 Submitted
+              </span>
+            )}
+            {task.late_due_date && (
+              <span className="text-xs font-medium px-2 py-0.5 rounded text-orange-600 bg-orange-50 dark:bg-orange-900/30">
+                Late due {format(new Date(task.late_due_date + "T00:00:00"), "MMM d")}
               </span>
             )}
           </div>

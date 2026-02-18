@@ -77,6 +77,7 @@ export interface NormalizedAssignment {
   course_id: string;
   title: string;
   due_date: string | null;
+  late_due_date?: string | null;
   source_url: string | null;
   points_possible: number | null;
   is_submitted?: boolean;

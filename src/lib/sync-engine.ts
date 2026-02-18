@@ -240,6 +240,7 @@ async function upsertAssignments(
       points_possible: a.points_possible,
       is_submitted: a.is_submitted ?? false,
       color,
+      late_due_date: a.late_due_date ? toLocalDateString(a.late_due_date, timezone) : null,
       description: a.description || "",
       updated_at: new Date().toISOString(),
       // Clear dismissed_at so previously deleted tasks reappear on resync.
