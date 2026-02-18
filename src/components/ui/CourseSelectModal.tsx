@@ -182,14 +182,14 @@ export default function CourseSelectModal<T extends string | number>({
         onClick={handleClose}
       />
 
-      {/* Centered modal */}
+      {/* Full-screen modal on mobile, centered card on desktop */}
       <div
-        className={`relative bg-card w-full max-w-lg mx-4 max-h-[80vh] flex flex-col rounded-2xl border border-border shadow-2xl ${
+        className={`relative bg-card w-full h-full sm:h-auto sm:max-w-lg sm:mx-4 sm:max-h-[80vh] flex flex-col sm:rounded-2xl sm:border sm:border-border shadow-2xl ${
           visible ? "animate-modal-in" : "animate-modal-out"
         }`}
       >
         {/* Header */}
-        <div className="px-5 py-4 border-b border-border flex items-center justify-between shrink-0 rounded-t-2xl">
+        <div className="px-5 py-4 border-b border-border flex items-center justify-between shrink-0 sm:rounded-t-2xl">
           <h3 className="text-sm font-semibold text-foreground">
             {title} ({selectedIds.size}/{totalCount})
           </h3>
@@ -302,7 +302,7 @@ export default function CourseSelectModal<T extends string | number>({
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-4 border-t border-border shrink-0 rounded-b-2xl">
+        <div className="px-5 py-4 border-t border-border shrink-0 sm:rounded-b-2xl">
           <button
             onClick={handleClose}
             className="w-full px-4 py-2.5 rounded-xl text-sm font-medium bg-blue-500 text-white hover:bg-blue-600 transition-all"
