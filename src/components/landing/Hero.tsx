@@ -179,8 +179,12 @@ export default function Hero() {
       </main>
 
       {/* Footer */}
-      <footer className="py-6 text-center text-xs text-black/40">
+      <footer className="py-6 text-center text-xs text-black/30">
         Built for Bears, by Bears.
+        <span className="mx-1">·</span>
+        <Link href="/privacy" className="hover:text-black/50 transition-colors">Privacy</Link>
+        <span className="mx-1">·</span>
+        <Link href="/terms" className="hover:text-black/50 transition-colors">Terms</Link>
       </footer>
     </div>
   );
