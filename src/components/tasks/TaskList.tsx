@@ -5,9 +5,42 @@ import { ChevronRight } from "lucide-react";
 import type { Task, TaskInsert } from "@/lib/types";
 import TaskItem from "./TaskItem";
 import TaskAddForm from "./TaskAddForm";
+import ClassGroupHeader from "./ClassGroupHeader";
 
 /** Maximum items shown per section before "show more" truncation. */
 const ITEMS_PER_SECTION = 10;
+
+/** Shared localStorage key for column/group name aliases (same as board view). */
+const COLUMN_ALIASES_KEY = "caltodo_board_column_aliases";
+
+/**
+ * Loads column name aliases from localStorage.
+ *
+ * @returns Map of original course_name to display alias
+ */
+function loadColumnAliases(): Map<string, string> {
+  try {
+    const raw = localStorage.getItem(COLUMN_ALIASES_KEY);
+    if (!raw) return new Map();
+    const entries: Array<[string, string]> = JSON.parse(raw);
+    return new Map(entries);
+  } catch {
+    return new Map();
+  }
+}
+
+/**
+ * Saves column name aliases to localStorage.
+ *
+ * @param aliases - Map of original course_name to display alias
+ */
+function saveColumnAliases(aliases: Map<string, string>): void {
+  try {
+    localStorage.setItem(COLUMN_ALIASES_KEY, JSON.stringify([...aliases.entries()]));
+  } catch {
+    // non-critical
+  }
+}
 
 interface TaskListProps {
   tasks: Task[];
@@ -63,8 +96,8 @@ function sortByDueDate(tasks: Task[]): Task[] {
 
 /**
  * Task list with add input and two areas: active tasks (flat list) and Completed (collapsible).
- * Active tasks include both overdue and current, sorted by due date.
- * Overdue dates appear in red on the task item itself.
+ * When sortMode is "class", active tasks are grouped under collapsible course headers
+ * with a three-dot menu for renaming (aliases shared with board view).
  *
  * @param tasks - Array of tasks to display
  * @param loading - Whether tasks are being fetched
@@ -76,6 +109,7 @@ function sortByDueDate(tasks: Task[]): Task[] {
  * @param onDelete - Callback for deleting a task
  * @param defaultDate - Optional default date for new tasks
  * @param placeholder - Optional placeholder text for the add input
+ * @param sortMode - "date" for flat list, "class" for grouped by course
  */
 export default function TaskList({
   tasks,
@@ -94,6 +128,7 @@ export default function TaskList({
   const [showAllActive, setShowAllActive] = useState(false);
   const [showAllCompleted, setShowAllCompleted] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const [aliases, setAliases] = useState<Map<string, string>>(() => loadColumnAliases());
 
   /** Toggles a course group's collapsed state. */
   const toggleGroup = useCallback((groupName: string) => {
@@ -104,6 +139,31 @@ export default function TaskList({
       } else {
         next.add(groupName);
       }
+      return next;
+    });
+  }, []);
+
+  /** Renames a group by saving a display alias (shared with board view). */
+  const renameGroup = useCallback((originalName: string, newDisplayName: string) => {
+    setAliases((prev) => {
+      const next = new Map(prev);
+      const trimmed = newDisplayName.trim();
+      if (!trimmed || trimmed === originalName) {
+        next.delete(originalName);
+      } else {
+        next.set(originalName, trimmed);
+      }
+      saveColumnAliases(next);
+      return next;
+    });
+  }, []);
+
+  /** Resets a group alias back to its original name. */
+  const resetGroupName = useCallback((originalName: string) => {
+    setAliases((prev) => {
+      const next = new Map(prev);
+      next.delete(originalName);
+      saveColumnAliases(next);
       return next;
     });
   }, []);
@@ -164,23 +224,20 @@ export default function TaskList({
       {/* Active tasks — grouped by class or flat list depending on sortMode */}
       {active.length > 0 && sortMode === "class" ? (
         <div className="mt-1">
-          {activeGroups.map(([groupName, groupTasks]) => {
+          {activeGroups.map(([groupName, groupTasks], groupIdx) => {
             const isCollapsed = collapsedGroups.has(groupName);
             return (
-              <div key={groupName}>
-                <button
-                  onClick={() => toggleGroup(groupName)}
-                  className="flex items-center pl-2.5 pr-4 py-1.5 hover:bg-accent transition-colors w-full text-left rounded-lg mx-2 mt-1"
-                >
-                  <ChevronRight
-                    size={12}
-                    className={`shrink-0 text-secondary-foreground transition-transform duration-200 ${
-                      !isCollapsed ? "rotate-90" : ""
-                    }`}
-                  />
-                  <span className="text-sm font-semibold text-foreground ml-0.5">{groupName}</span>
-                  <span className="text-xs text-subtle-foreground ml-1.5">{groupTasks.length}</span>
-                </button>
+              <div key={groupName} className={groupIdx > 0 ? "mt-4 border-t border-border pt-1" : ""}>
+                <ClassGroupHeader
+                  groupName={groupName}
+                  displayName={aliases.get(groupName) || groupName}
+                  hasAlias={aliases.has(groupName)}
+                  count={groupTasks.length}
+                  isCollapsed={isCollapsed}
+                  onToggle={() => toggleGroup(groupName)}
+                  onRename={renameGroup}
+                  onResetName={resetGroupName}
+                />
                 {!isCollapsed && (
                   <>
                     {groupTasks.map((task, i) => (
