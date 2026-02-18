@@ -46,13 +46,13 @@ export default function CalendarDayCell({
     setIsMobile(window.innerWidth < 768);
   }, []);
 
-  const maxVisible = isMobile ? 1 : 3;
+  const maxVisible = isMobile ? 2 : 3;
   const visibleTasks = expanded ? tasks : tasks.slice(0, maxVisible);
   const overflow = tasks.length - maxVisible;
 
   return (
     <div
-      className={`min-h-[72px] md:min-h-[140px] p-1.5 cursor-pointer border-r border-b border-border transition-all duration-150 ${
+      className={`min-h-[56px] md:min-h-[140px] p-0.5 md:p-1.5 cursor-pointer border-r border-b border-border transition-all duration-150 ${
         !isCurrentMonth
           ? "bg-muted/80"
           : isPast
@@ -66,7 +66,7 @@ export default function CalendarDayCell({
     >
       {/* Day number */}
       <div
-        className={`w-6 h-6 md:w-7 md:h-7 text-xs rounded-full flex items-center justify-center mb-1 ${
+        className={`w-5 h-5 md:w-7 md:h-7 text-[10px] md:text-xs rounded-full flex items-center justify-center mb-0.5 md:mb-1 ${
           isToday
             ? "bg-blue-500 text-white font-bold shadow-sm"
             : isCurrentMonth
@@ -96,7 +96,7 @@ export default function CalendarDayCell({
               e.stopPropagation();
               setExpanded(true);
             }}
-            className="text-xs text-blue-500 hover:text-blue-600 px-1 text-left transition-colors"
+            className="text-[9px] md:text-xs text-blue-500 hover:text-blue-600 px-0.5 md:px-1 text-left transition-colors"
           >
             +{overflow} more
           </button>
@@ -108,7 +108,7 @@ export default function CalendarDayCell({
               e.stopPropagation();
               setExpanded(false);
             }}
-            className="text-xs text-subtle-foreground hover:text-secondary-foreground px-1 text-left transition-colors"
+            className="text-[9px] md:text-xs text-subtle-foreground hover:text-secondary-foreground px-0.5 md:px-1 text-left transition-colors"
           >
             show less
           </button>

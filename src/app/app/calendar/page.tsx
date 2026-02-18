@@ -77,9 +77,9 @@ export default function CalendarPage() {
           </div>
         )}
 
-        <div className="animate-stagger stagger-2">
+        <div className="-mx-4 md:mx-0 animate-stagger stagger-2">
           {loading ? (
-            <div className="glass rounded-2xl p-12 flex items-center justify-center text-subtle-foreground text-sm">
+            <div className="glass rounded-2xl mx-4 md:mx-0 p-12 flex items-center justify-center text-subtle-foreground text-sm">
               Loading calendar...
             </div>
           ) : (

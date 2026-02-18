@@ -170,7 +170,7 @@ export default function CalendarHeader({
   }
 
   return (
-    <div className="flex items-center justify-between mb-5">
+    <div className="flex items-center justify-between mb-3 md:mb-5">
       <div className="flex items-center gap-3">
         <h1 className="text-lg md:text-2xl font-bold text-foreground flex items-center gap-2">
           <CalendarDays size={18} className="md:w-[22px] md:h-[22px]" />
