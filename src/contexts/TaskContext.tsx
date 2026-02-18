@@ -135,6 +135,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     const { data, error: fetchError } = await supabase
       .from("tasks")
       .select("*")
+      .is("dismissed_at", null)
       .order("created_at", { ascending: false });
 
     if (fetchError) {
@@ -237,6 +238,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       points_possible: null,
       is_submitted: false,
       google_event_id: null,
+      dismissed_at: null,
     };
 
     setTasks((prev) => {
@@ -330,6 +332,11 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  /**
+   * Deletes a task. Synced tasks (with source + external_id) are soft-deleted
+   * by setting dismissed_at so the sync engine won't resurrect them.
+   * Manual tasks are hard-deleted since they can't be recreated by sync.
+   */
   async function deleteTask(id: string) {
     trackEvent("task_deleted");
     // Capture task before optimistic removal for GCal cleanup
@@ -341,10 +348,17 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       return updated;
     });
 
-    const { error: deleteError } = await supabase
-      .from("tasks")
-      .delete()
-      .eq("id", id);
+    const isSyncedTask = taskToDelete?.source && taskToDelete?.external_id;
+
+    const { error: deleteError } = isSyncedTask
+      ? await supabase
+          .from("tasks")
+          .update({ dismissed_at: new Date().toISOString() })
+          .eq("id", id)
+      : await supabase
+          .from("tasks")
+          .delete()
+          .eq("id", id);
 
     if (deleteError) {
       setError(deleteError.message);
@@ -365,8 +379,9 @@ export function TaskProvider({ children }: { children: ReactNode }) {
 
   /**
    * Deletes all tasks for the current user.
-   * Optimistically clears local state + cache, then deletes from DB.
-   * Falls back to refetching if the DB delete fails.
+   * Synced tasks are soft-deleted (dismissed_at set) to prevent sync resurrection.
+   * Manual tasks are hard-deleted since they can't reappear.
+   * Optimistically clears local state + cache; reverts on failure.
    */
   async function deleteAllTasks() {
     if (!userId) {
@@ -379,11 +394,21 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     setTasks([]);
     clearCachedTasks();
 
-    const { error: deleteError } = await supabase
-      .from("tasks")
-      .delete()
-      .eq("user_id", userId);
+    // Soft-delete synced tasks, hard-delete manual tasks (in parallel)
+    const [softDeleteResult, hardDeleteResult] = await Promise.all([
+      supabase
+        .from("tasks")
+        .update({ dismissed_at: new Date().toISOString() })
+        .eq("user_id", userId)
+        .not("source", "is", null),
+      supabase
+        .from("tasks")
+        .delete()
+        .eq("user_id", userId)
+        .is("source", null),
+    ]);
 
+    const deleteError = softDeleteResult.error || hardDeleteResult.error;
     if (deleteError) {
       setError(deleteError.message);
       setTasks(previousTasks);

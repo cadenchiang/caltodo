@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { Inbox, ChevronDown, X, Sun, CalendarRange, MoreVertical, List, LayoutGrid, ArrowUpDown, RefreshCw } from "lucide-react";
+import { Inbox, ChevronDown, X, Sun, CalendarRange, CalendarDays, GraduationCap, MoreVertical, List, LayoutGrid, ArrowUpDown, RefreshCw } from "lucide-react";
 import { useTaskContext } from "@/contexts/TaskContext";
 import { useToast } from "@/contexts/ToastContext";
 import TaskList from "@/components/tasks/TaskList";
@@ -551,6 +551,7 @@ export default function InboxPage() {
                             }`}
                             style={{ backgroundColor: currentValue === "date" ? "rgba(255,255,255,0.08)" : "transparent" }}
                           >
+                            <CalendarDays size={14} />
                             Date
                           </button>
                           <button
@@ -562,6 +563,7 @@ export default function InboxPage() {
                             }`}
                             style={{ backgroundColor: currentValue === "class" ? "rgba(255,255,255,0.08)" : "transparent" }}
                           >
+                            <GraduationCap size={14} />
                             Class
                           </button>
                         </>
@@ -650,6 +652,7 @@ export default function InboxPage() {
                   loading={loading}
                   error={error}
                   selectedTaskId={selectedTask?.id}
+                  sortMode={sortMode}
                   onAdd={addTask}
                   onToggle={toggleComplete}
                   onSelect={(task, anchorRect) => {

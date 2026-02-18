@@ -21,6 +21,7 @@ export interface Task {
   points_possible: number | null;
   is_submitted: boolean;
   google_event_id: string | null;
+  dismissed_at: string | null;
 }
 
 /**

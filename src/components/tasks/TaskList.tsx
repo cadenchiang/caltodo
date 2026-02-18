@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { ChevronRight } from "lucide-react";
 import type { Task, TaskInsert } from "@/lib/types";
 import TaskItem from "./TaskItem";
@@ -20,6 +20,29 @@ interface TaskListProps {
   onDelete: (id: string) => void;
   defaultDate?: string | null;
   placeholder?: string;
+  /** When "class", active tasks are grouped under collapsible course headers. */
+  sortMode?: "date" | "class";
+}
+
+/**
+ * Groups tasks by course_name, preserving input order within each group.
+ * Tasks with null course_name are grouped under "General".
+ *
+ * @param tasks - Pre-sorted array of tasks
+ * @returns Ordered array of [groupName, tasks[]] pairs
+ */
+function groupByCourse(tasks: Task[]): [string, Task[]][] {
+  const map = new Map<string, Task[]>();
+  for (const t of tasks) {
+    const key = t.course_name || "General";
+    const list = map.get(key);
+    if (list) {
+      list.push(t);
+    } else {
+      map.set(key, [t]);
+    }
+  }
+  return Array.from(map.entries());
 }
 
 /**
@@ -65,10 +88,25 @@ export default function TaskList({
   onDelete,
   defaultDate,
   placeholder,
+  sortMode = "date",
 }: TaskListProps) {
   const [completedExpanded, setCompletedExpanded] = useState(true);
   const [showAllActive, setShowAllActive] = useState(false);
   const [showAllCompleted, setShowAllCompleted] = useState(false);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+
+  /** Toggles a course group's collapsed state. */
+  const toggleGroup = useCallback((groupName: string) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupName)) {
+        next.delete(groupName);
+      } else {
+        next.add(groupName);
+      }
+      return next;
+    });
+  }, []);
 
   const { active, completed } = useMemo(() => {
     const activeList: Task[] = [];
@@ -87,6 +125,12 @@ export default function TaskList({
       completed: sortByDueDate(completedList),
     };
   }, [tasks]);
+
+  /** Active tasks grouped by course when sortMode is "class". */
+  const activeGroups = useMemo(
+    () => (sortMode === "class" ? groupByCourse(active) : []),
+    [active, sortMode]
+  );
 
   if (loading) {
     return (
@@ -117,8 +161,47 @@ export default function TaskList({
         </div>
       )}
 
-      {/* Active tasks (overdue + current, flat list) */}
-      {active.length > 0 && (
+      {/* Active tasks — grouped by class or flat list depending on sortMode */}
+      {active.length > 0 && sortMode === "class" ? (
+        <div className="mt-1">
+          {activeGroups.map(([groupName, groupTasks]) => {
+            const isCollapsed = collapsedGroups.has(groupName);
+            return (
+              <div key={groupName}>
+                <button
+                  onClick={() => toggleGroup(groupName)}
+                  className="flex items-center pl-2.5 pr-4 py-1.5 hover:bg-accent transition-colors w-full text-left rounded-lg mx-2 mt-1"
+                >
+                  <ChevronRight
+                    size={12}
+                    className={`shrink-0 text-secondary-foreground transition-transform duration-200 ${
+                      !isCollapsed ? "rotate-90" : ""
+                    }`}
+                  />
+                  <span className="text-sm font-semibold text-foreground ml-0.5">{groupName}</span>
+                  <span className="text-xs text-subtle-foreground ml-1.5">{groupTasks.length}</span>
+                </button>
+                {!isCollapsed && (
+                  <>
+                    {groupTasks.map((task, i) => (
+                      <div key={task.id}>
+                        {i > 0 && <div className="mx-12 h-px bg-border" />}
+                        <TaskItem
+                          task={task}
+                          isSelected={selectedTaskId === task.id}
+                          onToggle={onToggle}
+                          onSelect={onSelect}
+                          onDelete={onDelete}
+                        />
+                      </div>
+                    ))}
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ) : active.length > 0 ? (
         <div className="mt-1">
           {activeToShow.map((task, i) => (
             <div key={task.id}>
@@ -141,7 +224,7 @@ export default function TaskList({
             </button>
           )}
         </div>
-      )}
+      ) : null}
 
       {/* Completed section (collapsible) */}
       {completed.length > 0 && (

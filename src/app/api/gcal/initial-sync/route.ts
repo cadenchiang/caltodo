@@ -55,13 +55,14 @@ export async function POST() {
     return NextResponse.json({ synced: 0, needsCalendarSelection: true });
   }
 
-  // Fetch all tasks with due_date but no google_event_id
+  // Fetch all non-dismissed tasks with due_date but no google_event_id
   const { data: tasks, error: fetchError } = await supabase
     .from("tasks")
     .select("*")
     .eq("user_id", user.id)
     .not("due_date", "is", null)
     .is("google_event_id", null)
+    .is("dismissed_at", null)
     .order("due_date", { ascending: true });
 
   if (fetchError) {

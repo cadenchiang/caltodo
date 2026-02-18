@@ -38,6 +38,7 @@ function createMockTask(overrides: Partial<Task> = {}): Task {
     points_possible: null,
     is_submitted: false,
     google_event_id: null,
+    dismissed_at: null,
     ...overrides,
   };
 }

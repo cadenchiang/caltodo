@@ -56,12 +56,13 @@ export async function GET(request: NextRequest) {
 
   const userId = credential.user_id;
 
-  // Fetch all tasks with due dates for this user
+  // Fetch all non-dismissed tasks with due dates for this user
   const { data: tasks, error: tasksError } = await admin
     .from("tasks")
     .select("*")
     .eq("user_id", userId)
     .not("due_date", "is", null)
+    .is("dismissed_at", null)
     .order("due_date", { ascending: true });
 
   if (tasksError) {
