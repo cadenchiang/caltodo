@@ -81,7 +81,7 @@ export default function TaskAddForm({ onAdd, defaultDate, placeholder }: TaskAdd
           onChange={(e) => setTitle(e.target.value)}
           onFocus={() => setFocused(true)}
           placeholder={placeholder ?? "Add task. Press Enter to save."}
-          className="flex-1 text-sm bg-transparent text-foreground placeholder-subtle-foreground focus:outline-none"
+          className="flex-1 text-sm bg-transparent text-foreground placeholder-muted-foreground focus:outline-none"
         />
 
         {/* Date badge if a date is selected */}
