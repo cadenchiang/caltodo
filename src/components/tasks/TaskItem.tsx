@@ -100,7 +100,7 @@ export default function TaskItem({ task, isSelected, onToggle, onSelect, onDelet
       <div
         className={`group flex items-center gap-3 px-6 h-10 mx-2 rounded-xl transition-colors duration-100 cursor-pointer ${
           isSelected
-            ? "bg-black/5 dark:bg-white/5"
+            ? "bg-black/5 dark:bg-muted/60"
             : "hover:bg-accent"
         } ${task.is_completed ? "opacity-40" : ""} ${isOptimistic ? "animate-task-slide-in" : ""}`}
         onClick={(e) => onSelect(task, e.currentTarget.getBoundingClientRect())}
