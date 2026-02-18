@@ -204,12 +204,9 @@ export function toLocalTimeString(isoString: string | null, tz: string): string 
 
 /**
  * Upserts normalized assignments into the tasks table in batches.
- * Course name is stored in description field for display context.
  * Uses timezone-aware date/time conversion to prevent off-by-one errors.
- *
- * After upserting, auto-completes newly inserted rows where is_submitted is true.
- * Only targets rows created during this sync (created_at >= syncStartTime) so that
- * user manual un-checks on previously synced assignments are not overwritten.
+ * Clears dismissed_at on upsert so previously deleted tasks reappear on resync.
+ * After upserting, auto-completes all submitted but uncompleted assignments.
  *
  * @param supabase - Authenticated Supabase client
  * @param userId - The user's ID
@@ -245,6 +242,9 @@ async function upsertAssignments(
       color,
       description: a.description || "",
       updated_at: new Date().toISOString(),
+      // Clear dismissed_at so previously deleted tasks reappear on resync.
+      // If the assignment exists on the source platform, it should show in caltodo.
+      dismissed_at: null,
     }));
 
     const { error } = await supabase
