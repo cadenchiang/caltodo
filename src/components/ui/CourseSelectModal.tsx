@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
 interface CourseItem<T extends string | number> {
@@ -173,8 +174,8 @@ export default function CourseSelectModal<T extends string | number>({
 
   const allSelected = totalCount > 0 && selectedIds.size === totalCount;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center">
       {/* Backdrop with blur */}
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-200 ease-out"
@@ -311,6 +312,7 @@ export default function CourseSelectModal<T extends string | number>({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
