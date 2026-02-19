@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Eye, EyeOff, Lock, LockOpen, Play, Check } from "lucide-react";
+import { Eye, EyeOff, Pencil, Play, Check, X } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 import type { IntegrationCredentials, CredentialsSavePayload } from "@/lib/types";
 
@@ -11,9 +11,9 @@ interface GradescopeSettingsProps {
 }
 
 /**
- * Gradescope credential settings with lock/unlock icon toggle.
- * Locked by default — shows email and masked password with Lock icons.
- * Unlocked — same layout with editable inputs and LockOpen icons.
+ * Gradescope credential settings with edit/cancel toggle.
+ * Locked by default — shows email and masked password as read-only.
+ * Unlocked — same layout with editable inputs.
  * Course selection has been moved to the unified ClassesSection.
  *
  * @param credentials - Current integration credentials from parent
@@ -92,9 +92,9 @@ export default function GradescopeSettings({ credentials, onUpdate }: Gradescope
             }
           }}
           className="flex items-center gap-1.5 text-xs text-subtle-foreground hover:text-secondary-foreground transition-colors"
-          aria-label={locked ? "Unlock credentials" : "Lock credentials"}
+          aria-label={locked ? "Edit credentials" : "Cancel editing"}
         >
-          {locked ? <Lock size={12} /> : <LockOpen size={12} />}
+          {locked ? <><Pencil size={12} /> edit</> : <><X size={12} /> cancel</>}
         </button>
       </div>
       <p className="text-xs text-subtle-foreground mb-4">
@@ -184,11 +184,6 @@ export default function GradescopeSettings({ credentials, onUpdate }: Gradescope
           }`}
         >
           {locked ? (
-            <Lock size={14} className="text-subtle-foreground shrink-0" />
-          ) : (
-            <LockOpen size={14} className="text-subtle-foreground shrink-0" />
-          )}
-          {locked ? (
             <span className="text-sm text-muted-foreground truncate flex-1">
               {gradescopeEmail || "No email saved"}
             </span>
@@ -211,11 +206,6 @@ export default function GradescopeSettings({ credentials, onUpdate }: Gradescope
             locked ? "bg-muted border-border" : "bg-card border-input-border"
           }`}
         >
-          {locked ? (
-            <Lock size={14} className="text-subtle-foreground shrink-0" />
-          ) : (
-            <LockOpen size={14} className="text-subtle-foreground shrink-0" />
-          )}
           {locked ? (
             <span className="text-sm text-muted-foreground flex-1">
               {credentials.has_gradescope_password ? "••••••••••••" : "No password saved"}

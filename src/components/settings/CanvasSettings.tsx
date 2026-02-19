@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Eye, EyeOff, Lock, LockOpen, Play, Check } from "lucide-react";
+import { Eye, EyeOff, Pencil, Play, Check, X } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 import type { IntegrationCredentials, CredentialsSavePayload } from "@/lib/types";
 
@@ -11,9 +11,9 @@ interface CanvasSettingsProps {
 }
 
 /**
- * Canvas (bCourses) credential settings with lock/unlock icon toggle.
- * Locked by default — shows masked token and URL with Lock icons.
- * Unlocked — same layout with editable inputs and LockOpen icons.
+ * Canvas (bCourses) credential settings with edit/cancel toggle.
+ * Locked by default — shows masked token and URL as read-only.
+ * Unlocked — same layout with editable inputs.
  * Course selection has been moved to the unified ClassesSection.
  *
  * @param credentials - Current integration credentials from parent
@@ -94,9 +94,9 @@ export default function CanvasSettings({ credentials, onUpdate }: CanvasSettings
             }
           }}
           className="flex items-center gap-1.5 text-xs text-subtle-foreground hover:text-secondary-foreground transition-colors"
-          aria-label={locked ? "Unlock credentials" : "Lock credentials"}
+          aria-label={locked ? "Edit credentials" : "Cancel editing"}
         >
-          {locked ? <Lock size={12} /> : <LockOpen size={12} />}
+          {locked ? <><Pencil size={12} /> edit</> : <><X size={12} /> cancel</>}
         </button>
       </div>
       <p className="text-xs text-subtle-foreground mb-4">
@@ -180,11 +180,6 @@ export default function CanvasSettings({ credentials, onUpdate }: CanvasSettings
           }`}
         >
           {locked ? (
-            <Lock size={14} className="text-subtle-foreground shrink-0" />
-          ) : (
-            <LockOpen size={14} className="text-subtle-foreground shrink-0" />
-          )}
-          {locked ? (
             <span className="text-sm text-muted-foreground truncate flex-1">
               {canvasToken ? `••••••••${canvasToken.slice(-6)}` : "No token saved"}
             </span>
@@ -217,11 +212,6 @@ export default function CanvasSettings({ credentials, onUpdate }: CanvasSettings
             locked ? "bg-muted border-border" : "bg-card border-input-border"
           }`}
         >
-          {locked ? (
-            <Lock size={14} className="text-subtle-foreground shrink-0" />
-          ) : (
-            <LockOpen size={14} className="text-subtle-foreground shrink-0" />
-          )}
           {locked ? (
             <span className="text-sm text-muted-foreground truncate flex-1">{canvasBaseUrl}</span>
           ) : (

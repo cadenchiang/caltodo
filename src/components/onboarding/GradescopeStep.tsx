@@ -238,6 +238,37 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
                         className="w-full"
                       />
                     </div>
+                    {/* Chapter marker dots below video */}
+                    <div className="relative h-3 mt-1.5 mx-1">
+                      {GRADESCOPE_CHAPTERS.map((step, i) => {
+                        const pct = (step.time / 42) * 100;
+                        const isActive = activeStep === i;
+                        return (
+                          <button
+                            key={step.time}
+                            type="button"
+                            title={step.label}
+                            onClick={() => {
+                              if (videoRef.current) {
+                                videoRef.current.currentTime = step.time;
+                                videoRef.current.play().catch(() => {});
+                              }
+                            }}
+                            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 transition-all duration-200"
+                            style={{ left: `${pct}%` }}
+                          >
+                            <span
+                              className={`block rounded-full transition-all duration-200 ${
+                                isActive
+                                  ? "w-2.5 h-2.5 bg-teal-500"
+                                  : "w-1.5 h-1.5 bg-gray-400 hover:bg-gray-600"
+                              }`}
+                            />
+                          </button>
+                        );
+                      })}
+                      <div className="absolute top-1/2 -translate-y-1/2 left-0 right-0 h-px bg-gray-200" />
+                    </div>
                   </div>
                 </div>
 
