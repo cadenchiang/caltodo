@@ -28,16 +28,21 @@ export default function SettingsPage() {
   const [userFullName, setUserFullName] = useState<string | null>(null);
   const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
   const [imgError, setImgError] = useState(false);
+  const [userLoading, setUserLoading] = useState(true);
 
   // Fetch user info from Supabase session
   useEffect(() => {
     async function loadUser() {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setUserEmail(user.email ?? null);
-        setUserFullName(user.user_metadata?.full_name ?? null);
-        setUserAvatarUrl(user.user_metadata?.avatar_url ?? null);
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          setUserEmail(user.email ?? null);
+          setUserFullName(user.user_metadata?.full_name ?? null);
+          setUserAvatarUrl(user.user_metadata?.avatar_url ?? null);
+        }
+      } finally {
+        setUserLoading(false);
       }
     }
     loadUser();
@@ -159,7 +164,9 @@ export default function SettingsPage() {
                 {/* User info row */}
                 <div className="flex items-center gap-4 mb-4">
                   <div className="w-12 h-12 rounded-full overflow-hidden flex items-center justify-center shrink-0">
-                    {userAvatarUrl && !imgError ? (
+                    {userLoading ? (
+                      <div className="w-full h-full bg-muted animate-pulse rounded-full" />
+                    ) : userAvatarUrl && !imgError ? (
                       <img
                         src={userAvatarUrl}
                         alt="Profile"
@@ -174,11 +181,20 @@ export default function SettingsPage() {
                     )}
                   </div>
                   <div className="min-w-0">
-                    {userFullName && (
-                      <p className="text-sm font-medium text-foreground truncate">{userFullName}</p>
-                    )}
-                    {userEmail && (
-                      <p className="text-xs text-subtle-foreground truncate">{userEmail}</p>
+                    {userLoading ? (
+                      <>
+                        <div className="h-4 w-32 bg-muted animate-pulse rounded mb-1.5" />
+                        <div className="h-3 w-48 bg-muted animate-pulse rounded" />
+                      </>
+                    ) : (
+                      <>
+                        {userFullName && (
+                          <p className="text-sm font-medium text-foreground truncate">{userFullName}</p>
+                        )}
+                        {userEmail && (
+                          <p className="text-xs text-subtle-foreground truncate">{userEmail}</p>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>

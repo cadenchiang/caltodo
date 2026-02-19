@@ -180,13 +180,13 @@ export default function CalendarHeader({
 
         {/* GCal not connected — shimmer CTA with notification badge on the right */}
         {!gcalConnected && (
-          <a href="/app/settings" title="Connect Google Calendar in Settings" className="relative">
+          <a href="/app/settings" title="Connect Google Calendar in Settings" className="relative group/sync">
             <ShimmerButton
               shimmerColor="#b45309"
               shimmerSize="0.05em"
               shimmerDuration="3s"
               background="rgba(0, 0, 0, 0.9)"
-              className="px-3 py-1.5 text-xs pointer-events-none"
+              className="px-3 py-1.5 text-xs hover:scale-105 active:scale-95 transition-all duration-200"
             >
               <GCalIcon size={16} />
               <span className="ml-1.5 font-medium text-amber-500 dark:text-amber-400">
