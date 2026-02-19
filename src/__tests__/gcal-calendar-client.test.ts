@@ -113,6 +113,39 @@ describe("buildEventPayload", () => {
 
     expect(payload.description).not.toContain("Managed by caltodo");
   });
+
+  it("should compute correct end date for month boundaries", () => {
+    // Feb 28 (non-leap year) → Mar 1
+    const feb28 = createMockTask({ due_date: "2026-02-28" });
+    expect(buildEventPayload(feb28).end).toEqual({ date: "2026-03-01" });
+
+    // Dec 31 → Jan 1 of next year
+    const dec31 = createMockTask({ due_date: "2026-12-31" });
+    expect(buildEventPayload(dec31).end).toEqual({ date: "2027-01-01" });
+
+    // Leap year: Feb 29 → Mar 1
+    const feb29 = createMockTask({ due_date: "2028-02-29" });
+    expect(buildEventPayload(feb29).end).toEqual({ date: "2028-03-01" });
+  });
+
+  it("should compute correct end date near DST transitions", () => {
+    // US DST spring forward (Mar 8, 2026) — end date must still be +1 day
+    const dstSpring = createMockTask({ due_date: "2026-03-08" });
+    expect(buildEventPayload(dstSpring).end).toEqual({ date: "2026-03-09" });
+
+    // US DST fall back (Nov 1, 2026) — end date must still be +1 day
+    const dstFall = createMockTask({ due_date: "2026-11-01" });
+    expect(buildEventPayload(dstFall).end).toEqual({ date: "2026-11-02" });
+  });
+
+  it("should handle empty start/end when due_date is null", () => {
+    const task = createMockTask({ due_date: null });
+    const payload = buildEventPayload(task);
+
+    expect(payload.start).toEqual({ date: "" });
+    expect(payload.end).toEqual({ date: "" });
+    expect(payload.transparency).toBeUndefined();
+  });
 });
 
 describe("createCalendarEvent", () => {

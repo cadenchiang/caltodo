@@ -278,9 +278,15 @@ export function buildEventPayload(task: Task): GCalEventPayload {
   }
 
   if (task.due_date) {
-    const nextDay = new Date(task.due_date);
+    // Use noon local time to avoid DST boundary edge cases where
+    // new Date("YYYY-MM-DD") (UTC midnight) + getDate/setDate (local tz)
+    // + toISOString (UTC) can produce the wrong end date.
+    const nextDay = new Date(task.due_date + "T12:00:00");
     nextDay.setDate(nextDay.getDate() + 1);
-    const endDate = nextDay.toISOString().split("T")[0];
+    const y = nextDay.getFullYear();
+    const m = String(nextDay.getMonth() + 1).padStart(2, "0");
+    const d = String(nextDay.getDate()).padStart(2, "0");
+    const endDate = `${y}-${m}-${d}`;
 
     payload.start = { date: task.due_date };
     payload.end = { date: endDate };

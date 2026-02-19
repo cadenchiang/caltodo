@@ -104,22 +104,25 @@ export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: Tas
   }, [task?.id, task?.title, task?.description, task?.due_date, task?.due_time, task?.color, task?.repeat_interval, task?.repeat_unit, task?.repeat_end_date, task?.repeat_end_count]);
 
   /**
-   * Persists current form state to the backend.
+   * Persists title and description on blur.
+   * Only sends text fields to avoid racing with picker saves that update
+   * due_date, due_time, color, or repeat fields via saveWith().
    */
   function save() {
     if (!task) return;
     const trimmed = title.trim();
     if (!trimmed) return;
-    onSave(task.id, { title: trimmed, description, due_date: dueDate, due_time: dueTime, color, repeat_interval: repeatInterval, repeat_unit: repeatUnit, repeat_end_date: repeatEndDate, repeat_end_count: repeatEndCount });
+    onSave(task.id, { title: trimmed, description });
   }
 
   /**
-   * Saves with an immediate field override (for pickers that change a value and save in one step).
+   * Saves only the specified field overrides (from pickers).
+   * Does NOT include other fields — prevents stale-state race conditions
+   * where a concurrent blur save overwrites a just-changed value.
    */
   function saveWith(overrides: Partial<TaskUpdate>) {
     if (!task) return;
-    const trimmed = title.trim() || task.title;
-    onSave(task.id, { title: trimmed, description, due_date: dueDate, due_time: dueTime, color, repeat_interval: repeatInterval, repeat_unit: repeatUnit, repeat_end_date: repeatEndDate, repeat_end_count: repeatEndCount, ...overrides });
+    onSave(task.id, overrides);
   }
 
   const dateDisplay = task ? getDateDisplay(dueDate, dueTime) : null;

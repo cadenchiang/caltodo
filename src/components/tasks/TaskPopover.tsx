@@ -197,10 +197,15 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
     if (titleRef.current) autoResize(titleRef.current);
   }, [title]);
 
+  /**
+   * Persists title and description on blur.
+   * Only sends text fields to avoid racing with picker saves that update
+   * due_date, due_time, color, or repeat fields.
+   */
   function handleSave() {
     const trimmed = title.trim();
     if (!trimmed) return;
-    onSave(task.id, { title: trimmed, description, due_date: dueDate, due_time: dueTime, color, repeat_interval: repeatInterval, repeat_unit: repeatUnit, repeat_end_date: repeatEndDate, repeat_end_count: repeatEndCount });
+    onSave(task.id, { title: trimmed, description });
   }
 
   function handleDelete() {
@@ -250,7 +255,7 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
                     onClick={() => {
                       setColor(c);
                       setShowColorPicker(false);
-                      onSave(task.id, { title: title.trim() || task.title, description, due_date: dueDate, due_time: dueTime, color: c, repeat_interval: repeatInterval, repeat_unit: repeatUnit, repeat_end_date: repeatEndDate, repeat_end_count: repeatEndCount });
+                      onSave(task.id, { color: c });
                     }}
                     className={`w-6 h-6 rounded-full transition-all ${color === c ? "scale-125" : "hover:scale-110"}`}
                     style={{
@@ -384,11 +389,11 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
               onChange={(date) => {
                 setDueDate(date);
                 setShowDatePicker(false);
-                onSave(task.id, { title: title.trim() || task.title, description, due_date: date, due_time: dueTime, color, repeat_interval: repeatInterval, repeat_unit: repeatUnit, repeat_end_date: repeatEndDate, repeat_end_count: repeatEndCount });
+                onSave(task.id, { due_date: date });
               }}
               onTimeChange={(time) => {
                 setDueTime(time);
-                onSave(task.id, { title: title.trim() || task.title, description, due_date: dueDate, due_time: time, color, repeat_interval: repeatInterval, repeat_unit: repeatUnit, repeat_end_date: repeatEndDate, repeat_end_count: repeatEndCount });
+                onSave(task.id, { due_time: time });
               }}
               repeatInterval={!task.source ? repeatInterval : undefined}
               repeatUnit={!task.source ? repeatUnit : undefined}
@@ -398,9 +403,9 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
                 if (!interval || !unit) {
                   setRepeatEndDate(null);
                   setRepeatEndCount(null);
-                  onSave(task.id, { title: title.trim() || task.title, description, due_date: dueDate, due_time: dueTime, color, repeat_interval: interval, repeat_unit: unit, repeat_end_date: null, repeat_end_count: null });
+                  onSave(task.id, { repeat_interval: interval, repeat_unit: unit, repeat_end_date: null, repeat_end_count: null });
                 } else {
-                  onSave(task.id, { title: title.trim() || task.title, description, due_date: dueDate, due_time: dueTime, color, repeat_interval: interval, repeat_unit: unit, repeat_end_date: repeatEndDate, repeat_end_count: repeatEndCount });
+                  onSave(task.id, { repeat_interval: interval, repeat_unit: unit });
                 }
               } : undefined}
               repeatEndDate={!task.source ? repeatEndDate : undefined}
@@ -408,7 +413,7 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
               onRepeatEndChange={!task.source ? (endDate, endCount) => {
                 setRepeatEndDate(endDate);
                 setRepeatEndCount(endCount);
-                onSave(task.id, { title: title.trim() || task.title, description, due_date: dueDate, due_time: dueTime, color, repeat_interval: repeatInterval, repeat_unit: repeatUnit, repeat_end_date: endDate, repeat_end_count: endCount });
+                onSave(task.id, { repeat_end_date: endDate, repeat_end_count: endCount });
               } : undefined}
             />
           </Popover>
