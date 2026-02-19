@@ -721,7 +721,7 @@ function TaskCard({ task, isSelected, onToggle, onSelect, onDelete }: TaskCardPr
         {/* Date + time combined */}
         {dueBadge && (
           <div className="mt-1.5 pl-[24px]">
-            <span className={`text-[11px] font-normal ${dueBadge.className} ${isCompleted ? "opacity-70" : ""}`}>
+            <span className={`text-xs font-medium ${dueBadge.className} ${isCompleted ? "opacity-70" : ""}`}>
               {dueBadge.dateLabel}{dueBadge.timeLabel ? ` ${dueBadge.timeLabel}` : ""}
             </span>
           </div>

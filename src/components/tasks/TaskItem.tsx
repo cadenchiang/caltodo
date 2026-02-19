@@ -65,7 +65,7 @@ function getDueDateBadge(dueDate: string | null, dueTime: string | null): { date
 
   const month = due.toLocaleString("en-US", { month: "short" });
   const day = due.getDate();
-  return { dateLabel: `${month} ${day}`, timeLabel, className: "text-subtle-foreground" };
+  return { dateLabel: `${month} ${day}`, timeLabel, className: "text-muted-foreground" };
 }
 
 /**
@@ -165,9 +165,9 @@ export default function TaskItem({ task, isSelected, onToggle, onSelect, onDelet
 
         {/* Due time and date */}
         {dueBadge && (
-          <span className={`text-[11px] shrink-0 font-normal ${dueBadge.className}`}>
+          <span className={`text-xs shrink-0 font-medium ${dueBadge.className}`}>
             {dueBadge.timeLabel && (
-              <span className="text-muted-foreground opacity-60">{dueBadge.timeLabel} </span>
+              <span className="text-muted-foreground opacity-70">{dueBadge.timeLabel} </span>
             )}
             {dueBadge.dateLabel}
           </span>
