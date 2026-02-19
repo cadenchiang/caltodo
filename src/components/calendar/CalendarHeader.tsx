@@ -57,28 +57,25 @@ export default function CalendarHeader({
 }: CalendarHeaderProps) {
   const { showToast } = useToast();
 
-  // Hydrate from localStorage cache for instant "Synced" tag + account info
-  const [gcalConnected, setGcalConnected] = useState(() => {
+  // null = unknown (loading), true/false = resolved status
+  const [gcalConnected, setGcalConnected] = useState<boolean | null>(null);
+  const [gcalEmail, setGcalEmail] = useState<string | null>(null);
+  const [gcalPhotoUrl, setGcalPhotoUrl] = useState<string | null>(null);
+
+  // Hydrate from localStorage cache on mount (client-only) for instant render
+  useEffect(() => {
     try {
       const raw = localStorage.getItem(GCAL_CACHE_KEY);
-      if (raw) return JSON.parse(raw).connected === true;
+      if (raw) {
+        const cached = JSON.parse(raw);
+        setGcalConnected(cached.connected === true);
+        setGcalEmail(cached.email ?? null);
+        setGcalPhotoUrl(cached.photoUrl ?? null);
+        return;
+      }
     } catch { /* ignore */ }
-    return false;
-  });
-  const [gcalEmail, setGcalEmail] = useState<string | null>(() => {
-    try {
-      const raw = localStorage.getItem(GCAL_CACHE_KEY);
-      if (raw) return JSON.parse(raw).email ?? null;
-    } catch { /* ignore */ }
-    return null;
-  });
-  const [gcalPhotoUrl, setGcalPhotoUrl] = useState<string | null>(() => {
-    try {
-      const raw = localStorage.getItem(GCAL_CACHE_KEY);
-      if (raw) return JSON.parse(raw).photoUrl ?? null;
-    } catch { /* ignore */ }
-    return null;
-  });
+    // No cache — leave as null until API responds
+  }, []);
 
   const [showPopover, setShowPopover] = useState(false);
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
@@ -94,9 +91,20 @@ export default function CalendarHeader({
       const res = await fetch("/api/credentials");
       if (res.ok) {
         const data = await res.json();
-        setGcalConnected(!!data.google_calendar_id);
+        const isConnected = !!data.google_calendar_id;
+        setGcalConnected(isConnected);
         setGcalEmail(data.google_email ?? null);
         setGcalPhotoUrl(data.google_photo_url ?? null);
+
+        // Write cache so next load hydrates instantly
+        try {
+          localStorage.setItem(GCAL_CACHE_KEY, JSON.stringify({
+            connected: isConnected,
+            calendarId: data.google_calendar_id ?? null,
+            email: data.google_email ?? null,
+            photoUrl: data.google_photo_url ?? null,
+          }));
+        } catch { /* ignore */ }
       }
     } catch {
       // Non-critical
@@ -179,7 +187,7 @@ export default function CalendarHeader({
         </h1>
 
         {/* GCal not connected — shimmer CTA with notification badge on the right */}
-        {!gcalConnected && (
+        {gcalConnected === false && (
           <a href="/app/settings" title="Connect Google Calendar in Settings" className="relative group/sync">
             <ShimmerButton
               shimmerColor="#b45309"
