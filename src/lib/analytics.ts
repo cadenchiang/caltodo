@@ -34,11 +34,24 @@ type AnalyticsEvent =
   | "view_mode_changed"
   | "filter_changed"
   | "sort_mode_changed"
-  | "theme_changed";
+  | "theme_changed"
+  // Notifications
+  | "notification_center_opened"
+  | "notification_clicked"
+  | "notifications_marked_read"
+  | "notifications_cleared"
+  | "notification_created";
 
 /**
  * Tracks a user analytics event via Vercel Analytics and PostHog.
  * Sends the same event to both platforms for redundancy and richer analysis.
+ *
+ * @param name - The event name (must be a valid AnalyticsEvent)
+ * @param properties - Optional key-value properties to attach to the event
+ */
+/**
+ * Tracks a user analytics event via Vercel Analytics and PostHog.
+ * PostHog capture is skipped in development since it's not initialized.
  *
  * @param name - The event name (must be a valid AnalyticsEvent)
  * @param properties - Optional key-value properties to attach to the event
@@ -48,5 +61,8 @@ export function trackEvent(
   properties?: Record<string, string | number | boolean | null>,
 ): void {
   track(name, properties ?? {});
-  posthog.capture(name, properties ?? {});
+  // PostHog is not initialized in development — guard to avoid errors
+  if (process.env.NODE_ENV !== "development") {
+    posthog.capture(name, properties ?? {});
+  }
 }

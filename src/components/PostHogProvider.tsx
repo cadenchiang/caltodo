@@ -17,6 +17,9 @@ export default function PostHogProvider({
   children: React.ReactNode;
 }) {
   useEffect(() => {
+    // Skip PostHog entirely in development to avoid "Failed to fetch" errors
+    if (process.env.NODE_ENV === "development") return;
+
     const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
     const host = process.env.NEXT_PUBLIC_POSTHOG_HOST;
 
@@ -35,12 +38,6 @@ export default function PostHogProvider({
       autocapture: true,
       session_recording: {
         recordCrossOriginIframes: false,
-      },
-      loaded: (ph) => {
-        // Disable in development to avoid polluting data
-        if (process.env.NODE_ENV === "development") {
-          ph.debug();
-        }
       },
     });
   }, []);

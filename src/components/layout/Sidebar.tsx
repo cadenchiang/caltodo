@@ -107,7 +107,7 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
         </nav>
       </div>
 
-      <div className="px-2">
+      <div className="px-2 flex flex-col gap-2">
         <ProfilePopup avatarUrl={avatarUrl} fullName={fullName} email={email} />
       </div>
     </aside>

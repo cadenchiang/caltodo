@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { X, ChevronLeft } from "lucide-react";
 import { useTaskContext } from "@/contexts/TaskContext";
@@ -28,11 +28,7 @@ const TOUR_PENDING_KEY = "caltodo_tour_pending";
  * @param onSyncAndGo - Fires background sync and navigates after fade-out
  */
 function DoneStep({ onSyncAndGo }: { onSyncAndGo: () => void }) {
-  const hasFired = useRef(false);
-
   useEffect(() => {
-    if (hasFired.current) return;
-    hasFired.current = true;
     // Brief pause so user can read "you're all set", then transition out
     const timer = setTimeout(onSyncAndGo, 1200);
     return () => clearTimeout(timer);

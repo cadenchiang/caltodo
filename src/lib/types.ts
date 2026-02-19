@@ -24,6 +24,8 @@ export interface Task {
   dismissed_at: string | null;
   repeat_interval: number | null;
   repeat_unit: "day" | "week" | "month" | null;
+  repeat_end_date: string | null;
+  repeat_end_count: number | null;
   late_due_date: string | null;
 }
 
@@ -38,6 +40,8 @@ export interface TaskInsert {
   color?: string;
   repeat_interval?: number | null;
   repeat_unit?: "day" | "week" | "month" | null;
+  repeat_end_date?: string | null;
+  repeat_end_count?: number | null;
 }
 
 /**
@@ -52,6 +56,8 @@ export interface TaskUpdate {
   color?: string;
   repeat_interval?: number | null;
   repeat_unit?: "day" | "week" | "month" | null;
+  repeat_end_date?: string | null;
+  repeat_end_count?: number | null;
 }
 
 /**
@@ -136,4 +142,36 @@ export interface GCalSyncResponse {
   googleEventId?: string;
   reason?: string;
   error?: string;
+}
+
+/**
+ * Notification types emitted by sync and background operations.
+ */
+export type NotificationType =
+  | "new_assignment"
+  | "assignment_updated"
+  | "auto_completed"
+  | "repeat_spawned"
+  | "sync_error";
+
+/**
+ * A client-side notification for the notification center.
+ * Persisted in localStorage, not in the database.
+ *
+ * @param id - Unique identifier (nanoid-style)
+ * @param type - Category of the notification
+ * @param title - Short display title
+ * @param description - Optional detail text
+ * @param taskId - Related task ID (if applicable)
+ * @param read - Whether the user has seen this notification
+ * @param createdAt - ISO timestamp of when the notification was created
+ */
+export interface AppNotification {
+  id: string;
+  type: NotificationType;
+  title: string;
+  description: string | null;
+  taskId: string | null;
+  read: boolean;
+  createdAt: string;
 }

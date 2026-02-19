@@ -2,13 +2,12 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { Trash2, ExternalLink, MoreHorizontal, X, AlignLeft, Repeat } from "lucide-react";
+import { Trash2, ExternalLink, MoreVertical, X, AlignLeft } from "lucide-react";
 import { format } from "date-fns";
 import type { Task, TaskUpdate } from "@/lib/types";
 import { TASK_COLORS } from "@/lib/constants";
 import { getRepeatLabel } from "@/lib/repeat";
 import DatePicker from "./DatePicker";
-import RepeatPicker from "./RepeatPicker";
 import Popover from "@/components/ui/Popover";
 import useClickOutside from "@/hooks/useClickOutside";
 
@@ -120,7 +119,8 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [repeatInterval, setRepeatInterval] = useState<number | null>(task.repeat_interval);
   const [repeatUnit, setRepeatUnit] = useState<"day" | "week" | "month" | null>(task.repeat_unit);
-  const [showRepeatPicker, setShowRepeatPicker] = useState(false);
+  const [repeatEndDate, setRepeatEndDate] = useState<string | null>(task.repeat_end_date);
+  const [repeatEndCount, setRepeatEndCount] = useState<number | null>(task.repeat_end_count);
   const [showMenu, setShowMenu] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -132,7 +132,6 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
   const titleRef = useRef<HTMLTextAreaElement>(null);
   const colorBtnRef = useRef<HTMLButtonElement>(null);
   const dateBtnRef = useRef<HTMLButtonElement>(null);
-  const repeatBtnRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     setTitle(task.title);
@@ -143,11 +142,12 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
     setLocalCompleted(task.is_completed);
     setRepeatInterval(task.repeat_interval);
     setRepeatUnit(task.repeat_unit);
+    setRepeatEndDate(task.repeat_end_date);
+    setRepeatEndCount(task.repeat_end_count);
     setShowDatePicker(false);
     setShowColorPicker(false);
-    setShowRepeatPicker(false);
     setIsEditingDescription(false);
-  }, [task.id, task.title, task.description, task.due_date, task.due_time, task.color, task.is_completed, task.repeat_interval, task.repeat_unit]);
+  }, [task.id, task.title, task.description, task.due_date, task.due_time, task.color, task.is_completed, task.repeat_interval, task.repeat_unit, task.repeat_end_date, task.repeat_end_count]);
 
   useEffect(() => {
     setMounted(true);
@@ -200,7 +200,7 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
   function handleSave() {
     const trimmed = title.trim();
     if (!trimmed) return;
-    onSave(task.id, { title: trimmed, description, due_date: dueDate, due_time: dueTime, color, repeat_interval: repeatInterval, repeat_unit: repeatUnit });
+    onSave(task.id, { title: trimmed, description, due_date: dueDate, due_time: dueTime, color, repeat_interval: repeatInterval, repeat_unit: repeatUnit, repeat_end_date: repeatEndDate, repeat_end_count: repeatEndCount });
   }
 
   function handleDelete() {
@@ -250,7 +250,7 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
                     onClick={() => {
                       setColor(c);
                       setShowColorPicker(false);
-                      onSave(task.id, { title: title.trim() || task.title, description, due_date: dueDate, due_time: dueTime, color: c, repeat_interval: repeatInterval, repeat_unit: repeatUnit });
+                      onSave(task.id, { title: title.trim() || task.title, description, due_date: dueDate, due_time: dueTime, color: c, repeat_interval: repeatInterval, repeat_unit: repeatUnit, repeat_end_date: repeatEndDate, repeat_end_count: repeatEndCount });
                     }}
                     className={`w-6 h-6 rounded-full transition-all ${color === c ? "scale-125" : "hover:scale-110"}`}
                     style={{
@@ -287,7 +287,7 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
             className="p-1.5 text-subtle-foreground hover:text-foreground rounded-lg hover:bg-accent transition-colors"
             aria-label="Task options"
           >
-            <MoreHorizontal size={15} />
+            <MoreVertical size={15} />
           </button>
           {showMenu && menuBtnRef.current && createPortal(
             <div onMouseDown={(e) => e.stopPropagation()}>
@@ -384,47 +384,42 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
               onChange={(date) => {
                 setDueDate(date);
                 setShowDatePicker(false);
-                onSave(task.id, { title: title.trim() || task.title, description, due_date: date, due_time: dueTime, color, repeat_interval: repeatInterval, repeat_unit: repeatUnit });
+                onSave(task.id, { title: title.trim() || task.title, description, due_date: date, due_time: dueTime, color, repeat_interval: repeatInterval, repeat_unit: repeatUnit, repeat_end_date: repeatEndDate, repeat_end_count: repeatEndCount });
               }}
               onTimeChange={(time) => {
                 setDueTime(time);
-                onSave(task.id, { title: title.trim() || task.title, description, due_date: dueDate, due_time: time, color, repeat_interval: repeatInterval, repeat_unit: repeatUnit });
+                onSave(task.id, { title: title.trim() || task.title, description, due_date: dueDate, due_time: time, color, repeat_interval: repeatInterval, repeat_unit: repeatUnit, repeat_end_date: repeatEndDate, repeat_end_count: repeatEndCount });
               }}
+              repeatInterval={!task.source ? repeatInterval : undefined}
+              repeatUnit={!task.source ? repeatUnit : undefined}
+              onRepeatChange={!task.source ? (interval, unit) => {
+                setRepeatInterval(interval);
+                setRepeatUnit(unit);
+                if (!interval || !unit) {
+                  setRepeatEndDate(null);
+                  setRepeatEndCount(null);
+                  onSave(task.id, { title: title.trim() || task.title, description, due_date: dueDate, due_time: dueTime, color, repeat_interval: interval, repeat_unit: unit, repeat_end_date: null, repeat_end_count: null });
+                } else {
+                  onSave(task.id, { title: title.trim() || task.title, description, due_date: dueDate, due_time: dueTime, color, repeat_interval: interval, repeat_unit: unit, repeat_end_date: repeatEndDate, repeat_end_count: repeatEndCount });
+                }
+              } : undefined}
+              repeatEndDate={!task.source ? repeatEndDate : undefined}
+              repeatEndCount={!task.source ? repeatEndCount : undefined}
+              onRepeatEndChange={!task.source ? (endDate, endCount) => {
+                setRepeatEndDate(endDate);
+                setRepeatEndCount(endCount);
+                onSave(task.id, { title: title.trim() || task.title, description, due_date: dueDate, due_time: dueTime, color, repeat_interval: repeatInterval, repeat_unit: repeatUnit, repeat_end_date: endDate, repeat_end_count: endCount });
+              } : undefined}
             />
           </Popover>
         </div>
 
-        {/* Repeat line — below date, hidden for synced tasks */}
-        {!task.source && (
-          <div className="relative pl-8 mt-1">
-            <button
-              ref={repeatBtnRef}
-              type="button"
-              onClick={() => { setShowRepeatPicker(!showRepeatPicker); setShowDatePicker(false); setShowColorPicker(false); }}
-              className={`flex items-center gap-1.5 text-sm transition-colors ${
-                repeatInterval ? "text-purple-500 hover:text-purple-600" : "text-secondary-foreground hover:text-foreground"
-              }`}
-            >
-              <Repeat size={14} />
-              {repeatInterval && repeatUnit ? getRepeatLabel(repeatInterval, repeatUnit) : "No repeat"}
-            </button>
-            <Popover
-              open={showRepeatPicker}
-              onClose={() => setShowRepeatPicker(false)}
-              className="absolute left-8 top-full mt-1 z-10"
-              triggerRef={repeatBtnRef}
-            >
-              <RepeatPicker
-                interval={repeatInterval}
-                unit={repeatUnit}
-                onChange={(interval, unit) => {
-                  setRepeatInterval(interval);
-                  setRepeatUnit(unit);
-                  setShowRepeatPicker(false);
-                  onSave(task.id, { title: title.trim() || task.title, description, due_date: dueDate, due_time: dueTime, color, repeat_interval: interval, repeat_unit: unit });
-                }}
-              />
-            </Popover>
+        {/* Repeat label — shown if repeat is set, hidden for synced tasks */}
+        {!task.source && repeatInterval && repeatUnit && (
+          <div className="pl-8 mt-1">
+            <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-md border border-border">
+              {getRepeatLabel(repeatInterval, repeatUnit)}
+            </span>
           </div>
         )}
 

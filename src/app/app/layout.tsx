@@ -4,7 +4,9 @@ import Sidebar from "@/components/layout/Sidebar";
 import MobileTabBar from "@/components/layout/MobileTabBar";
 import { TaskProvider } from "@/contexts/TaskContext";
 import { ToastProvider } from "@/contexts/ToastContext";
+import { NotificationProvider } from "@/contexts/NotificationContext";
 import InboxTour from "@/components/ui/InboxTour";
+import NotificationCenter from "@/components/ui/NotificationCenter";
 import PostHogIdentify from "@/components/PostHogIdentify";
 
 /**
@@ -33,15 +35,18 @@ export default async function AppLayout({
     <div className="flex flex-col md:flex-row h-dvh">
       <PostHogIdentify userId={session.user.id} email={email} />
       <ToastProvider>
-        <TaskProvider>
-          <InboxTour>
+        <NotificationProvider>
+          <TaskProvider>
+            <InboxTour>
             <Sidebar avatarUrl={avatarUrl} fullName={fullName} email={email} />
             <main className="flex-1 overflow-auto p-4 md:p-10 pb-20 md:pb-10 dark:bg-black">
               {children}
             </main>
             <MobileTabBar />
-          </InboxTour>
-        </TaskProvider>
+            <NotificationCenter />
+            </InboxTour>
+          </TaskProvider>
+        </NotificationProvider>
       </ToastProvider>
     </div>
   );

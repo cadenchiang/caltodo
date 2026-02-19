@@ -52,6 +52,7 @@ export default function TodayPage() {
           task={currentSelectedTask}
           onClose={() => setSelectedTask(null)}
           onSave={updateTask}
+          onDelete={deleteTask}
         />
       </div>
     </PageTransition>

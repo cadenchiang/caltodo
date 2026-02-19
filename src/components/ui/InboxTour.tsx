@@ -117,7 +117,7 @@ function TourTrigger() {
       if (pending === "true") {
         hasTriggeredRef.current = true;
         localStorage.removeItem(TOUR_PENDING_KEY);
-        const timer = setTimeout(() => setShowDialog(true), 800);
+        const timer = setTimeout(() => setShowDialog(true), 1200);
         return () => clearTimeout(timer);
       }
     } catch {
@@ -125,8 +125,9 @@ function TourTrigger() {
     }
   }, [isCompleted, pathname]);
 
-  // Poll briefly in case the flag was set just before navigation (race condition)
-  // Tour is desktop-only
+  // Poll indefinitely in case the flag was set just before navigation (race condition).
+  // Keeps running until user makes a choice (Start Tour or Skip).
+  // Tour is desktop-only.
   useEffect(() => {
     if (isCompleted || hasTriggeredRef.current) return;
     if (typeof window !== "undefined" && window.innerWidth < 768) return;

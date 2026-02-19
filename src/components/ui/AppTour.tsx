@@ -241,7 +241,13 @@ export function TourProvider({ children, steps, onComplete }: TourProviderProps)
         // Wait for the click target element to appear
         const clickEl = await waitForElement(ct.targetId, TARGET_WAIT_TIMEOUT);
         if (!clickEl) {
+          // Error recovery: skip this broken step instead of getting stuck
+          console.warn(`[AppTour] Click target "${ct.targetId}" not found, skipping step ${stepIndex}`);
           setIsClickAnimating(false);
+          setCurrentStep((prev) => {
+            if (prev >= steps.length - 1) return -1;
+            return prev + 1;
+          });
           return;
         }
 
@@ -284,7 +290,13 @@ export function TourProvider({ children, steps, onComplete }: TourProviderProps)
       // Wait for the final target element
       const finalEl = await waitForElement(step.targetId, TARGET_WAIT_TIMEOUT);
       if (!finalEl) {
+        // Error recovery: skip this broken step instead of getting stuck
+        console.warn(`[AppTour] Final target "${step.targetId}" not found, skipping step ${stepIndex}`);
         setIsClickAnimating(false);
+        setCurrentStep((prev) => {
+          if (prev >= steps.length - 1) return -1;
+          return prev + 1;
+        });
         return;
       }
 
@@ -311,7 +323,15 @@ export function TourProvider({ children, steps, onComplete }: TourProviderProps)
     const el = await waitForElement(step.targetId, TARGET_WAIT_TIMEOUT);
     setNavigating(false);
 
-    if (!el) return;
+    if (!el) {
+      // Error recovery: skip this broken step instead of getting stuck
+      console.warn(`[AppTour] Target "${step.targetId}" not found, skipping step ${stepIndex}`);
+      setCurrentStep((prev) => {
+        if (prev >= steps.length - 1) return -1;
+        return prev + 1;
+      });
+      return;
+    }
 
     // Scroll into view only if the element is completely off-screen
     const rect = el.getBoundingClientRect();
@@ -455,8 +475,14 @@ export function TourProvider({ children, steps, onComplete }: TourProviderProps)
 
       {isActive && createPortal(
         <div
-          className="fixed inset-0 z-[9998] transition-opacity duration-150"
+          className="fixed inset-0 z-[10000] transition-opacity duration-150"
           style={{ opacity: targetRect ? 1 : 0 }}
+          onMouseDown={(e) => {
+            // Prevent clicks on the dark overlay from bubbling to document,
+            // which would trigger click-outside handlers on dropdowns/popovers
+            // opened by the tour's click sequence (e.g. the view toggle dropdown).
+            if (e.target === e.currentTarget) e.stopPropagation();
+          }}
         >
           {/* Overlay + highlight — always visible when target exists (including during click animation) */}
           {targetRect && (
@@ -464,6 +490,7 @@ export function TourProvider({ children, steps, onComplete }: TourProviderProps)
               {/* Overlay with spotlight cutout — clip-path animates between steps */}
               <div
                 className="absolute inset-0 bg-black/60"
+                onMouseDown={(e) => e.stopPropagation()}
                 style={{
                   clipPath: `polygon(
                     0% 0%,
@@ -500,7 +527,7 @@ export function TourProvider({ children, steps, onComplete }: TourProviderProps)
           {/* Content card — hidden during click animation */}
           {targetRect && cardPos && step && !isClickAnimating && (
             <div
-              className="absolute bg-card rounded-xl border border-border shadow-2xl p-4 transition-all duration-300 ease-in-out z-[9999]"
+              className="absolute bg-card rounded-xl border border-border shadow-2xl p-4 transition-all duration-300 ease-in-out z-[10001]"
               style={{
                 top: cardPos.top,
                 left: cardPos.left,
@@ -590,7 +617,7 @@ export function TourStartDialog({ open, onClose }: TourStartDialogProps) {
   if (!open) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[9997] flex items-center justify-center">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center">
       {/* Backdrop — no click-to-dismiss; use Skip or X to exit */}
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"

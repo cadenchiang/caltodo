@@ -80,7 +80,7 @@ function groupByCourse(tasks: Task[]): [string, Task[]][] {
 
 /**
  * Sorts tasks by closest due date first.
- * Tasks without a due date are placed at the end.
+ * Tasks without a due date are placed at the top.
  *
  * @param tasks - Array of tasks to sort
  * @returns New sorted array (does not mutate input)
@@ -88,8 +88,8 @@ function groupByCourse(tasks: Task[]): [string, Task[]][] {
 function sortByDueDate(tasks: Task[]): Task[] {
   return [...tasks].sort((a, b) => {
     if (!a.due_date && !b.due_date) return 0;
-    if (!a.due_date) return 1;
-    if (!b.due_date) return -1;
+    if (!a.due_date) return -1;
+    if (!b.due_date) return 1;
     return a.due_date.localeCompare(b.due_date);
   });
 }

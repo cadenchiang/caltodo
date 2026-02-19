@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDown, MoreHorizontal, MoreVertical, Palette, Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { ChevronDown, MoreVertical, Palette, Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
 import type { Task, TaskInsert } from "@/lib/types";
 import { TASK_COLORS } from "@/lib/constants";
 import BoardTaskAddForm from "./BoardTaskAddForm";
@@ -714,7 +714,7 @@ function TaskCard({ task, isSelected, onToggle, onSelect, onDelete }: TaskCardPr
             className="flex-shrink-0 p-0.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-all opacity-0 group-hover:opacity-100 [@media(pointer:coarse)]:opacity-100"
             aria-label="Task options"
           >
-            <MoreHorizontal size={14} />
+            <MoreVertical size={14} />
           </button>
         </div>
 

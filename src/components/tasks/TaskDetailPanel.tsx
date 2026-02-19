@@ -1,19 +1,20 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { CalendarDays, ExternalLink, Repeat } from "lucide-react";
+import { createPortal } from "react-dom";
+import { CalendarDays, ExternalLink, MoreVertical, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import type { Task, TaskUpdate } from "@/lib/types";
 import { TASK_COLORS } from "@/lib/constants";
 import { getRepeatLabel } from "@/lib/repeat";
 import DatePicker from "./DatePicker";
-import RepeatPicker from "./RepeatPicker";
 import Popover from "@/components/ui/Popover";
 
 interface TaskDetailPanelProps {
   task: Task | null;
   onClose: () => void;
   onSave: (id: string, updates: TaskUpdate) => void;
+  onDelete?: (id: string) => void;
 }
 
 /**
@@ -65,7 +66,7 @@ function getDateDisplay(dueDate: string | null, dueTime: string | null): { label
  * @param onClose - Callback to close/deselect the task
  * @param onSave - Callback with the task ID and updated fields
  */
-export default function TaskDetailPanel({ task, onClose, onSave }: TaskDetailPanelProps) {
+export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: TaskDetailPanelProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState<string | null>(null);
@@ -73,13 +74,16 @@ export default function TaskDetailPanel({ task, onClose, onSave }: TaskDetailPan
   const [color, setColor] = useState("#3B82F6");
   const [repeatInterval, setRepeatInterval] = useState<number | null>(null);
   const [repeatUnit, setRepeatUnit] = useState<"day" | "week" | "month" | null>(null);
+  const [repeatEndDate, setRepeatEndDate] = useState<string | null>(null);
+  const [repeatEndCount, setRepeatEndCount] = useState<number | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
-  const [showRepeatPicker, setShowRepeatPicker] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const descRef = useRef<HTMLTextAreaElement>(null);
   const dateButtonRef = useRef<HTMLButtonElement>(null);
   const colorButtonRef = useRef<HTMLButtonElement>(null);
-  const repeatButtonRef = useRef<HTMLButtonElement>(null);
+  const menuBtnRef = useRef<HTMLButtonElement>(null);
 
   // Sync state when a different task is selected
   useEffect(() => {
@@ -91,11 +95,13 @@ export default function TaskDetailPanel({ task, onClose, onSave }: TaskDetailPan
       setColor(task.color);
       setRepeatInterval(task.repeat_interval);
       setRepeatUnit(task.repeat_unit);
+      setRepeatEndDate(task.repeat_end_date);
+      setRepeatEndCount(task.repeat_end_count);
       setShowDatePicker(false);
       setShowColorPicker(false);
-      setShowRepeatPicker(false);
+      setMenuOpen(false);
     }
-  }, [task?.id, task?.title, task?.description, task?.due_date, task?.due_time, task?.color, task?.repeat_interval, task?.repeat_unit]);
+  }, [task?.id, task?.title, task?.description, task?.due_date, task?.due_time, task?.color, task?.repeat_interval, task?.repeat_unit, task?.repeat_end_date, task?.repeat_end_count]);
 
   /**
    * Persists current form state to the backend.
@@ -104,7 +110,7 @@ export default function TaskDetailPanel({ task, onClose, onSave }: TaskDetailPan
     if (!task) return;
     const trimmed = title.trim();
     if (!trimmed) return;
-    onSave(task.id, { title: trimmed, description, due_date: dueDate, due_time: dueTime, color, repeat_interval: repeatInterval, repeat_unit: repeatUnit });
+    onSave(task.id, { title: trimmed, description, due_date: dueDate, due_time: dueTime, color, repeat_interval: repeatInterval, repeat_unit: repeatUnit, repeat_end_date: repeatEndDate, repeat_end_count: repeatEndCount });
   }
 
   /**
@@ -113,7 +119,7 @@ export default function TaskDetailPanel({ task, onClose, onSave }: TaskDetailPan
   function saveWith(overrides: Partial<TaskUpdate>) {
     if (!task) return;
     const trimmed = title.trim() || task.title;
-    onSave(task.id, { title: trimmed, description, due_date: dueDate, due_time: dueTime, color, repeat_interval: repeatInterval, repeat_unit: repeatUnit, ...overrides });
+    onSave(task.id, { title: trimmed, description, due_date: dueDate, due_time: dueTime, color, repeat_interval: repeatInterval, repeat_unit: repeatUnit, repeat_end_date: repeatEndDate, repeat_end_count: repeatEndCount, ...overrides });
   }
 
   const dateDisplay = task ? getDateDisplay(dueDate, dueTime) : null;
@@ -175,42 +181,35 @@ export default function TaskDetailPanel({ task, onClose, onSave }: TaskDetailPan
                     setDueTime(time);
                     saveWith({ due_time: time });
                   }}
+                  repeatInterval={!task.source ? repeatInterval : undefined}
+                  repeatUnit={!task.source ? repeatUnit : undefined}
+                  onRepeatChange={!task.source ? (interval, unit) => {
+                    setRepeatInterval(interval);
+                    setRepeatUnit(unit);
+                    if (!interval || !unit) {
+                      setRepeatEndDate(null);
+                      setRepeatEndCount(null);
+                      saveWith({ repeat_interval: interval, repeat_unit: unit, repeat_end_date: null, repeat_end_count: null });
+                    } else {
+                      saveWith({ repeat_interval: interval, repeat_unit: unit });
+                    }
+                  } : undefined}
+                  repeatEndDate={!task.source ? repeatEndDate : undefined}
+                  repeatEndCount={!task.source ? repeatEndCount : undefined}
+                  onRepeatEndChange={!task.source ? (endDate, endCount) => {
+                    setRepeatEndDate(endDate);
+                    setRepeatEndCount(endCount);
+                    saveWith({ repeat_end_date: endDate, repeat_end_count: endCount });
+                  } : undefined}
                 />
               </Popover>
             </div>
 
-            {/* Repeat picker trigger — hidden for synced tasks */}
-            {!task.source && (
-              <div className="relative">
-                <button
-                  ref={repeatButtonRef}
-                  type="button"
-                  onClick={() => { setShowRepeatPicker(!showRepeatPicker); setShowDatePicker(false); setShowColorPicker(false); }}
-                  className={`flex items-center gap-1.5 text-sm font-medium transition-colors hover:opacity-80 ${
-                    repeatInterval ? "text-purple-500" : "text-subtle-foreground"
-                  }`}
-                >
-                  <Repeat size={16} />
-                  {repeatInterval && repeatUnit ? getRepeatLabel(repeatInterval, repeatUnit) : null}
-                </button>
-                <Popover
-                  open={showRepeatPicker}
-                  onClose={() => setShowRepeatPicker(false)}
-                  triggerRef={repeatButtonRef}
-                  className="absolute left-0 top-full mt-2 z-10"
-                >
-                  <RepeatPicker
-                    interval={repeatInterval}
-                    unit={repeatUnit}
-                    onChange={(interval, unit) => {
-                      setRepeatInterval(interval);
-                      setRepeatUnit(unit);
-                      setShowRepeatPicker(false);
-                      saveWith({ repeat_interval: interval, repeat_unit: unit });
-                    }}
-                  />
-                </Popover>
-              </div>
+            {/* Repeat label (shown alongside date, repeat is set via unified DatePicker) */}
+            {!task.source && repeatInterval && repeatUnit && (
+              <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-md border border-border">
+                {getRepeatLabel(repeatInterval, repeatUnit)}
+              </span>
             )}
 
             {/* Spacer */}
@@ -221,7 +220,7 @@ export default function TaskDetailPanel({ task, onClose, onSave }: TaskDetailPan
               <button
                 ref={colorButtonRef}
                 type="button"
-                onClick={() => { setShowColorPicker(!showColorPicker); setShowDatePicker(false); setShowRepeatPicker(false); }}
+                onClick={() => { setShowColorPicker(!showColorPicker); setShowDatePicker(false); }}
                 className="p-1 text-subtle-foreground hover:text-secondary-foreground rounded-lg hover:bg-accent transition-colors"
                 aria-label="Pick color"
               >
@@ -269,6 +268,25 @@ export default function TaskDetailPanel({ task, onClose, onSave }: TaskDetailPan
               >
                 <ExternalLink size={14} />
               </a>
+            )}
+
+            {/* Three-dots menu button */}
+            {onDelete && (
+              <button
+                ref={menuBtnRef}
+                type="button"
+                onClick={() => {
+                  if (menuBtnRef.current) {
+                    const rect = menuBtnRef.current.getBoundingClientRect();
+                    setMenuPos({ x: rect.left, y: rect.bottom + 4 });
+                  }
+                  setMenuOpen(true);
+                }}
+                className="p-1 text-subtle-foreground hover:text-foreground rounded-lg hover:bg-accent transition-colors"
+                aria-label="Task options"
+              >
+                <MoreVertical size={14} />
+              </button>
             )}
           </div>
 
@@ -323,6 +341,34 @@ export default function TaskDetailPanel({ task, onClose, onSave }: TaskDetailPan
               className="w-full text-sm text-secondary-foreground bg-transparent focus:outline-none resize-none placeholder-subtle-foreground leading-relaxed min-h-[200px]"
             />
           </div>
+
+          {/* Delete menu (three-dots dropdown) */}
+          {menuOpen && onDelete && typeof document !== "undefined" && createPortal(
+            <>
+              <div
+                className="fixed inset-0 z-50"
+                onClick={() => setMenuOpen(false)}
+                onContextMenu={(e) => { e.preventDefault(); setMenuOpen(false); }}
+              />
+              <div
+                className="fixed z-50 bg-card rounded-lg shadow-xl border border-input-border py-1 min-w-[140px]"
+                style={{ top: menuPos.y, left: menuPos.x }}
+              >
+                <button
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onDelete(task.id);
+                    onClose();
+                  }}
+                  className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
+                >
+                  <Trash2 size={14} />
+                  Delete task
+                </button>
+              </div>
+            </>,
+            document.body
+          )}
         </>
       ) : (
         <div className="flex-1 flex items-center justify-center p-5">

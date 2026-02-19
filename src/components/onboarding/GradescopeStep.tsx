@@ -1,7 +1,27 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { Eye, EyeOff, Loader2, Play } from "lucide-react";
+import { useState, useRef, useCallback } from "react";
+import { ArrowDown, Eye, EyeOff, Loader2, Play, X } from "lucide-react";
+
+/** Clickable chapter timestamps for the Gradescope instruction video. */
+const GRADESCOPE_CHAPTERS: Array<{ label: string; time: number }> = [
+  { label: "Reset password", time: 0 },
+  { label: "Check your email", time: 15 },
+  { label: "Set new password", time: 23 },
+  { label: "Sign in", time: 33 },
+];
+
+/**
+ * Formats a timestamp in seconds to "M:SS" display format.
+ *
+ * @param seconds - Time in seconds
+ * @returns Formatted string like "0:00", "0:15", "1:00"
+ */
+function formatTimestamp(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
 
 interface GradescopeCourse {
   id: string;
@@ -39,7 +59,32 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
   const [courses, setCourses] = useState<GradescopeCourse[] | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [videoExpanded, setVideoExpanded] = useState(false);
+  const [videoTime, setVideoTime] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  /** Updates current playback time for step highlighting. Stops video at 42s. */
+  const handleTimeUpdate = useCallback(() => {
+    if (videoRef.current) {
+      setVideoTime(videoRef.current.currentTime);
+      if (videoRef.current.currentTime >= 42) {
+        videoRef.current.pause();
+        videoRef.current.currentTime = 42;
+      }
+    }
+  }, []);
+
+  /**
+   * Determines which step is currently active based on video playback time.
+   *
+   * @returns Index of the active step, or -1 if video is not playing
+   */
+  function getActiveStepIndex(): number {
+    if (!videoExpanded) return -1;
+    for (let i = GRADESCOPE_CHAPTERS.length - 1; i >= 0; i--) {
+      if (videoTime >= GRADESCOPE_CHAPTERS[i].time) return i;
+    }
+    return 0;
+  }
 
   /**
    * Verifies credentials by fetching courses from Gradescope.
@@ -107,6 +152,8 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
     if (!ok) return;
   }
 
+  const activeStep = getActiveStepIndex();
+
   return (
     <div className="text-center">
       <div className="flex items-center justify-center gap-2 mb-2">
@@ -123,17 +170,92 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
       {/* Login inputs (no courses loaded yet) */}
       {!courses && (
         <>
-          <p className="text-sm text-gray-800 font-medium mb-4 animate-drop-in delay-100">
-            Your CalNet ID password is <strong>not</strong> your Gradescope password. CalNet SSO doesn&apos;t set one.{" "}
-            <a href="https://www.gradescope.com/reset_password" target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">
-              Reset your password
-            </a>{" "}
-            to create one, then sign in below.
-          </p>
+          {/* Steps + video section */}
+          <div className="animate-drop-in delay-100">
+            {/* Expanded: side-by-side steps + video */}
+            <div
+              className="grid overflow-hidden transition-[grid-template-rows,opacity,margin] duration-500"
+              style={{
+                gridTemplateRows: videoExpanded ? "1fr" : "0fr",
+                opacity: videoExpanded ? 1 : 0,
+                marginLeft: videoExpanded ? "-20rem" : "0",
+                marginRight: videoExpanded ? "-20rem" : "0",
+                transitionTimingFunction: "cubic-bezier(0.33, 1, 0.68, 1)",
+              }}
+            >
+              <div className="min-h-0 overflow-hidden">
+                <div className="flex items-center gap-8 mb-4">
+                  {/* Steps on the left */}
+                  <div className="w-56 shrink-0 flex flex-col gap-1.5">
+                    {GRADESCOPE_CHAPTERS.map((step, i) => {
+                      const isActive = activeStep === i;
+                      return (
+                        <button
+                          key={step.time}
+                          type="button"
+                          onClick={() => {
+                            if (videoRef.current) {
+                              videoRef.current.currentTime = step.time;
+                              videoRef.current.play().catch(() => {});
+                            }
+                          }}
+                          className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-200 ${
+                            isActive
+                              ? "bg-teal-50 text-teal-600"
+                              : "text-gray-700 hover:text-gray-900 hover:bg-gray-50"
+                          }`}
+                        >
+                          <span className="tabular-nums text-xs font-mono opacity-60 shrink-0 w-8 text-right">
+                            {formatTimestamp(step.time)}
+                          </span>
+                          <span
+                            className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+                              isActive
+                                ? "bg-teal-500 text-white"
+                                : "bg-gray-800 text-white"
+                            }`}
+                          >
+                            {i + 1}
+                          </span>
+                          <span className={`text-sm leading-tight ${isActive ? "font-semibold" : "font-medium"}`}>
+                            {step.label}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
 
-          {/* Video section with smooth expand/collapse */}
-          <div className="animate-drop-in delay-150">
-            {/* Button - collapses when video expanded */}
+                  {/* Video on the right */}
+                  <div className="flex-1 min-w-0">
+                    <div className="rounded-xl overflow-hidden shadow-lg">
+                      <video
+                        ref={videoRef}
+                        src="/gradescope-instructions.mp4"
+                        muted
+                        playsInline
+                        controls
+                        onTimeUpdate={handleTimeUpdate}
+                        className="w-full"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setVideoExpanded(false);
+                    videoRef.current?.pause();
+                  }}
+                  className="text-sm text-gray-400 hover:text-gray-600 transition-colors mb-4 flex items-center gap-1 mx-auto"
+                >
+                  <X size={14} />
+                  hide video
+                </button>
+              </div>
+            </div>
+
+            {/* Collapsed: big vertical numbered steps */}
             <div
               className="grid overflow-hidden transition-[grid-template-rows,opacity] duration-500"
               style={{
@@ -143,6 +265,40 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
               }}
             >
               <div className="min-h-0 overflow-hidden">
+                <div className="flex flex-col gap-1 mb-4 text-left">
+                  {GRADESCOPE_CHAPTERS.map((step, i) => (
+                    <div
+                      key={step.time}
+                      className="flex items-center gap-3 px-2 py-2"
+                    >
+                      <span className="w-7 h-7 rounded-full bg-gray-800 text-white flex items-center justify-center text-xs font-bold shrink-0">
+                        {i + 1}
+                      </span>
+                      <span className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                        {i === 0 ? (
+                          <>
+                            <a
+                              href="https://www.gradescope.com/reset_password"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-500 underline"
+                            >
+                              Reset password
+                            </a>
+                            <span className="text-gray-400 font-normal">(required)</span>
+                          </>
+                        ) : (
+                          step.label
+                        )}
+                        {i === GRADESCOPE_CHAPTERS.length - 1 && (
+                          <ArrowDown size={14} className="text-gray-400" />
+                        )}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Watch video button */}
                 <button
                   type="button"
                   onClick={() => {
@@ -151,49 +307,14 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
                       if (videoRef.current) {
                         videoRef.current.currentTime = 0;
                         videoRef.current.play().catch(() => {});
+                        videoRef.current.playbackRate = 1.1;
                       }
                     }, 400);
                   }}
-                  className="w-full flex items-center gap-2.5 px-3.5 py-3 mb-4 rounded-xl text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 hover:bg-blue-100 active:scale-[0.98] transition-all duration-150"
+                  className="w-full flex items-center gap-2.5 px-3.5 py-3 mb-4 rounded-xl text-xs font-medium text-teal-600 bg-teal-50 border border-teal-200 hover:bg-teal-100 active:scale-[0.98] transition-all duration-150"
                 >
                   <Play size={14} />
-                  watch how to sign in
-                </button>
-              </div>
-            </div>
-
-            {/* Video - expands smoothly from 0 height, breaks out of container */}
-            <div
-              className="grid overflow-hidden transition-[grid-template-rows,opacity,margin] duration-500"
-              style={{
-                gridTemplateRows: videoExpanded ? "1fr" : "0fr",
-                opacity: videoExpanded ? 1 : 0,
-                marginLeft: videoExpanded ? "-6rem" : "0",
-                marginRight: videoExpanded ? "-6rem" : "0",
-                transitionTimingFunction: "cubic-bezier(0.33, 1, 0.68, 1)",
-              }}
-            >
-              <div className="min-h-0 overflow-hidden">
-                <div className="rounded-xl overflow-hidden shadow-lg mb-3">
-                  <video
-                    ref={videoRef}
-                    src="/gradescope-instructions.mp4"
-                    loop
-                    muted
-                    playsInline
-                    controls
-                    className="w-full"
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setVideoExpanded(false);
-                    videoRef.current?.pause();
-                  }}
-                  className="text-xs text-gray-400 hover:text-gray-600 transition-colors mb-4"
-                >
-                  hide video
+                  watch how to reset your password
                 </button>
               </div>
             </div>
@@ -310,13 +431,18 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
 
           <div className="flex gap-3">
             <button
-              onClick={() => {
-                setCourses(null);
-                setSelectedIds(new Set());
+              onClick={async () => {
+                // Skip saves credentials but with empty course selection
+                await onNext({
+                  gradescope_email: email.trim(),
+                  gradescope_password: password.trim(),
+                  selected_gradescope_courses: [],
+                });
               }}
-              className="flex-1 px-4 py-2.5 text-sm text-gray-400 rounded-xl bg-white btn-elevated-secondary"
+              disabled={saving}
+              className="flex-1 px-4 py-2.5 text-sm text-gray-400 rounded-xl bg-white btn-elevated-secondary disabled:opacity-50"
             >
-              back
+              skip
             </button>
             <button
               onClick={handleSaveAndNext}

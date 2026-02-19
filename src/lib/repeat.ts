@@ -61,3 +61,32 @@ export function getRepeatLabel(interval: number, unit: RepeatUnit): string {
   const unitPlural = interval === 1 ? unit : `${unit}s`;
   return `Every ${interval} ${unitPlural}`;
 }
+
+/**
+ * Determines whether a repeating task should spawn its next occurrence.
+ * Checks both end-date and end-count conditions.
+ *
+ * @param nextDueDate - The computed next due date "YYYY-MM-DD"
+ * @param repeatEndDate - End date threshold "YYYY-MM-DD" or null (no end date)
+ * @param repeatEndCount - Max total occurrences or null (no count limit)
+ * @returns true if the next occurrence should be created
+ */
+export function shouldSpawnNext(
+  nextDueDate: string,
+  repeatEndDate: string | null,
+  repeatEndCount: number | null,
+): boolean {
+  // Check end date: next occurrence must not exceed the end date
+  if (repeatEndDate) {
+    if (nextDueDate > repeatEndDate) return false;
+  }
+
+  // Check end count: if count is 1 or less, this was the last occurrence
+  // (count represents remaining occurrences including current; when current
+  // is completed, count was already decremented before calling this)
+  if (repeatEndCount !== null && repeatEndCount !== undefined) {
+    if (repeatEndCount <= 1) return false;
+  }
+
+  return true;
+}

@@ -4,9 +4,11 @@ import { createContext, useContext, useState, useEffect, useLayoutEffect, useCal
 import { Undo2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/contexts/ToastContext";
+import { useNotifications } from "@/contexts/NotificationContext";
 import type { Task, TaskInsert, TaskUpdate, SyncResult } from "@/lib/types";
 import { trackEvent } from "@/lib/analytics";
-import { computeNextDueDate } from "@/lib/repeat";
+import { computeNextDueDate, shouldSpawnNext } from "@/lib/repeat";
+import { createTaskSnapshot, detectSyncChanges } from "@/lib/notification-helpers";
 
 /** localStorage key and version for stale-while-revalidate task caching. */
 const CACHE_KEY = "caltodo_tasks_cache";
@@ -83,7 +85,7 @@ interface TaskContextValue {
   deleteTask: (id: string) => Promise<void>;
   deleteAllTasks: () => Promise<void>;
   triggerSync: (courseOverrides?: { canvas_courses?: Array<{ id: number; name: string }>; gradescope_courses?: Array<{ id: string; name: string }> }) => Promise<void>;
-  fetchTasks: () => Promise<void>;
+  fetchTasks: () => Promise<Task[]>;
 }
 
 const TaskContext = createContext<TaskContextValue | null>(null);
@@ -98,6 +100,7 @@ const TaskContext = createContext<TaskContextValue | null>(null);
  */
 export function TaskProvider({ children }: { children: ReactNode }) {
   const { showToast } = useToast();
+  const { addNotification } = useNotifications();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -121,7 +124,21 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const fetchTasks = useCallback(async () => {
+  /**
+   * Ref holding the last successfully fetched task list.
+   * Used as a reliable baseline for sync change detection instead of
+   * the potentially-stale `tasks` state from React closures.
+   */
+  const taskBaselineRef = useRef<Task[]>([]);
+
+  /**
+   * Whether the initial fetchTasks has completed at least once.
+   * Notifications are suppressed until this is true to avoid
+   * false "new assignment" alerts on first load.
+   */
+  const hasInitialFetchRef = useRef(false);
+
+  const fetchTasks = useCallback(async (): Promise<Task[]> => {
     // Only show loading spinner if we have no cached data
     if (!hasCacheRef.current) {
       setLoading(true);
@@ -142,13 +159,16 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     if (fetchError) {
       setError(fetchError.message);
       setLoading(false);
-      return;
+      return [];
     }
 
     const freshTasks = data ?? [];
     setTasks(freshTasks);
     setCachedTasks(freshTasks);
+    taskBaselineRef.current = freshTasks;
+    hasInitialFetchRef.current = true;
     setLoading(false);
+    return freshTasks;
   }, []);
 
   const fetchLastSynced = useCallback(async () => {
@@ -168,46 +188,79 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     fetchLastSynced();
   }, [fetchTasks, fetchLastSynced]);
 
-  // Auto-sync: runs on initial load (if stale) and every 15 minutes
+  // Auto-sync: runs on initial load (if stale) and every 5 minutes.
+  // Uses AbortController to cleanly cancel in-flight requests on unmount/re-render.
+  // Suppresses notifications on first sync to avoid false positives from empty baseline.
   const lastAutoSyncRef = useRef<number>(0);
-  const autoSyncTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  /**
-   * Runs sync silently if enough time has passed since the last sync.
-   * Does not show a progress bar; just refreshes data in the background.
-   */
-  const autoSync = useCallback(async () => {
-    const now = Date.now();
-    if (syncing || now - lastAutoSyncRef.current < AUTO_SYNC_COOLDOWN_MS) return;
-    lastAutoSyncRef.current = now;
-    try {
-      const res = await fetch("/api/assignments/sync", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
-      });
-      if (res.ok) {
-        const result: SyncResult = await res.json();
-        setLastSyncedAt(result.last_synced_at);
-        await fetchTasks();
-      }
-    } catch {
-      // Silent failure for auto-sync — user can still manually sync
-    }
-  }, [syncing, fetchTasks]);
+  const autoSyncAbortRef = useRef<AbortController | null>(null);
+  const isFirstAutoSyncRef = useRef(true);
 
   useEffect(() => {
-    // Auto-sync on mount after a short delay (let initial load finish)
+    let mounted = true;
+    const abortController = new AbortController();
+    autoSyncAbortRef.current = abortController;
+
+    /**
+     * Runs sync silently if enough time has passed since the last sync.
+     * Uses taskBaselineRef for a reliable snapshot instead of the stale
+     * `tasks` state from the closure. Skips notification generation on
+     * the first sync after mount (baseline is unreliable at that point).
+     */
+    async function autoSync() {
+      const now = Date.now();
+      if (syncing || now - lastAutoSyncRef.current < AUTO_SYNC_COOLDOWN_MS) return;
+      lastAutoSyncRef.current = now;
+
+      const shouldNotify = !isFirstAutoSyncRef.current && hasInitialFetchRef.current;
+      isFirstAutoSyncRef.current = false;
+
+      try {
+        const snapshot = shouldNotify
+          ? createTaskSnapshot(taskBaselineRef.current)
+          : null;
+
+        const res = await fetch("/api/assignments/sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
+          signal: abortController.signal,
+        });
+        if (!mounted) return;
+        if (res.ok) {
+          const result: SyncResult = await res.json();
+          if (!mounted) return;
+          setLastSyncedAt(result.last_synced_at);
+          const freshTasks = await fetchTasks();
+          if (!mounted) return;
+
+          // Only emit notifications after the first sync establishes a reliable baseline
+          if (snapshot) {
+            const changes = detectSyncChanges(snapshot, freshTasks);
+            for (const change of changes) {
+              addNotification(change.type, change.title, change.description, change.taskId);
+            }
+          }
+        }
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        // Silent failure for auto-sync — user can still manually sync
+      }
+    }
+
+    // Auto-sync on mount after a short delay (let initial fetch finish first)
     const mountTimer = setTimeout(() => autoSync(), 3000);
 
     // Set up periodic auto-sync
-    autoSyncTimerRef.current = setInterval(() => autoSync(), AUTO_SYNC_INTERVAL_MS);
+    const intervalTimer = setInterval(() => autoSync(), AUTO_SYNC_INTERVAL_MS);
 
     return () => {
+      mounted = false;
       clearTimeout(mountTimer);
-      if (autoSyncTimerRef.current) clearInterval(autoSyncTimerRef.current);
+      clearInterval(intervalTimer);
+      abortController.abort();
     };
-  }, [autoSync]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [syncing, fetchTasks, addNotification]);
 
   /**
    * Adds a task with optimistic UI: immediately shows in the list with a temp ID,
@@ -242,6 +295,8 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       dismissed_at: null,
       repeat_interval: taskData.repeat_interval ?? null,
       repeat_unit: taskData.repeat_unit ?? null,
+      repeat_end_date: taskData.repeat_end_date ?? null,
+      repeat_end_count: taskData.repeat_end_count ?? null,
       late_due_date: null,
     };
 
@@ -325,7 +380,10 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     trackEvent(willComplete ? "task_completed" : "task_uncompleted");
     await updateTask(id, { is_completed: willComplete });
 
-    // Spawn next occurrence for repeating tasks
+    // Track spawned task info for undo cleanup
+    let spawnedNextDueDate: string | null = null;
+
+    // Spawn next occurrence for repeating tasks (with end condition checks)
     if (
       willComplete &&
       task.repeat_interval &&
@@ -334,24 +392,60 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       !task.source
     ) {
       const nextDueDate = computeNextDueDate(task.due_date, task.repeat_interval, task.repeat_unit);
-      await addTask({
-        title: task.title,
-        description: task.description || undefined,
-        due_date: nextDueDate,
-        due_time: task.due_time,
-        color: task.color,
-        repeat_interval: task.repeat_interval,
-        repeat_unit: task.repeat_unit,
-      });
-      trackEvent("repeat_task_spawned");
+
+      if (shouldSpawnNext(nextDueDate, task.repeat_end_date, task.repeat_end_count)) {
+        spawnedNextDueDate = nextDueDate;
+        // Decrement end count for the spawned task (if count-based end)
+        const nextEndCount = task.repeat_end_count ? task.repeat_end_count - 1 : null;
+
+        await addTask({
+          title: task.title,
+          description: task.description || undefined,
+          due_date: nextDueDate,
+          due_time: task.due_time,
+          color: task.color,
+          repeat_interval: task.repeat_interval,
+          repeat_unit: task.repeat_unit,
+          repeat_end_date: task.repeat_end_date,
+          repeat_end_count: nextEndCount,
+        });
+        trackEvent("repeat_task_spawned");
+        addNotification(
+          "repeat_spawned",
+          `Next: ${task.title}`,
+          `due ${nextDueDate}`,
+        );
+      }
     }
 
     if (willComplete) {
+      const taskTitle = task.title;
+      const nextDate = spawnedNextDueDate;
       showToast("Task completed", {
         action: {
           label: "Undo",
           icon: <Undo2 size={14} />,
-          onClick: () => updateTask(id, { is_completed: false }),
+          onClick: () => {
+            updateTask(id, { is_completed: false });
+            // Clean up spawned repeat task if undo is clicked
+            if (nextDate) {
+              setTasks((prev) => {
+                const spawned = prev.find(
+                  (t) =>
+                    t.title === taskTitle &&
+                    t.due_date === nextDate &&
+                    !t.is_completed &&
+                    t.id !== id,
+                );
+                if (!spawned) return prev;
+                // Hard-delete spawned task from DB (manual task, no sync concern)
+                supabase.from("tasks").delete().eq("id", spawned.id).then(() => {});
+                const updated = prev.filter((t) => t.id !== spawned.id);
+                setCachedTasks(updated);
+                return updated;
+              });
+            }
+          },
         },
       });
     }
@@ -480,6 +574,8 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     startProgressTimer();
     trackEvent("sync_started");
 
+    const snapshot = createTaskSnapshot(taskBaselineRef.current);
+
     try {
       const res = await fetch("/api/assignments/sync", {
         method: "POST",
@@ -502,11 +598,16 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       });
 
       // Refresh tasks list after sync to include new assignments
-      await fetchTasks();
+      const freshTasks = await fetchTasks();
+      const changes = detectSyncChanges(snapshot, freshTasks);
+      for (const change of changes) {
+        addNotification(change.type, change.title, change.description, change.taskId);
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       trackEvent("sync_failed", { error: message });
       setError(message);
+      addNotification("sync_error", "Sync error", message);
     } finally {
       stopProgressTimer();
       setSyncing(false);

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { createPortal } from "react-dom";
-import { Trash2, Repeat } from "lucide-react";
+import { Trash2, Repeat, MoreVertical } from "lucide-react";
 import type { Task } from "@/lib/types";
 
 interface TaskItemProps {
@@ -82,16 +82,34 @@ function getDueDateBadge(dueDate: string | null, dueTime: string | null): { date
 export default function TaskItem({ task, isSelected, onToggle, onSelect, onDelete }: TaskItemProps) {
   const rawBadge = getDueDateBadge(task.due_date, task.due_time);
   const dueBadge = rawBadge && task.is_completed ? { ...rawBadge, className: "text-subtle-foreground" } : rawBadge;
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const menuBtnRef = useRef<HTMLButtonElement>(null);
   const isOptimistic = task.id.startsWith("temp-");
 
+  /**
+   * Opens the delete menu from right-click context menu.
+   */
   function handleContextMenu(e: React.MouseEvent) {
     e.preventDefault();
-    setContextMenu({ x: e.clientX, y: e.clientY });
+    setMenuPos({ x: e.clientX, y: e.clientY });
+    setMenuOpen(true);
+  }
+
+  /**
+   * Opens the delete menu from the three-dots button.
+   */
+  function handleDotsClick(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (menuBtnRef.current) {
+      const rect = menuBtnRef.current.getBoundingClientRect();
+      setMenuPos({ x: rect.left, y: rect.bottom + 4 });
+    }
+    setMenuOpen(true);
   }
 
   function handleDelete() {
-    setContextMenu(null);
+    setMenuOpen(false);
     onDelete(task.id);
   }
 
@@ -154,19 +172,30 @@ export default function TaskItem({ task, isSelected, onToggle, onSelect, onDelet
             {dueBadge.dateLabel}
           </span>
         )}
+
+        {/* Three-dots menu button */}
+        <button
+          ref={menuBtnRef}
+          type="button"
+          onClick={handleDotsClick}
+          className="shrink-0 -mr-2 p-0.5 rounded text-subtle-foreground opacity-0 group-hover:opacity-100 hover:text-foreground hover:bg-accent transition-all"
+          aria-label="Task options"
+        >
+          <MoreVertical size={14} />
+        </button>
       </div>
 
-      {/* Right-click context menu */}
-      {contextMenu && typeof document !== "undefined" && createPortal(
+      {/* Delete menu (from right-click or three-dots) */}
+      {menuOpen && typeof document !== "undefined" && createPortal(
         <>
           <div
             className="fixed inset-0 z-50"
-            onClick={() => setContextMenu(null)}
-            onContextMenu={(e) => { e.preventDefault(); setContextMenu(null); }}
+            onClick={() => setMenuOpen(false)}
+            onContextMenu={(e) => { e.preventDefault(); setMenuOpen(false); }}
           />
           <div
             className="fixed z-50 bg-card rounded-lg shadow-xl border border-input-border py-1 min-w-[140px]"
-            style={{ top: contextMenu.y, left: contextMenu.x }}
+            style={{ top: menuPos.y, left: menuPos.x }}
           >
             <button
               onClick={handleDelete}

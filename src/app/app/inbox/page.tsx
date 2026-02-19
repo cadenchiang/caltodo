@@ -23,14 +23,39 @@ const FILTER_OPTIONS: { key: InboxFilter; label: string; icon: React.ComponentTy
 ];
 
 /**
+ * Checks if a repeating task should be hidden because its due date is in the future.
+ * Repeat-spawned tasks are hidden until their due date arrives, matching standard
+ * todo app behavior (e.g. Todoist). Non-repeating or completed tasks are never hidden.
+ *
+ * @param task - The task to check
+ * @param todayStr - Today's date as "YYYY-MM-DD" for comparison
+ * @returns true if the task should be hidden
+ */
+function isFutureRepeatTask(task: Task, todayStr: string): boolean {
+  return (
+    !task.is_completed &&
+    !!task.repeat_interval &&
+    !!task.due_date &&
+    task.due_date > todayStr
+  );
+}
+
+/**
  * Filters tasks by due date relative to today.
+ * Repeating tasks with future due dates are always hidden until their due date,
+ * regardless of the active filter.
  *
  * @param tasks - Array of tasks to filter
  * @param filter - Time window filter ("all" = no filter, "today" = due today or earlier + undated, "7days" = next 7 days)
  * @returns Filtered tasks
  */
 function filterTasksByDate(tasks: Task[], filter: InboxFilter): Task[] {
-  if (filter === "all") return tasks;
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+
+  if (filter === "all") {
+    return tasks.filter((t) => !isFutureRepeatTask(t, todayStr));
+  }
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -86,8 +111,8 @@ function sortByClass(tasks: Task[]): Task[] {
     const cmp = ca.localeCompare(cb);
     if (cmp !== 0) return cmp;
     if (!a.due_date && !b.due_date) return 0;
-    if (!a.due_date) return 1;
-    if (!b.due_date) return -1;
+    if (!a.due_date) return -1;
+    if (!b.due_date) return 1;
     return a.due_date.localeCompare(b.due_date);
   });
 }
@@ -706,6 +731,7 @@ export default function InboxPage() {
               task={currentSelectedTask}
               onClose={() => setSelectedTask(null)}
               onSave={updateTask}
+              onDelete={deleteTask}
             />
           </div>
         )}

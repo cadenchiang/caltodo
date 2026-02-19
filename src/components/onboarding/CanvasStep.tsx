@@ -1,8 +1,22 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { Eye, EyeOff, Loader2, Play } from "lucide-react";
+import { useState, useRef, useCallback } from "react";
+import { Eye, EyeOff, Loader2, Play, X } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
+
+/**
+ * Instruction steps for generating a bCourses access token.
+ * Each step maps to a timestamp in the instruction video.
+ *
+ * @property label - Step description shown to the user
+ * @property time - Video timestamp in seconds for this step
+ */
+const TOKEN_STEPS: Array<{ label: string; time: number }> = [
+  { label: "Open bCourses Settings", time: 0 },
+  { label: "Create + New Access Token", time: 5 },
+  { label: "Set expiration to max (120 days)", time: 12 },
+  { label: "Copy your token", time: 18 },
+];
 
 interface CanvasCourse {
   id: number;
@@ -23,7 +37,22 @@ interface CanvasStepProps {
 }
 
 /**
+ * Formats a timestamp in seconds to "M:SS" display format.
+ *
+ * @param seconds - Time in seconds
+ * @returns Formatted string like "0:00", "0:15", "1:00"
+ */
+function formatTimestamp(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+/**
  * Canvas onboarding step with always-white styling.
+ * Displays numbered instruction steps that transition to a side-by-side
+ * layout with video timestamps when the tutorial video is expanded.
+ *
  * Flow: enter token -> verify -> select courses -> save.
  *
  * @param onNext - Async callback to save credentials; returns true on success
@@ -41,7 +70,33 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError }: 
   const [courses, setCourses] = useState<CanvasCourse[] | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [videoExpanded, setVideoExpanded] = useState(false);
+  const [videoTime, setVideoTime] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  /** Updates current playback time for step highlighting. */
+  /** Updates current playback time for step highlighting. Stops video at 28s. */
+  const handleTimeUpdate = useCallback(() => {
+    if (videoRef.current) {
+      setVideoTime(videoRef.current.currentTime);
+      if (videoRef.current.currentTime >= 28) {
+        videoRef.current.pause();
+        videoRef.current.currentTime = 28;
+      }
+    }
+  }, []);
+
+  /**
+   * Determines which step is currently active based on video playback time.
+   *
+   * @returns Index of the active step, or -1 if video is not playing
+   */
+  function getActiveStepIndex(): number {
+    if (!videoExpanded) return -1;
+    for (let i = TOKEN_STEPS.length - 1; i >= 0; i--) {
+      if (videoTime >= TOKEN_STEPS[i].time) return i;
+    }
+    return 0;
+  }
 
   /**
    * Verifies the token by fetching courses from Canvas.
@@ -109,29 +164,103 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError }: 
     if (!ok) return;
   }
 
+  const activeStep = getActiveStepIndex();
+
   return (
     <div className="text-center">
-      <div className="flex items-center justify-center gap-2 mb-2">
+      <div className="flex items-center justify-center gap-2 mb-4">
         <img src="/bcourses-logo.png" alt="bCourses" width={22} height={22} className="shrink-0" />
         <h2 className="text-lg font-bold text-gray-800 animate-drop-in">bCourses</h2>
       </div>
 
       {!courses && (
         <>
-          <p className="text-sm text-gray-800 mb-2 animate-drop-in delay-100">
-            paste your access token from{" "}
-            <a href="https://bcourses.berkeley.edu/profile/settings" target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">
-              bCourses Settings
-            </a>{" "}
-            &gt; Approved Integrations &gt; + New Access Token.
-          </p>
-          <p className="text-xs text-gray-600 mb-4 animate-drop-in delay-100">
-            set the expiration to the <strong className="text-gray-800">maximum (120 days)</strong> so your token lasts the full semester.
-          </p>
+          {/* Steps + video section */}
+          <div className="animate-drop-in delay-100">
+            {/* Expanded: side-by-side steps + video */}
+            <div
+              className="grid overflow-hidden transition-[grid-template-rows,opacity,margin] duration-500"
+              style={{
+                gridTemplateRows: videoExpanded ? "1fr" : "0fr",
+                opacity: videoExpanded ? 1 : 0,
+                marginLeft: videoExpanded ? "-20rem" : "0",
+                marginRight: videoExpanded ? "-20rem" : "0",
+                transitionTimingFunction: "cubic-bezier(0.33, 1, 0.68, 1)",
+              }}
+            >
+              <div className="min-h-0 overflow-hidden">
+                <div className="flex items-center gap-8 mb-4">
+                  {/* Steps on the left */}
+                  <div className="w-56 shrink-0 flex flex-col gap-1.5">
+                    {TOKEN_STEPS.map((step, i) => {
+                      const isActive = activeStep === i;
+                      return (
+                        <button
+                          key={step.time}
+                          type="button"
+                          onClick={() => {
+                            if (videoRef.current) {
+                              videoRef.current.currentTime = step.time;
+                              videoRef.current.play().catch(() => {});
+                            }
+                          }}
+                          className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-200 ${
+                            isActive
+                              ? "bg-blue-50 text-blue-600"
+                              : "text-gray-700 hover:text-gray-900 hover:bg-gray-50"
+                          }`}
+                        >
+                          <span className="tabular-nums text-xs font-mono opacity-60 shrink-0 w-8 text-right">
+                            {formatTimestamp(step.time)}
+                          </span>
+                          <span
+                            className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+                              isActive
+                                ? "bg-blue-500 text-white"
+                                : "bg-gray-800 text-white"
+                            }`}
+                          >
+                            {i + 1}
+                          </span>
+                          <span className={`text-sm leading-tight ${isActive ? "font-semibold" : "font-medium"}`}>
+                            {step.label}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
 
-          {/* Video section with smooth expand/collapse */}
-          <div className="animate-drop-in delay-150">
-            {/* Button - collapses when video expanded */}
+                  {/* Video on the right */}
+                  <div className="flex-1 min-w-0">
+                    <div className="rounded-xl overflow-hidden shadow-lg">
+                      <video
+                        ref={videoRef}
+                        src="/bcourses-instructions.mp4"
+                        muted
+                        playsInline
+                        controls
+                        onTimeUpdate={handleTimeUpdate}
+                        className="w-full"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setVideoExpanded(false);
+                    videoRef.current?.pause();
+                  }}
+                  className="text-sm text-gray-400 hover:text-gray-600 transition-colors mb-4 flex items-center gap-1 mx-auto"
+                >
+                  <X size={14} />
+                  hide video
+                </button>
+              </div>
+            </div>
+
+            {/* Collapsed: big vertical numbered steps */}
             <div
               className="grid overflow-hidden transition-[grid-template-rows,opacity] duration-500"
               style={{
@@ -141,6 +270,37 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError }: 
               }}
             >
               <div className="min-h-0 overflow-hidden">
+                <div className="flex flex-col gap-1 mb-4 text-left">
+                  {TOKEN_STEPS.map((step, i) => (
+                    <div
+                      key={step.time}
+                      className="flex items-center gap-3 px-2 py-2"
+                    >
+                      <span className="w-7 h-7 rounded-full bg-gray-800 text-white flex items-center justify-center text-xs font-bold shrink-0">
+                        {i + 1}
+                      </span>
+                      <span className="text-sm font-medium text-gray-700">
+                        {i === 0 ? (
+                          <>
+                            Open{" "}
+                            <a
+                              href="https://bcourses.berkeley.edu/profile/settings"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-500 underline"
+                            >
+                              bCourses Settings
+                            </a>
+                          </>
+                        ) : (
+                          step.label
+                        )}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Watch video button */}
                 <button
                   type="button"
                   onClick={() => {
@@ -149,6 +309,7 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError }: 
                       if (videoRef.current) {
                         videoRef.current.currentTime = 0;
                         videoRef.current.play().catch(() => {});
+                        videoRef.current.playbackRate = 1.1;
                       }
                     }, 400);
                   }}
@@ -156,42 +317,6 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError }: 
                 >
                   <Play size={14} />
                   watch how to generate a token
-                </button>
-              </div>
-            </div>
-
-            {/* Video - expands smoothly from 0 height, breaks out of container */}
-            <div
-              className="grid overflow-hidden transition-[grid-template-rows,opacity,margin] duration-500"
-              style={{
-                gridTemplateRows: videoExpanded ? "1fr" : "0fr",
-                opacity: videoExpanded ? 1 : 0,
-                marginLeft: videoExpanded ? "-6rem" : "0",
-                marginRight: videoExpanded ? "-6rem" : "0",
-                transitionTimingFunction: "cubic-bezier(0.33, 1, 0.68, 1)",
-              }}
-            >
-              <div className="min-h-0 overflow-hidden">
-                <div className="rounded-xl overflow-hidden shadow-lg mb-3">
-                  <video
-                    ref={videoRef}
-                    src="/bcourses-instructions.mp4"
-                    loop
-                    muted
-                    playsInline
-                    controls
-                    className="w-full"
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setVideoExpanded(false);
-                    videoRef.current?.pause();
-                  }}
-                  className="text-xs text-gray-400 hover:text-gray-600 transition-colors mb-4"
-                >
-                  hide video
                 </button>
               </div>
             </div>
@@ -287,13 +412,18 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError }: 
 
           <div className="flex gap-3">
             <button
-              onClick={() => {
-                setCourses(null);
-                setSelectedIds(new Set());
+              onClick={async () => {
+                // Skip saves credentials but with empty course selection
+                await onNext({
+                  canvas_token: canvasToken.trim(),
+                  canvas_base_url: canvasBaseUrl.trim(),
+                  selected_canvas_courses: [],
+                });
               }}
-              className="flex-1 px-4 py-2.5 text-sm text-gray-400 rounded-xl bg-white btn-elevated-secondary"
+              disabled={saving}
+              className="flex-1 px-4 py-2.5 text-sm text-gray-400 rounded-xl bg-white btn-elevated-secondary disabled:opacity-50"
             >
-              back
+              skip
             </button>
             <button
               onClick={handleSaveAndNext}
