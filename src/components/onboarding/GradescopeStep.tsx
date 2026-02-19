@@ -59,6 +59,7 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
   const [courses, setCourses] = useState<GradescopeCourse[] | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [videoExpanded, setVideoExpanded] = useState(false);
+  const [showWhy, setShowWhy] = useState(false);
   const [videoTime, setVideoTime] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -285,7 +286,13 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
                             >
                               Reset password
                             </a>
-                            <span className="text-gray-400 font-normal">(required)</span>
+                            <button
+                              type="button"
+                              onClick={() => setShowWhy(!showWhy)}
+                              className="text-blue-500 font-normal text-xs underline"
+                            >
+                              why?
+                            </button>
                           </>
                         ) : (
                           step.label
@@ -298,18 +305,11 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
                   ))}
                 </div>
 
-                <p className="text-xs text-gray-400 text-left px-2 mb-3 leading-relaxed">
-                  CalNet (SSO) passwords don&apos;t work with Gradescope directly. You need to{" "}
-                  <a
-                    href="https://www.gradescope.com/reset_password"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-500 underline"
-                  >
-                    reset your password
-                  </a>{" "}
-                  to set a Gradescope-specific one.
-                </p>
+                {showWhy && (
+                  <p className="text-xs text-gray-700 text-left px-2 mb-3 leading-relaxed">
+                    CalNet (SSO) passwords don&apos;t work with Gradescope directly. You need to reset your password to set a Gradescope-specific one.
+                  </p>
+                )}
 
                 {/* Watch video button */}
                 <button
