@@ -59,18 +59,34 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
     fetch("/api/credentials")
       .then((res) => res.ok ? res.json() : null)
       .then((data) => {
-        if (data && !data.google_calendar_id) {
-          setShowCalBadge(true);
-        }
+        if (!data) return;
+        const isConnected = !!data.google_calendar_id;
+        setShowCalBadge(!isConnected);
+        // Write cache so other components stay in sync
+        try {
+          localStorage.setItem(GCAL_CACHE_KEY, JSON.stringify({
+            connected: isConnected,
+            calendarId: data.google_calendar_id ?? null,
+            email: data.google_email ?? null,
+            photoUrl: data.google_photo_url ?? null,
+          }));
+        } catch { /* ignore */ }
       })
       .catch(() => {});
   }, []);
 
-  // Listen for banner dismissal to hide the badge
+  // Listen for gcal_status or banner dismissal changes from other components
   useEffect(() => {
     function handleStorage(e: StorageEvent) {
       if (e.key === GCAL_BANNER_DISMISSED_KEY && e.newValue === "true") {
         setShowCalBadge(false);
+      }
+      if (e.key === GCAL_CACHE_KEY && e.newValue) {
+        try {
+          if (JSON.parse(e.newValue).connected === true) {
+            setShowCalBadge(false);
+          }
+        } catch { /* ignore */ }
       }
     }
     window.addEventListener("storage", handleStorage);
