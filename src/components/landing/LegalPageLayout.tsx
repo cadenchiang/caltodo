@@ -13,7 +13,7 @@ export default function LegalPageLayout({ children }: { children: React.ReactNod
   const router = useRouter();
 
   return (
-    <div className="min-h-screen bg-white text-black animate-fade-in">
+    <div className="min-h-dvh bg-white text-black animate-fade-in">
       <nav className="flex items-center justify-between px-8 py-6 border-b border-gray-200">
         <button
           onClick={() => router.back()}

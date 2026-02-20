@@ -40,7 +40,7 @@ export default async function AppLayout({
           <TaskProvider>
             <InboxTour>
             <Sidebar avatarUrl={avatarUrl} fullName={fullName} email={email} />
-            <main className="flex-1 overflow-auto p-4 md:p-10 pb-20 md:pb-10 dark:bg-black">
+            <main className="flex-1 overflow-auto p-4 md:p-10 pb-16 md:pb-10 dark:bg-black">
               {children}
             </main>
             <MobileTabBar />

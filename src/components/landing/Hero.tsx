@@ -35,7 +35,7 @@ export default function Hero() {
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-col bg-white text-black">
+    <div className="min-h-dvh flex flex-col bg-white text-black overflow-x-hidden">
       {/* Top banner */}
       <button
         onClick={() => setShowSpotsModal(true)}
@@ -158,8 +158,8 @@ export default function Hero() {
           />
         </Link>
 
-        {/* Mockup */}
-        <div className="mt-20 w-full max-w-5xl mx-auto relative animate-appear opacity-0" style={{ animationDelay: "900ms" }}>
+        {/* Mockup — clipped on mobile to prevent excessive scroll */}
+        <div className="mt-12 md:mt-20 w-full max-w-5xl mx-auto relative animate-appear opacity-0 max-h-[50vh] md:max-h-none overflow-hidden" style={{ animationDelay: "900ms" }}>
           <MockupFrame className="w-full">
             <Mockup type="responsive" className="w-full">
               <div className="relative w-full">

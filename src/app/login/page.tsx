@@ -9,7 +9,7 @@ import { ToastProvider } from "@/contexts/ToastContext";
 export default function LoginPage() {
   return (
     <ToastProvider>
-      <div className="min-h-screen flex items-center justify-center px-4 bg-white force-light">
+      <div className="min-h-dvh flex items-center justify-center px-4 bg-white force-light">
         <div className="w-full max-w-sm">
           <div className="flex justify-center mb-6">
             <img
