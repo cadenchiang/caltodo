@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Bell,
   BookOpen,
@@ -41,24 +41,33 @@ function NotificationIcon({ type }: { type: NotificationType }) {
 
 /**
  * Single notification row with step number, timestamp on left, icon, title, description.
+ * Clicking navigates to the related task if taskId exists.
  *
  * @param notification - The notification data
  * @param index - 0-based index for step numbering
  * @param onRead - Callback to mark notification as read
+ * @param onNavigate - Callback to navigate to the related task
  */
 function NotificationRow({
   notification,
   index,
   onRead,
+  onNavigate,
 }: {
   notification: AppNotification;
   index: number;
   onRead: (id: string) => void;
+  onNavigate: (taskId: string) => void;
 }) {
   return (
     <button
       type="button"
-      onClick={() => onRead(notification.id)}
+      onClick={() => {
+        onRead(notification.id);
+        if (notification.taskId) {
+          onNavigate(notification.taskId);
+        }
+      }}
       className={`w-full text-left px-3 py-3 flex items-start gap-3 transition-colors hover:bg-muted/50 ${
         !notification.read ? "bg-blue-500/5" : ""
       }`}
@@ -132,6 +141,7 @@ function EmptyState({ message }: { message: string }) {
  */
 export default function NotificationCenter() {
   const pathname = usePathname();
+  const router = useRouter();
   const { notifications, unreadCount, markAsRead, markAllAsRead, clearAll } =
     useNotifications();
   const [isOpen, setIsOpen] = useState(false);
@@ -162,6 +172,16 @@ export default function NotificationCenter() {
     const timer = setTimeout(() => setIsVisible(false), 200);
     return () => clearTimeout(timer);
   }, []);
+
+  /**
+   * Navigates to the inbox with the given task selected, then closes the panel.
+   *
+   * @param taskId - The task ID to navigate to
+   */
+  const handleNavigate = useCallback((taskId: string) => {
+    closePanel();
+    router.push(`/app/inbox?task=${taskId}`);
+  }, [closePanel, router]);
 
   /**
    * Toggles the notification panel open/closed.
@@ -217,7 +237,7 @@ export default function NotificationCenter() {
         type="button"
         onClick={handleToggle}
         aria-label="Notifications"
-        className={`fixed bottom-6 right-6 z-50 w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-all duration-200 md:bottom-8 md:right-8 ${
+        className={`fixed bottom-20 right-4 z-50 w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-all duration-200 md:bottom-8 md:right-8 ${
           isOpen
             ? "bg-blue-500 text-white shadow-blue-500/30 scale-95"
             : "bg-card text-foreground border border-border hover:bg-accent hover:shadow-xl hover:scale-105"
@@ -237,7 +257,7 @@ export default function NotificationCenter() {
       {isVisible && (
         <div
           ref={panelRef}
-          className={`fixed bottom-20 right-6 z-50 w-80 max-h-[70vh] rounded-2xl border border-border bg-popover shadow-2xl flex flex-col overflow-hidden md:bottom-[88px] md:right-8 transition-all duration-200 ease-out origin-bottom-right ${
+          className={`fixed bottom-34 right-4 z-50 w-[calc(100vw-32px)] md:w-80 max-h-[70vh] rounded-2xl border border-border bg-popover shadow-2xl flex flex-col overflow-hidden md:bottom-[88px] md:right-8 transition-all duration-200 ease-out origin-bottom-right ${
             isOpen
               ? "opacity-100 scale-100 translate-y-0"
               : "opacity-0 scale-95 translate-y-2 pointer-events-none"
@@ -321,6 +341,7 @@ export default function NotificationCenter() {
                     notification={n}
                     index={i}
                     onRead={markAsRead}
+                    onNavigate={handleNavigate}
                   />
                 ))}
               </div>

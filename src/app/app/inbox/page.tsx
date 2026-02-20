@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Inbox, ChevronDown, X, Sun, CalendarRange, CalendarDays, GraduationCap, MoreVertical, List, LayoutGrid, ArrowUpDown, RefreshCw } from "lucide-react";
 import { useTaskContext } from "@/contexts/TaskContext";
 import { useToast } from "@/contexts/ToastContext";
@@ -166,6 +167,8 @@ export default function InboxPage() {
     syncing, syncProgress, syncResult, triggerSync,
   } = useTaskContext();
   const { showToast, updateToastProgress } = useToast();
+  const inboxRouter = useRouter();
+  const searchParams = useSearchParams();
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const prevSyncResultRef = useRef<string | null>(syncResult?.last_synced_at ?? null);
   const [filter, setFilterRaw] = useState<InboxFilter>("all");
@@ -204,6 +207,29 @@ export default function InboxPage() {
     const savedGroup = localStorage.getItem("inbox-board-group") as "class" | "date" | null;
     if (savedGroup) setBoardGroupBy(savedGroup);
   }, []);
+
+  // Auto-select task from ?task= query param (e.g. from notification click-through)
+  const taskParamHandled = useRef(false);
+  useEffect(() => {
+    if (taskParamHandled.current || loading || tasks.length === 0) return;
+    const taskId = searchParams.get("task");
+    if (!taskId) return;
+
+    taskParamHandled.current = true;
+    const target = tasks.find((t) => t.id === taskId);
+    if (target) {
+      if (typeof window !== "undefined" && window.innerWidth < 768) {
+        // On mobile, simulate a centered anchor for the popover
+        const rect = new DOMRect(window.innerWidth / 2, window.innerHeight / 2, 0, 0);
+        setMobilePopoverTaskRaw(target);
+        setMobileAnchorRect(rect);
+      } else {
+        setSelectedTask(target);
+      }
+    }
+    // Clear the URL param without adding a history entry
+    inboxRouter.replace("/app/inbox", { scroll: false });
+  }, [searchParams, tasks, loading, inboxRouter]);
 
   const [boardPopoverTask, setBoardPopoverTaskRaw] = useState<Task | null>(null);
   const [boardAnchorRect, setBoardAnchorRect] = useState<DOMRect | null>(null);

@@ -14,7 +14,7 @@ export default function PrivacyPolicy() {
   return (
     <LegalPageLayout>
       <h1 className="text-3xl font-bold mb-2">Privacy Policy</h1>
-      <p className="text-gray-500 mb-8">Last updated: February 18, 2026</p>
+      <p className="text-gray-500 mb-8">Last updated: February 19, 2026</p>
 
       <div className="space-y-8 text-gray-700 leading-relaxed">
         <section>
@@ -48,6 +48,13 @@ export default function PrivacyPolicy() {
               information you create within the app.
             </li>
           </ul>
+          <p className="mt-3">
+            All data is stored on a per-account basis using unique, system-generated identifiers.
+            We cannot and do not associate task content with your personal identity for any purpose
+            beyond providing the service. Your tasks, completion history, and course data are never
+            reviewed, analyzed, or accessed by caltodo staff for any reason other than technical
+            support you explicitly request.
+          </p>
         </section>
 
         <section>
@@ -63,7 +70,11 @@ export default function PrivacyPolicy() {
           <h2 className="text-xl font-semibold text-black mb-3">4. Data Storage and Security</h2>
           <p>
             Your data is stored securely using Supabase, which provides encryption at rest and in
-            transit. We do not sell, share, or distribute your personal data to third parties.
+            transit. We do not sell, share, or distribute your personal data to third parties. Task
+            data is isolated per account and cannot be cross-referenced between users. We employ
+            row-level security policies so that each user can only access their own data &mdash; no
+            other user, and no caltodo administrator, can view your tasks or personal information
+            through the application.
           </p>
         </section>
 

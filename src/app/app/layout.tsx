@@ -7,6 +7,7 @@ import { ToastProvider } from "@/contexts/ToastContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import InboxTour from "@/components/ui/InboxTour";
 import NotificationCenter from "@/components/ui/NotificationCenter";
+import CanvasTokenExpiredModal from "@/components/ui/CanvasTokenExpiredModal";
 import PostHogIdentify from "@/components/PostHogIdentify";
 
 /**
@@ -44,6 +45,7 @@ export default async function AppLayout({
             </main>
             <MobileTabBar />
             <NotificationCenter />
+            <CanvasTokenExpiredModal />
             </InboxTour>
           </TaskProvider>
         </NotificationProvider>

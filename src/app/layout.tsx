@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import PostHogProvider from "@/components/PostHogProvider";
+import PostHogPageView from "@/components/PostHogPageView";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -24,7 +25,29 @@ const instrumentSerif = Instrument_Serif({
 
 export const metadata: Metadata = {
   title: "caltodo",
-  description: "Personal todolist tracker with calendar view",
+  description: "Your assignments, synced and organized. Connect bCourses and Gradescope to automatically track every deadline in one place.",
+  metadataBase: new URL("https://caltodo.me"),
+  openGraph: {
+    title: "caltodo",
+    description: "Your assignments, synced and organized. Connect bCourses and Gradescope to automatically track every deadline in one place.",
+    url: "https://caltodo.me",
+    siteName: "caltodo",
+    images: [
+      {
+        url: "/app-screenshot.png",
+        width: 2914,
+        height: 1734,
+        alt: "caltodo app — task inbox with calendar view",
+      },
+    ],
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "caltodo",
+    description: "Your assignments, synced and organized. Connect bCourses and Gradescope to automatically track every deadline in one place.",
+    images: ["/app-screenshot.png"],
+  },
   icons: {
     icon: [
       { url: "/icon-light.png", media: "(prefers-color-scheme: light)" },
@@ -68,6 +91,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} ${instrumentSerif.variable} antialiased`}
       >
         <PostHogProvider>
+          <PostHogPageView />
           <ThemeProvider>
             {children}
           </ThemeProvider>

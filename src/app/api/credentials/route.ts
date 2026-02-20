@@ -31,7 +31,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("integration_credentials")
-    .select("canvas_token, canvas_base_url, gradescope_email, gradescope_password_encrypted, last_synced_at, selected_canvas_courses, selected_gradescope_courses, google_access_token_encrypted, google_calendar_id, google_email, google_photo_url")
+    .select("canvas_token, canvas_base_url, gradescope_email, gradescope_password_encrypted, last_synced_at, selected_canvas_courses, selected_gradescope_courses, google_access_token_encrypted, google_calendar_id, google_email, google_photo_url, canvas_token_created_at")
     .eq("user_id", user.id)
     .single();
 
@@ -53,6 +53,7 @@ export async function GET() {
     google_calendar_id: data?.google_calendar_id ?? null,
     google_email: data?.google_email ?? null,
     google_photo_url: data?.google_photo_url ?? null,
+    canvas_token_created_at: data?.canvas_token_created_at ?? null,
   };
 
   return NextResponse.json(credentials);
@@ -91,6 +92,10 @@ export async function PUT(request: Request) {
 
   if (body.canvas_token !== undefined) {
     updateData.canvas_token = body.canvas_token;
+    // Track when the canvas token was set for 120-day expiration
+    updateData.canvas_token_created_at = body.canvas_token
+      ? new Date().toISOString()
+      : null;
   }
   if (body.canvas_base_url !== undefined) {
     updateData.canvas_base_url = body.canvas_base_url;
@@ -126,7 +131,7 @@ export async function PUT(request: Request) {
   // Return updated credentials
   const { data: updated } = await supabase
     .from("integration_credentials")
-    .select("canvas_token, canvas_base_url, gradescope_email, gradescope_password_encrypted, last_synced_at, selected_canvas_courses, selected_gradescope_courses, google_access_token_encrypted, google_calendar_id, google_email, google_photo_url")
+    .select("canvas_token, canvas_base_url, gradescope_email, gradescope_password_encrypted, last_synced_at, selected_canvas_courses, selected_gradescope_courses, google_access_token_encrypted, google_calendar_id, google_email, google_photo_url, canvas_token_created_at")
     .eq("user_id", user.id)
     .single();
 
@@ -142,6 +147,7 @@ export async function PUT(request: Request) {
     google_calendar_id: updated?.google_calendar_id ?? null,
     google_email: updated?.google_email ?? null,
     google_photo_url: updated?.google_photo_url ?? null,
+    canvas_token_created_at: updated?.canvas_token_created_at ?? null,
   };
 
   return NextResponse.json(credentials);

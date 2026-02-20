@@ -298,6 +298,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       repeat_end_date: taskData.repeat_end_date ?? null,
       repeat_end_count: taskData.repeat_end_count ?? null,
       late_due_date: null,
+      completed_at: null,
     };
 
     setTasks((prev) => {
@@ -383,7 +384,10 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     if (!task) return;
     const willComplete = !task.is_completed;
     trackEvent(willComplete ? "task_completed" : "task_uncompleted");
-    await updateTask(id, { is_completed: willComplete });
+    await updateTask(id, {
+      is_completed: willComplete,
+      completed_at: willComplete ? new Date().toISOString() : null,
+    });
 
     // Track spawned task info for undo cleanup
     let spawnedNextDueDate: string | null = null;
@@ -431,7 +435,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
           label: "Undo",
           icon: <Undo2 size={14} />,
           onClick: () => {
-            updateTask(id, { is_completed: false });
+            updateTask(id, { is_completed: false, completed_at: null });
             // Clean up spawned repeat task if undo is clicked
             if (nextDate) {
               setTasks((prev) => {

@@ -244,6 +244,10 @@ export default function OnboardingPage() {
                 <p className="text-gray-500 text-sm mb-8 animate-drop-in delay-100">
                   connect your bCourses and Gradescope accounts to automatically sync your assignments.
                 </p>
+                {/* Mobile-only recommendation */}
+                <p className="md:hidden text-sm font-semibold text-black mb-6 animate-drop-in delay-150">
+                  For the best experience, we recommend completing setup on a computer.
+                </p>
                 <button
                   onClick={() => setCurrentStep("canvas")}
                   className="w-full px-4 py-3 bg-gray-800 text-white rounded-xl font-semibold animate-drop-in delay-200 btn-elevated-primary"

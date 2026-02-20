@@ -54,6 +54,7 @@ const EMPTY_CREDENTIALS: IntegrationCredentials = {
   google_calendar_id: null,
   google_email: null,
   google_photo_url: null,
+  canvas_token_created_at: null,
 };
 
 export default function IntegrationSettings() {

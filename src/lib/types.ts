@@ -27,6 +27,7 @@ export interface Task {
   repeat_end_date: string | null;
   repeat_end_count: number | null;
   late_due_date: string | null;
+  completed_at: string | null;
 }
 
 /**
@@ -58,6 +59,7 @@ export interface TaskUpdate {
   repeat_unit?: "day" | "week" | "month" | null;
   repeat_end_date?: string | null;
   repeat_end_count?: number | null;
+  completed_at?: string | null;
 }
 
 /**
@@ -93,6 +95,7 @@ export interface IntegrationCredentials {
   google_calendar_id: string | null;
   google_email: string | null;
   google_photo_url: string | null;
+  canvas_token_created_at: string | null;
 }
 
 /**

@@ -180,9 +180,17 @@ export default function TaskList({
       }
     }
 
+    // Filter completed tasks to only show those completed within the last 24 hours
+    const recentCompleted = completedList.filter((t) => {
+      if (!t.completed_at) return true; // Legacy tasks without completed_at stay visible
+      const completedTime = new Date(t.completed_at).getTime();
+      const twentyFourHoursAgo = Date.now() - 24 * 60 * 60 * 1000;
+      return completedTime > twentyFourHoursAgo;
+    });
+
     return {
       active: sortByDueDate(activeList),
-      completed: sortByDueDate(completedList),
+      completed: sortByDueDate(recentCompleted),
     };
   }, [tasks]);
 
