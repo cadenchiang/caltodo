@@ -370,6 +370,15 @@ export default function GoogleCalendarSettings() {
 
       {!connected ? (
         <>
+          {process.env.NEXT_PUBLIC_GCAL_VERIFIED === "true" ? (
+            <a
+              href="/api/gcal/auth"
+              className="inline-flex items-center gap-3 px-6 py-3 rounded-xl text-sm font-semibold bg-gray-900 text-white dark:bg-white dark:text-gray-900 hover:bg-gray-700 dark:hover:bg-gray-200 active:scale-[0.98] transition-all duration-200 shadow-sm dark:shadow-none"
+            >
+              <GoogleCalendarIcon size={20} />
+              Connect Google Calendar
+            </a>
+          ) : (
           <button
             type="button"
             onClick={() => setShowGcalWarning(true)}
@@ -378,6 +387,7 @@ export default function GoogleCalendarSettings() {
             <GoogleCalendarIcon size={20} />
             Connect Google Calendar
           </button>
+          )}
 
           {/* OAuth warning modal */}
           {showGcalWarning && (
