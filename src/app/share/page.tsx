@@ -9,7 +9,7 @@ import { useEffect } from "react";
 export default function SharePage() {
   useEffect(() => {
     window.location.href =
-      "sms:?body=hey you should try this, its free for lifetime rn\n\nhttps://caltodo.me";
+      "sms:?body=hey you should try this, its free for lifetime rn%0A%0Ahttps://caltodo.me";
   }, []);
 
   return (
