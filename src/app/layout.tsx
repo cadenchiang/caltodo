@@ -32,21 +32,12 @@ export const metadata: Metadata = {
     description: "Your assignments, synced and organized. Connect bCourses and Gradescope to automatically track every deadline in one place.",
     url: "https://caltodo.me",
     siteName: "caltodo",
-    images: [
-      {
-        url: "/logo.png",
-        width: 512,
-        height: 512,
-        alt: "caltodo logo",
-      },
-    ],
     type: "website",
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "caltodo",
     description: "Your assignments, synced and organized. Connect bCourses and Gradescope to automatically track every deadline in one place.",
-    images: ["/logo.png"],
   },
   icons: {
     icon: [
