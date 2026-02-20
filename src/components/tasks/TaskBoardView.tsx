@@ -673,7 +673,7 @@ function TaskCard({ task, isSelected, onToggle, onSelect, onDelete }: TaskCardPr
         className={`group relative rounded-xl border bg-card px-3.5 py-3 cursor-pointer transition-all duration-150 shadow-[0_1px_3px_rgba(0,0,0,0.04)] ${
           isSelected
             ? "border-blue-400 shadow-sm"
-            : "border-border hover:shadow-md"
+            : "border-input-border hover:shadow-md"
         } ${isCompleted ? "opacity-50" : ""}`}
         onClick={(e) => onSelect(task, e.currentTarget.getBoundingClientRect())}
       >

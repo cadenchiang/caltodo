@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { usePathname } from "next/navigation";
 import {
   Bell,
   BookOpen,
@@ -130,6 +131,7 @@ function EmptyState({ message }: { message: string }) {
  * Renders as a fixed-position overlay — should be placed once in the app layout.
  */
 export default function NotificationCenter() {
+  const pathname = usePathname();
   const { notifications, unreadCount, markAsRead, markAllAsRead, clearAll } =
     useNotifications();
   const [isOpen, setIsOpen] = useState(false);
@@ -203,6 +205,9 @@ export default function NotificationCenter() {
     document.addEventListener("keydown", handleEscape);
     return () => document.removeEventListener("keydown", handleEscape);
   }, [isVisible, closePanel]);
+
+  // Hide during onboarding
+  if (pathname?.startsWith("/app/onboarding")) return null;
 
   return (
     <>

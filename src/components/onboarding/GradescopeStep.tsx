@@ -268,48 +268,46 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
               <div className="min-h-0 overflow-hidden">
                 <div className="flex flex-col gap-1 mb-4 text-left">
                   {GRADESCOPE_CHAPTERS.map((step, i) => (
-                    <div
-                      key={step.time}
-                      className="flex items-center gap-3 px-2 py-2"
-                    >
-                      <span className="w-7 h-7 rounded-full bg-gray-800 text-white flex items-center justify-center text-xs font-bold shrink-0">
-                        {i + 1}
-                      </span>
-                      <span className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
-                        {i === 0 ? (
-                          <>
-                            <a
-                              href="https://www.gradescope.com/reset_password"
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-500 underline"
-                            >
-                              Reset password
-                            </a>
-                            <button
-                              type="button"
-                              onClick={() => setShowWhy(!showWhy)}
-                              className="text-blue-500 font-normal text-xs underline"
-                            >
-                              why?
-                            </button>
-                          </>
-                        ) : (
-                          step.label
-                        )}
-                        {i === GRADESCOPE_CHAPTERS.length - 1 && (
-                          <ArrowDown size={14} className="text-gray-400" />
-                        )}
-                      </span>
+                    <div key={step.time}>
+                      <div className="flex items-center gap-3 px-2 py-2">
+                        <span className="w-7 h-7 rounded-full bg-gray-800 text-white flex items-center justify-center text-xs font-bold shrink-0">
+                          {i + 1}
+                        </span>
+                        <span className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                          {i === 0 ? (
+                            <>
+                              <a
+                                href="https://www.gradescope.com/reset_password"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-500 underline"
+                              >
+                                Reset password
+                              </a>
+                              <button
+                                type="button"
+                                onClick={() => setShowWhy(!showWhy)}
+                                className="text-blue-400 font-normal text-xs hover:text-blue-600 cursor-pointer transition-colors"
+                              >
+                                why?
+                              </button>
+                            </>
+                          ) : (
+                            step.label
+                          )}
+                          {i === GRADESCOPE_CHAPTERS.length - 1 && (
+                            <ArrowDown size={14} className="text-gray-400" />
+                          )}
+                        </span>
+                      </div>
+                      {i === 0 && showWhy && (
+                        <p className="text-xs text-black ml-12 mb-1 leading-relaxed">
+                          Your CalNet ID password doesn&apos;t work here — Gradescope needs its own separate password.
+                        </p>
+                      )}
                     </div>
                   ))}
                 </div>
-
-                {showWhy && (
-                  <p className="text-xs text-gray-700 text-left px-2 mb-3 leading-relaxed">
-                    CalNet (SSO) passwords don&apos;t work with Gradescope directly. You need to reset your password to set a Gradescope-specific one.
-                  </p>
-                )}
 
                 {/* Watch video button */}
                 <button

@@ -607,7 +607,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       const message = err instanceof Error ? err.message : String(err);
       trackEvent("sync_failed", { error: message });
       setError(message);
-      addNotification("sync_error", "Sync error", message);
+      // Don't show sync errors in notifications — they're noisy from auto-sync
     } finally {
       stopProgressTimer();
       setSyncing(false);
