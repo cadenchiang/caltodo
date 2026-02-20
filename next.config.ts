@@ -14,23 +14,23 @@ const nextConfig: NextConfig = {
   skipMiddlewareUrlNormalize: true,
 
   // Proxy PostHog requests through our domain to bypass ad blockers.
-  // Requests to /ingest/* are forwarded to us.i.posthog.com.
+  // Requests to /a/* are forwarded to us.i.posthog.com.
   async rewrites() {
     return [
       {
-        source: "/ingest/static/:path*",
+        source: "/a/static/:path*",
         destination: "https://us-assets.i.posthog.com/static/:path*",
       },
       {
-        source: "/ingest/decide",
+        source: "/a/decide",
         destination: "https://us.i.posthog.com/decide",
       },
       {
-        source: "/ingest/e",
+        source: "/a/e",
         destination: "https://us.i.posthog.com/e",
       },
       {
-        source: "/ingest/:path*",
+        source: "/a/:path*",
         destination: "https://us.i.posthog.com/:path*",
       },
     ];

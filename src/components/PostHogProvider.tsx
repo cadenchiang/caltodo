@@ -31,7 +31,7 @@ export default function PostHogProvider({
     }
 
     posthog.init(key, {
-      api_host: "/ingest",
+      api_host: "/a",
       ui_host: "https://us.posthog.com",
       person_profiles: "always",
       capture_pageview: false, // Handled by PostHogPageView component for SPA navigations
