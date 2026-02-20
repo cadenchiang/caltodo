@@ -55,6 +55,7 @@ const EMPTY_CREDENTIALS: IntegrationCredentials = {
   google_email: null,
   google_photo_url: null,
   canvas_token_created_at: null,
+  is_founding_member: false,
 };
 
 export default function IntegrationSettings() {

@@ -99,6 +99,7 @@ export interface IntegrationCredentials {
   google_email: string | null;
   google_photo_url: string | null;
   canvas_token_created_at: string | null;
+  is_founding_member: boolean;
 }
 
 /**

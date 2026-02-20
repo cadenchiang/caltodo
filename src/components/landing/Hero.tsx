@@ -17,6 +17,7 @@ const HERO_IMAGES = [
 export default function Hero() {
   const [activeImage, setActiveImage] = useState(0);
   const [userCount, setUserCount] = useState<number | null>(null);
+  const [showSpotsModal, setShowSpotsModal] = useState(false);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -36,9 +37,16 @@ export default function Hero() {
   return (
     <div className="min-h-screen flex flex-col bg-white text-black">
       {/* Top banner */}
-      <div className="bg-black text-white text-center text-xs py-1.5 tracking-wide">
-        exclusively for uc berkeley students · {userCount !== null ? `${userCount}/1,000 free lifetime spots taken` : "\u00A0"}
-      </div>
+      <button
+        onClick={() => setShowSpotsModal(true)}
+        className="w-full bg-black text-white text-center text-xs py-1.5 tracking-wide hover:bg-zinc-800 transition-colors cursor-pointer relative flex items-center justify-center"
+      >
+        <span>exclusively for uc berkeley students · {userCount !== null ? `${1000 - userCount} free lifetime spots remaining` : "\u00A0"}</span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-1.5 opacity-60">
+          <path d="M7 17L17 7" />
+          <path d="M7 7h10v10" />
+        </svg>
+      </button>
 
       {/* Nav */}
       <nav className="flex items-center justify-between px-8 py-6">
@@ -70,7 +78,7 @@ export default function Hero() {
       <main className="flex flex-col items-center px-6 lg:px-10">
         {/* Eyebrow */}
         <p className="font-sans uppercase tracking-[0.51em] leading-[133%] text-center text-base mt-20 mb-8 text-black animate-appear opacity-0">
-          built for uc berkeley students
+          the to-do list for students
         </p>
 
         {/* Heading */}
@@ -200,6 +208,51 @@ export default function Hero() {
         <span className="mx-1">·</span>
         <Link href="/terms" className="hover:text-black/50 transition-colors">Terms</Link>
       </footer>
+
+      {/* Spots modal */}
+      <div
+        className={`fixed inset-0 z-50 flex items-center justify-center transition-all duration-300 ease-out ${
+          showSpotsModal ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+        }`}
+        style={{ backgroundColor: showSpotsModal ? "rgba(0,0,0,0.5)" : "rgba(0,0,0,0)", backdropFilter: showSpotsModal ? "blur(4px)" : "blur(0px)" }}
+        onClick={() => setShowSpotsModal(false)}
+      >
+        <div
+          className={`bg-white rounded-2xl max-w-md w-full mx-6 p-8 shadow-2xl transition-all duration-300 ease-out relative ${
+            showSpotsModal ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-95 translate-y-4"
+          }`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Close button */}
+          <button
+            onClick={() => setShowSpotsModal(false)}
+            className="absolute top-4 right-4 p-1 text-black/40 hover:text-black transition-colors"
+            aria-label="Close"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 6L6 18" />
+              <path d="M6 6l12 12" />
+            </svg>
+          </button>
+
+          <h3 className="text-2xl font-bold text-black mb-3">
+            Free for life. Seriously.
+          </h3>
+          <p className="text-sm text-black leading-relaxed mb-6">
+            The first 1,000 students get caltodo free forever. No catches.
+            {userCount !== null
+              ? ` Only ${1000 - userCount} spots left.`
+              : ""}
+          </p>
+          <Link
+            href="/login?signup=true"
+            className="block w-full text-center px-5 py-3 text-sm font-semibold rounded-xl bg-black text-white btn-elevated-primary"
+            onClick={() => setShowSpotsModal(false)}
+          >
+            Claim your free spot
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }

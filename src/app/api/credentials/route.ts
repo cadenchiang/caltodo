@@ -6,6 +6,7 @@
 
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { encrypt } from "@/lib/crypto";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
@@ -31,7 +32,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("integration_credentials")
-    .select("canvas_token, canvas_base_url, gradescope_email, gradescope_password_encrypted, last_synced_at, selected_canvas_courses, selected_gradescope_courses, google_access_token_encrypted, google_calendar_id, google_email, google_photo_url, canvas_token_created_at")
+    .select("canvas_token, canvas_base_url, gradescope_email, gradescope_password_encrypted, last_synced_at, selected_canvas_courses, selected_gradescope_courses, google_access_token_encrypted, google_calendar_id, google_email, google_photo_url, canvas_token_created_at, is_founding_member")
     .eq("user_id", user.id)
     .single();
 
@@ -54,6 +55,7 @@ export async function GET() {
     google_email: data?.google_email ?? null,
     google_photo_url: data?.google_photo_url ?? null,
     canvas_token_created_at: data?.canvas_token_created_at ?? null,
+    is_founding_member: data?.is_founding_member ?? false,
   };
 
   return NextResponse.json(credentials);
@@ -117,6 +119,21 @@ export async function PUT(request: Request) {
     updateData.gradescope_password_encrypted = null;
   }
 
+  // Check if this is a new row (no existing credentials) — if so, mark as founding member
+  const { data: existing } = await supabase
+    .from("integration_credentials")
+    .select("id")
+    .eq("user_id", user.id)
+    .single();
+
+  if (!existing) {
+    // New user — check if we're still under 1,000 total users
+    const admin = createAdminClient();
+    const { data: authData } = await admin.auth.admin.listUsers({ perPage: 1, page: 1 });
+    const totalUsers = (authData && "total" in authData ? authData.total : authData?.users.length) ?? 0;
+    updateData.is_founding_member = totalUsers <= 1000;
+  }
+
   const { error } = await supabase
     .from("integration_credentials")
     .upsert(updateData, { onConflict: "user_id" });
@@ -131,7 +148,7 @@ export async function PUT(request: Request) {
   // Return updated credentials
   const { data: updated } = await supabase
     .from("integration_credentials")
-    .select("canvas_token, canvas_base_url, gradescope_email, gradescope_password_encrypted, last_synced_at, selected_canvas_courses, selected_gradescope_courses, google_access_token_encrypted, google_calendar_id, google_email, google_photo_url, canvas_token_created_at")
+    .select("canvas_token, canvas_base_url, gradescope_email, gradescope_password_encrypted, last_synced_at, selected_canvas_courses, selected_gradescope_courses, google_access_token_encrypted, google_calendar_id, google_email, google_photo_url, canvas_token_created_at, is_founding_member")
     .eq("user_id", user.id)
     .single();
 
@@ -148,6 +165,7 @@ export async function PUT(request: Request) {
     google_email: updated?.google_email ?? null,
     google_photo_url: updated?.google_photo_url ?? null,
     canvas_token_created_at: updated?.canvas_token_created_at ?? null,
+    is_founding_member: updated?.is_founding_member ?? false,
   };
 
   return NextResponse.json(credentials);
