@@ -368,25 +368,23 @@ export default function TaskList({
       {/* Completed section (collapsible) */}
       {completed.length > 0 && (
         <div className="mt-1">
-          <div className="flex items-center mx-2 group">
-            <button
-              onClick={() => setCompletedExpanded(!completedExpanded)}
-              className="flex items-center flex-1 pl-2.5 py-1.5 hover:bg-accent transition-colors text-left rounded-lg"
-            >
-              <ChevronRight
-                size={12}
-                className={`shrink-0 text-secondary-foreground transition-transform duration-200 ${
-                  completedExpanded ? "rotate-90" : ""
-                }`}
-              />
-              <span className="text-sm font-semibold text-foreground ml-0.5">Completed</span>
-              <span className="text-xs text-subtle-foreground ml-1.5">{completed.length}</span>
-            </button>
+          <div
+            className="flex items-center mx-2 pl-2.5 pr-1 py-1.5 rounded-lg hover:bg-accent transition-colors group cursor-pointer"
+            onClick={() => setCompletedExpanded(!completedExpanded)}
+          >
+            <ChevronRight
+              size={12}
+              className={`shrink-0 text-secondary-foreground transition-transform duration-200 ${
+                completedExpanded ? "rotate-90" : ""
+              }`}
+            />
+            <span className="text-sm font-semibold text-foreground ml-0.5">Completed</span>
+            <span className="text-xs text-subtle-foreground ml-1.5">{completed.length}</span>
             <button
               ref={completedMenuBtnRef}
               type="button"
               onClick={(e) => { e.stopPropagation(); setCompletedMenuOpen(!completedMenuOpen); }}
-              className="p-1 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-all opacity-0 group-hover:opacity-100"
+              className="ml-auto p-1 text-muted-foreground hover:text-foreground rounded-lg transition-all opacity-0 group-hover:opacity-100"
               title="Auto-hide settings"
             >
               <MoreVertical size={14} />
