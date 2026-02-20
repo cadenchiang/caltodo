@@ -368,13 +368,19 @@ export default function GoogleCalendarSettings() {
       </p>
 
       {!connected ? (
-        <a
-          href="/api/gcal/auth"
-          className="inline-flex items-center gap-3 px-6 py-3 rounded-xl text-sm font-semibold bg-gray-900 text-white dark:bg-white dark:text-gray-900 hover:bg-gray-700 dark:hover:bg-gray-200 active:scale-[0.98] transition-all duration-200 shadow-sm dark:shadow-none"
-        >
-          <GoogleCalendarIcon size={20} />
-          Connect Google Calendar
-        </a>
+        <div className="space-y-3">
+          <a
+            href="/api/gcal/auth"
+            className="inline-flex items-center gap-3 px-6 py-3 rounded-xl text-sm font-semibold bg-gray-900 text-white dark:bg-white dark:text-gray-900 hover:bg-gray-700 dark:hover:bg-gray-200 active:scale-[0.98] transition-all duration-200 shadow-sm dark:shadow-none"
+          >
+            <GoogleCalendarIcon size={20} />
+            Connect Google Calendar
+          </a>
+          <p className="text-xs text-muted-foreground leading-relaxed max-w-md">
+            Google hasn&apos;t verified our app yet, but your data is safe and encrypted.
+            When you see a warning screen, click <span className="font-medium text-foreground">Advanced</span> → <span className="font-medium text-foreground">Go to caltodo.me (unsafe)</span> to continue.
+          </p>
+        </div>
       ) : (
         <div className="space-y-3">
           {/* Connected status with Google account info */}
