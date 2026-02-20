@@ -331,6 +331,8 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       setTasks((prev) => {
         const updated = prev.map((t) => (t.id === tempId ? data : t));
         setCachedTasks(updated);
+        // Keep baseline in sync so detectSyncChanges reflects local state
+        taskBaselineRef.current = updated;
         return updated;
       });
 
@@ -352,6 +354,9 @@ export function TaskProvider({ children }: { children: ReactNode }) {
         t.id === id ? { ...t, ...updates, updated_at: new Date().toISOString() } : t
       );
       setCachedTasks(updated);
+      // Keep baseline in sync so detectSyncChanges doesn't fire false
+      // notifications for user-initiated changes (e.g. manual completion)
+      taskBaselineRef.current = updated;
       return updated;
     });
 
@@ -464,6 +469,8 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     setTasks((prev) => {
       const updated = prev.filter((t) => t.id !== id);
       setCachedTasks(updated);
+      // Keep baseline in sync so detectSyncChanges reflects local state
+      taskBaselineRef.current = updated;
       return updated;
     });
 
@@ -512,6 +519,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     const previousTasks = [...tasks];
     setTasks([]);
     clearCachedTasks();
+    taskBaselineRef.current = [];
 
     // Soft-delete synced tasks, hard-delete manual tasks (in parallel)
     const [softDeleteResult, hardDeleteResult] = await Promise.all([

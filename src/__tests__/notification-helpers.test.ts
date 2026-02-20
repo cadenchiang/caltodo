@@ -188,6 +188,23 @@ describe("detectSyncChanges", () => {
     expect(changes[0].description).toContain("points → 15");
   });
 
+  it("should NOT detect auto-completed when baseline already shows completed (user completed before sync)", () => {
+    // Simulates: user marks task complete → baseline updated → sync runs
+    // The baseline reflects the user's action, so no false notification
+    const before = makeTask({
+      id: "t1",
+      title: "HW 5",
+      source: "canvas",
+      external_id: "c-200",
+      is_completed: true, // baseline already shows completed (user did it)
+      is_submitted: true,
+    });
+    const snapshot = createTaskSnapshot([before]);
+    const freshTasks = [{ ...before, is_completed: true }];
+    const changes = detectSyncChanges(snapshot, freshTasks);
+    expect(changes).toHaveLength(0);
+  });
+
   it("should skip existing external keys for new task IDs", () => {
     // Task was deleted and re-created with same external key but new ID
     const before = makeTask({
