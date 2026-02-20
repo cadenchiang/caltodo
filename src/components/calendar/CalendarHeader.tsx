@@ -189,7 +189,7 @@ export default function CalendarHeader({
             <span className="hidden md:inline">{format(currentMonth, "MMMM yyyy")}</span>
           </h1>
 
-          {/* GCal synced tag — always inline next to title */}
+          {/* GCal synced tag — inline next to title */}
           {gcalConnected && (
             <div className="relative">
               <button
@@ -253,6 +253,28 @@ export default function CalendarHeader({
               )}
             </div>
           )}
+
+          {/* GCal CTA — inline next to title when not connected */}
+          {gcalConnected === false && (
+            <a href="/app/settings" title="Connect Google Calendar in Settings" className="relative group/sync">
+              <ShimmerButton
+                shimmerColor="#b45309"
+                shimmerSize="0.05em"
+                shimmerDuration="3s"
+                background="rgba(0, 0, 0, 0.9)"
+                className="px-3 py-1.5 text-xs hover:scale-105 active:scale-95 transition-all duration-200"
+              >
+                <GCalIcon size={16} />
+                <span className="ml-1.5 font-medium text-amber-500 dark:text-amber-400">
+                  <span className="md:hidden">Sync GCal</span>
+                  <span className="hidden md:inline">Sync Google Calendar</span>
+                </span>
+              </ShimmerButton>
+              <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-medium leading-none">
+                1
+              </span>
+            </a>
+          )}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           <button
@@ -276,28 +298,6 @@ export default function CalendarHeader({
         </div>
       </div>
 
-      {/* Row 2 (mobile only): GCal CTA when not connected */}
-      {gcalConnected === false && (
-        <a href="/app/settings" title="Connect Google Calendar in Settings" className="relative group/sync self-start md:self-auto">
-          <ShimmerButton
-            shimmerColor="#b45309"
-            shimmerSize="0.05em"
-            shimmerDuration="3s"
-            background="rgba(0, 0, 0, 0.9)"
-            className="px-3 py-1.5 text-xs hover:scale-105 active:scale-95 transition-all duration-200"
-          >
-            <GCalIcon size={16} />
-            <span className="ml-1.5 font-medium text-amber-500 dark:text-amber-400">
-              <span className="md:hidden">Sync GCal</span>
-              <span className="hidden md:inline">Sync Google Calendar</span>
-            </span>
-          </ShimmerButton>
-          {/* Red notification badge — right side */}
-          <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-medium leading-none">
-            1
-          </span>
-        </a>
-      )}
     </div>
   );
 }
