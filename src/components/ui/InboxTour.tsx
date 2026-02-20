@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { ClipboardList, PlusCircle, Search, LayoutGrid, Compass, CalendarDays } from "lucide-react";
 import { TourProvider, TourStartDialog, useTour, type TourStep } from "./AppTour";
 
@@ -165,8 +165,15 @@ function TourTrigger() {
  * @param children - App content to render inside the tour provider
  */
 export default function InboxTour({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+
+  function handleTourComplete() {
+    setTourViewMode("list");
+    router.push("/app/inbox");
+  }
+
   return (
-    <TourProvider steps={TOUR_STEPS} onComplete={() => setTourViewMode("list")}>
+    <TourProvider steps={TOUR_STEPS} onComplete={handleTourComplete}>
       {children}
       <TourTrigger />
     </TourProvider>
