@@ -23,6 +23,7 @@ interface CredentialsRow {
   canvas_base_url: string;
   gradescope_email: string | null;
   gradescope_password_encrypted: string | null;
+  gradescope_auth_failed: boolean;
   selected_canvas_courses: Array<{ id: number; name: string }> | null;
   selected_gradescope_courses: Array<{ id: string; name: string }> | null;
 }
@@ -56,7 +57,7 @@ export async function runSync(
   // Fetch credentials
   const { data: creds, error: credsError } = await supabase
     .from("integration_credentials")
-    .select("canvas_token, canvas_base_url, gradescope_email, gradescope_password_encrypted, selected_canvas_courses, selected_gradescope_courses")
+    .select("canvas_token, canvas_base_url, gradescope_email, gradescope_password_encrypted, gradescope_auth_failed, selected_canvas_courses, selected_gradescope_courses")
     .eq("user_id", userId)
     .single();
 
@@ -148,6 +149,12 @@ async function syncGradescope(
     return { synced: 0, errors: [] };
   }
 
+  // Skip sync if previous auth failed — prevents spamming Gradescope with bad credentials
+  if (creds.gradescope_auth_failed) {
+    logger.info("syncGradescope skipped: auth previously failed", { userId });
+    return { synced: 0, errors: ["Gradescope login failed. Please update your password in Settings."] };
+  }
+
   try {
     const password = decrypt(creds.gradescope_password_encrypted);
     const selectedCourses = creds.selected_gradescope_courses;
@@ -159,6 +166,16 @@ async function syncGradescope(
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     logger.error("syncGradescope failed", { userId, error: message });
+
+    // If login failed, set flag to stop retrying on future auto-syncs
+    if (message.toLowerCase().includes("login failed")) {
+      await supabase
+        .from("integration_credentials")
+        .update({ gradescope_auth_failed: true })
+        .eq("user_id", userId);
+      logger.warn("syncGradescope: marked auth as failed, stopping retries", { userId });
+    }
+
     return { synced: 0, errors: [message] };
   }
 }

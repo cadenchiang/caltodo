@@ -114,9 +114,12 @@ export async function PUT(request: Request) {
   // Only update password if explicitly provided (not null/undefined means "keep existing")
   if (body.gradescope_password !== undefined && body.gradescope_password !== null) {
     updateData.gradescope_password_encrypted = encrypt(body.gradescope_password);
+    // Clear auth failure flag so auto-sync retries with new password
+    updateData.gradescope_auth_failed = false;
   } else if (body.gradescope_password === null) {
     // Explicitly clear the password
     updateData.gradescope_password_encrypted = null;
+    updateData.gradescope_auth_failed = false;
   }
 
   // Check if this is a new row (no existing credentials) — if so, mark as founding member
