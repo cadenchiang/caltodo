@@ -31,9 +31,10 @@ export default function PostHogProvider({
     }
 
     posthog.init(key, {
-      api_host: host,
+      api_host: "/ingest",
+      ui_host: "https://us.posthog.com",
       person_profiles: "identified_only",
-      capture_pageview: true,
+      capture_pageview: false, // Handled by PostHogPageView component for SPA navigations
       capture_pageleave: true,
       autocapture: true,
       session_recording: {
