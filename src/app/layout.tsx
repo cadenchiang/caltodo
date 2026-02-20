@@ -34,19 +34,19 @@ export const metadata: Metadata = {
     siteName: "caltodo",
     images: [
       {
-        url: "/app-screenshot.png",
-        width: 2914,
-        height: 1734,
-        alt: "caltodo app — task inbox with calendar view",
+        url: "/logo.png",
+        width: 512,
+        height: 512,
+        alt: "caltodo logo",
       },
     ],
     type: "website",
   },
   twitter: {
-    card: "summary_large_image",
+    card: "summary",
     title: "caltodo",
     description: "Your assignments, synced and organized. Connect bCourses and Gradescope to automatically track every deadline in one place.",
-    images: ["/app-screenshot.png"],
+    images: ["/logo.png"],
   },
   icons: {
     icon: [
