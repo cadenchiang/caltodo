@@ -35,6 +35,11 @@ export default function Hero() {
 
   return (
     <div className="min-h-screen flex flex-col bg-white text-black">
+      {/* Top banner */}
+      <div className="bg-black text-white text-center text-xs py-1.5 tracking-wide">
+        exclusively for uc berkeley students · {userCount !== null ? `${userCount}/1,000 free lifetime spots taken` : "\u00A0"}
+      </div>
+
       {/* Nav */}
       <nav className="flex items-center justify-between px-8 py-6">
         <div className="flex items-center gap-2">
@@ -63,9 +68,9 @@ export default function Hero() {
 
       {/* Hero content */}
       <main className="flex flex-col items-center px-6 lg:px-10">
-        {/* Spots counter */}
+        {/* Eyebrow */}
         <p className="font-sans uppercase tracking-[0.51em] leading-[133%] text-center text-base mt-20 mb-8 text-black animate-appear opacity-0">
-          {userCount !== null ? `${userCount}/1,000 spots taken` : "\u00A0"}
+          built for uc berkeley students
         </p>
 
         {/* Heading */}
