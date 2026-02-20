@@ -181,7 +181,7 @@ export default function CalendarHeader({
   return (
     <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between mb-3 md:mb-5">
       {/* Row 1: title + nav buttons */}
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex items-center justify-between gap-4 w-full">
         <div className="flex items-center gap-3 min-w-0">
           <h1 className="text-lg md:text-2xl font-bold text-foreground flex items-center gap-2 shrink-0">
             <CalendarDays size={18} className="md:w-[22px] md:h-[22px]" />
