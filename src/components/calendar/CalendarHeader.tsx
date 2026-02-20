@@ -181,9 +181,9 @@ export default function CalendarHeader({
   return (
     <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between mb-3 md:mb-5">
       {/* Row 1: title + nav buttons */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h1 className="text-lg md:text-2xl font-bold text-foreground flex items-center gap-2">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3 min-w-0">
+          <h1 className="text-lg md:text-2xl font-bold text-foreground flex items-center gap-2 shrink-0">
             <CalendarDays size={18} className="md:w-[22px] md:h-[22px]" />
             <span className="md:hidden">{format(currentMonth, "MMM yyyy")}</span>
             <span className="hidden md:inline">{format(currentMonth, "MMMM yyyy")}</span>
@@ -254,7 +254,7 @@ export default function CalendarHeader({
             </div>
           )}
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 shrink-0">
           <button
             onClick={onToday}
             className="px-4 py-2 text-sm font-medium text-foreground rounded-xl bg-transparent border border-input-border hover:bg-accent hover:scale-105 active:scale-95 transition-all duration-150"
