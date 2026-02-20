@@ -257,7 +257,7 @@ export default function CalendarHeader({
         <div className="flex items-center gap-1.5 shrink-0">
           <button
             onClick={onToday}
-            className="px-4 py-2 text-sm font-medium text-foreground rounded-xl bg-transparent border border-input-border hover:bg-accent hover:scale-105 active:scale-95 transition-all duration-150"
+            className="px-3 py-1.5 text-xs md:text-sm font-medium text-foreground rounded-lg md:rounded-xl bg-transparent border border-input-border hover:bg-accent hover:scale-105 active:scale-95 transition-all duration-150"
           >
             Today
           </button>

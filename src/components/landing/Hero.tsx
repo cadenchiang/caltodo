@@ -236,12 +236,12 @@ export default function Hero() {
           </button>
 
           <h3 className="text-2xl font-bold text-black mb-3">
-            Free for life. Seriously.
+            free for life. seriously.
           </h3>
           <p className="text-sm text-black leading-relaxed mb-6">
-            The first 1,000 students get caltodo free forever. No catches.
+            the first 1,000 students get caltodo free forever. no catches.
             {userCount !== null
-              ? ` Only ${1000 - userCount} spots left.`
+              ? ` only ${1000 - userCount} spots left.`
               : ""}
           </p>
           <Link
@@ -249,7 +249,7 @@ export default function Hero() {
             className="block w-full text-center px-5 py-3 text-sm font-semibold rounded-xl bg-black text-white btn-elevated-primary"
             onClick={() => setShowSpotsModal(false)}
           >
-            Claim your free spot
+            claim free spot now
           </Link>
         </div>
       </div>

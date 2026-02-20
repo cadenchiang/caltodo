@@ -505,7 +505,7 @@ export default function InboxPage() {
 
   return (
     <PageTransition>
-      <div className="flex flex-col md:flex-row -m-4 md:-m-10" style={{ height: "calc(100dvh)" }}>
+      <div className="flex flex-col md:flex-row -m-4 md:-m-10 h-[calc(100dvh-3rem)] md:h-dvh">
         {/* Left: task list (60%) */}
         <div className="flex flex-col min-w-0" style={{ flex: "3 1 0%" }}>
           <div className="px-4 pt-4 pb-3 md:px-8 md:pt-8 md:pb-4 flex items-center justify-between animate-stagger stagger-1">

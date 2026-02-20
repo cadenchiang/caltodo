@@ -29,15 +29,24 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://caltodo.me"),
   openGraph: {
     title: "caltodo",
-    description: "Your assignments, synced and organized. Connect bCourses and Gradescope to automatically track every deadline in one place.",
+    description: "your assignments, synced and organized.",
     url: "https://caltodo.me",
     siteName: "caltodo",
     type: "website",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "caltodo",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "caltodo",
-    description: "Your assignments, synced and organized. Connect bCourses and Gradescope to automatically track every deadline in one place.",
+    description: "your assignments, synced and organized.",
+    images: ["/og-image.png"],
   },
   icons: {
     icon: [
