@@ -376,10 +376,13 @@ export default function GoogleCalendarSettings() {
             <GoogleCalendarIcon size={20} />
             Connect Google Calendar
           </a>
-          <p className="text-xs text-muted-foreground leading-relaxed max-w-md">
-            Google hasn&apos;t verified our app yet, but your data is safe and encrypted.
-            When you see a warning screen, click <span className="font-medium text-foreground">Advanced</span> → <span className="font-medium text-foreground">Go to caltodo.me (unsafe)</span> to continue.
-          </p>
+          <div className="flex items-start gap-2.5 px-3.5 py-2.5 rounded-xl text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 border border-blue-200/60 dark:border-blue-500/20 max-w-md leading-relaxed">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-0.5"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+            <span>
+              Google hasn&apos;t verified our app yet, but your data is safe and encrypted.
+              You&apos;ll see a warning — click <span className="font-semibold">Advanced</span> → <span className="font-semibold">Go to caltodo.me (unsafe)</span> to continue.
+            </span>
+          </div>
         </div>
       ) : (
         <div className="space-y-3">
