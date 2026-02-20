@@ -7,7 +7,9 @@ import { format } from "date-fns";
 import type { Task, TaskUpdate } from "@/lib/types";
 import { TASK_COLORS } from "@/lib/constants";
 import { getRepeatLabel } from "@/lib/repeat";
+import { useTaskContext } from "@/contexts/TaskContext";
 import DatePicker from "./DatePicker";
+import TagPicker from "./TagPicker";
 import Popover from "@/components/ui/Popover";
 
 interface TaskDetailPanelProps {
@@ -67,8 +69,10 @@ function getDateDisplay(dueDate: string | null, dueTime: string | null): { label
  * @param onSave - Callback with the task ID and updated fields
  */
 export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: TaskDetailPanelProps) {
+  const { availableTags } = useTaskContext();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
   const [dueDate, setDueDate] = useState<string | null>(null);
   const [dueTime, setDueTime] = useState<string | null>(null);
   const [color, setColor] = useState("#3B82F6");
@@ -95,13 +99,15 @@ export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: Tas
       setColor(task.color);
       setRepeatInterval(task.repeat_interval);
       setRepeatUnit(task.repeat_unit);
+      setTags(task.tags ?? []);
       setRepeatEndDate(task.repeat_end_date);
       setRepeatEndCount(task.repeat_end_count);
       setShowDatePicker(false);
       setShowColorPicker(false);
       setMenuOpen(false);
     }
-  }, [task?.id, task?.title, task?.description, task?.due_date, task?.due_time, task?.color, task?.repeat_interval, task?.repeat_unit, task?.repeat_end_date, task?.repeat_end_count]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [task?.id]);
 
   /**
    * Persists title and description on blur.
@@ -281,7 +287,8 @@ export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: Tas
                 onClick={() => {
                   if (menuBtnRef.current) {
                     const rect = menuBtnRef.current.getBoundingClientRect();
-                    setMenuPos({ x: rect.left, y: rect.bottom + 4 });
+                    const x = Math.min(rect.left, window.innerWidth - 156);
+                    setMenuPos({ x, y: rect.bottom + 4 });
                   }
                   setMenuOpen(true);
                 }}
@@ -325,8 +332,20 @@ export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: Tas
             </div>
           )}
 
+          {/* Tags */}
+          <div className="px-5 pt-3">
+            <TagPicker
+              selectedTags={tags}
+              availableTags={availableTags}
+              onChange={(newTags) => {
+                setTags(newTags);
+                saveWith({ tags: newTags });
+              }}
+            />
+          </div>
+
           {/* Title + Description */}
-          <div className="flex-1 overflow-auto px-5 pt-5">
+          <div className="flex-1 overflow-auto px-5 pt-3">
             <input
               type="text"
               value={title}

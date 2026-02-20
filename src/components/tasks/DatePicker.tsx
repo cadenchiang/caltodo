@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   format,
   startOfMonth,
@@ -14,11 +14,8 @@ import {
   startOfDay,
   addMonths,
   subMonths,
-  addDays,
-  addWeeks,
 } from "date-fns";
 import { ChevronLeft, ChevronRight, Clock, Repeat, Flag } from "lucide-react";
-import { parseDateInput } from "@/lib/date-helpers";
 import { getRepeatLabel } from "@/lib/repeat";
 
 type RepeatUnit = "day" | "week" | "month";
@@ -52,7 +49,35 @@ const REPEAT_PRESETS: Array<{ label: string; interval: number; unit: RepeatUnit 
 ];
 
 /**
- * Unified date picker with text input, quick-select buttons, calendar grid,
+ * Validates and selects a date from the structured MM/DD/YYYY input fields.
+ *
+ * @param mm - Month string (1-12)
+ * @param dd - Day string (1-31)
+ * @param yyyy - Year string (4 digits)
+ * @returns YYYY-MM-DD string if valid, null otherwise
+ */
+function buildDateString(mm: string, dd: string, yyyy: string): string | null {
+  const month = parseInt(mm, 10);
+  const day = parseInt(dd, 10);
+  const year = parseInt(yyyy, 10);
+  if (!month || !day || !year) return null;
+  if (month < 1 || month > 12) return null;
+  if (day < 1 || day > 31) return null;
+  if (yyyy.length !== 4) return null;
+
+  // Validate actual date
+  const date = new Date(year, month - 1, day);
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
+    return null;
+  }
+
+  const m = String(month).padStart(2, "0");
+  const d = String(day).padStart(2, "0");
+  return `${year}-${m}-${d}`;
+}
+
+/**
+ * Unified date picker with structured MM/DD/YYYY input, calendar grid,
  * optional time input, and optional integrated repeat section.
  *
  * @param value - Currently selected date as YYYY-MM-DD string, or null
@@ -80,13 +105,34 @@ export default function DatePicker({
 }: DatePickerProps) {
   const selectedDate = value ? new Date(value + "T00:00:00") : null;
   const [currentMonth, setCurrentMonth] = useState(selectedDate ?? new Date());
-  const [dateInput, setDateInput] = useState("");
   const [showCustomRepeat, setShowCustomRepeat] = useState(false);
   const [customInterval, setCustomInterval] = useState(repeatInterval ?? 1);
   const [customUnit, setCustomUnit] = useState<RepeatUnit>(repeatUnit ?? "day");
   const [expandedSection, setExpandedSection] = useState<ExpandedSection>(null);
 
-  // Derive end mode from props: "never" | "date" | "count"
+  // Structured date input fields
+  const [mm, setMm] = useState("");
+  const [dd, setDd] = useState("");
+  const [yyyy, setYyyy] = useState("");
+  const mmRef = useRef<HTMLInputElement>(null);
+  const ddRef = useRef<HTMLInputElement>(null);
+  const yyyyRef = useRef<HTMLInputElement>(null);
+
+  // Sync input fields when the selected date (prop) changes
+  useEffect(() => {
+    if (value) {
+      const parts = value.split("-"); // "YYYY-MM-DD"
+      setMm(parts[1] ?? "");
+      setDd(parts[2] ?? "");
+      setYyyy(parts[0] ?? "");
+    } else {
+      setMm("");
+      setDd("");
+      setYyyy("");
+    }
+  }, [value]);
+
+  // Derive end mode from props
   const endMode = repeatEndDate ? "date" : repeatEndCount ? "count" : "never";
   const [localEndCount, setLocalEndCount] = useState(repeatEndCount ?? 5);
 
@@ -100,16 +146,61 @@ export default function DatePicker({
   const today = startOfDay(new Date());
 
   /**
-   * Handles text input submission (Enter or blur).
-   * Parses typed date and selects it if valid.
+   * Handles input in the MM field. Auto-advances to DD when 2 digits entered.
    */
-  function handleDateInputSubmit() {
-    if (!dateInput.trim()) return;
-    const parsed = parseDateInput(dateInput);
-    if (parsed) {
-      onChange(parsed);
-      setCurrentMonth(new Date(parsed + "T00:00:00"));
-      setDateInput("");
+  function handleMmChange(val: string) {
+    const digits = val.replace(/\D/g, "").slice(0, 2);
+    setMm(digits);
+    if (digits.length === 2) {
+      ddRef.current?.focus();
+    }
+  }
+
+  /**
+   * Handles input in the DD field. Auto-advances to YYYY when 2 digits entered.
+   */
+  function handleDdChange(val: string) {
+    const digits = val.replace(/\D/g, "").slice(0, 2);
+    setDd(digits);
+    if (digits.length === 2) {
+      yyyyRef.current?.focus();
+    }
+  }
+
+  /**
+   * Handles input in the YYYY field. Auto-selects date when 4 digits entered.
+   */
+  function handleYyyyChange(val: string) {
+    const digits = val.replace(/\D/g, "").slice(0, 4);
+    setYyyy(digits);
+    if (digits.length === 4) {
+      const dateStr = buildDateString(mm, dd, digits);
+      if (dateStr) {
+        onChange(dateStr);
+        setCurrentMonth(new Date(dateStr + "T00:00:00"));
+        setMm("");
+        setDd("");
+        setYyyy("");
+        yyyyRef.current?.blur();
+      }
+    }
+  }
+
+  /**
+   * Handles backspace on empty DD field — moves focus back to MM.
+   */
+  function handleDdKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "Backspace" && dd === "") {
+      mmRef.current?.focus();
+    }
+  }
+
+  /**
+   * Handles backspace on empty YYYY field — moves focus back to DD.
+   */
+  function handleYyyyKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "Backspace" && yyyy === "") {
+      ddRef.current?.focus();
     }
   }
 
@@ -151,105 +242,76 @@ export default function DatePicker({
 
   return (
     <div className="bg-card rounded-2xl shadow-2xl border border-border p-3 w-64">
-      {/* Text input for typing a date */}
-      <input
-        type="text"
-        value={dateInput}
-        onChange={(e) => setDateInput(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            handleDateInputSubmit();
-          }
-        }}
-        onBlur={handleDateInputSubmit}
-        placeholder="Type a date (e.g. Feb 25)"
-        className="w-full px-3 py-1.5 text-xs rounded-lg border border-border bg-card text-foreground placeholder-subtle-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-blue-400 transition-all mb-2"
-      />
-
-      {/* Quick-select buttons */}
-      <div className="flex gap-1 mb-2">
-        <button
-          type="button"
-          onClick={() => {
-            const d = format(today, "yyyy-MM-dd");
-            onChange(d);
-            setCurrentMonth(today);
-          }}
-          className={`flex-1 text-xs py-1 rounded-lg transition-all ${
-            value === format(today, "yyyy-MM-dd")
-              ? "bg-blue-500 text-white"
-              : "bg-accent text-secondary-foreground hover:bg-blue-50 dark:hover:bg-blue-900/30"
-          }`}
-        >
-          Today
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            const tomorrow = addDays(today, 1);
-            const d = format(tomorrow, "yyyy-MM-dd");
-            onChange(d);
-            setCurrentMonth(tomorrow);
-          }}
-          className={`flex-1 text-xs py-1 rounded-lg transition-all ${
-            value === format(addDays(today, 1), "yyyy-MM-dd")
-              ? "bg-blue-500 text-white"
-              : "bg-accent text-secondary-foreground hover:bg-blue-50 dark:hover:bg-blue-900/30"
-          }`}
-        >
-          Tomorrow
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            const nextWeek = addWeeks(today, 1);
-            const d = format(nextWeek, "yyyy-MM-dd");
-            onChange(d);
-            setCurrentMonth(nextWeek);
-          }}
-          className={`flex-1 text-xs py-1 rounded-lg transition-all ${
-            value === format(addWeeks(today, 1), "yyyy-MM-dd")
-              ? "bg-blue-500 text-white"
-              : "bg-accent text-secondary-foreground hover:bg-blue-50 dark:hover:bg-blue-900/30"
-          }`}
-        >
-          Next Week
-        </button>
+      {/* Structured date input: MM / DD / YYYY */}
+      <div className="flex items-center gap-0 rounded-lg border border-border bg-card px-2 py-1.5 mb-3 focus-within:ring-2 focus-within:ring-ring focus-within:border-blue-400 transition-all">
+        <input
+          ref={mmRef}
+          type="text"
+          inputMode="numeric"
+          value={mm}
+          onChange={(e) => handleMmChange(e.target.value)}
+          placeholder="MM"
+          className="w-7 text-center text-xs bg-transparent text-foreground placeholder-subtle-foreground focus:outline-none"
+          maxLength={2}
+        />
+        <span className="text-xs text-subtle-foreground select-none">/</span>
+        <input
+          ref={ddRef}
+          type="text"
+          inputMode="numeric"
+          value={dd}
+          onChange={(e) => handleDdChange(e.target.value)}
+          onKeyDown={handleDdKeyDown}
+          placeholder="DD"
+          className="w-7 text-center text-xs bg-transparent text-foreground placeholder-subtle-foreground focus:outline-none"
+          maxLength={2}
+        />
+        <span className="text-xs text-subtle-foreground select-none">/</span>
+        <input
+          ref={yyyyRef}
+          type="text"
+          inputMode="numeric"
+          value={yyyy}
+          onChange={(e) => handleYyyyChange(e.target.value)}
+          onKeyDown={handleYyyyKeyDown}
+          placeholder="YYYY"
+          className="w-10 text-center text-xs bg-transparent text-foreground placeholder-subtle-foreground focus:outline-none"
+          maxLength={4}
+        />
       </div>
 
       {/* Month navigation header */}
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-1">
         <button
           type="button"
           onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
-          className="p-1.5 text-subtle-foreground hover:text-secondary-foreground rounded-lg hover:bg-accent transition-all"
+          className="p-1 text-subtle-foreground hover:text-secondary-foreground rounded-lg hover:bg-accent transition-all"
         >
-          <ChevronLeft size={16} />
+          <ChevronLeft size={14} />
         </button>
-        <span className="text-sm font-medium text-foreground">
+        <span className="text-xs font-semibold text-foreground">
           {format(currentMonth, "MMMM yyyy")}
         </span>
         <button
           type="button"
           onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
-          className="p-1.5 text-subtle-foreground hover:text-secondary-foreground rounded-lg hover:bg-accent transition-all"
+          className="p-1 text-subtle-foreground hover:text-secondary-foreground rounded-lg hover:bg-accent transition-all"
         >
-          <ChevronRight size={16} />
+          <ChevronRight size={14} />
         </button>
       </div>
 
       {/* Weekday headers */}
-      <div className="grid grid-cols-7 mb-1">
+      <div className="grid grid-cols-7 mb-0.5">
         {weekDays.map((day) => (
-          <div key={day} className="text-center text-xs text-subtle-foreground py-1">
+          <div key={day} className="text-center text-[10px] text-subtle-foreground py-0.5 font-medium">
             {day}
           </div>
         ))}
       </div>
 
       {/* Day cells */}
-      <div className="grid grid-cols-7">
+      <div className="grid grid-cols-7 gap-y-0.5">
         {days.map((day) => {
           const isCurrentMonth = isSameMonth(day, currentMonth);
           const isSelected = selectedDate && isSameDay(day, selectedDate);
@@ -262,7 +324,7 @@ export default function DatePicker({
               key={dateStr}
               type="button"
               onClick={() => onChange(dateStr)}
-              className={`w-8 h-8 text-xs rounded-full flex items-center justify-center transition-all ${
+              className={`w-8 h-8 text-xs rounded-full flex items-center justify-center mx-auto transition-all ${
                 isSelected
                   ? "bg-blue-500 text-white shadow-sm"
                   : isToday
@@ -271,7 +333,7 @@ export default function DatePicker({
                       ? "text-subtle-foreground hover:bg-accent"
                       : isCurrentMonth
                         ? "text-secondary-foreground hover:bg-accent"
-                        : "text-subtle-foreground/50"
+                        : "text-subtle-foreground/30"
               }`}
             >
               {format(day, "d")}
@@ -282,44 +344,44 @@ export default function DatePicker({
 
       {/* Collapsible sections */}
       {(onTimeChange || onRepeatChange) && (
-        <div className="mt-3 border-t border-border">
+        <div className="mt-2 pt-2 border-t border-border space-y-0.5">
           {/* Time row */}
           {onTimeChange && (
             <div>
               <button
                 type="button"
                 onClick={() => toggleSection("time")}
-                className="w-full flex items-center gap-2 px-2 py-2 hover:bg-accent rounded-lg transition-all"
+                className="w-full flex items-center gap-2 px-2 py-1.5 hover:bg-accent rounded-lg transition-all"
               >
                 <Clock size={14} className="text-subtle-foreground shrink-0" />
                 <span className="text-xs font-medium text-secondary-foreground">Time</span>
                 <span className="ml-auto text-xs text-subtle-foreground">{getTimeLabel()}</span>
                 <ChevronRight
-                  size={14}
+                  size={12}
                   className={`text-subtle-foreground shrink-0 transition-transform duration-200 ${
                     expandedSection === "time" ? "rotate-90" : ""
                   }`}
                 />
               </button>
               {expandedSection === "time" && (
-                <div className="px-2 pb-2">
-                  <div className="flex items-center justify-between mb-1.5">
+                <div className="px-2 pb-1.5 pt-1">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="time"
+                      value={timeValue ?? ""}
+                      onChange={(e) => onTimeChange(e.target.value || null)}
+                      className="flex-1 px-3 py-1.5 text-xs rounded-lg border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-all"
+                    />
                     {timeValue && (
                       <button
                         type="button"
                         onClick={() => onTimeChange(null)}
-                        className="text-xs text-subtle-foreground hover:text-secondary-foreground transition-colors ml-auto"
+                        className="text-[10px] text-subtle-foreground hover:text-secondary-foreground transition-colors shrink-0"
                       >
                         Clear
                       </button>
                     )}
                   </div>
-                  <input
-                    type="time"
-                    value={timeValue ?? ""}
-                    onChange={(e) => onTimeChange(e.target.value || null)}
-                    className="w-full px-3 py-2 text-sm rounded-xl border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-blue-400 transition-all"
-                  />
                 </div>
               )}
             </div>
@@ -331,7 +393,7 @@ export default function DatePicker({
               <button
                 type="button"
                 onClick={() => toggleSection("repeat")}
-                className="w-full flex items-center gap-2 px-2 py-2 hover:bg-accent rounded-lg transition-all"
+                className="w-full flex items-center gap-2 px-2 py-1.5 hover:bg-accent rounded-lg transition-all"
               >
                 <Repeat size={14} className="text-subtle-foreground shrink-0" />
                 <span className="text-xs font-medium text-secondary-foreground">Repeat</span>
@@ -339,14 +401,14 @@ export default function DatePicker({
                   {repeatInterval && repeatUnit ? getRepeatLabel(repeatInterval, repeatUnit) : ""}
                 </span>
                 <ChevronRight
-                  size={14}
+                  size={12}
                   className={`text-subtle-foreground shrink-0 transition-transform duration-200 ${
                     expandedSection === "repeat" ? "rotate-90" : ""
                   }`}
                 />
               </button>
               {expandedSection === "repeat" && (
-                <div className="px-2 pb-2">
+                <div className="px-2 pb-1.5 pt-1">
                   {repeatInterval && repeatUnit && (
                     <div className="flex items-center justify-between mb-1.5">
                       <span className="text-xs font-medium text-blue-500">
@@ -358,7 +420,7 @@ export default function DatePicker({
                           onRepeatChange(null, null);
                           setShowCustomRepeat(false);
                         }}
-                        className="text-xs text-subtle-foreground hover:text-secondary-foreground transition-colors"
+                        className="text-[10px] text-subtle-foreground hover:text-secondary-foreground transition-colors"
                       >
                         Clear
                       </button>
@@ -366,7 +428,7 @@ export default function DatePicker({
                   )}
 
                   {/* Preset buttons */}
-                  <div className="grid grid-cols-2 gap-1.5 mb-2">
+                  <div className="grid grid-cols-2 gap-1.5 mb-1.5">
                     {REPEAT_PRESETS.map((p) => (
                       <button
                         key={p.label}
@@ -437,20 +499,20 @@ export default function DatePicker({
               <button
                 type="button"
                 onClick={() => toggleSection("ends")}
-                className="w-full flex items-center gap-2 px-2 py-2 hover:bg-accent rounded-lg transition-all"
+                className="w-full flex items-center gap-2 px-2 py-1.5 hover:bg-accent rounded-lg transition-all"
               >
                 <Flag size={14} className="text-subtle-foreground shrink-0" />
                 <span className="text-xs font-medium text-secondary-foreground">Ends</span>
                 <span className="ml-auto text-xs text-subtle-foreground">{getEndsLabel()}</span>
                 <ChevronRight
-                  size={14}
+                  size={12}
                   className={`text-subtle-foreground shrink-0 transition-transform duration-200 ${
                     expandedSection === "ends" ? "rotate-90" : ""
                   }`}
                 />
               </button>
               {expandedSection === "ends" && (
-                <div className="px-2 pb-2">
+                <div className="px-2 pb-1.5 pt-1">
                   <div className="flex flex-col gap-1.5">
                     {/* Never */}
                     <button
@@ -534,7 +596,7 @@ export default function DatePicker({
       <button
         type="button"
         onClick={() => { onChange(null); onTimeChange?.(null); }}
-        className="mt-2 w-full text-xs text-subtle-foreground hover:text-secondary-foreground py-1.5 rounded-lg hover:bg-accent transition-all"
+        className="mt-2 w-full text-xs text-subtle-foreground hover:text-secondary-foreground py-1 rounded-lg hover:bg-accent transition-all"
       >
         Clear date
       </button>

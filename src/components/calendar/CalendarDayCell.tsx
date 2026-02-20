@@ -52,7 +52,7 @@ export default function CalendarDayCell({
 
   return (
     <div
-      className={`min-h-[56px] md:min-h-[140px] p-0.5 md:p-1.5 cursor-pointer border-r border-b border-border transition-all duration-150 ${
+      className={`min-h-[60px] md:min-h-[140px] p-1 md:p-1.5 cursor-pointer border-r border-b border-border transition-all duration-150 ${
         !isCurrentMonth
           ? "bg-muted/80"
           : isPast
@@ -66,7 +66,7 @@ export default function CalendarDayCell({
     >
       {/* Day number */}
       <div
-        className={`w-5 h-5 md:w-7 md:h-7 text-[10px] md:text-xs rounded-full flex items-center justify-center mb-0.5 md:mb-1 ${
+        className={`w-[22px] h-[22px] md:w-7 md:h-7 text-[11px] md:text-xs rounded-full flex items-center justify-center mb-0.5 md:mb-1 ${
           isToday
             ? "bg-blue-500 text-white font-bold shadow-sm"
             : isCurrentMonth

@@ -5,6 +5,9 @@
 
 import { logger } from "@/lib/logger";
 
+/** Timeout in milliseconds for external Canvas API calls. */
+const FETCH_TIMEOUT_MS = 30_000;
+
 /**
  * Extracts plain text and file links from Canvas HTML description.
  * Strips HTML tags, preserves link URLs inline, and lists attached file links.
@@ -103,6 +106,7 @@ export async function fetchCanvasCourses(
   while (url) {
     const response = await fetch(url, {
       headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
 
     if (response.status === 401) {
@@ -146,6 +150,7 @@ export async function fetchCanvasAssignments(
   while (url) {
     const response = await fetch(url, {
       headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
 
     if (!response.ok) {
@@ -153,7 +158,7 @@ export async function fetchCanvasAssignments(
         courseId,
         status: response.status,
       });
-      break;
+      throw new Error(`Canvas returned ${response.status} for course ${courseId}`);
     }
 
     const data: CanvasAssignment[] = await response.json();

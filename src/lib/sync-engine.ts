@@ -267,7 +267,7 @@ async function upsertAssignments(
   // Removed created_at filter so assignments submitted between syncs get auto-completed.
   const { error: autoCompleteError } = await supabase
     .from("tasks")
-    .update({ is_completed: true, updated_at: new Date().toISOString() })
+    .update({ is_completed: true, completed_at: new Date().toISOString(), updated_at: new Date().toISOString() })
     .eq("user_id", userId)
     .eq("source", source)
     .eq("is_submitted", true)

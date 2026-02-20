@@ -10,7 +10,6 @@ import {
   Repeat,
   CheckCircle2,
   X,
-  CheckCheck,
   Trash2,
 } from "lucide-react";
 import { useNotifications } from "@/contexts/NotificationContext";
@@ -40,7 +39,7 @@ function NotificationIcon({ type }: { type: NotificationType }) {
 }
 
 /**
- * Single notification row with step number, timestamp on left, icon, title, description.
+ * Single notification row with step number, timestamp, icon, title, description.
  * Clicking navigates to the related task if taskId exists.
  *
  * @param notification - The notification data
@@ -68,44 +67,26 @@ function NotificationRow({
           onNavigate(notification.taskId);
         }
       }}
-      className={`w-full text-left px-3 py-3 flex items-start gap-3 transition-colors hover:bg-muted/50 ${
-        !notification.read ? "bg-blue-500/5" : ""
-      }`}
+      className="w-full text-left px-3 py-3 flex items-start gap-3 transition-colors hover:bg-muted/50"
     >
       {/* Step number */}
       <div className="flex flex-col items-center gap-1 shrink-0 pt-0.5">
-        <span
-          className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-            !notification.read
-              ? "bg-blue-500 text-white"
-              : "bg-muted text-muted-foreground"
-          }`}
-        >
+        <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold bg-muted text-muted-foreground">
           {index + 1}
         </span>
       </div>
 
       {/* Content */}
       <div className="flex-1 min-w-0">
-        {/* Timestamp on left */}
         <p className="text-[10px] text-muted-foreground/70 mb-0.5">
           {formatShortDate(notification.createdAt)}
         </p>
 
         <div className="flex items-center gap-2">
           <NotificationIcon type={notification.type} />
-          <p
-            className={`text-sm truncate ${
-              !notification.read
-                ? "font-semibold text-foreground"
-                : "text-foreground"
-            }`}
-          >
+          <p className="text-sm truncate text-foreground">
             {notification.title}
           </p>
-          {!notification.read && (
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
-          )}
         </div>
 
         {notification.description && (
@@ -146,15 +127,12 @@ export default function NotificationCenter() {
     useNotifications();
   const [isOpen, setIsOpen] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
-  const [tab, setTab] = useState<"all" | "unread">("all");
   const panelRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
-  const unread = notifications.filter((n) => !n.read);
-  const displayItems = tab === "all" ? notifications : unread;
-
   /**
    * Opens the notification panel with entry animation.
+   * Auto-marks all notifications as read on open.
    */
   const openPanel = useCallback(() => {
     setIsVisible(true);
@@ -162,7 +140,10 @@ export default function NotificationCenter() {
       requestAnimationFrame(() => setIsOpen(true));
     });
     trackEvent("notification_center_opened", { unread_count: unreadCount });
-  }, [unreadCount]);
+    if (unreadCount > 0) {
+      markAllAsRead();
+    }
+  }, [unreadCount, markAllAsRead]);
 
   /**
    * Closes the notification panel with exit animation.
@@ -268,74 +249,26 @@ export default function NotificationCenter() {
             <h3 className="text-sm font-semibold text-foreground">
               Notifications
             </h3>
-            <div className="flex items-center gap-1">
-              {unreadCount > 0 && (
-                <button
-                  type="button"
-                  onClick={markAllAsRead}
-                  className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                  aria-label="Mark all as read"
-                  title="Mark all read"
-                >
-                  <CheckCheck size={14} />
-                </button>
-              )}
-              {notifications.length > 0 && (
-                <button
-                  type="button"
-                  onClick={clearAll}
-                  className="p-1.5 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-muted transition-colors"
-                  aria-label="Clear all notifications"
-                  title="Clear all"
-                >
-                  <Trash2 size={14} />
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Tab bar */}
-          <div className="flex border-b border-border shrink-0">
-            <button
-              type="button"
-              onClick={() => setTab("all")}
-              className={`flex-1 py-2 text-xs font-medium transition-colors ${
-                tab === "all"
-                  ? "text-blue-500 border-b-2 border-blue-500"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              All
-            </button>
-            <button
-              type="button"
-              onClick={() => setTab("unread")}
-              className={`flex-1 py-2 text-xs font-medium transition-colors flex items-center justify-center gap-1.5 ${
-                tab === "unread"
-                  ? "text-blue-500 border-b-2 border-blue-500"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              Unread
-              {unreadCount > 0 && (
-                <span className="h-4 min-w-[16px] px-1 rounded-full bg-muted text-foreground text-[10px] font-semibold flex items-center justify-center">
-                  {unreadCount}
-                </span>
-              )}
-            </button>
+            {notifications.length > 0 && (
+              <button
+                type="button"
+                onClick={clearAll}
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-muted transition-colors"
+                aria-label="Clear all notifications"
+                title="Clear all"
+              >
+                <Trash2 size={14} />
+              </button>
+            )}
           </div>
 
           {/* Notification list */}
           <div className="flex-1 overflow-y-auto">
-            {displayItems.length === 0 ? (
-              <EmptyState
-                message={
-                  tab === "all" ? "No notifications yet" : "All caught up!"
-                }
-              />
+            {notifications.length === 0 ? (
+              <EmptyState message="No notifications yet" />
             ) : (
               <div className="divide-y divide-border">
-                {displayItems.map((n, i) => (
+                {notifications.map((n, i) => (
                   <NotificationRow
                     key={n.id}
                     notification={n}

@@ -379,14 +379,14 @@ export async function createCalendarEvent(
  * @param calendarId - The calendar ID containing the event
  * @param eventId - The Google Calendar event ID to update
  * @param task - The task with updated data
- * @returns true on success, false on failure
+ * @returns true on success, false on failure, "not_found" if event was deleted externally
  */
 export async function updateCalendarEvent(
   accessToken: string,
   calendarId: string,
   eventId: string,
   task: Task
-): Promise<boolean> {
+): Promise<boolean | "not_found"> {
   const payload = buildEventPayload(task);
 
   const res = await fetch(`${GCAL_API_BASE}/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`, {
@@ -397,6 +397,15 @@ export async function updateCalendarEvent(
     },
     body: JSON.stringify(payload),
   });
+
+  // Event was deleted externally — return special value so caller can re-create
+  if (res.status === 404 || res.status === 410) {
+    logger.warn("updateCalendarEvent: event not found (deleted externally)", {
+      eventId,
+      taskId: task.id,
+    });
+    return "not_found";
+  }
 
   if (!res.ok) {
     const body = await res.text();

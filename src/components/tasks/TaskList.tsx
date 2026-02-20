@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
-import { ChevronRight } from "lucide-react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
+import { ChevronRight, MoreVertical } from "lucide-react";
 import type { Task, TaskInsert } from "@/lib/types";
 import TaskItem from "./TaskItem";
 import TaskAddForm from "./TaskAddForm";
@@ -12,6 +13,49 @@ const ITEMS_PER_SECTION = 10;
 
 /** Shared localStorage key for column/group name aliases (same as board view). */
 const COLUMN_ALIASES_KEY = "caltodo_board_column_aliases";
+
+/** localStorage key for completed task auto-hide duration (in hours). */
+const COMPLETED_HIDE_KEY = "caltodo_completed_hide_hours";
+
+/** Default auto-hide duration: 24 hours. */
+const DEFAULT_HIDE_HOURS = 24;
+
+/** Preset auto-hide options shown in the settings menu. */
+const HIDE_OPTIONS = [
+  { label: "6 hours", hours: 6 },
+  { label: "12 hours", hours: 12 },
+  { label: "24 hours", hours: 24 },
+  { label: "3 days", hours: 72 },
+  { label: "7 days", hours: 168 },
+  { label: "Never", hours: 0 },
+];
+
+/**
+ * Loads the completed task auto-hide duration from localStorage.
+ *
+ * @returns Duration in hours, or the default (24) if not set
+ */
+function loadHideHours(): number {
+  try {
+    const raw = localStorage.getItem(COMPLETED_HIDE_KEY);
+    if (raw === null) return DEFAULT_HIDE_HOURS;
+    const val = parseInt(raw, 10);
+    return isNaN(val) ? DEFAULT_HIDE_HOURS : val;
+  } catch {
+    return DEFAULT_HIDE_HOURS;
+  }
+}
+
+/**
+ * Saves the completed task auto-hide duration to localStorage.
+ */
+function saveHideHours(hours: number): void {
+  try {
+    localStorage.setItem(COMPLETED_HIDE_KEY, String(hours));
+  } catch {
+    // non-critical
+  }
+}
 
 /**
  * Loads column name aliases from localStorage.
@@ -129,6 +173,10 @@ export default function TaskList({
   const [showAllCompleted, setShowAllCompleted] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [aliases, setAliases] = useState<Map<string, string>>(() => loadColumnAliases());
+  const [hideHours, setHideHours] = useState<number>(() => loadHideHours());
+  const [completedMenuOpen, setCompletedMenuOpen] = useState(false);
+  const completedMenuBtnRef = useRef<HTMLButtonElement>(null);
+  const completedMenuRef = useRef<HTMLDivElement>(null);
 
   /** Toggles a course group's collapsed state. */
   const toggleGroup = useCallback((groupName: string) => {
@@ -158,6 +206,29 @@ export default function TaskList({
     });
   }, []);
 
+  /** Updates the auto-hide duration for completed tasks. */
+  const updateHideHours = useCallback((hours: number) => {
+    setHideHours(hours);
+    saveHideHours(hours);
+    setCompletedMenuOpen(false);
+  }, []);
+
+  // Close completed menu on outside click
+  useEffect(() => {
+    if (!completedMenuOpen) return;
+    function handleClick(e: MouseEvent) {
+      const target = e.target as Node;
+      if (
+        completedMenuBtnRef.current && !completedMenuBtnRef.current.contains(target) &&
+        completedMenuRef.current && !completedMenuRef.current.contains(target)
+      ) {
+        setCompletedMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [completedMenuOpen]);
+
   /** Resets a group alias back to its original name. */
   const resetGroupName = useCallback((originalName: string) => {
     setAliases((prev) => {
@@ -180,19 +251,22 @@ export default function TaskList({
       }
     }
 
-    // Filter completed tasks to only show those completed within the last 24 hours
-    const recentCompleted = completedList.filter((t) => {
-      if (!t.completed_at) return true; // Legacy tasks without completed_at stay visible
-      const completedTime = new Date(t.completed_at).getTime();
-      const twentyFourHoursAgo = Date.now() - 24 * 60 * 60 * 1000;
-      return completedTime > twentyFourHoursAgo;
-    });
+    // Filter completed tasks to only show those within the auto-hide window
+    // hideHours=0 means "never hide" — show all completed tasks
+    const recentCompleted = hideHours === 0
+      ? completedList
+      : completedList.filter((t) => {
+          if (!t.completed_at) return true; // Legacy tasks without completed_at stay visible
+          const completedTime = new Date(t.completed_at).getTime();
+          const cutoff = Date.now() - hideHours * 60 * 60 * 1000;
+          return completedTime > cutoff;
+        });
 
     return {
       active: sortByDueDate(activeList),
       completed: sortByDueDate(recentCompleted),
     };
-  }, [tasks]);
+  }, [tasks, hideHours]);
 
   /** Active tasks grouped by course when sortMode is "class". */
   const activeGroups = useMemo(
@@ -294,19 +368,68 @@ export default function TaskList({
       {/* Completed section (collapsible) */}
       {completed.length > 0 && (
         <div className="mt-1">
-          <button
-            onClick={() => setCompletedExpanded(!completedExpanded)}
-            className="flex items-center pl-2.5 pr-4 py-1.5 hover:bg-accent transition-colors w-full text-left rounded-lg mx-2"
-          >
-            <ChevronRight
-              size={12}
-              className={`shrink-0 text-secondary-foreground transition-transform duration-200 ${
-                completedExpanded ? "rotate-90" : ""
-              }`}
-            />
-            <span className="text-sm font-semibold text-foreground ml-0.5">Completed</span>
-            <span className="text-xs text-subtle-foreground ml-1.5">{completed.length}</span>
-          </button>
+          <div className="flex items-center mx-2 group">
+            <button
+              onClick={() => setCompletedExpanded(!completedExpanded)}
+              className="flex items-center flex-1 pl-2.5 py-1.5 hover:bg-accent transition-colors text-left rounded-lg"
+            >
+              <ChevronRight
+                size={12}
+                className={`shrink-0 text-secondary-foreground transition-transform duration-200 ${
+                  completedExpanded ? "rotate-90" : ""
+                }`}
+              />
+              <span className="text-sm font-semibold text-foreground ml-0.5">Completed</span>
+              <span className="text-xs text-subtle-foreground ml-1.5">{completed.length}</span>
+            </button>
+            <button
+              ref={completedMenuBtnRef}
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setCompletedMenuOpen(!completedMenuOpen); }}
+              className="p-1 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-all opacity-0 group-hover:opacity-100"
+              title="Auto-hide settings"
+            >
+              <MoreVertical size={14} />
+            </button>
+          </div>
+
+          {/* Completed auto-hide settings menu */}
+          {completedMenuOpen && completedMenuBtnRef.current && typeof document !== "undefined" && createPortal(
+            <div
+              ref={completedMenuRef}
+              className="fixed z-[9999] rounded-xl shadow-2xl border border-border overflow-hidden min-w-[180px] bg-popover"
+              style={{
+                top: completedMenuBtnRef.current.getBoundingClientRect().bottom + 4,
+                left: Math.min(
+                  completedMenuBtnRef.current.getBoundingClientRect().left,
+                  window.innerWidth - 196
+                ),
+              }}
+            >
+              <div className="px-3 py-2 border-b border-border">
+                <p className="text-xs font-medium text-foreground">Auto-hide after</p>
+                <p className="text-[10px] text-muted-foreground">Completed tasks disappear after this time</p>
+              </div>
+              {HIDE_OPTIONS.map((opt) => (
+                <button
+                  key={opt.hours}
+                  type="button"
+                  onClick={() => updateHideHours(opt.hours)}
+                  className={`flex items-center w-full text-left px-3 py-1.5 text-xs transition-colors ${
+                    hideHours === opt.hours
+                      ? "text-blue-500 bg-blue-50 dark:bg-blue-900/20 font-medium"
+                      : "text-foreground hover:bg-accent"
+                  }`}
+                >
+                  {opt.label}
+                  {hideHours === opt.hours && (
+                    <span className="ml-auto text-blue-500">&#10003;</span>
+                  )}
+                </button>
+              ))}
+            </div>,
+            document.body
+          )}
           {completedExpanded && (
             <>
               {completedToShow.map((task, i) => (

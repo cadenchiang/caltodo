@@ -48,6 +48,8 @@ function makeTask(overrides: Partial<Task> = {}): Task {
     repeat_end_date: null,
     repeat_end_count: null,
     late_due_date: null,
+    completed_at: null,
+    tags: [],
     ...overrides,
   };
 }

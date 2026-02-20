@@ -12,10 +12,10 @@ import { useToast } from "@/contexts/ToastContext";
  * @property time - Video timestamp in seconds for this step
  */
 const TOKEN_STEPS: Array<{ label: string; time: number }> = [
-  { label: "Open bCourses Settings", time: 0 },
-  { label: "Create + New Access Token", time: 5 },
-  { label: "Set expiration to max (120 days)", time: 12 },
-  { label: "Copy your token", time: 18 },
+  { label: "open bCourses settings", time: 0 },
+  { label: "create + new access token", time: 5 },
+  { label: "set expiration to max (120 days)", time: 12 },
+  { label: "copy your token", time: 18 },
 ];
 
 interface CanvasCourse {

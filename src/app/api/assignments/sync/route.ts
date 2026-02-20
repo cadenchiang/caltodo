@@ -28,9 +28,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
 
+  let body: Record<string, unknown>;
   try {
-    const body = await request.json().catch(() => ({}));
-    const rawTimezone = body.timezone || "America/Los_Angeles";
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  try {
+    const rawTimezone = (body.timezone as string) || "America/Los_Angeles";
 
     // Validate timezone against IANA database to prevent injection of arbitrary strings
     const validTimezones = Intl.supportedValuesOf("timeZone");
@@ -40,8 +46,8 @@ export async function POST(request: Request) {
     const courseOverrides: SyncCourseOverrides | undefined =
       (body.canvas_courses || body.gradescope_courses)
         ? {
-            canvas_courses: body.canvas_courses,
-            gradescope_courses: body.gradescope_courses,
+            canvas_courses: body.canvas_courses as SyncCourseOverrides["canvas_courses"],
+            gradescope_courses: body.gradescope_courses as SyncCourseOverrides["gradescope_courses"],
           }
         : undefined;
 
@@ -51,6 +57,6 @@ export async function POST(request: Request) {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     logger.error("POST /api/assignments/sync failed", { userId: user.id, error: message });
-    return NextResponse.json({ error: "Sync failed: " + message }, { status: 500 });
+    return NextResponse.json({ error: "Sync failed" }, { status: 500 });
   }
 }

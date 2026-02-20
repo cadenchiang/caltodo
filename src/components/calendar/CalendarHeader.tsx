@@ -179,120 +179,125 @@ export default function CalendarHeader({
   }
 
   return (
-    <div className="flex items-center justify-between mb-3 md:mb-5">
-      <div className="flex items-center gap-3">
-        <h1 className="text-lg md:text-2xl font-bold text-foreground flex items-center gap-2">
-          <CalendarDays size={18} className="md:w-[22px] md:h-[22px]" />
-          {format(currentMonth, "MMMM yyyy")}
-        </h1>
+    <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between mb-3 md:mb-5">
+      {/* Row 1: title + nav buttons */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <h1 className="text-lg md:text-2xl font-bold text-foreground flex items-center gap-2">
+            <CalendarDays size={18} className="md:w-[22px] md:h-[22px]" />
+            <span className="md:hidden">{format(currentMonth, "MMM yyyy")}</span>
+            <span className="hidden md:inline">{format(currentMonth, "MMMM yyyy")}</span>
+          </h1>
 
-        {/* GCal not connected — shimmer CTA with notification badge on the right */}
-        {gcalConnected === false && (
-          <a href="/app/settings" title="Connect Google Calendar in Settings" className="relative group/sync">
-            <ShimmerButton
-              shimmerColor="#b45309"
-              shimmerSize="0.05em"
-              shimmerDuration="3s"
-              background="rgba(0, 0, 0, 0.9)"
-              className="px-3 py-1.5 text-xs hover:scale-105 active:scale-95 transition-all duration-200"
-            >
-              <GCalIcon size={16} />
-              <span className="ml-1.5 font-medium text-amber-500 dark:text-amber-400">
-                Sync Google Calendar
-              </span>
-            </ShimmerButton>
-            {/* Red notification badge — right side */}
-            <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-medium leading-none">
-              1
-            </span>
-          </a>
-        )}
-
-        {/* GCal synced tag */}
-        {gcalConnected && (
-          <div className="relative">
-            <button
-              ref={buttonRef}
-              onClick={() => setShowPopover(!showPopover)}
-              className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-colors"
-            >
-              <GCalIcon size={12} />
-              Synced
-            </button>
-
-            {/* Disconnect popover — rendered via portal to escape glass stacking context */}
-            {showPopover && createPortal(
-              <div
-                ref={popoverRef}
-                style={getPopoverStyle()}
-                className="z-[9999] bg-white dark:bg-neutral-800 border border-border rounded-xl shadow-xl dark:shadow-black/40 p-3.5 min-w-[220px] animate-popover-in"
+          {/* GCal synced tag — always inline next to title */}
+          {gcalConnected && (
+            <div className="relative">
+              <button
+                ref={buttonRef}
+                onClick={() => setShowPopover(!showPopover)}
+                className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-colors"
               >
-                {/* Account info */}
-                {gcalEmail && (
-                  <div className="flex items-center gap-2.5 mb-3">
-                    {gcalPhotoUrl ? (
-                      <img
-                        src={gcalPhotoUrl}
-                        alt=""
-                        width={28}
-                        height={28}
-                        className="rounded-full shrink-0"
-                        referrerPolicy="no-referrer"
-                      />
-                    ) : (
-                      <div className="w-7 h-7 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-medium shrink-0">
-                        {gcalEmail[0].toUpperCase()}
-                      </div>
-                    )}
-                    <span className="text-xs text-foreground font-medium truncate">{gcalEmail}</span>
-                    <Check size={14} className="text-emerald-500 shrink-0" />
-                  </div>
-                )}
-                <p className="text-xs text-subtle-foreground mb-3">
-                  Tasks are synced to Google Calendar in real time.
-                </p>
-                <button
-                  onClick={handleDisconnect}
-                  disabled={disconnecting}
-                  className={`w-full flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg transition-all disabled:opacity-60 ${
-                    confirmDisconnect
-                      ? "bg-red-50 dark:bg-red-500/10 text-red-500 border border-red-200 dark:border-red-500/20"
-                      : "text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 border border-border"
-                  }`}
+                <GCalIcon size={12} />
+                Synced
+              </button>
+
+              {/* Disconnect popover — rendered via portal to escape glass stacking context */}
+              {showPopover && createPortal(
+                <div
+                  ref={popoverRef}
+                  style={getPopoverStyle()}
+                  className="z-[9999] bg-white dark:bg-neutral-800 border border-border rounded-xl shadow-xl dark:shadow-black/40 p-3.5 min-w-[220px] animate-popover-in"
                 >
-                  {confirmDisconnect ? <XCircle size={12} /> : <Unlink size={12} />}
-                  {confirmDisconnect
-                    ? "Click again to confirm"
-                    : disconnecting
-                      ? "Disconnecting..."
-                      : "Disconnect"}
-                </button>
-              </div>,
-              document.body
-            )}
-          </div>
-        )}
+                  {/* Account info */}
+                  {gcalEmail && (
+                    <div className="flex items-center gap-2.5 mb-3">
+                      {gcalPhotoUrl ? (
+                        <img
+                          src={gcalPhotoUrl}
+                          alt=""
+                          width={28}
+                          height={28}
+                          className="rounded-full shrink-0"
+                          referrerPolicy="no-referrer"
+                        />
+                      ) : (
+                        <div className="w-7 h-7 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-medium shrink-0">
+                          {gcalEmail[0].toUpperCase()}
+                        </div>
+                      )}
+                      <span className="text-xs text-foreground font-medium truncate">{gcalEmail}</span>
+                      <Check size={14} className="text-emerald-500 shrink-0" />
+                    </div>
+                  )}
+                  <p className="text-xs text-subtle-foreground mb-3">
+                    Tasks are synced to Google Calendar in real time.
+                  </p>
+                  <button
+                    onClick={handleDisconnect}
+                    disabled={disconnecting}
+                    className={`w-full flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg transition-all disabled:opacity-60 ${
+                      confirmDisconnect
+                        ? "bg-red-50 dark:bg-red-500/10 text-red-500 border border-red-200 dark:border-red-500/20"
+                        : "text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 border border-border"
+                    }`}
+                  >
+                    {confirmDisconnect ? <XCircle size={12} /> : <Unlink size={12} />}
+                    {confirmDisconnect
+                      ? "Click again to confirm"
+                      : disconnecting
+                        ? "Disconnecting..."
+                        : "Disconnect"}
+                  </button>
+                </div>,
+                document.body
+              )}
+            </div>
+          )}
+        </div>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={onToday}
+            className="px-4 py-2 text-sm font-medium text-foreground rounded-xl bg-transparent border border-input-border hover:bg-accent hover:scale-105 active:scale-95 transition-all duration-150"
+          >
+            Today
+          </button>
+          <button
+            onClick={onPrevMonth}
+            className="p-2 text-subtle-foreground hover:text-secondary-foreground rounded-xl hover:bg-accent transition-all"
+          >
+            <ChevronLeft size={18} />
+          </button>
+          <button
+            onClick={onNextMonth}
+            className="p-2 text-subtle-foreground hover:text-secondary-foreground rounded-xl hover:bg-accent transition-all"
+          >
+            <ChevronRight size={18} />
+          </button>
+        </div>
       </div>
-      <div className="flex items-center gap-1.5">
-        <button
-          onClick={onToday}
-          className="px-4 py-2 text-sm font-medium text-foreground rounded-xl bg-transparent border border-input-border hover:bg-accent hover:scale-105 active:scale-95 transition-all duration-150"
-        >
-          Today
-        </button>
-        <button
-          onClick={onPrevMonth}
-          className="p-2 text-subtle-foreground hover:text-secondary-foreground rounded-xl hover:bg-accent transition-all"
-        >
-          <ChevronLeft size={18} />
-        </button>
-        <button
-          onClick={onNextMonth}
-          className="p-2 text-subtle-foreground hover:text-secondary-foreground rounded-xl hover:bg-accent transition-all"
-        >
-          <ChevronRight size={18} />
-        </button>
-      </div>
+
+      {/* Row 2 (mobile only): GCal CTA when not connected */}
+      {gcalConnected === false && (
+        <a href="/app/settings" title="Connect Google Calendar in Settings" className="relative group/sync self-start md:self-auto">
+          <ShimmerButton
+            shimmerColor="#b45309"
+            shimmerSize="0.05em"
+            shimmerDuration="3s"
+            background="rgba(0, 0, 0, 0.9)"
+            className="px-3 py-1.5 text-xs hover:scale-105 active:scale-95 transition-all duration-200"
+          >
+            <GCalIcon size={16} />
+            <span className="ml-1.5 font-medium text-amber-500 dark:text-amber-400">
+              <span className="md:hidden">Sync GCal</span>
+              <span className="hidden md:inline">Sync Google Calendar</span>
+            </span>
+          </ShimmerButton>
+          {/* Red notification badge — right side */}
+          <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-medium leading-none">
+            1
+          </span>
+        </a>
+      )}
     </div>
   );
 }

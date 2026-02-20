@@ -28,6 +28,7 @@ export interface Task {
   repeat_end_count: number | null;
   late_due_date: string | null;
   completed_at: string | null;
+  tags: string[];
 }
 
 /**
@@ -43,6 +44,7 @@ export interface TaskInsert {
   repeat_unit?: "day" | "week" | "month" | null;
   repeat_end_date?: string | null;
   repeat_end_count?: number | null;
+  tags?: string[];
 }
 
 /**
@@ -60,6 +62,7 @@ export interface TaskUpdate {
   repeat_end_date?: string | null;
   repeat_end_count?: number | null;
   completed_at?: string | null;
+  tags?: string[];
 }
 
 /**

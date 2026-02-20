@@ -24,6 +24,9 @@ import type { NormalizedAssignment } from "@/lib/canvas-client";
 
 const GRADESCOPE_BASE = "https://www.gradescope.com";
 
+/** Timeout in milliseconds for external Gradescope HTTP calls. */
+const FETCH_TIMEOUT_MS = 30_000;
+
 interface GradescopeCourse {
   id: string;
   name: string;
@@ -51,7 +54,9 @@ export async function gradescopeLogin(
 
   // Step 1: GET the login page to extract CSRF token
   // Reference: driver.get("https://www.gradescope.com/login")
-  const loginPageRes = await fetchWithCookies(`${GRADESCOPE_BASE}/login`);
+  const loginPageRes = await fetchWithCookies(`${GRADESCOPE_BASE}/login`, {
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  });
   if (!loginPageRes.ok) {
     throw new Error(`Gradescope login page returned ${loginPageRes.status}`);
   }
@@ -84,6 +89,7 @@ export async function gradescopeLogin(
       authenticity_token: csrfToken,
     }).toString(),
     redirect: "manual",
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   });
 
   // Successful login redirects (302); failed login returns 200
@@ -116,7 +122,9 @@ export async function fetchGradescopeCourses(
 ): Promise<GradescopeCourse[]> {
   const fetchWithCookies = fetchCookie(fetch, jar);
 
-  const dashboardRes = await fetchWithCookies(GRADESCOPE_BASE);
+  const dashboardRes = await fetchWithCookies(GRADESCOPE_BASE, {
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  });
   if (!dashboardRes.ok) {
     throw new Error(`Gradescope dashboard returned ${dashboardRes.status}`);
   }
@@ -350,7 +358,8 @@ export async function fetchGradescopeAssignments(
   const fetchWithCookies = fetchCookie(fetch, jar);
 
   const pageRes = await fetchWithCookies(
-    `${GRADESCOPE_BASE}/courses/${courseId}`
+    `${GRADESCOPE_BASE}/courses/${courseId}`,
+    { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) }
   );
   if (!pageRes.ok) {
     throw new Error(

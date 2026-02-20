@@ -52,7 +52,10 @@ function isFutureRepeatTask(task: Task, todayStr: string): boolean {
  */
 function filterTasksByDate(tasks: Task[], filter: InboxFilter): Task[] {
   const now = new Date();
-  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  const todayStr = `${y}-${m}-${d}`;
 
   if (filter === "all") {
     return tasks.filter((t) => !isFutureRepeatTask(t, todayStr));

@@ -26,7 +26,7 @@ export default function CalendarTaskBar({ task, onClick }: CalendarTaskBarProps)
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className={`w-full text-left text-[10px] md:text-xs px-0.5 py-px md:px-1.5 md:py-0.5 rounded-sm md:rounded truncate transition-all ${
+      className={`w-full text-left text-[10px] md:text-xs px-1 py-0.5 md:px-1.5 md:py-0.5 rounded-sm md:rounded truncate transition-all ${
         task.is_completed ? "opacity-50 line-through" : "opacity-100"
       }`}
       style={{

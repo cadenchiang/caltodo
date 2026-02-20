@@ -37,11 +37,10 @@ export async function GET(request: NextRequest) {
   }
 
   const clientId = process.env.GOOGLE_CLIENT_ID;
-  // Derive redirect URI from env var or dynamically from the request origin
-  const redirectUri = process.env.GOOGLE_REDIRECT_URI || `${new URL(request.url).origin}/api/gcal/callback`;
+  const redirectUri = process.env.GOOGLE_REDIRECT_URI;
 
-  if (!clientId) {
-    logger.error("GET /api/gcal/auth: missing GOOGLE_CLIENT_ID");
+  if (!clientId || !redirectUri) {
+    logger.error("GET /api/gcal/auth: missing GOOGLE_CLIENT_ID or GOOGLE_REDIRECT_URI");
     return NextResponse.json(
       { error: "Google Calendar integration not configured" },
       { status: 500 }

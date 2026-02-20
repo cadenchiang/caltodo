@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Plus, CalendarDays } from "lucide-react";
+import { Plus, CalendarDays, Tag } from "lucide-react";
 import { format } from "date-fns";
 import type { TaskInsert } from "@/lib/types";
 import { TASK_COLORS, DEFAULT_TASK_COLOR } from "@/lib/constants";
 import { getRepeatLabel } from "@/lib/repeat";
+import { useTaskContext } from "@/contexts/TaskContext";
 import DatePicker from "./DatePicker";
+import TagPicker from "./TagPicker";
 import Popover from "@/components/ui/Popover";
 
 type RepeatUnit = "day" | "week" | "month";
@@ -28,21 +30,25 @@ interface TaskAddFormProps {
  * @param placeholder - Optional placeholder text
  */
 export default function TaskAddForm({ onAdd, defaultDate, placeholder }: TaskAddFormProps) {
+  const { availableTags } = useTaskContext();
   const [title, setTitle] = useState("");
   const [dueDate, setDueDate] = useState<string | null>(defaultDate ?? null);
   const [dueTime, setDueTime] = useState<string | null>(null);
   const [color, setColor] = useState<string>(DEFAULT_TASK_COLOR);
+  const [tags, setTags] = useState<string[]>([]);
   const [repeatInterval, setRepeatInterval] = useState<number | null>(null);
   const [repeatUnit, setRepeatUnit] = useState<RepeatUnit | null>(null);
   const [repeatEndDate, setRepeatEndDate] = useState<string | null>(null);
   const [repeatEndCount, setRepeatEndCount] = useState<number | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const [showTagPicker, setShowTagPicker] = useState(false);
   const [focused, setFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const dateButtonRef = useRef<HTMLButtonElement>(null);
   const colorButtonRef = useRef<HTMLButtonElement>(null);
+  const tagButtonRef = useRef<HTMLButtonElement>(null);
 
   /**
    * Returns today's date as YYYY-MM-DD string.
@@ -70,6 +76,7 @@ export default function TaskAddForm({ onAdd, defaultDate, placeholder }: TaskAdd
       due_date: dueDate,
       due_time: dueTime,
       color,
+      tags: tags.length > 0 ? tags : undefined,
       repeat_interval: repeatInterval,
       repeat_unit: repeatUnit,
       repeat_end_date: repeatEndDate,
@@ -80,12 +87,14 @@ export default function TaskAddForm({ onAdd, defaultDate, placeholder }: TaskAdd
     setDueDate(defaultDate ?? null);
     setDueTime(null);
     setColor(DEFAULT_TASK_COLOR);
+    setTags([]);
     setRepeatInterval(null);
     setRepeatUnit(null);
     setRepeatEndDate(null);
     setRepeatEndCount(null);
     setShowDatePicker(false);
     setShowColorPicker(false);
+    setShowTagPicker(false);
     inputRef.current?.focus();
   }
 
@@ -95,6 +104,7 @@ export default function TaskAddForm({ onAdd, defaultDate, placeholder }: TaskAdd
       setFocused(false);
       setShowDatePicker(false);
       setShowColorPicker(false);
+      setShowTagPicker(false);
     }
   }
 
@@ -190,9 +200,33 @@ export default function TaskAddForm({ onAdd, defaultDate, placeholder }: TaskAdd
           </span>
         )}
 
+        {/* Tag badges */}
+        {tags.length > 0 && (
+          <span className="text-[10px] text-blue-500 bg-blue-50 dark:bg-blue-900/30 px-1.5 py-0.5 rounded shrink-0">
+            {tags.length === 1 ? tags[0] : `${tags.length} tags`}
+          </span>
+        )}
+
         {/* Icons only visible when focused */}
         {focused && (
           <>
+            {/* Tag icon */}
+            <button
+              ref={tagButtonRef}
+              type="button"
+              onClick={() => {
+                setShowTagPicker(!showTagPicker);
+                setShowDatePicker(false);
+                setShowColorPicker(false);
+              }}
+              className={`p-1.5 rounded-lg hover:bg-accent transition-colors shrink-0 ${
+                tags.length > 0 ? "text-blue-500" : "text-subtle-foreground hover:text-blue-500"
+              }`}
+              aria-label="Add tags"
+            >
+              <Tag size={14} />
+            </button>
+
             {/* Color indicator dot */}
             <button
               ref={colorButtonRef}
@@ -200,6 +234,7 @@ export default function TaskAddForm({ onAdd, defaultDate, placeholder }: TaskAdd
               onClick={() => {
                 setShowColorPicker(!showColorPicker);
                 setShowDatePicker(false);
+                setShowTagPicker(false);
               }}
               className="p-1 shrink-0 rounded-lg hover:bg-accent transition-colors"
               aria-label="Pick color"
@@ -217,6 +252,7 @@ export default function TaskAddForm({ onAdd, defaultDate, placeholder }: TaskAdd
               onClick={() => {
                 setShowDatePicker(!showDatePicker);
                 setShowColorPicker(false);
+                setShowTagPicker(false);
               }}
               className="p-1.5 text-subtle-foreground hover:text-blue-500 rounded-lg hover:bg-accent transition-colors shrink-0"
             >
@@ -283,6 +319,22 @@ export default function TaskAddForm({ onAdd, defaultDate, placeholder }: TaskAdd
               />
             ))}
           </div>
+        </div>
+      </Popover>
+
+      {/* Tag picker popup */}
+      <Popover
+        open={showTagPicker}
+        onClose={() => setShowTagPicker(false)}
+        triggerRef={tagButtonRef}
+        className="absolute right-2 top-full mt-1 z-20"
+      >
+        <div className="bg-card rounded-xl shadow-2xl border border-border p-3 w-52">
+          <TagPicker
+            selectedTags={tags}
+            availableTags={availableTags}
+            onChange={setTags}
+          />
         </div>
       </Popover>
     </div>

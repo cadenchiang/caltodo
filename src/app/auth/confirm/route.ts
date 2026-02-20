@@ -22,7 +22,8 @@ export async function GET(request: NextRequest) {
   redirectTo.searchParams.delete("type");
   redirectTo.searchParams.delete("next");
 
-  if (token_hash && type) {
+  const validOtpTypes = ["signup", "email"];
+  if (token_hash && type && validOtpTypes.includes(type)) {
     const supabase = await createClient();
     const { error } = await supabase.auth.verifyOtp({
       type: type as "signup" | "email",

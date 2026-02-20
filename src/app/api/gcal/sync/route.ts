@@ -180,11 +180,26 @@ async function handleUpdate(
   }
 
   // Update existing event
-  const success = await updateCalendarEvent(accessToken, calendarId, task.google_event_id, task);
+  const result = await updateCalendarEvent(accessToken, calendarId, task.google_event_id, task);
+
+  // Event was deleted externally — clear stale ID and re-create
+  if (result === "not_found") {
+    await supabase
+      .from("tasks")
+      .update({ google_event_id: null })
+      .eq("id", task.id);
+
+    if (task.due_date) {
+      return handleCreate(accessToken, calendarId, { ...task, google_event_id: null }, supabase);
+    }
+    const response: GCalSyncResponse = { synced: false, reason: "event_deleted_externally" };
+    return NextResponse.json(response);
+  }
+
   const response: GCalSyncResponse = {
-    synced: success,
+    synced: !!result,
     googleEventId: task.google_event_id,
-    ...(!success && { error: "Failed to update event" }),
+    ...(!result && { error: "Failed to update event" }),
   };
   return NextResponse.json(response);
 }

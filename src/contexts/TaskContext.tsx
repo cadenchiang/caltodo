@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, useLayoutEffect, useCallback, useRef, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef, type ReactNode } from "react";
 import { Undo2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/contexts/ToastContext";
@@ -79,6 +79,8 @@ interface TaskContextValue {
   syncProgress: number;
   lastSyncedAt: string | null;
   syncResult: SyncResult | null;
+  /** Distinct course/tag names available for tagging, derived from all tasks. */
+  availableTags: string[];
   addTask: (data: TaskInsert) => Promise<void>;
   updateTask: (id: string, updates: TaskUpdate) => Promise<void>;
   toggleComplete: (id: string) => Promise<void>;
@@ -299,6 +301,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       repeat_end_count: taskData.repeat_end_count ?? null,
       late_due_date: null,
       completed_at: null,
+      tags: taskData.tags ?? [],
     };
 
     setTasks((prev) => {
@@ -343,7 +346,9 @@ export function TaskProvider({ children }: { children: ReactNode }) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "create", taskId: data.id }),
-        }).catch(() => {});
+        }).catch((err) => {
+          console.warn("GCal sync (create) failed:", err);
+        });
       }
     }
   }
@@ -375,7 +380,9 @@ export function TaskProvider({ children }: { children: ReactNode }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "update", taskId: id }),
-      }).catch(() => {});
+      }).catch((err) => {
+        console.warn("GCal sync (update) failed:", err);
+      });
     }
   }
 
@@ -503,7 +510,9 @@ export function TaskProvider({ children }: { children: ReactNode }) {
           taskId: id,
           googleEventId: taskToDelete.google_event_id,
         }),
-      }).catch(() => {});
+      }).catch((err) => {
+        console.warn("GCal sync (delete) failed:", err);
+      });
     }
   }
 
@@ -626,6 +635,21 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  /**
+   * Distinct tag names derived from course_names and user-assigned tags across all tasks.
+   * Used to populate the tag picker dropdown.
+   */
+  const availableTags = useMemo(() => {
+    const tagSet = new Set<string>();
+    for (const t of tasks) {
+      if (t.course_name) tagSet.add(t.course_name);
+      if (t.tags) {
+        for (const tag of t.tags) tagSet.add(tag);
+      }
+    }
+    return Array.from(tagSet).sort();
+  }, [tasks]);
+
   return (
     <TaskContext.Provider
       value={{
@@ -636,6 +660,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
         syncProgress,
         lastSyncedAt,
         syncResult,
+        availableTags,
         addTask,
         updateTask,
         toggleComplete,

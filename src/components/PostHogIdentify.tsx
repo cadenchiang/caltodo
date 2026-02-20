@@ -21,6 +21,12 @@ export default function PostHogIdentify({
   useEffect(() => {
     if (!userId) return;
 
+    // Exclude the app owner from analytics to avoid skewing results
+    if (email === "cadenchiang@berkeley.edu") {
+      posthog.opt_out_capturing();
+      return;
+    }
+
     const properties: Record<string, string> = {};
     if (email) {
       properties.email = email;

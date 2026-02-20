@@ -92,18 +92,21 @@ export default function TaskItem({ task, isSelected, onToggle, onSelect, onDelet
    */
   function handleContextMenu(e: React.MouseEvent) {
     e.preventDefault();
-    setMenuPos({ x: e.clientX, y: e.clientY });
+    const x = Math.min(e.clientX, window.innerWidth - 156);
+    setMenuPos({ x, y: e.clientY });
     setMenuOpen(true);
   }
 
   /**
    * Opens the delete menu from the three-dots button.
+   * Clamps x so the menu never overflows the right edge of the viewport.
    */
   function handleDotsClick(e: React.MouseEvent) {
     e.stopPropagation();
     if (menuBtnRef.current) {
       const rect = menuBtnRef.current.getBoundingClientRect();
-      setMenuPos({ x: rect.left, y: rect.bottom + 4 });
+      const x = Math.min(rect.left, window.innerWidth - 156);
+      setMenuPos({ x, y: rect.bottom + 4 });
     }
     setMenuOpen(true);
   }
@@ -116,11 +119,11 @@ export default function TaskItem({ task, isSelected, onToggle, onSelect, onDelet
   return (
     <>
       <div
-        className={`group flex items-center gap-3 px-6 h-10 mx-2 rounded-xl transition-colors duration-100 cursor-pointer ${
+        className={`group flex items-center gap-2 px-3 h-10 mx-1 md:gap-3 md:px-6 md:mx-2 rounded-xl transition-colors duration-100 cursor-pointer ${
           isSelected
             ? "bg-black/5 dark:bg-muted/60"
             : "hover:bg-accent"
-        } ${task.is_completed ? "opacity-40" : ""} ${isOptimistic ? "animate-task-slide-in" : ""}`}
+        } ${task.is_completed ? "opacity-60" : ""} ${isOptimistic ? "animate-task-slide-in" : ""}`}
         onClick={(e) => onSelect(task, e.currentTarget.getBoundingClientRect())}
         onContextMenu={handleContextMenu}
       >
@@ -148,15 +151,21 @@ export default function TaskItem({ task, isSelected, onToggle, onSelect, onDelet
           )}
         </button>
 
-        {/* Title */}
-        <span
-          className={`flex-1 min-w-0 truncate text-sm ${
-            task.is_completed ? "text-foreground line-through" : "text-foreground"
-          }`}
-        >
-          {task.title}
-        </span>
-
+        {/* Title + tags */}
+        <div className="flex-1 min-w-0 flex items-center gap-1.5">
+          <span
+            className={`truncate text-sm ${
+              task.is_completed ? "text-foreground line-through" : "text-foreground"
+            }`}
+          >
+            {task.title}
+          </span>
+          {task.tags && task.tags.length > 0 && (
+            <span className="text-[9px] font-medium px-1 py-px rounded bg-blue-50 text-blue-500 dark:bg-blue-900/30 dark:text-blue-400 shrink-0 truncate max-w-[80px]">
+              {task.tags.length === 1 ? task.tags[0] : `${task.tags.length} tags`}
+            </span>
+          )}
+        </div>
 
         {/* Repeat indicator */}
         {task.repeat_interval && task.repeat_unit && (
@@ -178,7 +187,7 @@ export default function TaskItem({ task, isSelected, onToggle, onSelect, onDelet
           ref={menuBtnRef}
           type="button"
           onClick={handleDotsClick}
-          className="shrink-0 -mr-2 p-0.5 rounded text-subtle-foreground opacity-0 group-hover:opacity-100 hover:text-foreground hover:bg-accent transition-all"
+          className="shrink-0 -mr-2 p-1.5 md:p-0.5 rounded text-subtle-foreground md:opacity-0 md:group-hover:opacity-100 hover:text-foreground hover:bg-accent transition-all"
           aria-label="Task options"
         >
           <MoreVertical size={14} />
