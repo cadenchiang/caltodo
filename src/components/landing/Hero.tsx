@@ -41,7 +41,8 @@ export default function Hero() {
         onClick={() => setShowSpotsModal(true)}
         className="w-full bg-black text-white text-center text-xs py-1.5 tracking-wide hover:bg-zinc-800 transition-colors cursor-pointer relative flex items-center justify-center"
       >
-        <span>exclusively for uc berkeley students · {userCount !== null ? `${1000 - userCount} free lifetime spots remaining` : "\u00A0"}</span>
+        <span className="hidden sm:inline">exclusively for uc berkeley students · {userCount !== null ? `${1000 - userCount} free lifetime spots remaining` : "\u00A0"}</span>
+        <span className="sm:hidden">{userCount !== null ? `${1000 - userCount} free lifetime spots left` : "\u00A0"}</span>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-1.5 opacity-60">
           <path d="M7 17L17 7" />
           <path d="M7 7h10v10" />
