@@ -72,6 +72,7 @@ export default function GoogleCalendarSettings() {
   const [connected, setConnected] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
+  const [showGcalWarning, setShowGcalWarning] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const [selectedCalendarId, setSelectedCalendarId] = useState<string | null>(null);
   const [googleEmail, setGoogleEmail] = useState<string | null>(null);
@@ -368,22 +369,62 @@ export default function GoogleCalendarSettings() {
       </p>
 
       {!connected ? (
-        <div className="space-y-3">
-          <a
-            href="/api/gcal/auth"
-            className="inline-flex items-center gap-3 px-6 py-3 rounded-xl text-sm font-semibold bg-gray-900 text-white dark:bg-white dark:text-gray-900 hover:bg-gray-700 dark:hover:bg-gray-200 active:scale-[0.98] transition-all duration-200 shadow-sm dark:shadow-none"
+        <>
+          <button
+            type="button"
+            onClick={() => setShowGcalWarning(true)}
+            className="inline-flex items-center gap-3 px-6 py-3 rounded-xl text-sm font-semibold bg-gray-900 text-white dark:bg-white dark:text-gray-900 hover:bg-gray-700 dark:hover:bg-gray-200 active:scale-[0.98] transition-all duration-200 shadow-sm dark:shadow-none cursor-pointer"
           >
             <GoogleCalendarIcon size={20} />
             Connect Google Calendar
-          </a>
-          <div className="flex items-start gap-2.5 px-3.5 py-2.5 rounded-xl text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 border border-blue-200/60 dark:border-blue-500/20 max-w-md leading-relaxed">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-0.5"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-            <span>
-              Google hasn&apos;t verified our app yet, but your data is safe and encrypted.
-              You&apos;ll see a warning — click <span className="font-semibold">Advanced</span> → <span className="font-semibold">Go to caltodo.me (unsafe)</span> to continue.
-            </span>
-          </div>
-        </div>
+          </button>
+
+          {/* OAuth warning modal */}
+          {showGcalWarning && (
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center animate-in"
+              onClick={() => setShowGcalWarning(false)}
+            >
+              <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+              <div
+                className="relative bg-card border border-border rounded-2xl shadow-xl p-6 max-w-sm mx-4 animate-drop-in"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-start gap-3 mb-4">
+                  <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-500/10 shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-500"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground mb-1">Before you connect</h3>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Google hasn&apos;t verified our app yet, but your data is safe and encrypted. You&apos;ll see a warning screen from Google.
+                    </p>
+                  </div>
+                </div>
+                <div className="bg-muted/50 rounded-xl px-3.5 py-2.5 mb-5">
+                  <p className="text-xs text-foreground leading-relaxed">
+                    To continue, click <span className="font-semibold">Advanced</span> → <span className="font-semibold">Go to caltodo.me (unsafe)</span>
+                  </p>
+                </div>
+                <div className="flex gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setShowGcalWarning(false)}
+                    className="flex-1 px-4 py-2.5 rounded-xl text-xs font-medium text-muted-foreground hover:bg-muted/70 transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <a
+                    href="/api/gcal/auth"
+                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold bg-gray-900 text-white dark:bg-white dark:text-gray-900 hover:bg-gray-700 dark:hover:bg-gray-200 active:scale-[0.98] transition-all duration-150"
+                  >
+                    Continue
+                  </a>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       ) : (
         <div className="space-y-3">
           {/* Connected status with Google account info */}
