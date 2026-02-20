@@ -16,12 +16,21 @@ const HERO_IMAGES = [
  */
 export default function Hero() {
   const [activeImage, setActiveImage] = useState(0);
+  const [userCount, setUserCount] = useState<number | null>(null);
 
   useEffect(() => {
     const interval = setInterval(() => {
       setActiveImage((prev) => (prev + 1) % HERO_IMAGES.length);
     }, 4000);
     return () => clearInterval(interval);
+  }, []);
+
+  // Fetch user count for the spots counter
+  useEffect(() => {
+    fetch("/api/stats")
+      .then((res) => res.json())
+      .then((data) => setUserCount(data.count ?? 0))
+      .catch(() => setUserCount(0));
   }, []);
 
   return (
@@ -54,9 +63,9 @@ export default function Hero() {
 
       {/* Hero content */}
       <main className="flex flex-col items-center px-6 lg:px-10">
-        {/* Eyebrow */}
+        {/* Spots counter */}
         <p className="font-sans uppercase tracking-[0.51em] leading-[133%] text-center text-base mt-20 mb-8 text-black animate-appear opacity-0">
-          Todo list for students
+          {userCount !== null ? `${userCount}/1,000 spots taken` : "\u00A0"}
         </p>
 
         {/* Heading */}
