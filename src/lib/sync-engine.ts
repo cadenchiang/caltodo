@@ -19,11 +19,11 @@ const CANVAS_COLOR = "#3B82F6";
 const GRADESCOPE_COLOR = "#10B981";
 
 /**
- * Minimum time between Gradescope login attempts (30 minutes).
+ * Minimum time between Gradescope login attempts (1 hour).
  * Gradescope uses password-based auth, so frequent logins trigger
  * their security system to send password reset emails.
  */
-const GRADESCOPE_SYNC_COOLDOWN_MS = 30 * 60 * 1000;
+const GRADESCOPE_SYNC_COOLDOWN_MS = 60 * 60 * 1000;
 
 interface CredentialsRow {
   canvas_token: string | null;
