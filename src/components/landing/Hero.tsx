@@ -97,11 +97,21 @@ export default function Hero() {
             bCourses and Gradescope, one calendar.
           </p>
 
-          {/* CTA */}
-          <Link href="/login?signup=true" className="animate-appear opacity-0 delay-500 mb-8 sm:mb-10">
+          {/* CTA — simple pill on mobile, interactive hover button on desktop */}
+          <Link
+            href="/login?signup=true"
+            className="sm:hidden flex items-center gap-2 px-7 py-3 rounded-full bg-black text-white text-sm font-semibold animate-appear opacity-0 delay-500 mb-8 active:scale-[0.97] transition-transform"
+          >
+            Get started
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 12h14" />
+              <path d="M12 5l7 7-7 7" />
+            </svg>
+          </Link>
+          <Link href="/login?signup=true" className="hidden sm:block animate-appear opacity-0 delay-500 mb-10">
             <InteractiveHoverButton
               text="Get Started"
-              className="w-44 sm:w-56 text-sm sm:text-base border-black bg-black text-white"
+              className="w-56 text-base border-black bg-black text-white"
             />
           </Link>
 
