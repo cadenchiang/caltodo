@@ -59,7 +59,7 @@ export default function Hero() {
       {/* Top banner */}
       <button
         onClick={() => setShowSpotsModal(true)}
-        className="w-full bg-[#0071E3] text-white text-center text-xs py-1.5 tracking-wide hover:bg-[#0077ED] transition-colors cursor-pointer relative flex items-center justify-center"
+        className="w-full bg-[#F5F5F7] text-[#1D1D1F] text-center text-xs py-1.5 tracking-wide hover:bg-[#E8E8ED] transition-colors cursor-pointer relative flex items-center justify-center"
       >
         <span className="hidden sm:inline">exclusively for uc berkeley students · {userCount !== null ? `${1000 - userCount} free lifetime spots remaining` : "\u00A0"}</span>
         <span className="sm:hidden">{userCount !== null ? `${1000 - userCount} free lifetime spots left` : "\u00A0"}</span>
