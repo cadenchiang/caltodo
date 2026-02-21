@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { Mockup, MockupFrame } from "@/components/ui/mockup";
 import { InteractiveHoverButton } from "@/components/ui/interactive-hover-button";
@@ -33,6 +33,26 @@ export default function Hero() {
       .then((data) => setUserCount(data.count ?? 0))
       .catch(() => setUserCount(0));
   }, []);
+
+  // Scroll-driven scale animation for the mockup
+  const mockupRef = useRef<HTMLDivElement>(null);
+  const [mockupScale, setMockupScale] = useState(0.85);
+
+  const handleScroll = useCallback(() => {
+    if (!mockupRef.current) return;
+    const rect = mockupRef.current.getBoundingClientRect();
+    const windowH = window.innerHeight;
+    // progress: 0 when element top is at bottom of viewport, 1 when top reaches 40% from top
+    const progress = Math.min(1, Math.max(0, (windowH - rect.top) / (windowH * 0.6)));
+    // Scale from 0.85 → 1.0 as user scrolls into view
+    setMockupScale(0.85 + progress * 0.15);
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll(); // initial check
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [handleScroll]);
 
   return (
     <div className="min-h-dvh flex flex-col bg-white text-black overflow-x-hidden">
@@ -189,8 +209,17 @@ export default function Hero() {
           </div>
         </div>
 
-        {/* Mockup — revealed on scroll, below the fold on mobile */}
-        <div className="mt-8 sm:mt-16 md:mt-20 w-full max-w-5xl mx-auto relative animate-appear opacity-0" style={{ animationDelay: "900ms" }}>
+        {/* Mockup — scroll-driven scale animation */}
+        <div
+          ref={mockupRef}
+          className="mt-8 sm:mt-16 md:mt-20 w-full max-w-5xl mx-auto relative animate-appear opacity-0"
+          style={{
+            animationDelay: "900ms",
+            transform: `scale(${mockupScale})`,
+            willChange: "transform",
+            transition: "transform 0.1s ease-out",
+          }}
+        >
           <div className="sm:max-h-[50vh] md:max-h-none overflow-hidden">
             <MockupFrame className="w-full">
               <Mockup type="responsive" className="w-full">
