@@ -78,7 +78,7 @@ export default function Hero() {
       {/* Hero content */}
       <main className="flex-1 flex flex-col items-center px-6 lg:px-10">
         {/* Above-the-fold section — fills viewport on mobile, normal flow on desktop */}
-        <div className="flex-1 sm:flex-none flex flex-col items-center justify-center sm:justify-start pb-12 sm:pb-0 w-full">
+        <div className="flex-1 sm:flex-none flex flex-col items-center justify-center sm:justify-start pb-18 sm:pb-0 w-full">
           {/* Eyebrow */}
           <p className="font-sans uppercase tracking-[0.2em] sm:tracking-[0.51em] leading-[133%] text-center text-[10px] sm:text-base mb-4 sm:mt-20 sm:mb-8 text-black/40 animate-appear opacity-0">
             the to-do list for students
