@@ -100,11 +100,9 @@ export async function fetchCanvasCourses(
   token: string,
   baseUrl: string
 ): Promise<CanvasCourse[]> {
-  if (!baseUrl) {
-    throw new Error("Canvas base URL is not configured. Please update it in Settings.");
-  }
+  const resolvedBaseUrl = baseUrl || "https://bcourses.berkeley.edu";
   const courses: CanvasCourse[] = [];
-  let url: string | null = `${baseUrl}/api/v1/courses?enrollment_state=active&per_page=50`;
+  let url: string | null = `${resolvedBaseUrl}/api/v1/courses?enrollment_state=active&per_page=50`;
 
   while (url) {
     const response = await fetch(url, {
@@ -146,12 +144,10 @@ export async function fetchCanvasAssignments(
   baseUrl: string,
   courseId: number
 ): Promise<CanvasAssignment[]> {
-  if (!baseUrl) {
-    throw new Error("Canvas base URL is not configured. Please update it in Settings.");
-  }
+  const resolvedBaseUrl = baseUrl || "https://bcourses.berkeley.edu";
   const assignments: CanvasAssignment[] = [];
   let url: string | null =
-    `${baseUrl}/api/v1/courses/${courseId}/assignments?per_page=50&order_by=due_at&include[]=submission`;
+    `${resolvedBaseUrl}/api/v1/courses/${courseId}/assignments?per_page=50&order_by=due_at&include[]=submission`;
 
   while (url) {
     const response = await fetch(url, {

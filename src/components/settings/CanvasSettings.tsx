@@ -25,7 +25,7 @@ export default function CanvasSettings({ credentials, onUpdate }: CanvasSettings
   const [saving, setSaving] = useState(false);
 
   const [canvasToken, setCanvasToken] = useState(credentials.canvas_token ?? "");
-  const [canvasBaseUrl, setCanvasBaseUrl] = useState(credentials.canvas_base_url);
+  const [canvasBaseUrl, setCanvasBaseUrl] = useState(credentials.canvas_base_url || "https://bcourses.berkeley.edu");
   const [showToken, setShowToken] = useState(false);
   const [videoExpanded, setVideoExpanded] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
