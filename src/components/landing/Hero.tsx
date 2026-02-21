@@ -36,7 +36,7 @@ export default function Hero() {
 
   // Scroll-driven scale animation for the mockup
   const mockupRef = useRef<HTMLDivElement>(null);
-  const [mockupScale, setMockupScale] = useState(0.85);
+  const [mockupScale, setMockupScale] = useState(0.7);
 
   const handleScroll = useCallback(() => {
     if (!mockupRef.current) return;
@@ -44,8 +44,8 @@ export default function Hero() {
     const windowH = window.innerHeight;
     // progress: 0 when element top is at bottom of viewport, 1 when top reaches 40% from top
     const progress = Math.min(1, Math.max(0, (windowH - rect.top) / (windowH * 0.6)));
-    // Scale from 0.85 → 1.0 as user scrolls into view
-    setMockupScale(0.85 + progress * 0.15);
+    // Scale from 0.7 → 1.0 as user scrolls into view
+    setMockupScale(0.7 + progress * 0.3);
   }, []);
 
   useEffect(() => {
@@ -128,7 +128,7 @@ export default function Hero() {
               <path d="M12 5l7 7-7 7" />
             </svg>
           </Link>
-          <Link href="/login?signup=true" className="hidden sm:block animate-appear opacity-0 delay-500 mb-10">
+          <Link href="/login?signup=true" className="hidden sm:block animate-appear opacity-0 delay-500 sm:mb-6">
             <InteractiveHoverButton
               text="Get Started"
               className="w-56 text-base border-black bg-black text-white"
@@ -136,7 +136,7 @@ export default function Hero() {
           </Link>
 
           {/* Integration logos — compact trust signal */}
-          <div className="flex items-center justify-center gap-2 sm:gap-7 animate-appear opacity-0 delay-700">
+          <div className="flex items-center justify-center gap-2 sm:gap-3 animate-appear opacity-0 delay-700">
             {/* Cal Berkeley logo with tooltip */}
             <div className="group relative cursor-pointer">
               <img
@@ -144,7 +144,7 @@ export default function Hero() {
                 alt="UC Berkeley"
                 width={64}
                 height={64}
-                className="w-7 h-7 sm:w-16 sm:h-16 transition-transform duration-200 group-hover:scale-110 object-contain"
+                className="w-7 h-7 sm:w-9 sm:h-9 transition-transform duration-200 group-hover:scale-110 object-contain"
               />
               <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-3 rounded-lg bg-zinc-900 text-white text-xs px-3 py-2 shadow-lg opacity-0 scale-95 transition-all duration-200 group-hover:opacity-100 group-hover:scale-100 z-50 whitespace-nowrap">
                 <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-zinc-900 rotate-45" />
@@ -152,7 +152,7 @@ export default function Hero() {
               </div>
             </div>
 
-            <span className="text-sm sm:text-3xl font-light text-black/25">+</span>
+            <span className="text-sm sm:text-lg font-light text-black/25">+</span>
 
             {/* bCourses logo with tooltip */}
             <div className="group relative cursor-pointer">
@@ -161,7 +161,7 @@ export default function Hero() {
                 alt="bCourses"
                 width={64}
                 height={64}
-                className="w-7 h-7 sm:w-16 sm:h-16 transition-transform duration-200 group-hover:scale-110"
+                className="w-7 h-7 sm:w-9 sm:h-9 transition-transform duration-200 group-hover:scale-110"
               />
               <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-3 rounded-lg bg-zinc-900 text-white text-xs px-3 py-2 shadow-lg opacity-0 scale-95 transition-all duration-200 group-hover:opacity-100 group-hover:scale-100 z-50 whitespace-nowrap">
                 <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-zinc-900 rotate-45" />
@@ -169,11 +169,11 @@ export default function Hero() {
               </div>
             </div>
 
-            <span className="text-sm sm:text-3xl font-light text-black/25">+</span>
+            <span className="text-sm sm:text-lg font-light text-black/25">+</span>
 
             {/* Gradescope logo with tooltip */}
             <div className="group relative cursor-pointer">
-              <svg width="64" height="64" viewBox="0 0 14 14" fill="none" className="w-7 h-7 sm:w-16 sm:h-16 transition-transform duration-200 group-hover:scale-110">
+              <svg width="64" height="64" viewBox="0 0 14 14" fill="none" className="w-7 h-7 sm:w-9 sm:h-9 transition-transform duration-200 group-hover:scale-110">
                 <rect width="14" height="14" rx="3" fill="#3AADA8" />
                 <rect x="1.5" y="8.5" width="2" height="3.5" rx="0.5" fill="white" />
                 <rect x="4.5" y="6.5" width="2" height="5.5" rx="0.5" fill="white" />
@@ -186,11 +186,11 @@ export default function Hero() {
               </div>
             </div>
 
-            <span className="text-sm sm:text-3xl font-light text-black/25">+</span>
+            <span className="text-sm sm:text-lg font-light text-black/25">+</span>
 
             {/* Google Calendar logo with tooltip */}
             <div className="group relative cursor-pointer">
-              <svg width="64" height="64" viewBox="0 0 122.88 122.88" className="w-7 h-7 sm:w-16 sm:h-16 transition-transform duration-200 group-hover:scale-110">
+              <svg width="64" height="64" viewBox="0 0 122.88 122.88" className="w-7 h-7 sm:w-9 sm:h-9 transition-transform duration-200 group-hover:scale-110">
                 <polygon points="93.78,29.1 29.1,29.1 29.1,93.78 93.78,93.78" fill="#fff" />
                 <polygon points="93.78,122.88 122.88,93.78 93.78,93.78" fill="#EA4335" />
                 <polygon points="122.88,29.1 93.78,29.1 93.78,93.78 122.88,93.78" fill="#FBBC04" />
@@ -212,7 +212,7 @@ export default function Hero() {
         {/* Mockup — scroll-driven scale animation */}
         <div
           ref={mockupRef}
-          className="mt-8 sm:mt-16 md:mt-20 w-full max-w-5xl mx-auto relative animate-appear opacity-0"
+          className="mt-8 sm:mt-36 md:mt-40 w-full max-w-5xl mx-auto relative animate-appear opacity-0"
           style={{
             animationDelay: "900ms",
             transform: `scale(${mockupScale})`,
