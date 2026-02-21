@@ -16,7 +16,7 @@ if (typeof window !== "undefined" && process.env.NODE_ENV === "production") {
 
   if (key && host) {
     posthog.init(key, {
-      api_host: "/a",
+      api_host: "https://e.caltodo.me",
       ui_host: "https://us.posthog.com",
       person_profiles: "always",
       capture_pageview: false, // Handled by PostHogPageView for SPA navigations
