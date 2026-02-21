@@ -78,12 +78,12 @@ export default function Hero() {
       {/* Hero content */}
       <main className="flex flex-col items-center px-6 lg:px-10">
         {/* Eyebrow */}
-        <p className="font-sans uppercase tracking-[0.51em] leading-[133%] text-center text-xs sm:text-base mt-10 sm:mt-20 mb-4 sm:mb-8 text-black animate-appear opacity-0">
+        <p className="font-sans uppercase tracking-[0.2em] sm:tracking-[0.51em] leading-[133%] text-center text-[10px] sm:text-base mt-6 sm:mt-20 mb-2 sm:mb-8 text-black/40 animate-appear opacity-0">
           the to-do list for students
         </p>
 
         {/* Heading */}
-        <h2 className="text-4xl sm:text-[96px] sm:leading-[100px] text-center text-black animate-appear opacity-0 delay-100">
+        <h2 className="text-[42px] sm:text-[96px] leading-[1.08] sm:leading-[100px] text-center text-black animate-appear opacity-0 delay-100">
           <span className="font-serif font-normal">All your deadlines.</span>
           <br />
           <span className="font-serif font-normal italic">One </span>
@@ -91,7 +91,7 @@ export default function Hero() {
         </h2>
 
         {/* Integration logos equation */}
-        <div className="flex items-center justify-center gap-3 sm:gap-7 mt-6 sm:mt-10 mb-4 sm:mb-6 animate-appear opacity-0 delay-300">
+        <div className="flex items-center justify-center gap-2.5 sm:gap-7 mt-4 sm:mt-10 mb-3 sm:mb-6 animate-appear opacity-0 delay-300">
           {/* bCourses logo with tooltip */}
           <div className="group relative cursor-pointer">
             <img
@@ -99,7 +99,7 @@ export default function Hero() {
               alt="bCourses"
               width={64}
               height={64}
-              className="w-10 h-10 sm:w-16 sm:h-16 transition-transform duration-200 group-hover:scale-110"
+              className="w-8 h-8 sm:w-16 sm:h-16 transition-transform duration-200 group-hover:scale-110"
             />
             <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-3 rounded-lg bg-zinc-900 text-white text-xs px-3 py-2 shadow-lg opacity-0 scale-95 transition-all duration-200 group-hover:opacity-100 group-hover:scale-100 z-50 whitespace-nowrap">
               <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-zinc-900 rotate-45" />
@@ -107,7 +107,7 @@ export default function Hero() {
             </div>
           </div>
 
-          <span className="text-xl sm:text-3xl font-light text-black">+</span>
+          <span className="text-lg sm:text-3xl font-light text-black/40">+</span>
 
           {/* Gradescope logo with tooltip */}
           <div className="group relative cursor-pointer">
@@ -124,7 +124,7 @@ export default function Hero() {
             </div>
           </div>
 
-          <span className="text-xl sm:text-3xl font-light text-black">+</span>
+          <span className="text-lg sm:text-3xl font-light text-black/40">+</span>
 
           {/* Google Calendar logo with tooltip */}
           <div className="group relative cursor-pointer">
@@ -147,7 +147,7 @@ export default function Hero() {
         </div>
 
         {/* Subtitle */}
-        <p className="text-sm sm:text-xl text-center font-sans font-light mb-6 sm:mb-12 leading-relaxed text-black/70 animate-appear opacity-0 delay-500">
+        <p className="text-xs sm:text-xl text-center font-sans font-light mb-4 sm:mb-12 leading-relaxed text-black/50 animate-appear opacity-0 delay-500">
           Never miss an assignment again. bCourses and Gradescope, one calendar.
         </p>
 
@@ -155,31 +155,40 @@ export default function Hero() {
         <Link href="/login?signup=true" className="animate-appear opacity-0 delay-700">
           <InteractiveHoverButton
             text="Get Started"
-            className="w-56 text-base border-black bg-black text-white"
+            className="w-48 sm:w-56 text-sm sm:text-base border-black bg-black text-white"
           />
         </Link>
 
-        {/* Mockup — clipped on mobile to prevent excessive scroll */}
-        <div className="mt-8 sm:mt-12 md:mt-20 w-full max-w-5xl mx-auto relative animate-appear opacity-0 max-h-[30vh] sm:max-h-[50vh] md:max-h-none overflow-hidden" style={{ animationDelay: "900ms" }}>
-          <MockupFrame className="w-full">
-            <Mockup type="responsive" className="w-full">
-              <div className="relative w-full">
-                {HERO_IMAGES.map((img, i) => (
-                  <img
-                    key={img.src}
-                    src={img.src}
-                    alt={img.alt}
-                    className={`w-full transition-opacity duration-700 ease-in-out ${
-                      i === 0 ? "relative" : "absolute inset-0"
-                    }`}
-                    style={{ opacity: activeImage === i ? 1 : 0 }}
-                  />
-                ))}
-              </div>
-            </Mockup>
-          </MockupFrame>
-          {/* Image indicator dots */}
-          <div className="flex justify-center gap-2 mt-4" style={{ zIndex: 11, position: "relative" }}>
+        {/* Mockup with gradient fade */}
+        <div className="mt-6 sm:mt-12 md:mt-20 w-full max-w-5xl mx-auto relative animate-appear opacity-0" style={{ animationDelay: "900ms" }}>
+          <div className="max-h-[35vh] sm:max-h-[50vh] md:max-h-none overflow-hidden">
+            <MockupFrame className="w-full">
+              <Mockup type="responsive" className="w-full">
+                <div className="relative w-full">
+                  {HERO_IMAGES.map((img, i) => (
+                    <img
+                      key={img.src}
+                      src={img.src}
+                      alt={img.alt}
+                      className={`w-full transition-opacity duration-700 ease-in-out ${
+                        i === 0 ? "relative" : "absolute inset-0"
+                      }`}
+                      style={{ opacity: activeImage === i ? 1 : 0 }}
+                    />
+                  ))}
+                </div>
+              </Mockup>
+            </MockupFrame>
+            <div
+              className="absolute bottom-0 left-0 right-0 w-full h-[100px] sm:h-[303px]"
+              style={{
+                background: "linear-gradient(to top, #ffffff 0%, rgba(255,255,255,0) 100%)",
+                zIndex: 10,
+              }}
+            />
+          </div>
+          {/* Image indicator dots — outside clipped area */}
+          <div className="flex justify-center gap-2 mt-3 relative z-20">
             {HERO_IMAGES.map((_, i) => (
               <button
                 key={i}
@@ -191,13 +200,6 @@ export default function Hero() {
               />
             ))}
           </div>
-          <div
-            className="absolute bottom-0 left-0 right-0 w-full h-[150px] sm:h-[303px]"
-            style={{
-              background: "linear-gradient(to top, #ffffff 0%, rgba(255,255,255,0) 100%)",
-              zIndex: 10,
-            }}
-          />
         </div>
       </main>
 

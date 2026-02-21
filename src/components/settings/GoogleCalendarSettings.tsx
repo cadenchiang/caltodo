@@ -12,6 +12,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useSearchParams } from "next/navigation";
 import { Check, XCircle, Unlink, ExternalLink } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
@@ -389,31 +390,30 @@ export default function GoogleCalendarSettings() {
           </button>
           )}
 
-          {/* OAuth warning modal */}
-          {showGcalWarning && (
+          {/* OAuth warning modal — portaled to escape overflow/transform containers */}
+          {showGcalWarning && createPortal(
             <div
-              className="fixed inset-0 z-50 flex items-center justify-center animate-in"
+              className="fixed inset-0 z-[9999] flex items-center justify-center"
               onClick={() => setShowGcalWarning(false)}
             >
-              <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+              <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
               <div
-                className="relative bg-card border border-border rounded-2xl shadow-xl p-6 max-w-sm mx-4 animate-drop-in"
+                className="relative bg-card border border-border rounded-2xl shadow-2xl p-6 max-w-sm mx-4 animate-drop-in"
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="flex items-start gap-3 mb-4">
-                  <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-500/10 shrink-0">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-500"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-semibold text-foreground mb-1">Before you connect</h3>
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      Google hasn&apos;t verified our app yet, but your data is safe and encrypted. You&apos;ll see a warning screen from Google.
-                    </p>
-                  </div>
-                </div>
-                <div className="bg-muted/50 rounded-xl px-3.5 py-2.5 mb-5">
+                <h3 className="text-sm font-semibold text-foreground mb-2">Google will show a warning</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed mb-4">
+                  Our app is pending Google&apos;s review, so you&apos;ll see a scary-looking warning. Your data is safe — just follow these steps:
+                </p>
+                <div className="bg-muted/50 rounded-xl px-3.5 py-3 mb-5 space-y-1.5">
                   <p className="text-xs text-foreground leading-relaxed">
-                    To continue, click <span className="font-semibold">Advanced</span> → <span className="font-semibold">Go to caltodo.me (unsafe)</span>
+                    <span className="font-semibold">1.</span> Click <span className="font-semibold">Advanced</span>
+                  </p>
+                  <p className="text-xs text-foreground leading-relaxed">
+                    <span className="font-semibold">2.</span> Click <span className="font-semibold">Go to caltodo.me (unsafe)</span>
+                  </p>
+                  <p className="text-xs text-foreground leading-relaxed">
+                    <span className="font-semibold">3.</span> Click <span className="font-semibold">Continue</span>
                   </p>
                 </div>
                 <div className="flex gap-2.5">
@@ -428,11 +428,12 @@ export default function GoogleCalendarSettings() {
                     href="/api/gcal/auth"
                     className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold bg-gray-900 text-white dark:bg-white dark:text-gray-900 hover:bg-gray-700 dark:hover:bg-gray-200 active:scale-[0.98] transition-all duration-150"
                   >
-                    Continue
+                    Got it, connect
                   </a>
                 </div>
               </div>
-            </div>
+            </div>,
+            document.body
           )}
         </>
       ) : (
