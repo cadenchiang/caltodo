@@ -78,7 +78,7 @@ export default function Hero() {
       {/* Hero content */}
       <main className="flex-1 flex flex-col items-center px-6 lg:px-10">
         {/* Above-the-fold section — fills viewport on mobile, normal flow on desktop */}
-        <div className="min-h-[calc(100dvh-5.5rem)] sm:min-h-0 flex flex-col items-center justify-center sm:justify-start w-full">
+        <div className="min-h-[calc(100dvh-12rem)] sm:min-h-0 flex flex-col items-center justify-center sm:justify-start w-full">
           {/* Eyebrow */}
           <p className="font-sans uppercase tracking-[0.2em] sm:tracking-[0.51em] leading-[133%] text-center text-[10px] sm:text-base mb-4 sm:mt-20 sm:mb-8 text-black/40 animate-appear opacity-0">
             the to-do list for students
@@ -117,6 +117,23 @@ export default function Hero() {
 
           {/* Integration logos — compact trust signal */}
           <div className="flex items-center justify-center gap-2 sm:gap-7 animate-appear opacity-0 delay-700">
+            {/* Cal Berkeley logo with tooltip */}
+            <div className="group relative cursor-pointer">
+              <img
+                src="/cal-logo.png"
+                alt="UC Berkeley"
+                width={64}
+                height={64}
+                className="w-7 h-7 sm:w-16 sm:h-16 transition-transform duration-200 group-hover:scale-110 object-contain"
+              />
+              <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-3 rounded-lg bg-zinc-900 text-white text-xs px-3 py-2 shadow-lg opacity-0 scale-95 transition-all duration-200 group-hover:opacity-100 group-hover:scale-100 z-50 whitespace-nowrap">
+                <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-zinc-900 rotate-45" />
+                Built for UC Berkeley
+              </div>
+            </div>
+
+            <span className="text-sm sm:text-3xl font-light text-black/25">+</span>
+
             {/* bCourses logo with tooltip */}
             <div className="group relative cursor-pointer">
               <img
