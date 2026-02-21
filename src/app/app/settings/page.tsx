@@ -28,21 +28,32 @@ export default function SettingsPage() {
   const [userFullName, setUserFullName] = useState<string | null>(null);
   const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
   const [imgError, setImgError] = useState(false);
-  const [userLoading, setUserLoading] = useState(true);
 
-  // Fetch user info from Supabase session
+  // Hydrate user info from localStorage cache, then fetch fresh from Supabase
   useEffect(() => {
+    try {
+      const cached = localStorage.getItem("caltodo_user_profile");
+      if (cached) {
+        const { email, fullName, avatarUrl } = JSON.parse(cached);
+        setUserEmail(email);
+        setUserFullName(fullName);
+        setUserAvatarUrl(avatarUrl);
+      }
+    } catch { /* ignore */ }
+
     async function loadUser() {
-      try {
-        const supabase = createClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          setUserEmail(user.email ?? null);
-          setUserFullName(user.user_metadata?.full_name ?? null);
-          setUserAvatarUrl(user.user_metadata?.avatar_url ?? null);
-        }
-      } finally {
-        setUserLoading(false);
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const email = user.email ?? null;
+        const fullName = user.user_metadata?.full_name ?? null;
+        const avatarUrl = user.user_metadata?.avatar_url ?? null;
+        setUserEmail(email);
+        setUserFullName(fullName);
+        setUserAvatarUrl(avatarUrl);
+        try {
+          localStorage.setItem("caltodo_user_profile", JSON.stringify({ email, fullName, avatarUrl }));
+        } catch { /* ignore */ }
       }
     }
     loadUser();
@@ -164,9 +175,7 @@ export default function SettingsPage() {
                 {/* User info row */}
                 <div className="flex items-center gap-4 mb-4">
                   <div className="w-12 h-12 rounded-full overflow-hidden flex items-center justify-center shrink-0">
-                    {userLoading ? (
-                      <div className="w-full h-full bg-muted animate-pulse rounded-full" />
-                    ) : userAvatarUrl && !imgError ? (
+                    {userAvatarUrl && !imgError ? (
                       <img
                         src={userAvatarUrl}
                         alt="Profile"
@@ -181,20 +190,11 @@ export default function SettingsPage() {
                     )}
                   </div>
                   <div className="min-w-0">
-                    {userLoading ? (
-                      <>
-                        <div className="h-4 w-32 bg-muted animate-pulse rounded mb-1.5" />
-                        <div className="h-3 w-48 bg-muted animate-pulse rounded" />
-                      </>
-                    ) : (
-                      <>
-                        {userFullName && (
-                          <p className="text-sm font-medium text-foreground truncate">{userFullName}</p>
-                        )}
-                        {userEmail && (
-                          <p className="text-xs text-subtle-foreground truncate">{userEmail}</p>
-                        )}
-                      </>
+                    {userFullName && (
+                      <p className="text-sm font-medium text-foreground truncate">{userFullName}</p>
+                    )}
+                    {userEmail && (
+                      <p className="text-xs text-subtle-foreground truncate">{userEmail}</p>
                     )}
                   </div>
                 </div>

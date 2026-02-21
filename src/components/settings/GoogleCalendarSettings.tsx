@@ -401,7 +401,10 @@ export default function GoogleCalendarSettings() {
                 className="relative bg-card border border-border rounded-2xl shadow-2xl p-6 max-w-sm mx-4 animate-drop-in"
                 onClick={(e) => e.stopPropagation()}
               >
-                <h3 className="text-sm font-semibold text-foreground mb-2">Google will show a warning</h3>
+                <h3 className="text-sm font-semibold text-foreground mb-2 flex items-center gap-1.5">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-500 shrink-0"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                  Google will show a warning
+                </h3>
                 <p className="text-xs text-muted-foreground leading-relaxed mb-4">
                   Our app is pending Google&apos;s review, so you&apos;ll see a scary-looking warning. Your data is safe — just follow these steps:
                 </p>

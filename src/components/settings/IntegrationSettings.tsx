@@ -59,9 +59,7 @@ const EMPTY_CREDENTIALS: IntegrationCredentials = {
 };
 
 export default function IntegrationSettings() {
-  const [credentials, setCredentials] = useState<IntegrationCredentials>(
-    () => getCachedCredentials() ?? EMPTY_CREDENTIALS
-  );
+  const [credentials, setCredentials] = useState<IntegrationCredentials>(EMPTY_CREDENTIALS);
 
   /**
    * Fetches integration credentials from the API.
@@ -80,7 +78,10 @@ export default function IntegrationSettings() {
     }
   }, []);
 
+  // Hydrate from localStorage cache on mount, then fetch fresh data
   useEffect(() => {
+    const cached = getCachedCredentials();
+    if (cached) setCredentials(cached);
     fetchCredentials();
   }, [fetchCredentials]);
 

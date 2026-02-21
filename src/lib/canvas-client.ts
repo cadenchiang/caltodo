@@ -100,6 +100,9 @@ export async function fetchCanvasCourses(
   token: string,
   baseUrl: string
 ): Promise<CanvasCourse[]> {
+  if (!baseUrl) {
+    throw new Error("Canvas base URL is not configured. Please update it in Settings.");
+  }
   const courses: CanvasCourse[] = [];
   let url: string | null = `${baseUrl}/api/v1/courses?enrollment_state=active&per_page=50`;
 
@@ -143,6 +146,9 @@ export async function fetchCanvasAssignments(
   baseUrl: string,
   courseId: number
 ): Promise<CanvasAssignment[]> {
+  if (!baseUrl) {
+    throw new Error("Canvas base URL is not configured. Please update it in Settings.");
+  }
   const assignments: CanvasAssignment[] = [];
   let url: string | null =
     `${baseUrl}/api/v1/courses/${courseId}/assignments?per_page=50&order_by=due_at&include[]=submission`;
