@@ -59,7 +59,7 @@ export default function Hero() {
       {/* Top banner */}
       <button
         onClick={() => setShowSpotsModal(true)}
-        className="w-full bg-black text-white text-center text-xs py-1.5 tracking-wide hover:bg-zinc-800 transition-colors cursor-pointer relative flex items-center justify-center"
+        className="w-full bg-[#0071E3] text-white text-center text-xs py-1.5 tracking-wide hover:bg-[#0077ED] transition-colors cursor-pointer relative flex items-center justify-center"
       >
         <span className="hidden sm:inline">exclusively for uc berkeley students · {userCount !== null ? `${1000 - userCount} free lifetime spots remaining` : "\u00A0"}</span>
         <span className="sm:hidden">{userCount !== null ? `${1000 - userCount} free lifetime spots left` : "\u00A0"}</span>
@@ -82,13 +82,13 @@ export default function Hero() {
         <div className="flex items-center gap-2 sm:gap-3">
           <Link
             href="/login?signup=true"
-            className="px-3.5 py-1.5 text-xs sm:px-5 sm:py-2 sm:text-sm font-medium rounded-full bg-black text-white btn-elevated-primary"
+            className="px-3.5 py-1.5 text-xs sm:px-5 sm:py-2 sm:text-sm font-medium rounded-full bg-[#0071E3] text-white"
           >
             Get Started
           </Link>
           <Link
             href="/login"
-            className="px-3.5 py-1.5 text-xs sm:px-5 sm:py-2 sm:text-sm font-medium rounded-full text-black bg-white btn-elevated-secondary"
+            className="px-3.5 py-1.5 text-xs sm:px-5 sm:py-2 sm:text-sm font-medium rounded-full text-black bg-white"
           >
             Login
           </Link>
@@ -120,7 +120,7 @@ export default function Hero() {
           {/* CTA — simple pill on mobile, interactive hover button on desktop */}
           <Link
             href="/login?signup=true"
-            className="sm:hidden flex items-center gap-2 px-7 py-3 rounded-full bg-black text-white text-sm font-semibold animate-appear opacity-0 delay-500 mb-8 active:scale-[0.97] transition-transform"
+            className="sm:hidden flex items-center gap-2 px-7 py-3 rounded-full bg-[#0071E3] text-white text-sm font-semibold animate-appear opacity-0 delay-500 mb-8 active:scale-[0.97] transition-transform"
           >
             Get started
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -128,15 +128,15 @@ export default function Hero() {
               <path d="M12 5l7 7-7 7" />
             </svg>
           </Link>
-          <Link href="/login?signup=true" className="hidden sm:block animate-appear opacity-0 delay-500 sm:mb-6">
+          <Link href="/login?signup=true" className="hidden sm:block animate-appear opacity-0 delay-500 sm:mb-12">
             <InteractiveHoverButton
               text="Get Started"
-              className="w-56 text-base border-black bg-black text-white"
+              className="w-56 text-base border-[#0071E3] bg-[#0071E3] text-white"
             />
           </Link>
 
           {/* Integration logos — compact trust signal */}
-          <div className="flex items-center justify-center gap-2 sm:gap-3 animate-appear opacity-0 delay-700">
+          <div className="flex items-center justify-center gap-2 sm:gap-4 animate-appear opacity-0 delay-700">
             {/* Cal Berkeley logo with tooltip */}
             <div className="group relative cursor-pointer">
               <img
