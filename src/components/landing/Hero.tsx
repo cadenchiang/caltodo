@@ -78,7 +78,7 @@ export default function Hero() {
       {/* Hero content */}
       <main className="flex-1 flex flex-col items-center px-6 lg:px-10">
         {/* Above-the-fold section — fills viewport on mobile, normal flow on desktop */}
-        <div className="flex-1 sm:flex-none flex flex-col items-center justify-center sm:justify-start pt-6 pb-8 sm:pt-0 sm:pb-0 w-full">
+        <div className="flex-1 sm:flex-none flex flex-col items-center justify-center sm:justify-start pb-12 sm:pb-0 w-full">
           {/* Eyebrow */}
           <p className="font-sans uppercase tracking-[0.2em] sm:tracking-[0.51em] leading-[133%] text-center text-[10px] sm:text-base mb-4 sm:mt-20 sm:mb-8 text-black/40 animate-appear opacity-0">
             the to-do list for students
@@ -241,8 +241,8 @@ export default function Hero() {
             </svg>
           </button>
 
-          <h3 className="text-2xl font-bold text-black mb-3 flex items-center gap-2">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+          <h3 className="text-xl font-bold text-black mb-3 flex items-center gap-1.5">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
               <path d="M12 3l1.912 5.813a2 2 0 001.272 1.278L21 12l-5.816 1.91a2 2 0 00-1.272 1.278L12 21l-1.912-5.813a2 2 0 00-1.272-1.278L3 12l5.816-1.91a2 2 0 001.272-1.278z" />
             </svg>
             free for life. seriously.
