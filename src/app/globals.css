@@ -445,6 +445,26 @@ body {
   animation-delay: 600ms;
 }
 
+.delay-800 {
+  animation-delay: 800ms;
+}
+
+.delay-900 {
+  animation-delay: 900ms;
+}
+
+.delay-1000 {
+  animation-delay: 1000ms;
+}
+
+.delay-1100 {
+  animation-delay: 1100ms;
+}
+
+.delay-1200 {
+  animation-delay: 1200ms;
+}
+
 /* Elevated button — press-in hover effect (primary: dark bg, secondary: light bg) */
 .btn-elevated {
   border: 1px solid #e5e7eb;

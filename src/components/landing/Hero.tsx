@@ -36,16 +36,14 @@ export default function Hero() {
 
   // Scroll-driven scale animation for the mockup
   const mockupRef = useRef<HTMLDivElement>(null);
-  const [mockupScale, setMockupScale] = useState(0.7);
+  const [mockupScale, setMockupScale] = useState(0.85);
 
   const handleScroll = useCallback(() => {
     if (!mockupRef.current) return;
     const rect = mockupRef.current.getBoundingClientRect();
     const windowH = window.innerHeight;
-    // progress: 0 when element top is at bottom of viewport, 1 when top reaches 40% from top
     const progress = Math.min(1, Math.max(0, (windowH - rect.top) / (windowH * 0.6)));
-    // Scale from 0.7 → 1.0 as user scrolls into view
-    setMockupScale(0.7 + progress * 0.3);
+    setMockupScale(0.85 + progress * 0.15);
   }, []);
 
   useEffect(() => {
@@ -82,13 +80,13 @@ export default function Hero() {
         <div className="flex items-center gap-2 sm:gap-3">
           <Link
             href="/login?signup=true"
-            className="px-3.5 py-1.5 text-xs sm:px-5 sm:py-2 sm:text-sm font-medium rounded-full bg-[#0071E3] text-white"
+            className="px-3.5 py-1.5 text-xs sm:px-5 sm:py-2 sm:text-sm font-medium rounded-full bg-[#0071E3] text-white hover:scale-[1.05] active:scale-[0.97] transition-transform duration-200"
           >
             Get Started
           </Link>
           <Link
             href="/login"
-            className="px-3.5 py-1.5 text-xs sm:px-5 sm:py-2 sm:text-sm font-medium rounded-full text-black bg-white"
+            className="px-3.5 py-1.5 text-xs sm:px-5 sm:py-2 sm:text-sm font-medium rounded-full text-black bg-white hover:scale-[1.05] active:scale-[0.97] transition-transform duration-200"
           >
             Login
           </Link>
@@ -100,12 +98,12 @@ export default function Hero() {
         {/* Above-the-fold section — fills viewport on mobile, normal flow on desktop */}
         <div className="min-h-[calc(100dvh-12rem)] sm:min-h-0 flex flex-col items-center justify-center sm:justify-start w-full">
           {/* Eyebrow */}
-          <p className="font-sans uppercase tracking-[0.2em] sm:tracking-[0.51em] leading-[133%] text-center text-[10px] sm:text-base mb-4 sm:mt-20 sm:mb-8 text-black/40 animate-appear opacity-0">
+          <p className="font-sans uppercase tracking-[0.2em] sm:tracking-[0.51em] leading-[133%] text-center text-[10px] sm:text-base mb-4 sm:mt-20 sm:mb-8 text-black/40">
             the to-do list for students
           </p>
 
           {/* Heading */}
-          <h2 className="text-[52px] sm:text-[96px] leading-[1.05] sm:leading-[100px] text-center text-black animate-appear opacity-0 delay-100">
+          <h2 className="text-[52px] sm:text-[96px] leading-[1.05] sm:leading-[100px] text-center text-black">
             <span className="font-serif font-normal">All your deadlines.</span>
             <br />
             <span className="font-serif font-normal italic">One </span>
@@ -113,14 +111,14 @@ export default function Hero() {
           </h2>
 
           {/* Subtitle */}
-          <p className="text-[13px] sm:text-xl text-center font-sans font-light mt-5 sm:mt-6 mb-6 sm:mb-8 leading-relaxed text-black/45 max-w-[260px] sm:max-w-none animate-appear opacity-0 delay-300">
+          <p className="text-[13px] sm:text-xl text-center font-sans font-light mt-5 sm:mt-6 mb-6 sm:mb-8 leading-relaxed text-black/45 max-w-[260px] sm:max-w-none">
             bCourses and Gradescope, one calendar.
           </p>
 
           {/* CTA — simple pill on mobile, interactive hover button on desktop */}
           <Link
             href="/login?signup=true"
-            className="sm:hidden flex items-center gap-2 px-7 py-3 rounded-full bg-[#0071E3] text-white text-sm font-semibold animate-appear opacity-0 delay-500 mb-8 active:scale-[0.97] transition-transform"
+            className="sm:hidden flex items-center gap-2 px-7 py-3 rounded-full bg-[#0071E3] text-white text-sm font-semibold mb-8 active:scale-[0.97] transition-transform"
           >
             Get started
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -128,15 +126,19 @@ export default function Hero() {
               <path d="M12 5l7 7-7 7" />
             </svg>
           </Link>
-          <Link href="/login?signup=true" className="hidden sm:block animate-appear opacity-0 delay-500 sm:mb-12">
-            <InteractiveHoverButton
-              text="Get Started"
-              className="w-56 text-base border-[#0071E3] bg-[#0071E3] text-white"
-            />
+          <Link
+            href="/login?signup=true"
+            className="group hidden sm:flex items-center gap-2 px-8 py-2 rounded-full bg-[#0071E3] text-white text-base font-medium hover:scale-[1.05] active:scale-[0.97] transition-transform duration-200 sm:mb-12"
+          >
+            Get started
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-transform duration-200 group-hover:translate-x-2">
+              <path d="M5 12h14" />
+              <path d="M12 5l7 7-7 7" />
+            </svg>
           </Link>
 
           {/* Integration logos — compact trust signal */}
-          <div className="flex items-center justify-center gap-2 sm:gap-4 animate-appear opacity-0 delay-700">
+          <div className="flex items-center justify-center gap-2 sm:gap-4">
             {/* Cal Berkeley logo with tooltip */}
             <div className="group relative cursor-pointer">
               <img
@@ -212,9 +214,8 @@ export default function Hero() {
         {/* Mockup — scroll-driven scale animation */}
         <div
           ref={mockupRef}
-          className="mt-8 sm:mt-36 md:mt-40 w-full max-w-5xl mx-auto relative animate-appear opacity-0"
+          className="mt-8 sm:mt-16 md:mt-20 w-full max-w-5xl mx-auto relative"
           style={{
-            animationDelay: "900ms",
             transform: `scale(${mockupScale})`,
             willChange: "transform",
             transition: "transform 0.1s ease-out",
@@ -297,10 +298,7 @@ export default function Hero() {
             </svg>
           </button>
 
-          <h3 className="text-xl font-bold text-black mb-3 flex items-center gap-1.5">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
-              <path d="M12 3l1.912 5.813a2 2 0 001.272 1.278L21 12l-5.816 1.91a2 2 0 00-1.272 1.278L12 21l-1.912-5.813a2 2 0 00-1.272-1.278L3 12l5.816-1.91a2 2 0 001.272-1.278z" />
-            </svg>
+          <h3 className="text-xl font-bold text-black mb-3">
             free for life. seriously.
           </h3>
           <p className="text-sm text-black leading-relaxed mb-6">
