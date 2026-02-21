@@ -19,6 +19,7 @@ export function computeNextDueDate(
   unit: RepeatUnit,
 ): string {
   const date = new Date(currentDueDate + "T00:00:00");
+  if (isNaN(date.getTime())) return currentDueDate;
 
   switch (unit) {
     case "day":

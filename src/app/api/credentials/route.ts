@@ -149,11 +149,16 @@ export async function PUT(request: Request) {
   logger.info("PUT /api/credentials success", { userId: user.id });
 
   // Return updated credentials
-  const { data: updated } = await supabase
+  const { data: updated, error: readError } = await supabase
     .from("integration_credentials")
     .select("canvas_token, canvas_base_url, gradescope_email, gradescope_password_encrypted, last_synced_at, selected_canvas_courses, selected_gradescope_courses, google_access_token_encrypted, google_calendar_id, google_email, google_photo_url, canvas_token_created_at, is_founding_member")
     .eq("user_id", user.id)
     .single();
+
+  if (readError || !updated) {
+    logger.error("PUT /api/credentials — re-read failed after upsert", { userId: user.id, error: readError?.message });
+    return NextResponse.json({ error: "Credentials saved but failed to read back" }, { status: 500 });
+  }
 
   const credentials: IntegrationCredentials = {
     canvas_token: updated?.canvas_token ?? null,

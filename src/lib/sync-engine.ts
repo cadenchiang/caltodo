@@ -230,7 +230,9 @@ async function syncGradescope(
 export function toLocalDateString(isoString: string | null, tz: string): string | null {
   if (!isoString) return null;
   try {
-    return new Intl.DateTimeFormat("en-CA", { timeZone: tz }).format(new Date(isoString));
+    const d = new Date(isoString);
+    if (isNaN(d.getTime())) return null;
+    return new Intl.DateTimeFormat("en-CA", { timeZone: tz }).format(d);
   } catch {
     return null;
   }
@@ -247,12 +249,14 @@ export function toLocalDateString(isoString: string | null, tz: string): string 
 export function toLocalTimeString(isoString: string | null, tz: string): string | null {
   if (!isoString) return null;
   try {
+    const d = new Date(isoString);
+    if (isNaN(d.getTime())) return null;
     return new Intl.DateTimeFormat("en-US", {
       timeZone: tz,
       hour: "2-digit",
       minute: "2-digit",
       hour12: false,
-    }).format(new Date(isoString));
+    }).format(d);
   } catch {
     return null;
   }

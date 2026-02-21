@@ -454,10 +454,14 @@ export async function fetchGradescopeAssignments(
     const scoreBadge = $row.find(".submissionStatus--score, .points-column").text().trim();
     const gradeMatch = scoreBadge.match(/([\d.]+)\s*\/\s*([\d.]+)/);
     if (gradeMatch) {
-      pointsPossible = parseFloat(gradeMatch[2]);
+      const parsed = parseFloat(gradeMatch[2]);
+      pointsPossible = isNaN(parsed) ? null : parsed;
     } else if (scoreBadge) {
       const simpleMatch = scoreBadge.match(/([\d.]+)/);
-      if (simpleMatch) pointsPossible = parseFloat(simpleMatch[1]);
+      if (simpleMatch) {
+        const parsed = parseFloat(simpleMatch[1]);
+        pointsPossible = isNaN(parsed) ? null : parsed;
+      }
     }
     // Fallback: scan td cells for "X / Y" grade format (newer layout)
     if (pointsPossible === null) {
@@ -466,7 +470,8 @@ export async function fetchGradescopeAssignments(
         const text = $(cell).text().trim();
         const cellGrade = text.match(/^([\d.]+)\s*\/\s*([\d.]+)$/);
         if (cellGrade) {
-          pointsPossible = parseFloat(cellGrade[2]);
+          const parsed = parseFloat(cellGrade[2]);
+          if (!isNaN(parsed)) pointsPossible = parsed;
         }
       });
     }

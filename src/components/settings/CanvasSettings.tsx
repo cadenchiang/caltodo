@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Eye, EyeOff, Pencil, Play, Check, X } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 import type { IntegrationCredentials, CredentialsSavePayload } from "@/lib/types";
@@ -32,8 +32,20 @@ export default function CanvasSettings({ credentials, onUpdate }: CanvasSettings
 
   const serverState = useRef({
     canvasToken: credentials.canvas_token ?? "",
-    canvasBaseUrl: credentials.canvas_base_url,
+    canvasBaseUrl: credentials.canvas_base_url || "https://bcourses.berkeley.edu",
   });
+
+  // Sync serverState and local form state when credentials prop changes (e.g. after API fetch)
+  useEffect(() => {
+    serverState.current = {
+      canvasToken: credentials.canvas_token ?? "",
+      canvasBaseUrl: credentials.canvas_base_url || "https://bcourses.berkeley.edu",
+    };
+    if (locked) {
+      setCanvasToken(credentials.canvas_token ?? "");
+      setCanvasBaseUrl(credentials.canvas_base_url || "https://bcourses.berkeley.edu");
+    }
+  }, [credentials.canvas_token, credentials.canvas_base_url, locked]);
 
   /**
    * Saves Canvas credentials (token + URL) to the API.

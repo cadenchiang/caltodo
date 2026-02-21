@@ -84,6 +84,7 @@ export function formatICalDate(dateStr: string): string {
  */
 export function formatICalDateNextDay(dateStr: string): string {
   const d = new Date(dateStr + "T00:00:00");
+  if (isNaN(d.getTime())) return formatICalDate(dateStr);
   d.setDate(d.getDate() + 1);
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -100,7 +101,8 @@ export function formatICalDateNextDay(dateStr: string): string {
 export function format12Hour(timeStr: string): string {
   const [hStr, mStr] = timeStr.split(":");
   let h = parseInt(hStr, 10);
-  const m = mStr;
+  const m = mStr ?? "00";
+  if (isNaN(h)) return timeStr;
   const suffix = h >= 12 ? "pm" : "am";
   if (h === 0) h = 12;
   else if (h > 12) h -= 12;

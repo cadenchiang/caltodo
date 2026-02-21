@@ -61,7 +61,7 @@ export default function CalendarPage() {
 
   return (
     <PageTransition>
-      <div className="h-full overflow-y-auto overflow-x-hidden pt-3 md:pt-0">
+      <div className="h-full overflow-y-auto overflow-x-hidden pt-6 md:pt-0">
         <div className="animate-stagger stagger-1">
           <CalendarHeader
             currentMonth={currentMonth}

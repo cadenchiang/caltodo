@@ -168,7 +168,7 @@ export default function TaskList({
   placeholder,
   sortMode = "date",
 }: TaskListProps) {
-  const [completedExpanded, setCompletedExpanded] = useState(true);
+  const [completedExpanded, setCompletedExpanded] = useState(false);
   const [showAllActive, setShowAllActive] = useState(false);
   const [showAllCompleted, setShowAllCompleted] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
@@ -211,6 +211,14 @@ export default function TaskList({
     setHideHours(hours);
     saveHideHours(hours);
     setCompletedMenuOpen(false);
+  }, []);
+
+  // Hydrate completedExpanded from localStorage (default collapsed)
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("caltodo_completed_expanded");
+      if (stored === "true") setCompletedExpanded(true);
+    } catch { /* ignore */ }
   }, []);
 
   // Close completed menu on outside click
@@ -370,7 +378,11 @@ export default function TaskList({
         <div className="mt-1">
           <div
             className="flex items-center mx-2 pl-2.5 pr-1 py-1.5 rounded-lg hover:bg-accent transition-colors group cursor-pointer"
-            onClick={() => setCompletedExpanded(!completedExpanded)}
+            onClick={() => {
+              const next = !completedExpanded;
+              setCompletedExpanded(next);
+              try { localStorage.setItem("caltodo_completed_expanded", String(next)); } catch { /* ignore */ }
+            }}
           >
             <ChevronRight
               size={12}

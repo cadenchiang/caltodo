@@ -226,7 +226,8 @@ export async function listWritableCalendars(
 function formatTime12h(time24: string): string {
   const [hourStr, minStr] = time24.split(":");
   let hour = parseInt(hourStr, 10);
-  const min = minStr;
+  const min = minStr ?? "00";
+  if (isNaN(hour)) return time24;
   const ampm = hour >= 12 ? "PM" : "AM";
   if (hour === 0) hour = 12;
   else if (hour > 12) hour -= 12;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Eye, EyeOff, Pencil, Play, Check, X } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 import type { IntegrationCredentials, CredentialsSavePayload } from "@/lib/types";
@@ -33,6 +33,16 @@ export default function GradescopeSettings({ credentials, onUpdate }: Gradescope
   const serverState = useRef({
     gradescopeEmail: credentials.gradescope_email ?? "",
   });
+
+  // Sync serverState and local form state when credentials prop changes (e.g. after API fetch)
+  useEffect(() => {
+    serverState.current = {
+      gradescopeEmail: credentials.gradescope_email ?? "",
+    };
+    if (locked) {
+      setGradescopeEmail(credentials.gradescope_email ?? "");
+    }
+  }, [credentials.gradescope_email, locked]);
 
   /**
    * Saves Gradescope credentials (email + optional password) to the API.

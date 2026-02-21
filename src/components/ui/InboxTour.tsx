@@ -81,7 +81,7 @@ const TOUR_STEPS: TourStep[] = [
     targetId: "tour-sidebar-nav",
     title: "Navigation",
     icon: <Compass size={ICON_SIZE} />,
-    description: "Switch between Inbox and Calendar views from the sidebar.",
+    description: "Switch between Inbox and Calendar views.",
     position: "right",
     route: "/app/inbox",
   },
