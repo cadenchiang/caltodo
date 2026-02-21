@@ -228,7 +228,7 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
 
                   {/* Video on the right */}
                   <div className="flex-1 min-w-0">
-                    <div className="rounded-xl overflow-hidden shadow-lg">
+                    <div className="rounded-xl overflow-hidden shadow-lg border border-gray-200">
                       <video
                         ref={videoRef}
                         src="/gradescope-instructions.mp4"
