@@ -51,8 +51,11 @@ export async function POST(request: Request) {
           }
         : undefined;
 
-    logger.info("POST /api/assignments/sync started", { userId: user.id, timezone, hasOverrides: !!courseOverrides });
-    const result = await runSync(supabase, user.id, timezone, courseOverrides);
+    // Manual syncs (with overrides or explicit force flag) bypass the Gradescope 30-min cooldown
+    const forceGradescope = !!courseOverrides || body.forceGradescope === true;
+
+    logger.info("POST /api/assignments/sync started", { userId: user.id, timezone, hasOverrides: !!courseOverrides, forceGradescope });
+    const result = await runSync(supabase, user.id, timezone, courseOverrides, forceGradescope);
     return NextResponse.json(result);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

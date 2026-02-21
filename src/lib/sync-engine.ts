@@ -18,12 +18,20 @@ const CANVAS_COLOR = "#3B82F6";
 /** Default color for Gradescope assignments (green). */
 const GRADESCOPE_COLOR = "#10B981";
 
+/**
+ * Minimum time between Gradescope login attempts (30 minutes).
+ * Gradescope uses password-based auth, so frequent logins trigger
+ * their security system to send password reset emails.
+ */
+const GRADESCOPE_SYNC_COOLDOWN_MS = 30 * 60 * 1000;
+
 interface CredentialsRow {
   canvas_token: string | null;
   canvas_base_url: string;
   gradescope_email: string | null;
   gradescope_password_encrypted: string | null;
   gradescope_auth_failed: boolean;
+  last_gradescope_synced_at: string | null;
   selected_canvas_courses: Array<{ id: number; name: string }> | null;
   selected_gradescope_courses: Array<{ id: string; name: string }> | null;
 }
@@ -46,18 +54,20 @@ export interface SyncCourseOverrides {
  * @param userId - The authenticated user's ID
  * @param timezone - IANA timezone for date/time conversion (default "America/Los_Angeles")
  * @param courseOverrides - Optional course lists to override stored selections
+ * @param forceGradescope - If true, bypasses the 30-minute Gradescope cooldown (for manual syncs)
  * @returns SyncResult with counts and errors for each source
  */
 export async function runSync(
   supabase: SupabaseClient,
   userId: string,
   timezone: string = "America/Los_Angeles",
-  courseOverrides?: SyncCourseOverrides
+  courseOverrides?: SyncCourseOverrides,
+  forceGradescope: boolean = false
 ): Promise<SyncResult> {
   // Fetch credentials
   const { data: creds, error: credsError } = await supabase
     .from("integration_credentials")
-    .select("canvas_token, canvas_base_url, gradescope_email, gradescope_password_encrypted, gradescope_auth_failed, selected_canvas_courses, selected_gradescope_courses")
+    .select("canvas_token, canvas_base_url, gradescope_email, gradescope_password_encrypted, gradescope_auth_failed, last_gradescope_synced_at, selected_canvas_courses, selected_gradescope_courses")
     .eq("user_id", userId)
     .single();
 
@@ -83,7 +93,7 @@ export async function runSync(
   // Run Canvas and Gradescope syncs independently
   const [canvasResult, gradescopeResult] = await Promise.all([
     syncCanvas(supabase, userId, credentials, timezone),
-    syncGradescope(supabase, userId, credentials, timezone),
+    syncGradescope(supabase, userId, credentials, timezone, forceGradescope),
   ]);
 
   // Update last_synced_at
@@ -137,13 +147,23 @@ async function syncCanvas(
 
 /**
  * Syncs assignments from Gradescope. Returns sync result with count and errors.
+ * Enforces a 30-minute cooldown between login attempts to prevent Gradescope's
+ * security system from sending password reset emails due to frequent logins.
  * Supports course filtering via selected_gradescope_courses.
+ *
+ * @param supabase - Authenticated Supabase client
+ * @param userId - The user's ID
+ * @param creds - User's integration credentials
+ * @param timezone - IANA timezone for date/time conversion
+ * @param force - If true, bypasses the 30-minute cooldown (for manual syncs)
+ * @returns Sync result with count and errors
  */
 async function syncGradescope(
   supabase: SupabaseClient,
   userId: string,
   creds: CredentialsRow,
-  timezone: string
+  timezone: string,
+  force: boolean = false
 ): Promise<SyncSourceResult> {
   if (!creds.gradescope_email || !creds.gradescope_password_encrypted) {
     return { synced: 0, errors: [] };
@@ -155,6 +175,18 @@ async function syncGradescope(
     return { synced: 0, errors: ["Gradescope login failed. Please update your password in Settings."] };
   }
 
+  // Enforce 30-minute cooldown between Gradescope logins (unless forced by manual sync).
+  // Gradescope uses password auth, so frequent logins trigger security emails.
+  if (!force && creds.last_gradescope_synced_at) {
+    const lastSync = new Date(creds.last_gradescope_synced_at).getTime();
+    const elapsed = Date.now() - lastSync;
+    if (elapsed < GRADESCOPE_SYNC_COOLDOWN_MS) {
+      const minutesLeft = Math.ceil((GRADESCOPE_SYNC_COOLDOWN_MS - elapsed) / 60_000);
+      logger.info("syncGradescope skipped: cooldown active", { userId, minutesLeft });
+      return { synced: 0, errors: [] };
+    }
+  }
+
   try {
     const password = decrypt(creds.gradescope_password_encrypted);
     const selectedCourses = creds.selected_gradescope_courses;
@@ -162,6 +194,13 @@ async function syncGradescope(
       ? await fetchGradescopeAssignmentsForCourses(creds.gradescope_email, password, selectedCourses)
       : await fetchAllGradescopeAssignments(creds.gradescope_email, password);
     const synced = await upsertAssignments(supabase, userId, "gradescope", assignments, timezone);
+
+    // Update last Gradescope sync timestamp on success
+    await supabase
+      .from("integration_credentials")
+      .update({ last_gradescope_synced_at: new Date().toISOString() })
+      .eq("user_id", userId);
+
     return { synced, errors: [] };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
