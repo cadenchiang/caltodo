@@ -311,7 +311,7 @@ export default function Hero() {
           </p>
           <Link
             href="/login?signup=true"
-            className="block w-full text-center px-5 py-3 text-sm font-semibold rounded-xl bg-black text-white btn-elevated-primary"
+            className="block w-full text-center px-5 py-3 text-sm font-semibold rounded-xl bg-[#0071E3] text-white"
             onClick={() => setShowSpotsModal(false)}
           >
             claim free spot now
