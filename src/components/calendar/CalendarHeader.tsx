@@ -270,7 +270,7 @@ export default function CalendarHeader({
                   <span className="hidden md:inline">Sync Google Calendar</span>
                 </span>
               </ShimmerButton>
-              <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-medium leading-none">
+              <span className="absolute -top-px -right-px bg-red-500 text-white text-[9px] w-3.5 h-3.5 rounded-full flex items-center justify-center font-bold leading-none pointer-events-none">
                 1
               </span>
             </a>
