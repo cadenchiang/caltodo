@@ -155,7 +155,7 @@ export default function TaskItem({ task, isSelected, onToggle, onSelect, onDelet
         <div className="flex-1 min-w-0 flex items-center gap-1.5">
           <span
             className={`truncate text-sm ${
-              task.is_completed ? "text-foreground line-through" : "text-foreground"
+              task.is_completed ? "text-foreground" : "text-foreground"
             }`}
           >
             {task.title}

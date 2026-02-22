@@ -703,7 +703,7 @@ function TaskCard({ task, isSelected, onToggle, onSelect, onDelete }: TaskCardPr
           </button>
           <span
             className={`text-sm leading-snug flex-1 min-w-0 ${
-              isCompleted ? "text-foreground line-through" : "text-foreground"
+              isCompleted ? "text-foreground" : "text-foreground"
             }`}
           >
             {task.title}
