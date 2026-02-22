@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef, type ReactNode } from "react";
-import { Undo2 } from "lucide-react";
+import { Undo2, RefreshCw } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/contexts/ToastContext";
 import { useNotifications } from "@/contexts/NotificationContext";
@@ -240,6 +240,21 @@ export function TaskProvider({ children }: { children: ReactNode }) {
             const changes = detectSyncChanges(snapshot, freshTasks);
             for (const change of changes) {
               addNotification(change.type, change.title, change.description, change.taskId);
+            }
+
+            // Show a toast popup when new assignments are discovered
+            const newAssignments = changes.filter((c) => c.type === "new_assignment");
+            if (newAssignments.length > 0) {
+              const msg = newAssignments.length === 1
+                ? "1 new assignment found"
+                : `${newAssignments.length} new assignments found`;
+              showToast(msg, {
+                action: {
+                  label: "Sync now",
+                  icon: <RefreshCw size={14} />,
+                  onClick: () => triggerSync(),
+                },
+              });
             }
           }
         }
