@@ -27,12 +27,14 @@ export default function PostHogIdentify({
       return;
     }
 
-    const properties: Record<string, string> = {};
+    const properties: Record<string, string> = { userId };
     if (email) {
       properties.email = email;
     }
 
-    posthog.identify(userId, properties);
+    // Use email as the distinct ID so people show as emails in PostHog,
+    // falling back to Supabase userId if email is unavailable
+    posthog.identify(email ?? userId, properties);
   }, [userId, email]);
 
   return null;
