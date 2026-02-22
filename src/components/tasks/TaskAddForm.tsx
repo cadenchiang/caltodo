@@ -182,7 +182,7 @@ export default function TaskAddForm({ onAdd, defaultDate, placeholder }: TaskAdd
             : "border-transparent bg-muted/60"
         }`}
       >
-        <Plus size={16} className={`shrink-0 transition-colors ${focused ? "text-blue-400" : "text-subtle-foreground"}`} />
+        <Plus size={16} className={`shrink-0 transition-colors ${focused ? "text-blue-400" : "text-gray-500 dark:text-subtle-foreground"}`} />
         <input
           ref={inputRef}
           type="text"
@@ -190,7 +190,7 @@ export default function TaskAddForm({ onAdd, defaultDate, placeholder }: TaskAdd
           onChange={(e) => setTitle(e.target.value)}
           onFocus={() => setFocused(true)}
           placeholder={placeholder ?? "Add task. Press Enter to save."}
-          className="flex-1 text-sm bg-transparent text-foreground placeholder-muted-foreground focus:outline-none"
+          className="flex-1 text-sm bg-transparent text-foreground placeholder-gray-500 dark:placeholder-muted-foreground focus:outline-none"
         />
 
         {/* Unified date+repeat badge */}

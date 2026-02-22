@@ -44,20 +44,24 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
     catch { return "all"; }
   });
   const [showCalBadge, setShowCalBadge] = useState(false);
-  const [activeSettingsSection, setActiveSettingsSection] = useState<SettingsSectionId>(DEFAULT_SECTION);
+  const [activeSettingsSection, setActiveSettingsSection] = useState<SettingsSectionId>(() => {
+    if (typeof window === "undefined") return DEFAULT_SECTION;
+    const params = new URLSearchParams(window.location.search);
+    const s = params.get("section");
+    return SETTINGS_SECTIONS.some((sec) => sec.id === s) ? (s as SettingsSectionId) : DEFAULT_SECTION;
+  });
 
-  // Sync active settings section from URL on mount and browser back/forward
+  // Sync active section on browser back/forward
   useEffect(() => {
     if (!isSettings) return;
-    function readSection() {
+    function onPopState() {
       const params = new URLSearchParams(window.location.search);
       const s = params.get("section");
       const valid = SETTINGS_SECTIONS.some((sec) => sec.id === s);
       setActiveSettingsSection(valid ? (s as SettingsSectionId) : DEFAULT_SECTION);
     }
-    readSection();
-    window.addEventListener("popstate", readSection);
-    return () => window.removeEventListener("popstate", readSection);
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
   }, [isSettings]);
 
   // Listen for filter changes dispatched by InboxPage

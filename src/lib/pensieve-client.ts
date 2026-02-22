@@ -66,6 +66,7 @@ export function parseICalEvents(icsText: string): NormalizedAssignment[] {
     const dtstart = extractProperty(unfolded, "DTSTART");
     const dtend = extractProperty(unfolded, "DTEND");
     const description = extractProperty(unfolded, "DESCRIPTION");
+    const url = extractProperty(unfolded, "URL");
 
     if (!uid || !summary) continue;
 
@@ -107,7 +108,7 @@ export function parseICalEvents(icsText: string): NormalizedAssignment[] {
       title: cleanTitle,
       due_date: dueDate,
       late_due_date: lateDueDate,
-      source_url: null,
+      source_url: url || null,
       points_possible: null,
       is_submitted: false,
       description: cleanDescription,
