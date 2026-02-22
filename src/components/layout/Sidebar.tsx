@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { Inbox, Sun, CalendarRange, ChevronLeft } from "lucide-react";
 import { NAV_ITEMS } from "@/lib/constants";
 import { SETTINGS_SECTIONS, SETTINGS_GROUPS, DEFAULT_SECTION, type SettingsSectionId } from "@/lib/settingsConfig";
@@ -47,8 +46,7 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
   const [showCalBadge, setShowCalBadge] = useState(false);
   const [activeSettingsSection, setActiveSettingsSection] = useState<SettingsSectionId>(DEFAULT_SECTION);
 
-  // Sync active settings section from URL search params
-  // Uses popstate + manual reads to avoid useSearchParams Suspense requirement
+  // Sync active settings section from URL on mount and browser back/forward
   useEffect(() => {
     if (!isSettings) return;
     function readSection() {
@@ -59,16 +57,7 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
     }
     readSection();
     window.addEventListener("popstate", readSection);
-    // Also listen for pushState/replaceState via a custom event
-    const origPush = window.history.pushState.bind(window.history);
-    const origReplace = window.history.replaceState.bind(window.history);
-    window.history.pushState = (...args) => { origPush(...args); readSection(); };
-    window.history.replaceState = (...args) => { origReplace(...args); readSection(); };
-    return () => {
-      window.removeEventListener("popstate", readSection);
-      window.history.pushState = origPush;
-      window.history.replaceState = origReplace;
-    };
+    return () => window.removeEventListener("popstate", readSection);
   }, [isSettings]);
 
   // Listen for filter changes dispatched by InboxPage
@@ -144,12 +133,14 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
           <div className="flex flex-col gap-1">
             <button
               onClick={() => router.push("/app/inbox")}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors text-muted-foreground hover:bg-accent hover:text-foreground cursor-pointer active:scale-[0.98]"
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors text-foreground hover:bg-accent cursor-pointer active:scale-[0.98]"
             >
-              <ChevronLeft size={16} className="animate-[fadeIn_150ms_ease-out]" />
-              <span className="animate-[fadeIn_150ms_ease-out]">Back</span>
+              <div className="w-7 h-7 rounded-lg bg-white dark:bg-zinc-800 shadow-sm dark:shadow-none border border-border/50 flex items-center justify-center shrink-0">
+                <ChevronLeft size={14} className="animate-[fadeIn_150ms_ease-out]" />
+              </div>
+              <span className="animate-[fadeIn_150ms_ease-out]">Settings</span>
             </button>
-            <p className="px-3 pt-3 pb-1 text-xs font-semibold text-foreground">Settings</p>
+            <hr className="border-border my-1" />
             {SETTINGS_GROUPS.map((group) => (
               <div key={group}>
                 <p className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -159,20 +150,23 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
                   const Icon = section.icon;
                   const isActive = activeSettingsSection === section.id;
                   return (
-                    <Link
+                    <button
                       key={section.id}
-                      href={`/app/settings?section=${section.id}`}
-                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                      onClick={() => {
+                        setActiveSettingsSection(section.id);
+                        router.push(`/app/settings?section=${section.id}`);
+                      }}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors cursor-pointer ${
                         isActive
                           ? "bg-accent text-foreground"
                           : "text-muted-foreground hover:bg-accent hover:text-foreground"
                       }`}
                     >
-                      <div className="w-7 h-7 rounded-lg bg-accent flex items-center justify-center shrink-0">
+                      <div className="w-7 h-7 rounded-lg bg-white dark:bg-zinc-800 shadow-sm dark:shadow-none border border-border/50 flex items-center justify-center shrink-0">
                         <Icon size={14} />
                       </div>
                       <span>{section.label}</span>
-                    </Link>
+                    </button>
                   );
                 })}
               </div>

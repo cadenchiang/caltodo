@@ -129,7 +129,7 @@ export default function SettingsContent() {
                                   onClick={() => goToSection(section.id)}
                                   className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-colors text-foreground hover:bg-accent cursor-pointer active:scale-[0.98]"
                                 >
-                                  <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center shrink-0">
+                                  <div className="w-8 h-8 rounded-lg bg-white dark:bg-zinc-800 shadow-sm dark:shadow-none border border-border/50 flex items-center justify-center shrink-0">
                                     <Icon size={16} className="text-muted-foreground" />
                                   </div>
                                   <span className="flex-1 text-left">{section.label}</span>

@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Settings, LogOut, MessageCircle, User } from "lucide-react";
+import { Settings, LogOut, MessageCircle } from "lucide-react";
 import ContactModal from "@/components/ui/ContactModal";
 
 interface ProfilePopupProps {
@@ -122,16 +122,6 @@ export default function ProfilePopup({ avatarUrl, fullName, email }: ProfilePopu
 
           {/* Menu items */}
           <div>
-            <button
-              onClick={() => {
-                setOpen(false);
-                router.push("/app/account");
-              }}
-              className="flex items-center gap-3 w-full px-4 py-3 text-sm text-secondary-foreground hover:bg-accent transition-colors"
-            >
-              <User size={16} />
-              Account
-            </button>
             <button
               onClick={() => {
                 setOpen(false);
