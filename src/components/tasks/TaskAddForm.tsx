@@ -179,7 +179,7 @@ export default function TaskAddForm({ onAdd, defaultDate, placeholder }: TaskAdd
         className={`flex items-center gap-2 px-4 h-10 rounded-xl transition-all duration-200 border ${
           focused
             ? "border-blue-400 shadow-[0_0_0_1px_rgba(59,130,246,0.3)] bg-card"
-            : "border-transparent bg-muted/60"
+            : "border-transparent bg-muted"
         }`}
       >
         <Plus size={16} className={`shrink-0 transition-colors ${focused ? "text-blue-400" : "text-gray-500 dark:text-subtle-foreground"}`} />
