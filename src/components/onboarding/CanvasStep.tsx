@@ -220,7 +220,21 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError }: 
                             {i + 1}
                           </span>
                           <span className={`text-sm leading-tight ${isActive ? "font-semibold" : "font-medium"}`}>
-                            {step.label}
+                            {i === 0 ? (
+                              <>
+                                open{" "}
+                                <a
+                                  href="https://bcourses.berkeley.edu/profile/settings"
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-500 underline"
+                                >
+                                  bCourses settings
+                                </a>
+                              </>
+                            ) : (
+                              step.label
+                            )}
                           </span>
                         </button>
                       );

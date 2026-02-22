@@ -175,19 +175,17 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
           <div className="animate-drop-in delay-100">
             {/* Expanded: side-by-side steps + video */}
             <div
-              className="grid overflow-hidden transition-[grid-template-rows,opacity,margin] duration-500"
+              className={`grid overflow-hidden transition-all duration-500 ${videoExpanded ? "sm:-mx-80" : ""}`}
               style={{
                 gridTemplateRows: videoExpanded ? "1fr" : "0fr",
                 opacity: videoExpanded ? 1 : 0,
-                marginLeft: videoExpanded ? "-20rem" : "0",
-                marginRight: videoExpanded ? "-20rem" : "0",
                 transitionTimingFunction: "cubic-bezier(0.33, 1, 0.68, 1)",
               }}
             >
               <div className="min-h-0 overflow-hidden">
-                <div className="flex items-center gap-8 mb-4">
-                  {/* Steps on the left */}
-                  <div className="w-56 shrink-0 flex flex-col gap-1.5">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-8 mb-4">
+                  {/* Steps — stacked above on mobile, sidebar on desktop */}
+                  <div className="sm:w-56 shrink-0 flex flex-col gap-1.5">
                     {GRADESCOPE_CHAPTERS.map((step, i) => {
                       const isActive = activeStep === i;
                       return (
@@ -219,7 +217,18 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
                             {i + 1}
                           </span>
                           <span className={`text-sm leading-tight ${isActive ? "font-semibold" : "font-medium"}`}>
-                            {step.label}
+                            {i === 0 ? (
+                              <a
+                                href="https://www.gradescope.com/reset_password"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-500 underline"
+                              >
+                                Reset password
+                              </a>
+                            ) : (
+                              step.label
+                            )}
                           </span>
                         </button>
                       );
