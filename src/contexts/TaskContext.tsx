@@ -76,7 +76,6 @@ interface TaskContextValue {
   loading: boolean;
   error: string | null;
   syncing: boolean;
-  syncProgress: number;
   lastSyncedAt: string | null;
   syncResult: SyncResult | null;
   /** Distinct course/tag names available for tagging, derived from all tasks. */
@@ -85,6 +84,7 @@ interface TaskContextValue {
   updateTask: (id: string, updates: TaskUpdate) => Promise<void>;
   toggleComplete: (id: string) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
+  deleteTasksBySource: (source: "canvas" | "gradescope" | "pensieve") => Promise<void>;
   deleteAllTasks: () => Promise<void>;
   snoozeTask: (id: string, hours: number) => Promise<void>;
   unsnoozeTask: (id: string) => Promise<void>;
@@ -104,17 +104,15 @@ const TaskContext = createContext<TaskContextValue | null>(null);
  * Cache hydration happens in useEffect to avoid SSR/client hydration mismatch.
  */
 export function TaskProvider({ children }: { children: ReactNode }) {
-  const { showToast, updateToastProgress } = useToast();
+  const { showToast } = useToast();
   const { addNotification } = useNotifications();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
-  const [syncProgress, setSyncProgress] = useState(0);
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
   const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
-  const progressTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const hasCacheRef = useRef(false);
   const supabase = createClient();
 
@@ -192,14 +190,6 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     fetchTasks();
     fetchLastSynced();
   }, [fetchTasks, fetchLastSynced]);
-
-  // Push sync progress to the toast bar (separate effect to avoid updating
-  // ToastProvider state inside TaskProvider's setSyncProgress updater)
-  useEffect(() => {
-    if (syncing && syncProgress > 0) {
-      updateToastProgress(syncProgress);
-    }
-  }, [syncProgress, syncing, updateToastProgress]);
 
   // Auto-sync: runs on initial load (if stale) and every 5 minutes.
   // Uses AbortController to cleanly cancel in-flight requests on unmount/re-render.
@@ -622,6 +612,48 @@ export function TaskProvider({ children }: { children: ReactNode }) {
   }
 
   /**
+   * Hard-deletes all tasks from a specific integration source.
+   * Permanently removes matching rows from Supabase.
+   * Optimistically removes matching tasks from local state; reverts on failure.
+   *
+   * @param source - The integration source to delete tasks for ("canvas" | "gradescope" | "pensieve")
+   */
+  async function deleteTasksBySource(source: "canvas" | "gradescope" | "pensieve") {
+    if (!userId) {
+      setError("Not authenticated. Please sign in again.");
+      return;
+    }
+
+    const previousTasks = [...tasks];
+    const matchingIds = tasks.filter((t) => t.source === source).map((t) => t.id);
+    if (matchingIds.length === 0) return;
+
+    trackEvent("all_tasks_deleted");
+
+    // Optimistic: remove matching tasks from local state
+    setTasks((prev) => {
+      const updated = prev.filter((t) => t.source !== source);
+      setCachedTasks(updated);
+      taskBaselineRef.current = updated;
+      return updated;
+    });
+
+    // Hard-delete from Supabase
+    const { error: deleteError } = await supabase
+      .from("tasks")
+      .delete()
+      .eq("user_id", userId)
+      .eq("source", source);
+
+    if (deleteError) {
+      setError(deleteError.message);
+      setTasks(previousTasks);
+      setCachedTasks(previousTasks);
+      fetchTasks();
+    }
+  }
+
+  /**
    * Deletes all tasks for the current user.
    * Synced tasks are soft-deleted (dismissed_at set) to prevent sync resurrection.
    * Manual tasks are hard-deleted since they can't reappear.
@@ -663,33 +695,6 @@ export function TaskProvider({ children }: { children: ReactNode }) {
   }
 
   /**
-   * Starts a simulated progress timer that advances from 0% toward ~90%.
-   * Uses exponential slowdown: fast at first, slowing as it approaches 90%.
-   */
-  function startProgressTimer() {
-    setSyncProgress(0);
-    if (progressTimerRef.current) clearInterval(progressTimerRef.current);
-    progressTimerRef.current = setInterval(() => {
-      setSyncProgress((prev) => {
-        if (prev >= 90) return prev;
-        // Small frequent ticks for smooth continuous motion
-        const remaining = 90 - prev;
-        return prev + remaining * 0.02;
-      });
-    }, 80);
-  }
-
-  /** Stops the progress timer and sets progress to 100%, then resets after a brief delay. */
-  function stopProgressTimer() {
-    if (progressTimerRef.current) {
-      clearInterval(progressTimerRef.current);
-      progressTimerRef.current = null;
-    }
-    setSyncProgress(100);
-    setTimeout(() => setSyncProgress(0), 1500);
-  }
-
-  /**
    * Triggers a full sync from Canvas + Gradescope, then refreshes tasks.
    * Manages a simulated progress bar during the sync.
    */
@@ -697,8 +702,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     setSyncing(true);
     setError(null);
     setSyncResult(null);
-    showToast("Syncing assignments...", { progress: 0 });
-    startProgressTimer();
+    showToast("Syncing assignments...", { duration: 60_000 });
     trackEvent("sync_started");
 
     const snapshot = createTaskSnapshot(taskBaselineRef.current);
@@ -735,7 +739,12 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       if (syncErrors.length > 0) {
         toastMsg += ` ${syncErrors.map(m => m.replace(/Go to Settings to add them\.?/, "")).join(". ").trim()}`;
       }
-      showToast(toastMsg);
+      showToast(toastMsg, {
+        action: {
+          label: "Inbox",
+          onClick: () => { window.location.href = "/app/inbox"; },
+        },
+      });
 
       // Refresh tasks list after sync to include new assignments
       const freshTasks = await fetchTasks();
@@ -749,7 +758,6 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       setError(message);
       // Don't show sync errors in notifications — they're noisy from auto-sync
     } finally {
-      stopProgressTimer();
       setSyncing(false);
     }
   }
@@ -776,7 +784,6 @@ export function TaskProvider({ children }: { children: ReactNode }) {
         loading,
         error,
         syncing,
-        syncProgress,
         lastSyncedAt,
         syncResult,
         availableTags,
@@ -784,6 +791,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
         updateTask,
         toggleComplete,
         deleteTask,
+        deleteTasksBySource,
         deleteAllTasks,
         snoozeTask,
         unsnoozeTask,

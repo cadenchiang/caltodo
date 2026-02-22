@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/contexts/ToastContext";
+import { useTaskContext } from "@/contexts/TaskContext";
 import type { IntegrationCredentials } from "@/lib/types";
 
 interface PensieveSettingsProps {
@@ -24,14 +26,18 @@ interface PensieveSettingsProps {
 export default function PensieveSettings({ credentials, onUpdate }: PensieveSettingsProps) {
   const router = useRouter();
   const { showToast } = useToast();
+  const { tasks, deleteTasksBySource } = useTaskContext();
   const [disconnecting, setDisconnecting] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const isConnected = Boolean(credentials.pensieve_calendar_url);
+  const sourceTaskCount = tasks.filter((t) => t.source === "pensieve").length;
 
   /**
    * Disconnects Pensieve by clearing the calendar URL via API.
    * Updates parent state and shows confirmation toast.
    */
   async function handleDisconnect() {
+    setShowConfirm(false);
     setDisconnecting(true);
     try {
       const res = await fetch("/api/credentials", {
@@ -45,6 +51,7 @@ export default function PensieveSettings({ credentials, onUpdate }: PensieveSett
       }
       const updated: IntegrationCredentials = await res.json();
       onUpdate(updated);
+      await deleteTasksBySource("pensieve");
       showToast("Pensieve disconnected.");
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Failed to disconnect");
@@ -65,7 +72,7 @@ export default function PensieveSettings({ credentials, onUpdate }: PensieveSett
         </div>
         {isConnected ? (
           <button
-            onClick={handleDisconnect}
+            onClick={() => setShowConfirm(true)}
             disabled={disconnecting}
             aria-label="Disconnect Pensieve"
             className="group min-w-[84px] text-xs font-medium px-3 py-1 rounded-lg shrink-0 border transition-colors cursor-pointer disabled:opacity-60
@@ -84,6 +91,41 @@ export default function PensieveSettings({ credentials, onUpdate }: PensieveSett
           </button>
         )}
       </div>
+
+      {showConfirm && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+          <div className="relative bg-card rounded-2xl border border-border shadow-2xl max-w-sm mx-4 p-6 animate-modal-in">
+            <div className="text-center">
+              <h2 className="text-lg font-semibold text-foreground mb-2">
+                Disconnect Pensieve?
+              </h2>
+              <p className="text-sm text-muted-foreground mb-6">
+                {sourceTaskCount > 0
+                  ? `This will remove ${sourceTaskCount === 1 ? "1 synced task" : `${sourceTaskCount} synced tasks`} from Pensieve. You can reconnect later to sync them again.`
+                  : "No synced tasks to remove. You can reconnect later to sync again."}
+              </p>
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={handleDisconnect}
+                  className="w-full px-4 py-2.5 rounded-xl text-sm font-medium bg-red-500 text-white hover:bg-red-600 transition-all cursor-pointer"
+                >
+                  Disconnect
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowConfirm(false)}
+                  className="w-full px-4 py-2 rounded-xl text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

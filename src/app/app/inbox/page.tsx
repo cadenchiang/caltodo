@@ -174,7 +174,7 @@ function saveSelections(courses: SelectedCourse[]): void {
 export default function InboxPage() {
   const {
     tasks, loading, error, addTask, toggleComplete, deleteTask, updateTask,
-    syncing, syncProgress, triggerSync, reorderTasks,
+    syncing, triggerSync, reorderTasks,
   } = useTaskContext();
   const inboxRouter = useRouter();
   const searchParams = useSearchParams();
@@ -673,18 +673,6 @@ export default function InboxPage() {
               )}
             </div>
           </div>
-
-          {/* Sync progress bar with glow */}
-          {(syncing || syncProgress > 0) && syncProgress < 100 && (
-            <div className="mx-4 md:mx-8 mb-2">
-              <div className="h-1 bg-muted rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-blue-500 rounded-full transition-all duration-700 ease-in-out animate-sync-glow"
-                  style={{ width: `${syncProgress}%` }}
-                />
-              </div>
-            </div>
-          )}
 
           <div id="tour-task-list" className="flex-1 overflow-auto animate-stagger stagger-2">
             <div key={viewMode} className="animate-view-switch h-full">

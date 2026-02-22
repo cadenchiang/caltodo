@@ -72,16 +72,45 @@ export function parseICalEvents(icsText: string): NormalizedAssignment[] {
     // Parse the due date from DTSTART or DTEND
     const dueDate = parseDueDate(dtend || dtstart);
 
+    // Extract late_due_date from description before cleaning
+    let lateDueDate: string | null = null;
+    if (description) {
+      const lateDueMatch = description.match(/late\s*due[:\s]+(\S+)/i);
+      if (lateDueMatch) {
+        lateDueDate = lateDueMatch[1];
+      }
+    }
+
+    // Strip redundant Class/Late due lines from description
+    let cleanDescription: string | null = null;
+    if (description) {
+      cleanDescription = unescapeICalText(description)
+        .replace(/^class:\s*.+$/gim, "")
+        .replace(/^late\s*due[:\s]+\S+$/gim, "")
+        .trim() || null;
+    }
+
+    const courseName = extractCourseName(summary, description);
+
+    // Strip course name suffix from title (e.g. "Assignment 1 - test_testcourse" → "Assignment 1")
+    let cleanTitle = unescapeICalText(summary);
+    if (courseName && courseName !== "Pensieve") {
+      cleanTitle = cleanTitle
+        .replace(new RegExp(`\\s*[-–—]\\s*${escapeRegExp(courseName)}\\s*$`, "i"), "")
+        .trim();
+    }
+
     assignments.push({
       external_id: `pensieve-${uid}`,
-      course_name: extractCourseName(summary, description),
+      course_name: courseName,
       course_id: "pensieve",
-      title: unescapeICalText(summary),
+      title: cleanTitle,
       due_date: dueDate,
+      late_due_date: lateDueDate,
       source_url: null,
       points_possible: null,
       is_submitted: false,
-      description: description ? unescapeICalText(description) : null,
+      description: cleanDescription,
     });
   }
 
@@ -150,15 +179,31 @@ function extractCourseName(summary: string, description: string | null): string 
     }
   }
 
-  // Try extracting from description
+  // Try extracting from description (stop at iCal \n escape to avoid capturing extra lines)
   if (description) {
-    const courseMatch = description.match(/(?:course|class):\s*(.+)/i);
+    const courseMatch = description.match(/(?:course|class):\s*(.+?)(?:\\n|$)/i);
     if (courseMatch) {
       return unescapeICalText(courseMatch[1].trim());
     }
   }
 
+  // Try "Title - CourseName" suffix pattern in summary
+  const dashMatch = summary.match(/\s+[-–—]\s+(.+)$/);
+  if (dashMatch) {
+    return unescapeICalText(dashMatch[1].trim());
+  }
+
   return "Pensieve";
+}
+
+/**
+ * Escapes special regex characters in a string for safe use in RegExp constructor.
+ *
+ * @param str - Raw string to escape
+ * @returns Escaped string safe for RegExp
+ */
+function escapeRegExp(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 /**

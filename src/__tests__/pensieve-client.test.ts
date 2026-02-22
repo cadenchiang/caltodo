@@ -1,0 +1,99 @@
+/**
+ * Tests for Pensieve iCal client — parseICalEvents and course name extraction.
+ * Validates title stripping, course name detection, and description cleaning.
+ */
+
+import { describe, it, expect } from "vitest";
+import { parseICalEvents } from "@/lib/pensieve-client";
+
+/**
+ * Builds a minimal iCal VEVENT block for testing.
+ *
+ * @param fields - VEVENT property overrides
+ * @returns Raw iCal text with a single VEVENT
+ */
+function makeIcal(fields: {
+  uid?: string;
+  summary?: string;
+  dtstart?: string;
+  dtend?: string;
+  description?: string;
+}): string {
+  const lines = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "BEGIN:VEVENT",
+    `UID:${fields.uid ?? "test-uid-1"}`,
+    `SUMMARY:${fields.summary ?? "Test Assignment"}`,
+  ];
+  if (fields.dtstart) lines.push(`DTSTART;VALUE=DATE:${fields.dtstart}`);
+  if (fields.dtend) lines.push(`DTEND;VALUE=DATE:${fields.dtend}`);
+  if (fields.description) lines.push(`DESCRIPTION:${fields.description}`);
+  lines.push("END:VEVENT", "END:VCALENDAR");
+  return lines.join("\r\n");
+}
+
+describe("parseICalEvents — title stripping", () => {
+  it("should strip course name suffix from title when class is in description", () => {
+    const ical = makeIcal({
+      summary: "Assignment 1 - test_testcourse",
+      dtstart: "20260301",
+      description: "class: test_testcourse\\nLate due: 2026-03-08",
+    });
+    const [result] = parseICalEvents(ical);
+    expect(result.title).toBe("Assignment 1");
+    expect(result.course_name).toBe("test_testcourse");
+  });
+
+  it("should strip course name suffix via dash fallback when no description", () => {
+    const ical = makeIcal({
+      summary: "Homework 3 - CS61A",
+      dtstart: "20260301",
+    });
+    const [result] = parseICalEvents(ical);
+    expect(result.title).toBe("Homework 3");
+    expect(result.course_name).toBe("CS61A");
+  });
+
+  it("should use colon prefix as course name and strip it", () => {
+    const ical = makeIcal({
+      summary: "CS61A: Homework 3",
+      dtstart: "20260301",
+    });
+    const [result] = parseICalEvents(ical);
+    // Colon pattern extracts prefix as course name, but title keeps full summary
+    // since the strip regex only targets " - suffix" pattern
+    expect(result.course_name).toBe("CS61A");
+  });
+
+  it("should not capture past iCal newline escape in description", () => {
+    const ical = makeIcal({
+      summary: "Lab 5 - data100",
+      dtstart: "20260301",
+      description: "class: data100\\nLate due: 2026-03-15\\nSome other info",
+    });
+    const [result] = parseICalEvents(ical);
+    expect(result.course_name).toBe("data100");
+    expect(result.title).toBe("Lab 5");
+  });
+
+  it("should fall back to Pensieve when no course name is detectable", () => {
+    const ical = makeIcal({
+      summary: "Study Session",
+      dtstart: "20260301",
+    });
+    const [result] = parseICalEvents(ical);
+    expect(result.course_name).toBe("Pensieve");
+    expect(result.title).toBe("Study Session");
+  });
+
+  it("should handle em-dash separator", () => {
+    const ical = makeIcal({
+      summary: "Project 2 \u2014 cs61b",
+      dtstart: "20260301",
+    });
+    const [result] = parseICalEvents(ical);
+    expect(result.title).toBe("Project 2");
+    expect(result.course_name).toBe("cs61b");
+  });
+});

@@ -476,10 +476,12 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
                 className={`text-xs font-medium px-2 py-0.5 rounded ${
                   task.source === "canvas"
                     ? "text-blue-600 bg-blue-50 dark:bg-blue-900/30"
+                    : task.source === "pensieve"
+                    ? "text-purple-600 bg-purple-50 dark:bg-purple-900/30"
                     : "text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30"
                 }`}
               >
-                {task.source === "canvas" ? "bCourses" : "Gradescope"}
+                {task.source === "canvas" ? "bCourses" : task.source === "pensieve" ? "Pensieve" : "Gradescope"}
               </span>
             )}
             {task.course_name && (
