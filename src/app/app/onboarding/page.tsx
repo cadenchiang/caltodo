@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { X, ChevronLeft } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import { useTaskContext } from "@/contexts/TaskContext";
 import { trackEvent } from "@/lib/analytics";
 import CanvasStep from "@/components/onboarding/CanvasStep";
@@ -163,10 +163,10 @@ export default function OnboardingPage() {
     <div className={`fixed inset-0 z-50 flex flex-col bg-white force-light transition-opacity duration-500 ${exiting ? "opacity-0" : "opacity-100"}`}>
       {/* Top bar: logo left, centered stepper, close right */}
       <div className="flex items-center justify-between px-6 pt-5 pb-3">
-        {/* Logo — left corner */}
-        <a href="/" className="cursor-pointer shrink-0">
+        {/* Logo — left corner (non-interactive during onboarding) */}
+        <div className="shrink-0">
           <img src="/logo.png" alt="caltodo" className="h-7" />
-        </a>
+        </div>
 
         {/* Stepper bars + back button — centered with constrained width */}
         <div className="flex items-center gap-2 w-full max-w-md mx-6">
@@ -208,14 +208,8 @@ export default function OnboardingPage() {
           </div>
         </div>
 
-        {/* Close button — right corner */}
-        <button
-          onClick={() => { trackEvent("onboarding_exited", { step: currentStep }); router.push("/app/inbox"); }}
-          className="p-1.5 text-gray-400 hover:text-gray-800 transition-colors rounded-lg shrink-0"
-          aria-label="Close onboarding"
-        >
-          <X size={18} />
-        </button>
+        {/* Spacer to balance the logo on the left */}
+        <div className="w-7 shrink-0" />
       </div>
 
       {/* Step content — vertically centered */}
@@ -253,12 +247,6 @@ export default function OnboardingPage() {
                   className="w-full px-4 py-3 bg-gray-800 text-white rounded-xl font-semibold animate-drop-in delay-200 btn-elevated-primary"
                 >
                   get started
-                </button>
-                <button
-                  onClick={() => { trackEvent("onboarding_step_skipped", { step: "welcome" }); router.push("/app/inbox"); }}
-                  className="mt-4 px-4 py-2.5 text-sm text-gray-400 rounded-xl bg-white animate-drop-in delay-300 btn-elevated-secondary"
-                >
-                  skip for now
                 </button>
               </div>
             )}
