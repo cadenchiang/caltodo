@@ -96,7 +96,7 @@ export default function Hero() {
       {/* Hero content */}
       <main className="flex-1 flex flex-col items-center px-6 lg:px-10">
         {/* Above-the-fold section — fills viewport on mobile, normal flow on desktop */}
-        <div className="min-h-[calc(100dvh-12rem)] sm:min-h-0 flex flex-col items-center justify-center sm:justify-start w-full">
+        <div className="min-h-[calc(100dvh-8rem)] sm:min-h-0 flex flex-col items-center justify-center sm:justify-start w-full">
           {/* Eyebrow */}
           <p className="font-sans uppercase tracking-[0.2em] sm:tracking-[0.51em] leading-[133%] text-center text-[10px] sm:text-base mb-4 sm:mt-20 sm:mb-8 text-black/40">
             the to-do list for students
@@ -214,31 +214,27 @@ export default function Hero() {
         {/* Mockup — scroll-driven scale animation */}
         <div
           ref={mockupRef}
-          className="mt-8 sm:mt-16 md:mt-20 w-full max-w-5xl mx-auto relative"
+          className="mt-8 sm:mt-16 md:mt-20 w-full sm:max-w-5xl mx-auto relative px-1 sm:px-0"
           style={{
             transform: `scale(${mockupScale})`,
             willChange: "transform",
             transition: "transform 0.1s ease-out",
           }}
         >
-          <div className="sm:max-h-[50vh] md:max-h-none overflow-hidden">
-            <MockupFrame className="w-full">
-              <Mockup type="responsive" className="w-full">
-                <div className="relative w-full">
-                  {HERO_IMAGES.map((img, i) => (
-                    <img
-                      key={img.src}
-                      src={img.src}
-                      alt={img.alt}
-                      className={`w-full transition-opacity duration-700 ease-in-out ${
-                        i === 0 ? "relative" : "absolute inset-0"
-                      }`}
-                      style={{ opacity: activeImage === i ? 1 : 0 }}
-                    />
-                  ))}
-                </div>
-              </Mockup>
-            </MockupFrame>
+          <div className="sm:max-h-[50vh] md:max-h-none overflow-hidden rounded-2xl pt-4 sm:pt-6">
+            <div className="relative w-full">
+              {HERO_IMAGES.map((img, i) => (
+                <img
+                  key={img.src}
+                  src={img.src}
+                  alt={img.alt}
+                  className={`w-full rounded-xl transition-opacity duration-700 ease-in-out ${
+                    i === 0 ? "relative" : "absolute inset-0"
+                  }`}
+                  style={{ opacity: activeImage === i ? 1 : 0 }}
+                />
+              ))}
+            </div>
             <div
               className="absolute bottom-0 left-0 right-0 w-full h-[100px] sm:h-[303px]"
               style={{
