@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { Inbox, Sun, CalendarRange } from "lucide-react";
 import { NAV_ITEMS } from "@/lib/constants";
 import SidebarNavItem from "./SidebarNavItem";
@@ -33,6 +34,7 @@ interface SidebarProps {
  * @param email - User's email
  */
 export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
+  const pathname = usePathname();
   const [inboxFilter, setInboxFilter] = useState<string>(() => {
     try { return localStorage.getItem("inbox-filter") || "all"; }
     catch { return "all"; }
@@ -92,6 +94,9 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
     window.addEventListener("storage", handleStorage);
     return () => window.removeEventListener("storage", handleStorage);
   }, []);
+
+  // Hide navigation during onboarding to prevent users from navigating away
+  if (pathname.startsWith("/app/onboarding")) return null;
 
   const inboxConfig = FILTER_CONFIG[inboxFilter] || FILTER_CONFIG.all;
 

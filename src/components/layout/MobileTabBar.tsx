@@ -83,6 +83,9 @@ export default function MobileTabBar() {
     return () => window.removeEventListener("storage", handleStorage);
   }, []);
 
+  // Hide navigation during onboarding to prevent users from navigating away
+  if (pathname.startsWith("/app/onboarding")) return null;
+
   /** Returns the appropriate inbox icon based on the active filter. */
   function getInboxIcon() {
     switch (inboxFilter) {
