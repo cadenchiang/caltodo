@@ -4,6 +4,8 @@
  * for instant page loads.
  */
 
+import { describe, it, expect, beforeEach } from "vitest";
+
 // We test the caching logic by extracting the same functions used in TaskContext.
 // Since they're module-private, we replicate the logic here for testing.
 

@@ -2,8 +2,18 @@
 
 import { useState, useRef } from "react";
 import { createPortal } from "react-dom";
-import { Trash2, Repeat, MoreVertical } from "lucide-react";
+import { Trash2, Repeat, MoreVertical, Clock } from "lucide-react";
 import type { Task } from "@/lib/types";
+import { useTaskContext } from "@/contexts/TaskContext";
+
+/** Duration presets for the snooze submenu. */
+const SNOOZE_PRESETS = [
+  { label: "1 hour", hours: 1 },
+  { label: "3 hours", hours: 3 },
+  { label: "6 hours", hours: 6 },
+  { label: "12 hours", hours: 12 },
+  { label: "24 hours", hours: 24 },
+] as const;
 
 interface TaskItemProps {
   task: Task;
@@ -80,9 +90,11 @@ function getDueDateBadge(dueDate: string | null, dueTime: string | null): { date
  * @param onDelete - Callback to delete the task
  */
 export default function TaskItem({ task, isSelected, onToggle, onSelect, onDelete }: TaskItemProps) {
+  const { snoozeTask } = useTaskContext();
   const rawBadge = getDueDateBadge(task.due_date, task.due_time);
   const dueBadge = rawBadge && task.is_completed ? { ...rawBadge, className: "text-subtle-foreground" } : rawBadge;
   const [menuOpen, setMenuOpen] = useState(false);
+  const [snoozeOpen, setSnoozeOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const menuBtnRef = useRef<HTMLButtonElement>(null);
   const isOptimistic = task.id.startsWith("temp-");
@@ -194,18 +206,45 @@ export default function TaskItem({ task, isSelected, onToggle, onSelect, onDelet
         </button>
       </div>
 
-      {/* Delete menu (from right-click or three-dots) */}
+      {/* Context menu (from right-click or three-dots) */}
       {menuOpen && typeof document !== "undefined" && createPortal(
         <>
           <div
             className="fixed inset-0 z-50"
-            onClick={() => setMenuOpen(false)}
-            onContextMenu={(e) => { e.preventDefault(); setMenuOpen(false); }}
+            onClick={() => { setMenuOpen(false); setSnoozeOpen(false); }}
+            onContextMenu={(e) => { e.preventDefault(); setMenuOpen(false); setSnoozeOpen(false); }}
           />
           <div
             className="fixed z-50 bg-card rounded-lg shadow-xl border border-input-border py-1 min-w-[140px]"
             style={{ top: menuPos.y, left: menuPos.x }}
           >
+            {/* Hide for... (snooze) submenu */}
+            <div className="relative">
+              <button
+                onClick={() => setSnoozeOpen(!snoozeOpen)}
+                className="flex items-center gap-2 w-full px-3 py-2 text-sm text-foreground hover:bg-accent transition-colors"
+              >
+                <Clock size={14} />
+                Hide for...
+              </button>
+              {snoozeOpen && (
+                <div className="absolute left-full top-0 ml-1 bg-card rounded-lg shadow-xl border border-input-border py-1 min-w-[120px] z-50">
+                  {SNOOZE_PRESETS.map((preset) => (
+                    <button
+                      key={preset.hours}
+                      onClick={() => {
+                        snoozeTask(task.id, preset.hours);
+                        setMenuOpen(false);
+                        setSnoozeOpen(false);
+                      }}
+                      className="flex items-center w-full px-3 py-2 text-sm text-foreground hover:bg-accent transition-colors"
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <button
               onClick={handleDelete}
               className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"

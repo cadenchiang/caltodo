@@ -37,7 +37,7 @@ export default function CalendarTaskBar({ task, onClick }: CalendarTaskBarProps)
       }}
       title={task.title}
     >
-      {task.title}
+      <span className={task.is_completed ? "line-through" : ""}>{task.title}</span>
     </button>
   );
 }

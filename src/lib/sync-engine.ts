@@ -7,6 +7,7 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 import { fetchAllCanvasAssignments, fetchCanvasAssignmentsForCourses, type NormalizedAssignment } from "@/lib/canvas-client";
 import { fetchAllGradescopeAssignments, fetchGradescopeAssignmentsForCourses } from "@/lib/gradescope-client";
+import { fetchPensieveAssignments, PENSIEVE_COLOR } from "@/lib/pensieve-client";
 import { decrypt } from "@/lib/crypto";
 import { logger } from "@/lib/logger";
 import type { SyncResult, SyncSourceResult } from "@/lib/types";
@@ -34,6 +35,7 @@ interface CredentialsRow {
   last_gradescope_synced_at: string | null;
   selected_canvas_courses: Array<{ id: number; name: string }> | null;
   selected_gradescope_courses: Array<{ id: string; name: string }> | null;
+  pensieve_calendar_url: string | null;
 }
 
 /**
@@ -45,6 +47,9 @@ export interface SyncCourseOverrides {
   gradescope_courses?: Array<{ id: string; name: string }>;
 }
 
+/** Which platforms to sync. When omitted, all platforms are synced. */
+export type SyncPlatform = "canvas" | "gradescope" | "pensieve";
+
 /**
  * Runs a full sync: fetches assignments from Canvas and Gradescope,
  * upserts them into the tasks table, and updates last_synced_at.
@@ -55,6 +60,7 @@ export interface SyncCourseOverrides {
  * @param timezone - IANA timezone for date/time conversion (default "America/Los_Angeles")
  * @param courseOverrides - Optional course lists to override stored selections
  * @param forceGradescope - If true, bypasses the 30-minute Gradescope cooldown (for manual syncs)
+ * @param platforms - Optional list of platforms to sync (default: all)
  * @returns SyncResult with counts and errors for each source
  */
 export async function runSync(
@@ -62,12 +68,13 @@ export async function runSync(
   userId: string,
   timezone: string = "America/Los_Angeles",
   courseOverrides?: SyncCourseOverrides,
-  forceGradescope: boolean = false
+  forceGradescope: boolean = false,
+  platforms?: SyncPlatform[]
 ): Promise<SyncResult> {
   // Fetch credentials
   const { data: creds, error: credsError } = await supabase
     .from("integration_credentials")
-    .select("canvas_token, canvas_base_url, gradescope_email, gradescope_password_encrypted, gradescope_auth_failed, last_gradescope_synced_at, selected_canvas_courses, selected_gradescope_courses")
+    .select("canvas_token, canvas_base_url, gradescope_email, gradescope_password_encrypted, gradescope_auth_failed, last_gradescope_synced_at, selected_canvas_courses, selected_gradescope_courses, pensieve_calendar_url")
     .eq("user_id", userId)
     .single();
 
@@ -76,11 +83,20 @@ export async function runSync(
     return {
       canvas: { synced: 0, errors: ["No integration credentials configured. Go to Settings to add them."] },
       gradescope: { synced: 0, errors: [] },
+      pensieve: { synced: 0, errors: [] },
       last_synced_at: new Date().toISOString(),
     };
   }
 
   const credentials = creds as CredentialsRow;
+
+  logger.info("runSync: credentials loaded", {
+    userId,
+    hasCanvasToken: !!credentials.canvas_token,
+    hasGradescopeEmail: !!credentials.gradescope_email,
+    hasPensieveUrl: !!credentials.pensieve_calendar_url,
+    platforms: platforms ?? "all",
+  });
 
   // Apply course overrides if provided
   if (courseOverrides?.canvas_courses) {
@@ -90,10 +106,18 @@ export async function runSync(
     credentials.selected_gradescope_courses = courseOverrides.gradescope_courses;
   }
 
-  // Run Canvas and Gradescope syncs independently
-  const [canvasResult, gradescopeResult] = await Promise.all([
-    syncCanvas(supabase, userId, credentials, timezone),
-    syncGradescope(supabase, userId, credentials, timezone, forceGradescope),
+  // Run syncs independently — only for requested platforms (default: all)
+  const syncAll = !platforms || platforms.length === 0;
+  const [canvasResult, gradescopeResult, pensieveResult] = await Promise.all([
+    syncAll || platforms!.includes("canvas")
+      ? syncCanvas(supabase, userId, credentials, timezone)
+      : { synced: 0, errors: [] } as SyncSourceResult,
+    syncAll || platforms!.includes("gradescope")
+      ? syncGradescope(supabase, userId, credentials, timezone, forceGradescope)
+      : { synced: 0, errors: [] } as SyncSourceResult,
+    syncAll || platforms!.includes("pensieve")
+      ? syncPensieve(supabase, userId, credentials, timezone)
+      : { synced: 0, errors: [] } as SyncSourceResult,
   ]);
 
   // Update last_synced_at
@@ -109,11 +133,14 @@ export async function runSync(
     canvasErrors: canvasResult.errors.length,
     gradescopeSynced: gradescopeResult.synced,
     gradescopeErrors: gradescopeResult.errors.length,
+    pensieveSynced: pensieveResult.synced,
+    pensieveErrors: pensieveResult.errors.length,
   });
 
   return {
     canvas: canvasResult,
     gradescope: gradescopeResult,
+    pensieve: pensieveResult,
     last_synced_at: now,
   };
 }
@@ -220,6 +247,41 @@ async function syncGradescope(
 }
 
 /**
+ * Syncs assignments from Pensieve iCal calendar feed.
+ * Returns sync result with count and errors.
+ *
+ * @param supabase - Authenticated Supabase client
+ * @param userId - The user's ID
+ * @param creds - User's integration credentials
+ * @param timezone - IANA timezone for date/time conversion
+ * @returns Sync result with count and errors
+ */
+async function syncPensieve(
+  supabase: SupabaseClient,
+  userId: string,
+  creds: CredentialsRow,
+  timezone: string
+): Promise<SyncSourceResult> {
+  if (!creds.pensieve_calendar_url) {
+    logger.info("syncPensieve skipped: no calendar URL configured", { userId });
+    return { synced: 0, errors: [] };
+  }
+
+  try {
+    logger.info("syncPensieve: fetching assignments", { userId, url: creds.pensieve_calendar_url.slice(0, 60) });
+    const assignments = await fetchPensieveAssignments(creds.pensieve_calendar_url);
+    logger.info("syncPensieve: parsed assignments", { userId, count: assignments.length });
+    const synced = await upsertAssignments(supabase, userId, "pensieve", assignments, timezone);
+    logger.info("syncPensieve: upserted", { userId, synced });
+    return { synced, errors: [] };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    logger.error("syncPensieve failed", { userId, error: message });
+    return { synced: 0, errors: [message] };
+  }
+}
+
+/**
  * Converts an ISO datetime string to a local date string (YYYY-MM-DD)
  * in the given IANA timezone.
  *
@@ -278,12 +340,13 @@ export function toLocalTimeString(isoString: string | null, tz: string): string 
 async function upsertAssignments(
   supabase: SupabaseClient,
   userId: string,
-  source: "canvas" | "gradescope",
+  source: "canvas" | "gradescope" | "pensieve",
   assignments: NormalizedAssignment[],
   timezone: string
 ): Promise<number> {
   let totalUpserted = 0;
-  const color = source === "canvas" ? CANVAS_COLOR : GRADESCOPE_COLOR;
+  const colorMap = { canvas: CANVAS_COLOR, gradescope: GRADESCOPE_COLOR, pensieve: PENSIEVE_COLOR };
+  const color = colorMap[source];
   const syncStartTime = new Date().toISOString();
 
   for (let i = 0; i < assignments.length; i += UPSERT_BATCH_SIZE) {
@@ -306,6 +369,8 @@ async function upsertAssignments(
       // Clear dismissed_at so previously deleted tasks reappear on resync.
       // If the assignment exists on the source platform, it should show in caltodo.
       dismissed_at: null,
+      // Clear snoozed_until so re-synced tasks are not permanently hidden.
+      snoozed_until: null,
     }));
 
     const { error } = await supabase

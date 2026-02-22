@@ -86,7 +86,10 @@ interface TaskContextValue {
   toggleComplete: (id: string) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
   deleteAllTasks: () => Promise<void>;
-  triggerSync: (courseOverrides?: { canvas_courses?: Array<{ id: number; name: string }>; gradescope_courses?: Array<{ id: string; name: string }> }) => Promise<void>;
+  snoozeTask: (id: string, hours: number) => Promise<void>;
+  unsnoozeTask: (id: string) => Promise<void>;
+  reorderTasks: (updates: Array<{ id: string; sort_order: number }>) => Promise<void>;
+  triggerSync: (courseOverrides?: { canvas_courses?: Array<{ id: number; name: string }>; gradescope_courses?: Array<{ id: string; name: string }> }, platforms?: Array<"canvas" | "gradescope" | "pensieve">) => Promise<void>;
   fetchTasks: () => Promise<Task[]>;
 }
 
@@ -101,7 +104,7 @@ const TaskContext = createContext<TaskContextValue | null>(null);
  * Cache hydration happens in useEffect to avoid SSR/client hydration mismatch.
  */
 export function TaskProvider({ children }: { children: ReactNode }) {
-  const { showToast } = useToast();
+  const { showToast, updateToastProgress } = useToast();
   const { addNotification } = useNotifications();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
@@ -190,6 +193,14 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     fetchLastSynced();
   }, [fetchTasks, fetchLastSynced]);
 
+  // Push sync progress to the toast bar (separate effect to avoid updating
+  // ToastProvider state inside TaskProvider's setSyncProgress updater)
+  useEffect(() => {
+    if (syncing && syncProgress > 0) {
+      updateToastProgress(syncProgress);
+    }
+  }, [syncProgress, syncing, updateToastProgress]);
+
   // Auto-sync: runs on initial load (if stale) and every 5 minutes.
   // Uses AbortController to cleanly cancel in-flight requests on unmount/re-render.
   // Suppresses notifications on first sync to avoid false positives from empty baseline.
@@ -231,7 +242,9 @@ export function TaskProvider({ children }: { children: ReactNode }) {
         if (res.ok) {
           const result: SyncResult = await res.json();
           if (!mounted) return;
+          setSyncResult(result);
           setLastSyncedAt(result.last_synced_at);
+
           const freshTasks = await fetchTasks();
           if (!mounted) return;
 
@@ -317,6 +330,8 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       late_due_date: null,
       completed_at: null,
       tags: taskData.tags ?? [],
+      snoozed_until: null,
+      sort_order: null,
     };
 
     setTasks((prev) => {
@@ -483,6 +498,81 @@ export function TaskProvider({ children }: { children: ReactNode }) {
   }
 
   /**
+   * Snoozes a task by setting snoozed_until to a future timestamp.
+   * Optimistically removes the task from the list immediately.
+   *
+   * @param id - Task ID to snooze
+   * @param hours - Number of hours to hide the task
+   */
+  async function snoozeTask(id: string, hours: number) {
+    const snoozedUntil = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
+    trackEvent("task_snoozed", { hours });
+
+    // Optimistically update snoozed_until so task moves to Hidden section
+    setTasks((prev) => {
+      const updated = prev.map((t) =>
+        t.id === id ? { ...t, snoozed_until: snoozedUntil } : t
+      );
+      setCachedTasks(updated);
+      taskBaselineRef.current = updated;
+      return updated;
+    });
+
+    const { error: snoozeError } = await supabase
+      .from("tasks")
+      .update({ snoozed_until: snoozedUntil })
+      .eq("id", id);
+
+    if (snoozeError) {
+      setError(snoozeError.message);
+      fetchTasks();
+    }
+  }
+
+  /**
+   * Clears the snooze on a task so it reappears immediately.
+   *
+   * @param id - Task ID to unsnooze
+   */
+  async function unsnoozeTask(id: string) {
+    await updateTask(id, { snoozed_until: null });
+  }
+
+  /**
+   * Batch-updates sort_order for multiple tasks to persist manual drag-to-reorder.
+   * Optimistically updates local state and cache, then persists to Supabase.
+   * On failure, reverts by re-fetching tasks from the server.
+   *
+   * @param updates - Array of { id, sort_order } pairs to apply
+   */
+  async function reorderTasks(updates: Array<{ id: string; sort_order: number }>) {
+    const orderMap = new Map(updates.map((u) => [u.id, u.sort_order]));
+
+    // Optimistic update
+    setTasks((prev) => {
+      const updated = prev.map((t) =>
+        orderMap.has(t.id) ? { ...t, sort_order: orderMap.get(t.id)! } : t
+      );
+      setCachedTasks(updated);
+      taskBaselineRef.current = updated;
+      return updated;
+    });
+
+    try {
+      await Promise.all(
+        updates.map((u) =>
+          supabase.from("tasks").update({ sort_order: u.sort_order }).eq("id", u.id)
+        )
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error("reorderTasks failed, reconciling from server:", message);
+      setError(message);
+      fetchTasks();
+    }
+  }
+
+  /**
    * Deletes a task. Synced tasks (with source + external_id) are soft-deleted
    * by setting dismissed_at so the sync engine won't resurrect them.
    * Manual tasks are hard-deleted since they can't be recreated by sync.
@@ -603,10 +693,11 @@ export function TaskProvider({ children }: { children: ReactNode }) {
    * Triggers a full sync from Canvas + Gradescope, then refreshes tasks.
    * Manages a simulated progress bar during the sync.
    */
-  async function triggerSync(courseOverrides?: { canvas_courses?: Array<{ id: number; name: string }>; gradescope_courses?: Array<{ id: string; name: string }> }) {
+  async function triggerSync(courseOverrides?: { canvas_courses?: Array<{ id: number; name: string }>; gradescope_courses?: Array<{ id: string; name: string }> }, platforms?: Array<"canvas" | "gradescope" | "pensieve">) {
     setSyncing(true);
     setError(null);
     setSyncResult(null);
+    showToast("Syncing assignments...", { progress: 0 });
     startProgressTimer();
     trackEvent("sync_started");
 
@@ -619,6 +710,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           ...courseOverrides,
+          ...(platforms ? { platforms } : {}),
         }),
       });
       if (!res.ok) {
@@ -629,9 +721,21 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       setSyncResult(result);
       setLastSyncedAt(result.last_synced_at);
       trackEvent("sync_completed", {
-        added: result.canvas.synced + result.gradescope.synced,
-        errors: result.canvas.errors.length + result.gradescope.errors.length,
+        added: result.canvas.synced + result.gradescope.synced + result.pensieve.synced,
+        errors: result.canvas.errors.length + result.gradescope.errors.length + result.pensieve.errors.length,
       });
+
+      // Build and show sync result toast globally
+      const parts: string[] = [];
+      if (result.canvas.synced > 0) parts.push(`${result.canvas.synced} from bCourses`);
+      if (result.gradescope.synced > 0) parts.push(`${result.gradescope.synced} from Gradescope`);
+      if (result.pensieve.synced > 0) parts.push(`${result.pensieve.synced} from Pensieve`);
+      const syncErrors = [...result.canvas.errors, ...result.gradescope.errors, ...result.pensieve.errors];
+      let toastMsg = parts.length > 0 ? `Synced ${parts.join(", ")}.` : "No new assignments found.";
+      if (syncErrors.length > 0) {
+        toastMsg += ` ${syncErrors.map(m => m.replace(/Go to Settings to add them\.?/, "")).join(". ").trim()}`;
+      }
+      showToast(toastMsg);
 
       // Refresh tasks list after sync to include new assignments
       const freshTasks = await fetchTasks();
@@ -681,6 +785,9 @@ export function TaskProvider({ children }: { children: ReactNode }) {
         toggleComplete,
         deleteTask,
         deleteAllTasks,
+        snoozeTask,
+        unsnoozeTask,
+        reorderTasks,
         triggerSync,
         fetchTasks,
       }}

@@ -5,7 +5,6 @@ import { createPortal } from "react-dom";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Inbox, ChevronDown, X, Sun, CalendarRange, CalendarDays, GraduationCap, MoreVertical, List, LayoutGrid, ArrowUpDown, RefreshCw } from "lucide-react";
 import { useTaskContext } from "@/contexts/TaskContext";
-import { useToast } from "@/contexts/ToastContext";
 import TaskList from "@/components/tasks/TaskList";
 import TaskBoardView from "@/components/tasks/TaskBoardView";
 import TaskDetailPanel from "@/components/tasks/TaskDetailPanel";
@@ -87,14 +86,22 @@ function filterTasksByDate(tasks: Task[], filter: InboxFilter): Task[] {
 type SortMode = "date" | "class";
 
 /**
- * Sorts tasks by due_date ascending, with undated tasks (null due_date) first.
- * Within each group (undated vs dated), preserves original order.
+ * Sorts tasks by sort_order first (manual drag order), then by due_date.
+ * Tasks with a non-null sort_order come first, sorted ascending.
+ * Tasks with null sort_order follow, sorted by due_date ascending (undated first).
  *
  * @param tasks - Array of tasks to sort
  * @returns New sorted array (does not mutate input)
  */
 function sortByDate(tasks: Task[]): Task[] {
   return [...tasks].sort((a, b) => {
+    const aHasOrder = a.sort_order !== null && a.sort_order !== undefined;
+    const bHasOrder = b.sort_order !== null && b.sort_order !== undefined;
+
+    if (aHasOrder && bHasOrder) return a.sort_order! - b.sort_order!;
+    if (aHasOrder) return -1;
+    if (bHasOrder) return 1;
+
     if (!a.due_date && !b.due_date) return 0;
     if (!a.due_date) return -1;
     if (!b.due_date) return 1;
@@ -167,13 +174,11 @@ function saveSelections(courses: SelectedCourse[]): void {
 export default function InboxPage() {
   const {
     tasks, loading, error, addTask, toggleComplete, deleteTask, updateTask,
-    syncing, syncProgress, syncResult, triggerSync,
+    syncing, syncProgress, triggerSync, reorderTasks,
   } = useTaskContext();
-  const { showToast, updateToastProgress } = useToast();
   const inboxRouter = useRouter();
   const searchParams = useSearchParams();
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const prevSyncResultRef = useRef<string | null>(syncResult?.last_synced_at ?? null);
   const [filter, setFilterRaw] = useState<InboxFilter>("all");
 
   /** Sets filter, persists to localStorage, and dispatches event for sidebar. */
@@ -380,37 +385,6 @@ export default function InboxPage() {
     };
   }, [showViewMenu]);
 
-  // Show progress toast when sync starts
-  const wasSyncingRef = useRef(false);
-  useEffect(() => {
-    if (syncing && !wasSyncingRef.current) {
-      showToast("Syncing assignments...", { progress: 0 });
-    }
-    wasSyncingRef.current = syncing;
-  }, [syncing, showToast]);
-
-  // Update toast progress during sync
-  useEffect(() => {
-    if (syncing && syncProgress > 0) {
-      updateToastProgress(syncProgress);
-    }
-  }, [syncProgress, syncing, updateToastProgress]);
-
-  // Show sync result as a toast notification (replaces progress toast)
-  useEffect(() => {
-    if (!syncResult || syncing) return;
-    const syncKey = syncResult.last_synced_at;
-    if (syncKey === prevSyncResultRef.current) return;
-    prevSyncResultRef.current = syncKey;
-
-    let message = `Synced ${syncResult.canvas.synced} from bCourses, ${syncResult.gradescope.synced} from Gradescope.`;
-    const errors = [...syncResult.canvas.errors, ...syncResult.gradescope.errors];
-    if (errors.length > 0) {
-      const cleaned = errors.map((msg) => msg.replace(/Go to Settings to add them\.?/, "")).join(". ").trim();
-      message += ` ${cleaned}`;
-    }
-    showToast(message);
-  }, [syncResult, syncing, showToast]);
 
   /**
    * Opens the sync modal and loads ALL available courses from Canvas and Gradescope.
@@ -499,6 +473,20 @@ export default function InboxPage() {
       gradescope_courses: gradescopeCourses.length > 0 ? gradescopeCourses : undefined,
     });
   }
+
+  /**
+   * Handles drag-and-drop reorder by mapping new ID order to sort_order values.
+   * Uses gaps of 1000 between values to allow future insertions without reindexing.
+   *
+   * @param reorderedIds - Task IDs in their new display order
+   */
+  const handleReorder = useCallback((reorderedIds: string[]) => {
+    const updates = reorderedIds.map((id, index) => ({
+      id,
+      sort_order: (index + 1) * 1000,
+    }));
+    reorderTasks(updates);
+  }, [reorderTasks]);
 
   const canvasCourses = syncCourses.filter((c) => c.source === "canvas");
   const gradescopeCourses = syncCourses.filter((c) => c.source === "gradescope");
@@ -718,6 +706,7 @@ export default function InboxPage() {
                     }
                   }}
                   onDelete={deleteTask}
+                  onReorder={sortMode === "date" ? handleReorder : undefined}
                   placeholder='Add task to "Inbox". Press Enter to save.'
                 />
               ) : (

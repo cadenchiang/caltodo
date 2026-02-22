@@ -46,6 +46,8 @@ function createMockTask(overrides: Partial<Task> = {}): Task {
     late_due_date: null,
     completed_at: null,
     tags: [],
+    snoozed_until: null,
+    sort_order: null,
     ...overrides,
   };
 }
@@ -266,7 +268,7 @@ describe("updateCalendarEvent", () => {
 
     const task = createMockTask();
     const result = await updateCalendarEvent("access-token", TEST_CALENDAR_ID, "bad-event-id", task);
-    expect(result).toBe(false);
+    expect(result).toBe("not_found");
   });
 });
 

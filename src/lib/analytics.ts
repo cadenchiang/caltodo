@@ -15,8 +15,11 @@ type AnalyticsEvent =
   | "onboarding_step_viewed"
   | "onboarding_step_completed"
   | "onboarding_step_skipped"
+  | "onboarding_platforms_selected"
   | "onboarding_completed"
   | "onboarding_exited"
+  | "standalone_setup_completed"
+  | "standalone_setup_skipped"
   // Tasks
   | "task_created"
   | "task_completed"
@@ -30,6 +33,8 @@ type AnalyticsEvent =
   | "sync_failed"
   // Repeat
   | "repeat_task_spawned"
+  // Snooze
+  | "task_snoozed"
   // Features
   | "view_mode_changed"
   | "filter_changed"

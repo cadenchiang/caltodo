@@ -42,7 +42,7 @@ describe("fetchCanvasCourses", () => {
     expect(courses[0].name).toBe("CS 61A");
     expect(mockFetch).toHaveBeenCalledWith(
       `${BASE_URL}/api/v1/courses?enrollment_state=active&per_page=50`,
-      { headers: { Authorization: `Bearer ${TOKEN}` } }
+      { headers: { Authorization: `Bearer ${TOKEN}` }, signal: expect.any(AbortSignal) }
     );
   });
 

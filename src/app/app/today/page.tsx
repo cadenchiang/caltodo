@@ -15,7 +15,7 @@ import type { Task } from "@/lib/types";
  */
 export default function TodayPage() {
   const today = new Date().toISOString().split("T")[0];
-  const { tasks, loading, error, addTask, toggleComplete, deleteTask, updateTask } = useTaskContext();
+  const { tasks, loading, error, addTask, toggleComplete, deleteTask, updateTask, reorderTasks } = useTaskContext();
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [mobilePopoverTask, setMobilePopoverTaskRaw] = useState<Task | null>(null);
   const [mobileAnchorRect, setMobileAnchorRect] = useState<DOMRect | null>(null);
@@ -29,6 +29,20 @@ export default function TodayPage() {
       setMobileAnchorRect(null);
     }
   }, []);
+
+  /**
+   * Handles drag-and-drop reorder by mapping new ID order to sort_order values.
+   * Uses gaps of 1000 between values to allow future insertions without reindexing.
+   *
+   * @param reorderedIds - Task IDs in their new display order
+   */
+  const handleReorder = useCallback((reorderedIds: string[]) => {
+    const updates = reorderedIds.map((id, index) => ({
+      id,
+      sort_order: (index + 1) * 1000,
+    }));
+    reorderTasks(updates);
+  }, [reorderTasks]);
 
   const todayTasks = useMemo(
     () => tasks.filter((t) => t.due_date === today),
@@ -66,6 +80,7 @@ export default function TodayPage() {
                 }
               }}
               onDelete={deleteTask}
+              onReorder={handleReorder}
               defaultDate={today}
               placeholder='Add task for today. Press Enter to save.'
             />

@@ -32,7 +32,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("integration_credentials")
-    .select("canvas_token, canvas_base_url, gradescope_email, gradescope_password_encrypted, last_synced_at, selected_canvas_courses, selected_gradescope_courses, google_access_token_encrypted, google_calendar_id, google_email, google_photo_url, canvas_token_created_at, is_founding_member")
+    .select("canvas_token, canvas_base_url, gradescope_email, gradescope_password_encrypted, last_synced_at, selected_canvas_courses, selected_gradescope_courses, google_access_token_encrypted, google_calendar_id, google_email, google_photo_url, canvas_token_created_at, is_founding_member, pensieve_calendar_url")
     .eq("user_id", user.id)
     .single();
 
@@ -56,6 +56,7 @@ export async function GET() {
     google_photo_url: data?.google_photo_url ?? null,
     canvas_token_created_at: data?.canvas_token_created_at ?? null,
     is_founding_member: data?.is_founding_member ?? false,
+    pensieve_calendar_url: data?.pensieve_calendar_url ?? null,
   };
 
   return NextResponse.json(credentials);
@@ -111,6 +112,9 @@ export async function PUT(request: Request) {
   if (body.selected_gradescope_courses !== undefined) {
     updateData.selected_gradescope_courses = body.selected_gradescope_courses;
   }
+  if (body.pensieve_calendar_url !== undefined) {
+    updateData.pensieve_calendar_url = body.pensieve_calendar_url;
+  }
   // Only update password if explicitly provided (not null/undefined means "keep existing")
   if (body.gradescope_password !== undefined && body.gradescope_password !== null) {
     updateData.gradescope_password_encrypted = encrypt(body.gradescope_password);
@@ -151,7 +155,7 @@ export async function PUT(request: Request) {
   // Return updated credentials
   const { data: updated, error: readError } = await supabase
     .from("integration_credentials")
-    .select("canvas_token, canvas_base_url, gradescope_email, gradescope_password_encrypted, last_synced_at, selected_canvas_courses, selected_gradescope_courses, google_access_token_encrypted, google_calendar_id, google_email, google_photo_url, canvas_token_created_at, is_founding_member")
+    .select("canvas_token, canvas_base_url, gradescope_email, gradescope_password_encrypted, last_synced_at, selected_canvas_courses, selected_gradescope_courses, google_access_token_encrypted, google_calendar_id, google_email, google_photo_url, canvas_token_created_at, is_founding_member, pensieve_calendar_url")
     .eq("user_id", user.id)
     .single();
 
@@ -174,6 +178,7 @@ export async function PUT(request: Request) {
     google_photo_url: updated?.google_photo_url ?? null,
     canvas_token_created_at: updated?.canvas_token_created_at ?? null,
     is_founding_member: updated?.is_founding_member ?? false,
+    pensieve_calendar_url: updated?.pensieve_calendar_url ?? null,
   };
 
   return NextResponse.json(credentials);

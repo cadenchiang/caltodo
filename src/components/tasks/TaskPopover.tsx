@@ -2,9 +2,19 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { Trash2, ExternalLink, MoreVertical, X, AlignLeft } from "lucide-react";
+import { Trash2, ExternalLink, MoreVertical, X, AlignLeft, Clock } from "lucide-react";
 import { format } from "date-fns";
 import type { Task, TaskUpdate } from "@/lib/types";
+import { useTaskContext } from "@/contexts/TaskContext";
+
+/** Duration presets for the snooze submenu. */
+const SNOOZE_PRESETS = [
+  { label: "1 hour", hours: 1 },
+  { label: "3 hours", hours: 3 },
+  { label: "6 hours", hours: 6 },
+  { label: "12 hours", hours: 12 },
+  { label: "24 hours", hours: 24 },
+] as const;
 import { TASK_COLORS } from "@/lib/constants";
 import { getRepeatLabel } from "@/lib/repeat";
 import DatePicker from "./DatePicker";
@@ -109,6 +119,7 @@ function formatDueDate(dueDate: string | null, dueTime?: string | null): string 
  * @param onDelete - Callback to delete the task
  */
 export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelete }: TaskPopoverProps) {
+  const { snoozeTask } = useTaskContext();
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description);
   const [dueDate, setDueDate] = useState<string | null>(task.due_date);
@@ -122,6 +133,7 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
   const [repeatEndDate, setRepeatEndDate] = useState<string | null>(task.repeat_end_date);
   const [repeatEndCount, setRepeatEndCount] = useState<number | null>(task.repeat_end_count);
   const [showMenu, setShowMenu] = useState(false);
+  const [snoozeOpen, setSnoozeOpen] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
@@ -296,7 +308,7 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
           </button>
           {showMenu && menuBtnRef.current && createPortal(
             <div onMouseDown={(e) => e.stopPropagation()}>
-              <div className="fixed inset-0 z-[60]" onClick={() => setShowMenu(false)} />
+              <div className="fixed inset-0 z-[60]" onClick={() => { setShowMenu(false); setSnoozeOpen(false); }} />
               <div
                 ref={menuDropdownRef}
                 className="fixed z-[60] bg-card rounded-lg shadow-xl border border-input-border py-1 min-w-[120px]"
@@ -305,6 +317,34 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
                   left: Math.min(menuBtnRef.current.getBoundingClientRect().left, window.innerWidth - 140),
                 }}
               >
+                {/* Hide for... (snooze) submenu */}
+                <div className="relative">
+                  <button
+                    onClick={() => setSnoozeOpen(!snoozeOpen)}
+                    className="flex items-center gap-2 w-full px-3 py-2 text-sm text-foreground hover:bg-accent transition-colors"
+                  >
+                    <Clock size={13} />
+                    Hide for...
+                  </button>
+                  {snoozeOpen && (
+                    <div className="absolute left-full top-0 ml-1 bg-card rounded-lg shadow-xl border border-input-border py-1 min-w-[120px] z-[61]">
+                      {SNOOZE_PRESETS.map((preset) => (
+                        <button
+                          key={preset.hours}
+                          onClick={() => {
+                            snoozeTask(task.id, preset.hours);
+                            setShowMenu(false);
+                            setSnoozeOpen(false);
+                            onClose();
+                          }}
+                          className="flex items-center w-full px-3 py-2 text-sm text-foreground hover:bg-accent transition-colors"
+                        >
+                          {preset.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <button
                   onClick={() => { setShowMenu(false); handleDelete(); }}
                   className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"

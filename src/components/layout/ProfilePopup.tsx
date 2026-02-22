@@ -125,7 +125,7 @@ export default function ProfilePopup({ avatarUrl, fullName, email }: ProfilePopu
             <button
               onClick={() => {
                 setOpen(false);
-                router.push("/app/settings#account");
+                router.push("/app/account");
               }}
               className="flex items-center gap-3 w-full px-4 py-3 text-sm text-secondary-foreground hover:bg-accent transition-colors"
             >

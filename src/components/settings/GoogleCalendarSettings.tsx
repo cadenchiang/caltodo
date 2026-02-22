@@ -1,12 +1,10 @@
 /**
- * Settings component for Google Calendar API integration.
+ * Google Calendar integration row card.
+ * Compact horizontal layout: logo in gray square, title + description, Connected/Connect badge.
+ * Connect triggers OAuth flow; Connected is a static label (disconnect available via calendar header).
+ * Detects ?gcal=connected query param to auto-create calendar and sync.
  *
- * States:
- * - Not connected: "Connect Google Calendar" button
- * - Connected, syncing: Progress bar with "Setting up..." indicator
- * - Connected with calendar: Status badge, account info, "View" link, "Disconnect"
- * - Detects ?gcal=connected query param to auto-create calendar and sync
- * - Shows progress bar during initial GCal sync via NDJSON streaming
+ * @remarks OAuth warning modal portaled to body for unverified apps.
  */
 
 "use client";
@@ -14,7 +12,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useSearchParams } from "next/navigation";
-import { Check, XCircle, Unlink, ExternalLink } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 
 /**
@@ -72,24 +70,20 @@ export default function GoogleCalendarSettings() {
   const [loading, setLoading] = useState(true);
   const [connected, setConnected] = useState(false);
   const [syncing, setSyncing] = useState(false);
-  const [confirmDisconnect, setConfirmDisconnect] = useState(false);
-  const [showGcalWarning, setShowGcalWarning] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [showGcalWarning, setShowGcalWarning] = useState(false);
   const [selectedCalendarId, setSelectedCalendarId] = useState<string | null>(null);
   const [googleEmail, setGoogleEmail] = useState<string | null>(null);
   const [googlePhotoUrl, setGooglePhotoUrl] = useState<string | null>(null);
   const [syncProgress, setSyncProgress] = useState<{ synced: number; total: number } | null>(null);
-  const [syncComplete, setSyncComplete] = useState(false);
   const mountedRef = useRef(true);
 
-  // Keep global toast ref updated so sync can fire toasts after navigation
   globalShowToast = showToast;
   useEffect(() => {
     mountedRef.current = true;
     return () => { mountedRef.current = false; };
   }, []);
 
-  // Hydrate from localStorage cache immediately on mount (client-only)
   useEffect(() => {
     const cached = getCachedStatus();
     setConnected(cached.connected);
@@ -99,9 +93,6 @@ export default function GoogleCalendarSettings() {
     setLoading(false);
   }, []);
 
-  /**
-   * Fetches Google Calendar connection status from credentials API.
-   */
   const fetchStatus = useCallback(async () => {
     try {
       const res = await fetch("/api/credentials");
@@ -112,8 +103,6 @@ export default function GoogleCalendarSettings() {
         setSelectedCalendarId(data.google_calendar_id ?? null);
         setGoogleEmail(data.google_email ?? null);
         setGooglePhotoUrl(data.google_photo_url ?? null);
-
-        // Cache for instant render on next visit
         try {
           localStorage.setItem(GCAL_CACHE_KEY, JSON.stringify({
             connected: isConnected,
@@ -124,55 +113,38 @@ export default function GoogleCalendarSettings() {
         } catch { /* ignore quota errors */ }
       }
     } catch {
-      // Non-critical — default to not connected
+      // Non-critical
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    fetchStatus();
-  }, [fetchStatus]);
+  useEffect(() => { fetchStatus(); }, [fetchStatus]);
 
-  /**
-   * Automatically creates a "caltodo" calendar and syncs all tasks with due dates.
-   * Called after OAuth redirect when ?gcal=connected is detected.
-   * Shows a "View in Google Calendar" link on completion instead of
-   * using window.open (which gets blocked by popup blockers).
-   */
-  /**
-   * Helper: fire toast via globalShowToast (survives navigation) or local fallback.
-   */
   function toast(msg: string, opts?: Parameters<typeof showToast>[1]) {
     (globalShowToast ?? showToast)(msg, opts);
   }
 
-  /** Helper: only update state if component is still mounted. */
   function ifMounted<T>(setter: React.Dispatch<React.SetStateAction<T>>, value: NoInfer<T>) {
     if (mountedRef.current) setter(value);
   }
 
   async function autoSetupCalendar() {
     setSyncing(true);
-    setSyncComplete(false);
     try {
       await fetchStatus();
-
       const selectRes = await fetch("/api/gcal/select-calendar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ calendarId: "create_new" }),
       });
-
       if (!selectRes.ok) {
         const err = await selectRes.json();
         toast(`Failed to create calendar: ${err.error || selectRes.status}`);
         return;
       }
-
       const selectResult = await selectRes.json();
       ifMounted(setSelectedCalendarId, selectResult.calendarId);
-
       const gcalUrl = googleEmail
         ? `https://calendar.google.com/calendar/r?authuser=${encodeURIComponent(googleEmail)}`
         : "https://calendar.google.com";
@@ -183,13 +155,9 @@ export default function GoogleCalendarSettings() {
           onClick: () => window.open(gcalUrl, "_blank"),
         },
       };
-
       if (selectResult.needsSync) {
-        // Show progress bar immediately so user knows sync is starting
         ifMounted(setSyncProgress, { synced: 0, total: 0 });
-
         const syncRes = await fetch("/api/gcal/initial-sync", { method: "POST" });
-
         const contentType = syncRes.headers.get("Content-Type") ?? "";
         if (contentType.includes("application/json")) {
           const syncResult = await syncRes.json();
@@ -199,32 +167,20 @@ export default function GoogleCalendarSettings() {
           } else if (!syncRes.ok) {
             toast(`Sync failed: ${syncResult.error || syncRes.status}`);
           }
-          ifMounted(setSyncComplete, true);
+          /* sync complete */
           return;
         }
-
         const reader = syncRes.body?.getReader();
-        if (!reader) {
-          toast("Sync failed: no response stream.");
-          return;
-        }
-
+        if (!reader) { toast("Sync failed: no response stream."); return; }
         const decoder = new TextDecoder();
         let buffer = "";
         let finalResult: { synced: number; total: number; errors: string[] } | null = null;
-
         while (true) {
           const { done, value } = await reader.read();
-          if (done) {
-            // Flush decoder and process any remaining buffered data
-            buffer += decoder.decode();
-            break;
-          }
-
+          if (done) { buffer += decoder.decode(); break; }
           buffer += decoder.decode(value, { stream: true });
           const lines = buffer.split("\n");
           buffer = lines.pop() ?? "";
-
           for (const line of lines) {
             if (!line.trim()) continue;
             try {
@@ -235,30 +191,17 @@ export default function GoogleCalendarSettings() {
                 finalResult = event;
                 ifMounted(setSyncProgress, null);
               }
-            } catch {
-              // Skip malformed lines
-            }
+            } catch { /* skip */ }
           }
         }
-
-        // Process any remaining data left in the buffer after stream closed
         if (buffer.trim()) {
           try {
             const event = JSON.parse(buffer);
-            if (event.type === "done") {
-              finalResult = event;
-              ifMounted(setSyncProgress, null);
-            }
-          } catch {
-            // Skip malformed data
-          }
+            if (event.type === "done") { finalResult = event; ifMounted(setSyncProgress, null); }
+          } catch { /* skip */ }
         }
-
         if (finalResult && finalResult.synced > 0) {
-          toast(
-            `Synced ${finalResult.synced} of ${finalResult.total} task${finalResult.total === 1 ? "" : "s"} to Google Calendar.`,
-            openAction
-          );
+          toast(`Synced ${finalResult.synced} of ${finalResult.total} task${finalResult.total === 1 ? "" : "s"} to Google Calendar.`, openAction);
           window.open(gcalUrl, "_blank");
         } else if (finalResult && finalResult.total > 0 && finalResult.synced === 0) {
           toast(`Sync failed for all ${finalResult.total} tasks. Check your Google Calendar permissions.`);
@@ -266,11 +209,10 @@ export default function GoogleCalendarSettings() {
           toast("Calendar created! No tasks with due dates to sync.", openAction);
           window.open(gcalUrl, "_blank");
         }
-
-        ifMounted(setSyncComplete, true);
+        /* sync complete */
       } else {
         toast("Calendar created.", openAction);
-        ifMounted(setSyncComplete, true);
+        /* sync complete */
         window.open(gcalUrl, "_blank");
       }
     } catch (err) {
@@ -282,22 +224,13 @@ export default function GoogleCalendarSettings() {
     }
   }
 
-  /**
-   * Handles initial connection after OAuth redirect.
-   * Triggered when ?gcal=connected is in the URL.
-   * Auto-creates a "caltodo" calendar and syncs all tasks.
-   */
   useEffect(() => {
     const gcalParam = searchParams.get("gcal");
-
     if (gcalParam === "connected") {
       setConnected(true);
       setLoading(false);
       showToast("Google Calendar connected! Setting up...");
-
       autoSetupCalendar();
-
-      // Clean up URL param
       const url = new URL(window.location.href);
       url.searchParams.delete("gcal");
       window.history.replaceState({}, "", url.toString());
@@ -312,7 +245,6 @@ export default function GoogleCalendarSettings() {
         storage: "Failed to save connection. Please try again.",
       };
       showToast(messages[reason ?? ""] ?? "Failed to connect Google Calendar.");
-
       const url = new URL(window.location.href);
       url.searchParams.delete("gcal");
       url.searchParams.delete("reason");
@@ -322,212 +254,156 @@ export default function GoogleCalendarSettings() {
   }, [searchParams, showToast]);
 
   /**
-   * Disconnects Google Calendar with double-click confirmation.
+   * Disconnects Google Calendar via API.
+   * Clears local state/cache and shows confirmation toast.
    */
-  function handleDisconnect() {
-    if (!confirmDisconnect) {
-      setConfirmDisconnect(true);
-      setTimeout(() => setConfirmDisconnect(false), 3000);
-      return;
+  async function handleDisconnect() {
+    setDisconnecting(true);
+    try {
+      await fetch("/api/gcal/disconnect", { method: "POST" });
+      setConnected(false);
+      setSelectedCalendarId(null);
+      setGoogleEmail(null);
+      setGooglePhotoUrl(null);
+      try { localStorage.removeItem(GCAL_CACHE_KEY); } catch { /* ignore */ }
+      showToast("Google Calendar disconnected.");
+    } catch {
+      showToast("Failed to disconnect Google Calendar.");
+    } finally {
+      setDisconnecting(false);
     }
-    setConfirmDisconnect(false);
+  }
 
-    // Optimistic: update UI instantly, fire API in background
-    setConnected(false);
-    setSelectedCalendarId(null);
-    setGoogleEmail(null);
-    setGooglePhotoUrl(null);
-    setSyncComplete(false);
-    try { localStorage.removeItem(GCAL_CACHE_KEY); } catch { /* ignore */ }
-    showToast("Google Calendar disconnected.");
-
-    fetch("/api/gcal/disconnect", { method: "POST" }).catch(() => {});
+  /** Handles the connect click — either direct OAuth or show warning. */
+  function handleConnect() {
+    if (process.env.NEXT_PUBLIC_GCAL_VERIFIED === "true") {
+      window.location.href = "/api/gcal/auth";
+    } else {
+      setShowGcalWarning(true);
+    }
   }
 
   if (loading) {
     return (
-      <div className="flex items-center gap-2 text-subtle-foreground text-sm py-4">
-        <GoogleCalendarIcon size={16} />
-        Loading Google Calendar settings...
+      <div className="rounded-2xl border border-border bg-card px-4 py-3.5 shadow-sm dark:shadow-none">
+        <div className="flex items-center gap-3.5">
+          <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
+            <GoogleCalendarIcon size={20} />
+          </div>
+          <p className="text-xs text-muted-foreground">Loading...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-xl rounded-2xl border border-border bg-card p-5 shadow-sm dark:shadow-none">
-      <div className="flex items-center gap-2.5 mb-1.5">
-        <GoogleCalendarIcon size={22} />
-        <h2 className="text-lg font-semibold text-foreground">
-          Google Calendar
-        </h2>
-        <span className="ml-auto text-[10px] font-medium uppercase tracking-wider text-blue-500 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 px-2 py-0.5 rounded-full">
-          Real-time
-        </span>
-      </div>
-      <p className="text-xs text-subtle-foreground mb-4">
-        Automatically sync tasks to Google Calendar in real time.
-        Events are created, updated, and deleted as you modify tasks.
-      </p>
-
-      {!connected ? (
-        <>
-          {process.env.NEXT_PUBLIC_GCAL_VERIFIED === "true" ? (
-            <a
-              href="/api/gcal/auth"
-              className="inline-flex items-center gap-3 px-6 py-3 rounded-xl text-sm font-semibold bg-gray-900 text-white dark:bg-white dark:text-gray-900 hover:bg-gray-700 dark:hover:bg-gray-200 active:scale-[0.98] transition-all duration-200 shadow-sm dark:shadow-none"
-            >
-              <GoogleCalendarIcon size={20} />
-              Connect Google Calendar
-            </a>
-          ) : (
-          <button
-            type="button"
-            onClick={() => setShowGcalWarning(true)}
-            className="inline-flex items-center gap-3 px-6 py-3 rounded-xl text-sm font-semibold bg-gray-900 text-white dark:bg-white dark:text-gray-900 hover:bg-gray-700 dark:hover:bg-gray-200 active:scale-[0.98] transition-all duration-200 shadow-sm dark:shadow-none cursor-pointer"
-          >
+    <>
+      <div className="rounded-2xl border border-border bg-card shadow-sm dark:shadow-none overflow-hidden">
+        <div className="flex items-center gap-3.5 px-4 py-3.5">
+          {/* Logo */}
+          <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
             <GoogleCalendarIcon size={20} />
-            Connect Google Calendar
-          </button>
-          )}
-
-          {/* OAuth warning modal — portaled to escape overflow/transform containers */}
-          {showGcalWarning && createPortal(
-            <div
-              className="fixed inset-0 z-[9999] flex items-center justify-center"
-              onClick={() => setShowGcalWarning(false)}
-            >
-              <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
-              <div
-                className="relative bg-card border border-border rounded-2xl shadow-2xl p-6 max-w-sm mx-4 animate-drop-in"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <h3 className="text-sm font-semibold text-foreground mb-2 flex items-center gap-1.5">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-500 shrink-0"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
-                  Google will show a warning
-                </h3>
-                <p className="text-xs text-muted-foreground leading-relaxed mb-4">
-                  Our app is pending Google&apos;s review, so you&apos;ll see a scary-looking warning. Your data is safe — just follow these steps:
-                </p>
-                <div className="bg-muted/50 rounded-xl px-3.5 py-3 mb-5 space-y-1.5">
-                  <p className="text-xs text-foreground leading-relaxed">
-                    <span className="font-semibold">1.</span> Click <span className="font-semibold">Advanced</span>
-                  </p>
-                  <p className="text-xs text-foreground leading-relaxed">
-                    <span className="font-semibold">2.</span> Click <span className="font-semibold">Go to caltodo.me (unsafe)</span>
-                  </p>
-                  <p className="text-xs text-foreground leading-relaxed">
-                    <span className="font-semibold">3.</span> Click <span className="font-semibold">Continue</span>
-                  </p>
-                </div>
-                <div className="flex gap-2.5">
-                  <button
-                    type="button"
-                    onClick={() => setShowGcalWarning(false)}
-                    className="flex-1 px-4 py-2.5 rounded-xl text-xs font-medium text-muted-foreground hover:bg-muted/70 transition-colors cursor-pointer"
-                  >
-                    Cancel
-                  </button>
-                  <a
-                    href="/api/gcal/auth"
-                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold bg-gray-900 text-white dark:bg-white dark:text-gray-900 hover:bg-gray-700 dark:hover:bg-gray-200 active:scale-[0.98] transition-all duration-150"
-                  >
-                    Got it, connect
-                  </a>
-                </div>
-              </div>
-            </div>,
-            document.body
-          )}
-        </>
-      ) : (
-        <div className="space-y-3">
-          {/* Connected status with Google account info */}
-          <div className="flex items-center gap-2.5 text-sm text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-3 py-2 rounded-xl w-fit">
-            {googlePhotoUrl ? (
-              <img
-                src={googlePhotoUrl}
-                alt=""
-                width={20}
-                height={20}
-                className="rounded-full shrink-0"
-                referrerPolicy="no-referrer"
-              />
-            ) : (
-              <Check size={16} className="shrink-0" />
-            )}
-            <span className="font-medium">
-              {googleEmail ? `Connected as ${googleEmail}` : "Connected to Google Calendar"}
-            </span>
-            <Check size={14} className="shrink-0 text-emerald-500" />
           </div>
-
-          {/* Setting up indicator (connected but no calendar yet, syncing) */}
-          {!selectedCalendarId && syncing && (
-            <div className="text-xs text-subtle-foreground py-2">
-              Setting up your calendar...
+          {/* Text */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-semibold text-foreground">Google Calendar</p>
+              <span className="text-[9px] font-medium uppercase tracking-wider text-blue-500 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 px-1.5 py-0.5 rounded-full leading-none">
+                Real-time
+              </span>
             </div>
-          )}
-
-          {/* Sync progress bar */}
-          {syncProgress && (
-            <div className="space-y-1.5">
-              <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
-                {syncProgress.total > 0 ? (
-                  <div
-                    className="h-full rounded-full bg-blue-500 transition-all duration-300 ease-out"
-                    style={{ width: `${Math.round((syncProgress.synced / syncProgress.total) * 100)}%` }}
-                  />
-                ) : (
-                  <div className="h-full w-full rounded-full bg-blue-500/30 animate-pulse" />
-                )}
-              </div>
-              <div className="flex items-center justify-between text-xs text-subtle-foreground">
-                {syncProgress.total > 0 ? (
-                  <>
-                    <span>Syncing {syncProgress.synced} of {syncProgress.total} tasks</span>
-                    <span className="font-medium">{Math.round((syncProgress.synced / syncProgress.total) * 100)}%</span>
-                  </>
-                ) : (
-                  <span>Preparing sync...</span>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* View in Google Calendar link (shown after sync completes) */}
-          {syncComplete && (
-            <a
-              href={googleEmail ? `https://calendar.google.com/calendar/r?authuser=${encodeURIComponent(googleEmail)}` : "https://calendar.google.com"}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-            >
-              <ExternalLink size={12} />
-              View in Google Calendar
-            </a>
-          )}
-
-          {/* Action buttons */}
-          <div className="flex items-center gap-3 pt-1">
+            <p className="text-xs text-muted-foreground truncate">
+              {connected && googleEmail
+                ? googleEmail
+                : "Sync tasks to Google Calendar in real time"}
+            </p>
+          </div>
+          {/* Status */}
+          {connected ? (
             <button
               onClick={handleDisconnect}
               disabled={disconnecting}
-              className={`flex items-center gap-1.5 text-xs transition-colors disabled:opacity-60 ${
-                confirmDisconnect
-                  ? "text-red-500"
-                  : "text-muted-foreground hover:text-red-500"
-              }`}
+              aria-label="Disconnect Google Calendar"
+              className="group min-w-[84px] text-xs font-medium px-3 py-1 rounded-lg shrink-0 border transition-colors cursor-pointer disabled:opacity-60
+                text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30
+                hover:text-red-500 hover:border-red-300 hover:bg-red-50 dark:hover:text-red-400 dark:hover:border-red-500/30 dark:hover:bg-red-500/10"
             >
-              {confirmDisconnect ? <XCircle size={12} /> : <Unlink size={12} />}
-              {confirmDisconnect
-                ? "Click again to disconnect"
-                : disconnecting
-                  ? "Disconnecting..."
-                  : "Disconnect"}
+              <span className="group-hover:hidden">{disconnecting ? "..." : "Connected"}</span>
+              <span className="hidden group-hover:inline">Disconnect</span>
             </button>
-          </div>
+          ) : (
+            <button
+              onClick={handleConnect}
+              className="text-xs font-semibold text-blue-500 hover:text-blue-600 dark:hover:text-blue-400 px-3 py-1 rounded-lg border border-blue-200 dark:border-blue-500/30 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors shrink-0 cursor-pointer"
+            >
+              Connect
+            </button>
+          )}
         </div>
+
+        {/* Sync progress bar at bottom of card */}
+        {syncing && (
+          <div className="h-1 w-full bg-muted overflow-hidden">
+            {syncProgress && syncProgress.total > 0 ? (
+              <div
+                className="h-full bg-blue-500 transition-all duration-300 ease-out"
+                style={{ width: `${Math.round((syncProgress.synced / syncProgress.total) * 100)}%` }}
+              />
+            ) : (
+              <div className="h-full w-1/3 bg-blue-500 rounded-full animate-sync-bar" />
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* OAuth warning modal — portaled to escape overflow/transform containers */}
+      {showGcalWarning && createPortal(
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center"
+          onClick={() => setShowGcalWarning(false)}
+        >
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+          <div
+            className="relative bg-card border border-border rounded-2xl shadow-2xl p-6 max-w-sm mx-4 animate-drop-in"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-sm font-semibold text-foreground mb-2 flex items-center gap-1.5">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-500 shrink-0"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+              Google will show a warning
+            </h3>
+            <p className="text-xs text-muted-foreground leading-relaxed mb-4">
+              Our app is pending Google&apos;s review, so you&apos;ll see a scary-looking warning. Your data is safe — just follow these steps:
+            </p>
+            <div className="bg-muted/50 rounded-xl px-3.5 py-3 mb-5 space-y-1.5">
+              <p className="text-xs text-foreground leading-relaxed">
+                <span className="font-semibold">1.</span> Click <span className="font-semibold">Advanced</span>
+              </p>
+              <p className="text-xs text-foreground leading-relaxed">
+                <span className="font-semibold">2.</span> Click <span className="font-semibold">Go to caltodo.me (unsafe)</span>
+              </p>
+              <p className="text-xs text-foreground leading-relaxed">
+                <span className="font-semibold">3.</span> Click <span className="font-semibold">Continue</span>
+              </p>
+            </div>
+            <div className="flex gap-2.5">
+              <button
+                type="button"
+                onClick={() => setShowGcalWarning(false)}
+                className="flex-1 px-4 py-2.5 rounded-xl text-xs font-medium text-muted-foreground hover:bg-muted/70 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <a
+                href="/api/gcal/auth"
+                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold bg-gray-900 text-white dark:bg-white dark:text-gray-900 hover:bg-gray-700 dark:hover:bg-gray-200 active:scale-[0.98] transition-all duration-150"
+              >
+                Got it, connect
+              </a>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
-    </div>
+    </>
   );
 }

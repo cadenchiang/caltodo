@@ -14,7 +14,7 @@ export interface Task {
   color: string;
   created_at: string;
   updated_at: string;
-  source: "canvas" | "gradescope" | null;
+  source: "canvas" | "gradescope" | "pensieve" | null;
   external_id: string | null;
   course_name: string | null;
   source_url: string | null;
@@ -29,6 +29,8 @@ export interface Task {
   late_due_date: string | null;
   completed_at: string | null;
   tags: string[];
+  snoozed_until: string | null;
+  sort_order: number | null;
 }
 
 /**
@@ -63,6 +65,8 @@ export interface TaskUpdate {
   repeat_end_count?: number | null;
   completed_at?: string | null;
   tags?: string[];
+  snoozed_until?: string | null;
+  sort_order?: number | null;
 }
 
 /**
@@ -100,6 +104,7 @@ export interface IntegrationCredentials {
   google_photo_url: string | null;
   canvas_token_created_at: string | null;
   is_founding_member: boolean;
+  pensieve_calendar_url: string | null;
 }
 
 /**
@@ -117,6 +122,7 @@ export interface CredentialsSavePayload {
   gradescope_password?: string | null;
   selected_canvas_courses?: Array<{ id: number; name: string }> | null;
   selected_gradescope_courses?: Array<{ id: string; name: string }> | null;
+  pensieve_calendar_url?: string | null;
 }
 
 /**
@@ -133,6 +139,7 @@ export interface SyncSourceResult {
 export interface SyncResult {
   canvas: SyncSourceResult;
   gradescope: SyncSourceResult;
+  pensieve: SyncSourceResult;
   last_synced_at: string;
 }
 

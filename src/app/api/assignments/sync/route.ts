@@ -5,7 +5,7 @@
 
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { runSync, type SyncCourseOverrides } from "@/lib/sync-engine";
+import { runSync, type SyncCourseOverrides, type SyncPlatform } from "@/lib/sync-engine";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
 
@@ -54,8 +54,14 @@ export async function POST(request: Request) {
     // Manual syncs (with overrides or explicit force flag) bypass the Gradescope 30-min cooldown
     const forceGradescope = !!courseOverrides || body.forceGradescope === true;
 
-    logger.info("POST /api/assignments/sync started", { userId: user.id, timezone, hasOverrides: !!courseOverrides, forceGradescope });
-    const result = await runSync(supabase, user.id, timezone, courseOverrides, forceGradescope);
+    // Optional platform filter — only sync specific platforms
+    const VALID_PLATFORMS = new Set<SyncPlatform>(["canvas", "gradescope", "pensieve"]);
+    const platforms: SyncPlatform[] | undefined = Array.isArray(body.platforms)
+      ? (body.platforms as string[]).filter((p): p is SyncPlatform => VALID_PLATFORMS.has(p as SyncPlatform))
+      : undefined;
+
+    logger.info("POST /api/assignments/sync started", { userId: user.id, timezone, hasOverrides: !!courseOverrides, forceGradescope, platforms });
+    const result = await runSync(supabase, user.id, timezone, courseOverrides, forceGradescope, platforms);
     return NextResponse.json(result);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

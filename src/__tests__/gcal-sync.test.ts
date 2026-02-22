@@ -48,6 +48,8 @@ function createMockTask(overrides: Partial<Task> = {}): Task {
     late_due_date: null,
     completed_at: null,
     tags: [],
+    snoozed_until: null,
+    sort_order: null,
     ...overrides,
   };
 }

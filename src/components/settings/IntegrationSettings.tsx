@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import type { IntegrationCredentials } from "@/lib/types";
+import { useTaskContext } from "@/contexts/TaskContext";
 import CanvasSettings from "./CanvasSettings";
 import GradescopeSettings from "./GradescopeSettings";
+import PensieveSettings from "./PensieveSettings";
 import ClassesSection from "./ClassesSection";
 
 const CACHE_KEY = "caltodo_credentials_cache";
@@ -35,12 +37,6 @@ function setCachedCredentials(creds: IntegrationCredentials): void {
   }
 }
 
-/**
- * Container for Canvas and Gradescope integration settings.
- * Initializes with loading=true on both server and client to avoid
- * hydration mismatch. useEffect on mount hydrates from localStorage
- * cache, then fetches fresh data from API in the background.
- */
 /** Default empty credentials used for instant render before API responds. */
 const EMPTY_CREDENTIALS: IntegrationCredentials = {
   canvas_token: null,
@@ -56,15 +52,25 @@ const EMPTY_CREDENTIALS: IntegrationCredentials = {
   google_photo_url: null,
   canvas_token_created_at: null,
   is_founding_member: false,
+  pensieve_calendar_url: null,
 };
 
-export default function IntegrationSettings() {
+/** Shared context so IntegrationSettings and IntegrationClasses use the same credentials state. */
+const CredentialsContext = createContext<{
+  credentials: IntegrationCredentials;
+  handleUpdate: (updated: IntegrationCredentials) => void;
+} | null>(null);
+
+/**
+ * Provider that fetches and caches integration credentials.
+ * Wrap both IntegrationSettings and IntegrationClasses in this provider
+ * so they share the same credential state.
+ *
+ * @param children - Child components that consume credentials context
+ */
+export function IntegrationProvider({ children }: { children: React.ReactNode }) {
   const [credentials, setCredentials] = useState<IntegrationCredentials>(EMPTY_CREDENTIALS);
 
-  /**
-   * Fetches integration credentials from the API.
-   * Updates both state and localStorage cache on success.
-   */
   const fetchCredentials = useCallback(async () => {
     try {
       const res = await fetch("/api/credentials");
@@ -78,27 +84,70 @@ export default function IntegrationSettings() {
     }
   }, []);
 
-  // Hydrate from localStorage cache on mount, then fetch fresh data
   useEffect(() => {
     const cached = getCachedCredentials();
     if (cached) setCredentials(cached);
     fetchCredentials();
   }, [fetchCredentials]);
 
-  /**
-   * Handles credential updates from child components (Save).
-   * Updates both state and localStorage cache.
-   */
   function handleUpdate(updated: IntegrationCredentials) {
     setCredentials(updated);
     setCachedCredentials(updated);
   }
 
   return (
-    <div className="max-w-xl space-y-8">
-      <CanvasSettings credentials={credentials} onUpdate={handleUpdate} />
-      <GradescopeSettings credentials={credentials} onUpdate={handleUpdate} />
-      <ClassesSection credentials={credentials} onUpdate={handleUpdate} />
+    <CredentialsContext.Provider value={{ credentials, handleUpdate }}>
+      {children}
+    </CredentialsContext.Provider>
+  );
+}
+
+/**
+ * Integration card list (bCourses, Gradescope, Pensieve).
+ * Must be rendered inside an IntegrationProvider.
+ */
+export default function IntegrationSettings() {
+  const ctx = useContext(CredentialsContext);
+  const { syncing, lastSyncedAt, syncResult } = useTaskContext();
+
+  if (!ctx) throw new Error("IntegrationSettings must be inside IntegrationProvider");
+  const { credentials, handleUpdate } = ctx;
+
+  return (
+    <div className="space-y-3">
+      <CanvasSettings
+        credentials={credentials}
+        onUpdate={handleUpdate}
+        syncing={syncing}
+        lastSyncedAt={lastSyncedAt}
+        syncedCount={syncResult?.canvas.synced}
+      />
+      <GradescopeSettings
+        credentials={credentials}
+        onUpdate={handleUpdate}
+        syncing={syncing}
+        lastSyncedAt={lastSyncedAt}
+        syncedCount={syncResult?.gradescope.synced}
+      />
+      <PensieveSettings
+        credentials={credentials}
+        onUpdate={handleUpdate}
+        syncing={syncing}
+        lastSyncedAt={lastSyncedAt}
+        syncedCount={syncResult?.pensieve.synced}
+      />
     </div>
   );
+}
+
+/**
+ * Classes section showing selected courses as chips with edit modal.
+ * Must be rendered inside an IntegrationProvider.
+ */
+export function IntegrationClasses() {
+  const ctx = useContext(CredentialsContext);
+  if (!ctx) throw new Error("IntegrationClasses must be inside IntegrationProvider");
+  const { credentials, handleUpdate } = ctx;
+
+  return <ClassesSection credentials={credentials} onUpdate={handleUpdate} />;
 }

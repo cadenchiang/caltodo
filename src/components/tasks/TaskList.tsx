@@ -2,11 +2,29 @@
 
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { ChevronRight, MoreVertical } from "lucide-react";
+import { ChevronRight, MoreVertical, Eye, Check, Trash2 } from "lucide-react";
 import type { Task, TaskInsert } from "@/lib/types";
+import { useTaskContext } from "@/contexts/TaskContext";
 import TaskItem from "./TaskItem";
 import TaskAddForm from "./TaskAddForm";
 import ClassGroupHeader from "./ClassGroupHeader";
+
+/**
+ * Formats a countdown string from now until the given ISO timestamp.
+ * Returns "Xh Ym" for multi-hour durations or "Xm" for under an hour.
+ *
+ * @param snoozedUntil - ISO 8601 timestamp when the snooze expires
+ * @returns Human-readable countdown string, or "< 1m" if nearly expired
+ */
+function formatCountdown(snoozedUntil: string): string {
+  const diff = new Date(snoozedUntil).getTime() - Date.now();
+  if (diff <= 0) return "< 1m";
+  const totalMinutes = Math.ceil(diff / 60_000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+}
 
 /** Maximum items shown per section before "show more" truncation. */
 const ITEMS_PER_SECTION = 10;
@@ -99,6 +117,8 @@ interface TaskListProps {
   placeholder?: string;
   /** When "class", active tasks are grouped under collapsible course headers. */
   sortMode?: "date" | "class";
+  /** Called after a drag-and-drop reorder with the new ordered list of task IDs. Only active in "date" sortMode. */
+  onReorder?: (reorderedIds: string[]) => void;
 }
 
 /**
@@ -123,14 +143,25 @@ function groupByCourse(tasks: Task[]): [string, Task[]][] {
 }
 
 /**
- * Sorts tasks by closest due date first.
- * Tasks without a due date are placed at the top.
+ * Sorts tasks by sort_order first (manual drag order), then by due_date.
+ * Tasks with a non-null sort_order come first, sorted ascending.
+ * Tasks with null sort_order follow, sorted by due_date ascending (undated first).
  *
  * @param tasks - Array of tasks to sort
  * @returns New sorted array (does not mutate input)
  */
 function sortByDueDate(tasks: Task[]): Task[] {
   return [...tasks].sort((a, b) => {
+    const aHasOrder = a.sort_order !== null && a.sort_order !== undefined;
+    const bHasOrder = b.sort_order !== null && b.sort_order !== undefined;
+
+    // Both have sort_order: compare by sort_order
+    if (aHasOrder && bHasOrder) return a.sort_order! - b.sort_order!;
+    // Only one has sort_order: it comes first
+    if (aHasOrder) return -1;
+    if (bHasOrder) return 1;
+
+    // Neither has sort_order: fall back to due_date
     if (!a.due_date && !b.due_date) return 0;
     if (!a.due_date) return -1;
     if (!b.due_date) return 1;
@@ -167,16 +198,26 @@ export default function TaskList({
   defaultDate,
   placeholder,
   sortMode = "date",
+  onReorder,
 }: TaskListProps) {
+  const { unsnoozeTask } = useTaskContext();
   const [completedExpanded, setCompletedExpanded] = useState(false);
+  const [hiddenExpanded, setHiddenExpanded] = useState(false);
   const [showAllActive, setShowAllActive] = useState(false);
   const [showAllCompleted, setShowAllCompleted] = useState(false);
+  /** Ticks every 60s when Hidden section is expanded to refresh countdowns. */
+  const [countdownTick, setCountdownTick] = useState(0);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [aliases, setAliases] = useState<Map<string, string>>(() => loadColumnAliases());
   const [hideHours, setHideHours] = useState<number>(() => loadHideHours());
   const [completedMenuOpen, setCompletedMenuOpen] = useState(false);
   const completedMenuBtnRef = useRef<HTMLButtonElement>(null);
   const completedMenuRef = useRef<HTMLDivElement>(null);
+
+  // Drag-and-drop state (only active in "date" sortMode with onReorder)
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
+  const dragEnabled = sortMode === "date" && !!onReorder;
 
   /** Toggles a course group's collapsed state. */
   const toggleGroup = useCallback((groupName: string) => {
@@ -237,6 +278,13 @@ export default function TaskList({
     return () => document.removeEventListener("mousedown", handleClick);
   }, [completedMenuOpen]);
 
+  // 60-second interval to refresh countdown timers when Hidden section is expanded
+  useEffect(() => {
+    if (!hiddenExpanded) return;
+    const timer = setInterval(() => setCountdownTick((t) => t + 1), 60_000);
+    return () => clearInterval(timer);
+  }, [hiddenExpanded]);
+
   /** Resets a group alias back to its original name. */
   const resetGroupName = useCallback((originalName: string) => {
     setAliases((prev) => {
@@ -247,13 +295,17 @@ export default function TaskList({
     });
   }, []);
 
-  const { active, completed } = useMemo(() => {
+  const { active, snoozed, completed } = useMemo(() => {
+    const now = Date.now();
     const activeList: Task[] = [];
+    const snoozedList: Task[] = [];
     const completedList: Task[] = [];
 
     for (const t of tasks) {
       if (t.is_completed) {
         completedList.push(t);
+      } else if (t.snoozed_until && new Date(t.snoozed_until).getTime() > now) {
+        snoozedList.push(t);
       } else {
         activeList.push(t);
       }
@@ -266,21 +318,71 @@ export default function TaskList({
       : completedList.filter((t) => {
           if (!t.completed_at) return true; // Legacy tasks without completed_at stay visible
           const completedTime = new Date(t.completed_at).getTime();
-          const cutoff = Date.now() - hideHours * 60 * 60 * 1000;
+          const cutoff = now - hideHours * 60 * 60 * 1000;
           return completedTime > cutoff;
         });
 
     return {
       active: sortByDueDate(activeList),
+      snoozed: sortByDueDate(snoozedList),
       completed: sortByDueDate(recentCompleted),
     };
-  }, [tasks, hideHours]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tasks, hideHours, countdownTick]);
 
   /** Active tasks grouped by course when sortMode is "class". */
   const activeGroups = useMemo(
     () => (sortMode === "class" ? groupByCourse(active) : []),
     [active, sortMode]
   );
+
+  /** Handles drag start: records the dragged task ID. */
+  const handleDragStart = useCallback((e: React.DragEvent, taskId: string) => {
+    setDraggedId(taskId);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", taskId);
+  }, []);
+
+  /** Handles drag over a task row: determines drop position (above or below). */
+  const handleDragOver = useCallback((e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    const rect = e.currentTarget.getBoundingClientRect();
+    const midY = rect.top + rect.height / 2;
+    setDropTargetIndex(e.clientY < midY ? index : index + 1);
+  }, []);
+
+  /** Handles drop: reorders the active task list and calls onReorder. */
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    if (!draggedId || dropTargetIndex === null || !onReorder) {
+      setDraggedId(null);
+      setDropTargetIndex(null);
+      return;
+    }
+
+    const currentIndex = active.findIndex((t) => t.id === draggedId);
+    if (currentIndex === -1) {
+      setDraggedId(null);
+      setDropTargetIndex(null);
+      return;
+    }
+
+    // Build new order by removing the dragged item and inserting at the drop position
+    const reordered = active.filter((t) => t.id !== draggedId);
+    const insertAt = dropTargetIndex > currentIndex ? dropTargetIndex - 1 : dropTargetIndex;
+    reordered.splice(insertAt, 0, active[currentIndex]);
+
+    onReorder(reordered.map((t) => t.id));
+    setDraggedId(null);
+    setDropTargetIndex(null);
+  }, [draggedId, dropTargetIndex, onReorder, active]);
+
+  /** Clears drag state when drag ends (e.g. dropped outside). */
+  const handleDragEnd = useCallback(() => {
+    setDraggedId(null);
+    setDropTargetIndex(null);
+  }, []);
 
   if (loading) {
     return (
@@ -305,7 +407,7 @@ export default function TaskList({
     <div className="flex flex-col">
       <TaskAddForm onAdd={onAdd} defaultDate={defaultDate} placeholder={placeholder} />
 
-      {active.length === 0 && completed.length === 0 && (
+      {active.length === 0 && snoozed.length === 0 && completed.length === 0 && (
         <div className="text-center py-12 text-subtle-foreground text-sm">
           No tasks yet. Type above and press Enter!
         </div>
@@ -351,8 +453,21 @@ export default function TaskList({
       ) : active.length > 0 ? (
         <div className="mt-1">
           {activeToShow.map((task, i) => (
-            <div key={task.id}>
-              {i > 0 && <div className="mx-12 h-px bg-border" />}
+            <div
+              key={task.id}
+              draggable={dragEnabled}
+              onDragStart={dragEnabled ? (e) => handleDragStart(e, task.id) : undefined}
+              onDragOver={dragEnabled ? (e) => handleDragOver(e, i) : undefined}
+              onDrop={dragEnabled ? handleDrop : undefined}
+              onDragEnd={dragEnabled ? handleDragEnd : undefined}
+              className={dragEnabled ? "cursor-grab active:cursor-grabbing" : ""}
+              style={draggedId === task.id ? { opacity: 0.4 } : undefined}
+            >
+              {/* Blue drop indicator line */}
+              {dropTargetIndex === i && draggedId !== task.id && (
+                <div className="h-0.5 bg-blue-500 mx-4 rounded-full" />
+              )}
+              {i > 0 && dropTargetIndex !== i && <div className="mx-12 h-px bg-border" />}
               <TaskItem
                 task={task}
                 isSelected={selectedTaskId === task.id}
@@ -362,6 +477,10 @@ export default function TaskList({
               />
             </div>
           ))}
+          {/* Drop indicator after last item */}
+          {dropTargetIndex === activeToShow.length && draggedId && (
+            <div className="h-0.5 bg-blue-500 mx-4 rounded-full" />
+          )}
           {active.length > ITEMS_PER_SECTION && (
             <button
               onClick={() => setShowAllActive(!showAllActive)}
@@ -372,6 +491,66 @@ export default function TaskList({
           )}
         </div>
       ) : null}
+
+      {/* Hidden (snoozed) section */}
+      {snoozed.length > 0 && (
+        <div className="mt-1">
+          <div
+            className="flex items-center mx-2 pl-2.5 pr-1 py-1.5 rounded-lg hover:bg-accent transition-colors cursor-pointer"
+            onClick={() => setHiddenExpanded(!hiddenExpanded)}
+          >
+            <ChevronRight
+              size={12}
+              className={`shrink-0 text-secondary-foreground transition-transform duration-200 ${
+                hiddenExpanded ? "rotate-90" : ""
+              }`}
+            />
+            <span className="text-sm font-semibold text-foreground ml-0.5">Hidden</span>
+            <span className="text-xs text-subtle-foreground ml-1.5">{snoozed.length}</span>
+          </div>
+          {hiddenExpanded && (
+            <>
+              {snoozed.map((task, i) => (
+                <div key={task.id}>
+                  {i > 0 && <div className="mx-12 h-px bg-border" />}
+                  <div className="flex items-center px-4 py-2 group">
+                    <span className="text-sm text-foreground truncate flex-1 min-w-0">{task.title}</span>
+                    <span className="text-xs text-subtle-foreground tabular-nums mr-2 shrink-0">
+                      {formatCountdown(task.snoozed_until!)}
+                    </span>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => unsnoozeTask(task.id)}
+                        className="p-1 text-muted-foreground hover:text-foreground rounded-lg transition-colors"
+                        title="Unhide"
+                      >
+                        <Eye size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onToggle(task.id)}
+                        className="p-1 text-muted-foreground hover:text-green-600 rounded-lg transition-colors"
+                        title="Complete"
+                      >
+                        <Check size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onDelete(task.id)}
+                        className="p-1 text-muted-foreground hover:text-red-500 rounded-lg transition-colors"
+                        title="Delete"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
+        </div>
+      )}
 
       {/* Completed section (collapsible) */}
       {completed.length > 0 && (

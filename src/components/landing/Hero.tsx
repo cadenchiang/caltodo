@@ -112,13 +112,13 @@ export default function Hero() {
 
           {/* Subtitle */}
           <p className="text-[13px] sm:text-xl text-center font-sans font-light mt-5 sm:mt-6 mb-6 sm:mb-8 leading-relaxed text-black/45 max-w-[260px] sm:max-w-none">
-            bCourses and Gradescope, one calendar.
+            bCourses, Gradescope, and Pensieve, one calendar.
           </p>
 
           {/* CTA — simple pill on mobile, interactive hover button on desktop */}
           <Link
             href="/login?signup=true"
-            className="sm:hidden flex items-center gap-2 px-7 py-3 rounded-full bg-[#0071E3] text-white text-sm font-semibold mb-8 active:scale-[0.97] transition-transform"
+            className="sm:hidden flex items-center gap-2 px-7 py-2 rounded-full bg-[#0071E3] text-white text-sm font-semibold mb-8 active:scale-[0.97] transition-transform"
           >
             Get started
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -185,6 +185,23 @@ export default function Hero() {
               <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-3 rounded-lg bg-[#F5F5F7] text-[#1D1D1F] text-xs px-3 py-2 shadow-md opacity-0 scale-95 transition-all duration-200 group-hover:opacity-100 group-hover:scale-100 z-50 whitespace-nowrap">
                 <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-[#F5F5F7] rotate-45" />
                 Sync Gradescope deadlines
+              </div>
+            </div>
+
+            <span className="text-sm sm:text-lg font-light text-black/25">+</span>
+
+            {/* Pensieve logo with tooltip */}
+            <div className="group relative cursor-pointer">
+              <img
+                src="/pensieve-logo.png"
+                alt="Pensieve"
+                width={64}
+                height={64}
+                className="w-7 h-7 sm:w-9 sm:h-9 transition-transform duration-200 group-hover:scale-110 object-contain"
+              />
+              <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-3 rounded-lg bg-[#F5F5F7] text-[#1D1D1F] text-xs px-3 py-2 shadow-md opacity-0 scale-95 transition-all duration-200 group-hover:opacity-100 group-hover:scale-100 z-50 whitespace-nowrap">
+                <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-[#F5F5F7] rotate-45" />
+                Sync CS/DS assignments
               </div>
             </div>
 

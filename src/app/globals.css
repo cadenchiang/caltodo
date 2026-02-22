@@ -465,6 +465,20 @@ body {
   animation-delay: 1200ms;
 }
 
+/* Sync bar — indeterminate sliding animation for integration cards */
+@keyframes syncBar {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(400%);
+  }
+}
+
+.animate-sync-bar {
+  animation: syncBar 1.2s ease-in-out infinite;
+}
+
 /* Elevated button — press-in hover effect (primary: dark bg, secondary: light bg) */
 .btn-elevated {
   border: 1px solid #e5e7eb;
@@ -605,6 +619,56 @@ textarea:-webkit-autofill {
 
 .animate-row-fade-in {
   animation: rowFadeIn 250ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Announcement dialog — centered scale+fade entrance with staggered children */
+@keyframes announceBackdropIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes announceBackdropOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes announceCardIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.9) translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes announceCardOut {
+  0% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.95) translateY(8px);
+  }
+}
+
+.animate-announce-backdrop-in {
+  animation: announceBackdropIn 300ms ease-out both;
+}
+
+.animate-announce-backdrop-out {
+  animation: announceBackdropOut 250ms ease-in both;
+}
+
+.animate-announce-card-in {
+  animation: announceCardIn 400ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: 80ms;
+}
+
+.animate-announce-card-out {
+  animation: announceCardOut 200ms ease-in both;
 }
 
 /* Sync progress bar — subtle pulsing glow */

@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { Inbox, Sun, CalendarRange } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Inbox, Sun, CalendarRange, ChevronLeft } from "lucide-react";
 import { NAV_ITEMS } from "@/lib/constants";
 import SidebarNavItem from "./SidebarNavItem";
 import ProfilePopup from "./ProfilePopup";
@@ -35,6 +36,8 @@ interface SidebarProps {
  */
 export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
+  const isSettings = pathname.startsWith("/app/settings") || pathname.startsWith("/app/account");
   const [inboxFilter, setInboxFilter] = useState<string>(() => {
     try { return localStorage.getItem("inbox-filter") || "all"; }
     catch { return "all"; }
@@ -110,22 +113,32 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
             className="h-10 dark:invert"
           />
         </div>
-        <nav id="tour-sidebar-nav" className="flex flex-col gap-1">
-          {NAV_ITEMS.map((item) => {
-            const isInbox = item.href === "/app/inbox";
-            const isCalendar = item.href === "/app/calendar";
-            return (
-              <SidebarNavItem
-                key={item.href}
-                label={isInbox ? inboxConfig.label : item.label}
-                href={item.href}
-                icon={isInbox ? inboxConfig.icon : item.icon}
-                badge={isCalendar && showCalBadge}
-                id={`tour-nav-${item.label.toLowerCase()}`}
-              />
-            );
-          })}
-        </nav>
+        {isSettings ? (
+          <button
+            onClick={() => router.push("/app/inbox")}
+            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors text-muted-foreground hover:bg-accent hover:text-foreground cursor-pointer active:scale-[0.98]"
+          >
+            <ChevronLeft size={16} className="animate-[fadeIn_150ms_ease-out]" />
+            <span className="animate-[fadeIn_150ms_ease-out]">Settings</span>
+          </button>
+        ) : (
+          <nav id="tour-sidebar-nav" className="flex flex-col gap-1">
+            {NAV_ITEMS.map((item) => {
+              const isInbox = item.href === "/app/inbox";
+              const isCalendar = item.href === "/app/calendar";
+              return (
+                <SidebarNavItem
+                  key={item.href}
+                  label={isInbox ? inboxConfig.label : item.label}
+                  href={item.href}
+                  icon={isInbox ? inboxConfig.icon : item.icon}
+                  badge={isCalendar && showCalBadge}
+                  id={`tour-nav-${item.label.toLowerCase()}`}
+                />
+              );
+            })}
+          </nav>
+        )}
       </div>
 
       <div className="px-2 flex flex-col gap-2">

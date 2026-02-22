@@ -255,9 +255,11 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
   const allModalCourses = [...canvasCourses, ...gseCourses];
 
   return (
-    <section>
-      <div className="flex items-center justify-between mb-1">
-        <h2 className="text-lg font-semibold text-foreground">Classes</h2>
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs text-subtle-foreground">
+          {summaryCount} class{totalSelected !== 1 ? "es" : ""} selected{platformText ? ` ${platformText}` : ""}
+        </p>
         <button
           onClick={handleEdit}
           disabled={loading}
@@ -267,9 +269,6 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
           {loading ? "Loading..." : "Edit"}
         </button>
       </div>
-      <p className="text-xs text-subtle-foreground mb-4">
-        {summaryCount} class{totalSelected !== 1 ? "es" : ""} selected{platformText ? ` ${platformText}` : ""}
-      </p>
 
       {/* Selected course chips */}
       {totalSelected > 0 ? (
@@ -292,7 +291,7 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
           ))}
         </div>
       ) : (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           No classes selected. Tap Edit to choose courses.
         </p>
       )}
@@ -311,6 +310,6 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
         onSelectAll={() => setSelectedIds(new Set(allModalCourses.map((c) => c.id)))}
         onDeselectAll={() => setSelectedIds(new Set())}
       />
-    </section>
+    </div>
   );
 }

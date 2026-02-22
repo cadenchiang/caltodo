@@ -179,7 +179,7 @@ export default function CalendarHeader({
   }
 
   return (
-    <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between mb-3 md:mb-5">
+    <div className="relative z-10 flex flex-col gap-2 md:flex-row md:items-center md:justify-between mb-3 md:mb-5">
       {/* Row 1: title + nav buttons */}
       <div className="flex items-center justify-between gap-4 w-full">
         <div className="flex items-center gap-3 min-w-0">
@@ -258,19 +258,19 @@ export default function CalendarHeader({
           {gcalConnected === false && (
             <a href="/app/settings" title="Connect Google Calendar in Settings" className="relative group/sync">
               <ShimmerButton
-                shimmerColor="#b45309"
+                shimmerColor="#60a5fa"
                 shimmerSize="0.05em"
                 shimmerDuration="3s"
-                background="rgba(0, 0, 0, 0.9)"
-                className="px-3 py-1.5 text-xs hover:scale-105 active:scale-95 transition-all duration-200"
+                background="rgba(30, 64, 175, 0.9)"
+                className="px-3 py-1.5 text-xs hover:brightness-110 active:scale-95 transition-all duration-200"
               >
                 <GCalIcon size={16} />
-                <span className="ml-1.5 font-medium text-amber-500 dark:text-amber-400">
+                <span className="ml-1.5 font-medium text-blue-200">
                   <span className="md:hidden">Sync GCal</span>
                   <span className="hidden md:inline">Sync Google Calendar</span>
                 </span>
               </ShimmerButton>
-              <span className="absolute -top-px -right-px bg-red-500 text-white text-[9px] w-3.5 h-3.5 rounded-full flex items-center justify-center font-bold leading-none pointer-events-none">
+              <span className="absolute -top-px -right-px bg-blue-500 text-white text-[9px] w-3.5 h-3.5 rounded-full flex items-center justify-center font-bold leading-none pointer-events-none animate-pulse">
                 1
               </span>
             </a>
@@ -279,7 +279,7 @@ export default function CalendarHeader({
         <div className="flex items-center gap-1.5 shrink-0">
           <button
             onClick={onToday}
-            className="px-3 py-1.5 text-xs md:text-sm font-medium text-foreground rounded-lg md:rounded-xl bg-transparent border border-input-border hover:bg-accent hover:scale-105 active:scale-95 transition-all duration-150"
+            className="px-3 py-1.5 text-xs md:text-sm font-medium text-foreground rounded-lg md:rounded-xl bg-transparent border border-input-border hover:bg-accent active:scale-95 transition-all duration-150"
           >
             Today
           </button>
