@@ -3,8 +3,10 @@
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Inbox, Sun, CalendarRange, ChevronLeft } from "lucide-react";
 import { NAV_ITEMS } from "@/lib/constants";
+import { SETTINGS_SECTIONS, SETTINGS_GROUPS, DEFAULT_SECTION, type SettingsSectionId } from "@/lib/settingsConfig";
 import SidebarNavItem from "./SidebarNavItem";
 import ProfilePopup from "./ProfilePopup";
 
@@ -37,12 +39,37 @@ interface SidebarProps {
 export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const isSettings = pathname.startsWith("/app/settings") || pathname.startsWith("/app/account");
+  const isSettings = pathname.startsWith("/app/settings");
   const [inboxFilter, setInboxFilter] = useState<string>(() => {
     try { return localStorage.getItem("inbox-filter") || "all"; }
     catch { return "all"; }
   });
   const [showCalBadge, setShowCalBadge] = useState(false);
+  const [activeSettingsSection, setActiveSettingsSection] = useState<SettingsSectionId>(DEFAULT_SECTION);
+
+  // Sync active settings section from URL search params
+  // Uses popstate + manual reads to avoid useSearchParams Suspense requirement
+  useEffect(() => {
+    if (!isSettings) return;
+    function readSection() {
+      const params = new URLSearchParams(window.location.search);
+      const s = params.get("section");
+      const valid = SETTINGS_SECTIONS.some((sec) => sec.id === s);
+      setActiveSettingsSection(valid ? (s as SettingsSectionId) : DEFAULT_SECTION);
+    }
+    readSection();
+    window.addEventListener("popstate", readSection);
+    // Also listen for pushState/replaceState via a custom event
+    const origPush = window.history.pushState.bind(window.history);
+    const origReplace = window.history.replaceState.bind(window.history);
+    window.history.pushState = (...args) => { origPush(...args); readSection(); };
+    window.history.replaceState = (...args) => { origReplace(...args); readSection(); };
+    return () => {
+      window.removeEventListener("popstate", readSection);
+      window.history.pushState = origPush;
+      window.history.replaceState = origReplace;
+    };
+  }, [isSettings]);
 
   // Listen for filter changes dispatched by InboxPage
   useEffect(() => {
@@ -114,13 +141,43 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
           />
         </div>
         {isSettings ? (
-          <button
-            onClick={() => router.push("/app/inbox")}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors text-muted-foreground hover:bg-accent hover:text-foreground cursor-pointer active:scale-[0.98]"
-          >
-            <ChevronLeft size={16} className="animate-[fadeIn_150ms_ease-out]" />
-            <span className="animate-[fadeIn_150ms_ease-out]">Settings</span>
-          </button>
+          <div className="flex flex-col gap-1">
+            <button
+              onClick={() => router.push("/app/inbox")}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors text-muted-foreground hover:bg-accent hover:text-foreground cursor-pointer active:scale-[0.98]"
+            >
+              <ChevronLeft size={16} className="animate-[fadeIn_150ms_ease-out]" />
+              <span className="animate-[fadeIn_150ms_ease-out]">Back</span>
+            </button>
+            <p className="px-3 pt-3 pb-1 text-xs font-semibold text-foreground">Settings</p>
+            {SETTINGS_GROUPS.map((group) => (
+              <div key={group}>
+                <p className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  {group}
+                </p>
+                {SETTINGS_SECTIONS.filter((s) => s.group === group).map((section) => {
+                  const Icon = section.icon;
+                  const isActive = activeSettingsSection === section.id;
+                  return (
+                    <Link
+                      key={section.id}
+                      href={`/app/settings?section=${section.id}`}
+                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                        isActive
+                          ? "bg-accent text-foreground"
+                          : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                      }`}
+                    >
+                      <div className="w-7 h-7 rounded-lg bg-accent flex items-center justify-center shrink-0">
+                        <Icon size={14} />
+                      </div>
+                      <span>{section.label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
         ) : (
           <nav id="tour-sidebar-nav" className="flex flex-col gap-1">
             {NAV_ITEMS.map((item) => {
