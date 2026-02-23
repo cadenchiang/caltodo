@@ -246,6 +246,8 @@ export default function GoogleCalendarSettings() {
 
   useEffect(() => {
     const gcalParam = searchParams.get("gcal");
+    // Skip auto-setup if running inside a popup — the opener window handles it
+    if (window.opener) return;
     if (gcalParam === "connected") {
       setConnected(true);
       setLoading(false);
@@ -293,9 +295,73 @@ export default function GoogleCalendarSettings() {
     }
   }
 
-  /** Handles the connect click — navigates directly to Google OAuth. */
+  /**
+   * Handles the connect click.
+   * Desktop: opens Google OAuth in a centered popup, polls for completion.
+   * Mobile: falls back to full-page redirect.
+   */
   function handleConnect() {
-    window.location.href = "/api/gcal/auth";
+    const isDesktop = typeof window !== "undefined" && window.innerWidth >= 768;
+
+    if (!isDesktop) {
+      window.location.href = "/api/gcal/auth";
+      return;
+    }
+
+    const width = 500;
+    const height = 600;
+    const left = window.screenX + (window.outerWidth - width) / 2;
+    const top = window.screenY + (window.outerHeight - height) / 2;
+    const popup = window.open(
+      "/api/gcal/auth",
+      "gcal-auth",
+      `width=${width},height=${height},left=${left},top=${top},popup=true`
+    );
+
+    if (!popup || popup.closed) {
+      // Popup blocked — fall back to full redirect
+      window.location.href = "/api/gcal/auth";
+      return;
+    }
+
+    /**
+     * Polls the popup URL until it navigates back to our origin with
+     * ?gcal=connected or ?gcal=error, then closes the popup and handles the result.
+     */
+    const pollId = setInterval(() => {
+      try {
+        if (!popup || popup.closed) {
+          clearInterval(pollId);
+          return;
+        }
+
+        const popupUrl = popup.location.href;
+
+        if (popupUrl.includes("gcal=connected")) {
+          clearInterval(pollId);
+          popup.close();
+          setConnected(true);
+          setLoading(false);
+          autoSetupCalendar();
+        } else if (popupUrl.includes("gcal=error")) {
+          clearInterval(pollId);
+          popup.close();
+          const url = new URL(popupUrl);
+          const reason = url.searchParams.get("reason");
+          const messages: Record<string, string> = {
+            denied: "Google Calendar access was denied.",
+            csrf: "Security check failed. Please try again.",
+            token_exchange: "Failed to connect. Please try again.",
+            missing_tokens: "Failed to get tokens from Google. Please try again.",
+            config: "Google Calendar is not configured on this server.",
+            storage: "Failed to save connection. Please try again.",
+          };
+          showToast(messages[reason ?? ""] ?? "Failed to connect Google Calendar.");
+        }
+      } catch {
+        // Cross-origin — popup is still on Google domain, keep polling
+      }
+    }, 300);
   }
 
   if (loading) {

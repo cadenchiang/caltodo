@@ -60,41 +60,40 @@ export default function CalendarDayView({
   const dayTasks = tasks.filter((t) => t.due_date === dateStr);
 
   return (
-    <div className="overflow-hidden bg-card flex flex-col h-full">
+    <div className="overflow-hidden bg-card flex flex-col h-full relative">
+      {/* + icon top right */}
+      <button
+        onClick={(e) => {
+          const rect = e.currentTarget.getBoundingClientRect();
+          onAddClick(dateStr, new DOMRect(rect.left, rect.bottom + 4, rect.width, 1));
+        }}
+        className="absolute top-2 right-3 md:top-3 md:right-4 z-10 w-9 h-9 md:w-8 md:h-8 rounded-full bg-gray-800 dark:bg-white text-white dark:text-gray-900 flex items-center justify-center hover:opacity-80 active:scale-95 transition-all shadow-sm"
+      >
+        <Plus size={18} />
+      </button>
+
       {/* Task list or empty state */}
-      <div className="flex-1 overflow-y-auto p-6">
+      <div
+        className="flex-1 overflow-y-auto p-3 md:p-6"
+        onDoubleClick={(e) => {
+          const rect = new DOMRect(e.clientX - 40, e.clientY, 80, 1);
+          onAddClick(dateStr, rect);
+        }}
+      >
         {dayTasks.length > 0 ? (
           <div className="flex flex-col gap-3 max-w-xl">
             {dayTasks.map((task) => (
               <DayTaskCard key={task.id} task={task} onTaskClick={onTaskClick} />
             ))}
-            <button
-              onClick={(e) => {
-                const rect = e.currentTarget.getBoundingClientRect();
-                onAddClick(dateStr, new DOMRect(rect.left, rect.bottom + 4, rect.width, 1));
-              }}
-              className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-xl border border-dashed border-gray-300 dark:border-gray-600 text-muted-foreground hover:text-foreground hover:border-gray-400 hover:bg-muted/30 active:scale-95 transition-all"
-            >
-              <Plus size={16} />
-              Add Task
-            </button>
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
-              <CalendarDays size={28} className="text-muted-foreground" />
+          <div className="flex flex-col items-center justify-center py-12 md:py-20 text-center">
+            <div className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-muted flex items-center justify-center mb-3 md:mb-4">
+              <CalendarDays size={24} className="text-muted-foreground md:hidden" />
+              <CalendarDays size={28} className="text-muted-foreground hidden md:block" />
             </div>
-            <p className="text-base text-muted-foreground font-medium mb-3">No tasks for this day</p>
-            <button
-              onClick={(e) => {
-                const rect = e.currentTarget.getBoundingClientRect();
-                onAddClick(dateStr, new DOMRect(rect.left, rect.bottom + 4, rect.width, 1));
-              }}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl bg-gray-800 dark:bg-white text-white dark:text-gray-900 hover:opacity-90 active:scale-95 transition-all"
-            >
-              <Plus size={16} />
-              Add Task
-            </button>
+            <p className="text-sm md:text-base text-muted-foreground font-medium mb-1">No tasks for this day</p>
+            <p className="text-xs md:text-sm text-muted-foreground/70">Press + to add a task</p>
           </div>
         )}
       </div>
@@ -120,7 +119,7 @@ function DayTaskCard({
   return (
     <button
       onClick={(e) => onTaskClick(task, e.currentTarget.getBoundingClientRect())}
-      className={`w-full text-left rounded-xl p-4 transition-all hover:-translate-y-px hover:shadow-sm ${
+      className={`w-full text-left rounded-xl p-3 md:p-4 transition-all hover:-translate-y-px hover:shadow-sm ${
         task.is_completed ? "opacity-50" : ""
       }`}
       style={{

@@ -152,26 +152,26 @@ export default function CalendarHeader({
   const VIEW_MODES: CalendarViewMode[] = ["month", "week", "day"];
 
   return (
-    <div className="relative z-10 flex items-center justify-between gap-4 mb-1">
+    <div className="relative z-10 flex flex-wrap items-center justify-between gap-2 md:gap-4 mb-1">
       {/* Left: Today + nav + title + GCal */}
-      <div className="flex items-center gap-2 min-w-0">
+      <div className="flex items-center gap-1.5 md:gap-2 min-w-0">
         <button
           onClick={onToday}
-          className="px-3.5 py-1.5 text-sm font-medium text-foreground rounded-lg border border-input-border hover:bg-accent active:scale-95 transition-all shrink-0"
+          className="px-2.5 py-1 md:px-3.5 md:py-1.5 text-xs md:text-sm font-medium text-foreground rounded-lg border border-input-border hover:bg-accent active:scale-95 transition-all shrink-0"
         >
           Today
         </button>
-        <button onClick={onPrev} className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-accent transition-all">
+        <button onClick={onPrev} className="p-1 md:p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-accent transition-all">
           <ChevronLeft size={18} />
         </button>
-        <button onClick={onNext} className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-accent transition-all">
+        <button onClick={onNext} className="p-1 md:p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-accent transition-all">
           <ChevronRight size={18} />
         </button>
-        <h1 className="text-2xl font-bold text-foreground truncate ml-1">{title}</h1>
+        <h1 className="text-base md:text-xl font-bold text-foreground truncate ml-0.5 md:ml-1">{title}</h1>
 
-        {/* GCal synced tag */}
+        {/* GCal synced tag — hidden on mobile to save space */}
         {gcalConnected && (
-          <div className="relative shrink-0">
+          <div className="relative shrink-0 hidden md:block">
             <button
               ref={buttonRef}
               onClick={() => setShowPopover(!showPopover)}
@@ -214,7 +214,7 @@ export default function CalendarHeader({
           </div>
         )}
         {gcalConnected === false && (
-          <a href="/app/settings?section=integrations" title="Connect Google Calendar" className="active:scale-95 transition-transform shrink-0">
+          <a href="/app/settings?section=integrations" title="Connect Google Calendar" className="active:scale-95 transition-transform shrink-0 hidden md:block">
             <div className="rounded-full backdrop-blur-xl bg-white/70 dark:bg-white/[0.06] border border-blue-200/60 dark:border-blue-500/20 px-3 py-1.5 flex items-center gap-1.5">
               <GCalIcon size={14} />
               <span className="text-xs font-medium text-blue-600/80 dark:text-blue-300/70">Sync GCal</span>
@@ -229,7 +229,7 @@ export default function CalendarHeader({
           <button
             key={mode}
             onClick={() => onViewModeChange(mode)}
-            className={`px-4 py-1.5 text-sm font-medium capitalize transition-all duration-150 ${
+            className={`px-2.5 py-1 md:px-4 md:py-1.5 text-xs md:text-sm font-medium capitalize transition-all duration-150 ${
               viewMode === mode
                 ? "bg-white dark:bg-gray-700 text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"

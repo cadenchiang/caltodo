@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { Mockup, MockupFrame } from "@/components/ui/mockup";
 import { InteractiveHoverButton } from "@/components/ui/interactive-hover-button";
+import GoogleOneTap from "@/components/auth/GoogleOneTap";
 
 const HERO_IMAGES = [
   { src: "/app-screenshot-calendar.png", alt: "caltodo calendar view with synced assignments" },
@@ -54,6 +55,9 @@ export default function Hero() {
 
   return (
     <div className="min-h-dvh flex flex-col bg-white text-black overflow-x-hidden">
+      {/* Google One Tap sign-in prompt (desktop only) */}
+      <GoogleOneTap />
+
       {/* Top banner */}
       <button
         onClick={() => setShowSpotsModal(true)}

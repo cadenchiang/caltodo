@@ -77,17 +77,18 @@ export default function CalendarWeekView({
           return (
             <div
               key={dateStr}
-              className="flex flex-col items-center py-2.5 gap-0.5"
+              className="flex flex-col items-center py-1.5 md:py-2.5 gap-0.5"
             >
-              <span className={`text-[11px] font-semibold uppercase ${
+              <span className={`text-[9px] md:text-[11px] font-semibold uppercase ${
                 isToday ? "text-[#007AFF]" : "text-foreground/60"
               }`}>
-                {format(day, "EEE")}
+                <span className="md:hidden">{format(day, "EEEEE")}</span>
+                <span className="hidden md:inline">{format(day, "EEE")}</span>
               </span>
               <span
-                className={`text-lg font-semibold inline-flex items-center justify-center ${
+                className={`text-sm md:text-lg font-semibold inline-flex items-center justify-center ${
                   isToday
-                    ? "w-8 h-8 rounded-full bg-[#007AFF] text-white"
+                    ? "w-6 h-6 md:w-8 md:h-8 rounded-full bg-[#007AFF] text-white"
                     : "text-foreground"
                 }`}
               >
@@ -140,7 +141,7 @@ function WeekDayColumn({
 
   return (
     <div
-      className={`${isLastCol ? "" : "border-r"} border-gray-300 dark:border-gray-600 p-1.5 flex flex-col gap-1.5 hover:bg-muted/30 transition-colors relative`}
+      className={`${isLastCol ? "" : "border-r"} border-gray-300 dark:border-gray-600 p-1 md:p-1.5 flex flex-col gap-1 md:gap-1.5 hover:bg-muted/30 transition-colors`}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onDoubleClick={(e) => {
@@ -148,22 +149,24 @@ function WeekDayColumn({
         onDayClick(dateStr, rect);
       }}
     >
-      {/* + icon on hover */}
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          const rect = e.currentTarget.getBoundingClientRect();
-          onDayClick(dateStr, new DOMRect(rect.left, rect.bottom + 4, rect.width, 1));
-        }}
-        className={`absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center text-muted-foreground hover:bg-gray-300 dark:hover:bg-gray-600 hover:text-foreground transition-all ${
-          hovered ? "opacity-100" : "opacity-0 pointer-events-none"
-        }`}
-      >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-          <line x1="12" y1="5" x2="12" y2="19" />
-          <line x1="5" y1="12" x2="19" y2="12" />
-        </svg>
-      </button>
+      {/* + icon row — always takes space so tasks don't overlap */}
+      <div className="flex justify-end h-5 shrink-0">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            const rect = e.currentTarget.getBoundingClientRect();
+            onDayClick(dateStr, new DOMRect(rect.left, rect.bottom + 4, rect.width, 1));
+          }}
+          className={`w-5 h-5 rounded-full flex items-center justify-center text-muted-foreground hover:bg-gray-300 dark:hover:bg-gray-600 hover:text-foreground transition-all ${
+            hovered ? "opacity-100" : "opacity-0 pointer-events-none"
+          }`}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+        </button>
+      </div>
 
       {tasks.map((task) => (
         <WeekTaskCard key={task.id} task={task} onTaskClick={onTaskClick} />
@@ -193,7 +196,7 @@ function WeekTaskCard({
         e.stopPropagation();
         onTaskClick(task, e.currentTarget.getBoundingClientRect());
       }}
-      className={`group w-full text-left rounded-lg p-2.5 transition-all hover:-translate-y-px hover:shadow-sm ${
+      className={`group w-full text-left rounded-lg p-1.5 md:p-2.5 transition-all hover:-translate-y-px hover:shadow-sm ${
         task.is_completed ? "opacity-50" : ""
       }`}
       style={{
@@ -207,7 +210,7 @@ function WeekTaskCard({
         e.currentTarget.style.backgroundColor = hexToRgba(color, 0.1);
       }}
     >
-      <p className={`text-[13px] font-semibold leading-snug flex items-center gap-1 ${task.is_completed ? "line-through" : ""}`} style={{ color }}>
+      <p className={`text-[11px] md:text-[13px] font-semibold leading-snug flex items-center gap-1 ${task.is_completed ? "line-through" : ""}`} style={{ color }}>
         {task.is_completed && (
           <svg className="w-3.5 h-3.5 shrink-0" style={{ color }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="20 6 9 17 4 12" />
@@ -216,7 +219,7 @@ function WeekTaskCard({
         {task.title}
       </p>
       {task.due_time && (
-        <p className="text-xs mt-1 flex items-center gap-1" style={{ color, opacity: 0.7 }}>
+        <p className="hidden md:flex text-xs mt-1 items-center gap-1" style={{ color, opacity: 0.7 }}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="10" />
             <polyline points="12 6 12 12 16 14" />

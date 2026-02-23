@@ -70,22 +70,98 @@ export default function LoginForm() {
 
   /**
    * Initiates Google OAuth sign-in via Supabase.
-   * Redirects user to Google consent screen, then back to /auth/callback.
+   * Desktop: opens Google consent in a centered popup, polls for completion.
+   * Mobile: full-page redirect to Google, then back to /auth/callback.
+   * Falls back to redirect if popup is blocked by browser.
    */
   async function handleGoogleSignIn() {
     setError(null);
     trackEvent("google_oauth_clicked");
     const supabase = createClient();
 
-    const { error: oauthError } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
-    });
+    const isDesktop = typeof window !== "undefined" && window.innerWidth >= 768;
 
-    if (oauthError) {
-      setError(oauthError.message);
+    if (isDesktop) {
+      const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+          skipBrowserRedirect: true,
+        },
+      });
+
+      if (oauthError) {
+        setError(oauthError.message);
+        return;
+      }
+
+      if (data?.url) {
+        const width = 500;
+        const height = 600;
+        const left = window.screenX + (window.outerWidth - width) / 2;
+        const top = window.screenY + (window.outerHeight - height) / 2;
+        const popup = window.open(
+          data.url,
+          "google-auth",
+          `width=${width},height=${height},left=${left},top=${top},popup=true`
+        );
+
+        if (!popup || popup.closed) {
+          // Popup blocked — fall back to full redirect
+          await supabase.auth.signInWithOAuth({
+            provider: "google",
+            options: { redirectTo: `${window.location.origin}/auth/callback` },
+          });
+          return;
+        }
+
+        /**
+         * Polls the popup window until it either closes or navigates back to our
+         * origin (after the OAuth callback redirect). Once detected, closes the
+         * popup and navigates the main window to the destination.
+         */
+        const pollId = setInterval(async () => {
+          try {
+            if (!popup || popup.closed) {
+              clearInterval(pollId);
+              // Popup was closed — check if session was established via shared cookies
+              const { data: { session } } = await supabase.auth.getSession();
+              if (session) {
+                window.location.href = "/app/inbox";
+              }
+              return;
+            }
+
+            // Reading popup.location.href throws while on external domains (cross-origin).
+            // Once the callback redirects back to our origin, this succeeds.
+            const popupUrl = popup.location.href;
+
+            if (popupUrl.includes("/app/") || popupUrl.includes("/login")) {
+              clearInterval(pollId);
+              // Capture destination before closing
+              const destination = popupUrl.includes("/app/onboarding")
+                ? "/app/onboarding"
+                : "/app/inbox";
+              popup.close();
+              window.location.href = destination;
+            }
+          } catch {
+            // Cross-origin — popup is still on Google/Supabase domain, keep polling
+          }
+        }, 300);
+      }
+    } else {
+      // Mobile: use full-page redirect
+      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+
+      if (oauthError) {
+        setError(oauthError.message);
+      }
     }
   }
 

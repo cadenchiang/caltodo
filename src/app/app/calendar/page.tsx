@@ -139,8 +139,8 @@ export default function CalendarPage() {
 
         {/* Single bordered container wrapping header + calendar view */}
         <div className="flex-1 min-h-0 px-4 md:px-0 pb-2 flex flex-col">
-          <div className="rounded-xl border border-gray-300 dark:border-gray-600 shadow-sm bg-card flex flex-col flex-1 min-h-0 overflow-hidden">
-            <div className="px-4 py-3 shrink-0">
+          <div className="md:rounded-xl border border-gray-300 dark:border-gray-600 shadow-sm bg-card flex flex-col flex-1 min-h-0 overflow-hidden">
+            <div className="px-2.5 py-2 md:px-4 md:py-3 shrink-0">
               <CalendarHeader
                 currentMonth={currentDate}
                 title={getTitle()}

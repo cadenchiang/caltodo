@@ -46,7 +46,10 @@ export default function CalendarDayCell({
   const dateStr = format(day, "yyyy-MM-dd");
 
   useEffect(() => {
-    setIsMobile(window.innerWidth < 768);
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
   }, []);
 
   const maxVisible = isMobile ? 2 : 3;
