@@ -92,14 +92,16 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /** Updates current playback time for step highlighting. Stops video at 28s. */
+  /** Updates current playback time for step highlighting. Ends video at 28s. */
   const handleTimeUpdate = useCallback(() => {
-    if (videoRef.current) {
-      setVideoTime(videoRef.current.currentTime);
-      if (videoRef.current.currentTime >= 28) {
-        videoRef.current.pause();
-        videoRef.current.currentTime = 28;
-      }
+    if (!videoRef.current) return;
+    const v = videoRef.current;
+    setVideoTime(v.currentTime);
+    if (v.currentTime >= 28 && !v.paused) {
+      v.pause();
+      v.currentTime = 0;
+      setVideoTime(0);
+      setVideoExpanded(false);
     }
   }, []);
 
