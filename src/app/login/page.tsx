@@ -1,6 +1,24 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import LoginForm from "@/components/auth/LoginForm";
 import { ToastProvider } from "@/contexts/ToastContext";
+
+/**
+ * Page-level metadata for /login.
+ * Overrides root layout title/description with login-specific copy
+ * and Open Graph tags for link previews.
+ */
+export const metadata: Metadata = {
+  title: "Log In - caltodo",
+  description:
+    "Log in to caltodo — the free assignment tracker for UC Berkeley students. Sync bCourses and Gradescope deadlines in one place.",
+  openGraph: {
+    title: "Log In - caltodo",
+    description:
+      "Log in to caltodo — the free assignment tracker for UC Berkeley students.",
+    url: "https://caltodo.me/login",
+  },
+};
 
 /**
  * Login page with theme-aware styling, centered form, and staggered drop-in animations.

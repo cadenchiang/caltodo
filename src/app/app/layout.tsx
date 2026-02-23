@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import Sidebar from "@/components/layout/Sidebar";
@@ -10,6 +11,14 @@ import NotificationCenter from "@/components/ui/NotificationCenter";
 import CanvasTokenExpiredModal from "@/components/ui/CanvasTokenExpiredModal";
 import PensieveAnnouncementModal from "@/components/ui/PensieveAnnouncementModal";
 import PostHogIdentify from "@/components/PostHogIdentify";
+
+/**
+ * Prevent search engines from indexing any authenticated app routes.
+ * Defense-in-depth alongside robots.txt Disallow for /app/.
+ */
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 /**
  * Authenticated app layout with sidebar and main content area.
