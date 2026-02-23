@@ -24,12 +24,12 @@ const instrumentSerif = Instrument_Serif({
 });
 
 export const metadata: Metadata = {
-  title: "Caltodo",
+  title: "caltodo",
   description: "Your assignments, synced and organized. Connect bCourses and Gradescope to automatically track every deadline in one place.",
   metadataBase: new URL("https://caltodo.me"),
   alternates: { canonical: "/" },
   openGraph: {
-    title: "Caltodo",
+    title: "caltodo",
     description: "your assignments, synced and organized.",
     url: "https://caltodo.me",
     siteName: "caltodo",
@@ -45,7 +45,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Caltodo",
+    title: "caltodo",
     description: "your assignments, synced and organized.",
     images: ["/og-image.png"],
   },
