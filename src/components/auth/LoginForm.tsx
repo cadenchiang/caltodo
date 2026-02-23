@@ -1,11 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { signIn, signUp } from "@/app/login/actions";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/contexts/ToastContext";
 import { trackEvent } from "@/lib/analytics";
+
+/**
+ * Detects if the current browser is an in-app/embedded webview.
+ * Google blocks OAuth from these user agents (error 403: disallowed_useragent).
+ *
+ * @returns true if running inside LinkedIn, Instagram, Facebook, TikTok,
+ *          Snapchat, Twitter, or a generic WebView.
+ */
+function isInAppBrowser(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent || "";
+  return /LinkedIn|FBAN|FBAV|Instagram|TikTok|Snapchat|Twitter|WebView|wv\)/i.test(ua);
+}
 
 /**
  * Login/signup form with always-white styling, clean minimal layout, and staggered
@@ -17,6 +30,11 @@ export default function LoginForm() {
   const [isSignUp, setIsSignUp] = useState(searchParams.get("signup") === "true");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [inAppBrowser, setInAppBrowser] = useState(false);
+
+  useEffect(() => {
+    setInAppBrowser(isInAppBrowser());
+  }, []);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -139,11 +157,20 @@ export default function LoginForm() {
         <div className="flex-1 h-px bg-gray-300" />
       </div>
 
+      {/* In-app browser warning */}
+      {inAppBrowser && (
+        <div className="bg-amber-50 border border-amber-200 text-amber-800 text-xs p-3 rounded-xl animate-drop-in delay-500 leading-relaxed">
+          <p className="font-semibold mb-1">Google sign-in is blocked in this browser</p>
+          <p>Tap the <strong>three dots (&#8943;)</strong> in the top-right corner and select <strong>&quot;Open in browser&quot;</strong> to continue with Google.</p>
+        </div>
+      )}
+
       {/* Google OAuth button */}
       <button
         type="button"
         onClick={handleGoogleSignIn}
-        className="flex items-center justify-center gap-3 w-full px-4 py-3 rounded-xl bg-white text-gray-500 text-sm animate-drop-in delay-550 btn-elevated-secondary"
+        disabled={inAppBrowser}
+        className="flex items-center justify-center gap-3 w-full px-4 py-3 rounded-xl bg-white text-gray-500 text-sm animate-drop-in delay-550 btn-elevated-secondary disabled:opacity-40 disabled:cursor-not-allowed"
       >
         <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
           <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 01-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
