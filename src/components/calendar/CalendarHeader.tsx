@@ -9,6 +9,9 @@ import { useToast } from "@/contexts/ToastContext";
 /** localStorage key matching GoogleCalendarSettings cache. */
 const GCAL_CACHE_KEY = "gcal_status";
 
+/** localStorage key to persist dismissal of the GCal notification badge. */
+const GCAL_BADGE_DISMISSED_KEY = "gcal_badge_dismissed";
+
 export type CalendarViewMode = "month" | "week" | "day";
 
 /**
@@ -63,8 +66,16 @@ export default function CalendarHeader({
   const [showPopover, setShowPopover] = useState(false);
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [badgeDismissed, setBadgeDismissed] = useState(true);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
+
+  // Restore badge dismissal state from localStorage
+  useEffect(() => {
+    try {
+      setBadgeDismissed(localStorage.getItem(GCAL_BADGE_DISMISSED_KEY) === "true");
+    } catch { /* ignore */ }
+  }, []);
 
   useEffect(() => {
     try {
@@ -213,13 +224,32 @@ export default function CalendarHeader({
             )}
           </div>
         )}
-        {gcalConnected === false && (
-          <a href="/app/settings?section=integrations" title="Connect Google Calendar" className="active:scale-95 transition-transform shrink-0 hidden md:block">
-            <div className="rounded-full backdrop-blur-xl bg-white/70 dark:bg-white/[0.06] border border-blue-200/60 dark:border-blue-500/20 px-3 py-1.5 flex items-center gap-1.5">
-              <GCalIcon size={14} />
-              <span className="text-xs font-medium text-blue-600/80 dark:text-blue-300/70">Sync GCal</span>
-            </div>
-          </a>
+        {gcalConnected === false && !badgeDismissed && (
+          <div className="relative shrink-0 hidden md:flex items-center gap-1">
+            <a href="/app/settings?section=integrations" title="Connect Google Calendar" className="active:scale-95 transition-transform relative">
+              <div className="rounded-full backdrop-blur-xl bg-white/70 dark:bg-white/[0.06] border border-blue-200/60 dark:border-blue-500/20 px-3 py-1.5 flex items-center gap-1.5">
+                <GCalIcon size={14} />
+                <span className="text-xs font-medium text-blue-600/80 dark:text-blue-300/70">Sync GCal</span>
+              </div>
+              {/* Red notification dot */}
+              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-red-500 border-2 border-white dark:border-gray-900" />
+            </a>
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setBadgeDismissed(true);
+                try { localStorage.setItem(GCAL_BADGE_DISMISSED_KEY, "true"); } catch { /* ignore */ }
+              }}
+              className="p-0.5 rounded-full text-muted-foreground/60 hover:text-foreground hover:bg-muted transition-colors"
+              aria-label="Dismiss"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
         )}
       </div>
 

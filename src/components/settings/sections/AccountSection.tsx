@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { LogOut, UserX } from "lucide-react";
+import { LogOut, UserX, Camera } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 
 /**
@@ -21,6 +21,8 @@ export default function AccountSection() {
   const [userFullName, setUserFullName] = useState<string | null>(null);
   const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
   const [imgError, setImgError] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     try {
@@ -46,6 +48,59 @@ export default function AccountSection() {
     }
     if (userEmail) return userEmail[0].toUpperCase();
     return "?";
+  }
+
+  /**
+   * Handles avatar file selection. Uploads to /api/account/avatar,
+   * updates local state and localStorage cache on success.
+   */
+  async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      showToast("File too large. Max 2 MB.");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/account/avatar", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        showToast(data.error || "Failed to upload photo.");
+        return;
+      }
+
+      const { avatar_url } = await res.json();
+      setUserAvatarUrl(avatar_url);
+      setImgError(false);
+
+      // Update localStorage cache so sidebar/header reflect the change
+      try {
+        const cached = localStorage.getItem("caltodo_user_profile");
+        if (cached) {
+          const profile = JSON.parse(cached);
+          profile.avatarUrl = avatar_url;
+          localStorage.setItem("caltodo_user_profile", JSON.stringify(profile));
+        }
+      } catch { /* ignore */ }
+
+      showToast("Profile photo updated.");
+    } catch {
+      showToast("Failed to upload photo.");
+    } finally {
+      setUploading(false);
+      // Reset file input so the same file can be re-selected
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
   }
 
   /**
@@ -100,7 +155,14 @@ export default function AccountSection() {
         Your profile and account settings.
       </p>
       <div className="flex items-center gap-3.5 p-3 -mx-3">
-        <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center shrink-0">
+        {/* Clickable avatar with camera overlay */}
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading}
+          className="relative w-10 h-10 rounded-full overflow-hidden flex items-center justify-center shrink-0 group cursor-pointer disabled:cursor-wait"
+          title="Change profile photo"
+        >
           {userAvatarUrl && !imgError ? (
             <Image
               src={userAvatarUrl}
@@ -116,7 +178,22 @@ export default function AccountSection() {
               {getInitials()}
             </div>
           )}
-        </div>
+          {/* Hover overlay */}
+          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+            {uploading ? (
+              <div className="w-4 h-4 border-2 border-white/60 border-t-white rounded-full animate-spin" />
+            ) : (
+              <Camera size={14} className="text-white" />
+            )}
+          </div>
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          onChange={handleAvatarUpload}
+          className="hidden"
+        />
         <div className="min-w-0 flex-1 text-left">
           {userFullName && (
             <p className="text-sm font-medium text-foreground truncate">{userFullName}</p>
