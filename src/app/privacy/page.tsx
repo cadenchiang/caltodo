@@ -3,7 +3,13 @@ import LegalPageLayout from "@/components/landing/LegalPageLayout";
 
 export const metadata: Metadata = {
   title: "Privacy Policy - caltodo",
-  description: "Privacy policy for caltodo",
+  description: "Privacy policy for caltodo — how we collect, use, and protect your data.",
+  alternates: { canonical: "/privacy" },
+  openGraph: {
+    title: "Privacy Policy - caltodo",
+    description: "How caltodo collects, uses, and protects your data.",
+    url: "https://caltodo.me/privacy",
+  },
 };
 
 /**

@@ -3,7 +3,13 @@ import LegalPageLayout from "@/components/landing/LegalPageLayout";
 
 export const metadata: Metadata = {
   title: "Terms of Service - caltodo",
-  description: "Terms of service for caltodo",
+  description: "Terms of service for caltodo — rules and guidelines for using the service.",
+  alternates: { canonical: "/terms" },
+  openGraph: {
+    title: "Terms of Service - caltodo",
+    description: "Rules and guidelines for using caltodo.",
+    url: "https://caltodo.me/terms",
+  },
 };
 
 /**

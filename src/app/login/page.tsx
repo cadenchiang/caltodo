@@ -12,11 +12,13 @@ export const metadata: Metadata = {
   title: "Log In - caltodo",
   description:
     "Log in to caltodo — the free assignment tracker for UC Berkeley students. Sync bCourses and Gradescope deadlines in one place.",
+  alternates: { canonical: "/login" },
   openGraph: {
     title: "Log In - caltodo",
     description:
       "Log in to caltodo — the free assignment tracker for UC Berkeley students.",
     url: "https://caltodo.me/login",
+    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "caltodo — your assignments, synced and organized" }],
   },
 };
 
