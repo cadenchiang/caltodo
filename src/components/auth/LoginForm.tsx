@@ -8,16 +8,18 @@ import { useToast } from "@/contexts/ToastContext";
 import { trackEvent } from "@/lib/analytics";
 
 /**
- * Detects if the current browser is an in-app/embedded webview.
+ * Detects if the current browser is an in-app/embedded webview on mobile.
  * Google blocks OAuth from these user agents (error 403: disallowed_useragent).
  *
  * @returns true if running inside LinkedIn, Instagram, Facebook, TikTok,
- *          Snapchat, Twitter, or a generic WebView.
+ *          Snapchat, Twitter, or a generic WebView on a mobile device.
  */
-function isInAppBrowser(): boolean {
+function isMobileInAppBrowser(): boolean {
   if (typeof navigator === "undefined") return false;
   const ua = navigator.userAgent || "";
-  return /LinkedIn|FBAN|FBAV|Instagram|TikTok|Snapchat|Twitter|WebView|wv\)/i.test(ua);
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(ua);
+  const isInApp = /LinkedIn|FBAN|FBAV|Instagram|TikTok|Snapchat|Twitter|WebView|wv\)/i.test(ua);
+  return isMobile && isInApp;
 }
 
 /**
@@ -31,10 +33,20 @@ export default function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [inAppBrowser, setInAppBrowser] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    setInAppBrowser(isInAppBrowser());
+    setInAppBrowser(isMobileInAppBrowser());
   }, []);
+
+  /**
+   * Copies the login URL to clipboard and shows a brief "copied" confirmation.
+   */
+  function handleCopyLink() {
+    navigator.clipboard.writeText("https://caltodo.me/login");
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -75,6 +87,53 @@ export default function LoginForm() {
     if (oauthError) {
       setError(oauthError.message);
     }
+  }
+
+  /* Full-page interstitial for mobile in-app browsers */
+  if (inAppBrowser) {
+    return (
+      <div className="flex flex-col items-center gap-6 w-full text-center">
+        <h1 className="text-xl font-bold text-gray-800 animate-drop-in">
+          thanks for checking out caltodo!
+        </h1>
+        <p className="text-sm text-gray-500 leading-relaxed animate-drop-in delay-100">
+          this app uses Google sign-in, which doesn&apos;t work in in-app browsers.
+        </p>
+
+        <div className="w-full text-left bg-gray-50 rounded-xl p-4 space-y-3 animate-drop-in delay-200">
+          <div className="flex items-start gap-3">
+            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-gray-800 text-white text-xs font-bold flex items-center justify-center">1</span>
+            <p className="text-sm text-gray-700">
+              Tap <strong>&#8943;</strong> in the top-right corner
+            </p>
+          </div>
+          <div className="flex items-start gap-3">
+            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-gray-800 text-white text-xs font-bold flex items-center justify-center">2</span>
+            <p className="text-sm text-gray-700">
+              Select <strong>&quot;Open in browser&quot;</strong>
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 w-full animate-drop-in delay-300">
+          <div className="flex-1 h-px bg-gray-200" />
+          <span className="text-xs text-gray-400">or</span>
+          <div className="flex-1 h-px bg-gray-200" />
+        </div>
+
+        <button
+          type="button"
+          onClick={handleCopyLink}
+          className="w-full px-4 py-3 bg-gray-800 text-white rounded-xl font-semibold text-sm animate-drop-in delay-400 active:scale-[0.97] transition-transform"
+        >
+          {copied ? "copied!" : "copy link"}
+        </button>
+
+        <p className="text-xs text-gray-400 animate-drop-in delay-500">
+          paste it into Safari or Chrome to sign in
+        </p>
+      </div>
+    );
   }
 
   return (
@@ -157,20 +216,11 @@ export default function LoginForm() {
         <div className="flex-1 h-px bg-gray-300" />
       </div>
 
-      {/* In-app browser warning */}
-      {inAppBrowser && (
-        <div className="bg-amber-50 border border-amber-200 text-amber-800 text-xs p-3 rounded-xl animate-drop-in delay-500 leading-relaxed">
-          <p className="font-semibold mb-1">Google sign-in is blocked in this browser</p>
-          <p>Tap the <strong>three dots (&#8943;)</strong> in the top-right corner and select <strong>&quot;Open in browser&quot;</strong> to continue with Google.</p>
-        </div>
-      )}
-
       {/* Google OAuth button */}
       <button
         type="button"
         onClick={handleGoogleSignIn}
-        disabled={inAppBrowser}
-        className="flex items-center justify-center gap-3 w-full px-4 py-3 rounded-xl bg-white text-gray-500 text-sm animate-drop-in delay-550 btn-elevated-secondary disabled:opacity-40 disabled:cursor-not-allowed"
+        className="flex items-center justify-center gap-3 w-full px-4 py-3 rounded-xl bg-white text-gray-500 text-sm animate-drop-in delay-550 btn-elevated-secondary"
       >
         <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
           <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 01-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
