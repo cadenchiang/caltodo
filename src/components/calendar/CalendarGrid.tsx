@@ -63,7 +63,7 @@ export default function CalendarGrid({
   }
 
   const labels = isMobile ? WEEKDAY_LABELS_SHORT : WEEKDAY_LABELS_FULL;
-  const minRowHeight = isMobile ? "70px" : "120px";
+  const minRowHeight = isMobile ? "52px" : "120px";
 
   return (
     <div id="tour-calendar-grid" className="bg-card h-full flex flex-col">

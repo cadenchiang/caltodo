@@ -56,12 +56,19 @@ export default function CalendarDayCell({
   const visibleTasks = expanded ? tasks : tasks.slice(0, maxVisible);
   const overflow = tasks.length - maxVisible;
 
+  /** Max colored dots to show on mobile before "+N". */
+  const maxDots = 4;
+  const dotTasks = tasks.slice(0, maxDots);
+  const dotOverflow = tasks.length - maxDots;
+
   return (
     <div
-      className={`p-1 md:p-1.5 ${isLastCol ? "" : "border-r"} border-b border-gray-300 dark:border-gray-600 transition-colors relative ${
+      className={`p-0.5 md:p-1.5 ${isLastCol ? "" : "border-r"} border-b border-gray-300 dark:border-gray-600 transition-colors relative ${
         !isCurrentMonth
           ? "bg-muted/40"
-          : "bg-card"
+          : isSelected && isMobile
+            ? "bg-muted/60"
+            : "bg-card"
       } hover:bg-muted/50`}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -71,76 +78,111 @@ export default function CalendarDayCell({
         onDayClick(dateStr, rect);
       }}
     >
-      {/* Day number + add button row */}
-      <div className="flex items-center justify-between mb-1.5">
-        <span
-          className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-[11px] leading-none transition-all duration-200 ease-out ${
-            isToday
-              ? "bg-[#007AFF] text-white font-bold"
-              : isSelected
-                ? "bg-gray-800 dark:bg-white text-white dark:text-gray-900 font-bold"
-                : isCurrentMonth
-                  ? "bg-transparent text-foreground font-medium"
-                  : "bg-transparent text-muted-foreground/60"
-          }`}
-        >
-          {format(day, "d")}
-        </span>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            const rect = e.currentTarget.getBoundingClientRect();
-            onDayClick(dateStr, new DOMRect(rect.left, rect.bottom + 4, rect.width, 1));
-          }}
-          className={`w-4 h-4 rounded-full items-center justify-center text-muted-foreground hover:bg-gray-300 dark:hover:bg-gray-600 hover:text-foreground transition-all hidden md:flex ${
-            hovered && !addingDate ? "opacity-100" : "opacity-0 pointer-events-none"
-          }`}
-        >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-        </button>
-      </div>
-
-      {/* "(No title)" placeholder when this day is being added to */}
-      {addingDate === dateStr && (
-        <div className="bg-blue-500 text-white text-[10px] font-medium px-1.5 py-0.5 rounded truncate mb-0.5">
-          (No title)
+      {/* Mobile: centered day number + dots below */}
+      {isMobile ? (
+        <div className="flex flex-col items-center justify-start h-full pt-1 gap-1">
+          <span
+            className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs leading-none transition-all duration-200 ease-out ${
+              isToday
+                ? "bg-[#007AFF] text-white font-bold"
+                : isSelected
+                  ? "bg-gray-800 dark:bg-white text-white dark:text-gray-900 font-bold"
+                  : isCurrentMonth
+                    ? "bg-transparent text-foreground font-medium"
+                    : "bg-transparent text-muted-foreground/60"
+            }`}
+          >
+            {format(day, "d")}
+          </span>
+          {/* Colored dots for tasks */}
+          {tasks.length > 0 && (
+            <div className="flex items-center justify-center gap-[3px] flex-wrap max-w-[36px]">
+              {dotTasks.map((task) => (
+                <span
+                  key={task.id}
+                  className={`w-[5px] h-[5px] rounded-full shrink-0 ${task.is_completed ? "opacity-40" : ""}`}
+                  style={{ backgroundColor: task.color || "#6b7280" }}
+                />
+              ))}
+              {dotOverflow > 0 && (
+                <span className="text-[8px] text-muted-foreground leading-none">+{dotOverflow}</span>
+              )}
+            </div>
+          )}
         </div>
+      ) : (
+        <>
+          {/* Desktop: day number + add button row */}
+          <div className="flex items-center justify-between mb-1.5">
+            <span
+              className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-[11px] leading-none transition-all duration-200 ease-out ${
+                isToday
+                  ? "bg-[#007AFF] text-white font-bold"
+                  : isSelected
+                    ? "bg-gray-800 dark:bg-white text-white dark:text-gray-900 font-bold"
+                    : isCurrentMonth
+                      ? "bg-transparent text-foreground font-medium"
+                      : "bg-transparent text-muted-foreground/60"
+              }`}
+            >
+              {format(day, "d")}
+            </span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                const rect = e.currentTarget.getBoundingClientRect();
+                onDayClick(dateStr, new DOMRect(rect.left, rect.bottom + 4, rect.width, 1));
+              }}
+              className={`w-4 h-4 rounded-full items-center justify-center text-muted-foreground hover:bg-gray-300 dark:hover:bg-gray-600 hover:text-foreground transition-all flex ${
+                hovered && !addingDate ? "opacity-100" : "opacity-0 pointer-events-none"
+              }`}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+            </button>
+          </div>
+
+          {/* "(No title)" placeholder when this day is being added to */}
+          {addingDate === dateStr && (
+            <div className="bg-blue-500 text-white text-[10px] font-medium px-1.5 py-0.5 rounded truncate mb-0.5">
+              (No title)
+            </div>
+          )}
+
+          {/* Task bars — desktop only */}
+          <div className="flex flex-col gap-0.5">
+            {visibleTasks.map((task) => (
+              <CalendarTaskBar key={task.id} task={task} onClick={onTaskClick} />
+            ))}
+            {overflow > 0 && !expanded && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setExpanded(true);
+                }}
+                className="text-[10px] text-blue-500 font-semibold hover:text-blue-700 hover:underline px-0.5 text-left transition-all"
+              >
+                +{overflow} more
+              </button>
+            )}
+            {expanded && overflow > 0 && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setExpanded(false);
+                }}
+                className="text-[10px] text-muted-foreground hover:text-foreground hover:underline px-0.5 text-left transition-all"
+              >
+                show less
+              </button>
+            )}
+          </div>
+        </>
       )}
-
-      {/* Task bars */}
-      <div className="flex flex-col gap-0.5">
-        {visibleTasks.map((task) => (
-          <CalendarTaskBar key={task.id} task={task} onClick={onTaskClick} />
-        ))}
-        {overflow > 0 && !expanded && (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setExpanded(true);
-            }}
-            className="text-[10px] text-blue-500 font-semibold hover:text-blue-700 hover:underline px-0.5 text-left transition-all"
-          >
-            +{overflow} more
-          </button>
-        )}
-        {expanded && overflow > 0 && (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setExpanded(false);
-            }}
-            className="text-[10px] text-muted-foreground hover:text-foreground hover:underline px-0.5 text-left transition-all"
-          >
-            show less
-          </button>
-        )}
-      </div>
-
     </div>
   );
 }

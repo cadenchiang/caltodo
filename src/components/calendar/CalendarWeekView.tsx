@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { format, isSameDay, startOfWeek, addDays } from "date-fns";
 import type { Task } from "@/lib/types";
 
@@ -59,6 +59,14 @@ export default function CalendarWeekView({
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
   const tasksByDate: Record<string, Task[]> = {};
   for (const task of tasks) {
     if (task.due_date) {
@@ -99,7 +107,7 @@ export default function CalendarWeekView({
         })}
       </div>
 
-      {/* Day columns with task cards */}
+      {/* Day columns with task cards (desktop) or dots (mobile) */}
       <div className="grid grid-cols-7 flex-1 min-h-0 overflow-y-auto">
         {days.map((day, i) => {
           const dateStr = format(day, "yyyy-MM-dd");
@@ -111,6 +119,7 @@ export default function CalendarWeekView({
               dateStr={dateStr}
               tasks={dayTasks}
               isLastCol={isLastCol}
+              isMobile={isMobile}
               onDayClick={onDayClick}
               onTaskClick={onTaskClick}
             />
@@ -128,49 +137,78 @@ function WeekDayColumn({
   dateStr,
   tasks,
   isLastCol,
+  isMobile,
   onDayClick,
   onTaskClick,
 }: {
   dateStr: string;
   tasks: Task[];
   isLastCol: boolean;
+  isMobile: boolean;
   onDayClick: (date: string, rect: DOMRect) => void;
   onTaskClick: (task: Task, rect: DOMRect) => void;
 }) {
   const [hovered, setHovered] = useState(false);
+  const maxDots = 4;
 
   return (
     <div
       className={`${isLastCol ? "" : "border-r"} border-gray-300 dark:border-gray-600 p-1 md:p-1.5 flex flex-col gap-1 md:gap-1.5 hover:bg-muted/30 transition-colors`}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      onDoubleClick={(e) => {
+      onClick={isMobile ? (e) => {
+        const rect = e.currentTarget.getBoundingClientRect();
+        onDayClick(dateStr, new DOMRect(rect.left, rect.bottom + 4, rect.width, 1));
+      } : undefined}
+      onDoubleClick={!isMobile ? (e) => {
         const rect = new DOMRect(e.clientX - 40, e.clientY, 80, 1);
         onDayClick(dateStr, rect);
-      }}
+      } : undefined}
     >
-      {/* + icon row — always takes space so tasks don't overlap */}
-      <div className="flex justify-end h-5 shrink-0">
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            const rect = e.currentTarget.getBoundingClientRect();
-            onDayClick(dateStr, new DOMRect(rect.left, rect.bottom + 4, rect.width, 1));
-          }}
-          className={`w-5 h-5 rounded-full flex items-center justify-center text-muted-foreground hover:bg-gray-300 dark:hover:bg-gray-600 hover:text-foreground transition-all ${
-            hovered ? "opacity-100" : "opacity-0 pointer-events-none"
-          }`}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-        </button>
-      </div>
+      {isMobile ? (
+        /* Mobile: centered colored dots */
+        <div className="flex flex-col items-center justify-start pt-1 gap-1.5">
+          {tasks.length > 0 && (
+            <div className="flex items-center justify-center gap-[3px] flex-wrap max-w-[36px]">
+              {tasks.slice(0, maxDots).map((task) => (
+                <span
+                  key={task.id}
+                  className={`w-[5px] h-[5px] rounded-full shrink-0 ${task.is_completed ? "opacity-40" : ""}`}
+                  style={{ backgroundColor: task.color || "#6b7280" }}
+                />
+              ))}
+              {tasks.length > maxDots && (
+                <span className="text-[8px] text-muted-foreground leading-none">+{tasks.length - maxDots}</span>
+              )}
+            </div>
+          )}
+        </div>
+      ) : (
+        <>
+          {/* Desktop: + icon row and full task cards */}
+          <div className="flex justify-end h-5 shrink-0">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                const rect = e.currentTarget.getBoundingClientRect();
+                onDayClick(dateStr, new DOMRect(rect.left, rect.bottom + 4, rect.width, 1));
+              }}
+              className={`w-5 h-5 rounded-full flex items-center justify-center text-muted-foreground hover:bg-gray-300 dark:hover:bg-gray-600 hover:text-foreground transition-all ${
+                hovered ? "opacity-100" : "opacity-0 pointer-events-none"
+              }`}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+            </button>
+          </div>
 
-      {tasks.map((task) => (
-        <WeekTaskCard key={task.id} task={task} onTaskClick={onTaskClick} />
-      ))}
+          {tasks.map((task) => (
+            <WeekTaskCard key={task.id} task={task} onTaskClick={onTaskClick} />
+          ))}
+        </>
+      )}
     </div>
   );
 }
@@ -212,7 +250,7 @@ function WeekTaskCard({
     >
       <p className={`text-[11px] md:text-[13px] font-semibold leading-snug flex items-center gap-1 ${task.is_completed ? "line-through" : ""}`} style={{ color }}>
         {task.is_completed && (
-          <svg className="w-3.5 h-3.5 shrink-0" style={{ color }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+          <svg className="w-3.5 h-3.5 shrink-0 hidden md:block" style={{ color }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="20 6 9 17 4 12" />
           </svg>
         )}

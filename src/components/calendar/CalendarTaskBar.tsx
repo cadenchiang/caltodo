@@ -52,7 +52,7 @@ export default function CalendarTaskBar({ task, onClick }: CalendarTaskBarProps)
       title={task.title}
     >
       {task.is_completed && (
-        <svg className="w-3 h-3 shrink-0 mr-1" style={{ color }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+        <svg className="w-3 h-3 shrink-0 mr-1 hidden md:block" style={{ color }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
           <polyline points="20 6 9 17 4 12" />
         </svg>
       )}

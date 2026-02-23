@@ -82,6 +82,18 @@ export default function LoginForm() {
     const isDesktop = typeof window !== "undefined" && window.innerWidth >= 768;
 
     if (isDesktop) {
+      // Open popup immediately (in the click handler) to avoid browser blocking.
+      // Navigating it after the async call preserves the user-gesture trust.
+      const width = 500;
+      const height = 600;
+      const left = window.screenX + (window.outerWidth - width) / 2;
+      const top = window.screenY + (window.outerHeight - height) / 2;
+      const popup = window.open(
+        "about:blank",
+        "google-auth",
+        `width=${width},height=${height},left=${left},top=${top},popup=true`
+      );
+
       const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
@@ -92,28 +104,21 @@ export default function LoginForm() {
 
       if (oauthError) {
         setError(oauthError.message);
+        popup?.close();
         return;
       }
 
       if (data?.url) {
-        const width = 500;
-        const height = 600;
-        const left = window.screenX + (window.outerWidth - width) / 2;
-        const top = window.screenY + (window.outerHeight - height) / 2;
-        const popup = window.open(
-          data.url,
-          "google-auth",
-          `width=${width},height=${height},left=${left},top=${top},popup=true`
-        );
-
         if (!popup || popup.closed) {
-          // Popup blocked — fall back to full redirect
+          // Popup was closed before URL was ready — fall back to full redirect
           await supabase.auth.signInWithOAuth({
             provider: "google",
             options: { redirectTo: `${window.location.origin}/auth/callback` },
           });
           return;
         }
+
+        popup.location.href = data.url;
 
         /**
          * Polls the popup window until it either closes or navigates back to our
