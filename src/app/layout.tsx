@@ -24,12 +24,12 @@ const instrumentSerif = Instrument_Serif({
 });
 
 export const metadata: Metadata = {
-  title: "caltodo — assignment tracker for UC Berkeley students",
+  title: "Caltodo",
   description: "Your assignments, synced and organized. Connect bCourses and Gradescope to automatically track every deadline in one place.",
   metadataBase: new URL("https://caltodo.me"),
   alternates: { canonical: "/" },
   openGraph: {
-    title: "caltodo — assignment tracker for UC Berkeley students",
+    title: "Caltodo",
     description: "your assignments, synced and organized.",
     url: "https://caltodo.me",
     siteName: "caltodo",
@@ -45,7 +45,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "caltodo — assignment tracker for UC Berkeley students",
+    title: "Caltodo",
     description: "your assignments, synced and organized.",
     images: ["/og-image.png"],
   },

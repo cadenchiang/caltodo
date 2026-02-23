@@ -287,6 +287,10 @@ export default function GoogleCalendarSettings() {
       setGoogleEmail(null);
       setGooglePhotoUrl(null);
       try { localStorage.removeItem(GCAL_CACHE_KEY); } catch { /* ignore */ }
+      // Notify header/sidebar to update GCal badge
+      try {
+        window.dispatchEvent(new CustomEvent("gcal-status-change", { detail: { connected: false } }));
+      } catch { /* ignore SSR */ }
       showToast("Google Calendar disconnected.");
     } catch {
       showToast("Failed to disconnect Google Calendar.");
@@ -427,7 +431,7 @@ export default function GoogleCalendarSettings() {
           <div className="h-1 w-full bg-muted overflow-hidden">
             {syncProgress && syncProgress.total > 0 ? (
               <div
-                className="h-full bg-blue-500 transition-all duration-300 ease-out"
+                className="h-full bg-blue-500 transition-all duration-700 ease-out"
                 style={{ width: `${Math.round((syncProgress.synced / syncProgress.total) * 100)}%` }}
               />
             ) : (

@@ -10,8 +10,8 @@
 
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { decrypt } from "@/lib/crypto";
 import { deleteCaltodoCalendar } from "@/lib/gcal/calendar-client";
+import { getValidAccessToken } from "@/lib/gcal/token-manager";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
 
@@ -31,10 +31,10 @@ export async function POST() {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
 
-  // Fetch stored tokens and calendar ID
+  // Fetch calendar ID for deletion
   const { data, error: fetchError } = await supabase
     .from("integration_credentials")
-    .select("google_access_token_encrypted, google_calendar_id")
+    .select("google_calendar_id")
     .eq("user_id", user.id)
     .single();
 
@@ -46,48 +46,41 @@ export async function POST() {
     return NextResponse.json({ error: "Failed to fetch credentials" }, { status: 500 });
   }
 
-  // Delete the caltodo calendar and revoke token
-  if (data?.google_access_token_encrypted) {
-    let accessToken: string;
+  // Get a valid (auto-refreshed) access token before deleting
+  const accessToken = await getValidAccessToken(supabase, user.id);
+
+  if (accessToken) {
+    // Delete the entire caltodo calendar (removes all events with it)
+    if (data?.google_calendar_id) {
+      logger.info("POST /api/gcal/disconnect: deleting caltodo calendar", {
+        userId: user.id,
+        calendarId: data.google_calendar_id,
+      });
+      await deleteCaltodoCalendar(accessToken, data.google_calendar_id);
+    }
+
+    // Revoke the token (best-effort)
     try {
-      accessToken = decrypt(data.google_access_token_encrypted);
+      const revokeRes = await fetch(
+        `${GOOGLE_REVOKE_URL}?token=${encodeURIComponent(accessToken)}`,
+        { method: "POST" }
+      );
+      if (!revokeRes.ok) {
+        logger.warn("POST /api/gcal/disconnect: token revocation failed", {
+          userId: user.id,
+          status: revokeRes.status,
+        });
+      }
     } catch (err) {
-      logger.warn("POST /api/gcal/disconnect: failed to decrypt token", {
+      logger.warn("POST /api/gcal/disconnect: error during token revocation", {
         userId: user.id,
         error: err instanceof Error ? err.message : String(err),
       });
-      accessToken = "";
     }
-
-    if (accessToken) {
-      // Delete the entire caltodo calendar (removes all events with it)
-      if (data.google_calendar_id) {
-        logger.info("POST /api/gcal/disconnect: deleting caltodo calendar", {
-          userId: user.id,
-          calendarId: data.google_calendar_id,
-        });
-        await deleteCaltodoCalendar(accessToken, data.google_calendar_id);
-      }
-
-      // Revoke the token (best-effort)
-      try {
-        const revokeRes = await fetch(
-          `${GOOGLE_REVOKE_URL}?token=${encodeURIComponent(accessToken)}`,
-          { method: "POST" }
-        );
-        if (!revokeRes.ok) {
-          logger.warn("POST /api/gcal/disconnect: token revocation failed", {
-            userId: user.id,
-            status: revokeRes.status,
-          });
-        }
-      } catch (err) {
-        logger.warn("POST /api/gcal/disconnect: error during token revocation", {
-          userId: user.id,
-          error: err instanceof Error ? err.message : String(err),
-        });
-      }
-    }
+  } else {
+    logger.warn("POST /api/gcal/disconnect: no valid token, skipping calendar deletion", {
+      userId: user.id,
+    });
   }
 
   // Clear Google columns from integration_credentials

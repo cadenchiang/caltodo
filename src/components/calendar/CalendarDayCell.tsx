@@ -74,14 +74,14 @@ export default function CalendarDayCell({
       {/* Day number + add button row */}
       <div className="flex items-center justify-between mb-1.5">
         <span
-          className={`inline-flex items-center justify-center text-[11px] leading-none ${
+          className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-[11px] leading-none transition-all duration-200 ease-out ${
             isToday
-              ? "w-5 h-5 rounded-full bg-[#007AFF] text-white font-bold"
+              ? "bg-[#007AFF] text-white font-bold"
               : isSelected
-                ? "w-5 h-5 rounded-full bg-gray-800 dark:bg-white text-white dark:text-gray-900 font-bold"
+                ? "bg-gray-800 dark:bg-white text-white dark:text-gray-900 font-bold"
                 : isCurrentMonth
-                  ? "text-foreground font-medium"
-                  : "text-muted-foreground/60"
+                  ? "bg-transparent text-foreground font-medium"
+                  : "bg-transparent text-muted-foreground/60"
           }`}
         >
           {format(day, "d")}

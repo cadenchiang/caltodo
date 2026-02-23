@@ -229,7 +229,7 @@ export default function CalendarHeader({
           <button
             key={mode}
             onClick={() => onViewModeChange(mode)}
-            className={`px-2.5 py-1 md:px-4 md:py-1.5 text-xs md:text-sm font-medium capitalize transition-all duration-150 ${
+            className={`px-2.5 py-1 md:px-4 md:py-1.5 text-xs md:text-sm font-medium capitalize transition-all duration-200 ease-out ${
               viewMode === mode
                 ? "bg-white dark:bg-gray-700 text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"

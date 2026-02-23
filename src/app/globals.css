@@ -465,18 +465,23 @@ body {
   animation-delay: 1200ms;
 }
 
-/* Sync bar — indeterminate sliding animation for integration cards */
+/* Sync bar — smooth indeterminate sliding animation for integration cards */
 @keyframes syncBar {
   0% {
     transform: translateX(-100%);
+    width: 33%;
+  }
+  50% {
+    width: 50%;
   }
   100% {
-    transform: translateX(400%);
+    transform: translateX(300%);
+    width: 33%;
   }
 }
 
 .animate-sync-bar {
-  animation: syncBar 1.2s ease-in-out infinite;
+  animation: syncBar 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
 /* Elevated button — press-in hover effect (primary: dark bg, secondary: light bg) */
@@ -671,18 +676,18 @@ textarea:-webkit-autofill {
   animation: announceCardOut 200ms ease-in both;
 }
 
-/* Sync progress bar — subtle pulsing glow */
+/* Sync progress bar — subtle smooth glow */
 @keyframes syncGlow {
   0%, 100% {
-    box-shadow: 0 0 4px rgba(59, 130, 246, 0.3), 0 0 8px rgba(59, 130, 246, 0.15);
+    opacity: 0.7;
   }
   50% {
-    box-shadow: 0 0 8px rgba(59, 130, 246, 0.5), 0 0 16px rgba(59, 130, 246, 0.25);
+    opacity: 1;
   }
 }
 
 .animate-sync-glow {
-  animation: syncGlow 1.5s ease-in-out infinite;
+  animation: syncGlow 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
 /* Task item entrance animation for optimistic add */
