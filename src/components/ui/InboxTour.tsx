@@ -89,7 +89,7 @@ const TOUR_STEPS: TourStep[] = [
     targetId: "tour-calendar-grid",
     title: "Calendar",
     icon: <CalendarDays size={ICON_SIZE} />,
-    description: "See deadlines on a monthly view. Click a day to add or edit tasks.",
+    description: "See deadlines on a monthly view. Double-click a day or press + to add tasks.",
     position: "top",
     route: "/app/calendar",
     clickTargetId: "tour-nav-calendar",

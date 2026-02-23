@@ -3,11 +3,13 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { format } from "date-fns";
-import { CalendarDays, ChevronLeft, ChevronRight, Unlink, XCircle, Check } from "lucide-react";
+import { ChevronLeft, ChevronRight, Unlink, XCircle, Check } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 
 /** localStorage key matching GoogleCalendarSettings cache. */
 const GCAL_CACHE_KEY = "gcal_status";
+
+export type CalendarViewMode = "month" | "week" | "day";
 
 /**
  * Inline Google Calendar logo SVG with "31" date for brand recognition.
@@ -32,36 +34,38 @@ function GCalIcon({ size = 12 }: { size?: number }) {
 
 interface CalendarHeaderProps {
   currentMonth: Date;
-  onPrevMonth: () => void;
-  onNextMonth: () => void;
+  /** Title text to display (e.g. "February 2026", "Feb 8 - Feb 14, 2026"). */
+  title: string;
+  viewMode: CalendarViewMode;
+  onViewModeChange: (mode: CalendarViewMode) => void;
+  onPrev: () => void;
+  onNext: () => void;
   onToday: () => void;
 }
 
 /**
- * Calendar header with month/year display, navigation controls,
- * and a GCal sync status tag when connected.
- * The tag opens a popover with a disconnect option.
- * Reads cached GCal status from localStorage for instant render.
- *
- * @param currentMonth - The currently displayed month
- * @param onPrevMonth - Navigate to previous month
- * @param onNextMonth - Navigate to next month
- * @param onToday - Navigate to current month
+ * Calendar header with navigation, view toggle, and GCal sync status.
+ * Layout: [Today] [<] [>] Title ... [GCal badge] [Month|Week|Day]
  */
 export default function CalendarHeader({
   currentMonth,
-  onPrevMonth,
-  onNextMonth,
+  title,
+  viewMode,
+  onViewModeChange,
+  onPrev,
+  onNext,
   onToday,
 }: CalendarHeaderProps) {
   const { showToast } = useToast();
-
-  // null = unknown (loading), true/false = resolved status
   const [gcalConnected, setGcalConnected] = useState<boolean | null>(null);
   const [gcalEmail, setGcalEmail] = useState<string | null>(null);
   const [gcalPhotoUrl, setGcalPhotoUrl] = useState<string | null>(null);
+  const [showPopover, setShowPopover] = useState(false);
+  const [confirmDisconnect, setConfirmDisconnect] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
 
-  // Hydrate from localStorage cache on mount (client-only) for instant render
   useEffect(() => {
     try {
       const raw = localStorage.getItem(GCAL_CACHE_KEY);
@@ -73,18 +77,8 @@ export default function CalendarHeader({
         return;
       }
     } catch { /* ignore */ }
-    // No cache — leave as null until API responds
   }, []);
 
-  const [showPopover, setShowPopover] = useState(false);
-  const [confirmDisconnect, setConfirmDisconnect] = useState(false);
-  const [disconnecting, setDisconnecting] = useState(false);
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const popoverRef = useRef<HTMLDivElement>(null);
-
-  /**
-   * Fetches GCal connection status on mount to confirm cache.
-   */
   const checkGcalStatus = useCallback(async () => {
     try {
       const res = await fetch("/api/credentials");
@@ -94,8 +88,6 @@ export default function CalendarHeader({
         setGcalConnected(isConnected);
         setGcalEmail(data.google_email ?? null);
         setGcalPhotoUrl(data.google_photo_url ?? null);
-
-        // Write cache so next load hydrates instantly
         try {
           localStorage.setItem(GCAL_CACHE_KEY, JSON.stringify({
             connected: isConnected,
@@ -105,18 +97,11 @@ export default function CalendarHeader({
           }));
         } catch { /* ignore */ }
       }
-    } catch {
-      // Non-critical
-    }
+    } catch { /* non-critical */ }
   }, []);
 
-  useEffect(() => {
-    checkGcalStatus();
-  }, [checkGcalStatus]);
+  useEffect(() => { checkGcalStatus(); }, [checkGcalStatus]);
 
-  /**
-   * Closes the popover when clicking outside.
-   */
   useEffect(() => {
     if (!showPopover) return;
     function handleClickOutside(e: MouseEvent) {
@@ -133,9 +118,6 @@ export default function CalendarHeader({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showPopover]);
 
-  /**
-   * Disconnects Google Calendar with double-click confirmation.
-   */
   async function handleDisconnect() {
     if (!confirmDisconnect) {
       setConfirmDisconnect(true);
@@ -161,137 +143,102 @@ export default function CalendarHeader({
     }
   }
 
-  /**
-   * Compute popover position anchored directly below the Synced button.
-   * Uses pre-calculated left offset instead of CSS transform to avoid
-   * a visual glitch where the popover briefly renders off-center.
-   */
   function getPopoverStyle(): React.CSSProperties {
     if (!buttonRef.current) return {};
     const rect = buttonRef.current.getBoundingClientRect();
-    const popoverWidth = 220;
-    return {
-      position: "fixed",
-      top: rect.bottom + 8,
-      left: Math.max(8, rect.left + rect.width / 2 - popoverWidth / 2),
-    };
+    return { position: "fixed", top: rect.bottom + 8, left: Math.max(8, rect.left + rect.width / 2 - 110) };
   }
 
+  const VIEW_MODES: CalendarViewMode[] = ["month", "week", "day"];
+
   return (
-    <div className="relative z-10 flex flex-col gap-2 md:flex-row md:items-center md:justify-between mb-3 md:mb-5">
-      {/* Row 1: title + nav buttons */}
-      <div className="flex items-center justify-between gap-4 w-full">
-        <div className="flex items-center gap-3 min-w-0">
-          <h1 className="text-lg md:text-2xl font-bold text-foreground flex items-center gap-2 shrink-0">
-            <CalendarDays size={18} className="md:w-[22px] md:h-[22px]" />
-            <span className="md:hidden">{format(currentMonth, "MMM yyyy")}</span>
-            <span className="hidden md:inline">{format(currentMonth, "MMMM yyyy")}</span>
-          </h1>
+    <div className="relative z-10 flex items-center justify-between gap-4 mb-1">
+      {/* Left: Today + nav + title + GCal */}
+      <div className="flex items-center gap-2 min-w-0">
+        <button
+          onClick={onToday}
+          className="px-3.5 py-1.5 text-sm font-medium text-foreground rounded-lg border border-input-border hover:bg-accent active:scale-95 transition-all shrink-0"
+        >
+          Today
+        </button>
+        <button onClick={onPrev} className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-accent transition-all">
+          <ChevronLeft size={18} />
+        </button>
+        <button onClick={onNext} className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-accent transition-all">
+          <ChevronRight size={18} />
+        </button>
+        <h1 className="text-2xl font-bold text-foreground truncate ml-1">{title}</h1>
 
-          {/* GCal synced tag — inline next to title */}
-          {gcalConnected && (
-            <div className="relative">
-              <button
-                ref={buttonRef}
-                onClick={() => setShowPopover(!showPopover)}
-                className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-colors"
-              >
-                <GCalIcon size={12} />
-                Synced
-              </button>
-
-              {/* Disconnect popover — rendered via portal to escape glass stacking context */}
-              {showPopover && createPortal(
-                <div
-                  ref={popoverRef}
-                  style={getPopoverStyle()}
-                  className="z-[9999] bg-white dark:bg-neutral-800 border border-border rounded-xl shadow-xl dark:shadow-black/40 p-3.5 min-w-[220px] animate-popover-in"
-                >
-                  {/* Account info */}
-                  {gcalEmail && (
-                    <div className="flex items-center gap-2.5 mb-3">
-                      {gcalPhotoUrl ? (
-                        <img
-                          src={gcalPhotoUrl}
-                          alt=""
-                          width={28}
-                          height={28}
-                          className="rounded-full shrink-0"
-                          referrerPolicy="no-referrer"
-                        />
-                      ) : (
-                        <div className="w-7 h-7 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-medium shrink-0">
-                          {gcalEmail[0].toUpperCase()}
-                        </div>
-                      )}
-                      <span className="text-xs text-foreground font-medium truncate">{gcalEmail}</span>
-                      <Check size={14} className="text-emerald-500 shrink-0" />
-                    </div>
-                  )}
-                  <p className="text-xs text-subtle-foreground mb-3">
-                    Tasks are synced to Google Calendar in real time.
-                  </p>
-                  <button
-                    onClick={handleDisconnect}
-                    disabled={disconnecting}
-                    className={`w-full flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg transition-all disabled:opacity-60 ${
-                      confirmDisconnect
-                        ? "bg-red-50 dark:bg-red-500/10 text-red-500 border border-red-200 dark:border-red-500/20"
-                        : "text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 border border-border"
-                    }`}
-                  >
-                    {confirmDisconnect ? <XCircle size={12} /> : <Unlink size={12} />}
-                    {confirmDisconnect
-                      ? "Click again to confirm"
-                      : disconnecting
-                        ? "Disconnecting..."
-                        : "Disconnect"}
-                  </button>
-                </div>,
-                document.body
-              )}
-            </div>
-          )}
-
-          {/* GCal CTA — glassy pill when not connected */}
-          {gcalConnected === false && (
-            <a
-              href="/app/settings?section=integrations"
-              title="Connect Google Calendar in Settings"
-              className="active:scale-95 transition-transform duration-150"
+        {/* GCal synced tag */}
+        {gcalConnected && (
+          <div className="relative shrink-0">
+            <button
+              ref={buttonRef}
+              onClick={() => setShowPopover(!showPopover)}
+              className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-colors"
             >
-              <div className="rounded-full backdrop-blur-xl bg-white/70 dark:bg-white/[0.06] border border-blue-200/60 dark:border-blue-500/20 px-3 py-1.5 flex items-center gap-1.5">
-                <GCalIcon size={14} />
-                <span className="text-xs font-medium text-blue-600/80 dark:text-blue-300/70">
-                  <span className="md:hidden">Sync GCal</span>
-                  <span className="hidden md:inline">Sync Google Calendar</span>
-                </span>
-              </div>
-            </a>
-          )}
-        </div>
-        <div className="flex items-center gap-1.5 shrink-0">
-          <button
-            onClick={onToday}
-            className="px-3 py-1.5 text-xs md:text-sm font-medium text-foreground rounded-lg md:rounded-xl bg-transparent border border-input-border hover:bg-accent active:scale-95 transition-all duration-150"
-          >
-            Today
-          </button>
-          <button
-            onClick={onPrevMonth}
-            className="p-2 text-subtle-foreground hover:text-secondary-foreground rounded-xl hover:bg-accent transition-all"
-          >
-            <ChevronLeft size={18} />
-          </button>
-          <button
-            onClick={onNextMonth}
-            className="p-2 text-subtle-foreground hover:text-secondary-foreground rounded-xl hover:bg-accent transition-all"
-          >
-            <ChevronRight size={18} />
-          </button>
-        </div>
+              <GCalIcon size={12} />
+              Synced
+            </button>
+            {showPopover && createPortal(
+              <div ref={popoverRef} style={getPopoverStyle()} className="z-[9999] bg-white dark:bg-neutral-800 border border-border rounded-xl shadow-xl dark:shadow-black/40 p-3.5 min-w-[220px] animate-popover-in">
+                {gcalEmail && (
+                  <div className="flex items-center gap-2.5 mb-3">
+                    {gcalPhotoUrl ? (
+                      <img src={gcalPhotoUrl} alt="" width={28} height={28} className="rounded-full shrink-0" referrerPolicy="no-referrer" />
+                    ) : (
+                      <div className="w-7 h-7 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-medium shrink-0">
+                        {gcalEmail[0].toUpperCase()}
+                      </div>
+                    )}
+                    <span className="text-xs text-foreground font-medium truncate">{gcalEmail}</span>
+                    <Check size={14} className="text-emerald-500 shrink-0" />
+                  </div>
+                )}
+                <p className="text-xs text-subtle-foreground mb-3">Tasks are synced to Google Calendar in real time.</p>
+                <button
+                  onClick={handleDisconnect}
+                  disabled={disconnecting}
+                  className={`w-full flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg transition-all disabled:opacity-60 ${
+                    confirmDisconnect
+                      ? "bg-red-50 dark:bg-red-500/10 text-red-500 border border-red-200 dark:border-red-500/20"
+                      : "text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 border border-border"
+                  }`}
+                >
+                  {confirmDisconnect ? <XCircle size={12} /> : <Unlink size={12} />}
+                  {confirmDisconnect ? "Click again to confirm" : disconnecting ? "Disconnecting..." : "Disconnect"}
+                </button>
+              </div>,
+              document.body
+            )}
+          </div>
+        )}
+        {gcalConnected === false && (
+          <a href="/app/settings?section=integrations" title="Connect Google Calendar" className="active:scale-95 transition-transform shrink-0">
+            <div className="rounded-full backdrop-blur-xl bg-white/70 dark:bg-white/[0.06] border border-blue-200/60 dark:border-blue-500/20 px-3 py-1.5 flex items-center gap-1.5">
+              <GCalIcon size={14} />
+              <span className="text-xs font-medium text-blue-600/80 dark:text-blue-300/70">Sync GCal</span>
+            </div>
+          </a>
+        )}
       </div>
 
+      {/* Right: View mode segmented control */}
+      <div className="flex items-center shrink-0 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800">
+        {VIEW_MODES.map((mode) => (
+          <button
+            key={mode}
+            onClick={() => onViewModeChange(mode)}
+            className={`px-4 py-1.5 text-sm font-medium capitalize transition-all duration-150 ${
+              viewMode === mode
+                ? "bg-white dark:bg-gray-700 text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {mode}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

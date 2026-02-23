@@ -42,6 +42,8 @@ export interface TaskInsert {
   due_date?: string | null;
   due_time?: string | null;
   color?: string;
+  /** Optional course name for board-view column grouping. */
+  course_name?: string | null;
   repeat_interval?: number | null;
   repeat_unit?: "day" | "week" | "month" | null;
   repeat_end_date?: string | null;

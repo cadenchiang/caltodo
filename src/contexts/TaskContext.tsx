@@ -85,6 +85,8 @@ interface TaskContextValue {
   toggleComplete: (id: string) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
   deleteTasksBySource: (source: "canvas" | "gradescope" | "pensieve") => Promise<void>;
+  /** Deletes all tasks matching any of the given course names. Returns count deleted. */
+  deleteTasksByCourseNames: (courseNames: string[]) => Promise<number>;
   deleteAllTasks: () => Promise<void>;
   snoozeTask: (id: string, hours: number) => Promise<void>;
   unsnoozeTask: (id: string) => Promise<void>;
@@ -104,7 +106,7 @@ const TaskContext = createContext<TaskContextValue | null>(null);
  * Cache hydration happens in useEffect to avoid SSR/client hydration mismatch.
  */
 export function TaskProvider({ children }: { children: ReactNode }) {
-  const { showToast } = useToast();
+  const { showToast, updateToastProgress } = useToast();
   const { addNotification } = useNotifications();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
@@ -307,7 +309,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       updated_at: new Date().toISOString(),
       source: null,
       external_id: null,
-      course_name: null,
+      course_name: taskData.course_name ?? null,
       source_url: null,
       points_possible: null,
       is_submitted: false,
@@ -654,6 +656,51 @@ export function TaskProvider({ children }: { children: ReactNode }) {
   }
 
   /**
+   * Deletes all tasks whose course_name matches any of the given names.
+   * Hard-deletes from Supabase and optimistically removes from local state.
+   *
+   * @param courseNames - Array of course name strings to match
+   * @returns Number of tasks deleted (0 if none matched or on error)
+   */
+  async function deleteTasksByCourseNames(courseNames: string[]): Promise<number> {
+    if (!userId || courseNames.length === 0) return 0;
+
+    const matchingTasks = tasks.filter(
+      (t) => t.course_name && courseNames.includes(t.course_name)
+    );
+    if (matchingTasks.length === 0) return 0;
+
+    const count = matchingTasks.length;
+    const matchingIds = new Set(matchingTasks.map((t) => t.id));
+    const previousTasks = [...tasks];
+
+    // Optimistic: remove matching tasks from local state
+    setTasks((prev) => {
+      const updated = prev.filter((t) => !matchingIds.has(t.id));
+      setCachedTasks(updated);
+      taskBaselineRef.current = updated;
+      return updated;
+    });
+
+    // Hard-delete from Supabase
+    const { error: deleteError } = await supabase
+      .from("tasks")
+      .delete()
+      .eq("user_id", userId)
+      .in("course_name", courseNames);
+
+    if (deleteError) {
+      setError(deleteError.message);
+      setTasks(previousTasks);
+      setCachedTasks(previousTasks);
+      fetchTasks();
+      return 0;
+    }
+
+    return count;
+  }
+
+  /**
    * Deletes all tasks for the current user.
    * Synced tasks are soft-deleted (dismissed_at set) to prevent sync resurrection.
    * Manual tasks are hard-deleted since they can't reappear.
@@ -702,8 +749,15 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     setSyncing(true);
     setError(null);
     setSyncResult(null);
-    showToast("Syncing assignments...", { duration: 60_000 });
+    showToast("Syncing assignments...", { duration: 60_000, progress: 0 });
     trackEvent("sync_started");
+
+    // Simulate progress: tick up to 90% while fetch is in-flight
+    let currentProgress = 0;
+    const progressInterval = setInterval(() => {
+      currentProgress = Math.min(currentProgress + 5, 90);
+      updateToastProgress(currentProgress);
+    }, 500);
 
     const snapshot = createTaskSnapshot(taskBaselineRef.current);
 
@@ -722,12 +776,20 @@ export function TaskProvider({ children }: { children: ReactNode }) {
         throw new Error(body.error || `Sync failed: ${res.status}`);
       }
       const result: SyncResult = await res.json();
+
+      // Complete the progress bar before showing the result toast
+      clearInterval(progressInterval);
+      updateToastProgress(100);
+
       setSyncResult(result);
       setLastSyncedAt(result.last_synced_at);
       trackEvent("sync_completed", {
         added: result.canvas.synced + result.gradescope.synced + result.pensieve.synced,
         errors: result.canvas.errors.length + result.gradescope.errors.length + result.pensieve.errors.length,
       });
+
+      // Brief pause so the user sees 100% before the result toast replaces it
+      await new Promise((r) => setTimeout(r, 400));
 
       // Build and show sync result toast globally
       const parts: string[] = [];
@@ -740,6 +802,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
         toastMsg += ` ${syncErrors.map(m => m.replace(/Go to Settings to add them\.?/, "")).join(". ").trim()}`;
       }
       showToast(toastMsg, {
+        duration: 8_000,
         action: {
           label: "Inbox",
           onClick: () => { window.location.href = "/app/inbox"; },
@@ -758,6 +821,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       setError(message);
       // Don't show sync errors in notifications — they're noisy from auto-sync
     } finally {
+      clearInterval(progressInterval);
       setSyncing(false);
     }
   }
@@ -792,6 +856,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
         toggleComplete,
         deleteTask,
         deleteTasksBySource,
+        deleteTasksByCourseNames,
         deleteAllTasks,
         snoozeTask,
         unsnoozeTask,

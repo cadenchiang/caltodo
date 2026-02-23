@@ -16,6 +16,8 @@ type RepeatUnit = "day" | "week" | "month";
 interface BoardTaskAddFormProps {
   onAdd: (task: TaskInsert) => void;
   onCancel: () => void;
+  /** Column course name — auto-sets course_name and tag when not "General". */
+  courseName?: string;
 }
 
 /**
@@ -26,7 +28,7 @@ interface BoardTaskAddFormProps {
  * @param onAdd - Callback with the new task data
  * @param onCancel - Callback when form is dismissed (blur outside)
  */
-export default function BoardTaskAddForm({ onAdd, onCancel }: BoardTaskAddFormProps) {
+export default function BoardTaskAddForm({ onAdd, onCancel, courseName }: BoardTaskAddFormProps) {
   const { availableTags } = useTaskContext();
   const [title, setTitle] = useState("");
   const [dueDate, setDueDate] = useState<string | null>(null);
@@ -69,12 +71,19 @@ export default function BoardTaskAddForm({ onAdd, onCancel }: BoardTaskAddFormPr
     const trimmed = title.trim();
     if (!trimmed) return;
 
+    // Auto-include the column's course name as a tag if not already present
+    const effectiveTags = [...tags];
+    if (courseName && courseName !== "General" && !effectiveTags.includes(courseName)) {
+      effectiveTags.push(courseName);
+    }
+
     onAdd({
       title: trimmed,
       due_date: dueDate,
       due_time: dueTime,
       color,
-      tags: tags.length > 0 ? tags : undefined,
+      course_name: courseName && courseName !== "General" ? courseName : undefined,
+      tags: effectiveTags.length > 0 ? effectiveTags : undefined,
       repeat_interval: repeatInterval,
       repeat_unit: repeatUnit,
       repeat_end_date: repeatEndDate,

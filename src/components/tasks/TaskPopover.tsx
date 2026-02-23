@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { Trash2, ExternalLink, MoreVertical, X, AlignLeft, Clock } from "lucide-react";
+import { Trash2, ExternalLink, MoreVertical, X, AlignLeft, Clock, Tag } from "lucide-react";
 import { format } from "date-fns";
 import type { Task, TaskUpdate } from "@/lib/types";
 import { useTaskContext } from "@/contexts/TaskContext";
@@ -18,6 +18,7 @@ const SNOOZE_PRESETS = [
 import { TASK_COLORS } from "@/lib/constants";
 import { getRepeatLabel } from "@/lib/repeat";
 import DatePicker from "./DatePicker";
+import TagPicker from "./TagPicker";
 import Popover from "@/components/ui/Popover";
 import useClickOutside from "@/hooks/useClickOutside";
 
@@ -119,7 +120,7 @@ function formatDueDate(dueDate: string | null, dueTime?: string | null): string 
  * @param onDelete - Callback to delete the task
  */
 export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelete }: TaskPopoverProps) {
-  const { snoozeTask } = useTaskContext();
+  const { snoozeTask, availableTags } = useTaskContext();
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description);
   const [dueDate, setDueDate] = useState<string | null>(task.due_date);
@@ -132,6 +133,8 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
   const [repeatUnit, setRepeatUnit] = useState<"day" | "week" | "month" | null>(task.repeat_unit);
   const [repeatEndDate, setRepeatEndDate] = useState<string | null>(task.repeat_end_date);
   const [repeatEndCount, setRepeatEndCount] = useState<number | null>(task.repeat_end_count);
+  const [localTags, setLocalTags] = useState<string[]>(task.tags ?? []);
+  const [showTagPicker, setShowTagPicker] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [snoozeOpen, setSnoozeOpen] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
@@ -144,6 +147,7 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
   const titleRef = useRef<HTMLTextAreaElement>(null);
   const colorBtnRef = useRef<HTMLButtonElement>(null);
   const dateBtnRef = useRef<HTMLButtonElement>(null);
+  const tagBtnRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     setTitle(task.title);
@@ -156,10 +160,12 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
     setRepeatUnit(task.repeat_unit);
     setRepeatEndDate(task.repeat_end_date);
     setRepeatEndCount(task.repeat_end_count);
+    setLocalTags(task.tags ?? []);
     setShowDatePicker(false);
     setShowColorPicker(false);
+    setShowTagPicker(false);
     setIsEditingDescription(false);
-  }, [task.id, task.title, task.description, task.due_date, task.due_time, task.color, task.is_completed, task.repeat_interval, task.repeat_unit, task.repeat_end_date, task.repeat_end_count]);
+  }, [task.id, task.title, task.description, task.due_date, task.due_time, task.color, task.is_completed, task.repeat_interval, task.repeat_unit, task.repeat_end_date, task.repeat_end_count, task.tags]);
 
   useEffect(() => {
     setMounted(true);
@@ -501,6 +507,50 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
             )}
           </div>
         )}
+      </div>
+
+      {/* ── Tags section — editable tag chips ── */}
+      <div className="px-5 pb-3">
+        <div className="pl-8 flex items-center gap-2 flex-wrap">
+          {localTags.map((tag) => (
+            <span
+              key={tag}
+              className="text-[10px] font-medium px-2 py-0.5 rounded-md text-blue-600 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-300"
+            >
+              {tag}
+            </span>
+          ))}
+          <div className="relative">
+            <button
+              ref={tagBtnRef}
+              type="button"
+              onClick={() => { setShowTagPicker(!showTagPicker); setShowDatePicker(false); setShowColorPicker(false); }}
+              className={`p-1 rounded-lg hover:bg-accent transition-colors ${
+                localTags.length > 0 ? "text-blue-500" : "text-muted-foreground hover:text-blue-500"
+              }`}
+              aria-label="Edit tags"
+            >
+              <Tag size={13} />
+            </button>
+            <Popover
+              open={showTagPicker}
+              onClose={() => setShowTagPicker(false)}
+              className="absolute left-0 top-full mt-1 z-10"
+              triggerRef={tagBtnRef}
+            >
+              <div className="bg-card rounded-xl shadow-2xl border border-border p-3 w-52">
+                <TagPicker
+                  selectedTags={localTags}
+                  availableTags={availableTags}
+                  onChange={(newTags) => {
+                    setLocalTags(newTags);
+                    onSave(task.id, { tags: newTags });
+                  }}
+                />
+              </div>
+            </Popover>
+          </div>
+        </div>
       </div>
 
       <div className="border-t border-border-subtle" />

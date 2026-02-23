@@ -143,7 +143,7 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
   const inboxConfig = FILTER_CONFIG[inboxFilter] || FILTER_CONFIG.all;
 
   return (
-    <aside className="hidden md:flex glass-strong w-60 h-screen flex-col justify-between py-4 px-3 shrink-0 shadow-lg dark:shadow-black/30">
+    <aside className="hidden md:flex glass-strong w-52 h-screen flex-col justify-between py-4 px-3 shrink-0 shadow-lg dark:shadow-black/30">
       <div>
         <div className="mb-6 px-3 pt-1">
           <img

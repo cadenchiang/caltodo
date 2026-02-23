@@ -548,19 +548,22 @@ function BoardColumn({
         )}
       </div>
 
-      {/* Scrollable card area */}
-      <div className="flex-1 overflow-y-auto flex flex-col gap-2">
-        {/* Inline add task form */}
-        {showAddForm && (
+      {/* Add form — outside scroll container so popovers aren't clipped */}
+      {showAddForm && (
+        <div className="relative pb-2">
           <BoardTaskAddForm
             onAdd={(task) => {
               onAdd(task);
               setShowAddForm(false);
             }}
             onCancel={() => setShowAddForm(false)}
+            courseName={name}
           />
-        )}
+        </div>
+      )}
 
+      {/* Scrollable card area */}
+      <div className="flex-1 overflow-y-auto flex flex-col gap-2">
         {/* Active task cards */}
         {active.map((task) => (
           <TaskCard

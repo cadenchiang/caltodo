@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { Pencil, Loader2 } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
+import { useTaskContext } from "@/contexts/TaskContext";
 import CourseSelectModal from "@/components/ui/CourseSelectModal";
+import ClassChangeConfirmDialog from "@/components/settings/ClassChangeConfirmDialog";
 import type { IntegrationCredentials, CredentialsSavePayload } from "@/lib/types";
 
 /** localStorage key for cached total course counts per platform. */
@@ -12,6 +14,17 @@ const TOTALS_KEY = "caltodo_course_totals";
 interface CourseTotals {
   canvas: number;
   gradescope: number;
+}
+
+/** Snapshot of class changes computed when the user closes the course modal. */
+interface PendingChanges {
+  newCanvasCourses: Array<{ id: number; name: string }>;
+  newGsCourses: Array<{ id: string; name: string }>;
+  addedCanvasCourses: Array<{ id: number; name: string }>;
+  addedGsCourses: Array<{ id: string; name: string }>;
+  addedNames: string[];
+  removedNames: string[];
+  removedTaskCount: number;
 }
 
 interface ClassesSectionProps {
@@ -49,19 +62,19 @@ function setCachedTotals(totals: CourseTotals): void {
 /**
  * Unified "Classes" section showing all selected courses from both
  * bCourses and Gradescope as colored chips. Edit opens a full-screen
- * CourseSelectModal with grouped sections.
- *
- * Uses prefixed IDs (canvas-{id} / gs-{id}) internally to avoid
- * collisions between Canvas (number) and Gradescope (string) IDs.
+ * CourseSelectModal with grouped sections. Changes require confirmation
+ * before saving — added classes trigger a sync, removed classes delete tasks.
  *
  * @param credentials - Current integration credentials
  * @param onUpdate - Callback with updated credentials after save
  */
 export default function ClassesSection({ credentials, onUpdate }: ClassesSectionProps) {
   const { showToast } = useToast();
+  const { tasks, fetchTasks, deleteTasksByCourseNames } = useTaskContext();
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [pendingChanges, setPendingChanges] = useState<PendingChanges | null>(null);
 
   // Unified courses for the modal (prefixed IDs)
   const [canvasCourses, setCanvasCourses] = useState<Array<{ id: string; name: string; subtitle?: string }>>([]);
@@ -72,15 +85,11 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
   const gsSelected = credentials.selected_gradescope_courses ?? [];
   const totalSelected = canvasSelected.length + gsSelected.length;
 
-  // Count platforms with credentials
   const hasCanvas = !!credentials.canvas_token;
   const hasGradescope = !!credentials.gradescope_email;
   const platformCount = (hasCanvas ? 1 : 0) + (hasGradescope ? 1 : 0);
-
-  // Read cached totals for summary display
   const cachedTotals = getCachedTotals();
 
-  // Don't render if no platform has credentials or saved courses
   if (!hasCanvas && !hasGradescope && totalSelected === 0) {
     return null;
   }
@@ -97,7 +106,6 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
       let fetchedCanvas: Array<{ id: string; name: string; subtitle?: string }> = [];
       let fetchedGs: Array<{ id: string; name: string; subtitle?: string }> = [];
 
-      // Fetch Canvas courses if token exists
       if (hasCanvas) {
         promises.push(
           fetch("/api/canvas/courses")
@@ -118,7 +126,6 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
         );
       }
 
-      // Fetch Gradescope courses if credentials exist
       if (hasGradescope) {
         promises.push(
           fetch("/api/gradescope/courses", {
@@ -144,22 +151,13 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
       }
 
       await Promise.all(promises);
-
       setCanvasCourses(fetchedCanvas);
       setGseCourses(fetchedGs);
+      setCachedTotals({ canvas: fetchedCanvas.length, gradescope: fetchedGs.length });
 
-      // Cache total counts
-      setCachedTotals({
-        canvas: fetchedCanvas.length,
-        gradescope: fetchedGs.length,
-      });
-
-      // Pre-select previously selected courses
       const prevSelected = new Set<string>();
       canvasSelected.forEach((c) => prevSelected.add(`canvas-${c.id}`));
       gsSelected.forEach((c) => prevSelected.add(`gs-${c.id}`));
-
-      // If no previous selections, select all
       if (prevSelected.size === 0) {
         fetchedCanvas.forEach((c) => prevSelected.add(c.id));
         fetchedGs.forEach((c) => prevSelected.add(c.id));
@@ -184,31 +182,66 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
   }
 
   /**
-   * Saves selected courses back to the API.
-   * Maps prefixed IDs back to their original types (number for Canvas, string for Gradescope).
+   * Called when the course modal closes. Computes the diff between old
+   * and new selections. If nothing changed, closes silently. Otherwise
+   * shows a confirmation dialog before saving.
    */
-  async function handleDone() {
-    setSaving(true);
-    const allCourses = [...canvasCourses, ...gseCourses];
-    const selectedCanvasCourses = canvasCourses
+  function handleModalDone() {
+    const newCanvasCourses = canvasCourses
       .filter((c) => selectedIds.has(c.id))
-      .map((c) => ({
-        id: parseInt(c.id.replace("canvas-", ""), 10),
-        name: c.name,
-      }));
-    const selectedGsCourses = gseCourses
+      .map((c) => ({ id: parseInt(c.id.replace("canvas-", ""), 10), name: c.name }));
+    const newGsCourses = gseCourses
       .filter((c) => selectedIds.has(c.id))
-      .map((c) => ({
-        id: c.id.replace("gs-", ""),
-        name: c.name,
-      }));
+      .map((c) => ({ id: c.id.replace("gs-", ""), name: c.name }));
 
-    const payload: CredentialsSavePayload = {
-      selected_canvas_courses: selectedCanvasCourses,
-      selected_gradescope_courses: selectedGsCourses,
-    };
+    const oldCanvasIds = new Set(canvasSelected.map((c) => c.id));
+    const oldGsIds = new Set(gsSelected.map((c) => c.id));
+    const addedCanvasCourses = newCanvasCourses.filter((c) => !oldCanvasIds.has(c.id));
+    const addedGsCourses = newGsCourses.filter((c) => !oldGsIds.has(c.id));
+
+    const newCanvasIds = new Set(newCanvasCourses.map((c) => c.id));
+    const newGsIds = new Set(newGsCourses.map((c) => c.id));
+    const removedNames = [
+      ...canvasSelected.filter((c) => !newCanvasIds.has(c.id)).map((c) => c.name),
+      ...gsSelected.filter((c) => !newGsIds.has(c.id)).map((c) => c.name),
+    ];
+
+    const removedTaskCount = tasks.filter(
+      (t) => t.course_name && removedNames.includes(t.course_name)
+    ).length;
+
+    const addedNames = [...addedCanvasCourses, ...addedGsCourses].map((c) => c.name);
+
+    setShowModal(false);
+
+    if (addedNames.length === 0 && removedNames.length === 0) return;
+
+    setPendingChanges({
+      newCanvasCourses, newGsCourses,
+      addedCanvasCourses, addedGsCourses,
+      addedNames, removedNames, removedTaskCount,
+    });
+  }
+
+  /**
+   * Executes the confirmed class changes: saves credentials, deletes
+   * tasks for removed courses, syncs assignments for added courses,
+   * and shows a result toast with counts and inbox navigation.
+   */
+  async function handleConfirmedSave() {
+    if (!pendingChanges) return;
+    setConfirming(true);
+
+    const { newCanvasCourses, newGsCourses, addedCanvasCourses, addedGsCourses, removedNames } = pendingChanges;
+    const hasAdded = addedCanvasCourses.length + addedGsCourses.length > 0;
+    const hasRemoved = removedNames.length > 0;
 
     try {
+      // 1. Save updated course selections
+      const payload: CredentialsSavePayload = {
+        selected_canvas_courses: newCanvasCourses,
+        selected_gradescope_courses: newGsCourses,
+      };
       const res = await fetch("/api/credentials", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -220,38 +253,74 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
       }
       const updated: IntegrationCredentials = await res.json();
       onUpdate(updated);
-      showToast("Classes updated.");
-      setShowModal(false);
+
+      // 2. Delete tasks for removed courses
+      let deletedCount = 0;
+      if (hasRemoved) {
+        deletedCount = await deleteTasksByCourseNames(removedNames);
+      }
+
+      // 3. Sync assignments for added courses
+      let syncedCount = 0;
+      if (hasAdded) {
+        const syncRes = await fetch("/api/assignments/sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            canvas_courses: addedCanvasCourses.length > 0 ? addedCanvasCourses : undefined,
+            gradescope_courses: addedGsCourses.length > 0 ? addedGsCourses : undefined,
+          }),
+        });
+        if (syncRes.ok) {
+          const syncResult = await syncRes.json();
+          syncedCount = (syncResult.canvas?.synced ?? 0)
+            + (syncResult.gradescope?.synced ?? 0)
+            + (syncResult.pensieve?.synced ?? 0);
+        }
+        await fetchTasks();
+      }
+
+      // 4. Build result toast
+      const parts: string[] = [];
+      if (syncedCount > 0) {
+        const addedStr = pendingChanges.addedNames.join(", ");
+        parts.push(`Synced ${syncedCount} ${syncedCount === 1 ? "task" : "tasks"} from ${addedStr}`);
+      } else if (hasAdded) {
+        parts.push(`No new tasks from ${pendingChanges.addedNames.join(", ")}`);
+      }
+      if (deletedCount > 0) {
+        parts.push(`Removed ${deletedCount} ${deletedCount === 1 ? "task" : "tasks"} from ${removedNames.join(", ")}`);
+      } else if (hasRemoved) {
+        parts.push(`Removed ${removedNames.join(", ")}`);
+      }
+
+      showToast(parts.join(". ") + ".", {
+        duration: 8_000,
+        action: {
+          label: "Inbox",
+          onClick: () => { window.location.href = "/app/inbox"; },
+        },
+      });
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Failed to save");
+      showToast(err instanceof Error ? err.message : "Failed to update classes");
     } finally {
-      setSaving(false);
+      setConfirming(false);
+      setPendingChanges(null);
     }
   }
 
   // Build summary text
-  const totalAvailable = cachedTotals
-    ? cachedTotals.canvas + cachedTotals.gradescope
-    : null;
-  const summaryCount = totalAvailable
-    ? `${totalSelected}/${totalAvailable}`
-    : `${totalSelected}`;
+  const totalAvailable = cachedTotals ? cachedTotals.canvas + cachedTotals.gradescope : null;
+  const summaryCount = totalAvailable ? `${totalSelected}/${totalAvailable}` : `${totalSelected}`;
   const platformText = platformCount > 1
     ? `from ${platformCount} platforms`
-    : platformCount === 1
-    ? "from 1 platform"
-    : "";
+    : platformCount === 1 ? "from 1 platform" : "";
 
-  // Build groups for modal
   const groups = [
-    ...(canvasCourses.length > 0
-      ? [{ label: "bCourses", courses: canvasCourses, color: "#3b82f6" }]
-      : []),
-    ...(gseCourses.length > 0
-      ? [{ label: "Gradescope", courses: gseCourses, color: "#14b8a6" }]
-      : []),
+    ...(canvasCourses.length > 0 ? [{ label: "bCourses", courses: canvasCourses, color: "#3b82f6" }] : []),
+    ...(gseCourses.length > 0 ? [{ label: "Gradescope", courses: gseCourses, color: "#14b8a6" }] : []),
   ];
-
   const allModalCourses = [...canvasCourses, ...gseCourses];
 
   return (
@@ -270,7 +339,6 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
         </button>
       </div>
 
-      {/* Selected course chips */}
       {totalSelected > 0 ? (
         <div className="flex flex-wrap gap-1.5">
           {canvasSelected.map((c) => (
@@ -296,12 +364,9 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
         </p>
       )}
 
-      {/* Full-screen course selection modal with groups */}
       <CourseSelectModal
         open={showModal}
-        onClose={() => {
-          handleDone();
-        }}
+        onClose={handleModalDone}
         title="Select Classes"
         courses={allModalCourses}
         groups={groups.length > 0 ? groups : undefined}
@@ -310,6 +375,17 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
         onSelectAll={() => setSelectedIds(new Set(allModalCourses.map((c) => c.id)))}
         onDeselectAll={() => setSelectedIds(new Set())}
       />
+
+      {pendingChanges && (
+        <ClassChangeConfirmDialog
+          addedNames={pendingChanges.addedNames}
+          removedNames={pendingChanges.removedNames}
+          removedTaskCount={pendingChanges.removedTaskCount}
+          loading={confirming}
+          onConfirm={handleConfirmedSave}
+          onCancel={() => setPendingChanges(null)}
+        />
+      )}
     </div>
   );
 }

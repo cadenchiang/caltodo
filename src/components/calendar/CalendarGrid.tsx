@@ -15,29 +15,33 @@ interface CalendarGridProps {
   currentMonth: Date;
   tasks: Task[];
   addingDate?: string | null;
+  selectedDate?: string | null;
   onDayClick: (date: string, rect: DOMRect) => void;
+  onDaySelect: (date: string) => void;
   onTaskClick: (task: Task, rect: DOMRect) => void;
 }
 
-const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const WEEKDAY_LABELS_SHORT = ["S", "M", "T", "W", "T", "F", "S"];
+const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 /**
- * Month grid layout displaying a 7-column calendar.
- * Glassy card container with no outline borders.
+ * Month grid layout displaying a 7-column calendar starting on Monday.
+ * Equal-height rows using CSS grid 1fr. Scrollable if content overflows.
  */
 export default function CalendarGrid({
   currentMonth,
   tasks,
   addingDate,
+  selectedDate,
   onDayClick,
+  onDaySelect,
   onTaskClick,
 }: CalendarGridProps) {
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
-  const calStart = startOfWeek(monthStart);
-  const calEnd = endOfWeek(monthEnd);
+  const calStart = startOfWeek(monthStart, { weekStartsOn: 1 });
+  const calEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
   const days = eachDayOfInterval({ start: calStart, end: calEnd });
+  const rowCount = days.length / 7;
 
   const tasksByDate: Record<string, Task[]> = {};
   for (const task of tasks) {
@@ -50,23 +54,25 @@ export default function CalendarGrid({
   }
 
   return (
-    <div id="tour-calendar-grid" className="glass rounded-none md:rounded-2xl overflow-hidden shadow-none md:shadow-md dark:md:shadow-black/30">
+    <div id="tour-calendar-grid" className="bg-card h-full flex flex-col">
       {/* Weekday headers */}
-      <div className="grid grid-cols-7 bg-input-bg border-b-2 border-border">
-        {WEEKDAY_LABELS.map((label, i) => (
+      <div className="grid grid-cols-7 border-b border-gray-300 dark:border-gray-500 shrink-0">
+        {WEEKDAY_LABELS.map((label) => (
           <div
             key={label}
-            className="text-center text-[9px] md:text-[11px] font-semibold uppercase tracking-wider text-muted-foreground py-1.5 md:py-3.5 border-r border-border last:border-r-0"
+            className="text-center text-xs font-semibold text-foreground/70 py-2.5"
           >
-            <span className="hidden md:inline">{label}</span>
-            <span className="md:hidden">{WEEKDAY_LABELS_SHORT[i]}</span>
+            {label}
           </div>
         ))}
       </div>
 
-      {/* Day grid */}
-      <div className="grid grid-cols-7">
-        {days.map((day) => {
+      {/* Day grid — equal-height rows filling available space */}
+      <div
+        className="grid grid-cols-7 flex-1"
+        style={{ gridTemplateRows: `repeat(${rowCount}, minmax(120px, auto))` }}
+      >
+        {days.map((day, i) => {
           const dateStr = format(day, "yyyy-MM-dd");
           return (
             <CalendarDayCell
@@ -75,7 +81,10 @@ export default function CalendarGrid({
               currentMonth={currentMonth}
               tasks={tasksByDate[dateStr] ?? []}
               addingDate={addingDate}
+              isLastCol={(i + 1) % 7 === 0}
+              isSelected={selectedDate === dateStr}
               onDayClick={onDayClick}
+              onDaySelect={onDaySelect}
               onTaskClick={onTaskClick}
             />
           );

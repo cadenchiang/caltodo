@@ -1,0 +1,229 @@
+"use client";
+
+import { useState } from "react";
+import { format, isSameDay, startOfWeek, addDays } from "date-fns";
+import type { Task } from "@/lib/types";
+
+interface CalendarWeekViewProps {
+  currentDate: Date;
+  tasks: Task[];
+  onDayClick: (date: string, rect: DOMRect) => void;
+  onTaskClick: (task: Task, rect: DOMRect) => void;
+}
+
+/**
+ * Formats a 24-hour time string to compact 12-hour format.
+ *
+ * @param time24 - "HH:MM" format
+ * @returns e.g. "6:43 PM"
+ */
+function formatTime(time24: string): string {
+  const [h, m] = time24.split(":");
+  const hour = parseInt(h, 10);
+  const ampm = hour >= 12 ? "PM" : "AM";
+  const h12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+  return `${h12}:${m} ${ampm}`;
+}
+
+/**
+ * Converts a hex color to an rgba string at the given opacity.
+ *
+ * @param hex - Hex color string (e.g. "#3b82f6")
+ * @param opacity - Opacity between 0 and 1
+ * @returns rgba string
+ */
+function hexToRgba(hex: string, opacity: number): string {
+  const clean = hex.replace("#", "");
+  const r = parseInt(clean.substring(0, 2), 16);
+  const g = parseInt(clean.substring(2, 4), 16);
+  const b = parseInt(clean.substring(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+}
+
+/**
+ * Week view showing 7 day columns (Mon-Sun) with colored task cards.
+ * Centered date headers with day name + large date number.
+ * Hover shows + icon for adding tasks, double-click also works.
+ *
+ * @param currentDate - Any date within the target week
+ * @param tasks - All tasks (filtered by week in this component)
+ * @param onDayClick - Handler for adding tasks
+ * @param onTaskClick - Click handler for editing tasks
+ */
+export default function CalendarWeekView({
+  currentDate,
+  tasks,
+  onDayClick,
+  onTaskClick,
+}: CalendarWeekViewProps) {
+  const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
+  const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+
+  const tasksByDate: Record<string, Task[]> = {};
+  for (const task of tasks) {
+    if (task.due_date) {
+      if (!tasksByDate[task.due_date]) tasksByDate[task.due_date] = [];
+      tasksByDate[task.due_date].push(task);
+    }
+  }
+
+  return (
+    <div className="bg-card flex flex-col h-full overflow-hidden">
+      {/* Column headers — centered day name + date number */}
+      <div className="grid grid-cols-7 border-b border-gray-300 dark:border-gray-500 shrink-0">
+        {days.map((day) => {
+          const dateStr = format(day, "yyyy-MM-dd");
+          const isToday = isSameDay(day, new Date());
+          return (
+            <div
+              key={dateStr}
+              className="flex flex-col items-center py-2.5 gap-0.5"
+            >
+              <span className={`text-[11px] font-semibold uppercase ${
+                isToday ? "text-[#007AFF]" : "text-foreground/60"
+              }`}>
+                {format(day, "EEE")}
+              </span>
+              <span
+                className={`text-lg font-semibold inline-flex items-center justify-center ${
+                  isToday
+                    ? "w-8 h-8 rounded-full bg-[#007AFF] text-white"
+                    : "text-foreground"
+                }`}
+              >
+                {format(day, "d")}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Day columns with task cards */}
+      <div className="grid grid-cols-7 flex-1 min-h-0 overflow-y-auto">
+        {days.map((day, i) => {
+          const dateStr = format(day, "yyyy-MM-dd");
+          const dayTasks = tasksByDate[dateStr] ?? [];
+          const isLastCol = i === 6;
+          return (
+            <WeekDayColumn
+              key={dateStr}
+              dateStr={dateStr}
+              tasks={dayTasks}
+              isLastCol={isLastCol}
+              onDayClick={onDayClick}
+              onTaskClick={onTaskClick}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Single day column in week view with hover + icon and task cards.
+ */
+function WeekDayColumn({
+  dateStr,
+  tasks,
+  isLastCol,
+  onDayClick,
+  onTaskClick,
+}: {
+  dateStr: string;
+  tasks: Task[];
+  isLastCol: boolean;
+  onDayClick: (date: string, rect: DOMRect) => void;
+  onTaskClick: (task: Task, rect: DOMRect) => void;
+}) {
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <div
+      className={`${isLastCol ? "" : "border-r"} border-gray-300 dark:border-gray-600 p-1.5 flex flex-col gap-1.5 hover:bg-muted/30 transition-colors relative`}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onDoubleClick={(e) => {
+        const rect = new DOMRect(e.clientX - 40, e.clientY, 80, 1);
+        onDayClick(dateStr, rect);
+      }}
+    >
+      {/* + icon on hover */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          const rect = e.currentTarget.getBoundingClientRect();
+          onDayClick(dateStr, new DOMRect(rect.left, rect.bottom + 4, rect.width, 1));
+        }}
+        className={`absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center text-muted-foreground hover:bg-gray-300 dark:hover:bg-gray-600 hover:text-foreground transition-all ${
+          hovered ? "opacity-100" : "opacity-0 pointer-events-none"
+        }`}
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
+      </button>
+
+      {tasks.map((task) => (
+        <WeekTaskCard key={task.id} task={task} onTaskClick={onTaskClick} />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Task card for week view with color-tinted background and hover effect.
+ *
+ * @param task - The task to render
+ * @param onTaskClick - Click callback
+ */
+function WeekTaskCard({
+  task,
+  onTaskClick,
+}: {
+  task: Task;
+  onTaskClick: (task: Task, rect: DOMRect) => void;
+}) {
+  const color = task.color || "#6b7280";
+
+  return (
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        onTaskClick(task, e.currentTarget.getBoundingClientRect());
+      }}
+      className={`group w-full text-left rounded-lg p-2.5 transition-all hover:-translate-y-px hover:shadow-sm ${
+        task.is_completed ? "opacity-50" : ""
+      }`}
+      style={{
+        backgroundColor: hexToRgba(color, 0.1),
+        borderLeft: `2px solid ${color}`,
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.backgroundColor = hexToRgba(color, 0.18);
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.backgroundColor = hexToRgba(color, 0.1);
+      }}
+    >
+      <p className={`text-[13px] font-semibold leading-snug flex items-center gap-1 ${task.is_completed ? "line-through" : ""}`} style={{ color }}>
+        {task.is_completed && (
+          <svg className="w-3.5 h-3.5 shrink-0" style={{ color }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        )}
+        {task.title}
+      </p>
+      {task.due_time && (
+        <p className="text-xs mt-1 flex items-center gap-1" style={{ color, opacity: 0.7 }}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <polyline points="12 6 12 12 16 14" />
+          </svg>
+          {formatTime(task.due_time)}
+        </p>
+      )}
+    </button>
+  );
+}
