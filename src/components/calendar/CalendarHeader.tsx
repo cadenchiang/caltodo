@@ -4,7 +4,6 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { format } from "date-fns";
 import { CalendarDays, ChevronLeft, ChevronRight, Unlink, XCircle, Check } from "lucide-react";
-import { ShimmerButton } from "@/components/ui/shimmer-button";
 import { useToast } from "@/contexts/ToastContext";
 
 /** localStorage key matching GoogleCalendarSettings cache. */
@@ -254,25 +253,20 @@ export default function CalendarHeader({
             </div>
           )}
 
-          {/* GCal CTA — inline next to title when not connected */}
+          {/* GCal CTA — glassy pill when not connected */}
           {gcalConnected === false && (
-            <a href="/app/settings" title="Connect Google Calendar in Settings" className="relative group/sync">
-              <ShimmerButton
-                shimmerColor="#60a5fa"
-                shimmerSize="0.05em"
-                shimmerDuration="3s"
-                background="rgba(30, 64, 175, 0.9)"
-                className="px-3 py-1.5 text-xs hover:brightness-110 active:scale-95 transition-all duration-200"
-              >
-                <GCalIcon size={16} />
-                <span className="ml-1.5 font-medium text-blue-200">
+            <a
+              href="/app/settings"
+              title="Connect Google Calendar in Settings"
+              className="active:scale-95 transition-transform duration-150"
+            >
+              <div className="rounded-full backdrop-blur-xl bg-white/70 dark:bg-white/[0.06] border border-blue-200/60 dark:border-blue-500/20 px-3 py-1.5 flex items-center gap-1.5">
+                <GCalIcon size={14} />
+                <span className="text-xs font-medium text-blue-600/80 dark:text-blue-300/70">
                   <span className="md:hidden">Sync GCal</span>
                   <span className="hidden md:inline">Sync Google Calendar</span>
                 </span>
-              </ShimmerButton>
-              <span className="absolute -top-px -right-px bg-blue-500 text-white text-[9px] w-3.5 h-3.5 rounded-full flex items-center justify-center font-bold leading-none pointer-events-none animate-pulse">
-                1
-              </span>
+              </div>
             </a>
           )}
         </div>

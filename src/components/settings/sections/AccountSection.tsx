@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { LogOut, UserX } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 
@@ -101,9 +102,11 @@ export default function AccountSection() {
       <div className="flex items-center gap-3.5 p-3 -mx-3">
         <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center shrink-0">
           {userAvatarUrl && !imgError ? (
-            <img
+            <Image
               src={userAvatarUrl}
               alt="Profile"
+              width={40}
+              height={40}
               className="w-full h-full object-cover"
               referrerPolicy="no-referrer"
               onError={() => setImgError(true)}

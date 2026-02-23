@@ -762,3 +762,14 @@ textarea:-webkit-autofill {
     transform: translateZ(0) rotate(360deg);
   }
 }
+
+/* Rotating border for glassy GCal sync button */
+@keyframes borderSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-border-spin {
+  animation: borderSpin 4s linear infinite;
+}

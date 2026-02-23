@@ -1,12 +1,14 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from "react";
 import { trackEvent } from "@/lib/analytics";
+import { isDarkBySun } from "@/lib/solar";
+import { getCachedCoords, getUserCoords } from "@/lib/geolocation";
 
 /** localStorage key for persisting theme preference. */
 const THEME_KEY = "caltodo_theme";
 
-/** User-facing preference: light, dark, or auto (follow OS). */
+/** User-facing preference: light, dark, or auto (follow sunset/sunrise). */
 export type ThemePreference = "light" | "dark" | "auto";
 
 /** The actual applied theme — always light or dark. */
@@ -26,24 +28,26 @@ interface ThemeContextValue {
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 /**
- * Reads the OS color-scheme preference via matchMedia.
+ * Determines whether the current time is dark based on sunset/sunrise
+ * using cached (or default) coordinates. Synchronous for initial render.
  *
- * @returns "dark" if OS prefers dark mode, "light" otherwise
+ * @returns "dark" if before sunrise or after sunset, "light" otherwise
  */
-function getSystemTheme(): ResolvedTheme {
+function getSolarTheme(): ResolvedTheme {
   if (typeof window === "undefined") return "light";
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  const { lat, lng } = getCachedCoords();
+  return isDarkBySun(lat, lng) ? "dark" : "light";
 }
 
 /**
  * Resolves a ThemePreference to an actual applied theme.
- * "auto" delegates to the OS preference.
+ * "auto" delegates to sunset/sunrise calculation.
  *
  * @param pref - The user's preference
  * @returns The resolved theme ("light" or "dark")
  */
 export function resolveTheme(pref: ThemePreference): ResolvedTheme {
-  if (pref === "auto") return getSystemTheme();
+  if (pref === "auto") return getSolarTheme();
   return pref;
 }
 
@@ -113,10 +117,13 @@ const CYCLE: Record<ThemePreference, ThemePreference> = {
   auto: "light",
 };
 
+/** Interval in ms to re-check solar position when in "auto" mode. */
+const SOLAR_CHECK_INTERVAL = 60_000;
+
 /**
  * Theme provider that manages light/dark/auto mode state.
  * Persists preference in localStorage and applies .dark class to <html>.
- * When set to "auto", listens for OS theme changes.
+ * When set to "auto", checks sunset/sunrise every 60 seconds.
  * Defaults to "auto" for new users.
  *
  * @param children - App content
@@ -124,35 +131,50 @@ const CYCLE: Record<ThemePreference, ThemePreference> = {
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [preference, setPreferenceState] = useState<ThemePreference>("auto");
   const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>("light");
+  const preferenceRef = useRef<ThemePreference>("auto");
 
   // On mount, read stored preference and apply the resolved theme.
   useEffect(() => {
     const stored = getInitialPreference();
     const resolved = resolveTheme(stored);
     setPreferenceState(stored);
+    preferenceRef.current = stored;
     setResolvedTheme(resolved);
     applyTheme(resolved);
   }, []);
 
-  // Listen for OS theme changes when preference is "auto".
+  // When preference is "auto": fetch fresh coords, poll solar position every 60s.
   useEffect(() => {
     if (preference !== "auto") return;
-    const mql = window.matchMedia("(prefers-color-scheme: dark)");
 
-    const handler = (e: MediaQueryListEvent) => {
-      const next: ResolvedTheme = e.matches ? "dark" : "light";
+    // Fetch fresh geolocation (async, updates cache for next check)
+    getUserCoords().then(() => {
+      // Re-resolve with potentially updated coords
+      const next = resolveTheme("auto");
       setResolvedTheme(next);
-      applyTheme(next, true);
-    };
+      applyTheme(next);
+    });
 
-    mql.addEventListener("change", handler);
-    return () => mql.removeEventListener("change", handler);
+    const interval = setInterval(() => {
+      // Only update if still in auto mode
+      if (preferenceRef.current !== "auto") return;
+      const next = resolveTheme("auto");
+      setResolvedTheme((prev) => {
+        if (prev !== next) {
+          applyTheme(next, true);
+        }
+        return next;
+      });
+    }, SOLAR_CHECK_INTERVAL);
+
+    return () => clearInterval(interval);
   }, [preference]);
 
   const setPreference = useCallback((pref: ThemePreference) => {
     trackEvent("theme_changed", { theme: pref });
     const resolved = resolveTheme(pref);
     setPreferenceState(pref);
+    preferenceRef.current = pref;
     setResolvedTheme(resolved);
     applyTheme(resolved, true);
     try {
@@ -167,6 +189,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       const next = CYCLE[prev];
       trackEvent("theme_changed", { theme: next });
       const resolved = resolveTheme(next);
+      preferenceRef.current = next;
       setResolvedTheme(resolved);
       applyTheme(resolved, true);
       try {

@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { Settings, LogOut, MessageCircle } from "lucide-react";
 import ContactModal from "@/components/ui/ContactModal";
 
@@ -83,9 +84,11 @@ export default function ProfilePopup({ avatarUrl, fullName, email }: ProfilePopu
         aria-label="Profile menu"
       >
         {avatarUrl && !imgError ? (
-          <img
+          <Image
             src={avatarUrl}
             alt="Profile"
+            width={36}
+            height={36}
             className="w-full h-full object-cover"
             referrerPolicy="no-referrer"
             onError={() => setImgError(true)}

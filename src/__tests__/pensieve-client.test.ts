@@ -1,6 +1,6 @@
 /**
- * Tests for Pensieve iCal client — parseICalEvents and course name extraction.
- * Validates title stripping, course name detection, and description cleaning.
+ * Tests for Pensieve iCal client — parseICalEvents, course name extraction,
+ * and is_submitted detection from STATUS and description keywords.
  */
 
 import { describe, it, expect } from "vitest";
@@ -18,6 +18,7 @@ function makeIcal(fields: {
   dtstart?: string;
   dtend?: string;
   description?: string;
+  status?: string;
 }): string {
   const lines = [
     "BEGIN:VCALENDAR",
@@ -29,6 +30,7 @@ function makeIcal(fields: {
   if (fields.dtstart) lines.push(`DTSTART;VALUE=DATE:${fields.dtstart}`);
   if (fields.dtend) lines.push(`DTEND;VALUE=DATE:${fields.dtend}`);
   if (fields.description) lines.push(`DESCRIPTION:${fields.description}`);
+  if (fields.status) lines.push(`STATUS:${fields.status}`);
   lines.push("END:VEVENT", "END:VCALENDAR");
   return lines.join("\r\n");
 }
@@ -95,5 +97,86 @@ describe("parseICalEvents — title stripping", () => {
     const [result] = parseICalEvents(ical);
     expect(result.title).toBe("Project 2");
     expect(result.course_name).toBe("cs61b");
+  });
+});
+
+describe("parseICalEvents — is_submitted detection", () => {
+  it("should detect is_submitted from STATUS:COMPLETED", () => {
+    const ical = makeIcal({
+      summary: "Homework 1 - CS61A",
+      dtstart: "20260301",
+      status: "COMPLETED",
+    });
+    const [result] = parseICalEvents(ical);
+    expect(result.is_submitted).toBe(true);
+  });
+
+  it("should detect is_submitted from STATUS:CANCELLED", () => {
+    const ical = makeIcal({
+      summary: "Homework 1 - CS61A",
+      dtstart: "20260301",
+      status: "CANCELLED",
+    });
+    const [result] = parseICalEvents(ical);
+    expect(result.is_submitted).toBe(true);
+  });
+
+  it("should detect is_submitted from 'submitted' keyword in description", () => {
+    const ical = makeIcal({
+      summary: "Lab 3 - data100",
+      dtstart: "20260301",
+      description: "class: data100\\nStatus: submitted",
+    });
+    const [result] = parseICalEvents(ical);
+    expect(result.is_submitted).toBe(true);
+  });
+
+  it("should detect is_submitted from 'graded' keyword in description", () => {
+    const ical = makeIcal({
+      summary: "Lab 3 - data100",
+      dtstart: "20260301",
+      description: "class: data100\\nGraded: 95/100",
+    });
+    const [result] = parseICalEvents(ical);
+    expect(result.is_submitted).toBe(true);
+  });
+
+  it("should detect is_submitted from 'completed' keyword in description", () => {
+    const ical = makeIcal({
+      summary: "Review 1 - CS61A",
+      dtstart: "20260301",
+      description: "class: CS61A\\ncompleted on 2026-02-28",
+    });
+    const [result] = parseICalEvents(ical);
+    expect(result.is_submitted).toBe(true);
+  });
+
+  it("should set is_submitted false when no submission indicators", () => {
+    const ical = makeIcal({
+      summary: "Homework 2 - CS61A",
+      dtstart: "20260301",
+      description: "class: CS61A\\nLate due: 2026-03-08",
+    });
+    const [result] = parseICalEvents(ical);
+    expect(result.is_submitted).toBe(false);
+  });
+
+  it("should set is_submitted false when STATUS is CONFIRMED", () => {
+    const ical = makeIcal({
+      summary: "Homework 2 - CS61A",
+      dtstart: "20260301",
+      status: "CONFIRMED",
+    });
+    const [result] = parseICalEvents(ical);
+    expect(result.is_submitted).toBe(false);
+  });
+
+  it("should set is_submitted false with no status and no description", () => {
+    const ical = makeIcal({
+      summary: "Study Session",
+      dtstart: "20260301",
+    });
+    const [result] = parseICalEvents(ical);
+    expect(result.is_submitted).toBe(false);
   });
 });

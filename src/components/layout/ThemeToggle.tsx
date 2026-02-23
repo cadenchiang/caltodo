@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 /** Segment definitions for the 3-position theme toggle. */
 const SEGMENTS: { value: ThemePreference; label: string; Icon: typeof Sun }[] = [
   { value: "light", label: "Light mode", Icon: Sun },
-  { value: "auto", label: "Auto (system)", Icon: Monitor },
+  { value: "auto", label: "Auto (sunset)", Icon: Monitor },
   { value: "dark", label: "Dark mode", Icon: Moon },
 ];
 

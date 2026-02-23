@@ -58,13 +58,47 @@ export const metadata: Metadata = {
 
 /**
  * Inline script that runs before paint to prevent flash of wrong theme.
- * Reads from localStorage and applies .dark class to <html> immediately.
+ * Reads from localStorage and uses sunset/sunrise calculation for "auto" mode.
+ * The solar math is inlined (same NOAA formula as src/lib/solar.ts).
  */
 const themeScript = `
 (function() {
   try {
     var t = localStorage.getItem("caltodo_theme");
-    var isDark = t === "dark" || (t !== "light" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    var isDark;
+    if (t === "dark") {
+      isDark = true;
+    } else if (t === "light") {
+      isDark = false;
+    } else {
+      // Auto mode: compute sunset/sunrise
+      var c = { lat: 37.87, lng: -122.27 };
+      try {
+        var s = localStorage.getItem("caltodo_coords");
+        if (s) { var p = JSON.parse(s); if (typeof p.lat === "number") c = p; }
+      } catch(e) {}
+      var now = new Date();
+      var D = Math.PI / 180;
+      var m = now.getMonth() + 1, d = now.getDate(), y = now.getFullYear();
+      var n1 = Math.floor(275 * m / 9);
+      var n2 = Math.floor((m + 9) / 12);
+      var n3 = 1 + Math.floor((y - 4 * Math.floor(y / 4) + 2) / 3);
+      var doy = n1 - n2 * n3 + d - 30;
+      var dec = -23.45 * D * Math.cos(D * (360 / 365) * (doy + 10));
+      var lat = c.lat * D;
+      var cosH = (Math.cos(90.833 * D) - Math.sin(lat) * Math.sin(dec)) / (Math.cos(lat) * Math.cos(dec));
+      if (cosH >= 1 || cosH <= -1) {
+        isDark = false;
+      } else {
+        var ha = Math.acos(cosH) * (180 / Math.PI);
+        var tz = -now.getTimezoneOffset() / 60;
+        var noon = 12 - c.lng / 15 + tz;
+        var srMin = Math.round((noon - ha / 15) * 60);
+        var ssMin = Math.round((noon + ha / 15) * 60);
+        var nowMin = now.getHours() * 60 + now.getMinutes();
+        isDark = nowMin < srMin || nowMin > ssMin;
+      }
+    }
     if (isDark) {
       document.documentElement.classList.add("dark");
     }

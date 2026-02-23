@@ -10,7 +10,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { createPortal } from "react-dom";
+
 import { useSearchParams } from "next/navigation";
 import { ExternalLink } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
@@ -20,6 +20,9 @@ import { useToast } from "@/contexts/ToastContext";
  * Updated every render by the component.
  */
 let globalShowToast: ((msg: string, opts?: Parameters<ReturnType<typeof useToast>["showToast"]>[1]) => void) | null = null;
+
+/** Module-level ref for updateToastProgress so sync can update progress after navigation. */
+let globalUpdateProgress: ((progress: number) => void) | null = null;
 
 /**
  * Inline Google Calendar logo SVG for brand recognition.
@@ -65,13 +68,12 @@ function getCachedStatus(): {
 }
 
 export default function GoogleCalendarSettings() {
-  const { showToast } = useToast();
+  const { showToast, updateToastProgress } = useToast();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [connected, setConnected] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
-  const [showGcalWarning, setShowGcalWarning] = useState(false);
   const [selectedCalendarId, setSelectedCalendarId] = useState<string | null>(null);
   const [googleEmail, setGoogleEmail] = useState<string | null>(null);
   const [googlePhotoUrl, setGooglePhotoUrl] = useState<string | null>(null);
@@ -79,6 +81,7 @@ export default function GoogleCalendarSettings() {
   const mountedRef = useRef(true);
 
   globalShowToast = showToast;
+  globalUpdateProgress = updateToastProgress;
   useEffect(() => {
     mountedRef.current = true;
     return () => { mountedRef.current = false; };
@@ -125,12 +128,17 @@ export default function GoogleCalendarSettings() {
     (globalShowToast ?? showToast)(msg, opts);
   }
 
+  function toastProgress(progress: number) {
+    (globalUpdateProgress ?? updateToastProgress)(progress);
+  }
+
   function ifMounted<T>(setter: React.Dispatch<React.SetStateAction<T>>, value: NoInfer<T>) {
     if (mountedRef.current) setter(value);
   }
 
   async function autoSetupCalendar() {
     setSyncing(true);
+    toast("Setting up Google Calendar...", { progress: 0 });
     try {
       await fetchStatus();
       const selectRes = await fetch("/api/gcal/select-calendar", {
@@ -157,6 +165,7 @@ export default function GoogleCalendarSettings() {
       };
       if (selectResult.needsSync) {
         ifMounted(setSyncProgress, { synced: 0, total: 0 });
+        toast("Syncing tasks to Google Calendar...", { progress: 0 });
         const syncRes = await fetch("/api/gcal/initial-sync", { method: "POST" });
         const contentType = syncRes.headers.get("Content-Type") ?? "";
         if (contentType.includes("application/json")) {
@@ -187,6 +196,10 @@ export default function GoogleCalendarSettings() {
               const event = JSON.parse(line);
               if (event.type === "start" || event.type === "progress") {
                 ifMounted(setSyncProgress, { synced: event.synced ?? 0, total: event.total });
+                if (event.total > 0) {
+                  const pct = Math.round(((event.synced ?? 0) / event.total) * 100);
+                  toastProgress(pct);
+                }
               } else if (event.type === "done") {
                 finalResult = event;
                 ifMounted(setSyncProgress, null);
@@ -201,17 +214,20 @@ export default function GoogleCalendarSettings() {
           } catch { /* skip */ }
         }
         if (finalResult && finalResult.synced > 0) {
-          toast(`Synced ${finalResult.synced} of ${finalResult.total} task${finalResult.total === 1 ? "" : "s"} to Google Calendar.`, openAction);
+          const msg = finalResult.synced === finalResult.total
+            ? `Synced ${finalResult.synced} task${finalResult.synced === 1 ? "" : "s"} to Google Calendar.`
+            : `Synced ${finalResult.synced} of ${finalResult.total} tasks to Google Calendar.`;
+          toast(msg, openAction);
           window.open(gcalUrl, "_blank");
         } else if (finalResult && finalResult.total > 0 && finalResult.synced === 0) {
           toast(`Sync failed for all ${finalResult.total} tasks. Check your Google Calendar permissions.`);
         } else if (finalResult && finalResult.total === 0) {
-          toast("Calendar created! No tasks with due dates to sync.", openAction);
+          toast("Google Calendar connected! No tasks to sync.", openAction);
           window.open(gcalUrl, "_blank");
         }
         /* sync complete */
       } else {
-        toast("Calendar created.", openAction);
+        toast("Google Calendar connected!", openAction);
         /* sync complete */
         window.open(gcalUrl, "_blank");
       }
@@ -221,6 +237,10 @@ export default function GoogleCalendarSettings() {
     } finally {
       ifMounted(setSyncing, false);
       ifMounted(setSyncProgress, null);
+      // Notify sidebar/header to update GCal badge in the same tab
+      try {
+        window.dispatchEvent(new CustomEvent("gcal-status-change", { detail: { connected: true } }));
+      } catch { /* ignore SSR */ }
     }
   }
 
@@ -229,7 +249,6 @@ export default function GoogleCalendarSettings() {
     if (gcalParam === "connected") {
       setConnected(true);
       setLoading(false);
-      showToast("Google Calendar connected! Setting up...");
       autoSetupCalendar();
       const url = new URL(window.location.href);
       url.searchParams.delete("gcal");
@@ -274,13 +293,9 @@ export default function GoogleCalendarSettings() {
     }
   }
 
-  /** Handles the connect click — either direct OAuth or show warning. */
+  /** Handles the connect click — navigates directly to Google OAuth. */
   function handleConnect() {
-    if (process.env.NEXT_PUBLIC_GCAL_VERIFIED === "true") {
-      window.location.href = "/api/gcal/auth";
-    } else {
-      setShowGcalWarning(true);
-    }
+    window.location.href = "/api/gcal/auth";
   }
 
   if (loading) {
@@ -355,55 +370,6 @@ export default function GoogleCalendarSettings() {
           </div>
         )}
       </div>
-
-      {/* OAuth warning modal — portaled to escape overflow/transform containers */}
-      {showGcalWarning && createPortal(
-        <div
-          className="fixed inset-0 z-[9999] flex items-center justify-center"
-          onClick={() => setShowGcalWarning(false)}
-        >
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
-          <div
-            className="relative bg-card border border-border rounded-2xl shadow-2xl p-6 max-w-sm mx-4 animate-drop-in"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-sm font-semibold text-foreground mb-2 flex items-center gap-1.5">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-500 shrink-0"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
-              Google will show a warning
-            </h3>
-            <p className="text-xs text-muted-foreground leading-relaxed mb-4">
-              Our app is pending Google&apos;s review, so you&apos;ll see a scary-looking warning. Your data is safe — just follow these steps:
-            </p>
-            <div className="bg-muted/50 rounded-xl px-3.5 py-3 mb-5 space-y-1.5">
-              <p className="text-xs text-foreground leading-relaxed">
-                <span className="font-semibold">1.</span> Click <span className="font-semibold">Advanced</span>
-              </p>
-              <p className="text-xs text-foreground leading-relaxed">
-                <span className="font-semibold">2.</span> Click <span className="font-semibold">Go to caltodo.me (unsafe)</span>
-              </p>
-              <p className="text-xs text-foreground leading-relaxed">
-                <span className="font-semibold">3.</span> Click <span className="font-semibold">Continue</span>
-              </p>
-            </div>
-            <div className="flex gap-2.5">
-              <button
-                type="button"
-                onClick={() => setShowGcalWarning(false)}
-                className="flex-1 px-4 py-2.5 rounded-xl text-xs font-medium text-muted-foreground hover:bg-muted/70 transition-colors cursor-pointer"
-              >
-                Cancel
-              </button>
-              <a
-                href="/api/gcal/auth"
-                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold bg-gray-900 text-white dark:bg-white dark:text-gray-900 hover:bg-gray-700 dark:hover:bg-gray-200 active:scale-[0.98] transition-all duration-150"
-              >
-                Got it, connect
-              </a>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
     </>
   );
 }

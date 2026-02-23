@@ -99,28 +99,41 @@ export async function POST() {
       const taskList = tasks as Task[];
 
       /**
-       * Syncs a single task to Google Calendar and updates progress.
+       * Syncs a single task to Google Calendar with one automatic retry on failure.
+       * Waits 500ms before the retry to handle transient rate-limit or network errors.
        *
        * @param task - The task to sync
        */
       async function syncTask(task: Task): Promise<void> {
-        try {
-          const eventId = await createCalendarEvent(accessToken!, calendarId!, task);
-          if (eventId) {
-            await supabase
-              .from("tasks")
-              .update({ google_event_id: eventId })
-              .eq("id", task.id);
-            synced++;
-          } else {
-            errors.push(`Failed to create event for task: ${task.id}`);
+        let lastError: string | null = null;
+
+        for (let attempt = 0; attempt < 2; attempt++) {
+          try {
+            const eventId = await createCalendarEvent(accessToken!, calendarId!, task);
+            if (eventId) {
+              await supabase
+                .from("tasks")
+                .update({ google_event_id: eventId })
+                .eq("id", task.id);
+              synced++;
+              lastError = null;
+              break;
+            }
+            lastError = `Failed to create event for task: ${task.id}`;
+          } catch (err) {
+            lastError = err instanceof Error ? err.message : String(err);
           }
-        } catch (err) {
-          const message = err instanceof Error ? err.message : String(err);
-          errors.push(`Error syncing task ${task.id}: ${message}`);
-          logger.error("POST /api/gcal/initial-sync: task sync error", {
+          // Wait before retry
+          if (attempt === 0) {
+            await new Promise((r) => setTimeout(r, 500));
+          }
+        }
+
+        if (lastError) {
+          errors.push(lastError);
+          logger.error("POST /api/gcal/initial-sync: task sync failed after retry", {
             taskId: task.id,
-            error: message,
+            error: lastError,
           });
         }
 

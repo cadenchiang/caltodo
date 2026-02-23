@@ -51,6 +51,13 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
     return SETTINGS_SECTIONS.some((sec) => sec.id === s) ? (s as SettingsSectionId) : DEFAULT_SECTION;
   });
 
+  // Cache user profile to localStorage so AccountSection can read it
+  useEffect(() => {
+    try {
+      localStorage.setItem("caltodo_user_profile", JSON.stringify({ email, fullName, avatarUrl }));
+    } catch { /* ignore quota errors */ }
+  }, [email, fullName, avatarUrl]);
+
   // Sync active section on browser back/forward
   useEffect(() => {
     if (!isSettings) return;
@@ -100,7 +107,7 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
       .catch(() => {});
   }, []);
 
-  // Listen for gcal_status or banner dismissal changes from other components
+  // Listen for gcal_status or banner dismissal changes from other tabs (StorageEvent)
   useEffect(() => {
     function handleStorage(e: StorageEvent) {
       if (e.key === GCAL_BANNER_DISMISSED_KEY && e.newValue === "true") {
@@ -116,6 +123,18 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
     }
     window.addEventListener("storage", handleStorage);
     return () => window.removeEventListener("storage", handleStorage);
+  }, []);
+
+  // Listen for same-tab GCal status changes (StorageEvent only fires in other tabs)
+  useEffect(() => {
+    function handleGcalChange(e: Event) {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.connected) {
+        setShowCalBadge(false);
+      }
+    }
+    window.addEventListener("gcal-status-change", handleGcalChange);
+    return () => window.removeEventListener("gcal-status-change", handleGcalChange);
   }, []);
 
   // Hide navigation during onboarding to prevent users from navigating away

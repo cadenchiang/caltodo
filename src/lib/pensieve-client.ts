@@ -67,8 +67,11 @@ export function parseICalEvents(icsText: string): NormalizedAssignment[] {
     const dtend = extractProperty(unfolded, "DTEND");
     const description = extractProperty(unfolded, "DESCRIPTION");
     const url = extractProperty(unfolded, "URL");
+    const status = extractProperty(unfolded, "STATUS");
 
     if (!uid || !summary) continue;
+
+    const isSubmitted = detectSubmitted(status, description);
 
     // Parse the due date from DTSTART or DTEND
     const dueDate = parseDueDate(dtend || dtstart);
@@ -110,12 +113,33 @@ export function parseICalEvents(icsText: string): NormalizedAssignment[] {
       late_due_date: lateDueDate,
       source_url: url || null,
       points_possible: null,
-      is_submitted: false,
+      is_submitted: isSubmitted,
       description: cleanDescription,
     });
   }
 
   return assignments;
+}
+
+/**
+ * Detects whether a Pensieve assignment has been submitted.
+ * Checks the iCal STATUS property and description for submission indicators.
+ *
+ * @param status - The VEVENT STATUS property value (e.g. "COMPLETED", "CONFIRMED")
+ * @param description - The VEVENT DESCRIPTION value (may contain "submitted", "graded")
+ * @returns true if the assignment appears to have been submitted
+ */
+function detectSubmitted(status: string | null, description: string | null): boolean {
+  if (status) {
+    const s = status.toUpperCase();
+    if (s === "COMPLETED" || s === "CANCELLED") return true;
+  }
+  if (description) {
+    // Unescape iCal text so \n becomes real newline for accurate word boundary matching
+    const text = unescapeICalText(description);
+    if (/\b(submitted|graded|completed)\b/i.test(text)) return true;
+  }
+  return false;
 }
 
 /**
