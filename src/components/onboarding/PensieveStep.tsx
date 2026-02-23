@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Loader2 } from "lucide-react";
 
 /** Regex for validating a Pensieve calendar URL. */
@@ -20,6 +20,10 @@ interface PensieveStepProps {
   saving: boolean;
   error: string | null;
   setError: (error: string | null) => void;
+  /** Persisted draft URL from a previous visit to this step. */
+  initialUrl?: string;
+  /** Called on unmount to persist draft state across step navigation. */
+  onDraftChange?: (draft: { url: string }) => void;
 }
 
 /**
@@ -33,8 +37,17 @@ interface PensieveStepProps {
  * @param error - Current error message to display
  * @param setError - Callback to set/clear error messages
  */
-export default function PensieveStep({ onNext, onSkip, saving, error, setError }: PensieveStepProps) {
-  const [url, setUrl] = useState("");
+export default function PensieveStep({ onNext, onSkip, saving, error, setError, initialUrl, onDraftChange }: PensieveStepProps) {
+  const [url, setUrl] = useState(initialUrl ?? "");
+
+  /** Ref tracking latest URL for unmount draft reporting. */
+  const draftRef = useRef({ url });
+  useEffect(() => { draftRef.current = { url }; });
+  /** Reports draft state to parent on unmount so it persists across step navigation. */
+  useEffect(() => {
+    return () => { onDraftChange?.(draftRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /**
    * Validates the URL and saves credentials, then advances to next step.

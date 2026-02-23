@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import { useTaskContext } from "@/contexts/TaskContext";
@@ -94,6 +94,26 @@ export default function OnboardingPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedPlatforms, setSelectedPlatforms] = useState<Set<Platform>>(new Set());
+
+  // Draft state refs — persisted across step navigation without causing re-renders.
+  // Updated by each step on unmount; read by each step on mount.
+  const canvasDraftRef = useRef<{
+    token: string; baseUrl: string;
+    courses: Array<{ id: number; name: string; course_code: string }> | null;
+    selectedIds: number[];
+  }>({ token: "", baseUrl: "https://bcourses.berkeley.edu", courses: null, selectedIds: [] });
+
+  const gradescopeDraftRef = useRef<{
+    email: string; password: string;
+    courses: Array<{ id: string; name: string; shortName: string }> | null;
+    selectedIds: string[];
+  }>({ email: "", password: "", courses: null, selectedIds: [] });
+
+  const pensieveDraftRef = useRef<{ url: string }>({ url: "" });
+
+  const handleCanvasDraft = useCallback((d: typeof canvasDraftRef.current) => { canvasDraftRef.current = d; }, []);
+  const handleGradescopeDraft = useCallback((d: typeof gradescopeDraftRef.current) => { gradescopeDraftRef.current = d; }, []);
+  const handlePensieveDraft = useCallback((d: typeof pensieveDraftRef.current) => { pensieveDraftRef.current = d; }, []);
 
   /** Dynamic step list based on selected platforms. */
   const steps = useMemo<Step[]>(() => {
@@ -526,6 +546,11 @@ export default function OnboardingPage() {
                 saving={saving}
                 error={error}
                 setError={setError}
+                initialToken={canvasDraftRef.current.token}
+                initialBaseUrl={canvasDraftRef.current.baseUrl}
+                initialCourses={canvasDraftRef.current.courses}
+                initialSelectedIds={canvasDraftRef.current.selectedIds}
+                onDraftChange={handleCanvasDraft}
               />
             )}
 
@@ -536,6 +561,11 @@ export default function OnboardingPage() {
                 saving={saving}
                 error={error}
                 setError={setError}
+                initialEmail={gradescopeDraftRef.current.email}
+                initialPassword={gradescopeDraftRef.current.password}
+                initialCourses={gradescopeDraftRef.current.courses}
+                initialSelectedIds={gradescopeDraftRef.current.selectedIds}
+                onDraftChange={handleGradescopeDraft}
               />
             )}
 
@@ -546,6 +576,8 @@ export default function OnboardingPage() {
                 saving={saving}
                 error={error}
                 setError={setError}
+                initialUrl={pensieveDraftRef.current.url}
+                onDraftChange={handlePensieveDraft}
               />
             )}
 

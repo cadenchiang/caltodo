@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Eye, EyeOff, Loader2, Play, X } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 
@@ -34,6 +34,13 @@ interface CanvasStepProps {
   saving: boolean;
   error: string | null;
   setError: (error: string | null) => void;
+  /** Persisted draft state from a previous visit to this step. */
+  initialToken?: string;
+  initialBaseUrl?: string;
+  initialCourses?: CanvasCourse[] | null;
+  initialSelectedIds?: number[];
+  /** Called on unmount to persist draft state across step navigation. */
+  onDraftChange?: (draft: { token: string; baseUrl: string; courses: CanvasCourse[] | null; selectedIds: number[] }) => void;
 }
 
 /**
@@ -61,17 +68,29 @@ function formatTimestamp(seconds: number): string {
  * @param error - Current error message to display
  * @param setError - Callback to set/clear error messages
  */
-export default function CanvasStep({ onNext, onSkip, saving, error, setError }: CanvasStepProps) {
+export default function CanvasStep({ onNext, onSkip, saving, error, setError, initialToken, initialBaseUrl, initialCourses, initialSelectedIds, onDraftChange }: CanvasStepProps) {
   const { showToast } = useToast();
-  const [canvasToken, setCanvasToken] = useState("");
-  const [canvasBaseUrl, setCanvasBaseUrl] = useState("https://bcourses.berkeley.edu");
+  const [canvasToken, setCanvasToken] = useState(initialToken ?? "");
+  const [canvasBaseUrl, setCanvasBaseUrl] = useState(initialBaseUrl ?? "https://bcourses.berkeley.edu");
   const [showToken, setShowToken] = useState(false);
   const [verifying, setVerifying] = useState(false);
-  const [courses, setCourses] = useState<CanvasCourse[] | null>(null);
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [courses, setCourses] = useState<CanvasCourse[] | null>(initialCourses ?? null);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set(initialSelectedIds ?? []));
   const [videoExpanded, setVideoExpanded] = useState(false);
   const [videoTime, setVideoTime] = useState(0);
+  const [showTokenHelp, setShowTokenHelp] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  /** Ref tracking latest state for unmount draft reporting. */
+  const draftRef = useRef({ token: canvasToken, baseUrl: canvasBaseUrl, courses, selectedIds: Array.from(selectedIds) });
+  useEffect(() => {
+    draftRef.current = { token: canvasToken, baseUrl: canvasBaseUrl, courses, selectedIds: Array.from(selectedIds) };
+  });
+  /** Reports draft state to parent on unmount so it persists across step navigation. */
+  useEffect(() => {
+    return () => { onDraftChange?.(draftRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /** Updates current playback time for step highlighting. Stops video at 28s. */
   const handleTimeUpdate = useCallback(() => {
@@ -283,30 +302,45 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError }: 
               <div className="min-h-0 overflow-hidden">
                 <div className="flex flex-col gap-1 mb-4 text-left">
                   {TOKEN_STEPS.map((step, i) => (
-                    <div
-                      key={step.time}
-                      className="flex items-center gap-3 px-2 py-2"
-                    >
-                      <span className="w-7 h-7 rounded-full bg-gray-800 text-white flex items-center justify-center text-xs font-bold shrink-0">
-                        {i + 1}
-                      </span>
-                      <span className="text-sm font-medium text-gray-700">
-                        {i === 0 ? (
-                          <>
-                            Open{" "}
-                            <a
-                              href="https://bcourses.berkeley.edu/profile/settings"
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-500 underline"
-                            >
-                              bCourses Settings
-                            </a>
-                          </>
-                        ) : (
-                          step.label
-                        )}
-                      </span>
+                    <div key={step.time}>
+                      <div className="flex items-center gap-3 px-2 py-2">
+                        <span className="w-7 h-7 rounded-full bg-gray-800 text-white flex items-center justify-center text-xs font-bold shrink-0">
+                          {i + 1}
+                        </span>
+                        <span className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                          {i === 0 ? (
+                            <>
+                              Open{" "}
+                              <a
+                                href="https://bcourses.berkeley.edu/profile/settings"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-500 underline"
+                              >
+                                bCourses Settings
+                              </a>
+                            </>
+                          ) : i === 1 ? (
+                            <>
+                              {step.label}
+                              <button
+                                type="button"
+                                onClick={() => setShowTokenHelp(!showTokenHelp)}
+                                className="text-blue-400 font-normal text-xs hover:text-blue-600 cursor-pointer transition-colors"
+                              >
+                                help
+                              </button>
+                            </>
+                          ) : (
+                            step.label
+                          )}
+                        </span>
+                      </div>
+                      {i === 1 && showTokenHelp && (
+                        <p className="text-xs text-black ml-12 mb-1 leading-relaxed">
+                          If you have any preexisting API tokens, delete them first, then create a new one.
+                        </p>
+                      )}
                     </div>
                   ))}
                 </div>

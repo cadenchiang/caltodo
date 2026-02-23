@@ -61,8 +61,8 @@ export default function CalendarPage() {
 
   return (
     <PageTransition>
-      <div className="h-full overflow-y-auto overflow-x-hidden pt-6 md:pt-0">
-        <div className="animate-stagger stagger-1">
+      <div className="h-full overflow-y-auto overflow-x-hidden -mx-4 md:mx-0 pt-6 md:pt-0">
+        <div className="px-4 md:px-0 animate-stagger stagger-1">
           <CalendarHeader
             currentMonth={currentMonth}
             onPrevMonth={() => setCurrentMonth(subMonths(currentMonth, 1))}
@@ -72,12 +72,14 @@ export default function CalendarPage() {
         </div>
 
         {error && (
-          <div className="bg-red-400/10 text-red-500 text-sm p-4 rounded-2xl backdrop-blur-sm mb-4">
-            Error loading tasks: {error}
+          <div className="px-4 md:px-0">
+            <div className="bg-red-400/10 text-red-500 text-sm p-4 rounded-2xl backdrop-blur-sm mb-4">
+              Error loading tasks: {error}
+            </div>
           </div>
         )}
 
-        <div className="-mx-4 md:mx-0 animate-stagger stagger-2">
+        <div className="animate-stagger stagger-2">
           {loading ? (
             <div className="glass rounded-2xl mx-4 md:mx-0 p-12 flex items-center justify-center text-subtle-foreground text-sm">
               Loading calendar...

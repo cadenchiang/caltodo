@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { ArrowDown, Eye, EyeOff, Loader2, Play, X } from "lucide-react";
 
 /** Clickable chapter timestamps for the Gradescope instruction video. */
@@ -39,6 +39,13 @@ interface GradescopeStepProps {
   saving: boolean;
   error: string | null;
   setError: (error: string | null) => void;
+  /** Persisted draft state from a previous visit to this step. */
+  initialEmail?: string;
+  initialPassword?: string;
+  initialCourses?: GradescopeCourse[] | null;
+  initialSelectedIds?: string[];
+  /** Called on unmount to persist draft state across step navigation. */
+  onDraftChange?: (draft: { email: string; password: string; courses: GradescopeCourse[] | null; selectedIds: string[] }) => void;
 }
 
 /**
@@ -51,17 +58,28 @@ interface GradescopeStepProps {
  * @param error - Current error message to display
  * @param setError - Callback to set/clear error messages
  */
-export default function GradescopeStep({ onNext, onSkip, saving, error, setError }: GradescopeStepProps) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+export default function GradescopeStep({ onNext, onSkip, saving, error, setError, initialEmail, initialPassword, initialCourses, initialSelectedIds, onDraftChange }: GradescopeStepProps) {
+  const [email, setEmail] = useState(initialEmail ?? "");
+  const [password, setPassword] = useState(initialPassword ?? "");
   const [showPassword, setShowPassword] = useState(false);
   const [verifying, setVerifying] = useState(false);
-  const [courses, setCourses] = useState<GradescopeCourse[] | null>(null);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [courses, setCourses] = useState<GradescopeCourse[] | null>(initialCourses ?? null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set(initialSelectedIds ?? []));
   const [videoExpanded, setVideoExpanded] = useState(false);
   const [showWhy, setShowWhy] = useState(false);
   const [videoTime, setVideoTime] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  /** Ref tracking latest state for unmount draft reporting. */
+  const draftRef = useRef({ email, password, courses, selectedIds: Array.from(selectedIds) });
+  useEffect(() => {
+    draftRef.current = { email, password, courses, selectedIds: Array.from(selectedIds) };
+  });
+  /** Reports draft state to parent on unmount so it persists across step navigation. */
+  useEffect(() => {
+    return () => { onDraftChange?.(draftRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /** Updates current playback time for step highlighting. Stops video at 42s. */
   const handleTimeUpdate = useCallback(() => {
