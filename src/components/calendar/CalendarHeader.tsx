@@ -256,7 +256,7 @@ export default function CalendarHeader({
           {/* GCal CTA — glassy pill when not connected */}
           {gcalConnected === false && (
             <a
-              href="/app/settings"
+              href="/app/settings?section=integrations"
               title="Connect Google Calendar in Settings"
               className="active:scale-95 transition-transform duration-150"
             >

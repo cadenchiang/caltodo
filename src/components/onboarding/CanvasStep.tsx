@@ -328,7 +328,7 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
                                 onClick={() => setShowTokenHelp(!showTokenHelp)}
                                 className="text-blue-400 font-normal text-xs hover:text-blue-600 cursor-pointer transition-colors"
                               >
-                                help
+                                having issues?
                               </button>
                             </>
                           ) : (
