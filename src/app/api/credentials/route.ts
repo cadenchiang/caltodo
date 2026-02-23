@@ -32,7 +32,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("integration_credentials")
-    .select("canvas_token, canvas_base_url, gradescope_email, gradescope_password_encrypted, last_synced_at, selected_canvas_courses, selected_gradescope_courses, google_access_token_encrypted, google_calendar_id, google_email, google_photo_url, canvas_token_created_at, is_founding_member, pensieve_calendar_url")
+    .select("canvas_token, canvas_base_url, gradescope_email, gradescope_password_encrypted, last_synced_at, selected_canvas_courses, selected_gradescope_courses, google_access_token_encrypted, google_calendar_id, google_email, google_photo_url, canvas_token_created_at, is_founding_member, pensieve_calendar_url, gradescope_auth_failed")
     .eq("user_id", user.id)
     .single();
 
@@ -42,11 +42,22 @@ export async function GET() {
     return NextResponse.json({ error: "Failed to fetch credentials" }, { status: 500 });
   }
 
+  // Check if Canvas token has expired (120-day lifetime)
+  let canvasTokenExpired = false;
+  if (data?.canvas_token && data?.canvas_token_created_at) {
+    const createdAt = new Date(data.canvas_token_created_at).getTime();
+    const now = Date.now();
+    const days120 = 120 * 24 * 60 * 60 * 1000;
+    canvasTokenExpired = now - createdAt > days120;
+  }
+
   const credentials: IntegrationCredentials = {
     canvas_token: data?.canvas_token ?? null,
     canvas_base_url: data?.canvas_base_url ?? "https://bcourses.berkeley.edu",
+    canvas_token_expired: canvasTokenExpired,
     gradescope_email: data?.gradescope_email ?? null,
     has_gradescope_password: !!data?.gradescope_password_encrypted,
+    gradescope_auth_failed: data?.gradescope_auth_failed ?? false,
     last_synced_at: data?.last_synced_at ?? null,
     selected_canvas_courses: data?.selected_canvas_courses ?? null,
     selected_gradescope_courses: data?.selected_gradescope_courses ?? null,
@@ -155,7 +166,7 @@ export async function PUT(request: Request) {
   // Return updated credentials
   const { data: updated, error: readError } = await supabase
     .from("integration_credentials")
-    .select("canvas_token, canvas_base_url, gradescope_email, gradescope_password_encrypted, last_synced_at, selected_canvas_courses, selected_gradescope_courses, google_access_token_encrypted, google_calendar_id, google_email, google_photo_url, canvas_token_created_at, is_founding_member, pensieve_calendar_url")
+    .select("canvas_token, canvas_base_url, gradescope_email, gradescope_password_encrypted, last_synced_at, selected_canvas_courses, selected_gradescope_courses, google_access_token_encrypted, google_calendar_id, google_email, google_photo_url, canvas_token_created_at, is_founding_member, pensieve_calendar_url, gradescope_auth_failed")
     .eq("user_id", user.id)
     .single();
 
@@ -164,11 +175,21 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: "Credentials saved but failed to read back" }, { status: 500 });
   }
 
+  // Check Canvas token expiration for the response
+  let putCanvasTokenExpired = false;
+  if (updated?.canvas_token && updated?.canvas_token_created_at) {
+    const createdAt = new Date(updated.canvas_token_created_at).getTime();
+    const days120 = 120 * 24 * 60 * 60 * 1000;
+    putCanvasTokenExpired = Date.now() - createdAt > days120;
+  }
+
   const credentials: IntegrationCredentials = {
     canvas_token: updated?.canvas_token ?? null,
     canvas_base_url: updated?.canvas_base_url ?? "https://bcourses.berkeley.edu",
+    canvas_token_expired: putCanvasTokenExpired,
     gradescope_email: updated?.gradescope_email ?? null,
     has_gradescope_password: !!updated?.gradescope_password_encrypted,
+    gradescope_auth_failed: updated?.gradescope_auth_failed ?? false,
     last_synced_at: updated?.last_synced_at ?? null,
     selected_canvas_courses: updated?.selected_canvas_courses ?? null,
     selected_gradescope_courses: updated?.selected_gradescope_courses ?? null,

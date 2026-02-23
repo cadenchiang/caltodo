@@ -95,8 +95,12 @@ export interface GCalCalendarEntry {
 export interface IntegrationCredentials {
   canvas_token: string | null;
   canvas_base_url: string;
+  /** Whether the Canvas token has exceeded its 120-day lifetime. */
+  canvas_token_expired: boolean;
   gradescope_email: string | null;
   has_gradescope_password: boolean;
+  /** Whether the last Gradescope sync failed due to invalid credentials. */
+  gradescope_auth_failed: boolean;
   last_synced_at: string | null;
   selected_canvas_courses: Array<{ id: number; name: string }> | null;
   selected_gradescope_courses: Array<{ id: string; name: string }> | null;

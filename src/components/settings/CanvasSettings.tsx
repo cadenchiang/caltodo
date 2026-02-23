@@ -30,6 +30,7 @@ export default function CanvasSettings({ credentials, onUpdate }: CanvasSettings
   const [disconnecting, setDisconnecting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const isConnected = Boolean(credentials.canvas_token);
+  const isExpired = isConnected && credentials.canvas_token_expired;
   const sourceTaskCount = tasks.filter((t) => t.source === "canvas").length;
 
   /**
@@ -71,17 +72,30 @@ export default function CanvasSettings({ credentials, onUpdate }: CanvasSettings
           <p className="text-xs text-muted-foreground truncate">Sync assignments from Canvas LMS</p>
         </div>
         {isConnected ? (
-          <button
-            onClick={() => setShowConfirm(true)}
-            disabled={disconnecting}
-            aria-label="Disconnect bCourses"
-            className="group min-w-[84px] text-xs font-medium px-3 py-1 rounded-lg shrink-0 border transition-colors cursor-pointer disabled:opacity-60
-              text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30
-              hover:text-red-500 hover:border-red-300 hover:bg-red-50 dark:hover:text-red-400 dark:hover:border-red-500/30 dark:hover:bg-red-500/10"
-          >
-            <span className="group-hover:hidden">{disconnecting ? "..." : "Connected"}</span>
-            <span className="hidden group-hover:inline">Disconnect</span>
-          </button>
+          isExpired ? (
+            <button
+              onClick={() => {
+                // Disconnect first, then redirect to reconnect
+                handleDisconnect();
+                router.push("/app/onboarding?setup=canvas");
+              }}
+              className="text-xs font-semibold text-amber-600 dark:text-amber-400 px-3 py-1 rounded-lg border border-amber-300 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 hover:bg-amber-100 dark:hover:bg-amber-500/20 transition-colors shrink-0 cursor-pointer"
+            >
+              Expired — Reconnect
+            </button>
+          ) : (
+            <button
+              onClick={() => setShowConfirm(true)}
+              disabled={disconnecting}
+              aria-label="Disconnect bCourses"
+              className="group min-w-[84px] text-xs font-medium px-3 py-1 rounded-lg shrink-0 border transition-colors cursor-pointer disabled:opacity-60
+                text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30
+                hover:text-red-500 hover:border-red-300 hover:bg-red-50 dark:hover:text-red-400 dark:hover:border-red-500/30 dark:hover:bg-red-500/10"
+            >
+              <span className="group-hover:hidden">{disconnecting ? "..." : "Connected"}</span>
+              <span className="hidden group-hover:inline">Disconnect</span>
+            </button>
+          )
         ) : (
           <button
             onClick={() => router.push("/app/onboarding?setup=canvas")}

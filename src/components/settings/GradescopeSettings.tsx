@@ -30,6 +30,7 @@ export default function GradescopeSettings({ credentials, onUpdate }: Gradescope
   const [disconnecting, setDisconnecting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const isConnected = Boolean(credentials.gradescope_email) || credentials.has_gradescope_password;
+  const isAuthFailed = isConnected && credentials.gradescope_auth_failed;
   const sourceTaskCount = tasks.filter((t) => t.source === "gradescope").length;
 
   /**
@@ -75,17 +76,29 @@ export default function GradescopeSettings({ credentials, onUpdate }: Gradescope
           </p>
         </div>
         {isConnected ? (
-          <button
-            onClick={() => setShowConfirm(true)}
-            disabled={disconnecting}
-            aria-label="Disconnect Gradescope"
-            className="group min-w-[84px] text-xs font-medium px-3 py-1 rounded-lg shrink-0 border transition-colors cursor-pointer disabled:opacity-60
-              text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30
-              hover:text-red-500 hover:border-red-300 hover:bg-red-50 dark:hover:text-red-400 dark:hover:border-red-500/30 dark:hover:bg-red-500/10"
-          >
-            <span className="group-hover:hidden">{disconnecting ? "..." : "Connected"}</span>
-            <span className="hidden group-hover:inline">Disconnect</span>
-          </button>
+          isAuthFailed ? (
+            <button
+              onClick={() => {
+                handleDisconnect();
+                router.push("/app/onboarding?setup=gradescope");
+              }}
+              className="text-xs font-semibold text-red-500 dark:text-red-400 px-3 py-1 rounded-lg border border-red-300 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors shrink-0 cursor-pointer"
+            >
+              Login Failed — Reconnect
+            </button>
+          ) : (
+            <button
+              onClick={() => setShowConfirm(true)}
+              disabled={disconnecting}
+              aria-label="Disconnect Gradescope"
+              className="group min-w-[84px] text-xs font-medium px-3 py-1 rounded-lg shrink-0 border transition-colors cursor-pointer disabled:opacity-60
+                text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30
+                hover:text-red-500 hover:border-red-300 hover:bg-red-50 dark:hover:text-red-400 dark:hover:border-red-500/30 dark:hover:bg-red-500/10"
+            >
+              <span className="group-hover:hidden">{disconnecting ? "..." : "Connected"}</span>
+              <span className="hidden group-hover:inline">Disconnect</span>
+            </button>
+          )
         ) : (
           <button
             onClick={() => router.push("/app/onboarding?setup=gradescope")}
