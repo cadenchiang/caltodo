@@ -32,7 +32,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("integration_credentials")
-    .select("canvas_token, canvas_base_url, gradescope_email, gradescope_password_encrypted, last_synced_at, selected_canvas_courses, selected_gradescope_courses, google_access_token_encrypted, google_calendar_id, google_email, google_photo_url, canvas_token_created_at, is_founding_member, pensieve_calendar_url, gradescope_auth_failed")
+    .select("canvas_token, canvas_base_url, gradescope_email, gradescope_password_encrypted, last_synced_at, selected_canvas_courses, selected_gradescope_courses, selected_pensieve_courses, google_access_token_encrypted, google_calendar_id, google_email, google_photo_url, canvas_token_created_at, is_founding_member, pensieve_calendar_url, gradescope_auth_failed")
     .eq("user_id", user.id)
     .single();
 
@@ -61,6 +61,7 @@ export async function GET() {
     last_synced_at: data?.last_synced_at ?? null,
     selected_canvas_courses: data?.selected_canvas_courses ?? null,
     selected_gradescope_courses: data?.selected_gradescope_courses ?? null,
+    selected_pensieve_courses: data?.selected_pensieve_courses ?? null,
     has_google_calendar: !!data?.google_access_token_encrypted,
     google_calendar_id: data?.google_calendar_id ?? null,
     google_email: data?.google_email ?? null,
@@ -123,6 +124,9 @@ export async function PUT(request: Request) {
   if (body.selected_gradescope_courses !== undefined) {
     updateData.selected_gradescope_courses = body.selected_gradescope_courses;
   }
+  if (body.selected_pensieve_courses !== undefined) {
+    updateData.selected_pensieve_courses = body.selected_pensieve_courses;
+  }
   if (body.pensieve_calendar_url !== undefined) {
     updateData.pensieve_calendar_url = body.pensieve_calendar_url;
   }
@@ -166,7 +170,7 @@ export async function PUT(request: Request) {
   // Return updated credentials
   const { data: updated, error: readError } = await supabase
     .from("integration_credentials")
-    .select("canvas_token, canvas_base_url, gradescope_email, gradescope_password_encrypted, last_synced_at, selected_canvas_courses, selected_gradescope_courses, google_access_token_encrypted, google_calendar_id, google_email, google_photo_url, canvas_token_created_at, is_founding_member, pensieve_calendar_url, gradescope_auth_failed")
+    .select("canvas_token, canvas_base_url, gradescope_email, gradescope_password_encrypted, last_synced_at, selected_canvas_courses, selected_gradescope_courses, selected_pensieve_courses, google_access_token_encrypted, google_calendar_id, google_email, google_photo_url, canvas_token_created_at, is_founding_member, pensieve_calendar_url, gradescope_auth_failed")
     .eq("user_id", user.id)
     .single();
 
@@ -193,6 +197,7 @@ export async function PUT(request: Request) {
     last_synced_at: updated?.last_synced_at ?? null,
     selected_canvas_courses: updated?.selected_canvas_courses ?? null,
     selected_gradescope_courses: updated?.selected_gradescope_courses ?? null,
+    selected_pensieve_courses: updated?.selected_pensieve_courses ?? null,
     has_google_calendar: !!updated?.google_access_token_encrypted,
     google_calendar_id: updated?.google_calendar_id ?? null,
     google_email: updated?.google_email ?? null,

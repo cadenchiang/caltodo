@@ -14,14 +14,17 @@ const TOTALS_KEY = "caltodo_course_totals";
 interface CourseTotals {
   canvas: number;
   gradescope: number;
+  pensieve: number;
 }
 
 /** Snapshot of class changes computed when the user closes the course modal. */
 interface PendingChanges {
   newCanvasCourses: Array<{ id: number; name: string }>;
   newGsCourses: Array<{ id: string; name: string }>;
+  newPensieveCourses: Array<{ id: string; name: string }>;
   addedCanvasCourses: Array<{ id: number; name: string }>;
   addedGsCourses: Array<{ id: string; name: string }>;
+  addedPensieveCourses: Array<{ id: string; name: string }>;
   addedNames: string[];
   removedNames: string[];
   removedTaskCount: number;
@@ -60,10 +63,11 @@ function setCachedTotals(totals: CourseTotals): void {
 }
 
 /**
- * Unified "Classes" section showing all selected courses from both
- * bCourses and Gradescope as colored chips. Edit opens a full-screen
- * CourseSelectModal with grouped sections. Changes require confirmation
- * before saving — added classes trigger a sync, removed classes delete tasks.
+ * Unified "Classes" section showing all selected courses from
+ * bCourses, Gradescope, and Pensieve as colored chips. Edit opens a
+ * full-screen CourseSelectModal with grouped sections. Changes require
+ * confirmation before saving — added classes trigger a sync, removed
+ * classes delete tasks.
  *
  * @param credentials - Current integration credentials
  * @param onUpdate - Callback with updated credentials after save
@@ -79,24 +83,27 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
   // Unified courses for the modal (prefixed IDs)
   const [canvasCourses, setCanvasCourses] = useState<Array<{ id: string; name: string; subtitle?: string }>>([]);
   const [gseCourses, setGseCourses] = useState<Array<{ id: string; name: string; subtitle?: string }>>([]);
+  const [pensieveCourses, setPensieveCourses] = useState<Array<{ id: string; name: string; subtitle?: string }>>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const canvasSelected = credentials.selected_canvas_courses ?? [];
   const gsSelected = credentials.selected_gradescope_courses ?? [];
-  const totalSelected = canvasSelected.length + gsSelected.length;
+  const pensieveSelected = credentials.selected_pensieve_courses ?? [];
+  const totalSelected = canvasSelected.length + gsSelected.length + pensieveSelected.length;
 
   const hasCanvas = !!credentials.canvas_token;
   const hasGradescope = !!credentials.gradescope_email;
-  const platformCount = (hasCanvas ? 1 : 0) + (hasGradescope ? 1 : 0);
+  const hasPensieve = !!credentials.pensieve_calendar_url;
+  const platformCount = (hasCanvas ? 1 : 0) + (hasGradescope ? 1 : 0) + (hasPensieve ? 1 : 0);
   const cachedTotals = getCachedTotals();
 
-  if (!hasCanvas && !hasGradescope && totalSelected === 0) {
+  if (!hasCanvas && !hasGradescope && !hasPensieve && totalSelected === 0) {
     return null;
   }
 
   /**
-   * Fetches course lists from both Canvas and Gradescope APIs in parallel.
-   * Prefixes IDs with canvas-/gs- to avoid collisions in the unified modal.
+   * Fetches course lists from Canvas, Gradescope, and Pensieve APIs in parallel.
+   * Prefixes IDs with canvas-/gs-/pensieve- to avoid collisions in the unified modal.
    * Pre-selects previously selected courses.
    */
   async function handleEdit() {
@@ -105,6 +112,7 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
       const promises: Promise<void>[] = [];
       let fetchedCanvas: Array<{ id: string; name: string; subtitle?: string }> = [];
       let fetchedGs: Array<{ id: string; name: string; subtitle?: string }> = [];
+      let fetchedPensieve: Array<{ id: string; name: string; subtitle?: string }> = [];
 
       if (hasCanvas) {
         promises.push(
@@ -150,17 +158,43 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
         );
       }
 
+      if (hasPensieve) {
+        promises.push(
+          fetch("/api/pensieve/courses")
+            .then(async (res) => {
+              if (!res.ok) {
+                const body = await res.json().catch(() => ({}));
+                throw new Error(body.error || "Failed to load Pensieve courses");
+              }
+              return res.json();
+            })
+            .then((data) => {
+              fetchedPensieve = data.courses.map((c: { id: string; name: string }) => ({
+                id: `pensieve-${c.id}`,
+                name: c.name,
+              }));
+            })
+        );
+      }
+
       await Promise.all(promises);
       setCanvasCourses(fetchedCanvas);
       setGseCourses(fetchedGs);
-      setCachedTotals({ canvas: fetchedCanvas.length, gradescope: fetchedGs.length });
+      setPensieveCourses(fetchedPensieve);
+      setCachedTotals({
+        canvas: fetchedCanvas.length,
+        gradescope: fetchedGs.length,
+        pensieve: fetchedPensieve.length,
+      });
 
       const prevSelected = new Set<string>();
       canvasSelected.forEach((c) => prevSelected.add(`canvas-${c.id}`));
       gsSelected.forEach((c) => prevSelected.add(`gs-${c.id}`));
+      pensieveSelected.forEach((c) => prevSelected.add(`pensieve-${c.id}`));
       if (prevSelected.size === 0) {
         fetchedCanvas.forEach((c) => prevSelected.add(c.id));
         fetchedGs.forEach((c) => prevSelected.add(c.id));
+        fetchedPensieve.forEach((c) => prevSelected.add(c.id));
       }
 
       setSelectedIds(prevSelected);
@@ -193,32 +227,43 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
     const newGsCourses = gseCourses
       .filter((c) => selectedIds.has(c.id))
       .map((c) => ({ id: c.id.replace("gs-", ""), name: c.name }));
+    const newPensieveCourses = pensieveCourses
+      .filter((c) => selectedIds.has(c.id))
+      .map((c) => ({ id: c.id.replace("pensieve-", ""), name: c.name }));
 
     const oldCanvasIds = new Set(canvasSelected.map((c) => c.id));
     const oldGsIds = new Set(gsSelected.map((c) => c.id));
+    const oldPensieveIds = new Set(pensieveSelected.map((c) => c.id));
     const addedCanvasCourses = newCanvasCourses.filter((c) => !oldCanvasIds.has(c.id));
     const addedGsCourses = newGsCourses.filter((c) => !oldGsIds.has(c.id));
+    const addedPensieveCourses = newPensieveCourses.filter((c) => !oldPensieveIds.has(c.id));
 
     const newCanvasIds = new Set(newCanvasCourses.map((c) => c.id));
     const newGsIds = new Set(newGsCourses.map((c) => c.id));
+    const newPensieveIds = new Set(newPensieveCourses.map((c) => c.id));
     const removedNames = [
       ...canvasSelected.filter((c) => !newCanvasIds.has(c.id)).map((c) => c.name),
       ...gsSelected.filter((c) => !newGsIds.has(c.id)).map((c) => c.name),
+      ...pensieveSelected.filter((c) => !newPensieveIds.has(c.id)).map((c) => c.name),
     ];
 
     const removedTaskCount = tasks.filter(
       (t) => t.course_name && removedNames.includes(t.course_name)
     ).length;
 
-    const addedNames = [...addedCanvasCourses, ...addedGsCourses].map((c) => c.name);
+    const addedNames = [
+      ...addedCanvasCourses,
+      ...addedGsCourses,
+      ...addedPensieveCourses,
+    ].map((c) => c.name);
 
     setShowModal(false);
 
     if (addedNames.length === 0 && removedNames.length === 0) return;
 
     setPendingChanges({
-      newCanvasCourses, newGsCourses,
-      addedCanvasCourses, addedGsCourses,
+      newCanvasCourses, newGsCourses, newPensieveCourses,
+      addedCanvasCourses, addedGsCourses, addedPensieveCourses,
       addedNames, removedNames, removedTaskCount,
     });
   }
@@ -232,8 +277,12 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
     if (!pendingChanges) return;
     setConfirming(true);
 
-    const { newCanvasCourses, newGsCourses, addedCanvasCourses, addedGsCourses, removedNames } = pendingChanges;
-    const hasAdded = addedCanvasCourses.length + addedGsCourses.length > 0;
+    const {
+      newCanvasCourses, newGsCourses, newPensieveCourses,
+      addedCanvasCourses, addedGsCourses, addedPensieveCourses,
+      removedNames,
+    } = pendingChanges;
+    const hasAdded = addedCanvasCourses.length + addedGsCourses.length + addedPensieveCourses.length > 0;
     const hasRemoved = removedNames.length > 0;
 
     try {
@@ -241,6 +290,7 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
       const payload: CredentialsSavePayload = {
         selected_canvas_courses: newCanvasCourses,
         selected_gradescope_courses: newGsCourses,
+        selected_pensieve_courses: newPensieveCourses,
       };
       const res = await fetch("/api/credentials", {
         method: "PUT",
@@ -311,7 +361,9 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
   }
 
   // Build summary text
-  const totalAvailable = cachedTotals ? cachedTotals.canvas + cachedTotals.gradescope : null;
+  const totalAvailable = cachedTotals
+    ? cachedTotals.canvas + cachedTotals.gradescope + cachedTotals.pensieve
+    : null;
   const summaryCount = totalAvailable ? `${totalSelected}/${totalAvailable}` : `${totalSelected}`;
   const platformText = platformCount > 1
     ? `from ${platformCount} platforms`
@@ -320,8 +372,9 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
   const groups = [
     ...(canvasCourses.length > 0 ? [{ label: "bCourses", courses: canvasCourses, color: "#3b82f6" }] : []),
     ...(gseCourses.length > 0 ? [{ label: "Gradescope", courses: gseCourses, color: "#14b8a6" }] : []),
+    ...(pensieveCourses.length > 0 ? [{ label: "Pensieve", courses: pensieveCourses, color: "#8B5CF6" }] : []),
   ];
-  const allModalCourses = [...canvasCourses, ...gseCourses];
+  const allModalCourses = [...canvasCourses, ...gseCourses, ...pensieveCourses];
 
   return (
     <div>
@@ -353,6 +406,14 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
             <span
               key={`gs-${c.id}`}
               className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-300"
+            >
+              {c.name}
+            </span>
+          ))}
+          {pensieveSelected.map((c) => (
+            <span
+              key={`pensieve-${c.id}`}
+              className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300"
             >
               {c.name}
             </span>

@@ -104,6 +104,7 @@ export interface IntegrationCredentials {
   last_synced_at: string | null;
   selected_canvas_courses: Array<{ id: number; name: string }> | null;
   selected_gradescope_courses: Array<{ id: string; name: string }> | null;
+  selected_pensieve_courses: Array<{ id: string; name: string }> | null;
   has_google_calendar: boolean;
   google_calendar_id: string | null;
   google_email: string | null;
@@ -128,6 +129,7 @@ export interface CredentialsSavePayload {
   gradescope_password?: string | null;
   selected_canvas_courses?: Array<{ id: number; name: string }> | null;
   selected_gradescope_courses?: Array<{ id: string; name: string }> | null;
+  selected_pensieve_courses?: Array<{ id: string; name: string }> | null;
   pensieve_calendar_url?: string | null;
 }
 

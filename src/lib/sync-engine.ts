@@ -35,6 +35,7 @@ interface CredentialsRow {
   last_gradescope_synced_at: string | null;
   selected_canvas_courses: Array<{ id: number; name: string }> | null;
   selected_gradescope_courses: Array<{ id: string; name: string }> | null;
+  selected_pensieve_courses: Array<{ id: string; name: string }> | null;
   pensieve_calendar_url: string | null;
 }
 
@@ -74,7 +75,7 @@ export async function runSync(
   // Fetch credentials
   const { data: creds, error: credsError } = await supabase
     .from("integration_credentials")
-    .select("canvas_token, canvas_base_url, gradescope_email, gradescope_password_encrypted, gradescope_auth_failed, last_gradescope_synced_at, selected_canvas_courses, selected_gradescope_courses, pensieve_calendar_url")
+    .select("canvas_token, canvas_base_url, gradescope_email, gradescope_password_encrypted, gradescope_auth_failed, last_gradescope_synced_at, selected_canvas_courses, selected_gradescope_courses, selected_pensieve_courses, pensieve_calendar_url")
     .eq("user_id", userId)
     .single();
 
@@ -269,8 +270,20 @@ async function syncPensieve(
 
   try {
     logger.info("syncPensieve: fetching assignments", { userId, url: creds.pensieve_calendar_url.slice(0, 60) });
-    const assignments = await fetchPensieveAssignments(creds.pensieve_calendar_url);
+    let assignments = await fetchPensieveAssignments(creds.pensieve_calendar_url);
     logger.info("syncPensieve: parsed assignments", { userId, count: assignments.length });
+
+    // Filter by selected courses if set (null = sync all, same pattern as Canvas/Gradescope)
+    if (creds.selected_pensieve_courses && creds.selected_pensieve_courses.length > 0) {
+      const allowedNames = new Set(creds.selected_pensieve_courses.map((c) => c.name));
+      assignments = assignments.filter((a) => a.course_name && allowedNames.has(a.course_name));
+      logger.info("syncPensieve: filtered by selected courses", {
+        userId,
+        allowed: creds.selected_pensieve_courses.length,
+        afterFilter: assignments.length,
+      });
+    }
+
     const synced = await upsertAssignments(supabase, userId, "pensieve", assignments, timezone);
     logger.info("syncPensieve: upserted", { userId, synced });
     return { synced, errors: [] };
