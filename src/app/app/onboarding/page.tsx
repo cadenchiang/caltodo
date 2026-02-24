@@ -226,7 +226,7 @@ export default function OnboardingPage() {
     // Fire sync for only the just-connected platform
     const platform = setupParam as "canvas" | "gradescope" | "pensieve";
     triggerSync(undefined, [platform]).catch(() => {});
-    setTimeout(() => router.push("/app/settings"), 800);
+    setTimeout(() => router.push("/app/settings?section=integrations"), 800);
   }
 
   /**
@@ -234,7 +234,7 @@ export default function OnboardingPage() {
    */
   function handleStandaloneSkip() {
     trackEvent("standalone_setup_skipped", { platform: setupParam });
-    router.push("/app/settings");
+    router.push("/app/settings?section=integrations");
   }
 
   /**
