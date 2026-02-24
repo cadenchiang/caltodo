@@ -11,8 +11,8 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 
-import { useSearchParams } from "next/navigation";
-import { ExternalLink } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { AlertTriangle, ExternalLink } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 
 /**
@@ -69,11 +69,13 @@ function getCachedStatus(): {
 
 export default function GoogleCalendarSettings() {
   const { showToast, updateToastProgress } = useToast();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [connected, setConnected] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [showOAuthWarning, setShowOAuthWarning] = useState(false);
   const [selectedCalendarId, setSelectedCalendarId] = useState<string | null>(null);
   const [googleEmail, setGoogleEmail] = useState<string | null>(null);
   const [googlePhotoUrl, setGooglePhotoUrl] = useState<string | null>(null);
@@ -241,6 +243,8 @@ export default function GoogleCalendarSettings() {
       try {
         window.dispatchEvent(new CustomEvent("gcal-status-change", { detail: { connected: true } }));
       } catch { /* ignore SSR */ }
+      // Navigate back to integrations section after sync completes
+      router.replace("/app/settings?section=integrations");
     }
   }
 
@@ -418,7 +422,7 @@ export default function GoogleCalendarSettings() {
             </button>
           ) : (
             <button
-              onClick={handleConnect}
+              onClick={() => setShowOAuthWarning(true)}
               className="text-xs font-semibold text-blue-500 hover:text-blue-600 dark:hover:text-blue-400 px-3 py-1 rounded-lg border border-blue-200 dark:border-blue-500/30 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors shrink-0 cursor-pointer"
             >
               Connect
@@ -440,6 +444,48 @@ export default function GoogleCalendarSettings() {
           </div>
         )}
       </div>
+
+      {/* OAuth "unverified app" warning modal */}
+      {showOAuthWarning && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-popover rounded-2xl border border-border shadow-2xl w-full max-w-sm mx-4 p-6 animate-modal-in">
+            <div className="flex justify-center mb-4">
+              <div className="w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center">
+                <AlertTriangle size={24} className="text-amber-500" />
+              </div>
+            </div>
+
+            <h3 className="text-lg font-semibold text-foreground text-center mb-2">
+              Google may show a warning
+            </h3>
+
+            <p className="text-sm text-muted-foreground text-center mb-1">
+              Google may display an &ldquo;unverified app&rdquo; screen during sign-in. This is normal while our verification is pending.
+            </p>
+            <p className="text-sm text-muted-foreground text-center mb-6">
+              To continue, click <span className="font-semibold text-foreground">Advanced</span> &rarr; <span className="font-semibold text-foreground">Go to caltodo (unsafe)</span>.
+            </p>
+
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => {
+                  setShowOAuthWarning(false);
+                  handleConnect();
+                }}
+                className="w-full px-4 py-2.5 bg-foreground text-background rounded-xl text-sm font-medium hover:opacity-90 transition-opacity cursor-pointer"
+              >
+                Continue to Google
+              </button>
+              <button
+                onClick={() => setShowOAuthWarning(false)}
+                className="w-full px-4 py-2.5 text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
