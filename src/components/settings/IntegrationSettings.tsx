@@ -72,7 +72,9 @@ const CredentialsContext = createContext<{
  * @param children - Child components that consume credentials context
  */
 export function IntegrationProvider({ children }: { children: React.ReactNode }) {
-  const [credentials, setCredentials] = useState<IntegrationCredentials>(EMPTY_CREDENTIALS);
+  const [credentials, setCredentials] = useState<IntegrationCredentials>(
+    () => getCachedCredentials() ?? EMPTY_CREDENTIALS
+  );
 
   const fetchCredentials = useCallback(async () => {
     try {
@@ -88,8 +90,6 @@ export function IntegrationProvider({ children }: { children: React.ReactNode })
   }, []);
 
   useEffect(() => {
-    const cached = getCachedCredentials();
-    if (cached) setCredentials(cached);
     fetchCredentials();
   }, [fetchCredentials]);
 

@@ -71,14 +71,15 @@ export default function GoogleCalendarSettings() {
   const { showToast, updateToastProgress } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [loading, setLoading] = useState(true);
-  const [connected, setConnected] = useState(false);
+  const cachedStatus = getCachedStatus();
+  const [loading, setLoading] = useState(!cachedStatus.connected);
+  const [connected, setConnected] = useState(cachedStatus.connected);
   const [syncing, setSyncing] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const [showOAuthWarning, setShowOAuthWarning] = useState(false);
-  const [selectedCalendarId, setSelectedCalendarId] = useState<string | null>(null);
-  const [googleEmail, setGoogleEmail] = useState<string | null>(null);
-  const [googlePhotoUrl, setGooglePhotoUrl] = useState<string | null>(null);
+  const [selectedCalendarId, setSelectedCalendarId] = useState<string | null>(cachedStatus.calendarId);
+  const [googleEmail, setGoogleEmail] = useState<string | null>(cachedStatus.email);
+  const [googlePhotoUrl, setGooglePhotoUrl] = useState<string | null>(cachedStatus.photoUrl);
   const [syncProgress, setSyncProgress] = useState<{ synced: number; total: number } | null>(null);
   const mountedRef = useRef(true);
 
@@ -87,15 +88,6 @@ export default function GoogleCalendarSettings() {
   useEffect(() => {
     mountedRef.current = true;
     return () => { mountedRef.current = false; };
-  }, []);
-
-  useEffect(() => {
-    const cached = getCachedStatus();
-    setConnected(cached.connected);
-    setSelectedCalendarId(cached.calendarId);
-    setGoogleEmail(cached.email);
-    setGooglePhotoUrl(cached.photoUrl);
-    setLoading(false);
   }, []);
 
   const fetchStatus = useCallback(async () => {
