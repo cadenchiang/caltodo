@@ -37,6 +37,7 @@ export interface GCalEventPayload {
   end: { date: string } | { dateTime: string; timeZone?: string };
   status?: string;
   transparency?: string;
+  attendees?: Array<{ email: string }>;
 }
 
 /**

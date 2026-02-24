@@ -188,6 +188,27 @@ export type NotificationType =
  * @param read - Whether the user has seen this notification
  * @param createdAt - ISO timestamp of when the notification was created
  */
+/**
+ * A task share record representing an invitation from one user to another.
+ *
+ * @param id - Unique share identifier
+ * @param source_task_id - The original task that was shared
+ * @param inviter_id - UUID of the user who sent the invite
+ * @param invitee_id - UUID of the user who received the invite
+ * @param copied_task_id - The task copy created in the invitee's account (null if invitee deleted it)
+ * @param invitee_email - Email address of the invitee
+ * @param created_at - ISO timestamp of when the share was created
+ */
+export interface TaskShare {
+  id: string;
+  source_task_id: string;
+  inviter_id: string;
+  invitee_id: string;
+  copied_task_id: string | null;
+  invitee_email: string;
+  created_at: string;
+}
+
 export interface AppNotification {
   id: string;
   type: NotificationType;

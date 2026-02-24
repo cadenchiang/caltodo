@@ -10,7 +10,31 @@ import { getRepeatLabel } from "@/lib/repeat";
 import { useTaskContext } from "@/contexts/TaskContext";
 import DatePicker from "./DatePicker";
 import TagPicker from "./TagPicker";
+import InviteSection from "./InviteSection";
 import Popover from "@/components/ui/Popover";
+
+/**
+ * A badge that truncates long text and expands on click.
+ *
+ * @param text - Full text to display
+ * @param maxChars - Max characters before truncation
+ * @param className - CSS classes for the badge
+ */
+function ExpandableBadge({ text, maxChars, className }: { text: string; maxChars: number; className: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const isTruncated = text.length > maxChars;
+  const display = expanded || !isTruncated ? text : text.slice(0, maxChars).trimEnd() + "...";
+
+  return (
+    <span
+      className={`${className} ${isTruncated ? "cursor-pointer" : ""}`}
+      onClick={isTruncated ? (e) => { e.stopPropagation(); setExpanded(!expanded); } : undefined}
+      title={isTruncated && !expanded ? text : undefined}
+    >
+      {display}
+    </span>
+  );
+}
 
 interface TaskDetailPanelProps {
   task: Task | null;
@@ -317,9 +341,7 @@ export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: Tas
                 </span>
               )}
               {task.course_name && (
-                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded text-black bg-gray-100 dark:text-white dark:bg-white/10">
-                  {task.course_name}
-                </span>
+                <ExpandableBadge text={task.course_name} maxChars={24} className="text-[10px] font-medium px-1.5 py-0.5 rounded text-black bg-gray-100 dark:text-white dark:bg-white/10" />
               )}
               {task.is_submitted && (
                 <span className="text-[10px] font-medium px-1.5 py-0.5 rounded text-green-600 bg-green-50 dark:bg-green-900/30">
@@ -344,6 +366,11 @@ export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: Tas
                 saveWith({ tags: newTags });
               }}
             />
+          </div>
+
+          {/* Invite section */}
+          <div className="px-5 pt-3">
+            <InviteSection taskId={task.id} />
           </div>
 
           {/* Title + Description */}

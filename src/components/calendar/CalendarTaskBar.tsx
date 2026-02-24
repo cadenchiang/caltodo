@@ -23,12 +23,28 @@ function hexToRgba(hex: string, opacity: number): string {
   return `rgba(${r}, ${g}, ${b}, ${opacity})`;
 }
 
+/** Max characters to display before truncating with ellipsis. */
+const MAX_TITLE_CHARS = 28;
+
+/**
+ * Truncates a title to a max character count, appending "..." if needed.
+ *
+ * @param title - The full task title
+ * @param max - Maximum characters before truncation
+ * @returns Truncated title with ellipsis, or original if short enough
+ */
+function truncateTitle(title: string, max: number): string {
+  if (title.length <= max) return title;
+  return title.slice(0, max).trimEnd() + "...";
+}
+
 /**
  * Compact task bar in a calendar day cell.
  * Left colored border, light glassy background, colored text.
+ * Titles are truncated to MAX_TITLE_CHARS with "..." — full title shown on hover.
  *
  * @param task - The task to display
- * @param onClick - Callback when clicked
+ * @param onClick - Callback when clicked (opens popover with full details)
  */
 export default function CalendarTaskBar({ task, onClick }: CalendarTaskBarProps) {
   const [hovered, setHovered] = useState(false);
@@ -42,7 +58,7 @@ export default function CalendarTaskBar({ task, onClick }: CalendarTaskBarProps)
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className={`w-full text-left flex items-center px-2 py-0.5 rounded-md transition-all truncate hover:-translate-y-px hover:shadow-sm ${
+      className={`w-full text-left flex items-center px-2 py-0.5 rounded-md transition-all overflow-hidden hover:-translate-y-px hover:shadow-sm ${
         task.is_completed ? "opacity-50" : ""
       }`}
       style={{
@@ -60,7 +76,7 @@ export default function CalendarTaskBar({ task, onClick }: CalendarTaskBarProps)
         className={`text-[11px] font-medium truncate ${task.is_completed ? "line-through" : ""}`}
         style={{ color }}
       >
-        {task.title}
+        {truncateTitle(task.title, MAX_TITLE_CHARS)}
       </span>
     </button>
   );

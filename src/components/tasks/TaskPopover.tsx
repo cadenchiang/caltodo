@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { Trash2, ExternalLink, MoreVertical, X, AlignLeft, Clock, Tag } from "lucide-react";
+import { Trash2, ExternalLink, MoreVertical, X, AlignLeft, Clock, Tag, Pencil } from "lucide-react";
 import { format } from "date-fns";
 import type { Task, TaskUpdate } from "@/lib/types";
 import { useTaskContext } from "@/contexts/TaskContext";
@@ -19,8 +19,32 @@ import { TASK_COLORS } from "@/lib/constants";
 import { getRepeatLabel } from "@/lib/repeat";
 import DatePicker from "./DatePicker";
 import TagPicker from "./TagPicker";
+import InviteSection from "./InviteSection";
 import Popover from "@/components/ui/Popover";
 import useClickOutside from "@/hooks/useClickOutside";
+
+/**
+ * A badge that truncates long text and expands on click.
+ *
+ * @param text - Full text to display
+ * @param maxChars - Max characters before truncation
+ * @param className - CSS classes for the badge
+ */
+function ExpandableBadge({ text, maxChars, className }: { text: string; maxChars: number; className: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const isTruncated = text.length > maxChars;
+  const display = expanded || !isTruncated ? text : text.slice(0, maxChars).trimEnd() + "...";
+
+  return (
+    <span
+      className={`${className} ${isTruncated ? "cursor-pointer" : ""}`}
+      onClick={isTruncated ? (e) => { e.stopPropagation(); setExpanded(!expanded); } : undefined}
+      title={isTruncated && !expanded ? text : undefined}
+    >
+      {display}
+    </span>
+  );
+}
 
 interface TaskPopoverProps {
   task: Task;
@@ -137,6 +161,7 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
   const [showTagPicker, setShowTagPicker] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [snoozeOpen, setSnoozeOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
@@ -164,6 +189,7 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
     setShowDatePicker(false);
     setShowColorPicker(false);
     setShowTagPicker(false);
+    setIsEditing(false);
     setIsEditingDescription(false);
   }, [task.id, task.title, task.description, task.due_date, task.due_time, task.color, task.is_completed, task.repeat_interval, task.repeat_unit, task.repeat_end_date, task.repeat_end_count, task.tags]);
 
@@ -199,6 +225,13 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
       descriptionRef.current.focus();
     }
   }, [isEditingDescription]);
+
+  useEffect(() => {
+    if (isEditing && titleRef.current) {
+      titleRef.current.focus();
+      autoResize(titleRef.current);
+    }
+  }, [isEditing]);
 
   /**
    * Auto-resizes a textarea to fit its content.
@@ -247,13 +280,27 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
     >
       {/* ── Top action bar — right-aligned icons ── */}
       <div className="flex items-center justify-end gap-0.5 px-3 pt-3">
+        {/* Edit toggle */}
+        <button
+          type="button"
+          onClick={() => setIsEditing(!isEditing)}
+          className={`p-1.5 rounded-lg transition-colors ${
+            isEditing
+              ? "text-blue-500 bg-blue-50 dark:bg-blue-900/30"
+              : "text-subtle-foreground hover:text-foreground hover:bg-accent"
+          }`}
+          aria-label={isEditing ? "Stop editing" : "Edit task"}
+        >
+          <Pencil size={14} />
+        </button>
+
         {/* Color circle */}
         <div className="relative">
           <button
             ref={colorBtnRef}
             type="button"
-            onClick={() => { setShowColorPicker(!showColorPicker); setShowDatePicker(false); }}
-            className="p-1.5 rounded-lg hover:bg-accent transition-colors"
+            onClick={isEditing ? () => { setShowColorPicker(!showColorPicker); setShowDatePicker(false); } : undefined}
+            className={`p-1.5 rounded-lg transition-colors ${isEditing ? "hover:bg-accent cursor-pointer" : "cursor-default"}`}
             aria-label="Change color"
           >
             <div className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: color || "#9CA3AF" }} />
@@ -287,20 +334,6 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
           </Popover>
         </div>
 
-        {/* Source link */}
-        {task.source_url && (
-          <a
-            href={task.source_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="p-1.5 text-subtle-foreground hover:text-foreground rounded-lg hover:bg-accent transition-colors"
-            aria-label="Open in source"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <ExternalLink size={15} />
-          </a>
-        )}
-
         {/* Three-dot menu */}
         <div className="relative">
           <button
@@ -323,6 +356,19 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
                   left: Math.min(menuBtnRef.current.getBoundingClientRect().left, window.innerWidth - 140),
                 }}
               >
+                {/* Open source link */}
+                {task.source_url && (
+                  <a
+                    href={task.source_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => setShowMenu(false)}
+                    className="flex items-center gap-2 w-full px-3 py-2 text-sm text-foreground hover:bg-accent transition-colors"
+                  >
+                    <ExternalLink size={13} />
+                    Open link
+                  </a>
+                )}
                 {/* Hide for... (snooze) submenu */}
                 <div className="relative">
                   <button
@@ -400,17 +446,23 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
               </svg>
             )}
           </button>
-          {/* Title input — auto-growing textarea for long titles */}
-          <textarea
-            ref={titleRef}
-            value={title}
-            onChange={(e) => { setTitle(e.target.value); autoResize(e.target); }}
-            onBlur={handleSave}
-            onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }}
-            rows={1}
-            className="flex-1 min-w-0 text-lg font-semibold text-foreground bg-transparent focus:outline-none placeholder-subtle-foreground resize-none overflow-hidden"
-            placeholder="Task title"
-          />
+          {/* Title — editable textarea or read-only text */}
+          {isEditing ? (
+            <textarea
+              ref={titleRef}
+              value={title}
+              onChange={(e) => { setTitle(e.target.value); autoResize(e.target); }}
+              onBlur={handleSave}
+              onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }}
+              rows={1}
+              className="flex-1 min-w-0 text-lg font-semibold text-foreground bg-transparent focus:outline-none placeholder-subtle-foreground resize-none overflow-hidden"
+              placeholder="Task title"
+            />
+          ) : (
+            <span className="flex-1 min-w-0 text-lg font-semibold text-foreground break-words">
+              {title || "Untitled"}
+            </span>
+          )}
         </div>
 
         {/* Date line — below title, aligned with title text */}
@@ -418,8 +470,8 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
           <button
             ref={dateBtnRef}
             type="button"
-            onClick={() => { setShowDatePicker(!showDatePicker); setShowColorPicker(false); }}
-            className="text-sm text-secondary-foreground hover:text-foreground transition-colors"
+            onClick={isEditing ? () => { setShowDatePicker(!showDatePicker); setShowColorPicker(false); } : undefined}
+            className={`text-sm text-secondary-foreground transition-colors ${isEditing ? "hover:text-foreground cursor-pointer" : "cursor-default"}`}
           >
             {formatDueDate(dueDate, dueTime)}
           </button>
@@ -491,9 +543,7 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
               </span>
             )}
             {task.course_name && (
-              <span className="text-xs font-medium px-2 py-0.5 rounded text-black bg-gray-100 dark:text-white dark:bg-white/10">
-                {task.course_name}
-              </span>
+              <ExpandableBadge text={task.course_name} maxChars={24} className="text-xs font-medium px-2 py-0.5 rounded text-black bg-gray-100 dark:text-white dark:bg-white/10" />
             )}
             {task.is_submitted && (
               <span className="text-xs font-medium px-2 py-0.5 rounded text-green-600 bg-green-50 dark:bg-green-900/30">
@@ -526,7 +576,7 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
               type="button"
               onClick={() => { setShowTagPicker(!showTagPicker); setShowDatePicker(false); setShowColorPicker(false); }}
               className={`p-1 rounded-lg hover:bg-accent transition-colors ${
-                localTags.length > 0 ? "text-blue-500" : "text-muted-foreground hover:text-blue-500"
+                localTags.length > 0 ? "text-blue-500" : "text-muted-foreground hover:text-blue-500 hidden"
               }`}
               aria-label="Edit tags"
             >
@@ -553,15 +603,24 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
         </div>
       </div>
 
+      {/* ── Invite section — only visible in edit mode ── */}
+      {isEditing && (
+        <div className="px-5 pb-3">
+          <div className="pl-8">
+            <InviteSection taskId={task.id} />
+          </div>
+        </div>
+      )}
+
       <div className="border-t border-border-subtle" />
 
       {/* ── Description section — icon + text ── */}
       <div
-        className={`flex items-start gap-3 px-5 py-3 min-h-[44px] ${!description && !isEditingDescription ? "cursor-pointer" : ""}`}
-        onClick={() => { if (!description && !isEditingDescription) setIsEditingDescription(true); }}
+        className={`flex items-start gap-3 px-5 py-3 min-h-[44px] ${isEditing && !description && !isEditingDescription ? "cursor-pointer" : ""}`}
+        onClick={() => { if (isEditing && !description && !isEditingDescription) setIsEditingDescription(true); }}
       >
         <AlignLeft size={18} className="text-subtle-foreground flex-shrink-0 mt-0.5" />
-        {(description || isEditingDescription) ? (
+        {isEditing && (description || isEditingDescription) ? (
           <textarea
             ref={descriptionRef}
             value={description}
@@ -570,6 +629,10 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
             rows={Math.max(2, (description || "").split("\n").length + 1)}
             className="flex-1 min-w-0 text-sm text-secondary-foreground bg-transparent focus:outline-none resize-none max-h-[200px] overflow-y-auto"
           />
+        ) : description ? (
+          <p className="flex-1 min-w-0 text-sm text-secondary-foreground whitespace-pre-wrap break-words">
+            {description}
+          </p>
         ) : null}
       </div>
 
