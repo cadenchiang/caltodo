@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 /**
  * OAuth callback route handler.
  * Exchanges the authorization code from the OAuth provider for a session.
+ * Enforces @berkeley.edu email restriction — non-berkeley accounts are
+ * signed out and redirected to /login with an error.
  * New users (no integration_credentials) are redirected to onboarding.
  * Returning users are redirected to /app/inbox.
  */
@@ -20,9 +22,17 @@ export async function GET(request: NextRequest) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error) {
-      // Check if user has integration credentials (returning user)
       const { data: { user } } = await supabase.auth.getUser();
+
       if (user) {
+        // Enforce @berkeley.edu restriction server-side
+        if (!user.email?.endsWith("@berkeley.edu")) {
+          await supabase.auth.signOut();
+          redirectTo.pathname = "/login";
+          redirectTo.searchParams.set("error", "berkeley-only");
+          return NextResponse.redirect(redirectTo);
+        }
+
         const { data: creds } = await supabase
           .from("integration_credentials")
           .select("id")

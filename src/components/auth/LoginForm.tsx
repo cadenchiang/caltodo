@@ -2,9 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { signIn, signUp } from "@/app/login/actions";
 import { createClient } from "@/lib/supabase/client";
-import { useToast } from "@/contexts/ToastContext";
 import { trackEvent } from "@/lib/analytics";
 
 /**
@@ -23,21 +21,26 @@ function isMobileInAppBrowser(): boolean {
 }
 
 /**
- * Login/signup form with always-white styling, clean minimal layout, and staggered
- * drop-in animations. Supports email/password and Google OAuth.
+ * Google-only login form with @berkeley.edu restriction.
+ * Supports desktop popup and mobile redirect OAuth flows.
+ * Shows an error if a non-berkeley.edu account attempts to sign in.
  */
 export default function LoginForm() {
-  const { showToast } = useToast();
   const searchParams = useSearchParams();
-  const [isSignUp, setIsSignUp] = useState(searchParams.get("signup") === "true");
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
   const [inAppBrowser, setInAppBrowser] = useState(false);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     setInAppBrowser(isMobileInAppBrowser());
   }, []);
+
+  useEffect(() => {
+    const errorParam = searchParams.get("error");
+    if (errorParam === "berkeley-only") {
+      setError("caltodo is currently only available for @berkeley.edu accounts");
+    }
+  }, [searchParams]);
 
   /**
    * Copies the login URL to clipboard and shows a brief "copied" confirmation.
@@ -48,31 +51,14 @@ export default function LoginForm() {
     setTimeout(() => setCopied(false), 2000);
   }
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
-
-    const formData = new FormData(e.currentTarget);
-    trackEvent(isSignUp ? "sign_up_submitted" : "sign_in_submitted", { method: "email" });
-    const action = isSignUp ? signUp : signIn;
-    const result = await action(formData);
-
-    setLoading(false);
-
-    if (result && "error" in result) {
-      setError(result.error);
-      trackEvent("auth_error", { error: result.error, mode: isSignUp ? "sign_up" : "sign_in" });
-    } else if (result && "success" in result) {
-      showToast(result.success);
-    }
-  }
-
   /**
-   * Initiates Google OAuth sign-in via Supabase.
+   * Initiates Google OAuth sign-in via Supabase with @berkeley.edu restriction.
    * Desktop: opens Google consent in a centered popup, polls for completion.
    * Mobile: full-page redirect to Google, then back to /auth/callback.
    * Falls back to redirect if popup is blocked by browser.
+   *
+   * The hd query param hints Google to only show @berkeley.edu accounts.
+   * Server-side validation in /auth/callback enforces this as a hard check.
    */
   async function handleGoogleSignIn() {
     setError(null);
@@ -99,6 +85,7 @@ export default function LoginForm() {
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
           skipBrowserRedirect: true,
+          queryParams: { hd: "berkeley.edu" },
         },
       });
 
@@ -113,7 +100,10 @@ export default function LoginForm() {
           // Popup was closed before URL was ready — fall back to full redirect
           await supabase.auth.signInWithOAuth({
             provider: "google",
-            options: { redirectTo: `${window.location.origin}/auth/callback` },
+            options: {
+              redirectTo: `${window.location.origin}/auth/callback`,
+              queryParams: { hd: "berkeley.edu" },
+            },
           });
           return;
         }
@@ -161,6 +151,7 @@ export default function LoginForm() {
         provider: "google",
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
+          queryParams: { hd: "berkeley.edu" },
         },
       });
 
@@ -222,21 +213,21 @@ export default function LoginForm() {
       {/* Header */}
       <div className="text-center mb-2">
         <h1 className="text-2xl font-bold text-gray-800 animate-drop-in">
-          {isSignUp ? "create your account" : "welcome back"}
+          welcome to caltodo
         </h1>
         <p className="text-sm text-gray-500 mt-2 animate-drop-in delay-100">
           all your deadlines, one calendar
         </p>
       </div>
 
-      {/* Error / Success messages */}
+      {/* Error message */}
       {error && (
         <div className="bg-red-500/10 text-red-400 text-sm p-3 rounded-xl animate-drop-in">
           {error}
         </div>
       )}
 
-      {/* Google OAuth button — primary */}
+      {/* Google OAuth button */}
       <button
         type="button"
         onClick={handleGoogleSignIn}
@@ -248,74 +239,8 @@ export default function LoginForm() {
           <path d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
           <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 6.29C4.672 4.163 6.656 2.58 9 3.58z" fill="#EA4335"/>
         </svg>
-        sign in with google
+        continue with google
       </button>
-
-      {/* Divider */}
-      <div className="flex items-center gap-3 animate-drop-in delay-200">
-        <div className="flex-1 h-px bg-gray-300" />
-        <span className="text-xs text-gray-500">or</span>
-        <div className="flex-1 h-px bg-gray-300" />
-      </div>
-
-      {/* Email/password form */}
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <div className="animate-drop-in delay-250">
-          <label className="block text-sm font-semibold text-gray-800 mb-1.5">
-            email
-          </label>
-          <input
-            name="email"
-            type="email"
-            placeholder="email"
-            required
-            autoComplete="one-time-code"
-            className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-800 placeholder-gray-400 focus:outline-none focus:border-gray-500 transition-colors text-sm"
-          />
-        </div>
-
-        <div className="animate-drop-in delay-350">
-          <label className="block text-sm font-semibold text-gray-800 mb-1.5">
-            password
-          </label>
-          <input
-            name="password"
-            type="password"
-            placeholder="password"
-            required
-            minLength={6}
-            autoComplete="new-password"
-            className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-800 placeholder-gray-400 focus:outline-none focus:border-gray-500 transition-colors text-sm"
-          />
-        </div>
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full px-4 py-3 bg-gray-800 text-white rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed text-sm animate-drop-in delay-450 btn-elevated-primary"
-        >
-          {loading ? "loading..." : isSignUp ? "sign up" : "sign in"}
-        </button>
-      </form>
-
-      {/* Toggle sign in / sign up */}
-      <button
-        type="button"
-        onClick={() => {
-          setIsSignUp(!isSignUp);
-          setError(null);
-        }}
-        className="text-sm text-gray-500 hover:text-gray-800 hover:underline animate-drop-in delay-500 transition-colors"
-      >
-        {isSignUp
-          ? "already have an account? sign in"
-          : "don't have an account? sign up"}
-      </button>
-
-      {/* Footer */}
-      <p className="text-xs text-center text-gray-400 animate-drop-in delay-550">
-        built for bears, by bears
-      </p>
     </div>
   );
 }
