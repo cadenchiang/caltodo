@@ -11,7 +11,7 @@
 
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { getCachedUsers } from "@/lib/user-cache";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
 
@@ -35,30 +35,21 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const adminClient = createAdminClient();
-    const { data, error } = await adminClient.auth.admin.listUsers({
-      page: 1,
-      perPage: 1000,
-    });
+    const allUsers = await getCachedUsers();
 
-    if (error || !data?.users) {
-      logger.error("GET /api/users/search: failed to list users", { error: error?.message });
-      return NextResponse.json({ error: "Failed to search users" }, { status: 500 });
-    }
-
-    const results = data.users
+    const results = allUsers
       .filter((u) => {
         if (u.id === user.id) return false;
-        const email = u.email?.toLowerCase() ?? "";
-        const name = (u.user_metadata?.full_name as string)?.toLowerCase() ?? "";
+        const email = u.email.toLowerCase();
+        const name = u.fullName?.toLowerCase() ?? "";
         return email.includes(q) || name.includes(q);
       })
       .slice(0, 10)
       .map((u) => ({
         id: u.id,
-        email: u.email ?? "",
-        full_name: (u.user_metadata?.full_name as string) ?? null,
-        avatar_url: (u.user_metadata?.avatar_url as string) ?? null,
+        email: u.email,
+        full_name: u.fullName,
+        avatar_url: u.avatarUrl,
       }));
 
     return NextResponse.json({ users: results });

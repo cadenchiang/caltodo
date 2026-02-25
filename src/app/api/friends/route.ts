@@ -12,29 +12,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getCachedUserMap } from "@/lib/user-cache";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
-
-/**
- * Builds a user profile map from admin listUsers for enriching friendship data.
- *
- * @param adminClient - Supabase admin client
- * @returns Map of userId → { email, fullName, avatarUrl }
- */
-async function buildUserMap(adminClient: ReturnType<typeof createAdminClient>) {
-  const { data: usersData } = await adminClient.auth.admin.listUsers({
-    page: 1,
-    perPage: 1000,
-  });
-
-  return new Map(
-    usersData?.users?.map((u) => [u.id, {
-      email: u.email ?? "",
-      fullName: (u.user_metadata?.full_name as string) ?? null,
-      avatarUrl: (u.user_metadata?.avatar_url as string) ?? null,
-    }]) ?? []
-  );
-}
 
 export async function GET() {
   const supabase = await createClient();
@@ -67,8 +47,7 @@ export async function GET() {
       return NextResponse.json({ friends: [], pendingReceived: [], pendingSent: [] });
     }
 
-    const adminClient = createAdminClient();
-    const userMap = await buildUserMap(adminClient);
+    const userMap = await getCachedUserMap();
 
     /** Enriches a friendship row into a FriendEntry for the "other" user. */
     function toEntry(row: { id: string; requester_id: string; receiver_id: string; status: string; created_at: string }) {
@@ -131,7 +110,10 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { data: friendship, error: insertError } = await supabase
+    // Use admin client to bypass RLS for server-validated inserts.
+    // Auth check is already done above; RLS uid() can be unreliable in server context.
+    const adminClient = createAdminClient();
+    const { data: friendship, error: insertError } = await adminClient
       .from("friendships")
       .insert({ requester_id: user.id, receiver_id: userId, status: "pending" })
       .select("*")

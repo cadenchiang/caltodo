@@ -61,7 +61,7 @@ export default function InviteSection({ taskId }: InviteSectionProps) {
 
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const debouncedQuery = useDebounce(query, 300);
+  const debouncedQuery = useDebounce(query, 150);
 
   /**
    * Fetches existing shares for this task on mount.
@@ -284,7 +284,7 @@ export default function InviteSection({ taskId }: InviteSectionProps) {
           className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors py-1"
         >
           <UserPlus size={14} />
-          Add guests
+          Share assignment
         </button>
       )}
 

@@ -168,8 +168,10 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Insert task_shares row with pending status (no task copy yet)
-  const { data: share, error: shareError } = await supabase
+  // Use admin client to bypass RLS for server-validated inserts.
+  // Auth and ownership checks are already done above.
+  const adminInsertClient = createAdminClient();
+  const { data: share, error: shareError } = await adminInsertClient
     .from("task_shares")
     .insert({
       source_task_id: taskId,

@@ -47,19 +47,37 @@ export default function ProfileSection() {
   const [savingName, setSavingName] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Friends state
-  const [friends, setFriends] = useState<FriendEntry[]>([]);
-  const [pendingReceived, setPendingReceived] = useState<FriendEntry[]>([]);
-  const [pendingSent, setPendingSent] = useState<FriendEntry[]>([]);
-  const [loadingFriends, setLoadingFriends] = useState(true);
+  // Friends state — parse localStorage once for instant render
+  const cachedFriends = (() => {
+    try {
+      const c = localStorage.getItem("caltodo_friends_cache");
+      return c ? JSON.parse(c) : null;
+    } catch { return null; }
+  })();
+  const [friends, setFriends] = useState<FriendEntry[]>(cachedFriends?.friends ?? []);
+  const [pendingReceived, setPendingReceived] = useState<FriendEntry[]>(cachedFriends?.pendingReceived ?? []);
+  const [pendingSent, setPendingSent] = useState<FriendEntry[]>(cachedFriends?.pendingSent ?? []);
+  const [loadingFriends, setLoadingFriends] = useState(!cachedFriends);
   const [friendQuery, setFriendQuery] = useState("");
   const [friendSuggestions, setFriendSuggestions] = useState<SearchUser[]>([]);
   const [searchingFriends, setSearchingFriends] = useState(false);
   const [sendingRequest, setSendingRequest] = useState(false);
   const [respondingId, setRespondingId] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
-  const debouncedFriendQuery = useDebounce(friendQuery, 300);
+  const debouncedFriendQuery = useDebounce(friendQuery, 150);
   const friendSearchRef = useRef<HTMLDivElement>(null);
+
+  // "People you may know" suggestions — initialise from localStorage for instant render
+  const [peopleSuggestions, setPeopleSuggestions] = useState<SearchUser[]>(() => {
+    try {
+      const c = localStorage.getItem("caltodo_suggestions_cache");
+      return c ? JSON.parse(c) : [];
+    } catch { return []; }
+  });
+  const [loadingSuggestions, setLoadingSuggestions] = useState(() => {
+    try { return !localStorage.getItem("caltodo_suggestions_cache"); }
+    catch { return true; }
+  });
 
   useEffect(() => {
     try {
@@ -187,19 +205,42 @@ export default function ProfileSection() {
 
   const fetchFriends = useCallback(async () => {
     try {
-      setLoadingFriends(true);
       const res = await fetch("/api/friends");
       if (res.ok) {
         const data = await res.json();
         setFriends(data.friends ?? []);
         setPendingReceived(data.pendingReceived ?? []);
         setPendingSent(data.pendingSent ?? []);
+        try {
+          localStorage.setItem("caltodo_friends_cache", JSON.stringify({
+            friends: data.friends ?? [],
+            pendingReceived: data.pendingReceived ?? [],
+            pendingSent: data.pendingSent ?? [],
+          }));
+        } catch { /* quota exceeded — ignore */ }
       }
     } catch { /* non-critical */ }
     finally { setLoadingFriends(false); }
   }, []);
 
   useEffect(() => { fetchFriends(); }, [fetchFriends]);
+
+  // Fetch friend suggestions ("People you may know")
+  const fetchSuggestions = useCallback(async () => {
+    try {
+      const res = await fetch("/api/friends/suggestions");
+      if (res.ok) {
+        const data = await res.json();
+        const suggestions = data.suggestions ?? [];
+        setPeopleSuggestions(suggestions);
+        try { localStorage.setItem("caltodo_suggestions_cache", JSON.stringify(suggestions)); }
+        catch { /* quota exceeded — ignore */ }
+      }
+    } catch { /* non-critical */ }
+    finally { setLoadingSuggestions(false); }
+  }, []);
+
+  useEffect(() => { fetchSuggestions(); }, [fetchSuggestions]);
 
   // Search users for friends
   useEffect(() => {
@@ -256,6 +297,7 @@ export default function ProfileSection() {
 
       if (res.ok) {
         await fetchFriends();
+        fetchSuggestions();
         setFriendQuery("");
         setFriendSuggestions([]);
         showToast("Friend request sent!");
@@ -328,109 +370,174 @@ export default function ProfileSection() {
   }
 
   return (
-    <section className="space-y-8">
-      {/* Profile Info */}
-      <div>
-        <h2 className="text-lg font-semibold text-foreground mb-1">Profile</h2>
-        <p className="text-xs text-subtle-foreground mb-4">
-          Your profile information.
-        </p>
-        <div className="flex items-center gap-3.5 p-3 -mx-3">
-          {/* Clickable avatar with camera overlay */}
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
-            className="relative w-10 h-10 rounded-full overflow-hidden flex items-center justify-center shrink-0 group cursor-pointer disabled:cursor-wait"
-            title="Change profile photo"
-          >
-            {userAvatarUrl && !imgError ? (
-              <Image
-                src={userAvatarUrl}
-                alt="Profile"
-                width={40}
-                height={40}
-                className="w-full h-full object-cover"
-                referrerPolicy="no-referrer"
-                onError={() => setImgError(true)}
-              />
-            ) : (
-              <div className="w-full h-full bg-blue-500 flex items-center justify-center text-white text-sm font-medium">
-                {getInitials()}
-              </div>
-            )}
-            <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-              {uploading ? (
-                <div className="w-4 h-4 border-2 border-white/60 border-t-white rounded-full animate-spin" />
-              ) : (
-                <Camera size={14} className="text-white" />
-              )}
+    <section className="space-y-6">
+      {/* Profile Hero Card */}
+      <div className="rounded-xl border border-border p-6 flex flex-col items-center">
+        {/* Large 80px avatar with camera overlay */}
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading}
+          className="relative w-20 h-20 rounded-full overflow-hidden flex items-center justify-center shrink-0 group cursor-pointer disabled:cursor-wait"
+          title="Change profile photo"
+        >
+          {userAvatarUrl && !imgError ? (
+            <Image
+              src={userAvatarUrl}
+              alt="Profile"
+              width={80}
+              height={80}
+              className="w-full h-full object-cover"
+              referrerPolicy="no-referrer"
+              onError={() => setImgError(true)}
+            />
+          ) : (
+            <div className="w-full h-full bg-blue-500 flex items-center justify-center text-white text-2xl font-medium">
+              {getInitials()}
             </div>
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            onChange={handleAvatarUpload}
-            className="hidden"
-          />
-          <div className="min-w-0 flex-1 text-left">
-            {editingName ? (
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={nameInput}
-                  onChange={(e) => setNameInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleSaveName();
-                    if (e.key === "Escape") setEditingName(false);
-                  }}
-                  className="text-sm font-medium text-foreground bg-transparent border border-input-border rounded-md px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500 min-w-0 flex-1"
-                  maxLength={100}
-                  autoFocus
-                />
-                <button
-                  onClick={handleSaveName}
-                  disabled={savingName}
-                  className="text-blue-500 hover:text-blue-600 disabled:opacity-40"
-                  title="Save name"
-                >
-                  {savingName ? (
-                    <Loader2 size={14} className="animate-spin" />
-                  ) : (
-                    <Check size={14} />
-                  )}
-                </button>
-              </div>
+          )}
+          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+            {uploading ? (
+              <div className="w-5 h-5 border-2 border-white/60 border-t-white rounded-full animate-spin" />
             ) : (
-              <button
-                onClick={() => { setNameInput(userFullName ?? ""); setEditingName(true); }}
-                className="text-sm font-medium text-foreground truncate hover:underline cursor-pointer block text-left"
-                title="Click to edit name"
-              >
-                {userFullName || "Add your name"}
-              </button>
-            )}
-            {userEmail && (
-              <p className="text-xs text-subtle-foreground truncate">{userEmail}</p>
+              <Camera size={20} className="text-white" />
             )}
           </div>
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          onChange={handleAvatarUpload}
+          className="hidden"
+        />
+
+        {/* Name — centered, large, click to edit */}
+        <div className="mt-3 text-center w-full max-w-[240px]">
+          {editingName ? (
+            <div className="flex items-center justify-center gap-2">
+              <input
+                type="text"
+                value={nameInput}
+                onChange={(e) => setNameInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSaveName();
+                  if (e.key === "Escape") setEditingName(false);
+                }}
+                className="text-xl font-bold text-foreground bg-transparent border border-input-border rounded-md px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500 min-w-0 flex-1 text-center"
+                maxLength={100}
+                autoFocus
+              />
+              <button
+                onClick={handleSaveName}
+                disabled={savingName}
+                className="text-blue-500 hover:text-blue-600 disabled:opacity-40"
+                title="Save name"
+              >
+                {savingName ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <Check size={16} />
+                )}
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => { setNameInput(userFullName ?? ""); setEditingName(true); }}
+              className="text-xl font-bold text-foreground hover:underline cursor-pointer block w-full truncate text-center"
+              title="Click to edit name"
+            >
+              {userFullName || "Add your name"}
+            </button>
+          )}
+        </div>
+
+        {/* Email — centered muted */}
+        {userEmail && (
+          <p className="text-sm text-muted-foreground mt-1 truncate max-w-full">{userEmail}</p>
+        )}
+      </div>
+
+      {/* Stats Row */}
+      <div className="grid grid-cols-3 rounded-xl border border-border divide-x divide-border">
+        <div className="flex flex-col items-center py-3">
+          <span className="text-lg font-bold text-foreground">{friends.length}</span>
+          <span className="text-xs text-muted-foreground">Friends</span>
+        </div>
+        <div className="flex flex-col items-center py-3">
+          <span className="text-lg font-bold text-foreground">{pendingReceived.length}</span>
+          <span className="text-xs text-muted-foreground">Requests</span>
+        </div>
+        <div className="flex flex-col items-center py-3">
+          <span className="text-lg font-bold text-foreground">{pendingSent.length}</span>
+          <span className="text-xs text-muted-foreground">Sent</span>
         </div>
       </div>
 
+      {/* Friend Requests — highlighted card with blue left border */}
+      {pendingReceived.length > 0 && (
+        <div className="rounded-xl border border-blue-200 dark:border-blue-800/40 border-l-4 border-l-blue-500 p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <h3 className="text-sm font-semibold text-foreground">Friend Requests</h3>
+            <span className="text-[10px] font-bold bg-blue-500 text-white rounded-full px-1.5 py-0.5 leading-none">
+              {pendingReceived.length}
+            </span>
+          </div>
+          <div className="flex flex-col gap-2">
+            {pendingReceived.map((req) => (
+              <div
+                key={req.friendshipId}
+                className="flex items-center gap-3"
+              >
+                <UserAvatar
+                  url={req.avatarUrl}
+                  name={req.fullName}
+                  email={req.email}
+                  size={36}
+                />
+                <div className="flex-1 min-w-0">
+                  {req.fullName && (
+                    <p className="text-sm font-medium text-foreground truncate">{req.fullName}</p>
+                  )}
+                  <p className="text-xs text-muted-foreground truncate">{req.email}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleRespond(req.friendshipId, "accept")}
+                    disabled={respondingId === req.friendshipId}
+                    className="px-3 py-1 text-xs font-medium rounded-full bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-40 transition-colors"
+                  >
+                    {respondingId === req.friendshipId ? (
+                      <Loader2 size={12} className="animate-spin" />
+                    ) : (
+                      "Accept"
+                    )}
+                  </button>
+                  <button
+                    onClick={() => handleRespond(req.friendshipId, "decline")}
+                    disabled={respondingId === req.friendshipId}
+                    className="p-1 text-muted-foreground hover:text-red-500 disabled:opacity-40 transition-colors rounded-full hover:bg-red-50 dark:hover:bg-red-950/20"
+                    title="Decline"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Friends Section */}
       <div>
-        <h3 className="text-sm font-semibold text-foreground mb-0.5">
+        <h3 className="text-sm font-semibold text-foreground mb-3">
           Friends {!loadingFriends && `(${friends.length})`}
         </h3>
-        <p className="text-xs text-subtle-foreground mb-3">
-          Send a friend request — they&apos;ll need to accept before you&apos;re connected.
-        </p>
 
-        {/* Friend search */}
-        <div ref={friendSearchRef} className="relative mb-3">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-input-border bg-transparent text-sm">
-            <Search size={14} className="text-muted-foreground flex-shrink-0" />
+        {/* Friend search — slightly more prominent */}
+        <div ref={friendSearchRef} className="relative mb-4">
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-input-border bg-transparent text-sm">
+            <Search size={16} className="text-muted-foreground flex-shrink-0" />
             <input
               type="text"
               value={friendQuery}
@@ -484,129 +591,138 @@ export default function ProfileSection() {
           )}
         </div>
 
-        {/* Pending requests received */}
-        {pendingReceived.length > 0 && (
-          <div className="mb-4">
-            <p className="text-xs font-medium text-muted-foreground mb-2">
-              Friend Requests ({pendingReceived.length})
-            </p>
-            <div className="flex flex-col gap-1">
-              {pendingReceived.map((req) => (
-                <div
-                  key={req.friendshipId}
-                  className="flex items-center gap-3 px-3 py-2 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800/30"
-                >
-                  <UserAvatar
-                    url={req.avatarUrl}
-                    name={req.fullName}
-                    email={req.email}
-                    size={28}
-                  />
-                  <div className="flex-1 min-w-0">
-                    {req.fullName && (
-                      <p className="text-sm font-medium text-foreground truncate">{req.fullName}</p>
-                    )}
-                    <p className="text-xs text-muted-foreground truncate">{req.email}</p>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      onClick={() => handleRespond(req.friendshipId, "accept")}
-                      disabled={respondingId === req.friendshipId}
-                      className="px-2.5 py-1 text-xs font-medium rounded-md bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-40 transition-colors"
-                    >
-                      {respondingId === req.friendshipId ? (
-                        <Loader2 size={12} className="animate-spin" />
-                      ) : (
-                        "Accept"
-                      )}
-                    </button>
-                    <button
-                      onClick={() => handleRespond(req.friendshipId, "decline")}
-                      disabled={respondingId === req.friendshipId}
-                      className="p-1 text-muted-foreground hover:text-red-500 disabled:opacity-40 transition-colors"
-                      title="Decline"
-                    >
-                      <X size={14} />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Friends list */}
+        {/* Friends grid — 2-column card layout */}
         {loadingFriends ? (
           <p className="text-xs text-muted-foreground py-2">Loading...</p>
         ) : friends.length === 0 && pendingSent.length === 0 ? (
-          <p className="text-xs text-muted-foreground py-2">No friends yet. Search above to send a request.</p>
+          <p className="text-xs text-muted-foreground py-4 text-center">
+            No friends yet. Search above to send a request.
+          </p>
         ) : (
-          <div className="flex flex-col gap-1">
-            {/* Accepted friends */}
-            {friends.map((friend) => (
-              <div
-                key={friend.friendshipId}
-                className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-accent/50 transition-colors"
-              >
-                <UserAvatar
-                  url={friend.avatarUrl}
-                  name={friend.fullName}
-                  email={friend.email}
-                  size={28}
-                />
-                <div className="flex-1 min-w-0">
-                  {friend.fullName && (
-                    <p className="text-sm font-medium text-foreground truncate">{friend.fullName}</p>
-                  )}
-                  <p className="text-xs text-muted-foreground truncate">{friend.email}</p>
-                </div>
-                <button
-                  onClick={() => handleRemoveFriend(friend.friendshipId)}
-                  disabled={removingId === friend.friendshipId}
-                  className="text-muted-foreground hover:text-red-500 transition-colors disabled:opacity-40"
-                  title="Remove friend"
-                >
-                  {removingId === friend.friendshipId ? (
-                    <Loader2 size={14} className="animate-spin" />
-                  ) : (
-                    <UserMinus size={14} />
-                  )}
-                </button>
+          <>
+            {friends.length > 0 && (
+              <div className="grid grid-cols-2 gap-2">
+                {friends.map((friend) => (
+                  <div
+                    key={friend.friendshipId}
+                    className="group flex items-center gap-2.5 p-3 rounded-xl border border-border hover:bg-accent/50 transition-colors"
+                  >
+                    <UserAvatar
+                      url={friend.avatarUrl}
+                      name={friend.fullName}
+                      email={friend.email}
+                      size={40}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">
+                        {friend.fullName || friend.email}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">{friend.email}</p>
+                    </div>
+                    <button
+                      onClick={() => handleRemoveFriend(friend.friendshipId)}
+                      disabled={removingId === friend.friendshipId}
+                      className="text-muted-foreground hover:text-red-500 transition-colors disabled:opacity-40 opacity-0 group-hover:opacity-100"
+                      title="Remove friend"
+                    >
+                      {removingId === friend.friendshipId ? (
+                        <Loader2 size={14} className="animate-spin" />
+                      ) : (
+                        <UserMinus size={14} />
+                      )}
+                    </button>
+                  </div>
+                ))}
               </div>
-            ))}
-            {/* Sent requests (pending) */}
-            {pendingSent.map((req) => (
-              <div
-                key={req.friendshipId}
-                className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-accent/50 transition-colors opacity-60"
-              >
-                <UserAvatar
-                  url={req.avatarUrl}
-                  name={req.fullName}
-                  email={req.email}
-                  size={28}
-                />
-                <div className="flex-1 min-w-0">
-                  {req.fullName && (
-                    <p className="text-sm font-medium text-foreground truncate">{req.fullName}</p>
-                  )}
-                  <p className="text-xs text-muted-foreground truncate">{req.email}</p>
+            )}
+
+            {/* Sent Requests — subtle list with badge */}
+            {pendingSent.length > 0 && (
+              <div className="mt-4">
+                <p className="text-xs font-medium text-muted-foreground mb-2">Sent Requests</p>
+                <div className="flex flex-col gap-1">
+                  {pendingSent.map((req) => (
+                    <div
+                      key={req.friendshipId}
+                      className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-accent/50 transition-colors"
+                    >
+                      <UserAvatar
+                        url={req.avatarUrl}
+                        name={req.fullName}
+                        email={req.email}
+                        size={28}
+                      />
+                      <div className="flex-1 min-w-0">
+                        {req.fullName && (
+                          <p className="text-sm font-medium text-foreground truncate">{req.fullName}</p>
+                        )}
+                        <p className="text-xs text-muted-foreground truncate">{req.email}</p>
+                      </div>
+                      <span className="text-[10px] font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-full px-1.5 py-0.5 leading-none">
+                        Pending
+                      </span>
+                      <button
+                        onClick={() => handleRemoveFriend(req.friendshipId)}
+                        disabled={removingId === req.friendshipId}
+                        className="text-muted-foreground hover:text-red-500 transition-colors disabled:opacity-40"
+                        title="Cancel request"
+                      >
+                        {removingId === req.friendshipId ? (
+                          <Loader2 size={14} className="animate-spin" />
+                        ) : (
+                          <X size={14} />
+                        )}
+                      </button>
+                    </div>
+                  ))}
                 </div>
-                <span className="text-[10px] text-amber-500 font-medium mr-1">Pending</span>
-                <button
-                  onClick={() => handleRemoveFriend(req.friendshipId)}
-                  disabled={removingId === req.friendshipId}
-                  className="text-muted-foreground hover:text-red-500 transition-colors disabled:opacity-40"
-                  title="Cancel request"
-                >
-                  {removingId === req.friendshipId ? (
-                    <Loader2 size={14} className="animate-spin" />
-                  ) : (
-                    <X size={14} />
-                  )}
-                </button>
               </div>
-            ))}
+            )}
+          </>
+        )}
+
+        {/* People you may know — suggestions */}
+        {!loadingSuggestions && peopleSuggestions.length > 0 && (
+          <div className="mt-6">
+            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+              People you may know
+            </h4>
+            <div className="grid grid-cols-2 gap-2">
+              {peopleSuggestions.map((person) => {
+                const rel = getRelationship(person.id);
+                return (
+                  <div
+                    key={person.id}
+                    className="flex items-center gap-2.5 p-3 rounded-xl border border-border hover:bg-accent/50 transition-colors"
+                  >
+                    <UserAvatar
+                      url={person.avatar_url}
+                      name={person.full_name}
+                      email={person.email}
+                      size={36}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">
+                        {person.full_name || person.email}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">{person.email}</p>
+                    </div>
+                    {rel === "pending_sent" ? (
+                      <span className="text-[10px] text-amber-500 font-medium">Sent</span>
+                    ) : (
+                      <button
+                        onClick={() => handleSendRequest(person.id)}
+                        disabled={sendingRequest || !!rel}
+                        className="p-1.5 rounded-full text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-colors disabled:opacity-40"
+                        title="Add friend"
+                      >
+                        <UserPlus size={16} />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>
