@@ -44,8 +44,17 @@ export async function GET() {
 
     const allUsers = await getCachedUsers();
 
-    // Filter out self and anyone already connected/pending
-    const candidates = allUsers.filter((u) => !excludeIds.has(u.id));
+    // Extract the current user's email domain for same-school filtering
+    const userEmail = user.email ?? "";
+    const userDomain = userEmail.split("@")[1]?.toLowerCase() ?? "";
+
+    // Filter out self and anyone already connected/pending,
+    // then restrict to same email domain (e.g. @berkeley.edu sees only @berkeley.edu)
+    const candidates = allUsers.filter((u) => {
+      if (excludeIds.has(u.id)) return false;
+      const candidateDomain = (u.email ?? "").split("@")[1]?.toLowerCase() ?? "";
+      return candidateDomain === userDomain;
+    });
 
     // Shuffle and take up to 6 suggestions
     const shuffled = candidates.sort(() => Math.random() - 0.5);

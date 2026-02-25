@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import Image from "next/image";
+import { createPortal } from "react-dom";
 import { Camera, Check, Loader2, Search, UserMinus, UserPlus, Users, X } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 import { useDebounce } from "@/hooks/useDebounce";
@@ -36,10 +36,16 @@ interface SearchUser {
 export default function ProfileSection() {
   const { showToast } = useToast();
 
-  // Profile state
-  const [userEmail, setUserEmail] = useState<string | null>(null);
-  const [userFullName, setUserFullName] = useState<string | null>(null);
-  const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
+  // Profile state — initialise from localStorage for instant render (no flash)
+  const cachedProfile = (() => {
+    try {
+      const c = localStorage.getItem("caltodo_user_profile");
+      return c ? JSON.parse(c) : null;
+    } catch { return null; }
+  })();
+  const [userEmail, setUserEmail] = useState<string | null>(cachedProfile?.email ?? null);
+  const [userFullName, setUserFullName] = useState<string | null>(cachedProfile?.fullName ?? null);
+  const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(cachedProfile?.avatarUrl ?? null);
   const [imgError, setImgError] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [editingName, setEditingName] = useState(false);
@@ -65,6 +71,25 @@ export default function ProfileSection() {
   const [respondingId, setRespondingId] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [viewingUser, setViewingUser] = useState<SearchUser | null>(null);
+  const [modalClosing, setModalClosing] = useState(false);
+  const [viewingUserFriendCount, setViewingUserFriendCount] = useState<number>(0);
+
+  // Fetch friend count when viewing a user profile
+  useEffect(() => {
+    if (!viewingUser) { setViewingUserFriendCount(0); return; }
+    let cancelled = false;
+    async function fetchCount() {
+      try {
+        const res = await fetch(`/api/friends/count?userId=${encodeURIComponent(viewingUser!.id)}`);
+        if (res.ok && !cancelled) {
+          const data = await res.json();
+          setViewingUserFriendCount(data.count ?? 0);
+        }
+      } catch { /* non-critical */ }
+    }
+    fetchCount();
+    return () => { cancelled = true; };
+  }, [viewingUser]);
   const debouncedFriendQuery = useDebounce(friendQuery, 150);
   const friendSearchRef = useRef<HTMLDivElement>(null);
 
@@ -83,17 +108,21 @@ export default function ProfileSection() {
   // Track whether the cache is fresh enough to skip a refetch (5 min TTL)
   const suggestionsCacheFresh = suggestionsCache?.ts && Date.now() - suggestionsCache.ts < 5 * 60_000;
 
-  useEffect(() => {
-    try {
-      const cached = localStorage.getItem("caltodo_user_profile");
-      if (cached) {
-        const { email, fullName, avatarUrl } = JSON.parse(cached);
-        setUserEmail(email);
-        setUserFullName(fullName);
-        setUserAvatarUrl(avatarUrl);
-      }
-    } catch { /* ignore */ }
-  }, []);
+
+  /**
+   * Returns a high-resolution version of an avatar URL.
+   * Google avatar URLs default to 96px (=s96-c); this replaces
+   * the size param to request 256px for crisp retina rendering.
+   *
+   * @param url - Original avatar URL
+   * @returns URL with upgraded resolution, or original if not Google
+   */
+  function getHiResAvatar(url: string): string {
+    if (url.includes("googleusercontent.com")) {
+      return url.replace(/=s\d+-c/, "=s256-c");
+    }
+    return url;
+  }
 
   /**
    * Generates initials from the user's full name or email.
@@ -383,28 +412,28 @@ export default function ProfileSection() {
 
   return (
     <section className="space-y-6">
-      {/* Profile Hero Card */}
-      <div className="rounded-xl border border-border p-6 flex flex-col items-center">
-        {/* Large 80px avatar with camera overlay */}
+      {/* Profile Hero — Instagram-style layout, no border */}
+      <div className="flex items-center gap-8 px-2">
+        {/* Large avatar with camera overlay */}
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
           disabled={uploading}
-          className="relative w-20 h-20 rounded-full overflow-hidden flex items-center justify-center shrink-0 group cursor-pointer disabled:cursor-wait"
+          className="relative w-24 h-24 rounded-full overflow-hidden flex items-center justify-center shrink-0 group cursor-pointer disabled:cursor-wait"
           title="Change profile photo"
         >
+          {/* Neutral gray base — always visible behind the image while it loads */}
+          <div className="absolute inset-0 bg-muted" />
           {userAvatarUrl && !imgError ? (
-            <Image
-              src={userAvatarUrl}
+            <img
+              src={getHiResAvatar(userAvatarUrl)}
               alt="Profile"
-              width={80}
-              height={80}
-              className="w-full h-full object-cover"
+              className="absolute inset-0 w-full h-full object-cover"
               referrerPolicy="no-referrer"
               onError={() => setImgError(true)}
             />
           ) : (
-            <div className="w-full h-full bg-blue-500 flex items-center justify-center text-white text-2xl font-medium">
+            <div className="absolute inset-0 bg-blue-500 flex items-center justify-center text-white text-3xl font-medium">
               {getInitials()}
             </div>
           )}
@@ -424,65 +453,65 @@ export default function ProfileSection() {
           className="hidden"
         />
 
-        {/* Name — centered, large, click to edit */}
-        <div className="mt-3 text-center w-full max-w-[240px]">
-          {editingName ? (
-            <div className="flex items-center justify-center gap-2">
-              <input
-                type="text"
-                value={nameInput}
-                onChange={(e) => setNameInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleSaveName();
-                  if (e.key === "Escape") setEditingName(false);
-                }}
-                className="text-xl font-bold text-foreground bg-transparent border border-input-border rounded-md px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500 min-w-0 flex-1 text-center"
-                maxLength={100}
-                autoFocus
-              />
+        {/* Name, full name, stats, email — stacked right */}
+        <div className="flex-1 min-w-0">
+          {/* Bold username / name — click to edit */}
+          <div>
+            {editingName ? (
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={nameInput}
+                  onChange={(e) => setNameInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleSaveName();
+                    if (e.key === "Escape") setEditingName(false);
+                  }}
+                  className="text-xl font-bold text-foreground bg-transparent border border-input-border rounded-md px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500 min-w-0 flex-1"
+                  maxLength={100}
+                  autoFocus
+                />
+                <button
+                  onClick={handleSaveName}
+                  disabled={savingName}
+                  className="text-blue-500 hover:text-blue-600 disabled:opacity-40"
+                  title="Save name"
+                >
+                  {savingName ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <Check size={16} />
+                  )}
+                </button>
+              </div>
+            ) : (
               <button
-                onClick={handleSaveName}
-                disabled={savingName}
-                className="text-blue-500 hover:text-blue-600 disabled:opacity-40"
-                title="Save name"
+                onClick={() => { setNameInput(userFullName ?? ""); setEditingName(true); }}
+                className="text-xl font-bold text-foreground hover:underline cursor-pointer truncate block"
+                title="Click to edit name"
               >
-                {savingName ? (
-                  <Loader2 size={16} className="animate-spin" />
-                ) : (
-                  <Check size={16} />
-                )}
+                {userFullName || "Add your name"}
               </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => { setNameInput(userFullName ?? ""); setEditingName(true); }}
-              className="text-xl font-bold text-foreground hover:underline cursor-pointer block w-full truncate text-center"
-              title="Click to edit name"
-            >
-              {userFullName || "Add your name"}
-            </button>
+            )}
+          </div>
+
+          {/* Email — lighter, below name */}
+          {userEmail && (
+            <p className="text-sm text-muted-foreground mt-0.5 truncate">{userEmail}</p>
           )}
-        </div>
 
-        {/* Email — centered muted */}
-        {userEmail && (
-          <p className="text-sm text-muted-foreground mt-1 truncate max-w-full">{userEmail}</p>
-        )}
-      </div>
-
-      {/* Stats Row */}
-      <div className="grid grid-cols-3 rounded-xl border border-border divide-x divide-border">
-        <div className="flex flex-col items-center py-3">
-          <span className="text-lg font-bold text-foreground">{friends.length}</span>
-          <span className="text-xs text-muted-foreground">Friends</span>
-        </div>
-        <div className="flex flex-col items-center py-3">
-          <span className="text-lg font-bold text-foreground">{pendingReceived.length}</span>
-          <span className="text-xs text-muted-foreground">Requests</span>
-        </div>
-        <div className="flex flex-col items-center py-3">
-          <span className="text-lg font-bold text-foreground">{pendingSent.length}</span>
-          <span className="text-xs text-muted-foreground">Sent</span>
+          {/* Stats row — like Instagram: 0 Friends  0 Requests  0 Sent */}
+          <div className="flex items-center gap-5 mt-2.5">
+            <span className="text-sm text-foreground">
+              <span className="font-bold">{friends.length}</span> Friends
+            </span>
+            <span className="text-sm text-foreground">
+              <span className="font-bold">{pendingReceived.length}</span> Requests
+            </span>
+            <span className="text-sm text-foreground">
+              <span className="font-bold">{pendingSent.length}</span> Sent
+            </span>
+          </div>
         </div>
       </div>
 
@@ -607,9 +636,9 @@ export default function ProfileSection() {
         {loadingFriends ? (
           <p className="text-xs text-muted-foreground py-2">Loading...</p>
         ) : friends.length === 0 && pendingSent.length === 0 ? (
-          <div className="flex flex-col items-center py-6 gap-2">
+          <div className="flex flex-col items-center justify-center py-6 gap-2 w-full">
             <Users size={36} className="text-muted-foreground/25" strokeWidth={1.5} />
-            <p className="text-xs text-muted-foreground text-center">
+            <p className="text-xs text-muted-foreground text-center w-full">
               No friends yet. Search above to send a request.
             </p>
           </div>
@@ -699,7 +728,7 @@ export default function ProfileSection() {
 
         {/* People you may know — suggestions */}
         {loadingSuggestions && peopleSuggestions.length === 0 && (
-          <div className="mt-6">
+          <div className="mt-10">
             <h4 className="text-sm font-semibold text-foreground mb-2">People you may know</h4>
             <div className="grid grid-cols-2 gap-2">
               {[1, 2, 3, 4].map((i) => (
@@ -712,7 +741,7 @@ export default function ProfileSection() {
           </div>
         )}
         {peopleSuggestions.length > 0 && (
-          <div className="mt-6 animate-in fade-in duration-300">
+          <div className="mt-10 animate-in fade-in duration-300">
             <h4 className="text-sm font-semibold text-foreground mb-2">
               People you may know
             </h4>
@@ -755,83 +784,124 @@ export default function ProfileSection() {
         )}
       </div>
 
-      {/* User profile modal overlay */}
-      {viewingUser && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 animate-in fade-in duration-150"
-          onClick={() => setViewingUser(null)}
-        >
+      {/* User profile modal — portal to body for fullscreen backdrop */}
+      {viewingUser && createPortal((() => {
+        const rel = getRelationship(viewingUser.id);
+        const emailDomain = viewingUser.email.split("@")[1] ?? "";
+
+        function closeModal() {
+          setModalClosing(true);
+          setTimeout(() => {
+            setViewingUser(null);
+            setModalClosing(false);
+          }, 150);
+        }
+
+        return (
           <div
-            className="bg-card rounded-2xl border border-border shadow-2xl p-6 w-[320px] max-w-[90vw] animate-in zoom-in-95 duration-200"
-            onClick={(e) => e.stopPropagation()}
+            className={`fixed inset-0 z-50 flex items-center justify-center bg-black/50 transition-opacity duration-150 ${modalClosing ? "opacity-0" : "animate-in fade-in duration-150"}`}
+            onClick={closeModal}
           >
-            {/* Close button */}
-            <button
-              onClick={() => setViewingUser(null)}
-              className="absolute top-3 right-3 p-1 text-muted-foreground hover:text-foreground rounded-lg hover:bg-accent transition-colors"
+            <div
+              className={`relative bg-card rounded-2xl border border-border shadow-2xl w-[380px] max-w-[90vw] overflow-hidden transition-all duration-150 ${modalClosing ? "scale-95 opacity-0" : "animate-in zoom-in-95 fade-in duration-200"}`}
+              onClick={(e) => e.stopPropagation()}
             >
-              <X size={16} />
-            </button>
+              {/* Close button */}
+              <button
+                onClick={closeModal}
+                className="absolute top-3 right-3 z-10 p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-accent transition-colors"
+              >
+                <X size={16} />
+              </button>
 
-            {/* Avatar + name */}
-            <div className="flex flex-col items-center">
-              <UserAvatar
-                url={viewingUser.avatar_url}
-                name={viewingUser.full_name}
-                email={viewingUser.email}
-                size={72}
-              />
-              <h3 className="mt-3 text-lg font-bold text-foreground text-center truncate max-w-full">
-                {viewingUser.full_name || "Unnamed"}
-              </h3>
-              <p className="text-sm text-muted-foreground truncate max-w-full">
-                {viewingUser.email}
-              </p>
-            </div>
+              {/* Profile header — left-aligned, matches our profile layout */}
+              <div className="flex items-center gap-5 p-5">
+                <UserAvatar
+                  url={viewingUser.avatar_url}
+                  name={viewingUser.full_name}
+                  email={viewingUser.email}
+                  size={72}
+                />
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-lg font-bold text-foreground truncate">
+                    {viewingUser.full_name || "Unnamed"}
+                  </h3>
+                  <p className="text-sm text-muted-foreground truncate">
+                    {viewingUser.email}
+                  </p>
+                  {/* Stats row */}
+                  <div className="flex items-center gap-4 mt-2">
+                    <span className="text-sm text-foreground">
+                      <span className="font-bold">{viewingUserFriendCount}</span> Friends
+                    </span>
+                  </div>
+                </div>
+              </div>
 
-            {/* Action button */}
-            <div className="mt-5">
-              {(() => {
-                const rel = getRelationship(viewingUser.id);
-                if (rel === "friend") {
-                  return (
-                    <p className="text-center text-sm text-muted-foreground font-medium">
-                      Already friends
-                    </p>
-                  );
-                }
-                if (rel === "pending_sent") {
-                  return (
-                    <p className="text-center text-sm text-amber-500 font-medium">
-                      Request sent
-                    </p>
-                  );
-                }
-                if (rel === "pending_received") {
-                  return (
-                    <p className="text-center text-sm text-blue-500 font-medium">
-                      Wants to connect
-                    </p>
-                  );
-                }
-                return (
+              {/* Action */}
+              <div className="px-5 pb-5">
+                {rel === "friend" ? (
+                  <button
+                    onClick={() => {
+                      const f = friends.find((fr) => fr.userId === viewingUser.id);
+                      if (f) { handleRemoveFriend(f.friendshipId); closeModal(); }
+                    }}
+                    className="flex items-center justify-center gap-2 w-full py-2 rounded-xl border border-border text-sm font-medium text-muted-foreground hover:text-red-500 hover:border-red-200 dark:hover:border-red-800/40 transition-colors"
+                  >
+                    <UserMinus size={14} />
+                    Remove Friend
+                  </button>
+                ) : rel === "pending_received" ? (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        const req = pendingReceived.find((r) => r.userId === viewingUser.id);
+                        if (req) { handleRespond(req.friendshipId, "accept"); closeModal(); }
+                      }}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 transition-colors"
+                    >
+                      <Check size={14} />
+                      Accept
+                    </button>
+                    <button
+                      onClick={() => {
+                        const req = pendingReceived.find((r) => r.userId === viewingUser.id);
+                        if (req) { handleRespond(req.friendshipId, "decline"); closeModal(); }
+                      }}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-border text-sm font-medium text-muted-foreground hover:text-red-500 transition-colors"
+                    >
+                      Decline
+                    </button>
+                  </div>
+                ) : rel === "pending_sent" ? (
+                  <button
+                    onClick={() => {
+                      const req = pendingSent.find((r) => r.userId === viewingUser.id);
+                      if (req) { handleRemoveFriend(req.friendshipId); closeModal(); }
+                    }}
+                    className="flex items-center justify-center gap-2 w-full py-2 rounded-xl border border-border text-sm font-medium text-muted-foreground hover:text-red-500 hover:border-red-200 dark:hover:border-red-800/40 transition-colors"
+                  >
+                    <X size={14} />
+                    Cancel Request
+                  </button>
+                ) : (
                   <button
                     onClick={() => {
                       handleSendRequest(viewingUser.id);
-                      setViewingUser(null);
+                      closeModal();
                     }}
                     disabled={sendingRequest}
                     className="flex items-center justify-center gap-2 w-full py-2 rounded-xl bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-40 transition-colors"
                   >
-                    <UserPlus size={16} />
+                    <UserPlus size={14} />
                     Add Friend
                   </button>
-                );
-              })()}
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })(), document.body)}
     </section>
   );
 }

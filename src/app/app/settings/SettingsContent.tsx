@@ -96,7 +96,7 @@ export default function SettingsContent() {
                     </button>
                   </div>
                   <div className="flex-1 overflow-auto px-4 pt-2 pb-8">
-                    <div key={activeSection} className="max-w-xl animate-page-in">
+                    <div key={activeSection} className="max-w-2xl mx-auto animate-page-in">
                       {renderSection(activeSection)}
                     </div>
                   </div>
@@ -114,7 +114,7 @@ export default function SettingsContent() {
                     </button>
                   </div>
                   <div className="flex-1 overflow-auto px-4 pt-2 pb-8">
-                    <div className="max-w-xl space-y-6 animate-stagger stagger-2">
+                    <div className="max-w-2xl mx-auto space-y-6 animate-stagger stagger-2">
                       {SETTINGS_GROUPS.map((group) => (
                         <div key={group}>
                           <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-1 mb-2">
@@ -148,11 +148,17 @@ export default function SettingsContent() {
 
             {/* === DESKTOP VIEW === */}
             <div className="hidden md:flex flex-col h-full">
-              <div className="flex-1 overflow-auto px-8 pt-8 pb-8">
-                <div key={activeSection ?? DEFAULT_SECTION} className="max-w-xl animate-page-in">
-                  {renderSection(activeSection ?? DEFAULT_SECTION)}
-                </div>
-              </div>
+              {(() => {
+                const section = activeSection ?? DEFAULT_SECTION;
+                const isProfile = section === "profile";
+                return (
+                  <div className={`flex-1 overflow-auto pb-8 ${isProfile ? "px-8 pt-20" : "px-8 pt-8"}`}>
+                    <div key={section} className={`max-w-2xl animate-page-in ${isProfile ? "mx-auto mr-auto ml-[15%]" : ""}`}>
+                      {renderSection(section)}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>

@@ -4,7 +4,7 @@ import { User, Plug, GraduationCap, Palette, Wrench, type LucideIcon } from "luc
 export type SettingsSectionId = "profile" | "integrations" | "classes" | "appearance" | "advanced";
 
 /** Group labels for organising settings sections. */
-export const SETTINGS_GROUPS = ["GENERAL", "SYSTEM"] as const;
+export const SETTINGS_GROUPS = ["PROFILE", "GENERAL", "SYSTEM"] as const;
 
 export type SettingsGroup = (typeof SETTINGS_GROUPS)[number];
 
@@ -20,7 +20,7 @@ export interface SettingsSection {
  * Used by the Sidebar nav and the Settings page orchestrator.
  */
 export const SETTINGS_SECTIONS: SettingsSection[] = [
-  { id: "profile", label: "Profile", icon: User, group: "GENERAL" },
+  { id: "profile", label: "Profile", icon: User, group: "PROFILE" },
   { id: "integrations", label: "Integrations", icon: Plug, group: "GENERAL" },
   { id: "classes", label: "Classes", icon: GraduationCap, group: "GENERAL" },
   { id: "appearance", label: "Appearance", icon: Palette, group: "SYSTEM" },
