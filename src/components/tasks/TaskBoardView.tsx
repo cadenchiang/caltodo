@@ -4,8 +4,9 @@ import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown, MoreVertical, Palette, Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
 import type { Task, TaskInsert } from "@/lib/types";
-import { TASK_COLORS } from "@/lib/constants";
+import { TASK_COLORS, getMiffyColor } from "@/lib/constants";
 import BoardTaskAddForm from "./BoardTaskAddForm";
+import { useTheme } from "@/contexts/ThemeContext";
 
 /** localStorage key for column name aliases. */
 const COLUMN_ALIASES_KEY = "caltodo_board_column_aliases";
@@ -217,6 +218,8 @@ export default function TaskBoardView({
   onColorChange,
   onDeleteClass,
 }: TaskBoardViewProps) {
+  const { colorTheme } = useTheme();
+  const isMiffy = colorTheme === "miffy";
   const [aliases, setAliases] = useState<Map<string, string>>(() => loadColumnAliases());
 
   /** Renames a column by saving a display alias. */
@@ -269,7 +272,15 @@ export default function TaskBoardView({
         <div className="max-w-[320px]">
           <BoardTaskAddForm onAdd={onAdd} onCancel={() => {}} />
         </div>
-        <div className="text-center py-12 text-subtle-foreground text-sm">
+        <div className="flex flex-col items-center py-12 text-subtle-foreground text-sm gap-3">
+          {isMiffy && (
+            <img
+              src="/miffy/miffy-pen.png"
+              alt=""
+              className="w-20 h-auto opacity-50 select-none pointer-events-none"
+              draggable={false}
+            />
+          )}
           No tasks yet. Type above and press Enter!
         </div>
       </div>
@@ -645,6 +656,9 @@ interface TaskCardProps {
  * @param props - TaskCardProps
  */
 function TaskCard({ task, isSelected, onToggle, onSelect, onDelete }: TaskCardProps) {
+  const { colorTheme } = useTheme();
+  const isMiffyCard = colorTheme === "miffy";
+  const taskColor = isMiffyCard ? getMiffyColor(task.color) : task.color;
   const [showMenu, setShowMenu] = useState(false);
   const menuBtnRef = useRef<HTMLButtonElement>(null);
   const menuDropdownRef = useRef<HTMLDivElement>(null);
@@ -675,7 +689,9 @@ function TaskCard({ task, isSelected, onToggle, onSelect, onDelete }: TaskCardPr
       <div
         className={`group relative rounded-xl border bg-card px-3.5 py-3 cursor-pointer transition-all duration-150 shadow-[0_1px_3px_rgba(0,0,0,0.04)] ${
           isSelected
-            ? "border-blue-400 shadow-sm"
+            ? isMiffyCard
+              ? "border-[#e8729a] shadow-sm"
+              : "border-blue-400 shadow-sm"
             : "border-input-border hover:shadow-md"
         } ${isCompleted ? "opacity-50" : ""}`}
         onClick={(e) => onSelect(task, e.currentTarget.getBoundingClientRect())}
@@ -689,8 +705,8 @@ function TaskCard({ task, isSelected, onToggle, onSelect, onDelete }: TaskCardPr
             }}
             className="group/check flex-shrink-0 w-3.5 h-3.5 rounded-[3px] mt-0.5 flex items-center justify-center transition-all"
             style={{
-              backgroundColor: isCompleted ? `color-mix(in srgb, ${task.color || "#D1D5DB"} 35%, #9CA3AF)` : "transparent",
-              border: isCompleted ? "none" : `1.5px solid ${task.color || "#D1D5DB"}`,
+              backgroundColor: isCompleted ? `color-mix(in srgb, ${taskColor || "#D1D5DB"} 35%, #9CA3AF)` : "transparent",
+              border: isCompleted ? "none" : `1.5px solid ${taskColor || "#D1D5DB"}`,
             }}
             aria-label={isCompleted ? "Mark incomplete" : "Mark complete"}
           >
@@ -700,7 +716,7 @@ function TaskCard({ task, isSelected, onToggle, onSelect, onDelete }: TaskCardPr
               </svg>
             ) : (
               <svg width="8" height="6" viewBox="0 0 10 8" fill="none" className="opacity-0 group-hover/check:opacity-40 transition-opacity">
-                <path d="M1 4L3.5 6.5L9 1" stroke={task.color || "#D1D5DB"} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M1 4L3.5 6.5L9 1" stroke={taskColor || "#D1D5DB"} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             )}
           </button>

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { type LucideIcon } from "lucide-react";
+import { useTheme } from "@/contexts/ThemeContext";
 
 interface SidebarNavItemProps {
   label: string;
@@ -25,6 +26,8 @@ interface SidebarNavItemProps {
  */
 export default function SidebarNavItem({ label, href, icon: Icon, badge, id }: SidebarNavItemProps) {
   const pathname = usePathname();
+  const { colorTheme } = useTheme();
+  const isMiffy = colorTheme === "miffy";
   const isActive = pathname === href;
 
   return (
@@ -34,7 +37,9 @@ export default function SidebarNavItem({ label, href, icon: Icon, badge, id }: S
       prefetch={true}
       className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
         isActive
-          ? "bg-accent text-foreground"
+          ? isMiffy
+            ? "bg-[#fce8ef] dark:bg-[rgba(232,114,154,0.12)] text-foreground"
+            : "bg-accent text-foreground"
           : "text-muted-foreground hover:bg-accent hover:text-foreground"
       }`}
     >

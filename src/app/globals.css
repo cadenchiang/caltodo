@@ -50,6 +50,146 @@
   --ring: #1e3a5f;
 }
 
+/* ── Miffy pastel-pink theme overrides ── */
+.theme-miffy {
+  --background: #fdf2f5;
+  --card: #ffffff;
+  --popover: #ffffff;
+  --muted: #fce8ef;
+  --accent: #fce8ef;
+  --input-bg: rgba(255, 255, 255, 0.6);
+  --input-bg-focus: rgba(255, 255, 255, 0.8);
+
+  --foreground: #1f2937;
+  --secondary-foreground: #4b5563;
+  --muted-foreground: #6b7280;
+  --subtle-foreground: #9ca3af;
+
+  --border: #f9d5e0;
+  --input-border: #f0b8cc;
+  --border-subtle: #fce8ef;
+
+  --ring: #f9a8c9;
+}
+
+.dark.theme-miffy {
+  --background: #1a1118;
+  --card: #231920;
+  --popover: #2a1f26;
+  --muted: #2a1f26;
+  --accent: rgba(232, 114, 154, 0.08);
+  --input-bg: rgba(232, 114, 154, 0.06);
+  --input-bg-focus: rgba(232, 114, 154, 0.12);
+
+  --foreground: #f3e8ee;
+  --secondary-foreground: #d4b8c8;
+  --muted-foreground: #9a7e8e;
+  --subtle-foreground: #6b5a64;
+
+  --border: #3d2e36;
+  --input-border: #4a3542;
+  --border-subtle: #3d2e36;
+
+  --ring: #6b3a52;
+}
+
+/* ── Miffy theme: polka dot background pattern ── */
+.theme-miffy body {
+  background-image: radial-gradient(circle, #f4a0bc 0.8px, transparent 0.8px);
+  background-size: 24px 24px;
+  background-position: 0 0;
+}
+
+.dark.theme-miffy body {
+  background-image: radial-gradient(circle, rgba(232, 114, 154, 0.08) 0.8px, transparent 0.8px);
+  background-size: 24px 24px;
+  background-position: 0 0;
+}
+
+/* ── Miffy theme: glass-strong warm tint ── */
+.theme-miffy .glass-strong {
+  background: #fdf2f5;
+}
+
+.dark.theme-miffy .glass-strong {
+  background: #1a1118;
+}
+
+/* ── Miffy theme: glass warm tint ── */
+.theme-miffy .glass {
+  background: rgba(253, 242, 245, 0.65);
+}
+
+.dark.theme-miffy .glass {
+  background: rgba(26, 17, 24, 0.75);
+}
+
+/* ── Miffy theme: scrollbar pink tint ── */
+.theme-miffy * {
+  scrollbar-color: rgba(232, 114, 154, 0.3) transparent;
+}
+
+.dark.theme-miffy * {
+  scrollbar-color: rgba(232, 114, 154, 0.2) transparent;
+}
+
+.theme-miffy *::-webkit-scrollbar-thumb {
+  background: rgba(232, 114, 154, 0.3);
+}
+
+.theme-miffy *::-webkit-scrollbar-thumb:hover {
+  background: rgba(232, 114, 154, 0.5);
+}
+
+.dark.theme-miffy *::-webkit-scrollbar-thumb {
+  background: rgba(232, 114, 154, 0.2);
+}
+
+.dark.theme-miffy *::-webkit-scrollbar-thumb:hover {
+  background: rgba(232, 114, 154, 0.35);
+}
+
+/* ── Miffy theme: main content gradient glow ── */
+.theme-miffy .miffy-glow {
+  position: relative;
+}
+
+.theme-miffy .miffy-glow::before {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 320px;
+  height: 320px;
+  background: radial-gradient(circle, rgba(244, 160, 188, 0.15) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.dark.theme-miffy .miffy-glow::before {
+  background: radial-gradient(circle, rgba(232, 114, 154, 0.06) 0%, transparent 70%);
+}
+
+/* ── Miffy theme: faint watermark in main content ── */
+.theme-miffy .miffy-watermark::after {
+  content: "";
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  width: 120px;
+  height: 120px;
+  background-image: url("/miffy/miffy-face.png");
+  background-size: contain;
+  background-repeat: no-repeat;
+  opacity: 0.04;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.dark.theme-miffy .miffy-watermark::after {
+  opacity: 0.03;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -86,6 +226,34 @@
 
   --animate-shimmer-slide: shimmer-slide var(--speed) ease-in-out infinite alternate;
   --animate-spin-around: spin-around calc(var(--speed) * 2) infinite linear;
+}
+
+/* Rose-pink accent overrides for Miffy theme (replaces blue-* scale) */
+.theme-miffy {
+  --color-blue-50: #fdf2f5;
+  --color-blue-100: #fce8ef;
+  --color-blue-200: #f9c6d6;
+  --color-blue-300: #f4a0bc;
+  --color-blue-400: #ed7aa2;
+  --color-blue-500: #e8729a;
+  --color-blue-600: #d4567e;
+  --color-blue-700: #b03d64;
+  --color-blue-800: #8c2e4e;
+  --color-blue-900: #6b2340;
+  --color-blue-950: #3d1225;
+}
+
+/* Shake animation for wrong code entry */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+}
+
+.animate-shake {
+  animation: shake 400ms ease-out;
 }
 
 html {

@@ -4,7 +4,9 @@ import { useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import { Trash2, Repeat, MoreVertical, Clock } from "lucide-react";
 import type { Task } from "@/lib/types";
+import { getMiffyColor } from "@/lib/constants";
 import { useTaskContext } from "@/contexts/TaskContext";
+import { useTheme } from "@/contexts/ThemeContext";
 
 /** Duration presets for the snooze submenu. */
 const SNOOZE_PRESETS = [
@@ -91,8 +93,16 @@ function getDueDateBadge(dueDate: string | null, dueTime: string | null): { date
  */
 export default function TaskItem({ task, isSelected, onToggle, onSelect, onDelete }: TaskItemProps) {
   const { snoozeTask } = useTaskContext();
+  const { colorTheme } = useTheme();
+  const isMiffy = colorTheme === "miffy";
+  const taskColor = isMiffy ? getMiffyColor(task.color) : task.color;
   const rawBadge = getDueDateBadge(task.due_date, task.due_time);
-  const dueBadge = rawBadge && task.is_completed ? { ...rawBadge, className: "text-subtle-foreground" } : rawBadge;
+  // Miffy theme: swap blue-400 date badges to pink; completed tasks stay subtle
+  const dueBadge = rawBadge && task.is_completed
+    ? { ...rawBadge, className: "text-subtle-foreground" }
+    : rawBadge && isMiffy && rawBadge.className === "text-blue-400"
+      ? { ...rawBadge, className: "text-[#e8729a] dark:text-[#f4a0bc]" }
+      : rawBadge;
   const [menuOpen, setMenuOpen] = useState(false);
   const [snoozeOpen, setSnoozeOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -147,8 +157,8 @@ export default function TaskItem({ task, isSelected, onToggle, onSelect, onDelet
           }}
           className="group/check flex-shrink-0 w-3.5 h-3.5 rounded-[3px] flex items-center justify-center transition-all"
           style={{
-            backgroundColor: task.is_completed ? `color-mix(in srgb, ${task.color || "#D1D5DB"} 35%, #9CA3AF)` : "transparent",
-            border: task.is_completed ? "none" : `1px solid ${task.color || "#D1D5DB"}`,
+            backgroundColor: task.is_completed ? `color-mix(in srgb, ${taskColor || "#D1D5DB"} 35%, #9CA3AF)` : "transparent",
+            border: task.is_completed ? "none" : `1px solid ${taskColor || "#D1D5DB"}`,
           }}
           aria-label={task.is_completed ? "Mark incomplete" : "Mark complete"}
         >
@@ -158,7 +168,7 @@ export default function TaskItem({ task, isSelected, onToggle, onSelect, onDelet
             </svg>
           ) : (
             <svg width="8" height="6" viewBox="0 0 10 8" fill="none" className="opacity-0 group-hover/check:opacity-40 transition-opacity">
-              <path d="M1 4L3.5 6.5L9 1" stroke={task.color || "#D1D5DB"} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M1 4L3.5 6.5L9 1" stroke={taskColor || "#D1D5DB"} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           )}
         </button>

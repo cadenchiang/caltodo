@@ -3,6 +3,8 @@
 import { format } from "date-fns";
 import { Plus, CalendarDays } from "lucide-react";
 import type { Task } from "@/lib/types";
+import { getMiffyColor } from "@/lib/constants";
+import { useTheme } from "@/contexts/ThemeContext";
 
 interface CalendarDayViewProps {
   currentDate: Date;
@@ -56,6 +58,8 @@ export default function CalendarDayView({
   onAddClick,
   onTaskClick,
 }: CalendarDayViewProps) {
+  const { colorTheme } = useTheme();
+  const isMiffy = colorTheme === "miffy";
   const dateStr = format(currentDate, "yyyy-MM-dd");
   const dayTasks = tasks.filter((t) => t.due_date === dateStr);
 
@@ -88,10 +92,19 @@ export default function CalendarDayView({
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-12 md:py-20 text-center">
-            <div className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-muted flex items-center justify-center mb-3 md:mb-4">
-              <CalendarDays size={24} className="text-muted-foreground md:hidden" />
-              <CalendarDays size={28} className="text-muted-foreground hidden md:block" />
-            </div>
+            {isMiffy ? (
+              <img
+                src="/miffy/miffy-balloon.png"
+                alt=""
+                className="w-16 md:w-20 h-auto opacity-50 mb-3 md:mb-4 select-none pointer-events-none"
+                draggable={false}
+              />
+            ) : (
+              <div className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-muted flex items-center justify-center mb-3 md:mb-4">
+                <CalendarDays size={24} className="text-muted-foreground md:hidden" />
+                <CalendarDays size={28} className="text-muted-foreground hidden md:block" />
+              </div>
+            )}
             <p className="text-sm md:text-base text-muted-foreground font-medium mb-1">No tasks for this day</p>
             <p className="text-xs md:text-sm text-muted-foreground/70">Press + to add a task</p>
           </div>
@@ -114,7 +127,9 @@ function DayTaskCard({
   task: Task;
   onTaskClick: (task: Task, rect: DOMRect) => void;
 }) {
-  const color = task.color || "#6b7280";
+  const { colorTheme } = useTheme();
+  const rawColor = task.color || "#6b7280";
+  const color = colorTheme === "miffy" ? getMiffyColor(task.color) : rawColor;
 
   return (
     <button

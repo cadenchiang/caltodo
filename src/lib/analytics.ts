@@ -40,6 +40,7 @@ type AnalyticsEvent =
   | "filter_changed"
   | "sort_mode_changed"
   | "theme_changed"
+  | "color_theme_changed"
   // Notifications
   | "notification_center_opened"
   | "notification_clicked"

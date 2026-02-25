@@ -3,14 +3,15 @@
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { CalendarDays, ExternalLink, MoreVertical, Trash2 } from "lucide-react";
+import { useTheme } from "@/contexts/ThemeContext";
 import { format } from "date-fns";
 import type { Task, TaskUpdate } from "@/lib/types";
-import { TASK_COLORS } from "@/lib/constants";
+import { TASK_COLORS, getMiffyColor } from "@/lib/constants";
 import { getRepeatLabel } from "@/lib/repeat";
 import { useTaskContext } from "@/contexts/TaskContext";
 import DatePicker from "./DatePicker";
 import TagPicker from "./TagPicker";
-import InviteSection from "./InviteSection";
+// import InviteSection from "./InviteSection"; // Hidden for now
 import Popover from "@/components/ui/Popover";
 
 /**
@@ -94,6 +95,8 @@ function getDateDisplay(dueDate: string | null, dueTime: string | null): { label
  */
 export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: TaskDetailPanelProps) {
   const { availableTags } = useTaskContext();
+  const { colorTheme } = useTheme();
+  const isMiffy = colorTheme === "miffy";
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [tags, setTags] = useState<string[]>([]);
@@ -267,24 +270,27 @@ export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: Tas
               >
                 <div className="bg-card rounded-xl shadow-2xl border border-border p-3">
                   <div className="flex gap-2">
-                    {TASK_COLORS.map((c) => (
-                      <button
-                        key={c}
-                        type="button"
-                        onClick={() => {
-                          setColor(c);
-                          setShowColorPicker(false);
-                          saveWith({ color: c });
-                        }}
-                        className={`w-6 h-6 rounded-full transition-all ${
-                          color === c ? "scale-125" : "hover:scale-110"
-                        }`}
-                        style={{
-                          backgroundColor: c,
-                          boxShadow: color === c ? `0 0 0 2px white, 0 0 0 3.5px ${c}` : "none",
-                        }}
-                      />
-                    ))}
+                    {TASK_COLORS.map((c) => {
+                      const displayColor = isMiffy ? getMiffyColor(c) : c;
+                      return (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => {
+                            setColor(c);
+                            setShowColorPicker(false);
+                            saveWith({ color: c });
+                          }}
+                          className={`w-6 h-6 rounded-full transition-all ${
+                            color === c ? "scale-125" : "hover:scale-110"
+                          }`}
+                          style={{
+                            backgroundColor: displayColor,
+                            boxShadow: color === c ? `0 0 0 2px white, 0 0 0 3.5px ${displayColor}` : "none",
+                          }}
+                        />
+                      );
+                    })}
                   </div>
                 </div>
               </Popover>
@@ -368,10 +374,10 @@ export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: Tas
             />
           </div>
 
-          {/* Invite section */}
-          <div className="px-5 pt-3">
+          {/* Invite section — hidden for now */}
+          {/* <div className="px-5 pt-3">
             <InviteSection taskId={task.id} />
-          </div>
+          </div> */}
 
           {/* Title + Description */}
           <div className="flex-1 overflow-auto px-5 pt-3">
@@ -422,7 +428,15 @@ export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: Tas
           )}
         </>
       ) : (
-        <div className="flex-1 flex items-center justify-center p-5">
+        <div className="flex-1 flex flex-col items-center justify-center p-5 gap-3">
+          {isMiffy && (
+            <img
+              src="/miffy/miffy-snoopy.png"
+              alt=""
+              className="w-32 h-auto opacity-60 select-none pointer-events-none"
+              draggable={false}
+            />
+          )}
           <p className="text-sm text-subtle-foreground">Select a task to view details</p>
         </div>
       )}

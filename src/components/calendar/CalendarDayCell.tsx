@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { format, isSameDay, isSameMonth } from "date-fns";
 import type { Task } from "@/lib/types";
+import { getMiffyColor } from "@/lib/constants";
+import { useTheme } from "@/contexts/ThemeContext";
 import CalendarTaskBar from "./CalendarTaskBar";
 
 interface CalendarDayCellProps {
@@ -38,6 +40,8 @@ export default function CalendarDayCell({
   onDaySelect,
   onTaskClick,
 }: CalendarDayCellProps) {
+  const { colorTheme } = useTheme();
+  const isMiffyTheme = colorTheme === "miffy";
   const [expanded, setExpanded] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [hovered, setHovered] = useState(false);
@@ -101,7 +105,7 @@ export default function CalendarDayCell({
                 <span
                   key={task.id}
                   className={`w-[5px] h-[5px] rounded-full shrink-0 ${task.is_completed ? "opacity-40" : ""}`}
-                  style={{ backgroundColor: task.color || "#6b7280" }}
+                  style={{ backgroundColor: isMiffyTheme ? getMiffyColor(task.color) : (task.color || "#6b7280") }}
                 />
               ))}
               {dotOverflow > 0 && (

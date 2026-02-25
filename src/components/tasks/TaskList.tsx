@@ -8,6 +8,7 @@ import { useTaskContext } from "@/contexts/TaskContext";
 import TaskItem from "./TaskItem";
 import TaskAddForm from "./TaskAddForm";
 import ClassGroupHeader from "./ClassGroupHeader";
+import { useTheme } from "@/contexts/ThemeContext";
 
 /**
  * Formats a countdown string from now until the given ISO timestamp.
@@ -201,6 +202,8 @@ export default function TaskList({
   onReorder,
 }: TaskListProps) {
   const { unsnoozeTask } = useTaskContext();
+  const { colorTheme } = useTheme();
+  const isMiffy = colorTheme === "miffy";
   const [completedExpanded, setCompletedExpanded] = useState(false);
   const [hiddenExpanded, setHiddenExpanded] = useState(false);
   const [showAllActive, setShowAllActive] = useState(false);
@@ -408,7 +411,15 @@ export default function TaskList({
       <TaskAddForm onAdd={onAdd} defaultDate={defaultDate} placeholder={placeholder} />
 
       {active.length === 0 && snoozed.length === 0 && completed.length === 0 && (
-        <div className="text-center py-12 text-subtle-foreground text-sm">
+        <div className="flex flex-col items-center py-12 text-subtle-foreground text-sm gap-3">
+          {isMiffy && (
+            <img
+              src="/miffy/miffy-pen.png"
+              alt=""
+              className="w-20 h-auto opacity-50 select-none pointer-events-none"
+              draggable={false}
+            />
+          )}
           No tasks yet. Type above and press Enter!
         </div>
       )}

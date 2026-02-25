@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { format, isSameDay, startOfWeek, addDays } from "date-fns";
 import type { Task } from "@/lib/types";
+import { getMiffyColor } from "@/lib/constants";
+import { useTheme } from "@/contexts/ThemeContext";
 
 interface CalendarWeekViewProps {
   currentDate: Date;
@@ -148,6 +150,8 @@ function WeekDayColumn({
   onDayClick: (date: string, rect: DOMRect) => void;
   onTaskClick: (task: Task, rect: DOMRect) => void;
 }) {
+  const { colorTheme } = useTheme();
+  const isMiffyTheme = colorTheme === "miffy";
   const [hovered, setHovered] = useState(false);
   const maxDots = 4;
 
@@ -174,7 +178,7 @@ function WeekDayColumn({
                 <span
                   key={task.id}
                   className={`w-[5px] h-[5px] rounded-full shrink-0 ${task.is_completed ? "opacity-40" : ""}`}
-                  style={{ backgroundColor: task.color || "#6b7280" }}
+                  style={{ backgroundColor: isMiffyTheme ? getMiffyColor(task.color) : (task.color || "#6b7280") }}
                 />
               ))}
               {tasks.length > maxDots && (
@@ -226,7 +230,9 @@ function WeekTaskCard({
   task: Task;
   onTaskClick: (task: Task, rect: DOMRect) => void;
 }) {
-  const color = task.color || "#6b7280";
+  const { colorTheme } = useTheme();
+  const rawColor = task.color || "#6b7280";
+  const color = colorTheme === "miffy" ? getMiffyColor(task.color) : rawColor;
 
   return (
     <button

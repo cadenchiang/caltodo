@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useRouter } from "next/navigation";
 import { Inbox, Sun, CalendarRange, ChevronLeft } from "lucide-react";
 import { NAV_ITEMS } from "@/lib/constants";
 import { SETTINGS_SECTIONS, SETTINGS_GROUPS, DEFAULT_SECTION, type SettingsSectionId } from "@/lib/settingsConfig";
 import SidebarNavItem from "./SidebarNavItem";
 import ProfilePopup from "./ProfilePopup";
+import { useTheme } from "@/contexts/ThemeContext";
 
 /** localStorage keys for GCal status. */
 const GCAL_CACHE_KEY = "gcal_status";
@@ -38,18 +39,23 @@ interface SidebarProps {
 export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { colorTheme, resolvedTheme } = useTheme();
+  const isMiffy = colorTheme === "miffy";
+  const isDark = resolvedTheme === "dark";
   const isSettings = pathname.startsWith("/app/settings");
   const [inboxFilter, setInboxFilter] = useState<string>(() => {
     try { return localStorage.getItem("inbox-filter") || "all"; }
     catch { return "all"; }
   });
   const [showCalBadge, setShowCalBadge] = useState(false);
-  const [activeSettingsSection, setActiveSettingsSection] = useState<SettingsSectionId>(() => {
-    if (typeof window === "undefined") return DEFAULT_SECTION;
-    const params = new URLSearchParams(window.location.search);
-    const s = params.get("section");
-    return SETTINGS_SECTIONS.some((sec) => sec.id === s) ? (s as SettingsSectionId) : DEFAULT_SECTION;
-  });
+
+  // Derive active settings section directly from URL search params (single source of truth)
+  const sectionParam = searchParams.get("section");
+  const activeSettingsSection: SettingsSectionId =
+    SETTINGS_SECTIONS.some((sec) => sec.id === sectionParam)
+      ? (sectionParam as SettingsSectionId)
+      : DEFAULT_SECTION;
 
   // Cache user profile to localStorage so AccountSection can read it
   useEffect(() => {
@@ -57,19 +63,6 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
       localStorage.setItem("caltodo_user_profile", JSON.stringify({ email, fullName, avatarUrl }));
     } catch { /* ignore quota errors */ }
   }, [email, fullName, avatarUrl]);
-
-  // Sync active section on browser back/forward
-  useEffect(() => {
-    if (!isSettings) return;
-    function onPopState() {
-      const params = new URLSearchParams(window.location.search);
-      const s = params.get("section");
-      const valid = SETTINGS_SECTIONS.some((sec) => sec.id === s);
-      setActiveSettingsSection(valid ? (s as SettingsSectionId) : DEFAULT_SECTION);
-    }
-    window.addEventListener("popstate", onPopState);
-    return () => window.removeEventListener("popstate", onPopState);
-  }, [isSettings]);
 
   // Listen for filter changes dispatched by InboxPage
   useEffect(() => {
@@ -143,14 +136,22 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
   const inboxConfig = FILTER_CONFIG[inboxFilter] || FILTER_CONFIG.all;
 
   return (
-    <aside className="hidden md:flex glass-strong w-52 h-screen flex-col justify-between py-4 px-3 shrink-0 shadow-lg dark:shadow-black/30">
+    <aside className={`hidden md:flex glass-strong w-52 h-screen flex-col justify-between py-4 px-3 shrink-0 shadow-lg dark:shadow-black/30 ${isMiffy ? "border-r border-[#f9d5e0] dark:border-[#3d2e36]" : ""}`}>
       <div>
         <div className="mb-6 px-3 pt-1">
-          <img
-            src="/logo.png"
-            alt="caltodo"
-            className="h-10 dark:invert"
-          />
+          {isMiffy ? (
+            <img
+              src={isDark ? "/logo-miffy-dark.png" : "/logo-miffy.png"}
+              alt="caltodo"
+              className="h-10 object-contain"
+            />
+          ) : (
+            <img
+              src="/logo.png"
+              alt="caltodo"
+              className="h-10 dark:invert"
+            />
+          )}
         </div>
         {isSettings ? (
           <div className="flex flex-col gap-1">
@@ -176,16 +177,21 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
                     <button
                       key={section.id}
                       onClick={() => {
-                        setActiveSettingsSection(section.id);
                         router.push(`/app/settings?section=${section.id}`);
                       }}
                       className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors cursor-pointer ${
                         isActive
-                          ? "bg-accent text-foreground"
+                          ? isMiffy
+                            ? "bg-[#fce8ef] dark:bg-[rgba(232,114,154,0.12)] text-foreground"
+                            : "bg-accent text-foreground"
                           : "text-muted-foreground hover:bg-accent hover:text-foreground"
                       }`}
                     >
-                      <div className="w-7 h-7 rounded-lg bg-white dark:bg-zinc-800 shadow-sm dark:shadow-none border border-border/50 flex items-center justify-center shrink-0">
+                      <div className={`w-7 h-7 rounded-lg shadow-sm dark:shadow-none flex items-center justify-center shrink-0 ${
+                        isMiffy && isActive
+                          ? "bg-white dark:bg-[#231920] border border-[#f9d5e0] dark:border-[#4a3542]"
+                          : "bg-white dark:bg-zinc-800 border border-border/50"
+                      }`}>
                         <Icon size={14} />
                       </div>
                       <span>{section.label}</span>
@@ -216,6 +222,16 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
       </div>
 
       <div className="px-2 flex flex-col gap-2">
+        {isMiffy && (
+          <div className="flex justify-center pointer-events-none select-none">
+            <img
+              src="/miffy/miffy-flowers.png"
+              alt=""
+              className="w-20 h-auto opacity-[0.35]"
+              draggable={false}
+            />
+          </div>
+        )}
         <ProfilePopup avatarUrl={avatarUrl} fullName={fullName} email={email} />
       </div>
     </aside>

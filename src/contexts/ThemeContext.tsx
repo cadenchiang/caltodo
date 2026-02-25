@@ -8,11 +8,17 @@ import { getCachedCoords, getUserCoords } from "@/lib/geolocation";
 /** localStorage key for persisting theme preference. */
 const THEME_KEY = "caltodo_theme";
 
+/** localStorage key for persisting the active color theme (e.g. "miffy"). */
+const COLOR_THEME_KEY = "caltodo_color_theme";
+
 /** User-facing preference: light, dark, or auto (follow sunset/sunrise). */
 export type ThemePreference = "light" | "dark" | "auto";
 
 /** The actual applied theme — always light or dark. */
 export type ResolvedTheme = "light" | "dark";
+
+/** Available color theme IDs. null means the default (no color theme). */
+export type ColorTheme = "miffy" | null;
 
 interface ThemeContextValue {
   /** The user's preference: "light", "dark", or "auto". */
@@ -23,6 +29,10 @@ interface ThemeContextValue {
   setPreference: (pref: ThemePreference) => void;
   /** Toggle between light → dark → auto → light. */
   toggleTheme: () => void;
+  /** The active color theme (e.g. "miffy"), or null for default. */
+  colorTheme: ColorTheme;
+  /** Activate or deactivate a color theme. Pass null to clear. */
+  setColorTheme: (theme: ColorTheme) => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -51,6 +61,26 @@ export function resolveTheme(pref: ThemePreference): ResolvedTheme {
   return pref;
 }
 
+/** All known color theme class names for easy removal. */
+const COLOR_THEME_CLASSES = ["theme-miffy"] as const;
+
+/**
+ * Syncs the browser tab favicon based on the current resolved theme and color theme.
+ * Miffy theme uses dedicated Miffy favicons; default uses standard bear icon.
+ */
+function syncFavicon(): void {
+  if (typeof document === "undefined") return;
+  const link = document.querySelector('link[rel="icon"]') as HTMLLinkElement | null;
+  if (!link) return;
+  const isDark = document.documentElement.classList.contains("dark");
+  const isMiffy = document.documentElement.classList.contains("theme-miffy");
+  if (isMiffy) {
+    link.href = isDark ? "/favicon-miffy-dark.png" : "/favicon-miffy.png";
+  } else {
+    link.href = isDark ? "/icon-dark.png" : "/icon-light.png";
+  }
+}
+
 /**
  * Applies the theme class to the <html> element.
  * Adds or removes the "dark" class to enable Tailwind dark: variants.
@@ -61,18 +91,13 @@ export function resolveTheme(pref: ThemePreference): ResolvedTheme {
 function applyTheme(theme: ResolvedTheme, animate = false): void {
   if (typeof document === "undefined") return;
 
-  // Sync favicon with theme
-  const link = document.querySelector('link[rel="icon"]') as HTMLLinkElement | null;
-  if (link) {
-    link.href = theme === "dark" ? "/icon-dark.png" : "/icon-light.png";
-  }
-
   if (!animate) {
     if (theme === "dark") {
       document.documentElement.classList.add("dark");
     } else {
       document.documentElement.classList.remove("dark");
     }
+    syncFavicon();
     return;
   }
 
@@ -86,11 +111,45 @@ function applyTheme(theme: ResolvedTheme, animate = false): void {
     } else {
       document.documentElement.classList.remove("dark");
     }
+    syncFavicon();
     document.documentElement.style.opacity = "1";
     setTimeout(() => {
       document.documentElement.style.transition = "";
     }, 150);
   }, 150);
+}
+
+/**
+ * Applies or removes the color theme class on <html>.
+ * Removes all known color theme classes first, then adds the active one.
+ *
+ * @param colorTheme - The color theme ID to apply, or null to clear
+ */
+function applyColorTheme(colorTheme: ColorTheme): void {
+  if (typeof document === "undefined") return;
+  const el = document.documentElement;
+  COLOR_THEME_CLASSES.forEach((cls) => el.classList.remove(cls));
+  if (colorTheme) {
+    el.classList.add(`theme-${colorTheme}`);
+  }
+  syncFavicon();
+}
+
+/**
+ * Reads the stored color theme from localStorage.
+ * Returns null if nothing valid is stored.
+ *
+ * @returns The stored color theme, or null
+ */
+function getInitialColorTheme(): ColorTheme {
+  if (typeof window === "undefined") return null;
+  try {
+    const stored = localStorage.getItem(COLOR_THEME_KEY);
+    if (stored === "miffy") return stored;
+  } catch {
+    // localStorage unavailable
+  }
+  return null;
 }
 
 /**
@@ -131,9 +190,10 @@ const SOLAR_CHECK_INTERVAL = 60_000;
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [preference, setPreferenceState] = useState<ThemePreference>("auto");
   const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>("light");
+  const [colorTheme, setColorThemeState] = useState<ColorTheme>(null);
   const preferenceRef = useRef<ThemePreference>("auto");
 
-  // On mount, read stored preference and apply the resolved theme.
+  // On mount, read stored preference and apply the resolved theme + color theme.
   useEffect(() => {
     const stored = getInitialPreference();
     const resolved = resolveTheme(stored);
@@ -141,6 +201,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     preferenceRef.current = stored;
     setResolvedTheme(resolved);
     applyTheme(resolved);
+
+    const storedColor = getInitialColorTheme();
+    setColorThemeState(storedColor);
+    applyColorTheme(storedColor);
   }, []);
 
   // When preference is "auto": fetch fresh coords, poll solar position every 60s.
@@ -149,7 +213,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
     // Fetch fresh geolocation (async, updates cache for next check)
     getUserCoords().then(() => {
-      // Re-resolve with potentially updated coords
+      // Guard: preference may have changed while coords were loading
+      if (preferenceRef.current !== "auto") return;
       const next = resolveTheme("auto");
       setResolvedTheme(next);
       applyTheme(next);
@@ -201,8 +266,29 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  /**
+   * Activate or deactivate a color theme.
+   * Persists to localStorage and applies the class on <html>.
+   *
+   * @param theme - Color theme ID to activate, or null to deactivate
+   */
+  const setColorTheme = useCallback((theme: ColorTheme) => {
+    trackEvent("color_theme_changed", { colorTheme: theme ?? "default" });
+    setColorThemeState(theme);
+    applyColorTheme(theme);
+    try {
+      if (theme) {
+        localStorage.setItem(COLOR_THEME_KEY, theme);
+      } else {
+        localStorage.removeItem(COLOR_THEME_KEY);
+      }
+    } catch {
+      // localStorage unavailable
+    }
+  }, []);
+
   return (
-    <ThemeContext.Provider value={{ preference, resolvedTheme, setPreference, toggleTheme }}>
+    <ThemeContext.Provider value={{ preference, resolvedTheme, setPreference, toggleTheme, colorTheme, setColorTheme }}>
       {children}
     </ThemeContext.Provider>
   );

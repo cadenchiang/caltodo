@@ -103,9 +103,17 @@ const themeScript = `
     if (isDark) {
       document.documentElement.classList.add("dark");
     }
+    var ct = localStorage.getItem("caltodo_color_theme");
+    if (ct === "miffy") {
+      document.documentElement.classList.add("theme-miffy");
+    }
     var link = document.querySelector('link[rel="icon"]');
     if (link) {
-      link.href = isDark ? "/icon-dark.png" : "/icon-light.png";
+      if (ct === "miffy") {
+        link.href = isDark ? "/favicon-miffy-dark.png" : "/favicon-miffy.png";
+      } else {
+        link.href = isDark ? "/icon-dark.png" : "/icon-light.png";
+      }
     }
   } catch(e) {}
 })();
