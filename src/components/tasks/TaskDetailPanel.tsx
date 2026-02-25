@@ -331,8 +331,8 @@ export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: Tas
           </div>
 
           {/* Source badge + course name + late due date + tags (single row) */}
-          <div className="flex items-center gap-3 px-5 pt-3 flex-wrap">
-            <Tag size={16} className="text-muted-foreground shrink-0" />
+          <div className="flex items-center gap-1.5 px-5 pt-3 flex-wrap">
+            <Tag size={16} className="text-muted-foreground shrink-0 mr-1" />
             {task.source && (
               <span
                 className={`text-xs font-medium px-1.5 py-0.5 rounded ${
