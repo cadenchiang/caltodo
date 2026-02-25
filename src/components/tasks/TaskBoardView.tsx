@@ -3,9 +3,24 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown, GripVertical, MoreVertical, Palette, Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  closestCenter,
+} from "@dnd-kit/core";
+import type { DragStartEvent, DragEndEvent } from "@dnd-kit/core";
+import {
+  SortableContext,
+  horizontalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
 import type { Task, TaskInsert } from "@/lib/types";
 import { TASK_COLORS, getMiffyColor } from "@/lib/constants";
 import BoardTaskAddForm from "./BoardTaskAddForm";
+import SortableColumn from "./SortableColumn";
 import { useTheme } from "@/contexts/ThemeContext";
 
 /** localStorage key for column name aliases. */
@@ -319,89 +334,47 @@ export default function TaskBoardView({
     });
   }, []);
 
-  // --- Column drag-and-drop state ---
+  // --- Column drag-and-drop state (@dnd-kit) ---
   const [columnOrder, setColumnOrder] = useState<string[]>(() => loadColumnOrder());
-  const [draggedColumn, setDraggedColumn] = useState<string | null>(null);
-  const [dropTargetColumn, setDropTargetColumn] = useState<string | null>(null);
-  const [dropSide, setDropSide] = useState<"left" | "right" | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  /** Saved order snapshot to revert on cancel. */
+  const savedOrderRef = useRef<string[]>([]);
+  /** Always-current column IDs (updated after columns memo, read in callbacks). */
+  const columnIdsRef = useRef<string[]>([]);
 
   const isDragEnabled = groupBy === "class";
 
-  // Tracks whether drag was initiated from the grip handle
-  const dragFromHandleRef = useRef(false);
-
-  /** Sets up drag data and marks the dragged column. Cancels if not from handle. */
-  const handleColumnDragStart = useCallback(
-    (e: React.DragEvent<HTMLDivElement>, columnName: string) => {
-      if (!dragFromHandleRef.current) {
-        e.preventDefault();
-        return;
-      }
-      setDraggedColumn(columnName);
-      e.dataTransfer.effectAllowed = "move";
-      e.dataTransfer.setData("text/plain", columnName);
-    },
-    []
+  /** PointerSensor with 5px activation distance to avoid accidental drags. */
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
 
-  /** Calculates drop side (left/right) based on cursor position relative to column midpoint. */
-  const handleColumnDragOver = useCallback(
-    (e: React.DragEvent<HTMLDivElement>, targetColumnName: string) => {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = "move";
-      if (targetColumnName === draggedColumn) {
-        setDropTargetColumn(null);
-        setDropSide(null);
-        return;
-      }
-      const rect = e.currentTarget.getBoundingClientRect();
-      const midX = rect.left + rect.width / 2;
-      setDropTargetColumn(targetColumnName);
-      setDropSide(e.clientX < midX ? "left" : "right");
-    },
-    [draggedColumn]
-  );
+  /** Sets activeId and snapshots the current column order for potential revert. */
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    setActiveId(String(event.active.id));
+    savedOrderRef.current = columnIdsRef.current;
+  }, []);
 
-  /** Reorders column array on drop, persists to localStorage. */
-  const handleColumnDrop = useCallback(
-    (e: React.DragEvent<HTMLDivElement>) => {
-      e.preventDefault();
-      if (!draggedColumn || !dropTargetColumn || draggedColumn === dropTargetColumn) {
-        setDraggedColumn(null);
-        setDropTargetColumn(null);
-        setDropSide(null);
-        return;
-      }
-
-      setColumnOrder((prev) => {
-        // Build current effective order from rendered columns
-        const currentKeys = [...(groupBy === "date" ? groupByDate(tasks) : (() => {
-          const base = groupByCourse(tasks);
-          return prev.length > 0 ? applyColumnOrder(base, prev) : base;
-        })()).keys()];
-
-        const newOrder = currentKeys.filter((k) => k !== draggedColumn);
-        const targetIdx = newOrder.indexOf(dropTargetColumn);
-        const insertIdx = dropSide === "right" ? targetIdx + 1 : targetIdx;
-        newOrder.splice(insertIdx, 0, draggedColumn);
-
+  /** Persists the final order to localStorage and clears activeId. */
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const currentIds = columnIdsRef.current;
+      const oldIdx = currentIds.indexOf(String(active.id));
+      const newIdx = currentIds.indexOf(String(over.id));
+      if (oldIdx !== -1 && newIdx !== -1) {
+        const newOrder = arrayMove(currentIds, oldIdx, newIdx);
+        setColumnOrder(newOrder);
         saveColumnOrder(newOrder);
-        return newOrder;
-      });
+      }
+    }
+    setActiveId(null);
+  }, []);
 
-      setDraggedColumn(null);
-      setDropTargetColumn(null);
-      setDropSide(null);
-    },
-    [draggedColumn, dropTargetColumn, dropSide, groupBy, tasks]
-  );
-
-  /** Clears all drag state (handles cancelled drags). */
-  const handleColumnDragEnd = useCallback(() => {
-    dragFromHandleRef.current = false;
-    setDraggedColumn(null);
-    setDropTargetColumn(null);
-    setDropSide(null);
+  /** Reverts to saved order on cancel (e.g. Escape key). */
+  const handleDragCancel = useCallback(() => {
+    setColumnOrder(savedOrderRef.current);
+    setActiveId(null);
   }, []);
 
   if (loading) {
@@ -430,6 +403,13 @@ export default function TaskBoardView({
     return applyColumnOrder(base, columnOrder);
   }, [tasks, isDateMode, columnOrder]);
 
+  /** Ordered column IDs for SortableContext. */
+  const columnIds = useMemo(() => [...columns.keys()], [columns]);
+  columnIdsRef.current = columnIds;
+
+  /** Active column data for DragOverlay rendering. */
+  const activeColumnTasks = activeId ? columns.get(activeId) ?? null : null;
+
   if (columns.size === 0 && !isDateMode) {
     return (
       <div className="px-6">
@@ -452,46 +432,60 @@ export default function TaskBoardView({
   }
 
   return (
-    <div className="flex overflow-x-auto gap-6 px-6 pb-6 h-full">
-      {[...columns.entries()].map(([columnName, columnTasks]) => {
-        const isDragged = draggedColumn === columnName;
-        const isDropTarget = dropTargetColumn === columnName && draggedColumn !== columnName;
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      onDragCancel={handleDragCancel}
+    >
+      <SortableContext items={columnIds} strategy={horizontalListSortingStrategy}>
+        <div className="flex overflow-x-auto gap-6 px-6 pb-6 h-full">
+          {[...columns.entries()].map(([columnName, columnTasks]) => (
+            <SortableColumn key={columnName} id={columnName}>
+              {({ setNodeRef, style, attributes, listeners }) => (
+                <div
+                  ref={setNodeRef}
+                  style={style}
+                  className="min-w-[280px] max-w-[320px] flex-shrink-0"
+                  {...attributes}
+                >
+                  <BoardColumn
+                    name={columnName}
+                    displayName={isDateMode ? columnName : (aliases.get(columnName) || columnName)}
+                    hasAlias={isDateMode ? false : aliases.has(columnName)}
+                    hideMenu={isDateMode}
+                    showDragHandle={isDragEnabled}
+                    dragHandleListeners={isDragEnabled ? listeners : undefined}
+                    tasks={columnTasks}
+                    selectedTaskId={selectedTaskId}
+                    onAdd={onAdd}
+                    onToggle={onToggle}
+                    onSelect={onSelect}
+                    onDelete={onDelete}
+                    onRename={renameColumn}
+                    onResetName={resetColumnName}
+                    onColorChange={onColorChange}
+                    onDeleteClass={onDeleteClass}
+                  />
+                </div>
+              )}
+            </SortableColumn>
+          ))}
+        </div>
+      </SortableContext>
 
-        return (
-          <div
-            key={columnName}
-            className={`min-w-[280px] max-w-[320px] flex-shrink-0 relative transition-all duration-200 ${
-              isDragged ? "opacity-40 scale-[0.97]" : ""
-            }`}
-            draggable={isDragEnabled}
-            onDragStart={(e) => handleColumnDragStart(e, columnName)}
-            onDragOver={(e) => handleColumnDragOver(e, columnName)}
-            onDragLeave={() => {
-              if (dropTargetColumn === columnName) {
-                setDropTargetColumn(null);
-                setDropSide(null);
-              }
-            }}
-            onDrop={handleColumnDrop}
-            onDragEnd={handleColumnDragEnd}
-          >
-            {/* Drop indicator — left side */}
-            {isDropTarget && dropSide === "left" && (
-              <div className="absolute left-[-15px] top-0 bottom-0 w-[2px] bg-blue-500 rounded-full" />
-            )}
-            {/* Drop indicator — right side */}
-            {isDropTarget && dropSide === "right" && (
-              <div className="absolute right-[-15px] top-0 bottom-0 w-[2px] bg-blue-500 rounded-full" />
-            )}
+      {/* Floating drag overlay — fully visible, slightly tilted */}
+      <DragOverlay dropAnimation={{ duration: 200, easing: "ease" }}>
+        {activeId && activeColumnTasks && (
+          <div className="min-w-[280px] max-w-[320px] opacity-90 shadow-2xl rotate-[2deg] scale-[1.02]">
             <BoardColumn
-              name={columnName}
-              displayName={isDateMode ? columnName : (aliases.get(columnName) || columnName)}
-              hasAlias={isDateMode ? false : aliases.has(columnName)}
-              hideMenu={isDateMode}
-              showDragHandle={isDragEnabled}
-              onDragHandleMouseDown={() => { dragFromHandleRef.current = true; }}
-              onDragHandleMouseUp={() => { dragFromHandleRef.current = false; }}
-              tasks={columnTasks}
+              name={activeId}
+              displayName={isDateMode ? activeId : (aliases.get(activeId) || activeId)}
+              hasAlias={isDateMode ? false : aliases.has(activeId)}
+              hideMenu
+              showDragHandle
+              tasks={activeColumnTasks}
               selectedTaskId={selectedTaskId}
               onAdd={onAdd}
               onToggle={onToggle}
@@ -503,9 +497,9 @@ export default function TaskBoardView({
               onDeleteClass={onDeleteClass}
             />
           </div>
-        );
-      })}
-    </div>
+        )}
+      </DragOverlay>
+    </DndContext>
   );
 }
 
@@ -515,8 +509,8 @@ interface BoardColumnProps {
   hasAlias: boolean;
   hideMenu?: boolean;
   showDragHandle?: boolean;
-  onDragHandleMouseDown?: () => void;
-  onDragHandleMouseUp?: () => void;
+  /** @dnd-kit listeners to spread onto the drag grip handle. */
+  dragHandleListeners?: Record<string, Function>;
   tasks: Task[];
   selectedTaskId?: string | null;
   onAdd: (task: TaskInsert) => void;
@@ -541,8 +535,7 @@ function BoardColumn({
   hasAlias,
   hideMenu = false,
   showDragHandle = false,
-  onDragHandleMouseDown,
-  onDragHandleMouseUp,
+  dragHandleListeners,
   tasks,
   selectedTaskId,
   onAdd,
@@ -621,10 +614,9 @@ function BoardColumn({
         <div className="flex items-center gap-2 min-w-0">
           {showDragHandle && (
             <div
-              className="flex-shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground transition-colors"
-              onMouseDown={() => onDragHandleMouseDown?.()}
-              onMouseUp={() => onDragHandleMouseUp?.()}
+              className="flex-shrink-0 cursor-grab active:cursor-grabbing touch-none text-muted-foreground/40 hover:text-muted-foreground transition-colors"
               title="Drag to reorder"
+              {...dragHandleListeners}
             >
               <GripVertical size={14} />
             </div>

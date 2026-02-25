@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
-import { Camera, Check, Loader2, Search, UserMinus, UserPlus, X } from "lucide-react";
+import { Camera, Check, Loader2, Search, UserMinus, UserPlus, Users, X } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 import { useDebounce } from "@/hooks/useDebounce";
 import UserAvatar from "@/components/ui/UserAvatar";
@@ -64,6 +64,7 @@ export default function ProfileSection() {
   const [sendingRequest, setSendingRequest] = useState(false);
   const [respondingId, setRespondingId] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
+  const [viewingUser, setViewingUser] = useState<SearchUser | null>(null);
   const debouncedFriendQuery = useDebounce(friendQuery, 150);
   const friendSearchRef = useRef<HTMLDivElement>(null);
 
@@ -606,9 +607,12 @@ export default function ProfileSection() {
         {loadingFriends ? (
           <p className="text-xs text-muted-foreground py-2">Loading...</p>
         ) : friends.length === 0 && pendingSent.length === 0 ? (
-          <p className="text-xs text-muted-foreground py-4 text-center">
-            No friends yet. Search above to send a request.
-          </p>
+          <div className="flex flex-col items-center py-6 gap-2">
+            <Users size={36} className="text-muted-foreground/25" strokeWidth={1.5} />
+            <p className="text-xs text-muted-foreground text-center">
+              No friends yet. Search above to send a request.
+            </p>
+          </div>
         ) : (
           <>
             {friends.length > 0 && (
@@ -616,7 +620,8 @@ export default function ProfileSection() {
                 {friends.map((friend) => (
                   <div
                     key={friend.friendshipId}
-                    className="group flex items-center gap-2.5 p-3 rounded-xl border border-border hover:bg-accent/50 transition-colors"
+                    className="group flex items-center gap-2.5 p-3 rounded-xl border border-border hover:bg-accent/50 transition-colors cursor-pointer"
+                    onClick={() => setViewingUser({ id: friend.userId, email: friend.email, full_name: friend.fullName, avatar_url: friend.avatarUrl })}
                   >
                     <UserAvatar
                       url={friend.avatarUrl}
@@ -631,7 +636,7 @@ export default function ProfileSection() {
                       <p className="text-xs text-muted-foreground truncate">{friend.email}</p>
                     </div>
                     <button
-                      onClick={() => handleRemoveFriend(friend.friendshipId)}
+                      onClick={(e) => { e.stopPropagation(); handleRemoveFriend(friend.friendshipId); }}
                       disabled={removingId === friend.friendshipId}
                       className="text-muted-foreground hover:text-red-500 transition-colors disabled:opacity-40 opacity-0 group-hover:opacity-100"
                       title="Remove friend"
@@ -693,8 +698,21 @@ export default function ProfileSection() {
         )}
 
         {/* People you may know — suggestions */}
-        {!loadingSuggestions && peopleSuggestions.length > 0 && (
+        {loadingSuggestions && peopleSuggestions.length === 0 && (
           <div className="mt-6">
+            <h4 className="text-sm font-semibold text-foreground mb-2">People you may know</h4>
+            <div className="grid grid-cols-2 gap-2">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="flex items-center gap-2.5 p-3 rounded-xl border border-border animate-pulse">
+                  <div className="w-9 h-9 rounded-full bg-muted shrink-0" />
+                  <div className="flex-1 h-3.5 bg-muted rounded" />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {peopleSuggestions.length > 0 && (
+          <div className="mt-6 animate-in fade-in duration-300">
             <h4 className="text-sm font-semibold text-foreground mb-2">
               People you may know
             </h4>
@@ -702,9 +720,11 @@ export default function ProfileSection() {
               {peopleSuggestions.map((person) => {
                 const rel = getRelationship(person.id);
                 return (
-                  <div
+                  <button
                     key={person.id}
-                    className="flex items-center gap-2.5 p-3 rounded-xl border border-border hover:bg-accent/50 transition-colors"
+                    type="button"
+                    onClick={() => setViewingUser(person)}
+                    className="flex items-center gap-2.5 p-3 rounded-xl border border-border hover:bg-accent/50 transition-colors text-left"
                   >
                     <UserAvatar
                       url={person.avatar_url}
@@ -716,24 +736,102 @@ export default function ProfileSection() {
                       {person.full_name || person.email}
                     </p>
                     {rel === "pending_sent" ? (
-                      <span className="text-[10px] text-amber-500 font-medium">Sent</span>
+                      <span className="text-[10px] text-amber-500 font-medium shrink-0">Sent</span>
                     ) : (
-                      <button
-                        onClick={() => handleSendRequest(person.id)}
-                        disabled={sendingRequest || !!rel}
-                        className="p-1.5 rounded-full text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-colors disabled:opacity-40"
+                      <div
+                        role="button"
+                        onClick={(e) => { e.stopPropagation(); handleSendRequest(person.id); }}
+                        className={`p-1.5 rounded-full text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-colors shrink-0 ${sendingRequest || !!rel ? "opacity-40 pointer-events-none" : ""}`}
                         title="Add friend"
                       >
                         <UserPlus size={16} />
-                      </button>
+                      </div>
                     )}
-                  </div>
+                  </button>
                 );
               })}
             </div>
           </div>
         )}
       </div>
+
+      {/* User profile modal overlay */}
+      {viewingUser && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 animate-in fade-in duration-150"
+          onClick={() => setViewingUser(null)}
+        >
+          <div
+            className="bg-card rounded-2xl border border-border shadow-2xl p-6 w-[320px] max-w-[90vw] animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close button */}
+            <button
+              onClick={() => setViewingUser(null)}
+              className="absolute top-3 right-3 p-1 text-muted-foreground hover:text-foreground rounded-lg hover:bg-accent transition-colors"
+            >
+              <X size={16} />
+            </button>
+
+            {/* Avatar + name */}
+            <div className="flex flex-col items-center">
+              <UserAvatar
+                url={viewingUser.avatar_url}
+                name={viewingUser.full_name}
+                email={viewingUser.email}
+                size={72}
+              />
+              <h3 className="mt-3 text-lg font-bold text-foreground text-center truncate max-w-full">
+                {viewingUser.full_name || "Unnamed"}
+              </h3>
+              <p className="text-sm text-muted-foreground truncate max-w-full">
+                {viewingUser.email}
+              </p>
+            </div>
+
+            {/* Action button */}
+            <div className="mt-5">
+              {(() => {
+                const rel = getRelationship(viewingUser.id);
+                if (rel === "friend") {
+                  return (
+                    <p className="text-center text-sm text-muted-foreground font-medium">
+                      Already friends
+                    </p>
+                  );
+                }
+                if (rel === "pending_sent") {
+                  return (
+                    <p className="text-center text-sm text-amber-500 font-medium">
+                      Request sent
+                    </p>
+                  );
+                }
+                if (rel === "pending_received") {
+                  return (
+                    <p className="text-center text-sm text-blue-500 font-medium">
+                      Wants to connect
+                    </p>
+                  );
+                }
+                return (
+                  <button
+                    onClick={() => {
+                      handleSendRequest(viewingUser.id);
+                      setViewingUser(null);
+                    }}
+                    disabled={sendingRequest}
+                    className="flex items-center justify-center gap-2 w-full py-2 rounded-xl bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-40 transition-colors"
+                  >
+                    <UserPlus size={16} />
+                    Add Friend
+                  </button>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
