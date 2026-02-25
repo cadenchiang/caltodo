@@ -695,7 +695,7 @@ export default function ProfileSection() {
         {/* People you may know — suggestions */}
         {!loadingSuggestions && peopleSuggestions.length > 0 && (
           <div className="mt-6">
-            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+            <h4 className="text-sm font-semibold text-foreground mb-2">
               People you may know
             </h4>
             <div className="grid grid-cols-2 gap-2">
