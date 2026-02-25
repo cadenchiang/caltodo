@@ -474,10 +474,10 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
             </button>
             <button
               onClick={handleSaveAndNext}
-              disabled={saving || selectedIds.size === 0}
+              disabled={saving}
               className="flex-1 px-4 py-2.5 bg-gray-800 text-white rounded-xl text-sm font-semibold disabled:opacity-50 btn-elevated-primary"
             >
-              {saving ? "saving..." : "save & next"}
+              {saving ? "saving..." : selectedIds.size > 0 ? "save & next" : "next"}
             </button>
           </div>
         </>
