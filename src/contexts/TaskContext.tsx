@@ -334,10 +334,13 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     setError(null);
     trackEvent("task_created");
 
+    // Separate invite emails from task columns before inserting
+    const { inviteEmails, ...taskColumns } = taskData;
+
     // Persist to Supabase and replace temp with real record
     const { data, error: insertError } = await supabase
       .from("tasks")
-      .insert({ ...taskData, user_id: userId })
+      .insert({ ...taskColumns, user_id: userId })
       .select()
       .single();
 
@@ -371,6 +374,19 @@ export function TaskProvider({ children }: { children: ReactNode }) {
         }).catch((err) => {
           console.warn("GCal sync (create) failed:", err);
         });
+      }
+
+      // Fire-and-forget: send invites if any emails were provided
+      if (inviteEmails && inviteEmails.length > 0) {
+        for (const email of inviteEmails) {
+          fetch("/api/tasks/invite", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ taskId: data.id, email }),
+          }).catch((err) => {
+            console.warn("Task invite failed:", err);
+          });
+        }
       }
     }
   }

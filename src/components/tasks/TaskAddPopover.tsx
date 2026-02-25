@@ -3,14 +3,26 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { format } from "date-fns";
-import { CalendarDays, Tag } from "lucide-react";
+import { CalendarDays, Loader2, Tag, UserPlus, X } from "lucide-react";
 import type { TaskInsert } from "@/lib/types";
 import { TASK_COLORS, DEFAULT_TASK_COLOR } from "@/lib/constants";
 import { useTaskContext } from "@/contexts/TaskContext";
 import useClickOutside from "@/hooks/useClickOutside";
+import { useDebounce } from "@/hooks/useDebounce";
+import UserAvatar from "@/components/ui/UserAvatar";
 import DatePicker from "./DatePicker";
 import TagPicker from "./TagPicker";
 import Popover from "@/components/ui/Popover";
+
+/**
+ * User search result from the autocomplete API.
+ */
+interface SearchUser {
+  id: string;
+  email: string;
+  full_name: string | null;
+  avatar_url: string | null;
+}
 
 interface TaskAddPopoverProps {
   date: string;
@@ -73,8 +85,18 @@ export default function TaskAddPopover({ date, anchorRect, onClose, onAdd }: Tas
   const [showTagPicker, setShowTagPicker] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
+
+  // Invite state
+  const [showInvite, setShowInvite] = useState(false);
+  const [inviteQuery, setInviteQuery] = useState("");
+  const [inviteSuggestions, setInviteSuggestions] = useState<SearchUser[]>([]);
+  const [searchingInvite, setSearchingInvite] = useState(false);
+  const [invitedUsers, setInvitedUsers] = useState<SearchUser[]>([]);
+  const debouncedInviteQuery = useDebounce(inviteQuery, 150);
+
   const ref = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const inviteInputRef = useRef<HTMLInputElement>(null);
   const colorButtonRef = useRef<HTMLButtonElement>(null);
   const dateButtonRef = useRef<HTMLButtonElement>(null);
   const tagButtonRef = useRef<HTMLButtonElement>(null);
@@ -97,6 +119,10 @@ export default function TaskAddPopover({ date, anchorRect, onClose, onAdd }: Tas
           setShowColorPicker(false);
           setShowDatePicker(false);
           setShowTagPicker(false);
+        } else if (showInvite) {
+          setShowInvite(false);
+          setInviteQuery("");
+          setInviteSuggestions([]);
         } else {
           onClose();
         }
@@ -104,15 +130,45 @@ export default function TaskAddPopover({ date, anchorRect, onClose, onAdd }: Tas
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose, showColorPicker, showDatePicker, showTagPicker]);
+  }, [onClose, showColorPicker, showDatePicker, showTagPicker, showInvite]);
 
   const handleClickOutside = useCallback(() => {
-    if (!showColorPicker && !showDatePicker && !showTagPicker) {
+    if (!showColorPicker && !showDatePicker && !showTagPicker && !showInvite) {
       onClose();
     }
-  }, [onClose, showColorPicker, showDatePicker, showTagPicker]);
+  }, [onClose, showColorPicker, showDatePicker, showTagPicker, showInvite]);
 
   useClickOutside(ref, handleClickOutside, mounted);
+
+  // Search users for invite autocomplete
+  useEffect(() => {
+    if (debouncedInviteQuery.length < 2) {
+      setInviteSuggestions([]);
+      return;
+    }
+    let cancelled = false;
+    async function search() {
+      setSearchingInvite(true);
+      try {
+        const res = await fetch(`/api/users/search?q=${encodeURIComponent(debouncedInviteQuery)}`);
+        if (res.ok && !cancelled) {
+          const data = await res.json();
+          const invitedEmails = new Set(invitedUsers.map((u) => u.email));
+          setInviteSuggestions(
+            (data.users ?? []).filter((u: SearchUser) => !invitedEmails.has(u.email))
+          );
+        }
+      } catch { /* non-critical */ }
+      finally { if (!cancelled) setSearchingInvite(false); }
+    }
+    search();
+    return () => { cancelled = true; };
+  }, [debouncedInviteQuery, invitedUsers]);
+
+  // Focus invite input when expanded
+  useEffect(() => {
+    if (showInvite) inviteInputRef.current?.focus();
+  }, [showInvite]);
 
   /**
    * Handles form submission — creates a task with title, date, time, color, description.
@@ -130,6 +186,7 @@ export default function TaskAddPopover({ date, anchorRect, onClose, onAdd }: Tas
       description: description.trim() || "",
       color,
       tags: tags.length > 0 ? tags : undefined,
+      inviteEmails: invitedUsers.length > 0 ? invitedUsers.map((u) => u.email) : undefined,
     });
     onClose();
   }
@@ -229,6 +286,32 @@ export default function TaskAddPopover({ date, anchorRect, onClose, onAdd }: Tas
               </span>
             )}
 
+            {/* Invite person icon */}
+            <button
+              type="button"
+              onClick={() => {
+                setShowInvite(!showInvite);
+                setShowColorPicker(false);
+                setShowDatePicker(false);
+                setShowTagPicker(false);
+              }}
+              className={`p-1.5 rounded-lg transition-colors ${
+                showInvite || invitedUsers.length > 0
+                  ? "text-blue-500 bg-accent"
+                  : "text-subtle-foreground hover:text-blue-500 hover:bg-accent"
+              }`}
+              aria-label="Invite people"
+            >
+              <UserPlus size={14} />
+            </button>
+
+            {/* Invited count badge */}
+            {invitedUsers.length > 0 && (
+              <span className="text-[10px] text-blue-500 bg-blue-50 dark:bg-blue-900/30 px-1.5 py-0.5 rounded shrink-0">
+                {invitedUsers.length === 1 ? invitedUsers[0].full_name || invitedUsers[0].email : `${invitedUsers.length} people`}
+              </span>
+            )}
+
             {/* Color picker popup */}
             <Popover
               open={showColorPicker}
@@ -292,6 +375,77 @@ export default function TaskAddPopover({ date, anchorRect, onClose, onAdd }: Tas
               </div>
             </Popover>
           </div>
+
+          {/* Invite search — inline expandable */}
+          {showInvite && (
+            <div className="mb-2">
+              {/* Invited user chips */}
+              {invitedUsers.length > 0 && (
+                <div className="flex flex-wrap gap-1 mb-1.5">
+                  {invitedUsers.map((u) => (
+                    <span
+                      key={u.id}
+                      className="inline-flex items-center gap-1 text-[11px] font-medium pl-1 pr-1.5 py-0.5 rounded-full border border-border bg-muted/50"
+                    >
+                      <UserAvatar url={u.avatar_url} name={u.full_name} email={u.email} size={16} />
+                      <span className="text-foreground truncate max-w-[100px]">
+                        {u.full_name || u.email}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setInvitedUsers((prev) => prev.filter((p) => p.id !== u.id))}
+                        className="text-muted-foreground hover:text-red-500 transition-colors"
+                      >
+                        <X size={10} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div className="relative">
+                <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-input-border bg-transparent text-xs">
+                  <UserPlus size={12} className="text-muted-foreground shrink-0" />
+                  <input
+                    ref={inviteInputRef}
+                    type="text"
+                    value={inviteQuery}
+                    onChange={(e) => setInviteQuery(e.target.value)}
+                    placeholder="Search people to invite..."
+                    className="flex-1 min-w-0 bg-transparent text-foreground placeholder-muted-foreground focus:outline-none text-xs"
+                  />
+                  {searchingInvite && (
+                    <Loader2 size={12} className="animate-spin text-muted-foreground" />
+                  )}
+                </div>
+                {/* Autocomplete dropdown */}
+                {inviteSuggestions.length > 0 && inviteQuery.length >= 2 && (
+                  <div className="absolute left-0 right-0 top-full mt-1 z-30 rounded-lg border border-border bg-popover shadow-xl overflow-hidden max-h-[140px] overflow-y-auto">
+                    {inviteSuggestions.map((user) => (
+                      <button
+                        key={user.id}
+                        type="button"
+                        onClick={() => {
+                          setInvitedUsers((prev) => [...prev, user]);
+                          setInviteQuery("");
+                          setInviteSuggestions([]);
+                          inviteInputRef.current?.focus();
+                        }}
+                        className="flex items-center gap-2.5 w-full text-left px-2.5 py-1.5 hover:bg-accent transition-colors"
+                      >
+                        <UserAvatar url={user.avatar_url} name={user.full_name} email={user.email} size={24} />
+                        <div className="flex-1 min-w-0">
+                          {user.full_name && (
+                            <p className="text-xs font-medium text-foreground truncate">{user.full_name}</p>
+                          )}
+                          <p className="text-[11px] text-muted-foreground truncate">{user.email}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Description textarea */}
           <textarea

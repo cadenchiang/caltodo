@@ -49,6 +49,8 @@ export interface TaskInsert {
   repeat_end_date?: string | null;
   repeat_end_count?: number | null;
   tags?: string[];
+  /** Emails to invite after task creation (fire-and-forget). */
+  inviteEmails?: string[];
 }
 
 /**
