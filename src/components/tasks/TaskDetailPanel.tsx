@@ -331,11 +331,11 @@ export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: Tas
           </div>
 
           {/* Source badge + course name + late due date + tags (single row) */}
-          <div className="flex items-center gap-1.5 px-5 pt-3 flex-wrap">
-            <Tag size={16} className="text-muted-foreground shrink-0 mr-1" />
+          <div className="flex items-center gap-3 px-5 pt-3 flex-wrap">
+            <Tag size={16} className="text-muted-foreground shrink-0" />
             {task.source && (
               <span
-                className={`text-xs font-medium px-1.5 py-0.5 rounded ${
+                className={`text-sm font-medium px-1.5 py-0.5 rounded ${
                   task.source === "canvas"
                     ? "text-blue-600 bg-blue-50 dark:bg-blue-900/30"
                     : task.source === "pensieve"
@@ -347,15 +347,15 @@ export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: Tas
               </span>
             )}
             {task.course_name && (
-              <ExpandableBadge text={task.course_name} maxChars={24} className="text-xs font-medium px-1.5 py-0.5 rounded text-black bg-gray-100 dark:text-white dark:bg-white/10" />
+              <ExpandableBadge text={task.course_name} maxChars={24} className="text-sm font-medium px-1.5 py-0.5 rounded text-black bg-gray-100 dark:text-white dark:bg-white/10" />
             )}
             {task.is_submitted && (
-              <span className="text-xs font-medium px-1.5 py-0.5 rounded text-green-600 bg-green-50 dark:bg-green-900/30">
+              <span className="text-sm font-medium px-1.5 py-0.5 rounded text-green-600 bg-green-50 dark:bg-green-900/30">
                 Submitted
               </span>
             )}
             {task.late_due_date && (
-              <span className="text-xs font-medium px-1.5 py-0.5 rounded text-orange-600 bg-orange-50 dark:bg-orange-900/30">
+              <span className="text-sm font-medium px-1.5 py-0.5 rounded text-orange-600 bg-orange-50 dark:bg-orange-900/30">
                 Late due {format(new Date(task.late_due_date + "T00:00:00"), "MMM d")}
               </span>
             )}

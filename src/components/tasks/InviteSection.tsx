@@ -286,10 +286,10 @@ export default function InviteSection({ taskId }: InviteSectionProps) {
         >
           <UserPlus size={16} className="text-muted-foreground shrink-0" />
           <div
-            className={`relative flex-1 flex items-center px-3 py-1.5 transition-colors ${
+            className={`relative flex-1 flex items-center py-1.5 transition-colors ${
               expanded
-                ? "bg-gray-100 dark:bg-zinc-800 rounded-t-lg"
-                : "rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800"
+                ? "px-3 bg-gray-100 dark:bg-zinc-800 rounded-t-lg"
+                : "px-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800"
             }`}
           >
             {expanded ? (
