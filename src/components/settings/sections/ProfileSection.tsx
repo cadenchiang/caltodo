@@ -68,16 +68,19 @@ export default function ProfileSection() {
   const friendSearchRef = useRef<HTMLDivElement>(null);
 
   // "People you may know" suggestions — initialise from localStorage for instant render
-  const [peopleSuggestions, setPeopleSuggestions] = useState<SearchUser[]>(() => {
+  // Cache format: { suggestions: SearchUser[], ts: number }
+  const suggestionsCache = (() => {
     try {
       const c = localStorage.getItem("caltodo_suggestions_cache");
-      return c ? JSON.parse(c) : [];
-    } catch { return []; }
-  });
-  const [loadingSuggestions, setLoadingSuggestions] = useState(() => {
-    try { return !localStorage.getItem("caltodo_suggestions_cache"); }
-    catch { return true; }
-  });
+      return c ? JSON.parse(c) : null;
+    } catch { return null; }
+  })();
+  const [peopleSuggestions, setPeopleSuggestions] = useState<SearchUser[]>(
+    suggestionsCache?.suggestions ?? []
+  );
+  const [loadingSuggestions, setLoadingSuggestions] = useState(!suggestionsCache);
+  // Track whether the cache is fresh enough to skip a refetch (5 min TTL)
+  const suggestionsCacheFresh = suggestionsCache?.ts && Date.now() - suggestionsCache.ts < 5 * 60_000;
 
   useEffect(() => {
     try {
@@ -233,14 +236,22 @@ export default function ProfileSection() {
         const data = await res.json();
         const suggestions = data.suggestions ?? [];
         setPeopleSuggestions(suggestions);
-        try { localStorage.setItem("caltodo_suggestions_cache", JSON.stringify(suggestions)); }
-        catch { /* quota exceeded — ignore */ }
+        try {
+          localStorage.setItem("caltodo_suggestions_cache", JSON.stringify({
+            suggestions,
+            ts: Date.now(),
+          }));
+        } catch { /* quota exceeded — ignore */ }
       }
     } catch { /* non-critical */ }
     finally { setLoadingSuggestions(false); }
   }, []);
 
-  useEffect(() => { fetchSuggestions(); }, [fetchSuggestions]);
+  // Only fetch if cache is stale (>5 min) or empty
+  useEffect(() => {
+    if (!suggestionsCacheFresh) fetchSuggestions();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetchSuggestions]);
 
   // Search users for friends
   useEffect(() => {
@@ -701,12 +712,9 @@ export default function ProfileSection() {
                       email={person.email}
                       size={36}
                     />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">
-                        {person.full_name || person.email}
-                      </p>
-                      <p className="text-xs text-muted-foreground truncate">{person.email}</p>
-                    </div>
+                    <p className="flex-1 min-w-0 text-sm font-medium text-foreground truncate">
+                      {person.full_name || person.email}
+                    </p>
                     {rel === "pending_sent" ? (
                       <span className="text-[10px] text-amber-500 font-medium">Sent</span>
                     ) : (

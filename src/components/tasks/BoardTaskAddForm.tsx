@@ -169,7 +169,7 @@ export default function BoardTaskAddForm({ onAdd, onCancel, courseName }: BoardT
   const badgeLabel = getBadgeLabel();
 
   return (
-    <div ref={containerRef} onBlur={handleBlur}>
+    <div ref={containerRef} onBlur={handleBlur} className="relative">
       <form
         onSubmit={handleSubmit}
         className="rounded-xl border-2 border-blue-400 bg-card px-3.5 py-2.5 flex items-center gap-2 shadow-sm"
