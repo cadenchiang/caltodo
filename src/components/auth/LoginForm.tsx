@@ -85,7 +85,7 @@ export default function LoginForm() {
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
           skipBrowserRedirect: true,
-          queryParams: { hd: "berkeley.edu" },
+          queryParams: { hd: "berkeley.edu", prompt: "select_account" },
         },
       });
 
@@ -102,7 +102,7 @@ export default function LoginForm() {
             provider: "google",
             options: {
               redirectTo: `${window.location.origin}/auth/callback`,
-              queryParams: { hd: "berkeley.edu" },
+              queryParams: { hd: "berkeley.edu", prompt: "select_account" },
             },
           });
           return;
@@ -151,7 +151,7 @@ export default function LoginForm() {
         provider: "google",
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
-          queryParams: { hd: "berkeley.edu" },
+          queryParams: { hd: "berkeley.edu", prompt: "select_account" },
         },
       });
 
