@@ -412,16 +412,23 @@ export default function GoogleCalendarSettings() {
               </div>
             </div>
 
-            <h3 className="text-lg font-semibold text-foreground text-center mb-2">
+            <h3 className="text-lg font-semibold text-foreground text-center mb-3">
               Google may show a warning
             </h3>
 
-            <p className="text-sm text-muted-foreground text-center mb-1">
-              Google may display an &ldquo;unverified app&rdquo; screen during sign-in. This is normal while our verification is pending.
+            <p className="text-sm text-muted-foreground text-center mb-4">
+              Google may show an &ldquo;unverified app&rdquo; screen. This is normal while our verification is pending. To continue:
             </p>
-            <p className="text-sm text-muted-foreground text-center mb-6">
-              To continue, click <span className="font-semibold text-foreground">Advanced</span> &rarr; <span className="font-semibold text-foreground">Go to caltodo (unsafe)</span>.
-            </p>
+            <div className="flex flex-col gap-1.5 mb-5 text-sm text-foreground">
+              <div className="flex items-center gap-2.5">
+                <span className="w-5 h-5 rounded-full bg-muted text-muted-foreground text-xs font-bold flex items-center justify-center shrink-0">1</span>
+                <span>Click <span className="font-semibold">Advanced</span></span>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <span className="w-5 h-5 rounded-full bg-muted text-muted-foreground text-xs font-bold flex items-center justify-center shrink-0">2</span>
+                <span>Click <span className="font-semibold">Go to caltodo (unsafe)</span></span>
+              </div>
+            </div>
 
             <div className="flex flex-col gap-2">
               <button
