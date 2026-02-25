@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDown, MoreVertical, Palette, Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { ChevronDown, GripVertical, MoreVertical, Palette, Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
 import type { Task, TaskInsert } from "@/lib/types";
 import { TASK_COLORS, getMiffyColor } from "@/lib/constants";
 import BoardTaskAddForm from "./BoardTaskAddForm";
@@ -35,6 +35,39 @@ function loadColumnAliases(): Map<string, string> {
 function saveColumnAliases(aliases: Map<string, string>): void {
   try {
     localStorage.setItem(COLUMN_ALIASES_KEY, JSON.stringify([...aliases.entries()]));
+  } catch {
+    // non-critical
+  }
+}
+
+/** localStorage key for saved column order. */
+const COLUMN_ORDER_KEY = "caltodo_board_column_order";
+
+/**
+ * Loads saved column order from localStorage.
+ *
+ * @returns Array of column names in saved order, or empty array on failure
+ */
+function loadColumnOrder(): string[] {
+  try {
+    const raw = localStorage.getItem(COLUMN_ORDER_KEY);
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((item): item is string => typeof item === "string");
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Saves column order to localStorage.
+ *
+ * @param order - Array of column names in desired order
+ */
+function saveColumnOrder(order: string[]): void {
+  try {
+    localStorage.setItem(COLUMN_ORDER_KEY, JSON.stringify(order));
   } catch {
     // non-critical
   }
@@ -90,6 +123,45 @@ function groupByCourse(tasks: Task[]): Map<string, Task[]> {
   }
 
   return sorted;
+}
+
+/**
+ * Reorders a grouped columns Map based on a saved column order.
+ * Columns in savedOrder appear first (in that order), then any new columns
+ * are appended alphabetically with "General" last.
+ * Stale names in savedOrder that don't exist in columns are silently skipped.
+ *
+ * @param columns - Map of column name to tasks array
+ * @param savedOrder - Previously saved array of column names
+ * @returns New Map with columns reordered
+ */
+function applyColumnOrder(
+  columns: Map<string, Task[]>,
+  savedOrder: string[]
+): Map<string, Task[]> {
+  const result = new Map<string, Task[]>();
+  const remaining = new Set(columns.keys());
+
+  // Add columns in saved order first
+  for (const name of savedOrder) {
+    if (columns.has(name)) {
+      result.set(name, columns.get(name)!);
+      remaining.delete(name);
+    }
+  }
+
+  // Append any new columns alphabetically, General last
+  const newColumns = [...remaining].sort((a, b) => {
+    if (a === GENERAL_COLUMN) return 1;
+    if (b === GENERAL_COLUMN) return -1;
+    return a.localeCompare(b);
+  });
+
+  for (const name of newColumns) {
+    result.set(name, columns.get(name)!);
+  }
+
+  return result;
 }
 
 /** Date bucket labels used for date group-by mode. */
@@ -247,6 +319,91 @@ export default function TaskBoardView({
     });
   }, []);
 
+  // --- Column drag-and-drop state ---
+  const [columnOrder, setColumnOrder] = useState<string[]>(() => loadColumnOrder());
+  const [draggedColumn, setDraggedColumn] = useState<string | null>(null);
+  const [dropTargetColumn, setDropTargetColumn] = useState<string | null>(null);
+  const [dropSide, setDropSide] = useState<"left" | "right" | null>(null);
+
+  const isDragEnabled = groupBy === "class";
+
+  // Tracks whether drag was initiated from the grip handle
+  const dragFromHandleRef = useRef(false);
+
+  /** Sets up drag data and marks the dragged column. Cancels if not from handle. */
+  const handleColumnDragStart = useCallback(
+    (e: React.DragEvent<HTMLDivElement>, columnName: string) => {
+      if (!dragFromHandleRef.current) {
+        e.preventDefault();
+        return;
+      }
+      setDraggedColumn(columnName);
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", columnName);
+    },
+    []
+  );
+
+  /** Calculates drop side (left/right) based on cursor position relative to column midpoint. */
+  const handleColumnDragOver = useCallback(
+    (e: React.DragEvent<HTMLDivElement>, targetColumnName: string) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      if (targetColumnName === draggedColumn) {
+        setDropTargetColumn(null);
+        setDropSide(null);
+        return;
+      }
+      const rect = e.currentTarget.getBoundingClientRect();
+      const midX = rect.left + rect.width / 2;
+      setDropTargetColumn(targetColumnName);
+      setDropSide(e.clientX < midX ? "left" : "right");
+    },
+    [draggedColumn]
+  );
+
+  /** Reorders column array on drop, persists to localStorage. */
+  const handleColumnDrop = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      if (!draggedColumn || !dropTargetColumn || draggedColumn === dropTargetColumn) {
+        setDraggedColumn(null);
+        setDropTargetColumn(null);
+        setDropSide(null);
+        return;
+      }
+
+      setColumnOrder((prev) => {
+        // Build current effective order from rendered columns
+        const currentKeys = [...(groupBy === "date" ? groupByDate(tasks) : (() => {
+          const base = groupByCourse(tasks);
+          return prev.length > 0 ? applyColumnOrder(base, prev) : base;
+        })()).keys()];
+
+        const newOrder = currentKeys.filter((k) => k !== draggedColumn);
+        const targetIdx = newOrder.indexOf(dropTargetColumn);
+        const insertIdx = dropSide === "right" ? targetIdx + 1 : targetIdx;
+        newOrder.splice(insertIdx, 0, draggedColumn);
+
+        saveColumnOrder(newOrder);
+        return newOrder;
+      });
+
+      setDraggedColumn(null);
+      setDropTargetColumn(null);
+      setDropSide(null);
+    },
+    [draggedColumn, dropTargetColumn, dropSide, groupBy, tasks]
+  );
+
+  /** Clears all drag state (handles cancelled drags). */
+  const handleColumnDragEnd = useCallback(() => {
+    dragFromHandleRef.current = false;
+    setDraggedColumn(null);
+    setDropTargetColumn(null);
+    setDropSide(null);
+  }, []);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12 text-subtle-foreground text-sm">
@@ -263,8 +420,15 @@ export default function TaskBoardView({
     );
   }
 
-  const columns = groupBy === "date" ? groupByDate(tasks) : groupByCourse(tasks);
   const isDateMode = groupBy === "date";
+
+  // Apply saved column order when in class mode
+  const columns = useMemo(() => {
+    if (isDateMode) return groupByDate(tasks);
+    const base = groupByCourse(tasks);
+    if (columnOrder.length === 0) return base;
+    return applyColumnOrder(base, columnOrder);
+  }, [tasks, isDateMode, columnOrder]);
 
   if (columns.size === 0 && !isDateMode) {
     return (
@@ -289,25 +453,58 @@ export default function TaskBoardView({
 
   return (
     <div className="flex overflow-x-auto gap-6 px-6 pb-6 h-full">
-      {[...columns.entries()].map(([columnName, columnTasks]) => (
-        <BoardColumn
-          key={columnName}
-          name={columnName}
-          displayName={isDateMode ? columnName : (aliases.get(columnName) || columnName)}
-          hasAlias={isDateMode ? false : aliases.has(columnName)}
-          hideMenu={isDateMode}
-          tasks={columnTasks}
-          selectedTaskId={selectedTaskId}
-          onAdd={onAdd}
-          onToggle={onToggle}
-          onSelect={onSelect}
-          onDelete={onDelete}
-          onRename={renameColumn}
-          onResetName={resetColumnName}
-          onColorChange={onColorChange}
-          onDeleteClass={onDeleteClass}
-        />
-      ))}
+      {[...columns.entries()].map(([columnName, columnTasks]) => {
+        const isDragged = draggedColumn === columnName;
+        const isDropTarget = dropTargetColumn === columnName && draggedColumn !== columnName;
+
+        return (
+          <div
+            key={columnName}
+            className={`min-w-[280px] max-w-[320px] flex-shrink-0 relative transition-all duration-200 ${
+              isDragged ? "opacity-40 scale-[0.97]" : ""
+            }`}
+            draggable={isDragEnabled}
+            onDragStart={(e) => handleColumnDragStart(e, columnName)}
+            onDragOver={(e) => handleColumnDragOver(e, columnName)}
+            onDragLeave={() => {
+              if (dropTargetColumn === columnName) {
+                setDropTargetColumn(null);
+                setDropSide(null);
+              }
+            }}
+            onDrop={handleColumnDrop}
+            onDragEnd={handleColumnDragEnd}
+          >
+            {/* Drop indicator — left side */}
+            {isDropTarget && dropSide === "left" && (
+              <div className="absolute left-[-15px] top-0 bottom-0 w-[2px] bg-blue-500 rounded-full" />
+            )}
+            {/* Drop indicator — right side */}
+            {isDropTarget && dropSide === "right" && (
+              <div className="absolute right-[-15px] top-0 bottom-0 w-[2px] bg-blue-500 rounded-full" />
+            )}
+            <BoardColumn
+              name={columnName}
+              displayName={isDateMode ? columnName : (aliases.get(columnName) || columnName)}
+              hasAlias={isDateMode ? false : aliases.has(columnName)}
+              hideMenu={isDateMode}
+              showDragHandle={isDragEnabled}
+              onDragHandleMouseDown={() => { dragFromHandleRef.current = true; }}
+              onDragHandleMouseUp={() => { dragFromHandleRef.current = false; }}
+              tasks={columnTasks}
+              selectedTaskId={selectedTaskId}
+              onAdd={onAdd}
+              onToggle={onToggle}
+              onSelect={onSelect}
+              onDelete={onDelete}
+              onRename={renameColumn}
+              onResetName={resetColumnName}
+              onColorChange={onColorChange}
+              onDeleteClass={onDeleteClass}
+            />
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -317,6 +514,9 @@ interface BoardColumnProps {
   displayName: string;
   hasAlias: boolean;
   hideMenu?: boolean;
+  showDragHandle?: boolean;
+  onDragHandleMouseDown?: () => void;
+  onDragHandleMouseUp?: () => void;
   tasks: Task[];
   selectedTaskId?: string | null;
   onAdd: (task: TaskInsert) => void;
@@ -340,6 +540,9 @@ function BoardColumn({
   displayName,
   hasAlias,
   hideMenu = false,
+  showDragHandle = false,
+  onDragHandleMouseDown,
+  onDragHandleMouseUp,
   tasks,
   selectedTaskId,
   onAdd,
@@ -412,10 +615,20 @@ function BoardColumn({
   }, [tasks]);
 
   return (
-    <div className="min-w-[280px] max-w-[320px] flex-shrink-0 flex flex-col">
+    <div className="flex flex-col h-full">
       {/* Column header — plain text, not in a box */}
       <div className="px-1 pb-3 flex items-center justify-between">
         <div className="flex items-center gap-2 min-w-0">
+          {showDragHandle && (
+            <div
+              className="flex-shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground transition-colors"
+              onMouseDown={() => onDragHandleMouseDown?.()}
+              onMouseUp={() => onDragHandleMouseUp?.()}
+              title="Drag to reorder"
+            >
+              <GripVertical size={14} />
+            </div>
+          )}
           {editing ? (
             <input
               ref={editInputRef}
