@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { CalendarDays, ExternalLink, MoreVertical, Trash2 } from "lucide-react";
+import { CalendarDays, ExternalLink, MoreVertical, Tag, Trash2 } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { format } from "date-fns";
 import type { Task, TaskUpdate } from "@/lib/types";
@@ -330,40 +330,35 @@ export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: Tas
             )}
           </div>
 
-          {/* Source badge + course name + late due date */}
-          {(task.source || task.course_name || task.is_submitted || task.late_due_date) && (
-            <div className="flex items-center gap-2 px-5 pt-3 flex-wrap">
-              {task.source && (
-                <span
-                  className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
-                    task.source === "canvas"
-                      ? "text-blue-600 bg-blue-50 dark:bg-blue-900/30"
-                      : task.source === "pensieve"
-                      ? "text-purple-600 bg-purple-50 dark:bg-purple-900/30"
-                      : "text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30"
-                  }`}
-                >
-                  {task.source === "canvas" ? "bCourses" : task.source === "pensieve" ? "Pensieve" : "Gradescope"}
-                </span>
-              )}
-              {task.course_name && (
-                <ExpandableBadge text={task.course_name} maxChars={24} className="text-[10px] font-medium px-1.5 py-0.5 rounded text-black bg-gray-100 dark:text-white dark:bg-white/10" />
-              )}
-              {task.is_submitted && (
-                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded text-green-600 bg-green-50 dark:bg-green-900/30">
-                  Submitted
-                </span>
-              )}
-              {task.late_due_date && (
-                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded text-orange-600 bg-orange-50 dark:bg-orange-900/30">
-                  Late due {format(new Date(task.late_due_date + "T00:00:00"), "MMM d")}
-                </span>
-              )}
-            </div>
-          )}
-
-          {/* Tags */}
-          <div className="px-5 pt-3">
+          {/* Source badge + course name + late due date + tags (single row) */}
+          <div className="flex items-center gap-3 px-5 pt-3 flex-wrap">
+            <Tag size={16} className="text-muted-foreground shrink-0" />
+            {task.source && (
+              <span
+                className={`text-xs font-medium px-1.5 py-0.5 rounded ${
+                  task.source === "canvas"
+                    ? "text-blue-600 bg-blue-50 dark:bg-blue-900/30"
+                    : task.source === "pensieve"
+                    ? "text-purple-600 bg-purple-50 dark:bg-purple-900/30"
+                    : "text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30"
+                }`}
+              >
+                {task.source === "canvas" ? "bCourses" : task.source === "pensieve" ? "Pensieve" : "Gradescope"}
+              </span>
+            )}
+            {task.course_name && (
+              <ExpandableBadge text={task.course_name} maxChars={24} className="text-xs font-medium px-1.5 py-0.5 rounded text-black bg-gray-100 dark:text-white dark:bg-white/10" />
+            )}
+            {task.is_submitted && (
+              <span className="text-xs font-medium px-1.5 py-0.5 rounded text-green-600 bg-green-50 dark:bg-green-900/30">
+                Submitted
+              </span>
+            )}
+            {task.late_due_date && (
+              <span className="text-xs font-medium px-1.5 py-0.5 rounded text-orange-600 bg-orange-50 dark:bg-orange-900/30">
+                Late due {format(new Date(task.late_due_date + "T00:00:00"), "MMM d")}
+              </span>
+            )}
             <TagPicker
               selectedTags={tags}
               availableTags={availableTags}

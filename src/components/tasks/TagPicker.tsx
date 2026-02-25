@@ -72,7 +72,7 @@ export default function TagPicker({ selectedTags, availableTags, onChange }: Tag
         {selectedTags.map((tag) => (
           <span
             key={tag}
-            className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
+            className="inline-flex items-center gap-1 text-xs font-medium px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
           >
             {tag}
             <button
@@ -90,7 +90,7 @@ export default function TagPicker({ selectedTags, availableTags, onChange }: Tag
         <button
           type="button"
           onClick={() => setShowDropdown(!showDropdown)}
-          className="inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded bg-muted text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+          className="inline-flex items-center gap-0.5 text-xs font-medium px-1.5 py-0.5 rounded bg-muted text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
         >
           <Plus size={10} />
           Tag

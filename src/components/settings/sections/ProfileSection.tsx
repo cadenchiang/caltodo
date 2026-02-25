@@ -105,6 +105,7 @@ export default function ProfileSection() {
     suggestionsCache?.suggestions ?? []
   );
   const [loadingSuggestions, setLoadingSuggestions] = useState(!suggestionsCache);
+  const [suggestionsAnimated, setSuggestionsAnimated] = useState(!!suggestionsCache);
   // Track whether the cache is fresh enough to skip a refetch (5 min TTL)
   const suggestionsCacheFresh = suggestionsCache?.ts && Date.now() - suggestionsCache.ts < 5 * 60_000;
 
@@ -264,8 +265,21 @@ export default function ProfileSection() {
       const res = await fetch("/api/friends/suggestions");
       if (res.ok) {
         const data = await res.json();
-        const suggestions = data.suggestions ?? [];
-        setPeopleSuggestions(suggestions);
+        const suggestions: SearchUser[] = data.suggestions ?? [];
+
+        // Check if suggestions actually changed (by comparing IDs)
+        const oldIds = peopleSuggestions.map((s) => s.id).join(",");
+        const newIds = suggestions.map((s) => s.id).join(",");
+
+        if (oldIds !== newIds) {
+          // Fade out, swap, fade in
+          setSuggestionsAnimated(false);
+          await new Promise((r) => setTimeout(r, 150));
+          setPeopleSuggestions(suggestions);
+          // Trigger re-animation after a tick
+          requestAnimationFrame(() => setSuggestionsAnimated(true));
+        }
+
         try {
           localStorage.setItem("caltodo_suggestions_cache", JSON.stringify({
             suggestions,
@@ -275,6 +289,7 @@ export default function ProfileSection() {
       }
     } catch { /* non-critical */ }
     finally { setLoadingSuggestions(false); }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Only fetch if cache is stale (>5 min) or empty
@@ -665,7 +680,7 @@ export default function ProfileSection() {
                 {friends.map((friend) => (
                   <div
                     key={friend.friendshipId}
-                    className="group flex items-center gap-2.5 p-3 rounded-xl border border-border hover:bg-accent/50 transition-colors cursor-pointer"
+                    className="group flex items-center gap-2.5 p-3 rounded-xl border border-border bg-card hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
                     onClick={() => setViewingUser({ id: friend.userId, email: friend.email, full_name: friend.fullName, avatar_url: friend.avatarUrl })}
                   >
                     <UserAvatar
@@ -763,21 +778,20 @@ export default function ProfileSection() {
           </div>
         )}
         {peopleSuggestions.length > 0 && (
-          <div className="mt-32 animate-in fade-in duration-300">
+          <div className={`mt-32 transition-opacity duration-200 ${suggestionsAnimated ? "opacity-100" : "opacity-0"}`}>
             <h4 className="flex items-center gap-1.5 text-sm font-semibold text-foreground mb-2">
               <UserPlus size={14} className="text-muted-foreground" />
               People you may know
             </h4>
             <div className="grid grid-cols-2 gap-2">
-              {peopleSuggestions.map((person, idx) => {
+              {peopleSuggestions.map((person) => {
                 const rel = getRelationship(person.id);
                 return (
                   <button
                     key={person.id}
                     type="button"
                     onClick={() => setViewingUser(person)}
-                    style={{ animationDelay: `${idx * 50}ms` }}
-                    className="flex items-center gap-2.5 p-3 rounded-xl border border-border hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors text-left animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards"
+                    className="flex items-center gap-2.5 p-3 rounded-xl border border-border bg-card hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors text-left"
                   >
                     <UserAvatar
                       url={person.avatar_url}

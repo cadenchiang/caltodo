@@ -528,6 +528,12 @@ body {
   animation: toastOut 300ms ease-in forwards;
 }
 
+/* Indeterminate progress bar — fast left-to-right sweep */
+@keyframes progress {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}
+
 /* Page transition — snappy pop-in on tab switch */
 @keyframes pageIn {
   from {
