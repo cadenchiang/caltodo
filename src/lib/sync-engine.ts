@@ -161,6 +161,14 @@ async function syncCanvas(
 
   try {
     const selectedCourses = creds.selected_canvas_courses;
+
+    // null = no selection made yet (first time), sync all courses
+    // [] = user explicitly deselected all courses, sync nothing
+    if (Array.isArray(selectedCourses) && selectedCourses.length === 0) {
+      logger.info("syncCanvas skipped: no courses selected", { userId });
+      return { synced: 0, errors: [] };
+    }
+
     const assignments = selectedCourses && selectedCourses.length > 0
       ? await fetchCanvasAssignmentsForCourses(creds.canvas_token, creds.canvas_base_url, selectedCourses)
       : await fetchAllCanvasAssignments(creds.canvas_token, creds.canvas_base_url);
@@ -218,6 +226,14 @@ async function syncGradescope(
   try {
     const password = decrypt(creds.gradescope_password_encrypted);
     const selectedCourses = creds.selected_gradescope_courses;
+
+    // null = no selection made yet (first time), sync all courses
+    // [] = user explicitly deselected all courses, sync nothing
+    if (Array.isArray(selectedCourses) && selectedCourses.length === 0) {
+      logger.info("syncGradescope skipped: no courses selected", { userId });
+      return { synced: 0, errors: [] };
+    }
+
     const assignments = selectedCourses && selectedCourses.length > 0
       ? await fetchGradescopeAssignmentsForCourses(creds.gradescope_email, password, selectedCourses)
       : await fetchAllGradescopeAssignments(creds.gradescope_email, password);
@@ -273,7 +289,13 @@ async function syncPensieve(
     let assignments = await fetchPensieveAssignments(creds.pensieve_calendar_url);
     logger.info("syncPensieve: parsed assignments", { userId, count: assignments.length });
 
-    // Filter by selected courses if set (null = sync all, same pattern as Canvas/Gradescope)
+    // null = no selection made yet (first time), sync all courses
+    // [] = user explicitly deselected all courses, sync nothing
+    if (Array.isArray(creds.selected_pensieve_courses) && creds.selected_pensieve_courses.length === 0) {
+      logger.info("syncPensieve skipped: no courses selected", { userId });
+      return { synced: 0, errors: [] };
+    }
+
     if (creds.selected_pensieve_courses && creds.selected_pensieve_courses.length > 0) {
       const allowedNames = new Set(creds.selected_pensieve_courses.map((c) => c.name));
       assignments = assignments.filter((a) => a.course_name && allowedNames.has(a.course_name));
