@@ -40,7 +40,7 @@ const MIFFY_COLOR_MAP: Record<string, string> = {
   "#9CA3AF": "#c8b0b8", // gray → warm taupe-pink
   "#3B82F6": "#e8729a", // blue → bold rose pink
   "#EF4444": "#a83860", // red → deep magenta
-  "#10B981": "#ffffff", // green → white
+  "#10B981": "#f2c4d4", // green → soft rose
   "#F59E0B": "#f9dde5", // amber → very pale blush
   "#8B5CF6": "#8c3060", // violet → dark berry
   "#EC4899": "#f4a0bc", // pink → medium pink

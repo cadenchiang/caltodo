@@ -666,7 +666,9 @@ function TaskCard({ task, isSelected, onToggle, onSelect, onDelete }: TaskCardPr
   const rawBadge = getDueDateLabel(task.due_date, task.due_time);
   const dueBadge = isCompleted && rawBadge
     ? { ...rawBadge, className: "text-muted-foreground" }
-    : rawBadge;
+    : rawBadge && isMiffyCard && (rawBadge.className === "text-blue-400" || rawBadge.className === "text-blue-500")
+      ? { ...rawBadge, className: "text-[#e8729a] dark:text-[#f4a0bc]" }
+      : rawBadge;
 
   // Close menu on outside click
   useEffect(() => {
