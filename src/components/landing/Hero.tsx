@@ -63,8 +63,8 @@ export default function Hero() {
         onClick={() => setShowSpotsModal(true)}
         className="w-full bg-[#F5F5F7] text-[#1D1D1F] text-center text-xs py-1.5 tracking-wide hover:bg-[#E8E8ED] transition-colors cursor-pointer relative flex items-center justify-center"
       >
-        <span className="hidden sm:inline">exclusively for uc berkeley students · {userCount !== null ? `${1000 - userCount} free lifetime spots remaining` : "\u00A0"}</span>
-        <span className="sm:hidden">{userCount !== null ? `${1000 - userCount} free lifetime spots left` : "\u00A0"}</span>
+        <span className="hidden sm:inline">exclusively for uc berkeley students · {1000 - (userCount ?? 326)} free lifetime spots remaining</span>
+        <span className="sm:hidden">{1000 - (userCount ?? 326)} free lifetime spots left</span>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-1.5 opacity-60">
           <path d="M7 17L17 7" />
           <path d="M7 7h10v10" />
@@ -101,10 +101,17 @@ export default function Hero() {
       <main className="flex-1 flex flex-col items-center px-6 lg:px-10">
         {/* Above-the-fold section — fills viewport on mobile, normal flow on desktop */}
         <div className="min-h-[calc(100dvh-8rem)] sm:min-h-0 flex flex-col items-center justify-center sm:justify-start w-full">
-          {/* Eyebrow */}
-          <p className="font-sans uppercase tracking-[0.2em] sm:tracking-[0.51em] leading-[133%] text-center text-[10px] sm:text-base mb-4 sm:mt-20 sm:mb-8 text-black/40">
-            the to-do list for students
-          </p>
+          {/* Social proof badge */}
+          <div className="flex items-center justify-center gap-1.5 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full bg-white border border-gray-200 mb-4 sm:mt-20 sm:mb-8">
+            <div className="flex items-center -space-x-1.5">
+              <img src="/avatar-caden.jpg" alt="" className="w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 border-white object-cover" />
+              <img src="/avatar-sarabeth.jpg" alt="" className="w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 border-white object-cover" />
+              <img src="/avatar-edward.jpg" alt="" className="w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 border-white object-cover" />
+            </div>
+            <p className="text-[11px] sm:text-xs text-black font-medium whitespace-nowrap">
+              Trusted by {userCount ?? 326}+ UC Berkeley students
+            </p>
+          </div>
 
           {/* Heading */}
           <h2 className="text-[52px] sm:text-[96px] leading-[1.05] sm:leading-[100px] text-center text-black">
