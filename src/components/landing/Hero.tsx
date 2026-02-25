@@ -63,7 +63,8 @@ export default function Hero() {
         onClick={() => setShowSpotsModal(true)}
         className="w-full bg-[#F5F5F7] text-[#1D1D1F] text-center text-xs py-1.5 tracking-wide hover:bg-[#E8E8ED] transition-colors cursor-pointer relative flex items-center justify-center"
       >
-        <span className="hidden sm:inline">exclusively for uc berkeley students · {1000 - (userCount ?? 326)} free lifetime spots remaining</span>
+        <img src="/cal-logo.png" alt="UC Berkeley" className="w-3.5 h-3.5 object-contain mr-1.5" />
+        <span className="hidden sm:inline">exclusively for students · {1000 - (userCount ?? 326)} free lifetime spots remaining</span>
         <span className="sm:hidden">{1000 - (userCount ?? 326)} free lifetime spots left</span>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-1.5 opacity-60">
           <path d="M7 17L17 7" />
@@ -73,26 +74,19 @@ export default function Hero() {
 
       {/* Nav */}
       <nav className="flex items-center justify-between px-4 py-4 sm:px-8 sm:py-6">
-        <div className="flex items-center gap-2">
-          <img
-            src="/logo.png"
-            alt="caltodo"
-            className="h-6"
-          />
-          <span className="text-lg font-bold tracking-tight text-black">caltodo</span>
-        </div>
+        <span className="text-lg sm:text-xl font-bold tracking-tight text-black">caltodo</span>
         <div className="flex items-center gap-2 sm:gap-3">
-          <Link
-            href="/login?signup=true"
-            className="px-3.5 py-1.5 text-xs sm:px-5 sm:py-2 sm:text-sm font-medium rounded-full bg-[#0071E3] text-white hover:scale-[1.05] active:scale-[0.97] transition-transform duration-200"
-          >
-            Get Started
-          </Link>
           <Link
             href="/login"
             className="px-3.5 py-1.5 text-xs sm:px-5 sm:py-2 sm:text-sm font-medium rounded-full text-black bg-white hover:scale-[1.05] active:scale-[0.97] transition-transform duration-200"
           >
             Login
+          </Link>
+          <Link
+            href="/login?signup=true"
+            className="px-3.5 py-1.5 text-xs sm:px-5 sm:py-2 sm:text-sm font-medium rounded-full bg-[#0071E3] text-white hover:scale-[1.05] active:scale-[0.97] transition-transform duration-200"
+          >
+            Get started free
           </Link>
         </div>
       </nav>
@@ -101,24 +95,81 @@ export default function Hero() {
       <main className="flex-1 flex flex-col items-center px-6 lg:px-10">
         {/* Above-the-fold section — fills viewport on mobile, normal flow on desktop */}
         <div className="min-h-[calc(100dvh-8rem)] sm:min-h-0 flex flex-col items-center justify-center sm:justify-start w-full">
-          {/* Social proof badge */}
-          <div className="flex items-center justify-center gap-1.5 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full bg-white border border-gray-200 mb-4 sm:mt-20 sm:mb-8">
-            <div className="flex items-center -space-x-1.5">
-              <img src="/avatar-caden.jpg" alt="" className="w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 border-white object-cover" />
-              <img src="/avatar-sarabeth.jpg" alt="" className="w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 border-white object-cover" />
-              <img src="/avatar-edward.jpg" alt="" className="w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 border-white object-cover" />
+          {/* Logo with integration icons behind */}
+          <div className="flex flex-col items-center sm:mt-6 mb-4">
+            <div className="relative flex items-end justify-center" style={{ gap: 0 }}>
+              {/* bCourses — outer left, highest */}
+              <div className="group relative cursor-pointer flex flex-col items-center -mr-2 sm:-mr-3" style={{ marginBottom: "28px" }}>
+                <img src="/bcourses-logo.png" alt="bCourses" className="w-12 h-12 sm:w-16 sm:h-16 object-contain transition-transform duration-200 group-hover:scale-110 relative z-10" />
+                <div className="w-10 h-3 sm:w-14 sm:h-4 mt-1 transition-all duration-200 group-hover:w-12 sm:group-hover:w-16" style={{ background: "radial-gradient(ellipse at center, rgba(0,0,0,0.12) 0%, rgba(0,0,0,0.04) 50%, transparent 70%)", borderRadius: "50%" }} />
+                <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-3 rounded-lg bg-[#F5F5F7] text-[#1D1D1F] text-xs px-3 py-2 shadow-md opacity-0 scale-95 transition-all duration-200 group-hover:opacity-100 group-hover:scale-100 z-50 whitespace-nowrap">
+                  <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-[#F5F5F7] rotate-45" />
+                  bCourses
+                </div>
+              </div>
+              {/* Gradescope — inner left, mid */}
+              <div className="group relative cursor-pointer flex flex-col items-center -mr-2 sm:-mr-3" style={{ marginBottom: "14px" }}>
+                <svg width="64" height="64" viewBox="0 0 14 14" fill="none" className="w-12 h-12 sm:w-16 sm:h-16 transition-transform duration-200 group-hover:scale-110 relative z-10">
+                  <rect width="14" height="14" rx="3" fill="#3AADA8" />
+                  <rect x="1.5" y="8.5" width="2" height="3.5" rx="0.5" fill="white" />
+                  <rect x="4.5" y="6.5" width="2" height="5.5" rx="0.5" fill="white" />
+                  <rect x="7.5" y="4.5" width="2" height="7.5" rx="0.5" fill="white" />
+                  <rect x="10.5" y="2.5" width="2" height="9.5" rx="0.5" fill="white" />
+                </svg>
+                <div className="w-10 h-3 sm:w-14 sm:h-4 mt-1 transition-all duration-200 group-hover:w-12 sm:group-hover:w-16" style={{ background: "radial-gradient(ellipse at center, rgba(0,0,0,0.12) 0%, rgba(0,0,0,0.04) 50%, transparent 70%)", borderRadius: "50%" }} />
+                <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-3 rounded-lg bg-[#F5F5F7] text-[#1D1D1F] text-xs px-3 py-2 shadow-md opacity-0 scale-95 transition-all duration-200 group-hover:opacity-100 group-hover:scale-100 z-50 whitespace-nowrap">
+                  <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-[#F5F5F7] rotate-45" />
+                  Gradescope
+                </div>
+              </div>
+              {/* caltodo — center, lowest (bottom of V) */}
+              <div className="group relative cursor-pointer flex flex-col items-center z-20">
+                <img src="/logo.png" alt="caltodo" className="h-16 sm:h-24 transition-transform duration-200 group-hover:scale-105 relative z-10" />
+                <div className="w-14 h-4 sm:w-20 sm:h-5 mt-0.5 transition-all duration-200 group-hover:w-16 sm:group-hover:w-24" style={{ background: "radial-gradient(ellipse at center, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.05) 45%, transparent 70%)", borderRadius: "50%" }} />
+                <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-3 rounded-lg bg-[#F5F5F7] text-[#1D1D1F] text-xs px-3 py-2 shadow-md opacity-0 scale-95 transition-all duration-200 group-hover:opacity-100 group-hover:scale-100 z-50 whitespace-nowrap">
+                  <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-[#F5F5F7] rotate-45" />
+                  caltodo
+                </div>
+              </div>
+              {/* Pensieve — inner right, mid */}
+              <div className="group relative cursor-pointer flex flex-col items-center -ml-2 sm:-ml-3" style={{ marginBottom: "14px" }}>
+                <img src="/pensieve-logo.png" alt="Pensieve" className="w-12 h-12 sm:w-16 sm:h-16 object-contain transition-transform duration-200 group-hover:scale-110 relative z-10" />
+                <div className="w-10 h-3 sm:w-14 sm:h-4 mt-1 transition-all duration-200 group-hover:w-12 sm:group-hover:w-16" style={{ background: "radial-gradient(ellipse at center, rgba(0,0,0,0.12) 0%, rgba(0,0,0,0.04) 50%, transparent 70%)", borderRadius: "50%" }} />
+                <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-3 rounded-lg bg-[#F5F5F7] text-[#1D1D1F] text-xs px-3 py-2 shadow-md opacity-0 scale-95 transition-all duration-200 group-hover:opacity-100 group-hover:scale-100 z-50 whitespace-nowrap">
+                  <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-[#F5F5F7] rotate-45" />
+                  Pensieve
+                </div>
+              </div>
+              {/* Google Calendar — outer right, highest */}
+              <div className="group relative cursor-pointer flex flex-col items-center -ml-2 sm:-ml-3" style={{ marginBottom: "28px" }}>
+                <svg width="64" height="64" viewBox="0 0 122.88 122.88" className="w-12 h-12 sm:w-16 sm:h-16 transition-transform duration-200 group-hover:scale-110 relative z-10">
+                  <polygon points="93.78,29.1 29.1,29.1 29.1,93.78 93.78,93.78" fill="#fff" />
+                  <polygon points="93.78,122.88 122.88,93.78 93.78,93.78" fill="#EA4335" />
+                  <polygon points="122.88,29.1 93.78,29.1 93.78,93.78 122.88,93.78" fill="#FBBC04" />
+                  <polygon points="93.78,93.78 29.1,93.78 29.1,122.88 93.78,122.88" fill="#34A853" />
+                  <path d="M0,93.78v19.4c0,5.36,4.34,9.7,9.7,9.7h19.4v-29.1H0z" fill="#188038" />
+                  <path d="M122.88,29.1V9.7c0-5.36-4.34-9.7-9.7-9.7h-19.4v29.1H122.88z" fill="#1967D2" />
+                  <path d="M93.78,0H9.7C4.34,0,0,4.34,0,9.7v84.08h29.1V29.1h64.67V0z" fill="#4285F4" />
+                  <path d="M42.37,79.27c-2.42-1.63-4.09-4.02-5-7.17l5.61-2.31c0.51,1.94,1.4,3.44,2.67,4.51c1.26,1.07,2.8,1.59,4.59,1.59c1.84,0,3.41-0.56,4.73-1.67c1.32-1.12,1.98-2.54,1.98-4.26c0-1.76-0.7-3.2-2.09-4.32c-1.39-1.12-3.14-1.67-5.22-1.67H46.4v-5.55h2.91c1.79,0,3.31-0.48,4.54-1.46c1.23-0.97,1.84-2.3,1.84-3.99c0-1.5-0.55-2.7-1.65-3.6s-2.49-1.35-4.18-1.35c-1.65,0-2.96,0.44-3.93,1.32c-0.97,0.88-1.7,2-2.12,3.24l-5.55-2.31c0.74-2.09,2.09-3.93,4.07-5.52c1.98-1.59,4.51-2.39,7.58-2.39c2.27,0,4.32,0.44,6.13,1.32c1.81,0.88,3.23,2.1,4.26,3.65c1.03,1.56,1.54,3.31,1.54,5.25c0,1.98-0.48,3.65-1.43,5.03c-0.95,1.37-2.13,2.43-3.52,3.16v0.33c1.79,0.74,3.36,1.96,4.51,3.52c1.17,1.58,1.76,3.46,1.76,5.66c0,2.2-0.56,4.16-1.67,5.88c-1.12,1.72-2.66,3.08-4.62,4.07c-1.96,0.99-4.17,1.49-6.62,1.49C47.41,81.72,44.79,80.91,42.37,79.27z" fill="#1A73E8" />
+                  <path d="M76.83,51.43l-6.16,4.45l-3.08-4.67l11.05-7.97h4.24v37.6h-6.05V51.43z" fill="#1A73E8" />
+                </svg>
+                <div className="w-10 h-3 sm:w-14 sm:h-4 mt-1 transition-all duration-200 group-hover:w-12 sm:group-hover:w-16" style={{ background: "radial-gradient(ellipse at center, rgba(0,0,0,0.12) 0%, rgba(0,0,0,0.04) 50%, transparent 70%)", borderRadius: "50%" }} />
+                <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-3 rounded-lg bg-[#F5F5F7] text-[#1D1D1F] text-xs px-3 py-2 shadow-md opacity-0 scale-95 transition-all duration-200 group-hover:opacity-100 group-hover:scale-100 z-50 whitespace-nowrap">
+                  <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-[#F5F5F7] rotate-45" />
+                  Google Calendar
+                </div>
+              </div>
             </div>
-            <p className="text-[11px] sm:text-xs text-black font-medium whitespace-nowrap">
-              Trusted by {userCount ?? 326}+ UC Berkeley students
-            </p>
           </div>
 
+
+
           {/* Heading */}
-          <h2 className="text-[52px] sm:text-[96px] leading-[1.05] sm:leading-[100px] text-center text-black">
-            <span className="font-serif font-normal">All your deadlines.</span>
+          <h2 className="text-[46px] sm:text-[80px] leading-[0.95] sm:leading-[0.95] tracking-tight text-center text-black" style={{ fontFamily: '-apple-system, "SF Pro Display", BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' }}>
+            <span className="font-semibold">All your deadlines.</span>
             <br />
-            <span className="font-serif font-normal italic">One </span>
-            <span className="font-serif font-normal">calendar.</span>
+            <span className="font-semibold italic">One </span>
+            <span className="font-semibold">calendar.</span>
           </h2>
 
           {/* Subtitle */}
@@ -131,7 +182,7 @@ export default function Hero() {
             href="/login?signup=true"
             className="sm:hidden flex items-center gap-2 px-7 py-2 rounded-full bg-[#0071E3] text-white text-sm font-semibold mb-8 active:scale-[0.97] transition-transform"
           >
-            Get started
+            Get started free
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M5 12h14" />
               <path d="M12 5l7 7-7 7" />
@@ -141,108 +192,19 @@ export default function Hero() {
             href="/login?signup=true"
             className="group hidden sm:flex items-center gap-2 px-8 py-2 rounded-full bg-[#0071E3] text-white text-base font-medium hover:scale-[1.05] active:scale-[0.97] transition-transform duration-200 sm:mb-12"
           >
-            Get started
+            Get started free
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-transform duration-200 group-hover:translate-x-2">
               <path d="M5 12h14" />
               <path d="M12 5l7 7-7 7" />
             </svg>
           </Link>
 
-          {/* Integration logos — compact trust signal */}
-          <div className="flex items-center justify-center gap-2 sm:gap-4">
-            {/* Cal Berkeley logo with tooltip */}
-            <div className="group relative cursor-pointer">
-              <img
-                src="/cal-logo.png"
-                alt="UC Berkeley"
-                width={64}
-                height={64}
-                className="w-7 h-7 sm:w-9 sm:h-9 transition-transform duration-200 group-hover:scale-110 object-contain"
-              />
-              <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-3 rounded-lg bg-[#F5F5F7] text-[#1D1D1F] text-xs px-3 py-2 shadow-md opacity-0 scale-95 transition-all duration-200 group-hover:opacity-100 group-hover:scale-100 z-50 whitespace-nowrap">
-                <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-[#F5F5F7] rotate-45" />
-                Built for UC Berkeley
-              </div>
-            </div>
-
-            <span className="text-sm sm:text-lg font-light text-black/25">+</span>
-
-            {/* bCourses logo with tooltip */}
-            <div className="group relative cursor-pointer">
-              <img
-                src="/bcourses-logo.png"
-                alt="bCourses"
-                width={64}
-                height={64}
-                className="w-7 h-7 sm:w-9 sm:h-9 transition-transform duration-200 group-hover:scale-110"
-              />
-              <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-3 rounded-lg bg-[#F5F5F7] text-[#1D1D1F] text-xs px-3 py-2 shadow-md opacity-0 scale-95 transition-all duration-200 group-hover:opacity-100 group-hover:scale-100 z-50 whitespace-nowrap">
-                <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-[#F5F5F7] rotate-45" />
-                Sync bCourses assignments
-              </div>
-            </div>
-
-            <span className="text-sm sm:text-lg font-light text-black/25">+</span>
-
-            {/* Gradescope logo with tooltip */}
-            <div className="group relative cursor-pointer">
-              <svg width="64" height="64" viewBox="0 0 14 14" fill="none" className="w-7 h-7 sm:w-9 sm:h-9 transition-transform duration-200 group-hover:scale-110">
-                <rect width="14" height="14" rx="3" fill="#3AADA8" />
-                <rect x="1.5" y="8.5" width="2" height="3.5" rx="0.5" fill="white" />
-                <rect x="4.5" y="6.5" width="2" height="5.5" rx="0.5" fill="white" />
-                <rect x="7.5" y="4.5" width="2" height="7.5" rx="0.5" fill="white" />
-                <rect x="10.5" y="2.5" width="2" height="9.5" rx="0.5" fill="white" />
-              </svg>
-              <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-3 rounded-lg bg-[#F5F5F7] text-[#1D1D1F] text-xs px-3 py-2 shadow-md opacity-0 scale-95 transition-all duration-200 group-hover:opacity-100 group-hover:scale-100 z-50 whitespace-nowrap">
-                <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-[#F5F5F7] rotate-45" />
-                Sync Gradescope deadlines
-              </div>
-            </div>
-
-            <span className="text-sm sm:text-lg font-light text-black/25">+</span>
-
-            {/* Pensieve logo with tooltip */}
-            <div className="group relative cursor-pointer">
-              <img
-                src="/pensieve-logo.png"
-                alt="Pensieve"
-                width={64}
-                height={64}
-                className="w-7 h-7 sm:w-9 sm:h-9 transition-transform duration-200 group-hover:scale-110 object-contain"
-              />
-              <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-3 rounded-lg bg-[#F5F5F7] text-[#1D1D1F] text-xs px-3 py-2 shadow-md opacity-0 scale-95 transition-all duration-200 group-hover:opacity-100 group-hover:scale-100 z-50 whitespace-nowrap">
-                <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-[#F5F5F7] rotate-45" />
-                Sync CS/DS assignments
-              </div>
-            </div>
-
-            <span className="text-sm sm:text-lg font-light text-black/25">+</span>
-
-            {/* Google Calendar logo with tooltip */}
-            <div className="group relative cursor-pointer">
-              <svg width="64" height="64" viewBox="0 0 122.88 122.88" className="w-7 h-7 sm:w-9 sm:h-9 transition-transform duration-200 group-hover:scale-110">
-                <polygon points="93.78,29.1 29.1,29.1 29.1,93.78 93.78,93.78" fill="#fff" />
-                <polygon points="93.78,122.88 122.88,93.78 93.78,93.78" fill="#EA4335" />
-                <polygon points="122.88,29.1 93.78,29.1 93.78,93.78 122.88,93.78" fill="#FBBC04" />
-                <polygon points="93.78,93.78 29.1,93.78 29.1,122.88 93.78,122.88" fill="#34A853" />
-                <path d="M0,93.78v19.4c0,5.36,4.34,9.7,9.7,9.7h19.4v-29.1H0z" fill="#188038" />
-                <path d="M122.88,29.1V9.7c0-5.36-4.34-9.7-9.7-9.7h-19.4v29.1H122.88z" fill="#1967D2" />
-                <path d="M93.78,0H9.7C4.34,0,0,4.34,0,9.7v84.08h29.1V29.1h64.67V0z" fill="#4285F4" />
-                <path d="M42.37,79.27c-2.42-1.63-4.09-4.02-5-7.17l5.61-2.31c0.51,1.94,1.4,3.44,2.67,4.51c1.26,1.07,2.8,1.59,4.59,1.59c1.84,0,3.41-0.56,4.73-1.67c1.32-1.12,1.98-2.54,1.98-4.26c0-1.76-0.7-3.2-2.09-4.32c-1.39-1.12-3.14-1.67-5.22-1.67H46.4v-5.55h2.91c1.79,0,3.31-0.48,4.54-1.46c1.23-0.97,1.84-2.3,1.84-3.99c0-1.5-0.55-2.7-1.65-3.6s-2.49-1.35-4.18-1.35c-1.65,0-2.96,0.44-3.93,1.32c-0.97,0.88-1.7,2-2.12,3.24l-5.55-2.31c0.74-2.09,2.09-3.93,4.07-5.52c1.98-1.59,4.51-2.39,7.58-2.39c2.27,0,4.32,0.44,6.13,1.32c1.81,0.88,3.23,2.1,4.26,3.65c1.03,1.56,1.54,3.31,1.54,5.25c0,1.98-0.48,3.65-1.43,5.03c-0.95,1.37-2.13,2.43-3.52,3.16v0.33c1.79,0.74,3.36,1.96,4.51,3.52c1.17,1.58,1.76,3.46,1.76,5.66c0,2.2-0.56,4.16-1.67,5.88c-1.12,1.72-2.66,3.08-4.62,4.07c-1.96,0.99-4.17,1.49-6.62,1.49C47.41,81.72,44.79,80.91,42.37,79.27z" fill="#1A73E8" />
-                <path d="M76.83,51.43l-6.16,4.45l-3.08-4.67l11.05-7.97h4.24v37.6h-6.05V51.43z" fill="#1A73E8" />
-              </svg>
-              <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-3 rounded-lg bg-[#F5F5F7] text-[#1D1D1F] text-xs px-3 py-2 shadow-md opacity-0 scale-95 transition-all duration-200 group-hover:opacity-100 group-hover:scale-100 z-50 whitespace-nowrap">
-                <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-[#F5F5F7] rotate-45" />
-                Export to Google Calendar
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Mockup — scroll-driven scale animation */}
         <div
           ref={mockupRef}
-          className="mt-8 sm:mt-16 md:mt-20 w-full sm:max-w-5xl mx-auto relative px-1 sm:px-0"
+          className="mt-4 sm:mt-8 md:mt-10 w-full sm:max-w-5xl mx-auto relative px-1 sm:px-0"
           style={{
             transform: `scale(${mockupScale})`,
             willChange: "transform",
