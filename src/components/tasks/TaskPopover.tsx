@@ -68,22 +68,29 @@ function computePosition(anchorRect: DOMRect): { top: number; left: number } {
   const isMobile = window.innerWidth < 768;
 
   let left: number;
-  let top = anchorRect.top;
+  let top: number;
 
   if (isMobile) {
     // Center horizontally on mobile
     left = (window.innerWidth - popoverWidth) / 2;
+    top = anchorRect.top;
   } else {
+    // Place to the right of the anchor
     left = anchorRect.right + margin;
     if (left + popoverWidth > window.innerWidth) {
+      // Flip to left side
       left = anchorRect.left - popoverWidth - margin;
     }
     if (left < margin) {
       left = margin;
     }
+
+    // Vertically center on the anchor
+    top = anchorRect.top + anchorRect.height / 2 - popoverHeight / 2;
   }
 
-  if (top + popoverHeight > window.innerHeight) {
+  // Clamp to viewport
+  if (top + popoverHeight > window.innerHeight - margin) {
     top = window.innerHeight - popoverHeight - margin;
   }
   if (top < margin) {

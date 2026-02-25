@@ -96,7 +96,7 @@ export default function SettingsContent() {
                     </button>
                   </div>
                   <div className="flex-1 overflow-auto px-4 pt-2 pb-8">
-                    <div className="max-w-xl animate-stagger stagger-2">
+                    <div key={activeSection} className="max-w-xl animate-page-in">
                       {renderSection(activeSection)}
                     </div>
                   </div>
@@ -149,7 +149,7 @@ export default function SettingsContent() {
             {/* === DESKTOP VIEW === */}
             <div className="hidden md:flex flex-col h-full">
               <div className="flex-1 overflow-auto px-8 pt-8 pb-8">
-                <div className="max-w-xl animate-stagger stagger-2">
+                <div key={activeSection ?? DEFAULT_SECTION} className="max-w-xl animate-page-in">
                   {renderSection(activeSection ?? DEFAULT_SECTION)}
                 </div>
               </div>
