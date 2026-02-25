@@ -4,7 +4,7 @@ import { User, Plug, GraduationCap, Palette, Wrench, type LucideIcon } from "luc
 export type SettingsSectionId = "profile" | "integrations" | "classes" | "appearance" | "advanced";
 
 /** Group labels for organising settings sections. */
-export const SETTINGS_GROUPS = ["PROFILE", "GENERAL", "SYSTEM"] as const;
+export const SETTINGS_GROUPS = ["Profile", "General", "System"] as const;
 
 export type SettingsGroup = (typeof SETTINGS_GROUPS)[number];
 
@@ -20,11 +20,11 @@ export interface SettingsSection {
  * Used by the Sidebar nav and the Settings page orchestrator.
  */
 export const SETTINGS_SECTIONS: SettingsSection[] = [
-  { id: "profile", label: "Profile", icon: User, group: "PROFILE" },
-  { id: "integrations", label: "Integrations", icon: Plug, group: "GENERAL" },
-  { id: "classes", label: "Classes", icon: GraduationCap, group: "GENERAL" },
-  { id: "appearance", label: "Appearance", icon: Palette, group: "SYSTEM" },
-  { id: "advanced", label: "Advanced", icon: Wrench, group: "SYSTEM" },
+  { id: "profile", label: "Profile", icon: User, group: "Profile" },
+  { id: "integrations", label: "Integrations", icon: Plug, group: "General" },
+  { id: "classes", label: "Classes", icon: GraduationCap, group: "General" },
+  { id: "appearance", label: "Appearance", icon: Palette, group: "System" },
+  { id: "advanced", label: "Advanced", icon: Wrench, group: "System" },
 ];
 
 /** Default section shown when no search param is provided (desktop). */

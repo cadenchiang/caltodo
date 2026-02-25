@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { Camera, Check, Loader2, Search, UserMinus, UserPlus, Users, X } from "lucide-react";
+import { Camera, Check, Loader2, Search, Send, UserMinus, UserPlus, Users, X } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 import { useDebounce } from "@/hooks/useDebounce";
 import UserAvatar from "@/components/ui/UserAvatar";
@@ -325,6 +325,7 @@ export default function ProfileSection() {
 
   /**
    * Sends a friend request via POST /api/friends.
+   * Shows a toast with an Undo action to cancel the request.
    * @param userId - The user ID to send request to
    */
   async function handleSendRequest(userId: string) {
@@ -337,11 +338,25 @@ export default function ProfileSection() {
       });
 
       if (res.ok) {
+        const data = await res.json();
+        const friendshipId: string | undefined = data.friendship?.id;
         await fetchFriends();
         fetchSuggestions();
         setFriendQuery("");
         setFriendSuggestions([]);
-        showToast("Friend request sent!");
+        showToast("Friend request sent!", {
+          action: {
+            label: "Undo",
+            onClick: async () => {
+              // Find the friendship ID from response or from current pendingSent
+              const idToRemove = friendshipId
+                ?? pendingSent.find((r) => r.userId === userId)?.friendshipId;
+              if (idToRemove) {
+                await handleRemoveFriend(idToRemove);
+              }
+            },
+          },
+        });
       } else if (res.status === 409) {
         showToast("Request already sent.");
       } else {
@@ -571,7 +586,8 @@ export default function ProfileSection() {
 
       {/* Friends Section */}
       <div>
-        <h3 className="text-sm font-semibold text-foreground mb-3">
+        <h3 className="flex items-center gap-1.5 text-sm font-semibold text-foreground mb-3">
+          <Users size={14} className="text-muted-foreground" />
           Friends {!loadingFriends && `(${friends.length})`}
         </h3>
 
@@ -684,7 +700,10 @@ export default function ProfileSection() {
             {/* Sent Requests — subtle list with badge */}
             {pendingSent.length > 0 && (
               <div className="mt-4">
-                <p className="text-xs font-medium text-muted-foreground mb-2">Sent Requests</p>
+                <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground mb-2">
+                  <Send size={12} />
+                  Sent Requests
+                </p>
                 <div className="flex flex-col gap-1">
                   {pendingSent.map((req) => (
                     <div
@@ -728,8 +747,11 @@ export default function ProfileSection() {
 
         {/* People you may know — suggestions */}
         {loadingSuggestions && peopleSuggestions.length === 0 && (
-          <div className="mt-10">
-            <h4 className="text-sm font-semibold text-foreground mb-2">People you may know</h4>
+          <div className="mt-32">
+            <h4 className="flex items-center gap-1.5 text-sm font-semibold text-foreground mb-2">
+              <UserPlus size={14} className="text-muted-foreground" />
+              People you may know
+            </h4>
             <div className="grid grid-cols-2 gap-2">
               {[1, 2, 3, 4].map((i) => (
                 <div key={i} className="flex items-center gap-2.5 p-3 rounded-xl border border-border animate-pulse">
@@ -741,19 +763,21 @@ export default function ProfileSection() {
           </div>
         )}
         {peopleSuggestions.length > 0 && (
-          <div className="mt-10 animate-in fade-in duration-300">
-            <h4 className="text-sm font-semibold text-foreground mb-2">
+          <div className="mt-32 animate-in fade-in duration-300">
+            <h4 className="flex items-center gap-1.5 text-sm font-semibold text-foreground mb-2">
+              <UserPlus size={14} className="text-muted-foreground" />
               People you may know
             </h4>
             <div className="grid grid-cols-2 gap-2">
-              {peopleSuggestions.map((person) => {
+              {peopleSuggestions.map((person, idx) => {
                 const rel = getRelationship(person.id);
                 return (
                   <button
                     key={person.id}
                     type="button"
                     onClick={() => setViewingUser(person)}
-                    className="flex items-center gap-2.5 p-3 rounded-xl border border-border hover:bg-accent/50 transition-colors text-left"
+                    style={{ animationDelay: `${idx * 50}ms` }}
+                    className="flex items-center gap-2.5 p-3 rounded-xl border border-border hover:bg-accent/50 transition-colors text-left animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards"
                   >
                     <UserAvatar
                       url={person.avatar_url}

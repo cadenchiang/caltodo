@@ -1,9 +1,11 @@
 /**
  * GET /api/friends/suggestions
  *
- * Returns a list of users the current user might want to add as friends.
- * Excludes existing friends, pending requests (sent and received), and self.
- * Returns up to 6 random suggestions.
+ * Returns up to 6 suggested users ranked by relevance:
+ *   1. Mutual friends (friends-of-friends)
+ *   2. Shared courses (same course_name on tasks)
+ *   3. Same email domain (same school)
+ * Excludes existing friends, pending requests, and self.
  *
  * @returns 200 with { suggestions: [{ id, email, full_name, avatar_url }] }
  */
@@ -28,41 +30,114 @@ export async function GET() {
   }
 
   try {
-    // Fetch all friendships to exclude connected/pending users
-    const { data: allRows } = await supabase
+    // Fetch all friendships (not just mine) for mutual friend scoring
+    const { data: allFriendships } = await supabase
       .from("friendships")
-      .select("requester_id, receiver_id")
-      .or(`requester_id.eq.${user.id},receiver_id.eq.${user.id}`);
+      .select("requester_id, receiver_id, status");
 
+    // Build my direct connections (exclude from suggestions)
     const excludeIds = new Set<string>([user.id]);
-    if (allRows) {
-      for (const row of allRows) {
-        excludeIds.add(row.requester_id);
-        excludeIds.add(row.receiver_id);
+    // Build my accepted friends set for mutual friend scoring
+    const myFriendIds = new Set<string>();
+
+    if (allFriendships) {
+      for (const row of allFriendships) {
+        if (row.requester_id === user.id || row.receiver_id === user.id) {
+          excludeIds.add(row.requester_id);
+          excludeIds.add(row.receiver_id);
+          if (row.status === "accepted") {
+            myFriendIds.add(row.requester_id === user.id ? row.receiver_id : row.requester_id);
+          }
+        }
+      }
+    }
+
+    // Build a map: userId → set of their accepted friends (for mutual counting)
+    const friendsOf = new Map<string, Set<string>>();
+    if (allFriendships) {
+      for (const row of allFriendships) {
+        if (row.status !== "accepted") continue;
+        if (!friendsOf.has(row.requester_id)) friendsOf.set(row.requester_id, new Set());
+        if (!friendsOf.has(row.receiver_id)) friendsOf.set(row.receiver_id, new Set());
+        friendsOf.get(row.requester_id)!.add(row.receiver_id);
+        friendsOf.get(row.receiver_id)!.add(row.requester_id);
+      }
+    }
+
+    // Fetch current user's courses from their tasks
+    const { data: myTasks } = await supabase
+      .from("tasks")
+      .select("course_name")
+      .eq("user_id", user.id)
+      .not("course_name", "is", null);
+
+    const myCourses = new Set<string>();
+    if (myTasks) {
+      for (const t of myTasks) {
+        if (t.course_name) myCourses.add(t.course_name.toLowerCase());
+      }
+    }
+
+    // Fetch all tasks with course_name to find users sharing courses
+    const { data: allCourseTasks } = await supabase
+      .from("tasks")
+      .select("user_id, course_name")
+      .not("course_name", "is", null);
+
+    // Map: userId → set of their courses
+    const userCourses = new Map<string, Set<string>>();
+    if (allCourseTasks) {
+      for (const t of allCourseTasks) {
+        if (!t.course_name) continue;
+        if (!userCourses.has(t.user_id)) userCourses.set(t.user_id, new Set());
+        userCourses.get(t.user_id)!.add(t.course_name.toLowerCase());
       }
     }
 
     const allUsers = await getCachedUsers();
-
-    // Extract the current user's email domain for same-school filtering
     const userEmail = user.email ?? "";
     const userDomain = userEmail.split("@")[1]?.toLowerCase() ?? "";
 
-    // Filter out self and anyone already connected/pending,
-    // then restrict to same email domain (e.g. @berkeley.edu sees only @berkeley.edu)
+    // Filter to same domain, exclude connected users
     const candidates = allUsers.filter((u) => {
       if (excludeIds.has(u.id)) return false;
       const candidateDomain = (u.email ?? "").split("@")[1]?.toLowerCase() ?? "";
       return candidateDomain === userDomain;
     });
 
-    // Shuffle and take up to 6 suggestions
-    const shuffled = candidates.sort(() => Math.random() - 0.5);
-    const suggestions = shuffled.slice(0, 6).map((u) => ({
-      id: u.id,
-      email: u.email,
-      full_name: u.fullName,
-      avatar_url: u.avatarUrl,
+    // Score each candidate
+    const scored = candidates.map((u) => {
+      let score = 0;
+
+      // Mutual friends: +3 per mutual friend
+      const theirFriends = friendsOf.get(u.id);
+      if (theirFriends) {
+        for (const fid of myFriendIds) {
+          if (theirFriends.has(fid)) score += 3;
+        }
+      }
+
+      // Shared courses: +2 per shared course
+      const theirCourses = userCourses.get(u.id);
+      if (theirCourses && myCourses.size > 0) {
+        for (const course of myCourses) {
+          if (theirCourses.has(course)) score += 2;
+        }
+      }
+
+      // Small random tiebreaker so equal-score users vary
+      score += Math.random() * 0.5;
+
+      return { user: u, score };
+    });
+
+    // Sort by score descending, take top 6
+    scored.sort((a, b) => b.score - a.score);
+    const suggestions = scored.slice(0, 6).map((s) => ({
+      id: s.user.id,
+      email: s.user.email,
+      full_name: s.user.fullName,
+      avatar_url: s.user.avatarUrl,
     }));
 
     return NextResponse.json({ suggestions });

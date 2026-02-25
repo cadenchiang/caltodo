@@ -155,19 +155,20 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
         </div>
         {isSettings ? (
           <div className="flex flex-col gap-1">
-            <button
-              onClick={() => router.push("/app/inbox")}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors text-foreground hover:bg-accent cursor-pointer active:scale-[0.98]"
-            >
-              <div className="w-7 h-7 rounded-lg bg-white dark:bg-zinc-800 shadow-sm dark:shadow-none border border-border/50 flex items-center justify-center shrink-0">
-                <ChevronLeft size={14} className="animate-[fadeIn_150ms_ease-out]" />
-              </div>
-              <span className="animate-[fadeIn_150ms_ease-out]">Settings</span>
-            </button>
+            <div className="flex items-center gap-2 px-3 py-2.5">
+              <button
+                onClick={() => router.push("/app/inbox")}
+                className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer active:scale-[0.95] shrink-0"
+                title="Back"
+              >
+                <ChevronLeft size={16} className="animate-[fadeIn_150ms_ease-out]" />
+              </button>
+              <span className="text-sm font-medium text-foreground animate-[fadeIn_150ms_ease-out]">Settings</span>
+            </div>
             <hr className="border-border my-1" />
             {SETTINGS_GROUPS.map((group) => (
               <div key={group}>
-                <p className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <p className="px-3 pt-3 pb-1 text-[10px] font-semibold tracking-wider text-foreground/60">
                   {group}
                 </p>
                 {SETTINGS_SECTIONS.filter((s) => s.group === group).map((section) => {
@@ -184,16 +185,10 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
                           ? isMiffy
                             ? "bg-[#fce8ef] dark:bg-[rgba(232,114,154,0.12)] text-foreground"
                             : "bg-accent text-foreground"
-                          : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                          : "text-foreground hover:bg-accent"
                       }`}
                     >
-                      <div className={`w-7 h-7 rounded-lg shadow-sm dark:shadow-none flex items-center justify-center shrink-0 ${
-                        isMiffy && isActive
-                          ? "bg-white dark:bg-[#231920] border border-[#f9d5e0] dark:border-[#4a3542]"
-                          : "bg-white dark:bg-zinc-800 border border-border/50"
-                      }`}>
-                        <Icon size={14} />
-                      </div>
+                      <Icon size={16} className="shrink-0" />
                       <span>{section.label}</span>
                     </button>
                   );

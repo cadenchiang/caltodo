@@ -117,7 +117,7 @@ export default function SettingsContent() {
                     <div className="max-w-2xl mx-auto space-y-6 animate-stagger stagger-2">
                       {SETTINGS_GROUPS.map((group) => (
                         <div key={group}>
-                          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-1 mb-2">
+                          <p className="text-[11px] font-semibold tracking-wider text-muted-foreground px-1 mb-2">
                             {group}
                           </p>
                           <div className="flex flex-col gap-1">
@@ -129,9 +129,7 @@ export default function SettingsContent() {
                                   onClick={() => goToSection(section.id)}
                                   className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-colors text-foreground hover:bg-accent cursor-pointer active:scale-[0.98]"
                                 >
-                                  <div className="w-8 h-8 rounded-lg bg-white dark:bg-zinc-800 shadow-sm dark:shadow-none border border-border/50 flex items-center justify-center shrink-0">
-                                    <Icon size={16} className="text-muted-foreground" />
-                                  </div>
+                                  <Icon size={16} className="text-foreground/70 shrink-0" />
                                   <span className="flex-1 text-left">{section.label}</span>
                                   <ChevronRight size={16} className="text-muted-foreground" />
                                 </button>
@@ -148,17 +146,11 @@ export default function SettingsContent() {
 
             {/* === DESKTOP VIEW === */}
             <div className="hidden md:flex flex-col h-full">
-              {(() => {
-                const section = activeSection ?? DEFAULT_SECTION;
-                const isProfile = section === "profile";
-                return (
-                  <div className={`flex-1 overflow-auto pb-8 ${isProfile ? "px-8 pt-20" : "px-8 pt-8"}`}>
-                    <div key={section} className={`max-w-2xl animate-page-in ${isProfile ? "mx-auto mr-auto ml-[15%]" : ""}`}>
-                      {renderSection(section)}
-                    </div>
-                  </div>
-                );
-              })()}
+              <div className="flex-1 overflow-auto px-8 pt-20 pb-8">
+                <div key={activeSection ?? DEFAULT_SECTION} className="max-w-2xl mx-auto mr-auto ml-[15%] animate-page-in">
+                  {renderSection(activeSection ?? DEFAULT_SECTION)}
+                </div>
+              </div>
             </div>
           </div>
         </div>
