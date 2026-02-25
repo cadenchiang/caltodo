@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { format, isSameDay, isSameMonth } from "date-fns";
-import type { Task } from "@/lib/types";
+import type { Task, PendingInvite } from "@/lib/types";
 import { getMiffyColor } from "@/lib/constants";
 import { useTheme } from "@/contexts/ThemeContext";
 import CalendarTaskBar from "./CalendarTaskBar";
@@ -11,6 +11,7 @@ interface CalendarDayCellProps {
   day: Date;
   currentMonth: Date;
   tasks: Task[];
+  pendingInvites?: PendingInvite[];
   addingDate?: string | null;
   isLastCol?: boolean;
   isSelected?: boolean;
@@ -33,6 +34,7 @@ export default function CalendarDayCell({
   day,
   currentMonth,
   tasks,
+  pendingInvites = [],
   addingDate,
   isLastCol,
   isSelected,
@@ -98,14 +100,24 @@ export default function CalendarDayCell({
           >
             {format(day, "d")}
           </span>
-          {/* Colored dots for tasks */}
-          {tasks.length > 0 && (
+          {/* Colored dots for tasks + pending invites */}
+          {(tasks.length > 0 || pendingInvites.length > 0) && (
             <div className="flex items-center justify-center gap-[3px] flex-wrap max-w-[36px]">
               {dotTasks.map((task) => (
                 <span
                   key={task.id}
                   className={`w-[5px] h-[5px] rounded-full shrink-0 ${task.is_completed ? "opacity-40" : ""}`}
                   style={{ backgroundColor: isMiffyTheme ? getMiffyColor(task.color) : (task.color || "#6b7280") }}
+                />
+              ))}
+              {pendingInvites.map((invite) => (
+                <span
+                  key={invite.shareId}
+                  className="w-[5px] h-[5px] rounded-full shrink-0 opacity-40"
+                  style={{
+                    backgroundColor: "transparent",
+                    border: `1px dashed ${isMiffyTheme ? getMiffyColor(invite.taskColor) : (invite.taskColor || "#6b7280")}`,
+                  }}
                 />
               ))}
               {dotOverflow > 0 && (
@@ -160,6 +172,46 @@ export default function CalendarDayCell({
             {visibleTasks.map((task) => (
               <CalendarTaskBar key={task.id} task={task} onClick={onTaskClick} />
             ))}
+            {/* Pending invite bars — dashed outline style */}
+            {pendingInvites.map((invite) => {
+              const pseudoTask: Task = {
+                id: invite.shareId,
+                user_id: "",
+                title: invite.taskTitle,
+                description: "",
+                due_date: invite.taskDueDate,
+                due_time: invite.taskDueTime,
+                is_completed: false,
+                color: invite.taskColor,
+                created_at: invite.createdAt,
+                updated_at: invite.createdAt,
+                source: null,
+                external_id: null,
+                course_name: null,
+                source_url: null,
+                points_possible: null,
+                is_submitted: false,
+                google_event_id: null,
+                dismissed_at: null,
+                repeat_interval: null,
+                repeat_unit: null,
+                repeat_end_date: null,
+                repeat_end_count: null,
+                late_due_date: null,
+                completed_at: null,
+                tags: [],
+                snoozed_until: null,
+                sort_order: null,
+              };
+              return (
+                <CalendarTaskBar
+                  key={invite.shareId}
+                  task={pseudoTask}
+                  onClick={() => {}}
+                  isPending
+                />
+              );
+            })}
             {overflow > 0 && !expanded && (
               <button
                 type="button"

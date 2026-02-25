@@ -169,3 +169,91 @@ export async function removeAttendeeFromEvent(
   logger.info("removeAttendeeFromEvent: attendee removed", { eventId, email });
   return true;
 }
+
+/**
+ * Updates an attendee's response status on a Google Calendar event.
+ * Fetches the current attendee list, finds the attendee by email,
+ * updates their responseStatus, and PATCHes with sendUpdates=all.
+ *
+ * @param accessToken - Valid Google OAuth2 access token
+ * @param calendarId - The calendar ID containing the event
+ * @param eventId - The Google Calendar event ID to update
+ * @param email - Email address of the attendee to update
+ * @param status - New response status ("accepted" or "declined")
+ * @returns true on success, false on failure
+ *
+ * @edge_cases
+ * - If the attendee is not found on the event, returns false.
+ * - If the event was deleted externally (404/410), returns false.
+ */
+export async function updateAttendeeResponseStatus(
+  accessToken: string,
+  calendarId: string,
+  eventId: string,
+  email: string,
+  status: "accepted" | "declined"
+): Promise<boolean> {
+  const getRes = await fetch(
+    `${GCAL_API_BASE}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    }
+  );
+
+  if (!getRes.ok) {
+    const body = await getRes.text();
+    logger.error("updateAttendeeResponseStatus: failed to fetch event", {
+      status: getRes.status,
+      eventId,
+      body,
+    });
+    return false;
+  }
+
+  const event = await getRes.json();
+  const currentAttendees: GCalAttendee[] = event.attendees ?? [];
+
+  const attendeeIndex = currentAttendees.findIndex(
+    (a) => a.email.toLowerCase() === email.toLowerCase()
+  );
+
+  if (attendeeIndex === -1) {
+    logger.warn("updateAttendeeResponseStatus: attendee not found on event", {
+      eventId,
+      email,
+    });
+    return false;
+  }
+
+  currentAttendees[attendeeIndex].responseStatus = status;
+
+  const patchRes = await fetch(
+    `${GCAL_API_BASE}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}?sendUpdates=all`,
+    {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ attendees: currentAttendees }),
+    }
+  );
+
+  if (!patchRes.ok) {
+    const body = await patchRes.text();
+    logger.error("updateAttendeeResponseStatus: failed to update attendee", {
+      status: patchRes.status,
+      eventId,
+      email,
+      body,
+    });
+    return false;
+  }
+
+  logger.info("updateAttendeeResponseStatus: attendee status updated", {
+    eventId,
+    email,
+    responseStatus: status,
+  });
+  return true;
+}

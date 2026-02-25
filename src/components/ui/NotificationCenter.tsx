@@ -9,6 +9,7 @@ import {
   AlertTriangle,
   Repeat,
   CheckCircle2,
+  UserPlus,
   X,
   Trash2,
 } from "lucide-react";
@@ -35,6 +36,8 @@ function NotificationIcon({ type }: { type: NotificationType }) {
       return <Repeat size={16} className="text-purple-500 shrink-0" />;
     case "sync_error":
       return <AlertTriangle size={16} className="text-red-500 shrink-0" />;
+    case "task_invite":
+      return <UserPlus size={16} className="text-indigo-500 shrink-0" />;
   }
 }
 

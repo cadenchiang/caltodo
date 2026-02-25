@@ -10,6 +10,7 @@
 
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
 
@@ -49,7 +50,7 @@ export async function GET(
 
   const { data: shares, error: sharesError } = await supabase
     .from("task_shares")
-    .select("id, invitee_email, copied_task_id, created_at")
+    .select("id, invitee_id, invitee_email, copied_task_id, status, created_at")
     .eq("source_task_id", taskId)
     .eq("inviter_id", user.id)
     .order("created_at", { ascending: true });
@@ -62,5 +63,36 @@ export async function GET(
     return NextResponse.json({ error: "Failed to fetch shares" }, { status: 500 });
   }
 
-  return NextResponse.json({ shares: shares ?? [] });
+  if (!shares || shares.length === 0) {
+    return NextResponse.json({ shares: [] });
+  }
+
+  // Enrich with invitee name and avatar from auth metadata
+  const adminClient = createAdminClient();
+  const { data: usersData } = await adminClient.auth.admin.listUsers({
+    page: 1,
+    perPage: 1000,
+  });
+
+  const userMap = new Map(
+    usersData?.users?.map((u) => [u.id, {
+      name: (u.user_metadata?.full_name as string) ?? null,
+      avatar: (u.user_metadata?.avatar_url as string) ?? null,
+    }]) ?? []
+  );
+
+  const enrichedShares = shares.map((s) => {
+    const meta = userMap.get(s.invitee_id);
+    return {
+      id: s.id,
+      invitee_email: s.invitee_email,
+      invitee_name: meta?.name ?? null,
+      invitee_avatar_url: meta?.avatar ?? null,
+      status: s.status,
+      copied_task_id: s.copied_task_id,
+      created_at: s.created_at,
+    };
+  });
+
+  return NextResponse.json({ shares: enrichedShares });
 }

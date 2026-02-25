@@ -10,7 +10,8 @@ import TaskBoardView from "@/components/tasks/TaskBoardView";
 import TaskDetailPanel from "@/components/tasks/TaskDetailPanel";
 import TaskPopover from "@/components/tasks/TaskPopover";
 import PageTransition from "@/components/ui/PageTransition";
-import type { Task, IntegrationCredentials } from "@/lib/types";
+import type { Task, IntegrationCredentials, PendingInvite } from "@/lib/types";
+import { useNotifications } from "@/contexts/NotificationContext";
 import { trackEvent } from "@/lib/analytics";
 
 type InboxFilter = "all" | "today" | "7days";
@@ -178,8 +179,10 @@ export default function InboxPage() {
   } = useTaskContext();
   const inboxRouter = useRouter();
   const searchParams = useSearchParams();
+  const { setPendingInviteCount } = useNotifications();
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [filter, setFilterRaw] = useState<InboxFilter>("all");
+  const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
 
   /** Sets filter, persists to localStorage, and dispatches event for sidebar. */
   const setFilter = useCallback((f: InboxFilter) => {
@@ -215,6 +218,57 @@ export default function InboxPage() {
     const savedGroup = localStorage.getItem("inbox-board-group") as "class" | "date" | null;
     if (savedGroup) setBoardGroupBy(savedGroup);
   }, []);
+
+  // Fetch pending invites on mount
+  useEffect(() => {
+    async function fetchPendingInvites() {
+      try {
+        const res = await fetch("/api/tasks/invites/pending");
+        if (res.ok) {
+          const data = await res.json();
+          setPendingInvites(data.invites ?? []);
+          setPendingInviteCount(data.invites?.length ?? 0);
+        }
+      } catch {
+        // Non-critical — requests section will just be empty
+      }
+    }
+    fetchPendingInvites();
+  }, [setPendingInviteCount]);
+
+  /**
+   * Handles accepting or declining a task invite.
+   * On accept, refetches tasks (new task appeared) and removes from pending list.
+   * On decline, removes from pending list.
+   *
+   * @param shareId - The share to respond to
+   * @param action - "accept" or "decline"
+   */
+  const handleRespondInvite = useCallback(async (shareId: string, action: "accept" | "decline") => {
+    try {
+      const res = await fetch(`/api/tasks/invite/${shareId}/respond`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+
+      if (res.ok) {
+        setPendingInvites((prev) => {
+          const updated = prev.filter((i) => i.shareId !== shareId);
+          setPendingInviteCount(updated.length);
+          return updated;
+        });
+
+        // On accept, the task context will pick up the new task on next fetch
+        // Trigger a page-level refetch by dispatching a custom event
+        if (action === "accept") {
+          window.dispatchEvent(new CustomEvent("caltodo-tasks-changed"));
+        }
+      }
+    } catch {
+      // Non-critical — user can retry
+    }
+  }, [setPendingInviteCount]);
 
   // Auto-select task from ?task= query param (e.g. from notification click-through)
   const taskParamHandled = useRef(false);
@@ -695,6 +749,8 @@ export default function InboxPage() {
                   }}
                   onDelete={deleteTask}
                   onReorder={sortMode === "date" ? handleReorder : undefined}
+                  pendingInvites={pendingInvites}
+                  onRespondInvite={handleRespondInvite}
                   placeholder='Add task to "Inbox". Press Enter to save.'
                 />
               ) : (

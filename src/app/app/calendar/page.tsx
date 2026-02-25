@@ -20,7 +20,7 @@ import CalendarDayView from "@/components/calendar/CalendarDayView";
 import TaskPopover from "@/components/tasks/TaskPopover";
 import TaskAddPopover from "@/components/tasks/TaskAddPopover";
 import PageTransition from "@/components/ui/PageTransition";
-import type { Task } from "@/lib/types";
+import type { Task, PendingInvite } from "@/lib/types";
 
 const VIEW_MODE_KEY = "cal-view-mode";
 
@@ -39,6 +39,21 @@ export default function CalendarPage() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   const { tasks, loading, error, addTask, updateTask, deleteTask } = useTaskContext();
+  const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
+
+  // Fetch pending invites on mount
+  useEffect(() => {
+    async function fetchPendingInvites() {
+      try {
+        const res = await fetch("/api/tasks/invites/pending");
+        if (res.ok) {
+          const data = await res.json();
+          setPendingInvites(data.invites ?? []);
+        }
+      } catch { /* non-critical — calendar still shows own tasks */ }
+    }
+    fetchPendingInvites();
+  }, []);
 
   // Restore persisted view mode
   useEffect(() => {
@@ -161,6 +176,7 @@ export default function CalendarPage() {
                 <CalendarGrid
                   currentMonth={currentDate}
                   tasks={visibleTasks}
+                  pendingInvites={pendingInvites}
                   addingDate={addingDate}
                   selectedDate={selectedDate}
                   onDayClick={handleDayClick}

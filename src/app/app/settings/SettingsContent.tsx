@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { IntegrationProvider } from "@/components/settings/IntegrationSettings";
 import PageTransition from "@/components/ui/PageTransition";
-import AccountSection from "@/components/settings/sections/AccountSection";
+import ProfileSection from "@/components/settings/sections/ProfileSection";
 import IntegrationsSection from "@/components/settings/sections/IntegrationsSection";
 import ClassesSectionWrapper from "@/components/settings/sections/ClassesSectionWrapper";
 import AppearanceSection from "@/components/settings/sections/AppearanceSection";
@@ -25,8 +25,8 @@ import {
  */
 function renderSection(sectionId: SettingsSectionId) {
   switch (sectionId) {
-    case "account":
-      return <AccountSection />;
+    case "profile":
+      return <ProfileSection />;
     case "integrations":
       return <IntegrationsSection />;
     case "classes":

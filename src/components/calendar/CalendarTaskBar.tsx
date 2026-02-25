@@ -8,6 +8,8 @@ import { useTheme } from "@/contexts/ThemeContext";
 interface CalendarTaskBarProps {
   task: Task;
   onClick: (task: Task, rect: DOMRect) => void;
+  /** When true, renders as a dashed outline bar for pending invites. */
+  isPending?: boolean;
 }
 
 /**
@@ -48,7 +50,7 @@ function truncateTitle(title: string, max: number): string {
  * @param task - The task to display
  * @param onClick - Callback when clicked (opens popover with full details)
  */
-export default function CalendarTaskBar({ task, onClick }: CalendarTaskBarProps) {
+export default function CalendarTaskBar({ task, onClick, isPending }: CalendarTaskBarProps) {
   const { colorTheme } = useTheme();
   const [hovered, setHovered] = useState(false);
   const rawColor = task.color || "#6b7280";
@@ -64,21 +66,26 @@ export default function CalendarTaskBar({ task, onClick }: CalendarTaskBarProps)
       onMouseLeave={() => setHovered(false)}
       className={`w-full text-left flex items-center px-2 py-0.5 rounded-md transition-all overflow-hidden hover:-translate-y-px hover:shadow-sm ${
         task.is_completed ? "opacity-50" : ""
-      }`}
-      style={{
+      } ${isPending ? "opacity-50" : ""}`}
+      style={isPending ? {
+        backgroundColor: "transparent",
+        borderLeft: `2px dashed ${color}`,
+        border: `1px dashed ${hexToRgba(color, 0.4)}`,
+        borderLeftWidth: "2px",
+      } : {
         backgroundColor: hexToRgba(color, hovered ? 0.18 : 0.1),
         borderLeft: `2px solid ${color}`,
       }}
-      title={task.title}
+      title={isPending ? `Pending invite: ${task.title}` : task.title}
     >
-      {task.is_completed && (
+      {task.is_completed && !isPending && (
         <svg className="w-3 h-3 shrink-0 mr-1 hidden md:block" style={{ color }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
           <polyline points="20 6 9 17 4 12" />
         </svg>
       )}
       <span
-        className={`text-[11px] font-medium truncate ${task.is_completed ? "line-through" : ""}`}
-        style={{ color }}
+        className={`text-[11px] font-medium truncate ${task.is_completed && !isPending ? "line-through" : ""}`}
+        style={{ color: isPending ? hexToRgba(color, 0.6) : color }}
       >
         {truncateTitle(task.title, MAX_TITLE_CHARS)}
       </span>

@@ -64,8 +64,8 @@ export default function Hero() {
         className="w-full bg-[#F5F5F7] text-[#1D1D1F] text-center text-xs py-1.5 tracking-wide hover:bg-[#E8E8ED] transition-colors cursor-pointer relative flex items-center justify-center"
       >
         <img src="/cal-logo.png" alt="UC Berkeley" className="w-3.5 h-3.5 object-contain mr-1.5" />
-        <span className="hidden sm:inline">exclusively for students · {1000 - (userCount ?? 326)} free lifetime spots remaining</span>
-        <span className="sm:hidden">{1000 - (userCount ?? 326)} free lifetime spots left</span>
+        <span className="hidden sm:inline">UC Berkeley · exclusively for students · {500 - (userCount ?? 326)} free lifetime spots remaining</span>
+        <span className="sm:hidden">{500 - (userCount ?? 326)} free lifetime spots left</span>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-1.5 opacity-60">
           <path d="M7 17L17 7" />
           <path d="M7 7h10v10" />
@@ -132,8 +132,11 @@ export default function Hero() {
                 </div>
               </div>
               {/* Pensieve — inner right, mid */}
-              <div className="group relative cursor-pointer flex flex-col items-center -ml-1 sm:-ml-3" style={{ marginBottom: "10px" }}>
-                <img src="/pensieve-logo.png" alt="Pensieve" className="w-9 h-9 sm:w-16 sm:h-16 object-contain transition-transform duration-200 group-hover:scale-110 relative z-10" />
+              <div className="group relative cursor-pointer flex flex-col items-center -ml-1 sm:-ml-3 z-10" style={{ marginBottom: "10px" }}>
+                <div className="relative w-9 h-9 sm:w-16 sm:h-16 transition-transform duration-200 group-hover:scale-110 z-10">
+                  <div className="absolute inset-[10%] rounded-full bg-white" />
+                  <img src="/pensieve-logo.png" alt="Pensieve" className="w-full h-full object-contain relative" />
+                </div>
                 <div className="w-7 h-2 sm:w-14 sm:h-4 mt-1 transition-all duration-200 group-hover:w-9 sm:group-hover:w-16" style={{ background: "radial-gradient(ellipse at center, rgba(0,0,0,0.12) 0%, rgba(0,0,0,0.04) 50%, transparent 70%)", borderRadius: "50%" }} />
                 <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-3 rounded-lg bg-[#F5F5F7] text-[#1D1D1F] text-xs px-3 py-2 shadow-md opacity-0 scale-95 transition-all duration-200 group-hover:opacity-100 group-hover:scale-100 z-50 whitespace-nowrap">
                   <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-[#F5F5F7] rotate-45" />
@@ -287,13 +290,13 @@ export default function Hero() {
           <div className="px-6 pt-6 pb-3 sm:px-8 sm:pt-8 sm:pb-4">
             <div className="flex items-center gap-1.5 mb-4 sm:mb-5">
               <img src="/cal-logo.png" alt="UC Berkeley" className="w-3.5 h-3.5 sm:w-4 sm:h-4 object-contain opacity-40" />
-              <p className="text-[11px] sm:text-xs text-black/40 tracking-wide">{1000 - (userCount ?? 326)} spots remaining</p>
+              <p className="text-[11px] sm:text-xs text-black/40 tracking-wide">{500 - (userCount ?? 326)} spots remaining</p>
             </div>
             <h3 className="text-xl sm:text-2xl font-semibold text-black leading-tight tracking-tight" style={{ fontFamily: '-apple-system, "SF Pro Display", BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' }}>
               free for life. seriously.
             </h3>
             <p className="text-xs sm:text-sm text-black/40 leading-relaxed mt-2 sm:mt-3">
-              the first 1,000 students get caltodo free forever. no credit card. no catches. just sign up.
+              the first 500 students get caltodo free forever. no credit card. no catches. just sign up.
             </p>
           </div>
 
@@ -301,12 +304,12 @@ export default function Hero() {
             <div className="w-full h-1 rounded-full bg-black/5 overflow-hidden">
               <div
                 className="h-full rounded-full bg-black/80"
-                style={{ width: `${((userCount ?? 326) / 1000) * 100}%` }}
+                style={{ width: `${((userCount ?? 326) / 500) * 100}%` }}
               />
             </div>
             <div className="flex justify-between mt-1.5 sm:mt-2">
               <span className="text-[10px] sm:text-[11px] text-black/30">{userCount ?? 326} claimed</span>
-              <span className="text-[10px] sm:text-[11px] text-black/30">1,000 total</span>
+              <span className="text-[10px] sm:text-[11px] text-black/30">500 total</span>
             </div>
           </div>
 

@@ -9,12 +9,13 @@ import {
   eachDayOfInterval,
   format,
 } from "date-fns";
-import type { Task } from "@/lib/types";
+import type { Task, PendingInvite } from "@/lib/types";
 import CalendarDayCell from "./CalendarDayCell";
 
 interface CalendarGridProps {
   currentMonth: Date;
   tasks: Task[];
+  pendingInvites?: PendingInvite[];
   addingDate?: string | null;
   selectedDate?: string | null;
   onDayClick: (date: string, rect: DOMRect) => void;
@@ -33,6 +34,7 @@ const WEEKDAY_LABELS_SHORT = ["M", "T", "W", "T", "F", "S", "S"];
 export default function CalendarGrid({
   currentMonth,
   tasks,
+  pendingInvites = [],
   addingDate,
   selectedDate,
   onDayClick,
@@ -59,6 +61,16 @@ export default function CalendarGrid({
         tasksByDate[task.due_date] = [];
       }
       tasksByDate[task.due_date].push(task);
+    }
+  }
+
+  const invitesByDate: Record<string, PendingInvite[]> = {};
+  for (const invite of pendingInvites) {
+    if (invite.taskDueDate) {
+      if (!invitesByDate[invite.taskDueDate]) {
+        invitesByDate[invite.taskDueDate] = [];
+      }
+      invitesByDate[invite.taskDueDate].push(invite);
     }
   }
 
@@ -92,6 +104,7 @@ export default function CalendarGrid({
               day={day}
               currentMonth={currentMonth}
               tasks={tasksByDate[dateStr] ?? []}
+              pendingInvites={invitesByDate[dateStr] ?? []}
               addingDate={addingDate}
               isLastCol={(i + 1) % 7 === 0}
               isSelected={selectedDate === dateStr}

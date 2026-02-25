@@ -2,14 +2,15 @@
  * POST /api/tasks/invite
  *
  * Invites a user to an assignment by email.
- * Creates a copy of the task in the invitee's account and records the share.
+ * Creates a pending share record. The task copy is created when the
+ * invitee accepts via POST /api/tasks/invite/[shareId]/respond.
  * If the inviter has Google Calendar connected and the task has a GCal event,
  * adds the invitee as an attendee (fire-and-forget).
  *
  * @param body.taskId - The task to share
  * @param body.email - The invitee's email address
  *
- * @returns 200 with share record on success
+ * @returns 200 with enriched share record (includes invitee_name, invitee_avatar_url)
  * @returns 400 for invalid input or self-invite
  * @returns 404 if invitee not on caltodo ("not_on_caltodo")
  * @returns 409 if already shared ("already_shared")
@@ -20,6 +21,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getValidAccessToken, getCalendarId } from "@/lib/gcal/token-manager";
 import { addAttendeeToEvent } from "@/lib/gcal/calendar-attendees";
+import { sendInviteEmail } from "@/lib/email";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
 
@@ -76,18 +78,78 @@ export async function POST(request: NextRequest) {
 
   // Look up invitee by email using admin client
   const adminClient = createAdminClient();
-  const inviteeId = await lookupUserByEmail(adminClient, trimmedEmail);
+  const invitee = await lookupUserByEmail(adminClient, trimmedEmail);
 
-  if (!inviteeId) {
-    logger.info("POST /api/tasks/invite: invitee not on caltodo", { email: trimmedEmail });
-    return NextResponse.json(
-      { error: "User not found on caltodo", code: "not_on_caltodo" },
-      { status: 404 }
-    );
+  if (!invitee) {
+    // Deferred invite: invitee not on caltodo yet
+    logger.info("POST /api/tasks/invite: creating deferred invite", { email: trimmedEmail });
+
+    // Check for duplicate deferred share by email
+    const adminClient2 = createAdminClient();
+    const { data: existingDeferred } = await adminClient2
+      .from("task_shares")
+      .select("id")
+      .eq("source_task_id", taskId)
+      .eq("invitee_email", trimmedEmail)
+      .is("invitee_id", null)
+      .single();
+
+    if (existingDeferred) {
+      return NextResponse.json(
+        { error: "Already invited this email", code: "already_shared" },
+        { status: 409 }
+      );
+    }
+
+    // Insert deferred share (invitee_id is null)
+    const { data: deferredShare, error: deferredError } = await adminClient2
+      .from("task_shares")
+      .insert({
+        source_task_id: taskId,
+        inviter_id: user.id,
+        invitee_id: null,
+        copied_task_id: null,
+        invitee_email: trimmedEmail,
+        status: "deferred",
+      })
+      .select("*")
+      .single();
+
+    if (deferredError) {
+      logger.error("POST /api/tasks/invite: failed to insert deferred share", {
+        taskId,
+        email: trimmedEmail,
+        error: deferredError.message,
+      });
+      return NextResponse.json({ error: "Failed to create invite" }, { status: 500 });
+    }
+
+    logger.info("POST /api/tasks/invite: deferred share created", {
+      shareId: deferredShare.id,
+      taskId,
+      inviteeEmail: trimmedEmail,
+    });
+
+    // Fire-and-forget: send invite email via Resend
+    const inviterName = (user.user_metadata?.full_name as string) ?? user.email ?? "Someone";
+    sendInviteEmail(trimmedEmail, inviterName, task.title).catch((err) => {
+      logger.warn("POST /api/tasks/invite: email send failed (non-blocking)", {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    });
+
+    return NextResponse.json({
+      share: {
+        ...deferredShare,
+        invitee_name: null,
+        invitee_avatar_url: null,
+      },
+      deferred: true,
+    });
   }
 
   // Self-invite check (by ID, in case email alias differs)
-  if (inviteeId === user.id) {
+  if (invitee.id === user.id) {
     return NextResponse.json({ error: "Cannot invite yourself", code: "self_invite" }, { status: 400 });
   }
 
@@ -96,7 +158,7 @@ export async function POST(request: NextRequest) {
     .from("task_shares")
     .select("id")
     .eq("source_task_id", taskId)
-    .eq("invitee_id", inviteeId)
+    .eq("invitee_id", invitee.id)
     .single();
 
   if (existingShare) {
@@ -106,41 +168,16 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Create task copy in invitee's account (admin client bypasses RLS)
-  const { data: copiedTask, error: copyError } = await adminClient
-    .from("tasks")
-    .insert({
-      user_id: inviteeId,
-      title: task.title,
-      description: task.description || "",
-      due_date: task.due_date,
-      due_time: task.due_time,
-      color: task.color,
-      course_name: task.course_name,
-      tags: task.tags || [],
-      is_completed: false,
-    })
-    .select("id")
-    .single();
-
-  if (copyError || !copiedTask) {
-    logger.error("POST /api/tasks/invite: failed to create task copy", {
-      taskId,
-      inviteeId,
-      error: copyError?.message,
-    });
-    return NextResponse.json({ error: "Failed to create task copy" }, { status: 500 });
-  }
-
-  // Insert task_shares row
+  // Insert task_shares row with pending status (no task copy yet)
   const { data: share, error: shareError } = await supabase
     .from("task_shares")
     .insert({
       source_task_id: taskId,
       inviter_id: user.id,
-      invitee_id: inviteeId,
-      copied_task_id: copiedTask.id,
+      invitee_id: invitee.id,
+      copied_task_id: null,
       invitee_email: trimmedEmail,
+      status: "pending",
     })
     .select("*")
     .single();
@@ -148,13 +185,13 @@ export async function POST(request: NextRequest) {
   if (shareError) {
     logger.error("POST /api/tasks/invite: failed to insert share", {
       taskId,
-      inviteeId,
+      inviteeId: invitee.id,
       error: shareError.message,
     });
     return NextResponse.json({ error: "Failed to create share" }, { status: 500 });
   }
 
-  logger.info("POST /api/tasks/invite: share created", {
+  logger.info("POST /api/tasks/invite: share created (pending)", {
     shareId: share.id,
     taskId,
     inviteeEmail: trimmedEmail,
@@ -169,7 +206,13 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  return NextResponse.json({ share });
+  return NextResponse.json({
+    share: {
+      ...share,
+      invitee_name: invitee.full_name,
+      invitee_avatar_url: invitee.avatar_url,
+    },
+  });
 }
 
 /**
@@ -198,17 +241,16 @@ async function addGCalAttendee(
 
 /**
  * Looks up a user by email using the admin Supabase client.
- * Uses listUsers and filters by email client-side.
- * Sufficient for a school-sized user base (<1000 users).
+ * Returns enriched user data for the invite response.
  *
  * @param adminClient - Supabase admin client (service role)
  * @param email - Email address to look up (case-insensitive)
- * @returns The user's UUID if found, or null
+ * @returns User object with id, email, full_name, avatar_url; or null if not found
  */
 async function lookupUserByEmail(
   adminClient: ReturnType<typeof createAdminClient>,
   email: string
-): Promise<string | null> {
+): Promise<{ id: string; email: string; full_name: string | null; avatar_url: string | null } | null> {
   const { data, error } = await adminClient.auth.admin.listUsers({
     page: 1,
     perPage: 1000,
@@ -220,5 +262,12 @@ async function lookupUserByEmail(
     (u) => u.email?.toLowerCase() === email.toLowerCase()
   );
 
-  return match?.id ?? null;
+  if (!match) return null;
+
+  return {
+    id: match.id,
+    email: match.email ?? email,
+    full_name: (match.user_metadata?.full_name as string) ?? null,
+    avatar_url: (match.user_metadata?.avatar_url as string) ?? null,
+  };
 }

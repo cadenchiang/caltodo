@@ -57,7 +57,7 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
       ? (sectionParam as SettingsSectionId)
       : DEFAULT_SECTION;
 
-  // Cache user profile to localStorage so AccountSection can read it
+  // Cache user profile to localStorage so ProfileSection can read it
   useEffect(() => {
     try {
       localStorage.setItem("caltodo_user_profile", JSON.stringify({ email, fullName, avatarUrl }));

@@ -174,7 +174,8 @@ export type NotificationType =
   | "assignment_updated"
   | "auto_completed"
   | "repeat_spawned"
-  | "sync_error";
+  | "sync_error"
+  | "task_invite";
 
 /**
  * A client-side notification for the notification center.
@@ -203,7 +204,7 @@ export interface TaskShare {
   id: string;
   source_task_id: string;
   inviter_id: string;
-  invitee_id: string;
+  invitee_id: string | null;
   copied_task_id: string | null;
   invitee_email: string;
   created_at: string;
@@ -216,5 +217,30 @@ export interface AppNotification {
   description: string | null;
   taskId: string | null;
   read: boolean;
+  createdAt: string;
+}
+
+/**
+ * A pending task invite shown in the Inbox "Requests" section.
+ *
+ * @param shareId - The task_shares row ID
+ * @param taskTitle - Title of the source task
+ * @param taskDueDate - Due date of the source task (YYYY-MM-DD or null)
+ * @param taskDueTime - Due time of the source task (HH:MM or null)
+ * @param taskColor - Color of the source task
+ * @param inviterName - Full name of the inviter (null if unavailable)
+ * @param inviterEmail - Email of the inviter
+ * @param inviterAvatar - Avatar URL of the inviter (null if unavailable)
+ * @param createdAt - ISO timestamp of when the invite was created
+ */
+export interface PendingInvite {
+  shareId: string;
+  taskTitle: string;
+  taskDueDate: string | null;
+  taskDueTime: string | null;
+  taskColor: string;
+  inviterName: string | null;
+  inviterEmail: string;
+  inviterAvatar: string | null;
   createdAt: string;
 }

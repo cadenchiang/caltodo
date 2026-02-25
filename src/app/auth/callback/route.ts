@@ -33,6 +33,15 @@ export async function GET(request: NextRequest) {
           return NextResponse.redirect(redirectTo);
         }
 
+        // Process any deferred invites for this user's email (fire-and-forget)
+        const origin = request.nextUrl.origin;
+        fetch(`${origin}/api/auth/process-deferred`, {
+          method: "POST",
+          headers: {
+            cookie: request.headers.get("cookie") ?? "",
+          },
+        }).catch(() => { /* non-critical */ });
+
         const { data: creds } = await supabase
           .from("integration_credentials")
           .select("id")

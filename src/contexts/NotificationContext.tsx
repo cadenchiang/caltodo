@@ -73,6 +73,8 @@ function pruneNotifications(items: AppNotification[]): AppNotification[] {
 interface NotificationContextValue {
   notifications: AppNotification[];
   unreadCount: number;
+  pendingInviteCount: number;
+  setPendingInviteCount: (count: number) => void;
   addNotification: (
     type: NotificationType,
     title: string,
@@ -93,6 +95,7 @@ const NotificationContext = createContext<NotificationContextValue | null>(null)
  */
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [pendingInviteCount, setPendingInviteCount] = useState(0);
 
   // Load + prune on mount
   useEffect(() => {
@@ -101,7 +104,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     saveNotifications(loaded);
   }, []);
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const unreadCount = notifications.filter((n) => !n.read).length + pendingInviteCount;
 
   const addNotification = useCallback(
     (
@@ -163,6 +166,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       value={{
         notifications,
         unreadCount,
+        pendingInviteCount,
+        setPendingInviteCount,
         addNotification,
         markAsRead,
         markAllAsRead,

@@ -2,14 +2,15 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { RotateCcw, Trash2, Play } from "lucide-react";
+import { RotateCcw, Trash2, Play, LogOut, UserX } from "lucide-react";
 import { useTaskContext } from "@/contexts/TaskContext";
 import { useToast } from "@/contexts/ToastContext";
 
 /**
  * Advanced settings section.
- * Provides restart tutorial, redo setup wizard, and delete-all-tasks
- * actions with double-click confirmation where destructive.
+ * Provides restart tutorial, redo setup wizard, delete-all-tasks,
+ * sign out, and delete account actions with double-click confirmation
+ * where destructive.
  */
 export default function AdvancedSection() {
   const router = useRouter();
@@ -17,6 +18,9 @@ export default function AdvancedSection() {
   const { showToast } = useToast();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmRedo, setConfirmRedo] = useState(false);
+  const [confirmSignOut, setConfirmSignOut] = useState(false);
+  const [confirmDeleteAccount, setConfirmDeleteAccount] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   useEffect(() => {
     router.prefetch("/app/onboarding");
@@ -62,6 +66,51 @@ export default function AdvancedSection() {
     showToast("All tasks deleted.");
   }
 
+  /**
+   * Signs the user out with double-click confirmation.
+   * First click shows confirmation, second click executes.
+   * Resets after 3 seconds if not confirmed.
+   */
+  async function handleSignOut() {
+    if (!confirmSignOut) {
+      setConfirmSignOut(true);
+      setTimeout(() => setConfirmSignOut(false), 3000);
+      return;
+    }
+    setConfirmSignOut(false);
+    await fetch("/auth/signout", { method: "POST" });
+    router.push("/");
+  }
+
+  /**
+   * Handles account deletion with double-click confirmation.
+   * First click shows confirmation, second click executes.
+   * Resets after 3 seconds if not confirmed.
+   */
+  async function handleDeleteAccount() {
+    if (!confirmDeleteAccount) {
+      setConfirmDeleteAccount(true);
+      setTimeout(() => setConfirmDeleteAccount(false), 3000);
+      return;
+    }
+    setConfirmDeleteAccount(false);
+    setDeletingAccount(true);
+    try {
+      const res = await fetch("/api/account/delete", { method: "POST" });
+      if (res.ok) {
+        showToast("Account deleted. Redirecting...");
+        router.push("/");
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showToast(data.error || "Failed to delete account.");
+      }
+    } catch {
+      showToast("Failed to delete account.");
+    } finally {
+      setDeletingAccount(false);
+    }
+  }
+
   return (
     <section>
       <h2 className="text-lg font-semibold text-foreground mb-1">Advanced</h2>
@@ -102,6 +151,37 @@ export default function AdvancedSection() {
           {confirmDelete
             ? `Click again to delete all ${tasks.length} tasks`
             : `Delete All Tasks (${tasks.length})`}
+        </button>
+
+        {/* Divider */}
+        <div className="border-t border-border my-2" />
+
+        <button
+          onClick={handleSignOut}
+          className={`w-full flex items-center gap-3 px-4 py-3 text-sm rounded-xl border transition-colors ${
+            confirmSignOut
+              ? "border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/30 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/50"
+              : "border-border bg-card hover:bg-accent text-foreground"
+          }`}
+        >
+          <LogOut size={15} />
+          {confirmSignOut ? "Click again to sign out" : "Sign Out"}
+        </button>
+        <button
+          onClick={handleDeleteAccount}
+          disabled={deletingAccount}
+          className={`w-full flex items-center gap-3 px-4 py-3 text-sm rounded-xl border transition-colors disabled:opacity-40 ${
+            confirmDeleteAccount
+              ? "border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/30 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/50"
+              : "border-border bg-card hover:bg-accent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <UserX size={15} />
+          {deletingAccount
+            ? "Deleting..."
+            : confirmDeleteAccount
+              ? "Click again to permanently delete your account"
+              : "Delete Account"}
         </button>
       </div>
     </section>

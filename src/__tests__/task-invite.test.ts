@@ -50,6 +50,10 @@ vi.mock("@/lib/gcal/calendar-attendees", () => ({
   removeAttendeeFromEvent: vi.fn().mockResolvedValue(true),
 }));
 
+vi.mock("@/lib/email", () => ({
+  sendInviteEmail: vi.fn().mockResolvedValue(true),
+}));
+
 // ── Helpers ────────────────────────────────────────────
 
 const INVITER_ID = "user-111";
@@ -136,7 +140,7 @@ describe("POST /api/tasks/invite — invitee lookup", () => {
     mockAuthUser(INVITER_ID, INVITER_EMAIL);
   });
 
-  it("should return 404 with not_on_caltodo when invitee not found", async () => {
+  it("should create deferred invite when invitee not on caltodo", async () => {
     // Task ownership passes
     mockFrom.mockReturnValue(
       chainMock({
@@ -151,6 +155,28 @@ describe("POST /api/tasks/invite — invitee lookup", () => {
       error: null,
     });
 
+    // Admin client: deferred duplicate check returns null, then insert succeeds
+    let adminCallCount = 0;
+    mockAdminFrom.mockImplementation(() => {
+      adminCallCount++;
+      if (adminCallCount === 1) {
+        // Deferred duplicate check — no existing deferred share
+        const chain = chainMock({ data: null, error: { code: "PGRST116" } });
+        chain.is = vi.fn().mockReturnValue(chain);
+        return chain;
+      }
+      // Deferred share insert
+      return chainMock({
+        data: {
+          id: SHARE_ID, source_task_id: TASK_ID, inviter_id: INVITER_ID,
+          invitee_id: null, copied_task_id: null,
+          invitee_email: "nobody@example.com", status: "deferred",
+          created_at: new Date().toISOString(),
+        },
+        error: null,
+      });
+    });
+
     const { POST } = await import("@/app/api/tasks/invite/route");
     const req = new Request("http://localhost/api/tasks/invite", {
       method: "POST",
@@ -159,8 +185,9 @@ describe("POST /api/tasks/invite — invitee lookup", () => {
 
     const res = await POST(req as never);
     const body = await res.json();
-    expect(res.status).toBe(404);
-    expect(body.code).toBe("not_on_caltodo");
+    expect(res.status).toBe(200);
+    expect(body.deferred).toBe(true);
+    expect(body.share).toBeDefined();
   });
 });
 

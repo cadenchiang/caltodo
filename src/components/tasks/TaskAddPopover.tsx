@@ -3,11 +3,13 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { format } from "date-fns";
-import { CalendarDays } from "lucide-react";
+import { CalendarDays, Tag } from "lucide-react";
 import type { TaskInsert } from "@/lib/types";
 import { TASK_COLORS, DEFAULT_TASK_COLOR } from "@/lib/constants";
+import { useTaskContext } from "@/contexts/TaskContext";
 import useClickOutside from "@/hooks/useClickOutside";
 import DatePicker from "./DatePicker";
+import TagPicker from "./TagPicker";
 import Popover from "@/components/ui/Popover";
 
 interface TaskAddPopoverProps {
@@ -26,7 +28,7 @@ interface TaskAddPopoverProps {
  */
 function computePosition(anchorRect: DOMRect): { top: number; left: number } {
   const popoverWidth = Math.min(340, window.innerWidth - 16);
-  const popoverHeight = 230;
+  const popoverHeight = 300;
   const margin = 8;
 
   let left = anchorRect.left + anchorRect.width / 2 - popoverWidth / 2;
@@ -59,19 +61,23 @@ function computePosition(anchorRect: DOMRect): { top: number; left: number } {
  * @param onAdd - Callback with the new task data
  */
 export default function TaskAddPopover({ date, anchorRect, onClose, onAdd }: TaskAddPopoverProps) {
+  const { availableTags } = useTaskContext();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [color, setColor] = useState(DEFAULT_TASK_COLOR);
   const [dueDate, setDueDate] = useState<string>(date);
   const [dueTime, setDueTime] = useState<string | null>(null);
+  const [tags, setTags] = useState<string[]>([]);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTagPicker, setShowTagPicker] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const colorButtonRef = useRef<HTMLButtonElement>(null);
   const dateButtonRef = useRef<HTMLButtonElement>(null);
+  const tagButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -87,9 +93,10 @@ export default function TaskAddPopover({ date, anchorRect, onClose, onAdd }: Tas
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        if (showColorPicker || showDatePicker) {
+        if (showColorPicker || showDatePicker || showTagPicker) {
           setShowColorPicker(false);
           setShowDatePicker(false);
+          setShowTagPicker(false);
         } else {
           onClose();
         }
@@ -97,13 +104,13 @@ export default function TaskAddPopover({ date, anchorRect, onClose, onAdd }: Tas
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose, showColorPicker, showDatePicker]);
+  }, [onClose, showColorPicker, showDatePicker, showTagPicker]);
 
   const handleClickOutside = useCallback(() => {
-    if (!showColorPicker && !showDatePicker) {
+    if (!showColorPicker && !showDatePicker && !showTagPicker) {
       onClose();
     }
-  }, [onClose, showColorPicker, showDatePicker]);
+  }, [onClose, showColorPicker, showDatePicker, showTagPicker]);
 
   useClickOutside(ref, handleClickOutside, mounted);
 
@@ -122,6 +129,7 @@ export default function TaskAddPopover({ date, anchorRect, onClose, onAdd }: Tas
       due_time: dueTime,
       description: description.trim() || "",
       color,
+      tags: tags.length > 0 ? tags : undefined,
     });
     onClose();
   }
@@ -133,7 +141,7 @@ export default function TaskAddPopover({ date, anchorRect, onClose, onAdd }: Tas
   return createPortal(
     <div
       ref={ref}
-      className={`fixed z-50 w-[min(340px,calc(100vw-16px))] bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl border border-border transition-all duration-150 ease-out ${
+      className={`fixed z-50 w-[min(340px,calc(100vw-16px))] overflow-visible bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl border border-border transition-all duration-150 ease-out ${
         visible
           ? "opacity-100 scale-100 translate-y-0"
           : "opacity-0 scale-95 -translate-y-1"
@@ -161,6 +169,7 @@ export default function TaskAddPopover({ date, anchorRect, onClose, onAdd }: Tas
               onClick={() => {
                 setShowColorPicker(!showColorPicker);
                 setShowDatePicker(false);
+                setShowTagPicker(false);
               }}
               className={`p-1.5 rounded-lg transition-colors ${
                 showColorPicker ? "bg-accent" : "hover:bg-accent"
@@ -180,6 +189,7 @@ export default function TaskAddPopover({ date, anchorRect, onClose, onAdd }: Tas
               onClick={() => {
                 setShowDatePicker(!showDatePicker);
                 setShowColorPicker(false);
+                setShowTagPicker(false);
               }}
               className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs transition-colors ${
                 showDatePicker
@@ -194,6 +204,30 @@ export default function TaskAddPopover({ date, anchorRect, onClose, onAdd }: Tas
                 <span className="text-blue-500 font-medium">{dueTime}</span>
               )}
             </button>
+
+            {/* Tag icon */}
+            <button
+              ref={tagButtonRef}
+              type="button"
+              onClick={() => {
+                setShowTagPicker(!showTagPicker);
+                setShowColorPicker(false);
+                setShowDatePicker(false);
+              }}
+              className={`p-1.5 rounded-lg hover:bg-accent transition-colors ${
+                tags.length > 0 ? "text-blue-500" : "text-subtle-foreground hover:text-blue-500"
+              }`}
+              aria-label="Add tags"
+            >
+              <Tag size={14} />
+            </button>
+
+            {/* Selected tag badge */}
+            {tags.length > 0 && (
+              <span className="text-[10px] text-blue-500 bg-blue-50 dark:bg-blue-900/30 px-1.5 py-0.5 rounded shrink-0">
+                {tags.length === 1 ? tags[0] : `${tags.length} tags`}
+              </span>
+            )}
 
             {/* Color picker popup */}
             <Popover
@@ -240,6 +274,22 @@ export default function TaskAddPopover({ date, anchorRect, onClose, onAdd }: Tas
                 }}
                 onTimeChange={(t) => setDueTime(t)}
               />
+            </Popover>
+
+            {/* Tag picker popup */}
+            <Popover
+              open={showTagPicker}
+              onClose={() => setShowTagPicker(false)}
+              triggerRef={tagButtonRef}
+              className="absolute left-0 top-full mt-1 z-10"
+            >
+              <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-2xl border border-border p-3 w-52">
+                <TagPicker
+                  selectedTags={tags}
+                  availableTags={availableTags}
+                  onChange={setTags}
+                />
+              </div>
             </Popover>
           </div>
 

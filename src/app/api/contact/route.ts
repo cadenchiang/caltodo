@@ -41,7 +41,7 @@ async function sendEmailNotification(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: "caltodo <onboarding@resend.dev>",
+      from: "caltodo <noreply@caltodo.me>",
       to: [DESTINATION_EMAIL],
       subject: `[caltodo] New message from ${senderName || "Anonymous"}`,
       text: `From: ${senderName || "Anonymous"} (${senderEmail})\n\n${message}`,

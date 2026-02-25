@@ -11,7 +11,7 @@ import { getRepeatLabel } from "@/lib/repeat";
 import { useTaskContext } from "@/contexts/TaskContext";
 import DatePicker from "./DatePicker";
 import TagPicker from "./TagPicker";
-// import InviteSection from "./InviteSection"; // Hidden for now
+import InviteSection from "./InviteSection";
 import Popover from "@/components/ui/Popover";
 
 /**
@@ -374,10 +374,10 @@ export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: Tas
             />
           </div>
 
-          {/* Invite section — hidden for now */}
-          {/* <div className="px-5 pt-3">
+          {/* Invite section — Google Calendar-style guest picker */}
+          <div className="px-5 pt-3">
             <InviteSection taskId={task.id} />
-          </div> */}
+          </div>
 
           {/* Title + Description */}
           <div className="flex-1 overflow-auto px-5 pt-3">
