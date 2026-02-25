@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 const UNLOCKED_THEMES_KEY = "caltodo_unlocked_themes";
 
 /** Hardcoded access code for the Miffy theme (case-insensitive). */
-const MIFFY_ACCESS_CODE = "MIFFY";
+const MIFFY_ACCESS_CODE = "MIFFYLOVESYOU";
 
 /**
  * Reads the set of unlocked theme IDs from localStorage.
