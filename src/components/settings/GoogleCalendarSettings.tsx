@@ -9,11 +9,13 @@
 
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { AlertTriangle, ExternalLink } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
+import { useCredentials } from "@/components/settings/IntegrationSettings";
 
 /**
  * Module-level ref for showToast so sync can fire toasts after navigation.
@@ -50,38 +52,28 @@ function GoogleCalendarIcon({ size = 16 }: { size?: number }) {
   );
 }
 
-/** localStorage key for caching GCal connection state. */
+/** localStorage key for caching GCal connection state (used by sidebar/header). */
 const GCAL_CACHE_KEY = "gcal_status";
-
-/** Reads cached GCal status from localStorage for instant render. */
-function getCachedStatus(): {
-  connected: boolean;
-  calendarId: string | null;
-  email: string | null;
-  photoUrl: string | null;
-} {
-  try {
-    const raw = localStorage.getItem(GCAL_CACHE_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch { /* ignore */ }
-  return { connected: false, calendarId: null, email: null, photoUrl: null };
-}
 
 export default function GoogleCalendarSettings() {
   const { showToast, updateToastProgress } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const cachedStatus = getCachedStatus();
-  const [loading, setLoading] = useState(!cachedStatus.connected);
-  const [connected, setConnected] = useState(cachedStatus.connected);
+  const { credentials, loading: ctxLoading, refresh } = useCredentials();
+
+  // Derive GCal state from the shared credentials context
+  const connected = !!credentials.has_google_calendar;
+  const googleEmail = credentials.google_email ?? null;
+  const selectedCalendarId = credentials.google_calendar_id ?? null;
+
   const [syncing, setSyncing] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const [showOAuthWarning, setShowOAuthWarning] = useState(false);
-  const [selectedCalendarId, setSelectedCalendarId] = useState<string | null>(cachedStatus.calendarId);
-  const [googleEmail, setGoogleEmail] = useState<string | null>(cachedStatus.email);
-  const [googlePhotoUrl, setGooglePhotoUrl] = useState<string | null>(cachedStatus.photoUrl);
   const [syncProgress, setSyncProgress] = useState<{ synced: number; total: number } | null>(null);
+  // Local override for connected state during OAuth flow (before context refreshes)
+  const [oauthConnecting, setOauthConnecting] = useState(false);
   const mountedRef = useRef(true);
+  const loading = ctxLoading && !oauthConnecting;
 
   globalShowToast = showToast;
   globalUpdateProgress = updateToastProgress;
@@ -90,33 +82,17 @@ export default function GoogleCalendarSettings() {
     return () => { mountedRef.current = false; };
   }, []);
 
-  const fetchStatus = useCallback(async () => {
+  // Keep the gcal_status localStorage cache in sync for sidebar/header
+  useEffect(() => {
     try {
-      const res = await fetch("/api/credentials");
-      if (res.ok) {
-        const data = await res.json();
-        const isConnected = !!data.has_google_calendar;
-        setConnected(isConnected);
-        setSelectedCalendarId(data.google_calendar_id ?? null);
-        setGoogleEmail(data.google_email ?? null);
-        setGooglePhotoUrl(data.google_photo_url ?? null);
-        try {
-          localStorage.setItem(GCAL_CACHE_KEY, JSON.stringify({
-            connected: isConnected,
-            calendarId: data.google_calendar_id ?? null,
-            email: data.google_email ?? null,
-            photoUrl: data.google_photo_url ?? null,
-          }));
-        } catch { /* ignore quota errors */ }
-      }
-    } catch {
-      // Non-critical
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { fetchStatus(); }, [fetchStatus]);
+      localStorage.setItem(GCAL_CACHE_KEY, JSON.stringify({
+        connected,
+        calendarId: selectedCalendarId,
+        email: googleEmail,
+        photoUrl: credentials.google_photo_url ?? null,
+      }));
+    } catch { /* ignore quota errors */ }
+  }, [connected, selectedCalendarId, googleEmail, credentials.google_photo_url]);
 
   function toast(msg: string, opts?: Parameters<typeof showToast>[1]) {
     (globalShowToast ?? showToast)(msg, opts);
@@ -134,7 +110,7 @@ export default function GoogleCalendarSettings() {
     setSyncing(true);
     toast("Setting up Google Calendar...", { progress: 0 });
     try {
-      await fetchStatus();
+      await refresh();
       const selectRes = await fetch("/api/gcal/select-calendar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -146,7 +122,6 @@ export default function GoogleCalendarSettings() {
         return;
       }
       const selectResult = await selectRes.json();
-      ifMounted(setSelectedCalendarId, selectResult.calendarId);
       const gcalUrl = googleEmail
         ? `https://calendar.google.com/calendar/r?authuser=${encodeURIComponent(googleEmail)}`
         : "https://calendar.google.com";
@@ -231,6 +206,9 @@ export default function GoogleCalendarSettings() {
     } finally {
       ifMounted(setSyncing, false);
       ifMounted(setSyncProgress, null);
+      ifMounted(setOauthConnecting, false);
+      // Refresh shared context so all cards reflect updated state
+      await refresh();
       // Notify sidebar/header to update GCal badge in the same tab
       try {
         window.dispatchEvent(new CustomEvent("gcal-status-change", { detail: { connected: true } }));
@@ -245,8 +223,7 @@ export default function GoogleCalendarSettings() {
     // Skip auto-setup if running inside a popup — the opener window handles it
     if (window.opener) return;
     if (gcalParam === "connected") {
-      setConnected(true);
-      setLoading(false);
+      setOauthConnecting(true);
       autoSetupCalendar();
       const url = new URL(window.location.href);
       url.searchParams.delete("gcal");
@@ -278,11 +255,8 @@ export default function GoogleCalendarSettings() {
     setDisconnecting(true);
     try {
       await fetch("/api/gcal/disconnect", { method: "POST" });
-      setConnected(false);
-      setSelectedCalendarId(null);
-      setGoogleEmail(null);
-      setGooglePhotoUrl(null);
       try { localStorage.removeItem(GCAL_CACHE_KEY); } catch { /* ignore */ }
+      await refresh();
       // Notify header/sidebar to update GCal badge
       try {
         window.dispatchEvent(new CustomEvent("gcal-status-change", { detail: { connected: false } }));
@@ -340,8 +314,7 @@ export default function GoogleCalendarSettings() {
         if (popupUrl.includes("gcal=connected")) {
           clearInterval(pollId);
           popup.close();
-          setConnected(true);
-          setLoading(false);
+          setOauthConnecting(true);
           autoSetupCalendar();
         } else if (popupUrl.includes("gcal=error")) {
           clearInterval(pollId);
@@ -364,18 +337,7 @@ export default function GoogleCalendarSettings() {
     }, 300);
   }
 
-  if (loading) {
-    return (
-      <div className="rounded-2xl border border-border bg-card px-4 py-3.5 shadow-sm dark:shadow-none">
-        <div className="flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
-            <GoogleCalendarIcon size={20} />
-          </div>
-          <p className="text-xs text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    );
-  }
+  const isConnectedOrConnecting = connected || oauthConnecting;
 
   return (
     <>
@@ -394,13 +356,15 @@ export default function GoogleCalendarSettings() {
               </span>
             </div>
             <p className="text-xs text-muted-foreground truncate">
-              {connected && googleEmail
+              {isConnectedOrConnecting && googleEmail
                 ? googleEmail
                 : "Sync tasks to Google Calendar in real time"}
             </p>
           </div>
           {/* Status */}
-          {connected ? (
+          {loading ? (
+            <span className="text-xs text-muted-foreground px-3 py-1 shrink-0">Loading...</span>
+          ) : isConnectedOrConnecting ? (
             <button
               onClick={handleDisconnect}
               disabled={disconnecting}
@@ -437,10 +401,11 @@ export default function GoogleCalendarSettings() {
         )}
       </div>
 
-      {/* OAuth "unverified app" warning modal */}
-      {showOAuthWarning && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-popover rounded-2xl border border-border shadow-2xl w-full max-w-sm mx-4 p-6 animate-modal-in">
+      {/* OAuth "unverified app" warning modal — portaled to body to escape overflow-hidden */}
+      {showOAuthWarning && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+          <div className="relative bg-popover rounded-2xl border border-border shadow-2xl w-full max-w-sm mx-4 p-6 animate-modal-in">
             <div className="flex justify-center mb-4">
               <div className="w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center">
                 <AlertTriangle size={24} className="text-amber-500" />
@@ -476,7 +441,8 @@ export default function GoogleCalendarSettings() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

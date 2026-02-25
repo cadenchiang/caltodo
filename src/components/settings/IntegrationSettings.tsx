@@ -61,8 +61,21 @@ const EMPTY_CREDENTIALS: IntegrationCredentials = {
 /** Shared context so IntegrationSettings and IntegrationClasses use the same credentials state. */
 const CredentialsContext = createContext<{
   credentials: IntegrationCredentials;
+  loading: boolean;
   handleUpdate: (updated: IntegrationCredentials) => void;
+  refresh: () => Promise<void>;
 } | null>(null);
+
+/**
+ * Hook for consuming the shared credentials context.
+ * @returns The credentials context value including refresh function
+ * @throws If used outside IntegrationProvider
+ */
+export function useCredentials() {
+  const ctx = useContext(CredentialsContext);
+  if (!ctx) throw new Error("useCredentials must be inside IntegrationProvider");
+  return ctx;
+}
 
 /**
  * Provider that fetches and caches integration credentials.
@@ -72,9 +85,11 @@ const CredentialsContext = createContext<{
  * @param children - Child components that consume credentials context
  */
 export function IntegrationProvider({ children }: { children: React.ReactNode }) {
+  const cached = getCachedCredentials();
   const [credentials, setCredentials] = useState<IntegrationCredentials>(
-    () => getCachedCredentials() ?? EMPTY_CREDENTIALS
+    () => cached ?? EMPTY_CREDENTIALS
   );
+  const [loading, setLoading] = useState(!cached);
 
   const fetchCredentials = useCallback(async () => {
     try {
@@ -86,6 +101,8 @@ export function IntegrationProvider({ children }: { children: React.ReactNode })
       }
     } catch {
       /* silently fail — cached or empty state is already shown */
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -99,7 +116,7 @@ export function IntegrationProvider({ children }: { children: React.ReactNode })
   }
 
   return (
-    <CredentialsContext.Provider value={{ credentials, handleUpdate }}>
+    <CredentialsContext.Provider value={{ credentials, loading, handleUpdate, refresh: fetchCredentials }}>
       {children}
     </CredentialsContext.Provider>
   );
@@ -114,7 +131,7 @@ export default function IntegrationSettings() {
   const { syncing, lastSyncedAt, syncResult } = useTaskContext();
 
   if (!ctx) throw new Error("IntegrationSettings must be inside IntegrationProvider");
-  const { credentials, handleUpdate } = ctx;
+  const { credentials, loading, handleUpdate } = ctx;
 
   return (
     <div className="space-y-3">
@@ -124,6 +141,7 @@ export default function IntegrationSettings() {
         syncing={syncing}
         lastSyncedAt={lastSyncedAt}
         syncedCount={syncResult?.canvas.synced}
+        loading={loading}
       />
       <GradescopeSettings
         credentials={credentials}
@@ -131,6 +149,7 @@ export default function IntegrationSettings() {
         syncing={syncing}
         lastSyncedAt={lastSyncedAt}
         syncedCount={syncResult?.gradescope.synced}
+        loading={loading}
       />
       <PensieveSettings
         credentials={credentials}
@@ -138,6 +157,7 @@ export default function IntegrationSettings() {
         syncing={syncing}
         lastSyncedAt={lastSyncedAt}
         syncedCount={syncResult?.pensieve.synced}
+        loading={loading}
       />
     </div>
   );

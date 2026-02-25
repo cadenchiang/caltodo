@@ -13,6 +13,7 @@ interface GradescopeSettingsProps {
   syncing?: boolean;
   lastSyncedAt?: string | null;
   syncedCount?: number;
+  loading?: boolean;
 }
 
 /**
@@ -23,7 +24,7 @@ interface GradescopeSettingsProps {
  * @param credentials - Current integration credentials from parent
  * @param onUpdate - Callback with updated credentials after disconnect
  */
-export default function GradescopeSettings({ credentials, onUpdate }: GradescopeSettingsProps) {
+export default function GradescopeSettings({ credentials, onUpdate, loading }: GradescopeSettingsProps) {
   const router = useRouter();
   const { showToast } = useToast();
   const { tasks, deleteTasksBySource } = useTaskContext();
@@ -75,7 +76,9 @@ export default function GradescopeSettings({ credentials, onUpdate }: Gradescope
               : "Sync assignments from Gradescope"}
           </p>
         </div>
-        {isConnected ? (
+        {loading ? (
+          <span className="text-xs text-muted-foreground px-3 py-1 shrink-0">Loading...</span>
+        ) : isConnected ? (
           isAuthFailed ? (
             <button
               onClick={() => {

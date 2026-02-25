@@ -13,6 +13,7 @@ interface PensieveSettingsProps {
   syncing?: boolean;
   lastSyncedAt?: string | null;
   syncedCount?: number;
+  loading?: boolean;
 }
 
 /**
@@ -23,7 +24,7 @@ interface PensieveSettingsProps {
  * @param credentials - Current integration credentials from parent
  * @param onUpdate - Callback with updated credentials after disconnect
  */
-export default function PensieveSettings({ credentials, onUpdate }: PensieveSettingsProps) {
+export default function PensieveSettings({ credentials, onUpdate, loading }: PensieveSettingsProps) {
   const router = useRouter();
   const { showToast } = useToast();
   const { tasks, deleteTasksBySource } = useTaskContext();
@@ -70,7 +71,9 @@ export default function PensieveSettings({ credentials, onUpdate }: PensieveSett
           <p className="text-sm font-semibold text-foreground">Pensieve</p>
           <p className="text-xs text-muted-foreground truncate">Sync CS & Data Science review assignments</p>
         </div>
-        {isConnected ? (
+        {loading ? (
+          <span className="text-xs text-muted-foreground px-3 py-1 shrink-0">Loading...</span>
+        ) : isConnected ? (
           <button
             onClick={() => setShowConfirm(true)}
             disabled={disconnecting}
