@@ -155,10 +155,10 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
         </div>
         {isSettings ? (
           <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-2 px-3 py-2.5">
+            <div className="flex items-center gap-3 px-3 py-2.5">
               <button
                 onClick={() => router.push("/app/inbox")}
-                className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer active:scale-[0.95] shrink-0"
+                className="w-7 h-7 rounded-lg border border-border bg-white dark:bg-zinc-800 shadow-sm dark:shadow-none flex items-center justify-center text-foreground hover:bg-accent transition-colors cursor-pointer active:scale-[0.95] shrink-0"
                 title="Back"
               >
                 <ChevronLeft size={16} className="animate-[fadeIn_150ms_ease-out]" />

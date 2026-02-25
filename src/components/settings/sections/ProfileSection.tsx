@@ -777,7 +777,7 @@ export default function ProfileSection() {
                     type="button"
                     onClick={() => setViewingUser(person)}
                     style={{ animationDelay: `${idx * 50}ms` }}
-                    className="flex items-center gap-2.5 p-3 rounded-xl border border-border hover:bg-accent/50 transition-colors text-left animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards"
+                    className="flex items-center gap-2.5 p-3 rounded-xl border border-border hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors text-left animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-backwards"
                   >
                     <UserAvatar
                       url={person.avatar_url}
