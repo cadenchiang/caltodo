@@ -86,7 +86,7 @@ export default function Hero() {
             href="/login?signup=true"
             className="px-3.5 py-1.5 text-xs sm:px-5 sm:py-2 sm:text-sm font-medium rounded-full bg-[#0071E3] text-white hover:scale-[1.05] active:scale-[0.97] transition-transform duration-200"
           >
-            Get started free
+            Get caltodo free
           </Link>
         </div>
       </nav>
@@ -182,7 +182,7 @@ export default function Hero() {
             href="/login?signup=true"
             className="sm:hidden flex items-center gap-2 px-7 py-2 rounded-full bg-[#0071E3] text-white text-sm font-semibold mb-8 active:scale-[0.97] transition-transform"
           >
-            Get started free
+            Get caltodo free
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M5 12h14" />
               <path d="M12 5l7 7-7 7" />
@@ -192,7 +192,7 @@ export default function Hero() {
             href="/login?signup=true"
             className="group hidden sm:flex items-center gap-2 px-8 py-2 rounded-full bg-[#0071E3] text-white text-base font-medium hover:scale-[1.05] active:scale-[0.97] transition-transform duration-200 sm:mb-12"
           >
-            Get started free
+            Get caltodo free
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-transform duration-200 group-hover:translate-x-2">
               <path d="M5 12h14" />
               <path d="M12 5l7 7-7 7" />
@@ -267,7 +267,7 @@ export default function Hero() {
         onClick={() => setShowSpotsModal(false)}
       >
         <div
-          className={`bg-white rounded-2xl max-w-md w-full mx-6 p-8 shadow-2xl transition-all duration-300 ease-out relative ${
+          className={`bg-white rounded-3xl max-w-sm w-full mx-6 overflow-hidden shadow-2xl transition-all duration-300 ease-out relative ${
             showSpotsModal ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-95 translate-y-4"
           }`}
           onClick={(e) => e.stopPropagation()}
@@ -275,31 +275,47 @@ export default function Hero() {
           {/* Close button */}
           <button
             onClick={() => setShowSpotsModal(false)}
-            className="absolute top-4 right-4 p-1 text-black/40 hover:text-black transition-colors"
+            className="absolute top-4 right-4 p-1.5 rounded-full bg-black/5 text-black/40 hover:bg-black/10 hover:text-black transition-all z-10"
             aria-label="Close"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M18 6L6 18" />
               <path d="M6 6l12 12" />
             </svg>
           </button>
 
-          <h3 className="text-xl font-bold text-black mb-3">
-            free for life. seriously.
-          </h3>
-          <p className="text-sm text-black leading-relaxed mb-6">
-            the first 1,000 students get caltodo free forever. no catches.
-            {userCount !== null
-              ? ` only ${1000 - userCount} spots left.`
-              : ""}
-          </p>
-          <Link
-            href="/login?signup=true"
-            className="block w-full text-center px-5 py-3 text-sm font-semibold rounded-xl bg-[#0071E3] text-white"
-            onClick={() => setShowSpotsModal(false)}
-          >
-            claim free spot now
-          </Link>
+          <div className="px-8 pt-8 pb-4">
+            <p className="text-xs text-black/40 tracking-wide mb-5">{1000 - (userCount ?? 326)} spots remaining</p>
+            <h3 className="text-2xl font-semibold text-black leading-tight tracking-tight" style={{ fontFamily: '-apple-system, "SF Pro Display", BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' }}>
+              free for life. seriously.
+            </h3>
+            <p className="text-sm text-black/40 leading-relaxed mt-3">
+              the first 1,000 students get caltodo free forever. no credit card. no catches. just sign up.
+            </p>
+          </div>
+
+          <div className="px-8 pb-4">
+            <div className="w-full h-1 rounded-full bg-black/5 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-black/80"
+                style={{ width: `${((userCount ?? 326) / 1000) * 100}%` }}
+              />
+            </div>
+            <div className="flex justify-between mt-2">
+              <span className="text-[11px] text-black/30">{userCount ?? 326} claimed</span>
+              <span className="text-[11px] text-black/30">1,000 total</span>
+            </div>
+          </div>
+
+          <div className="px-8 pb-8">
+            <Link
+              href="/login?signup=true"
+              className="block w-full text-center px-5 py-3 text-sm font-medium rounded-xl bg-black text-white hover:bg-black/90 active:scale-[0.98] transition-all duration-200"
+              onClick={() => setShowSpotsModal(false)}
+            >
+              Get caltodo free
+            </Link>
+          </div>
         </div>
       </div>
     </div>
