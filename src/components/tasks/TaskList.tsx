@@ -21,9 +21,14 @@ import { useTheme } from "@/contexts/ThemeContext";
 function formatCountdown(snoozedUntil: string): string {
   const diff = new Date(snoozedUntil).getTime() - Date.now();
   if (diff <= 0) return "< 1m";
+  // If snoozed for more than ~50 years, treat as "forever"
   const totalMinutes = Math.ceil(diff / 60_000);
-  const hours = Math.floor(totalMinutes / 60);
+  const totalHours = Math.floor(totalMinutes / 60);
+  if (totalHours > 438_000) return "Hidden";
+  const days = Math.floor(totalHours / 24);
+  const hours = totalHours % 24;
   const minutes = totalMinutes % 60;
+  if (days > 0) return `${days}d ${hours}h`;
   if (hours > 0) return `${hours}h ${minutes}m`;
   return `${minutes}m`;
 }

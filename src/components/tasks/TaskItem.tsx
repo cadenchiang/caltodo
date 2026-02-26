@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { createPortal } from "react-dom";
-import { Trash2, Repeat, MoreVertical, Clock } from "lucide-react";
+import { Trash2, Repeat, MoreVertical, Clock, EyeOff } from "lucide-react";
 import type { Task } from "@/lib/types";
 import { getMiffyColor } from "@/lib/constants";
 import { useTaskContext } from "@/contexts/TaskContext";
@@ -12,10 +12,14 @@ import { useTheme } from "@/contexts/ThemeContext";
 const SNOOZE_PRESETS = [
   { label: "1 hour", hours: 1 },
   { label: "3 hours", hours: 3 },
-  { label: "6 hours", hours: 6 },
   { label: "12 hours", hours: 12 },
-  { label: "24 hours", hours: 24 },
+  { label: "1 day", hours: 24 },
+  { label: "3 days", hours: 72 },
+  { label: "1 week", hours: 168 },
 ] as const;
+
+/** Far-future date used for "Until I unhide" snooze (~100 years). */
+const FOREVER_HOURS = 876_000;
 
 interface TaskItemProps {
   task: Task;
@@ -105,6 +109,7 @@ export default function TaskItem({ task, isSelected, onToggle, onSelect, onDelet
       : rawBadge;
   const [menuOpen, setMenuOpen] = useState(false);
   const [snoozeOpen, setSnoozeOpen] = useState(false);
+  const [customHours, setCustomHours] = useState("");
   const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const menuBtnRef = useRef<HTMLButtonElement>(null);
   const isOptimistic = task.id.startsWith("temp-");
@@ -238,7 +243,7 @@ export default function TaskItem({ task, isSelected, onToggle, onSelect, onDelet
                 Hide for...
               </button>
               {snoozeOpen && (
-                <div className="absolute left-full top-0 ml-1 bg-card rounded-lg shadow-xl border border-input-border py-1 min-w-[120px] z-50">
+                <div className="absolute left-full top-0 ml-1 bg-card rounded-lg shadow-xl border border-input-border py-1 min-w-[140px] z-50">
                   {SNOOZE_PRESETS.map((preset) => (
                     <button
                       key={preset.hours}
@@ -252,6 +257,42 @@ export default function TaskItem({ task, isSelected, onToggle, onSelect, onDelet
                       {preset.label}
                     </button>
                   ))}
+                  <div className="border-t border-border my-1" />
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const h = parseFloat(customHours);
+                      if (h > 0) {
+                        snoozeTask(task.id, h);
+                        setMenuOpen(false);
+                        setSnoozeOpen(false);
+                        setCustomHours("");
+                      }
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1.5"
+                  >
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={customHours}
+                      onChange={(e) => setCustomHours(e.target.value)}
+                      placeholder="hrs"
+                      className="w-14 px-2 py-1 text-sm rounded-md border border-input-border bg-background text-foreground placeholder-muted-foreground focus:outline-none"
+                    />
+                    <span className="text-xs text-muted-foreground">hours</span>
+                  </form>
+                  <button
+                    onClick={() => {
+                      snoozeTask(task.id, FOREVER_HOURS);
+                      setMenuOpen(false);
+                      setSnoozeOpen(false);
+                    }}
+                    className="flex items-center gap-2 w-full px-3 py-2 text-sm text-foreground hover:bg-accent transition-colors"
+                  >
+                    <EyeOff size={13} />
+                    Until I unhide
+                  </button>
                 </div>
               )}
             </div>
