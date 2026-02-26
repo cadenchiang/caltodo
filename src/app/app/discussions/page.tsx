@@ -88,10 +88,18 @@ export default function DiscussionsPage() {
       }
     }
 
-    // Navigate to the first (most recent) chat
-    const first = boards[0];
+    // Navigate to last-viewed chat if valid, otherwise first board
+    let target = boards[0];
+    try {
+      const lastCourseId = localStorage.getItem("calchat_last_course");
+      if (lastCourseId) {
+        const match = boards.find((b) => b.course.id === lastCourseId);
+        if (match) target = match;
+      }
+    } catch { /* ignore */ }
+
     router.replace(
-      `/app/discussions/${first.course.id}?name=${encodeURIComponent(first.course.name)}`
+      `/app/discussions/${target.course.id}?name=${encodeURIComponent(target.course.name)}`
     );
   }, [boards, loading, router]);
 

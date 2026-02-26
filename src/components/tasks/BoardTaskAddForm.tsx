@@ -19,6 +19,8 @@ interface BoardTaskAddFormProps {
   onCancel: () => void;
   /** Column course name — auto-sets course_name and tag when not "General". */
   courseName?: string;
+  /** Default color for the task. Inherits from the column's most common task color. */
+  defaultColor?: string;
 }
 
 /**
@@ -29,12 +31,12 @@ interface BoardTaskAddFormProps {
  * @param onAdd - Callback with the new task data
  * @param onCancel - Callback when form is dismissed (blur outside)
  */
-export default function BoardTaskAddForm({ onAdd, onCancel, courseName }: BoardTaskAddFormProps) {
+export default function BoardTaskAddForm({ onAdd, onCancel, courseName, defaultColor }: BoardTaskAddFormProps) {
   const { availableTags } = useTaskContext();
   const [title, setTitle] = useState("");
   const [dueDate, setDueDate] = useState<string | null>(null);
   const [dueTime, setDueTime] = useState<string | null>(null);
-  const [color, setColor] = useState<string>(DEFAULT_TASK_COLOR);
+  const [color, setColor] = useState<string>(defaultColor ?? DEFAULT_TASK_COLOR);
   const [tags, setTags] = useState<string[]>([]);
   const [repeatInterval, setRepeatInterval] = useState<number | null>(null);
   const [repeatUnit, setRepeatUnit] = useState<RepeatUnit | null>(null);

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { format, isSameDay, isSameMonth } from "date-fns";
 import type { Task, PendingInvite } from "@/lib/types";
 import { getMiffyColor } from "@/lib/constants";
+import { pendingInviteToPseudoTask } from "@/lib/pending-invite-helpers";
 import { useTheme } from "@/contexts/ThemeContext";
 import CalendarTaskBar from "./CalendarTaskBar";
 
@@ -69,7 +70,7 @@ export default function CalendarDayCell({
 
   return (
     <div
-      className={`p-0.5 md:p-1.5 ${isLastCol ? "" : "border-r"} border-b border-gray-300 dark:border-gray-600 transition-colors relative ${
+      className={`p-0.5 md:p-1.5 ${isLastCol ? "" : "border-r"} border-b border-border transition-colors relative ${
         !isCurrentMonth
           ? "bg-muted/40"
           : isSelected && isMobile
@@ -173,45 +174,14 @@ export default function CalendarDayCell({
               <CalendarTaskBar key={task.id} task={task} onClick={onTaskClick} />
             ))}
             {/* Pending invite bars — dashed outline style */}
-            {pendingInvites.map((invite) => {
-              const pseudoTask: Task = {
-                id: invite.shareId,
-                user_id: "",
-                title: invite.taskTitle,
-                description: "",
-                due_date: invite.taskDueDate,
-                due_time: invite.taskDueTime,
-                is_completed: false,
-                color: invite.taskColor,
-                created_at: invite.createdAt,
-                updated_at: invite.createdAt,
-                source: null,
-                external_id: null,
-                course_name: null,
-                source_url: null,
-                points_possible: null,
-                is_submitted: false,
-                google_event_id: null,
-                dismissed_at: null,
-                repeat_interval: null,
-                repeat_unit: null,
-                repeat_end_date: null,
-                repeat_end_count: null,
-                late_due_date: null,
-                completed_at: null,
-                tags: [],
-                snoozed_until: null,
-                sort_order: null,
-              };
-              return (
-                <CalendarTaskBar
-                  key={invite.shareId}
-                  task={pseudoTask}
-                  onClick={() => {}}
-                  isPending
-                />
-              );
-            })}
+            {pendingInvites.map((invite) => (
+              <CalendarTaskBar
+                key={invite.shareId}
+                task={pendingInviteToPseudoTask(invite)}
+                onClick={() => {}}
+                isPending
+              />
+            ))}
             {overflow > 0 && !expanded && (
               <button
                 type="button"

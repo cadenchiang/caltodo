@@ -281,7 +281,7 @@ export interface PendingInvite {
  */
 export interface Course {
   id: string;
-  source: "canvas" | "gradescope" | "pensieve";
+  source: "canvas" | "gradescope" | "pensieve" | "system";
   external_id: string;
   name: string;
   created_at: string;
@@ -324,6 +324,12 @@ export interface ChatMessage {
   body: string;
   created_at: string;
   updated_at: string;
+  /** UUID of the message this is a reply to (null if not a reply). */
+  reply_to_id?: string | null;
+  /** Client-only delivery status for optimistic UI. */
+  _status?: "sending" | "delivered" | "failed";
+  /** Client-only system event text (e.g. "X unsent a message"). When set, renders as a centered notice instead of a bubble. */
+  _systemText?: string;
 }
 
 /**

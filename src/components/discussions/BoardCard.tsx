@@ -179,7 +179,7 @@ export default function BoardCard({ board }: BoardCardProps) {
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <MessageCircle size={13} className="shrink-0" />
           <span className="truncate">
-            <span className="font-medium">{board.last_message_author ?? "Someone"}: </span>
+            <span className="font-medium">{board.last_message_author ?? "Anonymous"}: </span>
             {board.last_message_body}
           </span>
           {board.last_message_at && (

@@ -377,22 +377,6 @@ export default function TaskBoardView({
     setActiveId(null);
   }, []);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12 text-subtle-foreground text-sm">
-        Loading tasks...
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="bg-red-50 dark:bg-red-900/20 text-red-500 text-sm p-4 rounded-xl mx-4">
-        Error loading tasks: {error}
-      </div>
-    );
-  }
-
   const isDateMode = groupBy === "date";
 
   // Apply saved column order when in class mode
@@ -409,6 +393,22 @@ export default function TaskBoardView({
 
   /** Active column data for DragOverlay rendering. */
   const activeColumnTasks = activeId ? columns.get(activeId) ?? null : null;
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12 text-subtle-foreground text-sm">
+        Loading tasks...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 dark:bg-red-900/20 text-red-500 text-sm p-4 rounded-xl mx-4">
+        Error loading tasks: {error}
+      </div>
+    );
+  }
 
   if (columns.size === 0 && !isDateMode) {
     return (
@@ -438,6 +438,7 @@ export default function TaskBoardView({
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
       onDragCancel={handleDragCancel}
+      autoScroll={false}
     >
       <SortableContext items={columnIds} strategy={horizontalListSortingStrategy}>
         <div className="flex overflow-x-auto gap-6 px-6 pb-6 h-full">
@@ -551,6 +552,21 @@ function BoardColumn({
   const [completedExpanded, setCompletedExpanded] = useState(true);
   const [showAllActive, setShowAllActive] = useState(false);
   const [showAllCompleted, setShowAllCompleted] = useState(false);
+
+  // Compute the most common task color in this column for new task defaults
+  const columnColor = useMemo(() => {
+    if (tasks.length === 0) return undefined;
+    const counts = new Map<string, number>();
+    for (const t of tasks) {
+      counts.set(t.color, (counts.get(t.color) ?? 0) + 1);
+    }
+    let maxColor = tasks[0].color;
+    let maxCount = 0;
+    for (const [c, n] of counts) {
+      if (n > maxCount) { maxColor = c; maxCount = n; }
+    }
+    return maxColor;
+  }, [tasks]);
 
   // Hydrate collapsed state from localStorage after mount
   useEffect(() => {
@@ -672,7 +688,7 @@ function BoardColumn({
         {showMenu && menuBtnRef.current && createPortal(
           <div
             ref={menuDropdownRef}
-            className="fixed z-[9999] rounded-xl shadow-2xl border border-border overflow-hidden animate-in min-w-[150px] bg-white dark:bg-[#1a1a1a]"
+            className="fixed z-[9999] rounded-xl shadow-2xl border border-border overflow-hidden animate-in min-w-[150px] bg-popover"
             style={{
               top: menuBtnRef.current.getBoundingClientRect().bottom + 4,
               left: Math.min(
@@ -786,6 +802,7 @@ function BoardColumn({
             }}
             onCancel={() => setShowAddForm(false)}
             courseName={name}
+            defaultColor={columnColor}
           />
         </div>
       )}
@@ -961,7 +978,7 @@ function TaskCard({ task, isSelected, onToggle, onSelect, onDelete }: TaskCardPr
           </button>
           <span
             className={`text-sm leading-snug flex-1 min-w-0 ${
-              isCompleted ? "text-foreground" : "text-foreground"
+              isCompleted ? "text-muted-foreground" : "text-foreground"
             }`}
           >
             {task.title}

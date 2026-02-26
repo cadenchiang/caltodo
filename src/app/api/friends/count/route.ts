@@ -25,6 +25,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "userId is required" }, { status: 400 });
   }
 
+  // Validate UUID format to prevent filter injection in .or() interpolation
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!UUID_RE.test(userId)) {
+    return NextResponse.json({ error: "Invalid userId format" }, { status: 400 });
+  }
+
   try {
     const { count, error } = await supabase
       .from("friendships")

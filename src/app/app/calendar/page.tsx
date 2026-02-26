@@ -187,6 +187,7 @@ export default function CalendarPage() {
                 <CalendarWeekView
                   currentDate={currentDate}
                   tasks={visibleTasks}
+                  pendingInvites={pendingInvites}
                   onDayClick={handleDayClick}
                   onTaskClick={handleTaskClick}
                 />
@@ -194,6 +195,7 @@ export default function CalendarPage() {
                 <CalendarDayView
                   currentDate={currentDate}
                   tasks={visibleTasks}
+                  pendingInvites={pendingInvites}
                   onAddClick={handleDayClick}
                   onTaskClick={handleTaskClick}
                 />

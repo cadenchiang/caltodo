@@ -4,42 +4,10 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { ChatMessage, ChatPresence } from "@/lib/types";
 import type { RealtimeChannel } from "@supabase/supabase-js";
+import { createSystemEvent, fetchUserName } from "./chatSystemEvents";
+import { readCache, writeCache } from "./chatCache";
 
-const CACHE_PREFIX = "chat_messages_cache_";
 const PAGE_SIZE = 50;
-
-/**
- * Reads cached messages for a course from sessionStorage.
- *
- * @param courseId - The course UUID
- * @returns Cached messages or null if missing/expired
- */
-function readCache(courseId: string): ChatMessage[] | null {
-  try {
-    const raw = sessionStorage.getItem(CACHE_PREFIX + courseId);
-    if (!raw) return null;
-    const entry = JSON.parse(raw);
-    if (Date.now() - entry.timestamp > 5 * 60_000) return null;
-    return entry.messages;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Writes messages to sessionStorage cache.
- *
- * @param courseId - The course UUID
- * @param messages - Messages to cache
- */
-function writeCache(courseId: string, messages: ChatMessage[]) {
-  try {
-    sessionStorage.setItem(
-      CACHE_PREFIX + courseId,
-      JSON.stringify({ messages: messages.slice(0, 200), timestamp: Date.now() })
-    );
-  } catch { /* ignore */ }
-}
 
 /**
  * Core hook for course group chat.
@@ -59,6 +27,8 @@ export function useCourseChat(courseId: string) {
   const [initialFetchDone, setInitialFetchDone] = useState(false);
   const channelRef = useRef<RealtimeChannel | null>(null);
   const prevCourseIdRef = useRef(courseId);
+  /** Maps temporary optimistic IDs to server-assigned IDs for deduplication. */
+  const tempToServerIdRef = useRef<Map<string, string>>(new Map());
   const supabase = createClient();
 
   // Synchronously reset state when courseId changes (prevents stale frame)
@@ -155,7 +125,14 @@ export function useCourseChat(courseId: string) {
       const { error: uploadError } = await supabase.storage
         .from("chat-attachments")
         .upload(path, file, { cacheControl: "3600", upsert: false });
-      if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
+      if (uploadError) {
+        const isBucketMissing = uploadError.message?.includes("Bucket not found");
+        throw new Error(
+          isBucketMissing
+            ? "File uploads are not configured yet. Please run 'supabase db push' to set up storage."
+            : `Upload failed: ${uploadError.message}`
+        );
+      }
       const { data: urlData } = supabase.storage
         .from("chat-attachments")
         .getPublicUrl(path);
@@ -166,16 +143,22 @@ export function useCourseChat(courseId: string) {
 
   /**
    * Sends a new message via the API, optionally with file attachments.
-   * Files are uploaded to Supabase Storage, URLs appended to message body.
+   * Uses optimistic UI: message appears instantly with "sending" status,
+   * then updates to "delivered" or "failed" based on API response.
    *
    * @param body - The message text
    * @param files - Optional array of files to attach
+   * @param anonymous - Whether to send the message anonymously (no name/avatar stored)
+   * @param replyToId - Optional ID of the message being replied to
    */
-  const sendMessage = useCallback(async (body: string, files?: File[]) => {
+  const sendMessage = useCallback(async (body: string, files?: File[], anonymous?: boolean, replyToId?: string) => {
     if ((!body.trim() && (!files || files.length === 0)) || sending) return;
 
     setSending(true);
     setError(null);
+
+    // Generate a temporary ID for optimistic display
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
     try {
       let finalBody = body.trim();
@@ -187,24 +170,116 @@ export function useCourseChat(courseId: string) {
         finalBody = finalBody ? `${finalBody}\n${attachmentText}` : attachmentText;
       }
 
+      // Get current user info for optimistic message
+      const { data: { user } } = await supabase.auth.getUser();
+      const now = new Date().toISOString();
+
+      // Create optimistic message and append immediately
+      const optimisticMsg: ChatMessage = {
+        id: tempId,
+        course_id: courseId,
+        author_id: user?.id ?? "",
+        author_name: anonymous ? null : (user?.user_metadata?.full_name ?? null),
+        author_avatar: anonymous ? null : (user?.user_metadata?.avatar_url ?? null),
+        body: finalBody,
+        created_at: now,
+        updated_at: now,
+        reply_to_id: replyToId ?? null,
+        _status: "sending",
+      };
+
+      setMessages((prev) => [...prev, optimisticMsg]);
+
       const res = await fetch("/api/discussions/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ courseId, body: finalBody }),
+        body: JSON.stringify({ courseId, body: finalBody, anonymous: anonymous ?? false, replyToId: replyToId ?? undefined }),
       });
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || "Failed to send message");
       }
-      // Message will arrive via Realtime subscription
+
+      // API returns the created message with real ID
+      const serverMsg: ChatMessage = await res.json();
+
+      // Map tempId → serverId for Realtime deduplication
+      tempToServerIdRef.current.set(tempId, serverMsg.id);
+
+      // Replace optimistic message with server version
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === tempId
+            ? { ...serverMsg, _status: "delivered" as const }
+            : m
+        )
+      );
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg);
+
+      // Mark optimistic message as failed
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === tempId ? { ...m, _status: "failed" as const } : m
+        )
+      );
     } finally {
       setSending(false);
     }
-  }, [courseId, sending, uploadFiles]);
+  }, [courseId, sending, uploadFiles, supabase.auth]);
+
+  /**
+   * Unsends a message by ID via the API and removes it from local state.
+   * Shows a system event: "Name unsent a message" or "Anonymous #N unsent a message".
+   *
+   * @param messageId - The ID of the message to unsend
+   */
+  const deleteMessage = useCallback(async (messageId: string) => {
+    // Compute label before removing, then remove + add system event atomically
+    setMessages((prev) => {
+      const msg = prev.find((m) => m.id === messageId);
+      if (!msg) return prev;
+
+      let label: string;
+      if (msg.author_name) {
+        label = msg.author_name;
+      } else {
+        // Compute anonymous number from current message order
+        const anonMap = new Map<string, number>();
+        let counter = 0;
+        for (const m of prev) {
+          if (!m.author_name && !m._systemText && !anonMap.has(m.author_id)) {
+            counter++;
+            anonMap.set(m.author_id, counter);
+          }
+        }
+        const num = anonMap.get(msg.author_id);
+        label = `Anonymous${num ? ` #${num}` : ""}`;
+      }
+
+      const filtered = prev.filter((m) => m.id !== messageId);
+      return [...filtered, createSystemEvent(courseId, `sys-unsend-${messageId}`, `${label} unsent a message`)];
+    });
+
+    try {
+      const res = await fetch("/api/discussions/messages", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messageId }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        console.error("Failed to unsend message:", data.error ?? res.statusText);
+        fetchMessages();
+      }
+    } catch (err) {
+      console.error("Unsend message error:", err);
+      fetchMessages();
+    }
+  }, [courseId, fetchMessages]);
 
   // Subscribe to Realtime for new messages and presence
   useEffect(() => {
@@ -226,11 +301,62 @@ export function useCourseChat(courseId: string) {
       (payload) => {
         const newMsg = payload.new as ChatMessage;
         setMessages((prev) => {
-          // Avoid duplicates
+          // Check if this server message matches an optimistic message
+          const tempEntry = Array.from(tempToServerIdRef.current.entries())
+            .find(([, serverId]) => serverId === newMsg.id);
+
+          if (tempEntry) {
+            // Already replaced by optimistic flow — skip Realtime duplicate
+            tempToServerIdRef.current.delete(tempEntry[0]);
+            return prev;
+          }
+
+          // Avoid duplicates from normal flow
           if (prev.some((m) => m.id === newMsg.id)) return prev;
           const updated = [...prev, newMsg];
           writeCache(courseId, updated);
           return updated;
+        });
+      }
+    );
+
+    // Listen for deleted messages via postgres_changes
+    channel.on(
+      "postgres_changes",
+      {
+        event: "DELETE",
+        schema: "public",
+        table: "chat_messages",
+        filter: `course_id=eq.${courseId}`,
+      },
+      (payload) => {
+        const old = payload.old as ChatMessage | undefined;
+        if (!old?.id) return;
+        setMessages((prev) => {
+          // Skip if this was our own unsend (system event already added locally)
+          if (prev.some((m) => m.id === `sys-unsend-${old.id}`)) {
+            return prev.filter((m) => m.id !== old.id);
+          }
+
+          let label: string;
+          if (old.author_name) {
+            label = old.author_name;
+          } else {
+            // Compute anonymous number from current messages
+            const anonMap = new Map<string, number>();
+            let counter = 0;
+            for (const m of prev) {
+              if (!m.author_name && !m._systemText && !anonMap.has(m.author_id)) {
+                counter++;
+                anonMap.set(m.author_id, counter);
+              }
+            }
+            const num = old.author_id ? anonMap.get(old.author_id) : undefined;
+            label = `Anonymous${num ? ` #${num}` : ""}`;
+          }
+
+          const filtered = prev.filter((m) => m.id !== old.id);
+          return [...filtered, createSystemEvent(courseId, `sys-unsend-${old.id}`, `${label} unsent a message`)];
         });
       }
     );
@@ -267,8 +393,54 @@ export function useCourseChat(courseId: string) {
     joinPresence();
     channelRef.current = channel;
 
+    // Subscribe to membership changes for join/leave system events
+    const memberChannel = supabase.channel(`members:${courseId}`);
+
+    memberChannel.on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "course_memberships",
+        filter: `course_id=eq.${courseId}`,
+      },
+      async (payload) => {
+        const newMember = payload.new as { user_id: string };
+        const name = await fetchUserName(newMember.user_id);
+        setMessages((prev) => [...prev, createSystemEvent(courseId, `sys-join-${Date.now()}`, `${name} joined the group`)]);
+      }
+    );
+
+    memberChannel.on(
+      "postgres_changes",
+      {
+        event: "DELETE",
+        schema: "public",
+        table: "course_memberships",
+        filter: `course_id=eq.${courseId}`,
+      },
+      async (payload) => {
+        const old = payload.old as { user_id?: string };
+        if (!old.user_id) return;
+        const name = await fetchUserName(old.user_id);
+        setMessages((prev) => [...prev, createSystemEvent(courseId, `sys-leave-${Date.now()}`, `${name} left the group`)]);
+      }
+    );
+
+    memberChannel.subscribe();
+
+    // Listen for local group name change events
+    function handleNameChange(e: Event) {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.courseId !== courseId) return;
+      setMessages((prev) => [...prev, createSystemEvent(courseId, `sys-name-${Date.now()}`, `Group name changed to "${detail.newName}"`)]);
+    }
+    window.addEventListener("calchat-name-changed", handleNameChange);
+
     return () => {
       channel.unsubscribe();
+      memberChannel.unsubscribe();
+      window.removeEventListener("calchat-name-changed", handleNameChange);
       channelRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -283,6 +455,7 @@ export function useCourseChat(courseId: string) {
     onlineUsers,
     sending,
     sendMessage,
+    deleteMessage,
     loadMore,
   };
 }

@@ -2,29 +2,34 @@
 
 import { format } from "date-fns";
 import { Plus, CalendarDays } from "lucide-react";
-import type { Task } from "@/lib/types";
+import type { Task, PendingInvite } from "@/lib/types";
 import { getMiffyColor } from "@/lib/constants";
+import { pendingInviteToPseudoTask } from "@/lib/pending-invite-helpers";
 import { useTheme } from "@/contexts/ThemeContext";
 
 interface CalendarDayViewProps {
   currentDate: Date;
   tasks: Task[];
+  pendingInvites?: PendingInvite[];
   onAddClick: (date: string, rect: DOMRect) => void;
   onTaskClick: (task: Task, rect: DOMRect) => void;
 }
 
 /**
  * Formats a 24-hour time string to compact 12-hour format.
+ * e.g. "23:59" → "11:59p", "09:00" → "9a", "14:30" → "2:30p"
  *
  * @param time24 - "HH:MM" format
- * @returns e.g. "6:43 PM"
+ * @returns Compact formatted time string
  */
 function formatTime(time24: string): string {
   const [h, m] = time24.split(":");
   const hour = parseInt(h, 10);
-  const ampm = hour >= 12 ? "PM" : "AM";
+  const minute = m;
+  const suffix = hour >= 12 ? "p" : "a";
   const h12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-  return `${h12}:${m} ${ampm}`;
+  if (minute === "00") return `${h12}${suffix}`;
+  return `${h12}:${minute}${suffix}`;
 }
 
 /**
@@ -55,6 +60,7 @@ function hexToRgba(hex: string, opacity: number): string {
 export default function CalendarDayView({
   currentDate,
   tasks,
+  pendingInvites = [],
   onAddClick,
   onTaskClick,
 }: CalendarDayViewProps) {
@@ -62,6 +68,7 @@ export default function CalendarDayView({
   const isMiffy = colorTheme === "miffy";
   const dateStr = format(currentDate, "yyyy-MM-dd");
   const dayTasks = tasks.filter((t) => t.due_date === dateStr);
+  const dayInvites = pendingInvites.filter((inv) => inv.taskDueDate === dateStr);
 
   return (
     <div className="overflow-hidden bg-card flex flex-col h-full relative">
@@ -84,10 +91,18 @@ export default function CalendarDayView({
           onAddClick(dateStr, rect);
         }}
       >
-        {dayTasks.length > 0 ? (
+        {(dayTasks.length > 0 || dayInvites.length > 0) ? (
           <div className="flex flex-col gap-3 max-w-xl">
             {dayTasks.map((task) => (
               <DayTaskCard key={task.id} task={task} onTaskClick={onTaskClick} />
+            ))}
+            {dayInvites.map((invite) => (
+              <DayTaskCard
+                key={invite.shareId}
+                task={pendingInviteToPseudoTask(invite)}
+                onTaskClick={() => {}}
+                isPending
+              />
             ))}
           </div>
         ) : (
@@ -119,13 +134,16 @@ export default function CalendarDayView({
  *
  * @param task - The task to render
  * @param onTaskClick - Click callback
+ * @param isPending - When true, renders with dashed outline for pending invites
  */
 function DayTaskCard({
   task,
   onTaskClick,
+  isPending,
 }: {
   task: Task;
   onTaskClick: (task: Task, rect: DOMRect) => void;
+  isPending?: boolean;
 }) {
   const { colorTheme } = useTheme();
   const rawColor = task.color || "#6b7280";
@@ -136,21 +154,31 @@ function DayTaskCard({
       onClick={(e) => onTaskClick(task, e.currentTarget.getBoundingClientRect())}
       className={`w-full text-left rounded-xl p-3 md:p-4 transition-all hover:-translate-y-px hover:shadow-sm ${
         task.is_completed ? "opacity-50" : ""
-      }`}
-      style={{
+      } ${isPending ? "opacity-50" : ""}`}
+      style={isPending ? {
+        backgroundColor: "transparent",
+        border: `1px dashed ${hexToRgba(color, 0.4)}`,
+        borderLeftWidth: "2px",
+        borderLeftStyle: "dashed",
+        borderLeftColor: color,
+      } : {
         backgroundColor: hexToRgba(color, 0.1),
         borderLeft: `2px solid ${color}`,
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.backgroundColor = hexToRgba(color, 0.18);
+        if (!isPending) e.currentTarget.style.backgroundColor = hexToRgba(color, 0.18);
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.backgroundColor = hexToRgba(color, 0.1);
+        if (!isPending) e.currentTarget.style.backgroundColor = hexToRgba(color, 0.1);
       }}
+      title={isPending ? `Pending invite: ${task.title}` : undefined}
     >
       <div className="flex-1 min-w-0">
-        <p className={`text-sm font-semibold flex items-center gap-1.5 ${task.is_completed ? "line-through" : ""}`} style={{ color }}>
-          {task.is_completed && (
+        <p
+          className={`text-sm font-semibold flex items-center gap-1.5 ${task.is_completed && !isPending ? "line-through" : ""}`}
+          style={{ color: isPending ? hexToRgba(color, 0.6) : color }}
+        >
+          {task.is_completed && !isPending && (
             <svg className="w-4 h-4 shrink-0" style={{ color }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="20 6 9 17 4 12" />
             </svg>
@@ -158,11 +186,11 @@ function DayTaskCard({
           {task.title}
         </p>
         {task.due_time && (
-          <p className="text-xs mt-1" style={{ color, opacity: 0.7 }}>
+          <p className="text-xs mt-1" style={{ color: isPending ? hexToRgba(color, 0.6) : color, opacity: 0.7 }}>
             {formatTime(task.due_time)}
           </p>
         )}
-        {task.description && (
+        {task.description && !isPending && (
           <p className="text-xs mt-1 truncate" style={{ color, opacity: 0.6 }}>{task.description}</p>
         )}
       </div>

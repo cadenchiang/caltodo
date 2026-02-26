@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { CalendarDays, ExternalLink, MoreVertical, Tag, Trash2 } from "lucide-react";
+import { CalendarDays, Clock, ExternalLink, EyeOff, MoreVertical, Tag, Trash2 } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { format } from "date-fns";
 import type { Task, TaskUpdate } from "@/lib/types";
@@ -13,6 +13,19 @@ import DatePicker from "./DatePicker";
 import TagPicker from "./TagPicker";
 import InviteSection from "./InviteSection";
 import Popover from "@/components/ui/Popover";
+
+/** Duration presets for the snooze submenu. */
+const SNOOZE_PRESETS = [
+  { label: "1 hour", hours: 1 },
+  { label: "3 hours", hours: 3 },
+  { label: "12 hours", hours: 12 },
+  { label: "1 day", hours: 24 },
+  { label: "3 days", hours: 72 },
+  { label: "1 week", hours: 168 },
+] as const;
+
+/** Far-future date used for "Until I unhide" snooze (~100 years). */
+const FOREVER_HOURS = 876_000;
 
 /**
  * A badge that truncates long text and expands on click.
@@ -94,7 +107,7 @@ function getDateDisplay(dueDate: string | null, dueTime: string | null): { label
  * @param onSave - Callback with the task ID and updated fields
  */
 export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: TaskDetailPanelProps) {
-  const { availableTags } = useTaskContext();
+  const { availableTags, snoozeTask } = useTaskContext();
   const { colorTheme } = useTheme();
   const isMiffy = colorTheme === "miffy";
   const [title, setTitle] = useState("");
@@ -111,6 +124,8 @@ export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: Tas
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [snoozeOpen, setSnoozeOpen] = useState(false);
+  const [customHours, setCustomHours] = useState("");
   const descRef = useRef<HTMLTextAreaElement>(null);
   const dateButtonRef = useRef<HTMLButtonElement>(null);
   const colorButtonRef = useRef<HTMLButtonElement>(null);
@@ -132,6 +147,8 @@ export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: Tas
       setShowDatePicker(false);
       setShowColorPicker(false);
       setMenuOpen(false);
+      setSnoozeOpen(false);
+      setCustomHours("");
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [task?.id]);
@@ -210,7 +227,6 @@ export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: Tas
                   timeValue={dueTime}
                   onChange={(date) => {
                     setDueDate(date);
-                    setShowDatePicker(false);
                     saveWith({ due_date: date });
                   }}
                   onTimeChange={(time) => {
@@ -406,6 +422,73 @@ export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: Tas
                 className="fixed z-50 bg-card rounded-lg shadow-xl border border-input-border py-1 min-w-[140px]"
                 style={{ top: menuPos.y, left: menuPos.x }}
               >
+                {/* Hide for... (snooze) submenu */}
+                <div className="relative">
+                  <button
+                    onClick={() => setSnoozeOpen(!snoozeOpen)}
+                    className="flex items-center gap-2 w-full px-3 py-2 text-sm text-foreground hover:bg-accent transition-colors"
+                  >
+                    <Clock size={13} />
+                    Hide for...
+                  </button>
+                  {snoozeOpen && (
+                    <div className="absolute left-full top-0 ml-1 bg-card rounded-lg shadow-xl border border-input-border py-1 min-w-[140px] z-[61]">
+                      {SNOOZE_PRESETS.map((preset) => (
+                        <button
+                          key={preset.hours}
+                          onClick={() => {
+                            snoozeTask(task.id, preset.hours);
+                            setMenuOpen(false);
+                            setSnoozeOpen(false);
+                            onClose();
+                          }}
+                          className="flex items-center w-full px-3 py-2 text-sm text-foreground hover:bg-accent transition-colors"
+                        >
+                          {preset.label}
+                        </button>
+                      ))}
+                      <div className="border-t border-border my-1" />
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          const h = parseFloat(customHours);
+                          if (h > 0) {
+                            snoozeTask(task.id, h);
+                            setMenuOpen(false);
+                            setSnoozeOpen(false);
+                            setCustomHours("");
+                            onClose();
+                          }
+                        }}
+                        className="flex items-center gap-1.5 px-3 py-1.5"
+                      >
+                        <input
+                          type="number"
+                          min="1"
+                          step="1"
+                          value={customHours}
+                          onChange={(e) => setCustomHours(e.target.value)}
+                          placeholder="hrs"
+                          className="w-14 px-2 py-1 text-sm rounded-md border border-input-border bg-background text-foreground placeholder-muted-foreground focus:outline-none"
+                        />
+                        <span className="text-xs text-muted-foreground">hours</span>
+                      </form>
+                      <button
+                        onClick={() => {
+                          snoozeTask(task.id, FOREVER_HOURS);
+                          setMenuOpen(false);
+                          setSnoozeOpen(false);
+                          onClose();
+                        }}
+                        className="flex items-center gap-2 w-full px-3 py-2 text-sm text-foreground hover:bg-accent transition-colors"
+                      >
+                        <EyeOff size={13} />
+                        Until I unhide
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <div className="border-t border-border my-1" />
                 <button
                   onClick={() => {
                     setMenuOpen(false);

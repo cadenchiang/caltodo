@@ -9,6 +9,7 @@ import { SETTINGS_SECTIONS, SETTINGS_GROUPS, DEFAULT_SECTION, type SettingsSecti
 import SidebarNavItem from "./SidebarNavItem";
 import ProfilePopup from "./ProfilePopup";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useCalChatUnread } from "@/hooks/useCalChatUnread";
 
 /** localStorage keys for GCal status. */
 const GCAL_CACHE_KEY = "gcal_status";
@@ -46,6 +47,10 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
   const isSettings = pathname.startsWith("/app/settings");
   const [inboxFilter, setInboxFilter] = useState<string>("all");
 
+  // Local avatar/name state for reactive updates from profile changes
+  const [localAvatarUrl, setLocalAvatarUrl] = useState(avatarUrl);
+  const [localFullName, setLocalFullName] = useState(fullName);
+
   // Hydrate inbox filter from localStorage after mount to avoid SSR mismatch
   useEffect(() => {
     try {
@@ -53,7 +58,19 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
       if (saved) setInboxFilter(saved);
     } catch { /* ignore */ }
   }, []);
+
+  // Listen for profile updates dispatched from ProfileSection
+  useEffect(() => {
+    function handleProfileUpdate(e: Event) {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.avatarUrl !== undefined) setLocalAvatarUrl(detail.avatarUrl);
+      if (detail?.fullName !== undefined) setLocalFullName(detail.fullName);
+    }
+    window.addEventListener("profile-updated", handleProfileUpdate);
+    return () => window.removeEventListener("profile-updated", handleProfileUpdate);
+  }, []);
   const [showCalBadge, setShowCalBadge] = useState(false);
+  const hasCalChatUnread = useCalChatUnread();
 
   // Derive active settings section directly from URL search params (single source of truth)
   const sectionParam = searchParams.get("section");
@@ -213,8 +230,8 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
                   label={isInbox ? inboxConfig.label : item.label}
                   href={item.href}
                   icon={isInbox ? inboxConfig.icon : item.icon}
-                  badge={isCalendar && showCalBadge}
-                  badgeText={isChat ? "NEW" : undefined}
+                  badge={(isCalendar && showCalBadge) || (isChat && hasCalChatUnread)}
+                  badgeText={isChat && !hasCalChatUnread ? "BETA" : undefined}
                   id={`tour-nav-${item.label.toLowerCase()}`}
                   imageSrc={undefined}
                   imageClassName={undefined}
@@ -236,7 +253,7 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
             />
           </div>
         )}
-        <ProfilePopup avatarUrl={avatarUrl} fullName={fullName} email={email} />
+        <ProfilePopup avatarUrl={localAvatarUrl} fullName={localFullName} email={email} />
       </div>
     </aside>
   );

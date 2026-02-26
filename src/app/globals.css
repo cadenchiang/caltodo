@@ -390,23 +390,6 @@ body {
   animation: stepIn 350ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-/* Popover pop-in animation — uses only opacity + scale to avoid transform conflicts */
-@keyframes popoverIn {
-  0% {
-    opacity: 0;
-    scale: 0.96;
-  }
-  100% {
-    opacity: 1;
-    scale: 1;
-  }
-}
-
-.animate-popover-in {
-  animation: popoverIn 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
-  transform-origin: top center;
-}
-
 /* Hero appear animation */
 @keyframes appear {
   0% {
@@ -984,4 +967,33 @@ textarea:-webkit-autofill {
 
 .animate-border-spin {
   animation: borderSpin 4s linear infinite;
+}
+
+/* ── Content-visibility optimizations for off-screen content ── */
+.cv-auto-task {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 48px;
+}
+
+.cv-auto-section {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 200px;
+}
+
+/* Chat message subtle opacity fade-in (no translateY to avoid layout shift) */
+@keyframes msgFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Chat message slide-up entrance for optimistic send */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

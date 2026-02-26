@@ -11,7 +11,7 @@ import { rateLimit } from "@/lib/rate-limit";
 
 /** Words/patterns blocked from chat messages. */
 const BLOCKED_PATTERNS = [
-  /\b(fuck|shit|damn|bitch|ass|dick|pussy|cock|cunt)\b/gi,
+  /\b(fuck|shit|damn|bitch|ass|dick|pussy|cock|cunt)\b/i,
 ];
 
 /**
@@ -111,8 +111,8 @@ export async function GET(request: Request) {
 
 /**
  * POST /api/discussions/messages
- * Creates a new chat message with denormalized author info.
- * Body: { courseId, body }
+ * Creates a new chat message. Supports optional anonymous sending.
+ * Body: { courseId, body, anonymous?: boolean }
  *
  * @param request - The incoming request with JSON body
  * @returns The created ChatMessage (201)
@@ -139,6 +139,8 @@ export async function POST(request: Request) {
 
   const courseId = reqBody.courseId as string;
   const body = (reqBody.body as string)?.trim();
+  const anonymous = reqBody.anonymous === true;
+  const replyToId = (reqBody.replyToId as string) || null;
 
   if (!courseId || !body) {
     return NextResponse.json({ error: "courseId and body are required" }, { status: 400 });
@@ -170,9 +172,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Not enrolled in this course" }, { status: 403 });
     }
 
-    // Denormalize author name/avatar from user metadata
-    const authorName = user.user_metadata?.full_name ?? null;
-    const authorAvatar = user.user_metadata?.avatar_url ?? null;
+    // When anonymous, omit author identity; otherwise denormalize from metadata
+    const authorName = anonymous ? null : (user.user_metadata?.full_name ?? null);
+    const authorAvatar = anonymous ? null : (user.user_metadata?.avatar_url ?? null);
 
     const { data: message, error: insertError } = await supabase
       .from("chat_messages")
@@ -182,6 +184,7 @@ export async function POST(request: Request) {
         author_name: authorName,
         author_avatar: authorAvatar,
         body,
+        reply_to_id: replyToId,
       })
       .select()
       .single();
@@ -207,6 +210,87 @@ export async function POST(request: Request) {
     logger.error("POST /api/discussions/messages: unexpected error", {
       userId: user.id,
       error: message,
+    });
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
+
+/**
+ * DELETE /api/discussions/messages
+ * Deletes a message owned by the requesting user.
+ * Body: { messageId: string }
+ *
+ * @param request - The incoming request with JSON body
+ * @returns 200 on success, 403 if not the message owner
+ */
+export async function DELETE(request: Request) {
+  const supabase = await createClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { allowed } = rateLimit(`chat-message-delete:${user.id}`, 30, 60_000);
+  if (!allowed) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
+
+  let reqBody: Record<string, unknown>;
+  try {
+    reqBody = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  const messageId = reqBody.messageId as string;
+  if (!messageId) {
+    return NextResponse.json({ error: "messageId is required" }, { status: 400 });
+  }
+
+  try {
+    // Fetch the message to verify ownership
+    const { data: msg, error: fetchError } = await supabase
+      .from("chat_messages")
+      .select("id, author_id, course_id")
+      .eq("id", messageId)
+      .single();
+
+    if (fetchError || !msg) {
+      return NextResponse.json({ error: "Message not found" }, { status: 404 });
+    }
+
+    if (msg.author_id !== user.id) {
+      return NextResponse.json({ error: "You can only delete your own messages" }, { status: 403 });
+    }
+
+    const { error: deleteError } = await supabase
+      .from("chat_messages")
+      .delete()
+      .eq("id", messageId);
+
+    if (deleteError) {
+      logger.error("DELETE /api/discussions/messages: delete failed", {
+        userId: user.id,
+        messageId,
+        error: deleteError.message,
+      });
+      return NextResponse.json({ error: "Failed to delete message" }, { status: 500 });
+    }
+
+    logger.info("DELETE /api/discussions/messages: deleted", {
+      userId: user.id,
+      messageId,
+      courseId: msg.course_id,
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    logger.error("DELETE /api/discussions/messages: unexpected error", {
+      userId: user.id,
+      messageId,
+      error: errMsg,
     });
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }

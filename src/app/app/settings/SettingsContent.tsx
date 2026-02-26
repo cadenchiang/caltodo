@@ -116,7 +116,7 @@ export default function SettingsContent() {
                   <div className="flex-1 overflow-auto px-4 pt-2 pb-8">
                     <div className="max-w-2xl mx-auto space-y-6 animate-stagger stagger-2">
                       {SETTINGS_GROUPS.map((group) => (
-                        <div key={group}>
+                        <div key={group} className="cv-auto-section">
                           <p className="text-[11px] font-semibold tracking-wider text-muted-foreground px-1 mb-2">
                             {group}
                           </p>

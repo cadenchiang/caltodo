@@ -59,9 +59,7 @@ export default function SidebarNavItem({ label, href, icon: Icon, badge, badgeTe
       )}
       <span>{label}</span>
       {badge && (
-        <span className="ml-auto min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center shrink-0">
-          1
-        </span>
+        <span className="ml-auto w-2.5 h-2.5 rounded-full bg-[#007AFF] shrink-0" />
       )}
       {badgeText && (
         <span className="ml-auto px-1.5 py-0.5 rounded-md bg-[#007AFF] text-white text-[9px] font-bold tracking-wide shrink-0">

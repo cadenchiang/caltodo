@@ -192,6 +192,9 @@ export default function ProfileSection() {
         }
       } catch { /* ignore */ }
 
+      // Notify sidebar of avatar change
+      window.dispatchEvent(new CustomEvent("profile-updated", { detail: { avatarUrl: avatar_url } }));
+
       showToast("Profile photo updated.");
     } catch {
       showToast("Failed to upload photo.");
@@ -237,6 +240,9 @@ export default function ProfileSection() {
           localStorage.setItem("caltodo_user_profile", JSON.stringify(profile));
         }
       } catch { /* ignore */ }
+
+      // Notify sidebar of name change
+      window.dispatchEvent(new CustomEvent("profile-updated", { detail: { fullName: trimmed } }));
 
       showToast("Name updated.");
     } catch {

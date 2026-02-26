@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
-import { Users } from "lucide-react";
 import type { CourseMemberProfile } from "@/lib/types";
 
 const CACHE_PREFIX = "chat_members_cache_";
@@ -51,9 +50,14 @@ function writeCache(courseId: string, members: CourseMemberProfile[]) {
 interface MemberListProps {
   courseId: string;
   onlineUserIds?: Set<string>;
+  /** Avatar display size. "lg" renders 56px avatars for the details sidebar. */
+  avatarSize?: "default" | "lg";
+  /** Callback when a member row is clicked (passes user ID). */
+  onMemberClick?: (userId: string) => void;
 }
 
-export default function MemberList({ courseId, onlineUserIds }: MemberListProps) {
+export default function MemberList({ courseId, onlineUserIds, avatarSize = "default", onMemberClick }: MemberListProps) {
+  const isLg = avatarSize === "lg";
   const [members, setMembers] = useState<CourseMemberProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
@@ -74,15 +78,14 @@ export default function MemberList({ courseId, onlineUserIds }: MemberListProps)
   }
 
   useEffect(() => {
-    // If fresh cache exists, use it and skip the fetch
+    // Stale-while-revalidate: show cached data immediately, then refresh
     const cached = readCache(courseId);
     if (cached) {
       setMembers(cached);
       setLoading(false);
-      return;
     }
 
-    // No cache — fetch from API
+    // Always fetch fresh data from API (background revalidation)
     let cancelled = false;
     fetch(`/api/discussions/members?courseId=${encodeURIComponent(courseId)}`)
       .then((res) => res.ok ? res.json() : [])
@@ -147,25 +150,35 @@ export default function MemberList({ courseId, onlineUserIds }: MemberListProps)
           return (
             <div
               key={member.user_id}
-              className="flex items-center gap-3 py-2 rounded-xl hover:bg-gray-50 dark:hover:bg-zinc-800/50 px-2 -mx-2"
+              onClick={() => onMemberClick?.(member.user_id)}
+              className={`flex items-center gap-3 py-2 rounded-xl hover:bg-gray-50 dark:hover:bg-zinc-800/50 px-2 -mx-2 transition-colors ${onMemberClick ? "cursor-pointer" : ""}`}
             >
               <div className="relative shrink-0">
                 {member.user_avatar ? (
                   <img
                     src={member.user_avatar}
                     alt=""
-                    className="w-9 h-9 rounded-full"
+                    referrerPolicy="no-referrer"
+                    className={isLg ? "w-14 h-14 rounded-full object-cover" : "w-9 h-9 rounded-full object-cover"}
                   />
                 ) : (
-                  <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center text-sm font-medium text-muted-foreground">
+                  <div className={
+                    isLg
+                      ? "w-14 h-14 rounded-full bg-muted flex items-center justify-center text-lg font-medium text-muted-foreground"
+                      : "w-9 h-9 rounded-full bg-muted flex items-center justify-center text-sm font-medium text-muted-foreground"
+                  }>
                     {(member.user_name ?? "?")[0]?.toUpperCase()}
                   </div>
                 )}
                 {isOnline && (
-                  <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-green-500 border-2 border-white dark:border-zinc-900" />
+                  <span className={
+                    isLg
+                      ? "absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-green-500 border-[2.5px] border-white dark:border-zinc-900"
+                      : "absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-green-500 border-2 border-white dark:border-zinc-900"
+                  } />
                 )}
               </div>
-              <span className="text-[14px] text-foreground truncate">
+              <span className={isLg ? "text-[15px] text-foreground truncate" : "text-[14px] text-foreground truncate"}>
                 {member.user_name ?? "Unknown"}
               </span>
             </div>

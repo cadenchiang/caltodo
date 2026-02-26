@@ -59,6 +59,12 @@ export function useDiscussionBoards() {
         throw new Error(data.error || `Failed to fetch boards (${res.status})`);
       }
       const data: DiscussionBoard[] = await res.json();
+      // Sort system courses (CalTodo Fam) first, preserve order for the rest
+      data.sort((a, b) => {
+        const aSystem = a.course.source === "system" ? 0 : 1;
+        const bSystem = b.course.source === "system" ? 0 : 1;
+        return aSystem - bSystem;
+      });
       setBoards(data);
       writeCache(data);
     } catch (err) {

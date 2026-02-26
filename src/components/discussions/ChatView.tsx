@@ -1,17 +1,18 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import type { ChatMessage } from "@/lib/types";
+import type { ReactionsMap } from "@/hooks/useMessageReactions";
 import MessageBubble from "./MessageBubble";
 import ChatInput from "./ChatInput";
 import DateSeparator from "./DateSeparator";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, X } from "lucide-react";
 
 /**
  * Full-height iMessage-style chat view with scrollable messages and input.
  * Auto-scrolls to bottom for new messages when user is near bottom.
- * Shows "New messages" pill when new messages arrive while scrolled up.
- * Groups consecutive messages by the same author within 5 minutes.
+ * Shows centered timestamps between message groups when there's a 15+ min gap.
+ * Last own message shows "Delivered" status.
  *
  * @param messages - Array of chat messages (oldest first)
  * @param loading - Whether initial data is loading
@@ -20,6 +21,7 @@ import { ChevronDown } from "lucide-react";
  * @param error - Error message to display
  * @param currentUserId - The logged-in user's ID
  * @param onSend - Callback to send a new message
+ * @param onDelete - Callback to unsend a message
  * @param onLoadMore - Callback to load older messages
  */
 interface ChatViewProps {
@@ -30,33 +32,26 @@ interface ChatViewProps {
   sending: boolean;
   error: string | null;
   currentUserId: string;
-  onSend: (body: string, files?: File[]) => void;
+  reactionsMap?: ReactionsMap;
+  onSend: (body: string, files?: File[], anonymous?: boolean, replyToId?: string) => void;
+  onDelete: (messageId: string) => void;
+  onToggleReaction?: (messageId: string, emoji: string, userId: string) => void;
   onLoadMore: () => void;
 }
 
 /**
- * Checks if two messages are in the same date group.
+ * Checks if two dates fall on the same calendar day.
  *
  * @param a - First ISO date string
  * @param b - Second ISO date string
- * @returns true if both dates fall on the same calendar day
+ * @returns true if both dates are on the same day
  */
 function sameDay(a: string, b: string): boolean {
   return a.slice(0, 10) === b.slice(0, 10);
 }
 
-/**
- * Checks if two messages should be grouped (same author, within 5 minutes).
- *
- * @param prev - Previous message
- * @param curr - Current message
- * @returns true if messages should be grouped together
- */
-function shouldGroup(prev: ChatMessage, curr: ChatMessage): boolean {
-  if (prev.author_id !== curr.author_id) return false;
-  const diff = new Date(curr.created_at).getTime() - new Date(prev.created_at).getTime();
-  return diff < 5 * 60 * 1000;
-}
+/** Minimum time gap (ms) between messages to show a centered timestamp. */
+const TIMESTAMP_GAP = 15 * 60 * 1000;
 
 export default function ChatView({
   messages,
@@ -67,11 +62,15 @@ export default function ChatView({
   error,
   currentUserId,
   onSend,
+  onDelete,
+  onToggleReaction,
   onLoadMore,
+  reactionsMap,
 }: ChatViewProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const [showNewBadge, setShowNewBadge] = useState(false);
+  const [replyTarget, setReplyTarget] = useState<ChatMessage | null>(null);
   const prevMessageCountRef = useRef(0);
   const isNearBottomRef = useRef(true);
 
@@ -96,7 +95,6 @@ export default function ChatView({
   useEffect(() => {
     if (messages.length > prevMessageCountRef.current) {
       if (isNearBottomRef.current) {
-        // Small delay to let DOM update
         requestAnimationFrame(() => scrollToBottom(true));
       } else {
         setShowNewBadge(true);
@@ -113,6 +111,20 @@ export default function ChatView({
   }, [loading, scrollToBottom, messages.length]);
 
   /**
+   * Scrolls to a specific message by ID with smooth animation and flash highlight.
+   *
+   * @param messageId - The UUID of the message to scroll to
+   */
+  const scrollToMessage = useCallback((messageId: string) => {
+    const el = document.getElementById(`msg-${messageId}`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    // Flash highlight
+    el.style.backgroundColor = "rgba(0, 122, 255, 0.1)";
+    setTimeout(() => { el.style.backgroundColor = ""; }, 1500);
+  }, []);
+
+  /**
    * Handles scroll events to track position and trigger pagination.
    */
   const handleScroll = useCallback(() => {
@@ -122,11 +134,132 @@ export default function ChatView({
     if (isNearBottomRef.current) {
       setShowNewBadge(false);
     }
-    // Load more when scrolled near top
     if (el.scrollTop < 100 && hasMore) {
       onLoadMore();
     }
   }, [checkNearBottom, hasMore, onLoadMore]);
+
+  /**
+   * Maps anonymous author_id → sequential number (order of first appearance).
+   * Only includes authors who sent at least one anonymous message.
+   */
+  const anonymousNumberMap = useMemo(() => {
+    const map = new Map<string, number>();
+    let counter = 0;
+    for (const msg of messages) {
+      if (!msg.author_name && !msg._systemText && !map.has(msg.author_id)) {
+        counter += 1;
+        map.set(msg.author_id, counter);
+      }
+    }
+    return map;
+  }, [messages]);
+
+  /**
+   * Merges consecutive "X unsent a message" system events from the same author
+   * into a single "X unsent N messages" entry for cleaner display.
+   */
+  const displayMessages = useMemo(() => {
+    const result: ChatMessage[] = [];
+    for (let i = 0; i < messages.length; i++) {
+      const msg = messages[i];
+      if (msg._systemText && msg._systemText.endsWith("unsent a message")) {
+        // Count consecutive unsend events from the same author
+        let count = 1;
+        const authorPrefix = msg._systemText.replace(" unsent a message", "");
+        while (
+          i + count < messages.length &&
+          messages[i + count]._systemText === msg._systemText
+        ) {
+          count++;
+        }
+        if (count > 1) {
+          // Create a merged event using the first message's ID
+          result.push({
+            ...msg,
+            _systemText: `${authorPrefix} unsent ${count} messages`,
+          });
+          i += count - 1; // skip the merged messages
+        } else {
+          result.push(msg);
+        }
+      } else {
+        result.push(msg);
+      }
+    }
+    return result;
+  }, [messages]);
+
+  /**
+   * Pre-computes layout data for each message:
+   * - showTimestamp: whether to show a centered timestamp before this message
+   * - showAuthor: whether to show the author name/avatar
+   * - isLastInGroup: whether this is the last message before a visual break
+   * - isLastMessage: whether this is the very last non-system message
+   */
+  const messageLayout = useMemo(() => {
+    const layout: Array<{
+      showTimestamp: boolean;
+      showAuthor: boolean;
+      isLastInGroup: boolean;
+      isLastMessage: boolean;
+    }> = [];
+
+    // Find index of last non-system message
+    let lastNonSystemIdx = -1;
+    for (let i = displayMessages.length - 1; i >= 0; i--) {
+      if (!displayMessages[i]._systemText) { lastNonSystemIdx = i; break; }
+    }
+
+    for (let i = 0; i < displayMessages.length; i++) {
+      const msg = displayMessages[i];
+
+      // System events get default layout (not rendered via MessageBubble)
+      if (msg._systemText) {
+        layout.push({ showTimestamp: false, showAuthor: false, isLastInGroup: false, isLastMessage: false });
+        continue;
+      }
+
+      // Find previous non-system message
+      let prevNS: ChatMessage | null = null;
+      for (let j = i - 1; j >= 0; j--) {
+        if (!displayMessages[j]._systemText) { prevNS = displayMessages[j]; break; }
+      }
+
+      // Find next non-system message
+      let nextNS: ChatMessage | null = null;
+      for (let j = i + 1; j < displayMessages.length; j++) {
+        if (!displayMessages[j]._systemText) { nextNS = displayMessages[j]; break; }
+      }
+
+      // Show timestamp if: first message, different day, or gap >= 15 min
+      const dayChanged = !prevNS || !sameDay(prevNS.created_at, msg.created_at);
+      const timeGap = prevNS
+        ? new Date(msg.created_at).getTime() - new Date(prevNS.created_at).getTime()
+        : Infinity;
+      const showTimestamp = dayChanged || timeGap >= TIMESTAMP_GAP;
+
+      // Show author if: timestamp break or different author
+      const showAuthor = !prevNS || showTimestamp || prevNS.author_id !== msg.author_id;
+
+      // Last in group if: no next message, next has timestamp, or different author
+      const nextDayChanged = !nextNS || !sameDay(msg.created_at, nextNS.created_at);
+      const nextTimeGap = nextNS
+        ? new Date(nextNS.created_at).getTime() - new Date(msg.created_at).getTime()
+        : Infinity;
+      const nextHasTimestamp = nextDayChanged || nextTimeGap >= TIMESTAMP_GAP;
+      const isLastInGroup = !nextNS || nextHasTimestamp || nextNS.author_id !== msg.author_id;
+
+      layout.push({
+        showTimestamp,
+        showAuthor,
+        isLastInGroup,
+        isLastMessage: i === lastNonSystemIdx,
+      });
+    }
+
+    return layout;
+  }, [displayMessages]);
 
   // Loading skeleton
   if (loading && messages.length === 0) {
@@ -176,23 +309,44 @@ export default function ChatView({
           )}
         </div>
 
-        {/* Messages with date separators and grouping */}
-        {messages.map((msg, i) => {
-          const prev = i > 0 ? messages[i - 1] : null;
-          const next = i < messages.length - 1 ? messages[i + 1] : null;
-          const showDate = !prev || !sameDay(prev.created_at, msg.created_at);
-          const isGrouped = prev ? shouldGroup(prev, msg) : false;
-          const isLastInGroup = !next || !shouldGroup(msg, next);
+        {/* Messages with timestamp separators and grouping */}
+        {displayMessages.map((msg, i) => {
+          // System events (unsend notice, join/leave) — render as centered label
+          if (msg._systemText) {
+            return (
+              <div
+                key={msg.id}
+                id={`msg-${msg.id}`}
+                className="flex justify-center py-2"
+                style={{ contentVisibility: "auto", containIntrinsicSize: "auto 32px" }}
+              >
+                <span className="text-[11px] text-muted-foreground/60 italic">
+                  {msg._systemText}
+                </span>
+              </div>
+            );
+          }
+
+          const { showTimestamp, showAuthor, isLastInGroup, isLastMessage } = messageLayout[i];
           const isOwn = msg.author_id === currentUserId;
 
           return (
-            <div key={msg.id}>
-              {showDate && <DateSeparator date={msg.created_at} />}
+            <div key={msg.id} id={`msg-${msg.id}`} className="transition-colors duration-500 rounded-lg">
+              {showTimestamp && <DateSeparator date={msg.created_at} />}
               <MessageBubble
                 message={msg}
                 isOwn={isOwn}
-                showAuthor={!isGrouped}
+                showAuthor={showAuthor}
                 isLastInGroup={isLastInGroup}
+                isLastMessage={isLastMessage}
+                anonymousNumber={!msg.author_name ? anonymousNumberMap.get(msg.author_id) : undefined}
+                reactions={reactionsMap?.get(msg.id)}
+                currentUserId={currentUserId}
+                replyTo={msg.reply_to_id ? messages.find((m) => m.id === msg.reply_to_id) ?? null : null}
+                onDelete={isOwn ? onDelete : undefined}
+                onReply={setReplyTarget}
+                onToggleReaction={onToggleReaction ? (emoji) => onToggleReaction(msg.id, emoji, currentUserId) : undefined}
+                onScrollToMessage={scrollToMessage}
               />
             </div>
           );
@@ -212,8 +366,36 @@ export default function ChatView({
         </button>
       )}
 
+      {/* Reply preview bar */}
+      {replyTarget && (
+        <div className="flex items-center gap-2 px-5 py-2 border-t border-border bg-muted/30">
+          <div className="flex-1 min-w-0">
+            <span className="text-[11px] font-medium text-muted-foreground">
+              Replying to {replyTarget.author_name ?? "Anonymous"}
+            </span>
+            <p className="text-[12px] text-muted-foreground/70 truncate">
+              {replyTarget.body.slice(0, 80)}
+            </p>
+          </div>
+          <button
+            onClick={() => setReplyTarget(null)}
+            className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:bg-accent transition-colors cursor-pointer shrink-0"
+            aria-label="Cancel reply"
+          >
+            <X size={12} />
+          </button>
+        </div>
+      )}
+
       {/* Input */}
-      <ChatInput onSend={onSend} disabled={sending} error={error} />
+      <ChatInput
+        onSend={(body, files, anonymous) => {
+          onSend(body, files, anonymous, replyTarget?.id);
+          setReplyTarget(null);
+        }}
+        disabled={sending}
+        error={error}
+      />
     </div>
   );
 }

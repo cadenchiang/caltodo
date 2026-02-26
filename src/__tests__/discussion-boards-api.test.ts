@@ -17,6 +17,21 @@ vi.mock("@/lib/rate-limit", () => ({
   rateLimit: vi.fn().mockReturnValue({ allowed: true }),
 }));
 
+vi.mock("@/lib/supabase/admin", () => ({
+  createAdminClient: vi.fn(() => ({
+    from: vi.fn(() => ({
+      select: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            single: vi.fn().mockResolvedValue({ data: null, error: null }),
+          })),
+        })),
+      })),
+      upsert: vi.fn().mockResolvedValue({ error: null }),
+    })),
+  })),
+}));
+
 import { GET } from "@/app/api/discussions/boards/route";
 import { createClient } from "@/lib/supabase/server";
 

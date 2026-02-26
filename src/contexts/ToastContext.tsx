@@ -58,12 +58,17 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const [toast, setToast] = useState<ToastItem | null>(null);
   const idCounter = useRef(0);
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const animationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  /** Clears any pending auto-dismiss timer. */
+  /** Clears any pending auto-dismiss and animation timers. */
   const clearDismissTimer = useCallback(() => {
     if (dismissTimerRef.current) {
       clearTimeout(dismissTimerRef.current);
       dismissTimerRef.current = null;
+    }
+    if (animationTimerRef.current) {
+      clearTimeout(animationTimerRef.current);
+      animationTimerRef.current = null;
     }
   }, []);
 
@@ -71,7 +76,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const dismissToast = useCallback(() => {
     clearDismissTimer();
     setToast((prev) => (prev ? { ...prev, dismissing: true } : null));
-    setTimeout(() => setToast(null), DISMISS_ANIMATION_MS);
+    animationTimerRef.current = setTimeout(() => setToast(null), DISMISS_ANIMATION_MS);
   }, [clearDismissTimer]);
 
   /**

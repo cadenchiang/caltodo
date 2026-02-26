@@ -63,7 +63,7 @@ export type SyncPlatform = "canvas" | "gradescope" | "pensieve";
  * @param userId - The authenticated user's ID
  * @param timezone - IANA timezone for date/time conversion (default "America/Los_Angeles")
  * @param courseOverrides - Optional course lists to override stored selections
- * @param forceGradescope - If true, bypasses the 30-minute Gradescope cooldown (for manual syncs)
+ * @param forceGradescope - If true, bypasses the 1-hour Gradescope cooldown (for manual syncs)
  * @param platforms - Optional list of platforms to sync (default: all)
  * @returns SyncResult with counts and errors for each source
  */
@@ -267,7 +267,7 @@ async function syncAdditionalCanvas(
 
 /**
  * Syncs assignments from Gradescope. Returns sync result with count and errors.
- * Enforces a 30-minute cooldown between login attempts to prevent Gradescope's
+ * Enforces a 1-hour cooldown between login attempts to prevent Gradescope's
  * security system from sending password reset emails due to frequent logins.
  * Supports course filtering via selected_gradescope_courses.
  *
@@ -275,7 +275,7 @@ async function syncAdditionalCanvas(
  * @param userId - The user's ID
  * @param creds - User's integration credentials
  * @param timezone - IANA timezone for date/time conversion
- * @param force - If true, bypasses the 30-minute cooldown (for manual syncs)
+ * @param force - If true, bypasses the 1-hour cooldown (for manual syncs)
  * @returns Sync result with count and errors
  */
 async function syncGradescope(
@@ -295,7 +295,7 @@ async function syncGradescope(
     return { synced: 0, errors: ["Gradescope login failed. Please update your password in Settings."] };
   }
 
-  // Enforce 30-minute cooldown between Gradescope logins (unless forced by manual sync).
+  // Enforce 1-hour cooldown between Gradescope logins (unless forced by manual sync).
   // Gradescope uses password auth, so frequent logins trigger security emails.
   if (!force && creds.last_gradescope_synced_at) {
     const lastSync = new Date(creds.last_gradescope_synced_at).getTime();

@@ -25,8 +25,9 @@ export default function TagPicker({ selectedTags, availableTags, onChange }: Tag
   const [showDropdown, setShowDropdown] = useState(false);
   const [customInput, setCustomInput] = useState("");
 
-  /** Tags available to add (not already selected). */
-  const unselectedTags = availableTags.filter((t) => !selectedTags.includes(t));
+  /** Tags available to add (not already selected, case-insensitive). */
+  const selectedLower = selectedTags.map((t) => t.toLowerCase());
+  const unselectedTags = availableTags.filter((t) => !selectedLower.includes(t.toLowerCase()));
 
   /** Filtered suggestions based on custom input. */
   const filteredSuggestions = customInput.trim()
@@ -36,9 +37,12 @@ export default function TagPicker({ selectedTags, availableTags, onChange }: Tag
   /**
    * Adds a tag to the selection.
    */
+  /**
+   * Adds a tag to the selection (case-insensitive duplicate check).
+   */
   function addTag(tag: string) {
     const trimmed = tag.trim();
-    if (!trimmed || selectedTags.includes(trimmed)) return;
+    if (!trimmed || selectedLower.includes(trimmed.toLowerCase())) return;
     onChange([...selectedTags, trimmed]);
     setCustomInput("");
   }
@@ -131,7 +135,7 @@ export default function TagPicker({ selectedTags, availableTags, onChange }: Tag
             ))}
 
             {/* Add custom tag option */}
-            {customInput.trim() && !availableTags.includes(customInput.trim()) && (
+            {customInput.trim() && !availableTags.some((t) => t.toLowerCase() === customInput.trim().toLowerCase()) && (
               <button
                 type="button"
                 onClick={() => {

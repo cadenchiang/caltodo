@@ -1,9 +1,13 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { BellOff } from "lucide-react";
 import { useDiscussionBoards } from "@/hooks/useDiscussionBoards";
 import type { DiscussionBoard } from "@/lib/types";
 import GroupAvatar from "./GroupAvatar";
+
+const MUTE_KEY_PREFIX = "calchat_muted_";
+const READ_AT_PREFIX = "calchat_read_at_";
 
 /**
  * Instagram DM-style conversation list sidebar.
@@ -27,6 +31,33 @@ interface ChatSidebarProps {
  */
 function stripParentheses(name: string): string {
   return name.replace(/\s*\([^)]*\)/g, "").trim();
+}
+
+/** Image file extensions to detect in message body URLs. */
+const IMAGE_EXT = /\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i;
+
+/**
+ * Summarizes a message body for preview: replaces image URLs with a label.
+ *
+ * @param body - The raw message body
+ * @returns Human-readable preview string
+ */
+function summarizeBody(body: string): string {
+  const lines = body.split("\n");
+  const textLines: string[] = [];
+  let imageCount = 0;
+  for (const line of lines) {
+    const t = line.trim();
+    if ((t.startsWith("http://") || t.startsWith("https://")) && (() => { try { return IMAGE_EXT.test(new URL(t).pathname); } catch { return false; } })()) {
+      imageCount++;
+    } else {
+      textLines.push(line);
+    }
+  }
+  const text = textLines.join(" ").trim();
+  if (text && imageCount > 0) return `${text} · ${imageCount} attachment${imageCount > 1 ? "s" : ""}`;
+  if (imageCount > 0) return `${imageCount} attachment${imageCount > 1 ? "s" : ""}`;
+  return text;
 }
 
 /**
@@ -136,13 +167,18 @@ async function prefetchMembers(courseId: string): Promise<void> {
 function ChatRow({
   board,
   isActive,
+  isMuted,
+  isUnread,
   onSelect,
 }: {
   board: DiscussionBoard;
   isActive: boolean;
+  isMuted: boolean;
+  isUnread: boolean;
   onSelect: (courseId: string, courseName: string) => void;
 }) {
-  const displayName = stripParentheses(board.course.name);
+  const isSystem = board.course.source === "system";
+  const displayName = isSystem ? board.course.name : stripParentheses(board.course.name);
   const initials = getInitials(displayName);
 
   return (
@@ -155,22 +191,40 @@ function ChatRow({
           : "hover:bg-gray-100 dark:hover:bg-zinc-800"
       }`}
     >
-      <GroupAvatar initials={initials} name={board.course.name} size={44} />
+      <div className="relative shrink-0">
+        {isSystem ? (
+          <img
+            src="/calchatlogo-clean.png"
+            alt="CalTodo Fam"
+            className="w-11 h-11 rounded-full object-cover dark:invert"
+          />
+        ) : (
+          <GroupAvatar initials={initials} name={board.course.name} size={44} />
+        )}
+        {isUnread && !isActive && (
+          <span className="absolute -bottom-0.5 -left-0.5 w-3 h-3 rounded-full bg-[#007AFF] border-2 border-white dark:border-zinc-900" />
+        )}
+      </div>
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-1">
           <span className={`text-[13px] truncate ${isActive ? "font-semibold text-foreground" : "font-medium text-foreground"}`}>
             {displayName}
           </span>
-          {board.last_message_at && (
-            <span className="text-[10px] text-muted-foreground/60 shrink-0">
-              {relativeTime(board.last_message_at)}
-            </span>
-          )}
+          <div className="flex items-center gap-1 shrink-0">
+            {isMuted && (
+              <BellOff size={11} className="text-muted-foreground/40" />
+            )}
+            {board.last_message_at && (
+              <span className="text-[10px] text-muted-foreground/60">
+                {relativeTime(board.last_message_at)}
+              </span>
+            )}
+          </div>
         </div>
         <p className="text-[12px] text-muted-foreground truncate mt-0.5">
           {board.last_message_body
-            ? `${board.last_message_author ?? "Someone"}: ${board.last_message_body}`
+            ? `${board.last_message_author ?? "Anonymous"}: ${summarizeBody(board.last_message_body)}`
             : "No messages yet"}
         </p>
       </div>
@@ -180,6 +234,74 @@ function ChatRow({
 
 export default function ChatSidebar({ activeCourseId, onChatSelect }: ChatSidebarProps) {
   const { boards, loading } = useDiscussionBoards();
+  const [mutedIds, setMutedIds] = useState<Set<string>>(new Set());
+
+  // Read mute states from localStorage on mount and when boards change
+  useEffect(() => {
+    const muted = new Set<string>();
+    for (const board of boards) {
+      try {
+        if (localStorage.getItem(MUTE_KEY_PREFIX + board.course.id) === "true") {
+          muted.add(board.course.id);
+        }
+      } catch { /* ignore */ }
+    }
+    setMutedIds(muted);
+  }, [boards]);
+
+  // Listen for mute changes from ChatDetailsSidebar
+  useEffect(() => {
+    // Cross-tab: storage event
+    function handleStorage(e: StorageEvent) {
+      if (e.key?.startsWith(MUTE_KEY_PREFIX)) {
+        const id = e.key.slice(MUTE_KEY_PREFIX.length);
+        setMutedIds((prev) => {
+          const next = new Set(prev);
+          if (e.newValue === "true") next.add(id);
+          else next.delete(id);
+          return next;
+        });
+      }
+    }
+    // Same-tab: custom event
+    function handleMuteChanged(e: Event) {
+      const { courseId, muted } = (e as CustomEvent).detail;
+      setMutedIds((prev) => {
+        const next = new Set(prev);
+        if (muted) next.add(courseId);
+        else next.delete(courseId);
+        return next;
+      });
+    }
+    window.addEventListener("storage", handleStorage);
+    window.addEventListener("calchat-mute-changed", handleMuteChanged);
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("calchat-mute-changed", handleMuteChanged);
+    };
+  }, []);
+
+  // Mark the active chat as read whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem(READ_AT_PREFIX + activeCourseId, new Date().toISOString());
+    } catch { /* ignore */ }
+  }, [activeCourseId]);
+
+  /**
+   * Checks if a board has unread messages by comparing last_message_at
+   * with the stored read_at timestamp.
+   */
+  function isUnread(board: DiscussionBoard): boolean {
+    if (!board.last_message_at) return false;
+    try {
+      const readAt = localStorage.getItem(READ_AT_PREFIX + board.course.id);
+      if (!readAt) return true; // Never opened → unread if has messages
+      return new Date(board.last_message_at) > new Date(readAt);
+    } catch {
+      return false;
+    }
+  }
 
   // Eagerly prefetch messages and members for all chats on mount
   useEffect(() => {
@@ -223,6 +345,8 @@ export default function ChatSidebar({ activeCourseId, onChatSelect }: ChatSideba
               key={board.course.id}
               board={board}
               isActive={board.course.id === activeCourseId}
+              isMuted={mutedIds.has(board.course.id)}
+              isUnread={isUnread(board)}
               onSelect={onChatSelect}
             />
           ))

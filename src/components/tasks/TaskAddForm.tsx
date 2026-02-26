@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Plus, CalendarDays, ChevronDown, Tag, UserPlus } from "lucide-react";
+import { AlignLeft, Plus, CalendarDays, ChevronDown, Tag, UserPlus } from "lucide-react";
 import { format } from "date-fns";
 import type { TaskInsert } from "@/lib/types";
 import { TASK_COLORS, DEFAULT_TASK_COLOR } from "@/lib/constants";
@@ -33,6 +33,7 @@ interface TaskAddFormProps {
 export default function TaskAddForm({ onAdd, defaultDate, placeholder }: TaskAddFormProps) {
   const { availableTags } = useTaskContext();
   const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState<string | null>(defaultDate ?? null);
   const [dueTime, setDueTime] = useState<string | null>(null);
   const [color, setColor] = useState<string>(DEFAULT_TASK_COLOR);
@@ -47,6 +48,7 @@ export default function TaskAddForm({ onAdd, defaultDate, placeholder }: TaskAdd
   const [showTagPicker, setShowTagPicker] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showGuestPicker, setShowGuestPicker] = useState(false);
+  const [showDescription, setShowDescription] = useState(false);
   const [focused, setFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -78,6 +80,7 @@ export default function TaskAddForm({ onAdd, defaultDate, placeholder }: TaskAdd
 
     onAdd({
       title: trimmed,
+      description: description.trim() || undefined,
       due_date: dueDate,
       due_time: dueTime,
       color,
@@ -90,6 +93,7 @@ export default function TaskAddForm({ onAdd, defaultDate, placeholder }: TaskAdd
     });
 
     setTitle("");
+    setDescription("");
     setDueDate(defaultDate ?? null);
     setDueTime(null);
     setColor(DEFAULT_TASK_COLOR);
@@ -104,6 +108,7 @@ export default function TaskAddForm({ onAdd, defaultDate, placeholder }: TaskAdd
     setShowTagPicker(false);
     setShowMoreMenu(false);
     setShowGuestPicker(false);
+    setShowDescription(false);
     inputRef.current?.focus();
   }
 
@@ -116,6 +121,7 @@ export default function TaskAddForm({ onAdd, defaultDate, placeholder }: TaskAdd
       setShowTagPicker(false);
       setShowMoreMenu(false);
       setShowGuestPicker(false);
+      setShowDescription(false);
     }
   }
 
@@ -189,7 +195,7 @@ export default function TaskAddForm({ onAdd, defaultDate, placeholder }: TaskAdd
         onSubmit={handleSubmit}
         className={`flex items-center gap-2 px-4 h-10 rounded-xl transition-all duration-200 border ${
           focused
-            ? "border-blue-400 shadow-[0_0_0_1px_rgba(59,130,246,0.3)] bg-card"
+            ? "border-blue-400 shadow-[0_0_0_1px_color-mix(in_srgb,var(--ring),transparent_70%)] bg-card"
             : "border-transparent bg-muted"
         }`}
       >
@@ -297,6 +303,19 @@ export default function TaskAddForm({ onAdd, defaultDate, placeholder }: TaskAdd
         )}
       </form>
 
+      {/* Description textarea (collapsible) */}
+      {showDescription && focused && (
+        <div className="px-4 pb-2 pt-1">
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Add a description..."
+            className="w-full text-sm bg-muted/50 text-foreground placeholder-muted-foreground rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-400 resize-none border border-border min-h-[60px]"
+            rows={2}
+          />
+        </div>
+      )}
+
       {/* Unified date+repeat picker popup */}
       <Popover
         open={showDatePicker}
@@ -381,6 +400,17 @@ export default function TaskAddForm({ onAdd, defaultDate, placeholder }: TaskAdd
         className="absolute right-2 top-full mt-1 z-20"
       >
         <div className="bg-card rounded-xl shadow-2xl border border-border py-1 min-w-[160px]">
+          <button
+            type="button"
+            onClick={() => {
+              setShowMoreMenu(false);
+              setShowDescription(!showDescription);
+            }}
+            className="flex items-center gap-2.5 w-full text-left px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+          >
+            <AlignLeft size={14} />
+            {showDescription ? "Hide description" : "Add description"}
+          </button>
           <button
             type="button"
             onClick={() => {

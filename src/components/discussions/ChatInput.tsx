@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect, type KeyboardEvent, type ChangeEvent } from "react";
-import { Plus, Smile, X } from "lucide-react";
+import { EyeOff, Plus, Smile, X } from "lucide-react";
 import data from "@emoji-mart/data";
 import Picker from "@emoji-mart/react";
 
@@ -16,14 +16,14 @@ export interface PendingAttachment {
 
 /**
  * iMessage-style chat input with auto-resizing textarea,
- * file attachments, and emoji picker.
+ * file attachments, emoji picker, and anonymous toggle.
  *
- * @param onSend - Callback fired with the message text and optional files
+ * @param onSend - Callback fired with the message text, optional files, and anonymous flag
  * @param disabled - Whether sending is disabled
  * @param error - Error message to display below input
  */
 interface ChatInputProps {
-  onSend: (body: string, files?: File[]) => void;
+  onSend: (body: string, files?: File[], anonymous?: boolean) => void;
   disabled?: boolean;
   error?: string | null;
 }
@@ -34,12 +34,14 @@ const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "ap
 
 export default function ChatInput({ onSend, disabled, error }: ChatInputProps) {
   const [value, setValue] = useState("");
+  const [anonymous, setAnonymous] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
   const [fileError, setFileError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const emojiRef = useRef<HTMLDivElement>(null);
+  const emojiBtnRef = useRef<HTMLButtonElement>(null);
 
   /**
    * Auto-resizes the textarea to fit content up to 120px.
@@ -67,14 +69,14 @@ export default function ChatInput({ onSend, disabled, error }: ChatInputProps) {
     const hasFiles = attachments.length > 0;
     if ((!hasText && !hasFiles) || disabled) return;
 
-    onSend(value.trim(), hasFiles ? attachments.map((a) => a.file) : undefined);
+    onSend(value.trim(), hasFiles ? attachments.map((a) => a.file) : undefined, anonymous);
     setValue("");
     setAttachments([]);
     setFileError(null);
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
     }
-  }, [value, attachments, disabled, onSend]);
+  }, [value, attachments, disabled, anonymous, onSend]);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -150,11 +152,13 @@ export default function ChatInput({ onSend, disabled, error }: ChatInputProps) {
     [value]
   );
 
-  // Close emoji picker on outside click
+  // Close emoji picker on outside click (ignore clicks on the toggle button)
   useEffect(() => {
     if (!showEmojiPicker) return;
     function handleClick(e: MouseEvent) {
-      if (emojiRef.current && !emojiRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (emojiBtnRef.current?.contains(target)) return;
+      if (emojiRef.current && !emojiRef.current.contains(target)) {
         setShowEmojiPicker(false);
       }
     }
@@ -228,6 +232,16 @@ export default function ChatInput({ onSend, disabled, error }: ChatInputProps) {
         </div>
       )}
 
+      {/* Anonymous mode indicator */}
+      {anonymous && (
+        <div className="flex items-center gap-1.5 mb-2 px-1">
+          <EyeOff size={12} className="text-zinc-500" />
+          <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
+            Sending anonymously — your name won&apos;t be shown
+          </span>
+        </div>
+      )}
+
       {(error || fileError) && (
         <div className="text-xs text-red-500 mb-1.5 px-1">{error || fileError}</div>
       )}
@@ -242,7 +256,7 @@ export default function ChatInput({ onSend, disabled, error }: ChatInputProps) {
         className="hidden"
       />
 
-      {/* Input row: [+] [Message] [😊] */}
+      {/* Input row: [+] [🕵] [Message] [😊] */}
       <div className="flex items-center gap-3">
         <button
           type="button"
@@ -251,6 +265,19 @@ export default function ChatInput({ onSend, disabled, error }: ChatInputProps) {
           aria-label="Add attachment"
         >
           <Plus size={20} strokeWidth={2.5} />
+        </button>
+        <button
+          type="button"
+          onClick={() => setAnonymous(!anonymous)}
+          className={`w-10 h-10 rounded-full backdrop-blur-sm border flex items-center justify-center shrink-0 transition-colors cursor-pointer active:scale-95 ${
+            anonymous
+              ? "bg-zinc-800 dark:bg-white border-zinc-800 dark:border-white text-white dark:text-zinc-900"
+              : "bg-gray-200/80 dark:bg-white/20 border-black/10 dark:border-white/10 text-gray-500 dark:text-gray-300 hover:bg-gray-300/80 dark:hover:bg-white/30"
+          }`}
+          aria-label={anonymous ? "Switch to named message" : "Send anonymously"}
+          title={anonymous ? "Anonymous mode on" : "Send anonymously"}
+        >
+          <EyeOff size={18} />
         </button>
         <div className="flex-1 bg-white dark:bg-[#1C1C1E] rounded-[22px] border border-black/30 dark:border-white/20 px-4 py-2.5 flex items-center">
           <textarea
@@ -265,6 +292,7 @@ export default function ChatInput({ onSend, disabled, error }: ChatInputProps) {
           />
         </div>
         <button
+          ref={emojiBtnRef}
           type="button"
           onClick={() => setShowEmojiPicker(!showEmojiPicker)}
           className="w-10 h-10 rounded-full bg-gray-200/80 dark:bg-white/20 backdrop-blur-sm border border-black/10 dark:border-white/10 flex items-center justify-center shrink-0 text-gray-500 dark:text-gray-300 hover:bg-gray-300/80 dark:hover:bg-white/30 transition-colors cursor-pointer active:scale-95"

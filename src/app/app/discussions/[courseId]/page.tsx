@@ -2,12 +2,19 @@
 
 import { use, useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Users, X } from "lucide-react";
+import { ArrowLeft, Users } from "lucide-react";
 import { useCourseChat } from "@/hooks/useCourseChat";
+import { useMessageReactions } from "@/hooks/useMessageReactions";
 import ChatView from "@/components/discussions/ChatView";
-import MemberList from "@/components/discussions/MemberList";
 import ChatSidebar from "@/components/discussions/ChatSidebar";
+import ChatDetailsSidebar from "@/components/discussions/ChatDetailsSidebar";
 import { createClient } from "@/lib/supabase/client";
+import { useDiscussionBoards } from "@/hooks/useDiscussionBoards";
+import CalChatWelcomeModal from "@/components/discussions/CalChatWelcomeModal";
+
+const NAME_KEY_PREFIX = "calchat_name_";
+const MUTE_KEY_PREFIX = "calchat_muted_";
+const LAST_CHAT_KEY = "calchat_last_course";
 
 /**
  * Strips parenthetical content from a course name.
@@ -88,7 +95,9 @@ export default function CourseChatPage({ params }: PageProps) {
   // Active chat managed as client state for instant switching
   const [activeCourseId, setActiveCourseId] = useState(initialCourseId);
   const [activeCourseName, setActiveCourseName] = useState(initialName);
-  const displayName = stripParentheses(activeCourseName);
+  const [nameOverride, setNameOverride] = useState<string | null>(null);
+  const [isMuted, setIsMuted] = useState(false);
+  const displayName = nameOverride || stripParentheses(activeCourseName);
 
   const {
     messages,
@@ -99,13 +108,20 @@ export default function CourseChatPage({ params }: PageProps) {
     error,
     onlineUsers,
     sendMessage,
+    deleteMessage,
     loadMore,
   } = useCourseChat(activeCourseId);
 
+  const { reactionsMap, toggleReaction } = useMessageReactions(activeCourseId);
+
   const [currentUserId, setCurrentUserId] = useState<string>("");
   const [ready, setReady] = useState(false);
-  const [showMembers, setShowMembers] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
   const supabaseRef = useRef(createClient());
+  const { boards } = useDiscussionBoards();
+  const activeBoard = boards.find((b) => b.course.id === activeCourseId);
+  const activeMemberCount = activeBoard?.member_count ?? 0;
+  const isSystemCourse = activeBoard?.course.source === "system";
 
   // Get current user ID for message ownership — only once
   useEffect(() => {
@@ -114,6 +130,20 @@ export default function CourseChatPage({ params }: PageProps) {
       setReady(true);
     });
   }, []);
+
+  // Load persisted name override, mute state, and save last-viewed chat
+  useEffect(() => {
+    try {
+      const savedName = localStorage.getItem(NAME_KEY_PREFIX + activeCourseId);
+      setNameOverride(savedName);
+      const savedMute = localStorage.getItem(MUTE_KEY_PREFIX + activeCourseId);
+      setIsMuted(savedMute === "true");
+      // Remember this chat for next visit
+      localStorage.setItem(LAST_CHAT_KEY, activeCourseId);
+    } catch {
+      // localStorage unavailable
+    }
+  }, [activeCourseId]);
 
   /**
    * Switches to a different chat without full page navigation.
@@ -143,9 +173,10 @@ export default function CourseChatPage({ params }: PageProps) {
     }
   }, []);
 
-  // Desktop notifications for new messages from others
+  // Desktop notifications for new messages from others (suppressed when muted)
   useEffect(() => {
     if (
+      !isMuted &&
       messages.length > 0 &&
       currentUserId &&
       "Notification" in window &&
@@ -154,8 +185,27 @@ export default function CourseChatPage({ params }: PageProps) {
     ) {
       const lastMsg = messages[messages.length - 1];
       if (lastMsg.author_id !== currentUserId) {
-        new Notification(`${lastMsg.author_name ?? "Someone"} in ${displayName}`, {
-          body: lastMsg.body.slice(0, 100),
+        const senderLabel = lastMsg.author_name ?? "Anonymous";
+        // Summarize message body: replace image URLs with friendly label
+        const imageExt = /\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i;
+        const lines = lastMsg.body.split("\n");
+        const textLines = lines.filter((l) => {
+          const t = l.trim();
+          if (!t.startsWith("http://") && !t.startsWith("https://")) return true;
+          try { return !imageExt.test(new URL(t).pathname); } catch { return true; }
+        });
+        const imageCount = lines.length - textLines.length;
+        const textPart = textLines.join(" ").trim();
+        let notifBody: string;
+        if (textPart && imageCount > 0) {
+          notifBody = `${textPart.slice(0, 80)} · ${imageCount} attachment${imageCount > 1 ? "s" : ""}`;
+        } else if (imageCount > 0) {
+          notifBody = `${imageCount} attachment${imageCount > 1 ? "s" : ""}`;
+        } else {
+          notifBody = textPart.slice(0, 100);
+        }
+        new Notification(`${senderLabel} in ${displayName}`, {
+          body: notifBody,
           icon: lastMsg.author_avatar ?? "/icon-light.png",
           tag: `chat-${activeCourseId}`,
         });
@@ -170,6 +220,7 @@ export default function CourseChatPage({ params }: PageProps) {
 
   return (
     <div className="absolute inset-0 flex">
+      <CalChatWelcomeModal />
       {/* Chat list sidebar — hidden on mobile, visible on md+ */}
       <div className="hidden md:flex w-72 shrink-0 border-r border-black/30 dark:border-white/20 flex-col">
         <ChatSidebar
@@ -192,11 +243,19 @@ export default function CourseChatPage({ params }: PageProps) {
           >
             <ArrowLeft size={18} className="text-muted-foreground" />
           </button>
+          {isSystemCourse && (
+            <img
+              src="/calchatlogo-clean.png"
+              alt=""
+              className="w-7 h-7 rounded-full object-cover dark:invert shrink-0"
+            />
+          )}
           <div className="flex-1 min-w-0">
             <h1 className="text-sm font-semibold text-foreground truncate">
               {displayName}
             </h1>
             <p className="text-[11px] font-medium h-[16px] text-muted-foreground/40">
+              {activeMemberCount > 0 && <span>{activeMemberCount} members · </span>}
               {onlineUsers.length > 0
                 ? <span className="text-green-500">{onlineUsers.length} online</span>
                 : "– online"
@@ -204,9 +263,9 @@ export default function CourseChatPage({ params }: PageProps) {
             </p>
           </div>
           <button
-            onClick={() => setShowMembers(true)}
+            onClick={() => setShowDetails((v) => !v)}
             className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
-            aria-label="View members"
+            aria-label="View details"
           >
             <Users size={18} className="text-muted-foreground" />
           </button>
@@ -223,47 +282,53 @@ export default function CourseChatPage({ params }: PageProps) {
               sending={sending}
               error={error}
               currentUserId={currentUserId}
+              reactionsMap={reactionsMap}
               onSend={sendMessage}
+              onDelete={deleteMessage}
+              onToggleReaction={toggleReaction}
               onLoadMore={loadMore}
             />
           ) : (
             <div className="flex-1" />
           )}
         </div>
+
+        {/* Mobile: details panel as full-screen overlay inside center column */}
+        {showDetails && (
+          <div className="absolute inset-0 z-30 md:hidden bg-white dark:bg-zinc-900">
+            <ChatDetailsSidebar
+              courseId={activeCourseId}
+              courseName={stripParentheses(activeCourseName)}
+              onlineUserIds={onlineUserIds}
+              onClose={() => setShowDetails(false)}
+              onNameOverride={(name) => setNameOverride(name)}
+              onMuteChange={(muted) => setIsMuted(muted)}
+              isSystemCourse={isSystemCourse}
+            />
+          </div>
+        )}
       </div>
 
-      {/* Members modal */}
-      {showMembers && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center"
-          onClick={() => setShowMembers(false)}
-        >
-          {/* Backdrop */}
-          <div className="absolute inset-0 bg-black/40 dark:bg-black/60" />
-
-          {/* Modal */}
-          <div
-            className="relative bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-[340px] max-h-[70vh] flex flex-col overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal header */}
-            <div className="flex items-center justify-between px-5 pt-5 pb-3">
-              <h2 className="text-base font-semibold text-foreground">Members</h2>
-              <button
-                onClick={() => setShowMembers(false)}
-                className="w-7 h-7 rounded-full bg-gray-100 dark:bg-zinc-800 flex items-center justify-center text-muted-foreground hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors cursor-pointer"
-              >
-                <X size={14} />
-              </button>
-            </div>
-
-            {/* Member list */}
-            <div className="flex-1 overflow-y-auto px-5 pb-5">
-              <MemberList courseId={activeCourseId} onlineUserIds={onlineUserIds} />
-            </div>
+      {/* Desktop: right details sidebar — animated width */}
+      <div
+        className={`hidden md:block shrink-0 overflow-hidden transition-all duration-300 border-l border-black/30 dark:border-white/20 ${
+          showDetails ? "w-80" : "w-0 border-l-0"
+        }`}
+      >
+        {showDetails && (
+          <div className="w-80 h-full">
+            <ChatDetailsSidebar
+              courseId={activeCourseId}
+              courseName={stripParentheses(activeCourseName)}
+              onlineUserIds={onlineUserIds}
+              onClose={() => setShowDetails(false)}
+              onNameOverride={(name) => setNameOverride(name)}
+              onMuteChange={(muted) => setIsMuted(muted)}
+              isSystemCourse={isSystemCourse}
+            />
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

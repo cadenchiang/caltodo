@@ -6,6 +6,7 @@ import { format } from "date-fns";
 import { CalendarDays, Loader2, Tag, UserPlus, X } from "lucide-react";
 import type { TaskInsert } from "@/lib/types";
 import { TASK_COLORS, DEFAULT_TASK_COLOR } from "@/lib/constants";
+import { getRepeatLabel } from "@/lib/repeat";
 import { useTaskContext } from "@/contexts/TaskContext";
 import useClickOutside from "@/hooks/useClickOutside";
 import { useDebounce } from "@/hooks/useDebounce";
@@ -72,6 +73,22 @@ function computePosition(anchorRect: DOMRect): { top: number; left: number } {
  * @param onClose - Callback to close the popover
  * @param onAdd - Callback with the new task data
  */
+type RepeatUnit = "day" | "week" | "month";
+
+/**
+ * Formats a 24-hour time string "HH:MM" to 12-hour format "h:mm AM/PM".
+ *
+ * @param time24 - Time string in "HH:MM" format (e.g. "14:30")
+ * @returns Formatted time string (e.g. "2:30 PM")
+ */
+function formatTime12h(time24: string): string {
+  const [hourStr, minute] = time24.split(":");
+  const hour = parseInt(hourStr, 10);
+  const ampm = hour >= 12 ? "PM" : "AM";
+  const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+  return `${hour12}:${minute} ${ampm}`;
+}
+
 export default function TaskAddPopover({ date, anchorRect, onClose, onAdd }: TaskAddPopoverProps) {
   const { availableTags } = useTaskContext();
   const [title, setTitle] = useState("");
@@ -80,6 +97,10 @@ export default function TaskAddPopover({ date, anchorRect, onClose, onAdd }: Tas
   const [dueDate, setDueDate] = useState<string>(date);
   const [dueTime, setDueTime] = useState<string | null>(null);
   const [tags, setTags] = useState<string[]>([]);
+  const [repeatInterval, setRepeatInterval] = useState<number | null>(null);
+  const [repeatUnit, setRepeatUnit] = useState<RepeatUnit | null>(null);
+  const [repeatEndDate, setRepeatEndDate] = useState<string | null>(null);
+  const [repeatEndCount, setRepeatEndCount] = useState<number | null>(null);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTagPicker, setShowTagPicker] = useState(false);
@@ -186,6 +207,10 @@ export default function TaskAddPopover({ date, anchorRect, onClose, onAdd }: Tas
       description: description.trim() || "",
       color,
       tags: tags.length > 0 ? tags : undefined,
+      repeat_interval: repeatInterval,
+      repeat_unit: repeatUnit,
+      repeat_end_date: repeatEndDate,
+      repeat_end_count: repeatEndCount,
       inviteEmails: invitedUsers.length > 0 ? invitedUsers.map((u) => u.email) : undefined,
     });
     onClose();
@@ -258,7 +283,7 @@ export default function TaskAddPopover({ date, anchorRect, onClose, onAdd }: Tas
               <CalendarDays size={14} />
               <span>{format(new Date(dueDate + "T00:00:00"), "MMM d")}</span>
               {dueTime && (
-                <span className="text-blue-500 font-medium">{dueTime}</span>
+                <span className="text-blue-500 font-medium">{formatTime12h(dueTime)}</span>
               )}
             </button>
 
@@ -283,6 +308,13 @@ export default function TaskAddPopover({ date, anchorRect, onClose, onAdd }: Tas
             {tags.length > 0 && (
               <span className="text-[10px] text-blue-500 bg-blue-50 dark:bg-blue-900/30 px-1.5 py-0.5 rounded shrink-0">
                 {tags.length === 1 ? tags[0] : `${tags.length} tags`}
+              </span>
+            )}
+
+            {/* Repeat badge */}
+            {repeatInterval && repeatUnit && (
+              <span className="text-[10px] text-purple-500 bg-purple-50 dark:bg-purple-900/30 px-1.5 py-0.5 rounded shrink-0">
+                {getRepeatLabel(repeatInterval, repeatUnit)}
               </span>
             )}
 
@@ -356,6 +388,22 @@ export default function TaskAddPopover({ date, anchorRect, onClose, onAdd }: Tas
                   if (d) setDueDate(d);
                 }}
                 onTimeChange={(t) => setDueTime(t)}
+                repeatInterval={repeatInterval}
+                repeatUnit={repeatUnit}
+                onRepeatChange={(interval, unit) => {
+                  setRepeatInterval(interval);
+                  setRepeatUnit(unit);
+                  if (!interval || !unit) {
+                    setRepeatEndDate(null);
+                    setRepeatEndCount(null);
+                  }
+                }}
+                repeatEndDate={repeatEndDate}
+                repeatEndCount={repeatEndCount}
+                onRepeatEndChange={(endDate, endCount) => {
+                  setRepeatEndDate(endDate);
+                  setRepeatEndCount(endCount);
+                }}
               />
             </Popover>
 

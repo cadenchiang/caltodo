@@ -5,6 +5,7 @@
 
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
 
@@ -29,6 +30,30 @@ export async function GET() {
   }
 
   try {
+    // Auto-enroll user in CalTodo Fam if not already a member
+    const { data: initialData } = await supabase.rpc("get_user_boards");
+    const hasFam = (initialData ?? []).some(
+      (r: { course_source: string }) => r.course_source === "system"
+    );
+
+    if (!hasFam) {
+      const admin = createAdminClient();
+      const { data: famCourse } = await admin
+        .from("courses")
+        .select("id")
+        .eq("source", "system")
+        .eq("external_id", "caltodo-fam")
+        .single();
+
+      if (famCourse) {
+        await admin.from("course_memberships").upsert(
+          { user_id: user.id, course_id: famCourse.id },
+          { onConflict: "user_id,course_id" }
+        );
+        logger.info("Auto-enrolled user in CalTodo Fam", { userId: user.id });
+      }
+    }
+
     const { data, error } = await supabase.rpc("get_user_boards");
 
     if (error) {
