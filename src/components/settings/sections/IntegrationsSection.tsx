@@ -78,76 +78,40 @@ const ADD_OPTIONS: Array<{
  */
 export default function IntegrationsSection() {
   const router = useRouter();
-  /** Whether the dropdown is logically open (controls mount). */
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  /** Whether the dropdown is animating closed (plays exit animation before unmount). */
-  const [dropdownClosing, setDropdownClosing] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  /** Ref tracking open state so the outside-click listener always reads the latest value. */
-  const openRef = useRef(false);
-  openRef.current = dropdownOpen;
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  const dropdownVisible = dropdownOpen || dropdownClosing;
-
-  /**
-   * Triggers the close animation; unmounts via onAnimationEnd.
-   */
-  function startClose() {
-    setDropdownOpen(false);
-    setDropdownClosing(true);
-  }
-
-  /**
-   * Toggles the dropdown open/closed.
-   */
-  function toggleDropdown() {
-    if (openRef.current) {
-      startClose();
-    } else {
-      setDropdownClosing(false);
-      setDropdownOpen(true);
-    }
-  }
-
-  // Always-active outside-click listener; checks ref for current open state
+  // Close on any click outside the container
   useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (!openRef.current) return;
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setDropdownOpen(false);
-        setDropdownClosing(true);
+    if (!open) return;
+    function handleMouseDown(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
       }
     }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
+    document.addEventListener("mousedown", handleMouseDown);
+    return () => document.removeEventListener("mousedown", handleMouseDown);
+  }, [open]);
 
   return (
     <section>
       <div className="flex items-center justify-between mb-1">
         <h2 className="text-lg font-semibold text-foreground">Integrations</h2>
-        <div className="relative" ref={dropdownRef}>
+        <div className="relative" ref={containerRef}>
           <button
-            onClick={toggleDropdown}
+            onClick={() => setOpen((v) => !v)}
             className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
             aria-label="Add integration"
           >
             <Plus size={18} />
           </button>
-          {dropdownVisible && (
-            <div
-              className={`absolute right-0 top-full mt-1 w-48 bg-popover border border-border rounded-xl shadow-lg z-50 p-1 origin-top-right overflow-hidden ${
-                dropdownClosing ? "animate-popover-out" : "animate-popover-in"
-              }`}
-              onAnimationEnd={() => {
-                if (dropdownClosing) setDropdownClosing(false);
-              }}
-            >
+          {open && (
+            <div className="absolute right-0 top-full mt-1 w-48 bg-popover border border-border rounded-xl shadow-lg z-50 p-1 origin-top-right overflow-hidden animate-popover-in">
               {ADD_OPTIONS.map((opt) => (
                 <button
                   key={opt.id}
                   onClick={() => {
-                    startClose();
+                    setOpen(false);
                     if (opt.id === "gcal") {
                       window.location.href = opt.route;
                     } else {

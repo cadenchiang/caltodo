@@ -12,6 +12,9 @@ import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
 import type { IntegrationCredentials, CredentialsSavePayload } from "@/lib/types";
 
+/** Base columns selected from integration_credentials (excludes additional_canvas_accounts for fallback). */
+const BASE_SELECT = "canvas_token, canvas_base_url, gradescope_email, gradescope_password_encrypted, last_synced_at, selected_canvas_courses, selected_gradescope_courses, selected_pensieve_courses, google_access_token_encrypted, google_calendar_id, google_email, google_photo_url, canvas_token_created_at, is_founding_member, pensieve_calendar_url, gradescope_auth_failed";
+
 /**
  * GET /api/credentials
  * Returns the user's integration credentials.
@@ -30,11 +33,21 @@ export async function GET() {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
 
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from("integration_credentials")
-    .select("canvas_token, canvas_base_url, gradescope_email, gradescope_password_encrypted, last_synced_at, selected_canvas_courses, selected_gradescope_courses, selected_pensieve_courses, google_access_token_encrypted, google_calendar_id, google_email, google_photo_url, canvas_token_created_at, is_founding_member, pensieve_calendar_url, gradescope_auth_failed, additional_canvas_accounts")
+    .select(`${BASE_SELECT}, additional_canvas_accounts`)
     .eq("user_id", user.id)
     .single();
+
+  // If the additional_canvas_accounts column doesn't exist yet, retry without it
+  if (error && error.code !== "PGRST116" && error.message?.includes("additional_canvas_accounts")) {
+    logger.warn("GET /api/credentials — additional_canvas_accounts column missing, retrying without it", { userId: user.id });
+    ({ data, error } = await supabase
+      .from("integration_credentials")
+      .select(BASE_SELECT)
+      .eq("user_id", user.id)
+      .single());
+  }
 
   if (error && error.code !== "PGRST116") {
     // PGRST116 = no rows found, which is fine for new users
@@ -172,11 +185,21 @@ export async function PUT(request: Request) {
   logger.info("PUT /api/credentials success", { userId: user.id });
 
   // Return updated credentials
-  const { data: updated, error: readError } = await supabase
+  let { data: updated, error: readError } = await supabase
     .from("integration_credentials")
-    .select("canvas_token, canvas_base_url, gradescope_email, gradescope_password_encrypted, last_synced_at, selected_canvas_courses, selected_gradescope_courses, selected_pensieve_courses, google_access_token_encrypted, google_calendar_id, google_email, google_photo_url, canvas_token_created_at, is_founding_member, pensieve_calendar_url, gradescope_auth_failed, additional_canvas_accounts")
+    .select(`${BASE_SELECT}, additional_canvas_accounts`)
     .eq("user_id", user.id)
     .single();
+
+  // Retry without additional_canvas_accounts if column doesn't exist yet
+  if (readError && readError.message?.includes("additional_canvas_accounts")) {
+    logger.warn("PUT /api/credentials — additional_canvas_accounts column missing, retrying without it", { userId: user.id });
+    ({ data: updated, error: readError } = await supabase
+      .from("integration_credentials")
+      .select(BASE_SELECT)
+      .eq("user_id", user.id)
+      .single());
+  }
 
   if (readError || !updated) {
     logger.error("PUT /api/credentials — re-read failed after upsert", { userId: user.id, error: readError?.message });

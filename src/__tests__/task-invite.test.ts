@@ -272,9 +272,17 @@ describe("POST /api/tasks/invite — success path", () => {
       error: null,
     });
 
-    // Admin: task copy insert
+    // Admin: share insert (uses admin client to bypass RLS)
     mockAdminFrom.mockReturnValue(
-      chainMock({ data: { id: "copied-task-1" }, error: null })
+      chainMock({
+        data: {
+          id: SHARE_ID, source_task_id: TASK_ID, inviter_id: INVITER_ID,
+          invitee_id: INVITEE_ID, copied_task_id: null,
+          invitee_email: INVITEE_EMAIL, status: "pending",
+          created_at: new Date().toISOString(),
+        },
+        error: null,
+      })
     );
 
     const { POST } = await import("@/app/api/tasks/invite/route");

@@ -355,7 +355,7 @@ export default function GoogleCalendarSettings() {
                 Real-time
               </span>
             </div>
-            <p className="text-xs text-muted-foreground truncate">
+            <p className="text-xs text-muted-foreground truncate" suppressHydrationWarning>
               {isConnectedOrConnecting && googleEmail
                 ? googleEmail
                 : "Sync tasks to Google Calendar in real time"}
