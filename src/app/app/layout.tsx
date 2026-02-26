@@ -57,8 +57,8 @@ export default async function AppLayout({
             <MobileTabBar />
             <NotificationCenter />
             <CanvasTokenExpiredModal />
-            <PensieveAnnouncementModal />
-            <FeedbackModal />
+            <PensieveAnnouncementModal userCreatedAt={session.user.created_at} />
+            <FeedbackModal userCreatedAt={session.user.created_at} />
             </InboxTour>
           </TaskProvider>
         </NotificationProvider>

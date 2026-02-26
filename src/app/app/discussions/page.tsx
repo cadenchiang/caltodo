@@ -1,0 +1,104 @@
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useDiscussionBoards } from "@/hooks/useDiscussionBoards";
+
+const MSG_CACHE = "chat_messages_cache_";
+const MEM_CACHE = "chat_members_cache_";
+const CACHE_TTL = 5 * 60_000;
+
+/**
+ * Checks if a fresh cache entry exists.
+ *
+ * @param key - SessionStorage key
+ * @returns true if valid cache exists
+ */
+function hasFreshCache(key: string): boolean {
+  try {
+    const raw = sessionStorage.getItem(key);
+    if (!raw) return false;
+    const entry = JSON.parse(raw);
+    return Date.now() - entry.timestamp < CACHE_TTL;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Prefetches messages for a course into sessionStorage.
+ *
+ * @param courseId - Course UUID
+ */
+async function prefetchMessages(courseId: string): Promise<void> {
+  try {
+    const res = await fetch(
+      `/api/discussions/messages?courseId=${encodeURIComponent(courseId)}&limit=50`
+    );
+    if (!res.ok) return;
+    const data = await res.json();
+    const sorted = [...data].reverse();
+    sessionStorage.setItem(
+      MSG_CACHE + courseId,
+      JSON.stringify({ messages: sorted.slice(0, 200), timestamp: Date.now() })
+    );
+  } catch { /* silent */ }
+}
+
+/**
+ * Prefetches members for a course into sessionStorage.
+ *
+ * @param courseId - Course UUID
+ */
+async function prefetchMembers(courseId: string): Promise<void> {
+  try {
+    const res = await fetch(
+      `/api/discussions/members?courseId=${encodeURIComponent(courseId)}`
+    );
+    if (!res.ok) return;
+    const data = await res.json();
+    sessionStorage.setItem(
+      MEM_CACHE + courseId,
+      JSON.stringify({ members: data, timestamp: Date.now() })
+    );
+  } catch { /* silent */ }
+}
+
+/**
+ * CalChat redirect page.
+ * Loads boards, prefetches all chat data, then redirects to the
+ * most recently active course chat (first board).
+ * Falls back to a loading state if no boards exist yet.
+ */
+export default function DiscussionsPage() {
+  const router = useRouter();
+  const { boards, loading } = useDiscussionBoards();
+
+  // Redirect to first board's chat as soon as boards load
+  useEffect(() => {
+    if (loading || boards.length === 0) return;
+
+    // Prefetch all chats in background
+    for (const board of boards) {
+      if (!hasFreshCache(MSG_CACHE + board.course.id)) {
+        prefetchMessages(board.course.id);
+      }
+      if (!hasFreshCache(MEM_CACHE + board.course.id)) {
+        prefetchMembers(board.course.id);
+      }
+    }
+
+    // Navigate to the first (most recent) chat
+    const first = boards[0];
+    router.replace(
+      `/app/discussions/${first.course.id}?name=${encodeURIComponent(first.course.name)}`
+    );
+  }, [boards, loading, router]);
+
+  // Show minimal loading state while boards load and redirect happens
+  return (
+    <div className="flex items-center justify-center h-full">
+      <div className="w-5 h-5 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
+    </div>
+  );
+}

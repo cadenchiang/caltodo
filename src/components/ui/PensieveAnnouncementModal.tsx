@@ -31,6 +31,9 @@ function markAnnounced(): void {
   }
 }
 
+/** Minimum account age in milliseconds before showing announcements (3 days). */
+const MIN_ACCOUNT_AGE_MS = 3 * 24 * 60 * 60 * 1000;
+
 /**
  * One-time modal announcing Pensieve to existing users who haven't configured it yet.
  *
@@ -43,11 +46,11 @@ function markAnnounced(): void {
  * - `caltodo_pensieve_announced` is NOT "true" in localStorage
  * - `pensieve_calendar_url` is null (user hasn't configured Pensieve)
  * - User IS existing: has canvas_token, gradescope_email, or last_synced_at
+ * - Account is at least 3 days old (prevents bombarding new users)
  *
- * Features smooth backdrop fade + card scale entrance, and a
- * matched exit animation before unmounting.
+ * @param userCreatedAt - ISO timestamp of when the user account was created
  */
-export default function PensieveAnnouncementModal() {
+export default function PensieveAnnouncementModal({ userCreatedAt }: { userCreatedAt?: string }) {
   const router = useRouter();
   /** Whether the modal should be visible (triggers entrance). */
   const [visible, setVisible] = useState(false);
@@ -56,6 +59,12 @@ export default function PensieveAnnouncementModal() {
 
   useEffect(() => {
     if (isAlreadyAnnounced()) return;
+
+    // Don't show to new users — wait at least 3 days
+    if (userCreatedAt) {
+      const accountAge = Date.now() - new Date(userCreatedAt).getTime();
+      if (accountAge < MIN_ACCOUNT_AGE_MS) return;
+    }
 
     async function checkEligibility() {
       try {
@@ -79,7 +88,7 @@ export default function PensieveAnnouncementModal() {
     }
 
     checkEligibility();
-  }, []);
+  }, [userCreatedAt]);
 
   /**
    * Plays the exit animation, marks as announced, then unmounts.

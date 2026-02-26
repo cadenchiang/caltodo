@@ -1,9 +1,13 @@
 "use client";
 
+import { useEffect } from "react";
+
 /**
  * Error boundary for the authenticated app routes.
  * Catches unhandled render errors and shows a recovery UI
  * instead of a white screen crash.
+ *
+ * For ChunkLoadError (stale deployments), auto-reloads the page once.
  *
  * @param error - The error that was thrown
  * @param reset - Function to retry rendering the failed component tree
@@ -15,6 +19,17 @@ export default function AppError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  useEffect(() => {
+    const isChunkError =
+      error.name === "ChunkLoadError" ||
+      error.message?.includes("Loading chunk") ||
+      error.message?.includes("Failed to load chunk");
+
+    if (isChunkError) {
+      window.location.reload();
+    }
+  }, [error]);
+
   return (
     <div className="flex flex-col items-center justify-center h-full px-6 py-20 text-center">
       <h2 className="text-lg font-semibold text-foreground mb-2">
@@ -24,10 +39,10 @@ export default function AppError({
         {error.message || "An unexpected error occurred. Please try again."}
       </p>
       <button
-        onClick={reset}
+        onClick={() => window.location.reload()}
         className="px-4 py-2 text-sm font-medium bg-foreground text-background rounded-xl hover:opacity-90 transition-opacity"
       >
-        Try again
+        Reload page
       </button>
     </div>
   );

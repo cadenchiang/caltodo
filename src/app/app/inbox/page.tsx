@@ -197,6 +197,8 @@ export default function InboxPage() {
   const [loadingCourses, setLoadingCourses] = useState(false);
   const filterRef = useRef<HTMLDivElement>(null);
   const filterDropdownRef = useRef<HTMLDivElement>(null);
+  /** Guards persist effects from running on mount (which would overwrite hydrated values). */
+  const hydratedRef = useRef(false);
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [showViewMenu, setShowViewMenu] = useState(false);
   const viewMenuRef = useRef<HTMLButtonElement>(null);
@@ -217,6 +219,7 @@ export default function InboxPage() {
     if (savedSort) setSortMode(savedSort);
     const savedGroup = localStorage.getItem("inbox-board-group") as "class" | "date" | null;
     if (savedGroup) setBoardGroupBy(savedGroup);
+    hydratedRef.current = true;
   }, []);
 
   // Fetch pending invites on mount
@@ -369,18 +372,19 @@ export default function InboxPage() {
     };
   }, [showFilterDropdown]);
 
-  // Persist view mode to localStorage
+  // Persist preferences to localStorage (skip mount to avoid overwriting hydrated values)
   useEffect(() => {
+    if (!hydratedRef.current) return;
     localStorage.setItem("inbox-view-mode", viewMode);
   }, [viewMode]);
 
-  // Persist sort mode to localStorage
   useEffect(() => {
+    if (!hydratedRef.current) return;
     localStorage.setItem("inbox-sort-mode", sortMode);
   }, [sortMode]);
 
-  // Persist board group-by to localStorage
   useEffect(() => {
+    if (!hydratedRef.current) return;
     localStorage.setItem("inbox-board-group", boardGroupBy);
   }, [boardGroupBy]);
 

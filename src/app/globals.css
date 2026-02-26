@@ -673,6 +673,24 @@ body {
   animation: syncBar 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
+/* Loading bar — fills left to right, pauses, resets */
+@keyframes loadingBar {
+  0% {
+    transform: scaleX(0);
+  }
+  60% {
+    transform: scaleX(1);
+  }
+  80% {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scaleX(1);
+    opacity: 0;
+  }
+}
+
 /* Elevated button — press-in hover effect (primary: dark bg, secondary: light bg) */
 .btn-elevated {
   border: 1px solid #e5e7eb;

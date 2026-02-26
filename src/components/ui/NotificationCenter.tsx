@@ -133,6 +133,8 @@ export default function NotificationCenter() {
   const panelRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
+  const hideOnChat = pathname.startsWith("/app/discussions");
+
   /**
    * Opens the notification panel with entry animation.
    * Auto-marks all notifications as read on open.
@@ -210,8 +212,8 @@ export default function NotificationCenter() {
     return () => document.removeEventListener("keydown", handleEscape);
   }, [isVisible, closePanel]);
 
-  // Hide during onboarding
-  if (pathname?.startsWith("/app/onboarding")) return null;
+  // Hide during onboarding or CalChat
+  if (pathname?.startsWith("/app/onboarding") || hideOnChat) return null;
 
   return (
     <>

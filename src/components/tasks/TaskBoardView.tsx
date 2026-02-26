@@ -475,10 +475,10 @@ export default function TaskBoardView({
         </div>
       </SortableContext>
 
-      {/* Floating drag overlay — fully visible, slightly tilted */}
+      {/* Floating drag overlay — follows cursor with subtle shadow */}
       <DragOverlay dropAnimation={{ duration: 200, easing: "ease" }}>
         {activeId && activeColumnTasks && (
-          <div className="min-w-[280px] max-w-[320px] opacity-90 shadow-2xl rotate-[2deg] scale-[1.02]">
+          <div className="min-w-[280px] max-w-[320px] opacity-95 shadow-2xl cursor-grabbing" style={{ willChange: "transform" }}>
             <BoardColumn
               name={activeId}
               displayName={isDateMode ? activeId : (aliases.get(activeId) || activeId)}
@@ -547,7 +547,19 @@ function BoardColumn({
   onColorChange,
   onDeleteClass,
 }: BoardColumnProps) {
+  const BOARD_ITEMS_LIMIT = 5;
   const [completedExpanded, setCompletedExpanded] = useState(true);
+  const [showAllActive, setShowAllActive] = useState(false);
+  const [showAllCompleted, setShowAllCompleted] = useState(false);
+
+  // Hydrate collapsed state from localStorage after mount
+  useEffect(() => {
+    try {
+      const key = `caltodo_board_completed_${name}`;
+      const saved = localStorage.getItem(key);
+      if (saved === "false") setCompletedExpanded(false);
+    } catch { /* ignore */ }
+  }, [name]);
   const [showMenu, setShowMenu] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -781,7 +793,7 @@ function BoardColumn({
       {/* Scrollable card area */}
       <div className="flex-1 overflow-y-auto flex flex-col gap-2">
         {/* Active task cards */}
-        {active.map((task) => (
+        {(showAllActive ? active : active.slice(0, BOARD_ITEMS_LIMIT)).map((task) => (
           <TaskCard
             key={task.id}
             task={task}
@@ -791,6 +803,14 @@ function BoardColumn({
             onDelete={onDelete}
           />
         ))}
+        {active.length > BOARD_ITEMS_LIMIT && (
+          <button
+            onClick={() => setShowAllActive(!showAllActive)}
+            className="py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors w-full text-left px-1"
+          >
+            {showAllActive ? "Show less" : `+${active.length - BOARD_ITEMS_LIMIT} more`}
+          </button>
+        )}
 
         {active.length === 0 && completed.length === 0 && (
           hideMenu ? (
@@ -812,7 +832,11 @@ function BoardColumn({
         {completed.length > 0 && (
           <div className="mt-2">
             <button
-              onClick={() => setCompletedExpanded(!completedExpanded)}
+              onClick={() => {
+                const next = !completedExpanded;
+                setCompletedExpanded(next);
+                try { localStorage.setItem(`caltodo_board_completed_${name}`, String(next)); } catch { /* ignore */ }
+              }}
               className="flex items-center gap-1 px-1 py-1.5 w-full text-left"
             >
               <ChevronDown
@@ -826,7 +850,7 @@ function BoardColumn({
             </button>
             {completedExpanded && (
               <div className="flex flex-col gap-2 mt-1">
-                {completed.map((task) => (
+                {(showAllCompleted ? completed : completed.slice(0, BOARD_ITEMS_LIMIT)).map((task) => (
                   <TaskCard
                     key={task.id}
                     task={task}
@@ -836,6 +860,14 @@ function BoardColumn({
                     onDelete={onDelete}
                   />
                 ))}
+                {completed.length > BOARD_ITEMS_LIMIT && (
+                  <button
+                    onClick={() => setShowAllCompleted(!showAllCompleted)}
+                    className="py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors w-full text-left px-1"
+                  >
+                    {showAllCompleted ? "Show less" : `+${completed.length - BOARD_ITEMS_LIMIT} more`}
+                  </button>
+                )}
               </div>
             )}
           </div>

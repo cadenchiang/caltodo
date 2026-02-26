@@ -10,6 +10,8 @@ import { fetchAllGradescopeAssignments, fetchGradescopeAssignmentsForCourses } f
 import { fetchPensieveAssignments, PENSIEVE_COLOR } from "@/lib/pensieve-client";
 import { decrypt } from "@/lib/crypto";
 import { logger } from "@/lib/logger";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { syncCourseEnrollments, gatherEnrollableCourses } from "@/lib/course-enrollment";
 import type { SyncResult, SyncSourceResult, AdditionalCanvasAccount } from "@/lib/types";
 
 const UPSERT_BATCH_SIZE = 50;
@@ -148,6 +150,21 @@ export async function runSync(
     pensieveSynced: pensieveResult.synced,
     pensieveErrors: pensieveResult.errors.length,
   });
+
+  // Auto-enroll user into discussion boards for their synced courses.
+  // Uses (source, external_id) as dedup key so name changes don't split boards.
+  try {
+    const adminClient = createAdminClient();
+    const enrollable = gatherEnrollableCourses(credentials);
+    await syncCourseEnrollments(adminClient, userId, enrollable);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    logger.error("runSync: course enrollment failed (non-blocking)", {
+      userId,
+      error: message,
+    });
+    // Enrollment failure is non-blocking — sync results are still valid
+  }
 
   return {
     canvas: canvasResult,

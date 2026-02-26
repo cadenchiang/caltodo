@@ -4,6 +4,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import PostHogProvider from "@/components/PostHogProvider";
 import PostHogPageView from "@/components/PostHogPageView";
+import ChunkErrorRecovery from "@/components/ChunkErrorRecovery";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -132,9 +133,11 @@ export default function RootLayout({
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${instrumentSerif.variable} antialiased`}
+        suppressHydrationWarning
       >
         <PostHogProvider>
           <PostHogPageView />
+          <ChunkErrorRecovery />
           <ThemeProvider>
             {children}
           </ThemeProvider>

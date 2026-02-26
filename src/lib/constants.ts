@@ -1,4 +1,4 @@
-import { Inbox, CalendarDays } from "lucide-react";
+import { Inbox, CalendarDays, MessageSquare } from "lucide-react";
 
 /**
  * Navigation items for the sidebar.
@@ -7,6 +7,7 @@ import { Inbox, CalendarDays } from "lucide-react";
 export const NAV_ITEMS = [
   { label: "Inbox", href: "/app/inbox", icon: Inbox },
   { label: "Calendar", href: "/app/calendar", icon: CalendarDays },
+  { label: "CalChat", href: "/app/discussions", icon: MessageSquare },
 ] as const;
 
 /**

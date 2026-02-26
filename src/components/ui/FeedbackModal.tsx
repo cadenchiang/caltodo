@@ -31,6 +31,9 @@ function markFeedbackDismissed(): void {
   }
 }
 
+/** Minimum account age in milliseconds before showing feedback (3 days). */
+const MIN_ACCOUNT_AGE_MS = 3 * 24 * 60 * 60 * 1000;
+
 /**
  * One-time feedback modal shown to existing users asking for NPS score
  * and optional text feedback.
@@ -41,14 +44,14 @@ function markFeedbackDismissed(): void {
  * **Show conditions** (all must be true):
  * - `caltodo_feedback_dismissed` is NOT "true" in localStorage
  * - User IS existing: has canvas_token, gradescope_email, or last_synced_at
+ * - Account is at least 3 days old (prevents bombarding new users)
  *
  * Submits feedback via POST /api/contact with message format:
  * "[Feedback] NPS: X/10 — <optional text>"
  *
- * Features smooth backdrop fade + card scale entrance matching
- * PensieveAnnouncementModal animations.
+ * @param userCreatedAt - ISO timestamp of when the user account was created
  */
-export default function FeedbackModal() {
+export default function FeedbackModal({ userCreatedAt }: { userCreatedAt?: string }) {
   /** Whether the modal should be visible (triggers entrance). */
   const [visible, setVisible] = useState(false);
   /** Whether the exit animation is playing (prevents unmount until done). */
@@ -62,6 +65,12 @@ export default function FeedbackModal() {
 
   useEffect(() => {
     if (isFeedbackDismissed()) return;
+
+    // Don't show to new users — wait at least 3 days
+    if (userCreatedAt) {
+      const accountAge = Date.now() - new Date(userCreatedAt).getTime();
+      if (accountAge < MIN_ACCOUNT_AGE_MS) return;
+    }
 
     async function checkEligibility() {
       try {
@@ -83,7 +92,7 @@ export default function FeedbackModal() {
     }
 
     checkEligibility();
-  }, []);
+  }, [userCreatedAt]);
 
   /**
    * Plays the exit animation, marks as dismissed, then unmounts.

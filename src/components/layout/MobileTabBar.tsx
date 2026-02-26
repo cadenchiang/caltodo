@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { Inbox, CalendarDays, Settings, Sun, CalendarRange } from "lucide-react";
+import { Inbox, CalendarDays, Settings, Sun, CalendarRange, MessageSquare } from "lucide-react";
 import { useState, useEffect } from "react";
 
 /** localStorage keys for GCal status. */
@@ -18,13 +18,15 @@ const GCAL_BANNER_DISMISSED_KEY = "gcal_banner_dismissed";
 export default function MobileTabBar() {
   const pathname = usePathname();
   const [showCalBadge, setShowCalBadge] = useState(false);
-  const [inboxFilter, setInboxFilter] = useState<string>(() => {
+  const [inboxFilter, setInboxFilter] = useState<string>("all");
+
+  // Hydrate inbox filter from localStorage after mount to avoid SSR mismatch
+  useEffect(() => {
     try {
-      return localStorage.getItem("inbox-filter") || "all";
-    } catch {
-      return "all";
-    }
-  });
+      const saved = localStorage.getItem("inbox-filter");
+      if (saved) setInboxFilter(saved);
+    } catch { /* ignore */ }
+  }, []);
 
   // Listen for filter changes dispatched by InboxPage
   useEffect(() => {
@@ -124,6 +126,12 @@ export default function MobileTabBar() {
       href: "/app/calendar",
       icon: CalendarDays,
       badge: showCalBadge,
+    },
+    {
+      label: "CalChat",
+      href: "/app/discussions",
+      icon: MessageSquare,
+      badge: false,
     },
     {
       label: "Settings",

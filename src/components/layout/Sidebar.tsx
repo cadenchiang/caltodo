@@ -44,10 +44,15 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
   const isMiffy = colorTheme === "miffy";
   const isDark = resolvedTheme === "dark";
   const isSettings = pathname.startsWith("/app/settings");
-  const [inboxFilter, setInboxFilter] = useState<string>(() => {
-    try { return localStorage.getItem("inbox-filter") || "all"; }
-    catch { return "all"; }
-  });
+  const [inboxFilter, setInboxFilter] = useState<string>("all");
+
+  // Hydrate inbox filter from localStorage after mount to avoid SSR mismatch
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("inbox-filter");
+      if (saved) setInboxFilter(saved);
+    } catch { /* ignore */ }
+  }, []);
   const [showCalBadge, setShowCalBadge] = useState(false);
 
   // Derive active settings section directly from URL search params (single source of truth)
@@ -184,8 +189,8 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
                         isActive
                           ? isMiffy
                             ? "bg-[#fce8ef] dark:bg-[rgba(232,114,154,0.12)] text-foreground"
-                            : "bg-accent text-foreground"
-                          : "text-foreground hover:bg-accent"
+                            : "bg-gray-200 dark:bg-zinc-700 text-foreground"
+                          : "text-foreground hover:bg-gray-100 dark:hover:bg-zinc-800"
                       }`}
                     >
                       <Icon size={16} className="shrink-0" />
@@ -201,6 +206,7 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
             {NAV_ITEMS.map((item) => {
               const isInbox = item.href === "/app/inbox";
               const isCalendar = item.href === "/app/calendar";
+              const isChat = item.href === "/app/discussions";
               return (
                 <SidebarNavItem
                   key={item.href}
@@ -208,7 +214,10 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
                   href={item.href}
                   icon={isInbox ? inboxConfig.icon : item.icon}
                   badge={isCalendar && showCalBadge}
+                  badgeText={isChat ? "NEW" : undefined}
                   id={`tour-nav-${item.label.toLowerCase()}`}
+                  imageSrc={undefined}
+                  imageClassName={undefined}
                 />
               );
             })}

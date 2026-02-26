@@ -91,8 +91,13 @@ export default function CalendarFeedSettings() {
    *
    * @returns Absolute URL to the iCal feed endpoint, or null
    */
-  const feedUrl = calendarToken
-    ? `${typeof window !== "undefined" ? window.location.origin : ""}/api/calendar/feed?token=${calendarToken}`
+  const [origin, setOrigin] = useState("");
+  useEffect(() => {
+    setOrigin(window.location.origin);
+  }, []);
+
+  const feedUrl = calendarToken && origin
+    ? `${origin}/api/calendar/feed?token=${calendarToken}`
     : null;
 
   /**

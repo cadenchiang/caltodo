@@ -1,0 +1,202 @@
+/**
+ * Auto-enrolls users into normalized course records during sync.
+ * Courses are deduped by (source, external_id) — the platform's stable course ID —
+ * so display-name changes never split users into different boards.
+ *
+ * Uses the admin client to bypass RLS for upserts (courses table is read-only
+ * for regular users).
+ *
+ * @module course-enrollment
+ */
+
+import { SupabaseClient } from "@supabase/supabase-js";
+import { logger } from "@/lib/logger";
+
+/**
+ * A course to enroll, gathered from integration credentials.
+ *
+ * @param source - Integration source ("canvas", "gradescope", "pensieve")
+ * @param external_id - Stable course ID from the platform (Canvas numeric ID, Gradescope course ID, etc.)
+ * @param name - Current display name from the platform
+ */
+export interface EnrollableCourse {
+  source: "canvas" | "gradescope" | "pensieve";
+  external_id: string;
+  name: string;
+}
+
+/**
+ * Upserts courses into the courses table and creates memberships for the user.
+ * Uses (source, external_id) as the dedup key so that:
+ * - Two users syncing the same Canvas course ID land on the same board
+ * - Name changes on the platform update the display name without creating duplicates
+ *
+ * @param adminClient - Supabase admin client (service role, bypasses RLS)
+ * @param userId - The authenticated user's ID
+ * @param courses - Array of courses to enroll the user in
+ * @returns Number of memberships created or confirmed
+ */
+export async function syncCourseEnrollments(
+  adminClient: SupabaseClient,
+  userId: string,
+  courses: EnrollableCourse[]
+): Promise<number> {
+  if (courses.length === 0) {
+    logger.info("syncCourseEnrollments: no courses to enroll", { userId });
+    return 0;
+  }
+
+  // Deduplicate input by (source, external_id) — take last occurrence (most recent name)
+  const deduped = new Map<string, EnrollableCourse>();
+  for (const c of courses) {
+    deduped.set(`${c.source}:${c.external_id}`, c);
+  }
+  const uniqueCourses = Array.from(deduped.values());
+
+  logger.info("syncCourseEnrollments: upserting courses", {
+    userId,
+    courseCount: uniqueCourses.length,
+  });
+
+  // Upsert courses — update name on conflict so display stays current
+  const courseRows = uniqueCourses.map((c) => ({
+    source: c.source,
+    external_id: c.external_id,
+    name: c.name,
+  }));
+
+  const { error: courseError } = await adminClient
+    .from("courses")
+    .upsert(courseRows, { onConflict: "source,external_id" });
+
+  if (courseError) {
+    logger.error("syncCourseEnrollments: course upsert failed", {
+      userId,
+      error: courseError.message,
+    });
+    return 0;
+  }
+
+  // Fetch the course IDs for the upserted courses
+  const courseIds: string[] = [];
+  for (const c of uniqueCourses) {
+    const { data, error } = await adminClient
+      .from("courses")
+      .select("id")
+      .eq("source", c.source)
+      .eq("external_id", c.external_id)
+      .single();
+
+    if (error || !data) {
+      logger.warn("syncCourseEnrollments: could not find course after upsert", {
+        userId,
+        source: c.source,
+        external_id: c.external_id,
+        error: error?.message,
+      });
+      continue;
+    }
+    courseIds.push(data.id);
+  }
+
+  if (courseIds.length === 0) {
+    logger.warn("syncCourseEnrollments: no course IDs resolved", { userId });
+    return 0;
+  }
+
+  // Upsert memberships — ignore conflicts (already enrolled)
+  const membershipRows = courseIds.map((courseId) => ({
+    user_id: userId,
+    course_id: courseId,
+  }));
+
+  const { error: membershipError } = await adminClient
+    .from("course_memberships")
+    .upsert(membershipRows, { onConflict: "user_id,course_id", ignoreDuplicates: true });
+
+  if (membershipError) {
+    logger.error("syncCourseEnrollments: membership upsert failed", {
+      userId,
+      error: membershipError.message,
+    });
+    return 0;
+  }
+
+  logger.info("syncCourseEnrollments: complete", {
+    userId,
+    coursesUpserted: uniqueCourses.length,
+    membershipsCreated: courseIds.length,
+  });
+
+  return courseIds.length;
+}
+
+/**
+ * Gathers enrollable courses from integration credentials.
+ * Extracts selected courses from Canvas, Gradescope, Pensieve,
+ * and additional Canvas accounts.
+ *
+ * @param credentials - The user's integration credentials row
+ * @returns Array of enrollable courses with source + stable external_id + display name
+ */
+export function gatherEnrollableCourses(credentials: {
+  selected_canvas_courses?: Array<{ id: number; name: string }> | null;
+  selected_gradescope_courses?: Array<{ id: string; name: string }> | null;
+  selected_pensieve_courses?: Array<{ id: string; name: string }> | null;
+  additional_canvas_accounts?: Array<{
+    id: string;
+    selected_courses: Array<{ id: number; name: string }> | null;
+  }>;
+}): EnrollableCourse[] {
+  const courses: EnrollableCourse[] = [];
+
+  // Canvas primary account courses
+  if (credentials.selected_canvas_courses) {
+    for (const c of credentials.selected_canvas_courses) {
+      courses.push({
+        source: "canvas",
+        external_id: String(c.id),
+        name: c.name,
+      });
+    }
+  }
+
+  // Gradescope courses
+  if (credentials.selected_gradescope_courses) {
+    for (const c of credentials.selected_gradescope_courses) {
+      courses.push({
+        source: "gradescope",
+        external_id: c.id,
+        name: c.name,
+      });
+    }
+  }
+
+  // Pensieve courses
+  if (credentials.selected_pensieve_courses) {
+    for (const c of credentials.selected_pensieve_courses) {
+      courses.push({
+        source: "pensieve",
+        external_id: c.id,
+        name: c.name,
+      });
+    }
+  }
+
+  // Additional Canvas accounts — namespace external_id with account ID
+  if (credentials.additional_canvas_accounts) {
+    for (const account of credentials.additional_canvas_accounts) {
+      if (account.selected_courses) {
+        for (const c of account.selected_courses) {
+          courses.push({
+            source: "canvas",
+            external_id: `${account.id}:${String(c.id)}`,
+            name: c.name,
+          });
+        }
+      }
+    }
+  }
+
+  return courses;
+}

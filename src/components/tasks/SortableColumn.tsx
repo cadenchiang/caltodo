@@ -44,7 +44,7 @@ export default function SortableColumn({ id, children }: SortableColumnProps) {
   } = useSortable({ id });
 
   const style: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
+    transform: CSS.Translate.toString(transform),
     transition,
     opacity: isDragging ? 0 : 1,
   };

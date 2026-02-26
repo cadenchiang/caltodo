@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
-import { trackEvent } from "@/lib/analytics";
+import { useGoogleSignIn } from "@/hooks/useGoogleSignIn";
 
 /**
  * Detects if the current browser is an in-app/embedded webview on mobile.
@@ -27,6 +26,7 @@ function isMobileInAppBrowser(): boolean {
  */
 export default function LoginForm() {
   const searchParams = useSearchParams();
+  const { handleGoogleSignIn, error: oauthError } = useGoogleSignIn();
   const [error, setError] = useState<string | null>(null);
   const [inAppBrowser, setInAppBrowser] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -34,6 +34,10 @@ export default function LoginForm() {
   useEffect(() => {
     setInAppBrowser(isMobileInAppBrowser());
   }, []);
+
+  useEffect(() => {
+    if (oauthError) setError(oauthError);
+  }, [oauthError]);
 
   useEffect(() => {
     const errorParam = searchParams.get("error");
@@ -49,116 +53,6 @@ export default function LoginForm() {
     navigator.clipboard.writeText("https://caltodo.me/login");
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-  }
-
-  /**
-   * Initiates Google OAuth sign-in via Supabase with @berkeley.edu restriction.
-   * Desktop: opens Google consent in a centered popup, polls for completion.
-   * Mobile: full-page redirect to Google, then back to /auth/callback.
-   * Falls back to redirect if popup is blocked by browser.
-   *
-   * The hd query param hints Google to only show @berkeley.edu accounts.
-   * Server-side validation in /auth/callback enforces this as a hard check.
-   */
-  async function handleGoogleSignIn() {
-    setError(null);
-    trackEvent("google_oauth_clicked");
-    const supabase = createClient();
-
-    const isDesktop = typeof window !== "undefined" && window.innerWidth >= 768;
-
-    if (isDesktop) {
-      // Open popup immediately (in the click handler) to avoid browser blocking.
-      // Navigating it after the async call preserves the user-gesture trust.
-      const width = 500;
-      const height = 600;
-      const left = window.screenX + (window.outerWidth - width) / 2;
-      const top = window.screenY + (window.outerHeight - height) / 2;
-      const popup = window.open(
-        "about:blank",
-        "google-auth",
-        `width=${width},height=${height},left=${left},top=${top},popup=true`
-      );
-
-      const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-          skipBrowserRedirect: true,
-          queryParams: { hd: "berkeley.edu", prompt: "select_account" },
-        },
-      });
-
-      if (oauthError) {
-        setError(oauthError.message);
-        popup?.close();
-        return;
-      }
-
-      if (data?.url) {
-        if (!popup || popup.closed) {
-          // Popup was closed before URL was ready — fall back to full redirect
-          await supabase.auth.signInWithOAuth({
-            provider: "google",
-            options: {
-              redirectTo: `${window.location.origin}/auth/callback`,
-              queryParams: { hd: "berkeley.edu", prompt: "select_account" },
-            },
-          });
-          return;
-        }
-
-        popup.location.href = data.url;
-
-        /**
-         * Polls the popup window until it either closes or navigates back to our
-         * origin (after the OAuth callback redirect). Once detected, closes the
-         * popup and navigates the main window to the destination.
-         */
-        const pollId = setInterval(async () => {
-          try {
-            if (!popup || popup.closed) {
-              clearInterval(pollId);
-              // Popup was closed — check if session was established via shared cookies
-              const { data: { session } } = await supabase.auth.getSession();
-              if (session) {
-                window.location.href = "/app/inbox";
-              }
-              return;
-            }
-
-            // Reading popup.location.href throws while on external domains (cross-origin).
-            // Once the callback redirects back to our origin, this succeeds.
-            const popupUrl = popup.location.href;
-
-            if (popupUrl.includes("/app/") || popupUrl.includes("/login")) {
-              clearInterval(pollId);
-              // Capture destination before closing
-              const destination = popupUrl.includes("/app/onboarding")
-                ? "/app/onboarding"
-                : "/app/inbox";
-              popup.close();
-              window.location.href = destination;
-            }
-          } catch {
-            // Cross-origin — popup is still on Google/Supabase domain, keep polling
-          }
-        }, 300);
-      }
-    } else {
-      // Mobile: use full-page redirect
-      const { error: oauthError } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-          queryParams: { hd: "berkeley.edu", prompt: "select_account" },
-        },
-      });
-
-      if (oauthError) {
-        setError(oauthError.message);
-      }
-    }
   }
 
   /* Full-page interstitial for mobile in-app browsers */
