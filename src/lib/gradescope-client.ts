@@ -432,18 +432,27 @@ export async function fetchGradescopeAssignments(
       rawLateDueDate = dueDateEls.eq(1).attr("datetime") || null;
     }
 
-    // Fallback when no .submissionTimeChart--dueDate found
+    // Fallback when no .submissionTimeChart--dueDate found.
+    // Generic [datetime] elements in a Gradescope row are ordered:
+    //   [released, due, late_due]
+    // A single [datetime] with no due-date class is the release date — skip it.
     if (!rawDate) {
-      const datetimeEls = $row.find("[datetime]");
+      const datetimeEls = $row.find("[datetime]").filter((_, el) => {
+        const cls = ($(el).attr("class") || "").toLowerCase();
+        const parentCls = ($(el).parent().attr("class") || "").toLowerCase();
+        // Exclude elements explicitly marked as release/open dates
+        return !cls.includes("release") && !parentCls.includes("release")
+          && !cls.includes("open") && !parentCls.includes("open");
+      });
       if (datetimeEls.length >= 2) {
-        // First is usually release date, second is due date
+        // First remaining is usually release date, second is due date
         rawDate = datetimeEls.eq(1).attr("datetime") || null;
         if (datetimeEls.length >= 3) {
           rawLateDueDate = datetimeEls.eq(2).attr("datetime") || null;
         }
-      } else if (datetimeEls.length === 1) {
-        rawDate = datetimeEls.eq(0).attr("datetime") || null;
       }
+      // Single generic [datetime] without a due-date class is likely
+      // the release date — do NOT treat it as a due date.
     }
 
     const dueDate = parseGradescopeDate(rawDate);

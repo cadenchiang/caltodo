@@ -597,4 +597,49 @@ describe("fetchGradescopeAssignments", () => {
     expect(result[0].points_possible).toBe(10);
     expect(result[0].is_submitted).toBe(true);
   });
+
+  it("should NOT treat a single generic [datetime] as a due date (release date bug)", async () => {
+    // When an assignment only has a release date and no due date,
+    // the single [datetime] element is the release date — not a due date.
+    const html = `
+      <html><body>
+        <table><tbody>
+          <tr role="row">
+            <th><a href="/courses/200/assignments/1001">Discussion 1</a></th>
+            <td><time datetime="2026-02-10 09:00:00 -0800">Feb 10</time></td>
+            <td></td>
+          </tr>
+        </tbody></table>
+      </body></html>
+    `;
+    mockFetch.mockResolvedValueOnce({ ok: true, text: async () => html });
+
+    const result = await fetchGradescopeAssignments({} as any, "200", "CS 61A");
+    expect(result).toHaveLength(1);
+    expect(result[0].title).toBe("Discussion 1");
+    // Single [datetime] without .submissionTimeChart--dueDate should be null
+    expect(result[0].due_date).toBeNull();
+  });
+
+  it("should skip [datetime] elements with release-related classes in fallback", async () => {
+    const html = `
+      <html><body>
+        <table><tbody>
+          <tr role="row">
+            <th><a href="/courses/200/assignments/1002">HW 3</a></th>
+            <td><span class="submissionTimeChart--releaseDate" datetime="2026-02-10 09:00:00 -0800">Feb 10</span></td>
+            <td><time datetime="2026-02-20 23:59:00 -0800">Feb 20</time></td>
+          </tr>
+        </tbody></table>
+      </body></html>
+    `;
+    mockFetch.mockResolvedValueOnce({ ok: true, text: async () => html });
+
+    const result = await fetchGradescopeAssignments({} as any, "200", "CS 61A");
+    expect(result).toHaveLength(1);
+    // The releaseDate element should be filtered out, leaving 1 element
+    // which is still not enough (need 2+ for fallback) → null
+    // Actually with filtering, only the second element remains (1 element) → null
+    expect(result[0].due_date).toBeNull();
+  });
 });

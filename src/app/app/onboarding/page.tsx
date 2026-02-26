@@ -232,7 +232,7 @@ export default function OnboardingPage() {
     const platform = setupParam === "canvas-add" ? "canvas" : setupParam as "canvas" | "gradescope" | "pensieve";
     triggerSync(undefined, [platform]).catch(() => {});
     setStandaloneExiting(true);
-    setTimeout(() => router.push("/app/settings?section=integrations"), 400);
+    setTimeout(() => router.push("/app/settings?section=integrations"), 100);
   }
 
   /**
@@ -292,7 +292,7 @@ export default function OnboardingPage() {
   function handleStandaloneSkip() {
     trackEvent("standalone_setup_skipped", { platform: setupParam });
     setStandaloneExiting(true);
-    setTimeout(() => router.push("/app/settings?section=integrations"), 400);
+    setTimeout(() => router.push("/app/settings?section=integrations"), 100);
   }
 
   /**
@@ -338,7 +338,7 @@ export default function OnboardingPage() {
   // ---- Standalone single-step setup mode rendering ----
   if (isStandaloneSetup) {
     return (
-      <div className={`fixed inset-0 z-50 flex flex-col bg-white force-light transition-opacity duration-300 ${standaloneExiting ? "opacity-0" : "opacity-100"}`}>
+      <div className={`fixed inset-0 z-50 flex flex-col bg-white force-light transition-opacity duration-75 ${standaloneExiting ? "opacity-0" : "opacity-100"}`}>
         {/* Minimal header: back arrow + title */}
         <div className="flex items-center gap-3 px-6 pt-5 pb-3">
           <button
