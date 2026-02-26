@@ -91,6 +91,25 @@ export interface GCalCalendarEntry {
 }
 
 /**
+ * A single additional Canvas account beyond the primary bCourses integration.
+ *
+ * @param id - Unique identifier for this account (nanoid-style, assigned on creation)
+ * @param label - User-chosen display name (e.g. "Stanford Canvas")
+ * @param base_url - Canvas instance base URL (e.g. "https://canvas.stanford.edu")
+ * @param token - Canvas API access token
+ * @param token_created_at - ISO timestamp of when the token was saved (for 120-day expiry tracking)
+ * @param selected_courses - Courses chosen for sync (null = sync all, [] = sync none)
+ */
+export interface AdditionalCanvasAccount {
+  id: string;
+  label: string;
+  base_url: string;
+  token: string;
+  token_created_at: string;
+  selected_courses: Array<{ id: number; name: string }> | null;
+}
+
+/**
  * Integration credentials as returned by the API.
  * Gradescope password is never returned — only a boolean flag.
  */
@@ -114,6 +133,7 @@ export interface IntegrationCredentials {
   canvas_token_created_at: string | null;
   is_founding_member: boolean;
   pensieve_calendar_url: string | null;
+  additional_canvas_accounts: AdditionalCanvasAccount[];
 }
 
 /**
@@ -133,6 +153,7 @@ export interface CredentialsSavePayload {
   selected_gradescope_courses?: Array<{ id: string; name: string }> | null;
   selected_pensieve_courses?: Array<{ id: string; name: string }> | null;
   pensieve_calendar_url?: string | null;
+  additional_canvas_accounts?: AdditionalCanvasAccount[];
 }
 
 /**

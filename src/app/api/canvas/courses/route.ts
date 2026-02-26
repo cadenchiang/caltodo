@@ -26,7 +26,8 @@ function isAllowedCanvasUrl(url: string): boolean {
     return (
       hostname === "bcourses.berkeley.edu" ||
       hostname === "instructure.com" ||
-      hostname.endsWith(".instructure.com")
+      hostname.endsWith(".instructure.com") ||
+      hostname.endsWith(".edu")
     );
   } catch {
     return false;
@@ -68,7 +69,7 @@ export async function GET(request: NextRequest) {
         baseUrl: queryBaseUrl,
       });
       return NextResponse.json(
-        { error: "Invalid Canvas base URL. Only bcourses.berkeley.edu and *.instructure.com are allowed." },
+        { error: "Invalid Canvas base URL. Only *.edu domains and *.instructure.com are allowed." },
         { status: 400 }
       );
     }

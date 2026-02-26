@@ -481,6 +481,21 @@ body {
   animation: popoverIn 200ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+@keyframes popoverOut {
+  from {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.95) translateY(-4px);
+  }
+}
+
+.animate-popover-out {
+  animation: popoverOut 150ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+
 /* Checkbox checkmark pop-in animation */
 @keyframes checkScale {
   0% {
@@ -563,7 +578,7 @@ body {
 }
 
 .animate-stagger {
-  animation: staggerIn 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: staggerIn 280ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
 .stagger-1 { animation-delay: 40ms; }
@@ -892,7 +907,7 @@ textarea:-webkit-autofill {
 }
 
 .animate-view-switch {
-  animation: viewSwitch 200ms ease-out both;
+  animation: viewSwitch 200ms ease-out backwards;
 }
 
 /* Tour click pulse — press-down + spring-back with expanding ring ripple */

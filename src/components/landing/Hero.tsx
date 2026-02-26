@@ -63,8 +63,7 @@ export default function Hero() {
         onClick={() => setShowSpotsModal(true)}
         className="w-full bg-[#F5F5F7] text-[#1D1D1F] text-center text-xs py-1.5 tracking-wide hover:bg-[#E8E8ED] transition-colors cursor-pointer relative flex items-center justify-center"
       >
-        <img src="/cal-logo.png" alt="UC Berkeley" className="w-3.5 h-3.5 object-contain mr-1.5" />
-        <span className="hidden sm:inline">UC Berkeley · exclusively for students · {500 - (userCount ?? 326)} free lifetime spots remaining</span>
+        <span className="hidden sm:inline">exclusively for students · {500 - (userCount ?? 326)} free lifetime spots remaining</span>
         <span className="sm:hidden">{500 - (userCount ?? 326)} free lifetime spots left</span>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-1.5 opacity-60">
           <path d="M7 17L17 7" />
@@ -74,17 +73,17 @@ export default function Hero() {
 
       {/* Nav */}
       <nav className="flex items-center justify-between px-4 py-3 sm:px-8 sm:py-6">
-        <span className="text-base sm:text-xl font-bold tracking-tight text-black">caltodo</span>
-        <div className="flex items-center gap-1.5 sm:gap-3">
+        <span className="text-lg sm:text-xl font-bold tracking-tight text-black">caltodo</span>
+        <div className="flex items-center gap-2 sm:gap-3">
           <Link
             href="/login"
-            className="px-3 py-1.5 text-[11px] sm:px-5 sm:py-2 sm:text-sm font-medium rounded-full text-black bg-white hover:scale-[1.05] active:scale-[0.97] transition-transform duration-200"
+            className="px-4 py-1.5 text-xs sm:px-5 sm:py-2 sm:text-sm font-medium rounded-full text-black bg-white hover:scale-[1.05] active:scale-[0.97] transition-transform duration-200"
           >
             Login
           </Link>
           <Link
             href="/login?signup=true"
-            className="px-3 py-1.5 text-[11px] sm:px-5 sm:py-2 sm:text-sm font-medium rounded-full bg-[#0071E3] text-white hover:scale-[1.05] active:scale-[0.97] transition-transform duration-200"
+            className="px-4 py-1.5 text-xs sm:px-5 sm:py-2 sm:text-sm font-medium rounded-full bg-[#0071E3] text-white hover:scale-[1.05] active:scale-[0.97] transition-transform duration-200"
           >
             Get caltodo free
           </Link>
@@ -168,7 +167,7 @@ export default function Hero() {
 
 
           {/* Heading */}
-          <h2 className="text-[32px] sm:text-[80px] leading-[0.95] sm:leading-[0.95] tracking-tight text-center text-black" style={{ fontFamily: '-apple-system, "SF Pro Display", BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' }}>
+          <h2 className="text-[40px] sm:text-[80px] leading-[0.95] sm:leading-[0.95] tracking-tight text-center text-black" style={{ fontFamily: '-apple-system, "SF Pro Display", BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' }}>
             <span className="font-semibold">All your deadlines.</span>
             <br />
             <span className="font-semibold italic">One </span>
@@ -176,14 +175,14 @@ export default function Hero() {
           </h2>
 
           {/* Subtitle */}
-          <p className="text-[12px] sm:text-xl text-center font-sans font-light mt-3 sm:mt-6 mb-5 sm:mb-8 leading-relaxed text-black/45 max-w-[240px] sm:max-w-none">
+          <p className="text-sm sm:text-xl text-center font-sans font-light mt-3 sm:mt-6 mb-5 sm:mb-8 leading-relaxed text-black/45 max-w-[280px] sm:max-w-none">
             bCourses, Gradescope, and Pensieve, one calendar.
           </p>
 
           {/* CTA — simple pill on mobile, interactive hover button on desktop */}
           <Link
             href="/login?signup=true"
-            className="sm:hidden flex items-center gap-2 px-6 py-2 rounded-full bg-[#0071E3] text-white text-xs font-semibold mb-6 active:scale-[0.97] transition-transform"
+            className="sm:hidden flex items-center gap-2 px-6 py-2.5 rounded-full bg-[#0071E3] text-white text-sm font-semibold mb-6 active:scale-[0.97] transition-transform"
           >
             Get caltodo free
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

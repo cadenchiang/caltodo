@@ -10,7 +10,7 @@ import { fetchAllGradescopeAssignments, fetchGradescopeAssignmentsForCourses } f
 import { fetchPensieveAssignments, PENSIEVE_COLOR } from "@/lib/pensieve-client";
 import { decrypt } from "@/lib/crypto";
 import { logger } from "@/lib/logger";
-import type { SyncResult, SyncSourceResult } from "@/lib/types";
+import type { SyncResult, SyncSourceResult, AdditionalCanvasAccount } from "@/lib/types";
 
 const UPSERT_BATCH_SIZE = 50;
 
@@ -37,6 +37,7 @@ interface CredentialsRow {
   selected_gradescope_courses: Array<{ id: string; name: string }> | null;
   selected_pensieve_courses: Array<{ id: string; name: string }> | null;
   pensieve_calendar_url: string | null;
+  additional_canvas_accounts: AdditionalCanvasAccount[];
 }
 
 /**
@@ -75,7 +76,7 @@ export async function runSync(
   // Fetch credentials
   const { data: creds, error: credsError } = await supabase
     .from("integration_credentials")
-    .select("canvas_token, canvas_base_url, gradescope_email, gradescope_password_encrypted, gradescope_auth_failed, last_gradescope_synced_at, selected_canvas_courses, selected_gradescope_courses, selected_pensieve_courses, pensieve_calendar_url")
+    .select("canvas_token, canvas_base_url, gradescope_email, gradescope_password_encrypted, gradescope_auth_failed, last_gradescope_synced_at, selected_canvas_courses, selected_gradescope_courses, selected_pensieve_courses, pensieve_calendar_url, additional_canvas_accounts")
     .eq("user_id", userId)
     .single();
 
@@ -120,6 +121,16 @@ export async function runSync(
       ? syncPensieve(supabase, userId, credentials, timezone)
       : { synced: 0, errors: [] } as SyncSourceResult,
   ]);
+
+  // Sync additional Canvas accounts (all run under the "canvas" platform flag)
+  if (syncAll || platforms?.includes("canvas")) {
+    const additionalAccounts = credentials.additional_canvas_accounts ?? [];
+    for (const account of additionalAccounts) {
+      const result = await syncAdditionalCanvas(supabase, userId, account, timezone);
+      canvasResult.synced += result.synced;
+      canvasResult.errors.push(...result.errors);
+    }
+  }
 
   // Update last_synced_at
   const now = new Date().toISOString();
@@ -178,6 +189,62 @@ async function syncCanvas(
     const message = err instanceof Error ? err.message : String(err);
     logger.error("syncCanvas failed", { userId, error: message });
     return { synced: 0, errors: [message] };
+  }
+}
+
+/**
+ * Syncs assignments from an additional Canvas account.
+ * Namespaces external_id as "<account_id>:<assignment_id>" to prevent
+ * collisions with the primary bCourses integration and other accounts.
+ *
+ * @param supabase - Authenticated Supabase client
+ * @param userId - The user's ID
+ * @param account - The additional Canvas account to sync
+ * @param timezone - IANA timezone for date/time conversion
+ * @returns Sync result with count and errors
+ */
+async function syncAdditionalCanvas(
+  supabase: SupabaseClient,
+  userId: string,
+  account: AdditionalCanvasAccount,
+  timezone: string
+): Promise<SyncSourceResult> {
+  if (!account.token) {
+    return { synced: 0, errors: [] };
+  }
+
+  try {
+    const selectedCourses = account.selected_courses;
+
+    // null = no selection made yet (first time), sync all courses
+    // [] = user explicitly deselected all courses, sync nothing
+    if (Array.isArray(selectedCourses) && selectedCourses.length === 0) {
+      logger.info("syncAdditionalCanvas skipped: no courses selected", { userId, accountId: account.id });
+      return { synced: 0, errors: [] };
+    }
+
+    const assignments = selectedCourses && selectedCourses.length > 0
+      ? await fetchCanvasAssignmentsForCourses(account.token, account.base_url, selectedCourses)
+      : await fetchAllCanvasAssignments(account.token, account.base_url);
+
+    // Namespace external_id to prevent collisions with primary bCourses
+    const namespacedAssignments = assignments.map((a) => ({
+      ...a,
+      external_id: `${account.id}:${a.external_id}`,
+    }));
+
+    const synced = await upsertAssignments(supabase, userId, "canvas", namespacedAssignments, timezone);
+    logger.info("syncAdditionalCanvas complete", {
+      userId,
+      accountId: account.id,
+      label: account.label,
+      synced,
+    });
+    return { synced, errors: [] };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    logger.error("syncAdditionalCanvas failed", { userId, accountId: account.id, error: message });
+    return { synced: 0, errors: [`${account.label}: ${message}`] };
   }
 }
 

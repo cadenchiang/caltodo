@@ -32,7 +32,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("integration_credentials")
-    .select("canvas_token, canvas_base_url, gradescope_email, gradescope_password_encrypted, last_synced_at, selected_canvas_courses, selected_gradescope_courses, selected_pensieve_courses, google_access_token_encrypted, google_calendar_id, google_email, google_photo_url, canvas_token_created_at, is_founding_member, pensieve_calendar_url, gradescope_auth_failed")
+    .select("canvas_token, canvas_base_url, gradescope_email, gradescope_password_encrypted, last_synced_at, selected_canvas_courses, selected_gradescope_courses, selected_pensieve_courses, google_access_token_encrypted, google_calendar_id, google_email, google_photo_url, canvas_token_created_at, is_founding_member, pensieve_calendar_url, gradescope_auth_failed, additional_canvas_accounts")
     .eq("user_id", user.id)
     .single();
 
@@ -69,6 +69,7 @@ export async function GET() {
     canvas_token_created_at: data?.canvas_token_created_at ?? null,
     is_founding_member: data?.is_founding_member ?? false,
     pensieve_calendar_url: data?.pensieve_calendar_url ?? null,
+    additional_canvas_accounts: data?.additional_canvas_accounts ?? [],
   };
 
   return NextResponse.json(credentials);
@@ -130,6 +131,9 @@ export async function PUT(request: Request) {
   if (body.pensieve_calendar_url !== undefined) {
     updateData.pensieve_calendar_url = body.pensieve_calendar_url;
   }
+  if (body.additional_canvas_accounts !== undefined) {
+    updateData.additional_canvas_accounts = body.additional_canvas_accounts;
+  }
   // Only update password if explicitly provided (not null/undefined means "keep existing")
   if (body.gradescope_password !== undefined && body.gradescope_password !== null) {
     updateData.gradescope_password_encrypted = encrypt(body.gradescope_password);
@@ -170,7 +174,7 @@ export async function PUT(request: Request) {
   // Return updated credentials
   const { data: updated, error: readError } = await supabase
     .from("integration_credentials")
-    .select("canvas_token, canvas_base_url, gradescope_email, gradescope_password_encrypted, last_synced_at, selected_canvas_courses, selected_gradescope_courses, selected_pensieve_courses, google_access_token_encrypted, google_calendar_id, google_email, google_photo_url, canvas_token_created_at, is_founding_member, pensieve_calendar_url, gradescope_auth_failed")
+    .select("canvas_token, canvas_base_url, gradescope_email, gradescope_password_encrypted, last_synced_at, selected_canvas_courses, selected_gradescope_courses, selected_pensieve_courses, google_access_token_encrypted, google_calendar_id, google_email, google_photo_url, canvas_token_created_at, is_founding_member, pensieve_calendar_url, gradescope_auth_failed, additional_canvas_accounts")
     .eq("user_id", user.id)
     .single();
 
@@ -205,6 +209,7 @@ export async function PUT(request: Request) {
     canvas_token_created_at: updated?.canvas_token_created_at ?? null,
     is_founding_member: updated?.is_founding_member ?? false,
     pensieve_calendar_url: updated?.pensieve_calendar_url ?? null,
+    additional_canvas_accounts: updated?.additional_canvas_accounts ?? [],
   };
 
   return NextResponse.json(credentials);

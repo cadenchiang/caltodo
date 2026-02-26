@@ -6,6 +6,7 @@ import { useTaskContext } from "@/contexts/TaskContext";
 import CanvasSettings from "./CanvasSettings";
 import GradescopeSettings from "./GradescopeSettings";
 import PensieveSettings from "./PensieveSettings";
+import AdditionalCanvasCard from "./AdditionalCanvasCard";
 import ClassesSection from "./ClassesSection";
 
 const CACHE_KEY = "caltodo_credentials_cache";
@@ -56,6 +57,7 @@ const EMPTY_CREDENTIALS: IntegrationCredentials = {
   canvas_token_created_at: null,
   is_founding_member: false,
   pensieve_calendar_url: null,
+  additional_canvas_accounts: [],
 };
 
 /** Shared context so IntegrationSettings and IntegrationClasses use the same credentials state. */
@@ -143,6 +145,16 @@ export default function IntegrationSettings() {
         syncedCount={syncResult?.canvas.synced}
         loading={loading}
       />
+      {/* Additional Canvas accounts */}
+      {(credentials.additional_canvas_accounts ?? []).map((account) => (
+        <AdditionalCanvasCard
+          key={account.id}
+          account={account}
+          credentials={credentials}
+          onUpdate={handleUpdate}
+          loading={loading}
+        />
+      ))}
       <GradescopeSettings
         credentials={credentials}
         onUpdate={handleUpdate}

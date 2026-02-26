@@ -85,6 +85,8 @@ interface TaskContextValue {
   toggleComplete: (id: string) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
   deleteTasksBySource: (source: "canvas" | "gradescope" | "pensieve") => Promise<void>;
+  /** Deletes all Canvas tasks whose external_id starts with the given prefix. */
+  deleteTasksByExternalIdPrefix: (prefix: string) => Promise<void>;
   /** Deletes all tasks matching any of the given course names. Returns count deleted. */
   deleteTasksByCourseNames: (courseNames: string[]) => Promise<number>;
   deleteAllTasks: () => Promise<void>;
@@ -672,6 +674,51 @@ export function TaskProvider({ children }: { children: ReactNode }) {
   }
 
   /**
+   * Deletes all Canvas tasks whose external_id starts with the given prefix.
+   * Used for disconnect cleanup of additional Canvas accounts, where external_ids
+   * are namespaced as "<account_id>:<assignment_id>".
+   *
+   * @param prefix - The external_id prefix to match (e.g. "canvas-abc123:")
+   */
+  async function deleteTasksByExternalIdPrefix(prefix: string) {
+    if (!userId) {
+      setError("Not authenticated. Please sign in again.");
+      return;
+    }
+
+    const matchingTasks = tasks.filter(
+      (t) => t.source === "canvas" && t.external_id?.startsWith(prefix)
+    );
+    if (matchingTasks.length === 0) return;
+
+    const matchingIds = new Set(matchingTasks.map((t) => t.id));
+    const previousTasks = [...tasks];
+
+    // Optimistic: remove matching tasks from local state
+    setTasks((prev) => {
+      const updated = prev.filter((t) => !matchingIds.has(t.id));
+      setCachedTasks(updated);
+      taskBaselineRef.current = updated;
+      return updated;
+    });
+
+    // Hard-delete from Supabase (these are synced tasks but the account is being removed)
+    const { error: deleteError } = await supabase
+      .from("tasks")
+      .delete()
+      .eq("user_id", userId)
+      .eq("source", "canvas")
+      .like("external_id", `${prefix}%`);
+
+    if (deleteError) {
+      setError(deleteError.message);
+      setTasks(previousTasks);
+      setCachedTasks(previousTasks);
+      fetchTasks();
+    }
+  }
+
+  /**
    * Deletes all tasks whose course_name matches any of the given names.
    * Hard-deletes from Supabase and optimistically removes from local state.
    *
@@ -872,6 +919,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
         toggleComplete,
         deleteTask,
         deleteTasksBySource,
+        deleteTasksByExternalIdPrefix,
         deleteTasksByCourseNames,
         deleteAllTasks,
         snoozeTask,

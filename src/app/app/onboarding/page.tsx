@@ -8,6 +8,8 @@ import { trackEvent } from "@/lib/analytics";
 import CanvasStep from "@/components/onboarding/CanvasStep";
 import GradescopeStep from "@/components/onboarding/GradescopeStep";
 import PensieveStep from "@/components/onboarding/PensieveStep";
+import AddCanvasStep from "@/components/onboarding/AddCanvasStep";
+import type { IntegrationCredentials, AdditionalCanvasAccount } from "@/lib/types";
 
 type Step = "welcome" | "platforms" | "canvas" | "gradescope" | "pensieve" | "done";
 type Platform = "canvas" | "gradescope" | "pensieve";
@@ -33,13 +35,14 @@ const PLATFORM_OPTIONS: Array<{ id: Platform; label: string; description: string
 const TOUR_PENDING_KEY = "caltodo_tour_pending";
 
 /** Valid platforms for standalone ?setup= mode. */
-const VALID_SETUP_PLATFORMS = new Set<string>(["canvas", "gradescope", "pensieve"]);
+const VALID_SETUP_PLATFORMS = new Set<string>(["canvas", "gradescope", "pensieve", "canvas-add"]);
 
 /** Display labels for standalone setup mode header. */
 const SETUP_LABELS: Record<string, string> = {
   canvas: "bCourses",
   gradescope: "Gradescope",
   pensieve: "Pensieve",
+  "canvas-add": "Add Canvas Account",
 };
 
 /**
@@ -218,15 +221,69 @@ export default function OnboardingPage() {
     return true;
   }
 
+  /** Whether the standalone setup overlay is fading out before navigation. */
+  const [standaloneExiting, setStandaloneExiting] = useState(false);
+
   /**
-   * Handles standalone setup completion. Shows success toast, then redirects to Settings.
+   * Handles standalone setup completion. Fades out, then redirects to Settings.
    */
   function handleStandaloneSuccess() {
     trackEvent("standalone_setup_completed", { platform: setupParam });
-    // Fire sync for only the just-connected platform
-    const platform = setupParam as "canvas" | "gradescope" | "pensieve";
+    const platform = setupParam === "canvas-add" ? "canvas" : setupParam as "canvas" | "gradescope" | "pensieve";
     triggerSync(undefined, [platform]).catch(() => {});
-    setTimeout(() => router.push("/app/settings?section=integrations"), 800);
+    setStandaloneExiting(true);
+    setTimeout(() => router.push("/app/settings?section=integrations"), 400);
+  }
+
+  /**
+   * Handles adding an additional Canvas account.
+   * Fetches current credentials, appends the new account to the JSONB array, and saves.
+   *
+   * @param payload - The new account details (label, base_url, token, selected_courses)
+   * @returns true on success, false on failure
+   */
+  async function handleAddCanvasNext(payload: {
+    label: string;
+    base_url: string;
+    token: string;
+    selected_courses: Array<{ id: number; name: string }>;
+  }): Promise<boolean> {
+    setSaving(true);
+    setError(null);
+    try {
+      // Fetch current credentials to get existing additional accounts
+      const getRes = await fetch("/api/credentials");
+      if (!getRes.ok) throw new Error("Failed to fetch current credentials");
+      const current: IntegrationCredentials = await getRes.json();
+
+      const newAccount: AdditionalCanvasAccount = {
+        id: `canvas-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        label: payload.label,
+        base_url: payload.base_url,
+        token: payload.token,
+        token_created_at: new Date().toISOString(),
+        selected_courses: payload.selected_courses,
+      };
+
+      const updatedAccounts = [...(current.additional_canvas_accounts ?? []), newAccount];
+
+      const putRes = await fetch("/api/credentials", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ additional_canvas_accounts: updatedAccounts }),
+      });
+      if (!putRes.ok) {
+        const body = await putRes.json().catch(() => ({}));
+        throw new Error(body.error || `Save failed: ${putRes.status}`);
+      }
+      handleStandaloneSuccess();
+      return true;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+      return false;
+    } finally {
+      setSaving(false);
+    }
   }
 
   /**
@@ -234,7 +291,8 @@ export default function OnboardingPage() {
    */
   function handleStandaloneSkip() {
     trackEvent("standalone_setup_skipped", { platform: setupParam });
-    router.push("/app/settings?section=integrations");
+    setStandaloneExiting(true);
+    setTimeout(() => router.push("/app/settings?section=integrations"), 400);
   }
 
   /**
@@ -280,7 +338,7 @@ export default function OnboardingPage() {
   // ---- Standalone single-step setup mode rendering ----
   if (isStandaloneSetup) {
     return (
-      <div className="fixed inset-0 z-50 flex flex-col bg-white force-light">
+      <div className={`fixed inset-0 z-50 flex flex-col bg-white force-light transition-opacity duration-300 ${standaloneExiting ? "opacity-0" : "opacity-100"}`}>
         {/* Minimal header: back arrow + title */}
         <div className="flex items-center gap-3 px-6 pt-5 pb-3">
           <button
@@ -329,6 +387,16 @@ export default function OnboardingPage() {
                 {setupParam === "pensieve" && (
                   <PensieveStep
                     onNext={handleStandalonePensieveNext}
+                    onSkip={handleStandaloneSkip}
+                    saving={saving}
+                    error={error}
+                    setError={setError}
+                  />
+                )}
+
+                {setupParam === "canvas-add" && (
+                  <AddCanvasStep
+                    onNext={handleAddCanvasNext}
                     onSkip={handleStandaloneSkip}
                     saving={saving}
                     error={error}
