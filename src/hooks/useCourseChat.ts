@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { ChatMessage, ChatPresence } from "@/lib/types";
+import type { ChatMessage } from "@/lib/types";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { createSystemEvent, fetchUserName } from "./chatSystemEvents";
 import { readCache, writeCache } from "./chatCache";
@@ -17,16 +17,22 @@ const PAGE_SIZE = 50;
  * @param courseId - The course UUID to chat in
  * @returns Messages, online users, loading state, and action functions
  */
-export function useCourseChat(courseId: string) {
+/** Interval for flushing batched join events in system courses. */
+const JOIN_BATCH_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
+
+export function useCourseChat(courseId: string, options?: { isSystemCourse?: boolean }) {
+  const isSystemCourse = options?.isSystemCourse ?? false;
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
-  const [onlineUsers, setOnlineUsers] = useState<ChatPresence[]>([]);
   const [sending, setSending] = useState(false);
   const [initialFetchDone, setInitialFetchDone] = useState(false);
   const channelRef = useRef<RealtimeChannel | null>(null);
   const prevCourseIdRef = useRef(courseId);
+  /** Accumulates join names for system courses to batch into one notification. */
+  const pendingJoinsRef = useRef<string[]>([]);
+  const joinTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   /** Maps temporary optimistic IDs to server-assigned IDs for deduplication. */
   const tempToServerIdRef = useRef<Map<string, string>>(new Map());
   const supabase = createClient();
@@ -44,7 +50,6 @@ export function useCourseChat(courseId: string) {
     }
     setError(null);
     setHasMore(false);
-    setOnlineUsers([]);
     setInitialFetchDone(false);
   }
 
@@ -73,7 +78,13 @@ export function useCourseChat(courseId: string) {
       const data: ChatMessage[] = await res.json();
       // API returns newest first; reverse for display (oldest at top)
       const sorted = [...data].reverse();
-      setMessages(sorted);
+      // Merge: preserve any in-flight optimistic messages (temp-ID) so they
+      // don't vanish when the server fetch returns before the send completes.
+      setMessages((prev) => {
+        const optimistic = prev.filter((m) => m.id.startsWith("temp-"));
+        if (optimistic.length === 0) return sorted;
+        return [...sorted, ...optimistic];
+      });
       writeCache(courseId, sorted);
       setHasMore(data.length >= PAGE_SIZE);
     } catch (err) {
@@ -190,6 +201,11 @@ export function useCourseChat(courseId: string) {
 
       setMessages((prev) => [...prev, optimisticMsg]);
 
+      // Register pending sentinel so the Realtime handler can detect
+      // that this tempId is awaiting a server ID, even if the INSERT
+      // event fires before the API response arrives.
+      tempToServerIdRef.current.set(tempId, "pending");
+
       const res = await fetch("/api/discussions/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -204,7 +220,7 @@ export function useCourseChat(courseId: string) {
       // API returns the created message with real ID
       const serverMsg: ChatMessage = await res.json();
 
-      // Map tempId → serverId for Realtime deduplication
+      // Update the mapping with the real server ID for Realtime dedup
       tempToServerIdRef.current.set(tempId, serverMsg.id);
 
       // Replace optimistic message with server version
@@ -218,6 +234,9 @@ export function useCourseChat(courseId: string) {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg);
+
+      // Clean up the pending sentinel on failure
+      tempToServerIdRef.current.delete(tempId);
 
       // Mark optimistic message as failed
       setMessages((prev) =>
@@ -285,9 +304,7 @@ export function useCourseChat(courseId: string) {
   useEffect(() => {
     fetchMessages();
 
-    const channel = supabase.channel(`chat:${courseId}`, {
-      config: { presence: { key: "user_id" } },
-    });
+    const channel = supabase.channel(`chat:${courseId}`);
 
     // Listen for new messages via postgres_changes
     channel.on(
@@ -309,6 +326,24 @@ export function useCourseChat(courseId: string) {
             // Already replaced by optimistic flow — skip Realtime duplicate
             tempToServerIdRef.current.delete(tempEntry[0]);
             return prev;
+          }
+
+          // If any temp message is still "pending" (API hasn't responded yet)
+          // and the author matches, this Realtime event is likely for our
+          // in-flight send. Replace the optimistic message with the real one.
+          const pendingEntry = Array.from(tempToServerIdRef.current.entries())
+            .find(([, serverId]) => serverId === "pending");
+          if (pendingEntry) {
+            const [pendingTempId] = pendingEntry;
+            const optimistic = prev.find((m) => m.id === pendingTempId);
+            if (optimistic && optimistic.author_id === newMsg.author_id) {
+              tempToServerIdRef.current.set(pendingTempId, newMsg.id);
+              return prev.map((m) =>
+                m.id === pendingTempId
+                  ? { ...newMsg, _status: "delivered" as const }
+                  : m
+              );
+            }
           }
 
           // Avoid duplicates from normal flow
@@ -361,40 +396,25 @@ export function useCourseChat(courseId: string) {
       }
     );
 
-    // Track presence
-    channel.on("presence", { event: "sync" }, () => {
-      const state = channel.presenceState<ChatPresence>();
-      const users: ChatPresence[] = [];
-      for (const key of Object.keys(state)) {
-        const presences = state[key];
-        if (presences && presences.length > 0) {
-          users.push(presences[0]);
-        }
-      }
-      setOnlineUsers(users);
-    });
-
-    // Join channel and track own presence
-    async function joinPresence() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await channel.subscribe();
-        await channel.track({
-          user_id: user.id,
-          user_name: user.user_metadata?.full_name ?? null,
-          user_avatar: user.user_metadata?.avatar_url ?? null,
-          online_at: new Date().toISOString(),
-        });
-      } else {
-        await channel.subscribe();
-      }
-    }
-
-    joinPresence();
+    // Subscribe to channel for message Realtime events
+    channel.subscribe();
     channelRef.current = channel;
 
     // Subscribe to membership changes for join/leave system events
     const memberChannel = supabase.channel(`members:${courseId}`);
+
+    /**
+     * Flushes accumulated join names into a single batched system event.
+     * Called on an interval for system courses (calfam).
+     */
+    function flushJoinBatch() {
+      const names = pendingJoinsRef.current.splice(0);
+      if (names.length === 0) return;
+      const text = names.length === 1
+        ? `${names[0]} joined the group`
+        : `${names.length} new members joined the group`;
+      setMessages((prev) => [...prev, createSystemEvent(courseId, `sys-join-batch-${Date.now()}`, text)]);
+    }
 
     memberChannel.on(
       "postgres_changes",
@@ -407,9 +427,18 @@ export function useCourseChat(courseId: string) {
       async (payload) => {
         const newMember = payload.new as { user_id: string };
         const name = await fetchUserName(newMember.user_id);
-        setMessages((prev) => [...prev, createSystemEvent(courseId, `sys-join-${Date.now()}`, `${name} joined the group`)]);
+        if (isSystemCourse) {
+          pendingJoinsRef.current.push(name);
+        } else {
+          setMessages((prev) => [...prev, createSystemEvent(courseId, `sys-join-${newMember.user_id}-${Date.now()}`, `${name} joined the group`)]);
+        }
       }
     );
+
+    // For system courses, flush batched joins every hour
+    if (isSystemCourse) {
+      joinTimerRef.current = setInterval(flushJoinBatch, JOIN_BATCH_INTERVAL_MS);
+    }
 
     memberChannel.on(
       "postgres_changes",
@@ -423,7 +452,7 @@ export function useCourseChat(courseId: string) {
         const old = payload.old as { user_id?: string };
         if (!old.user_id) return;
         const name = await fetchUserName(old.user_id);
-        setMessages((prev) => [...prev, createSystemEvent(courseId, `sys-leave-${Date.now()}`, `${name} left the group`)]);
+        setMessages((prev) => [...prev, createSystemEvent(courseId, `sys-leave-${old.user_id}-${Date.now()}`, `${name} left the group`)]);
       }
     );
 
@@ -442,6 +471,12 @@ export function useCourseChat(courseId: string) {
       memberChannel.unsubscribe();
       window.removeEventListener("calchat-name-changed", handleNameChange);
       channelRef.current = null;
+      if (joinTimerRef.current) {
+        clearInterval(joinTimerRef.current);
+        joinTimerRef.current = null;
+      }
+      // Flush any remaining batched joins on unmount
+      flushJoinBatch();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [courseId]);
@@ -452,7 +487,6 @@ export function useCourseChat(courseId: string) {
     error,
     hasMore,
     initialFetchDone,
-    onlineUsers,
     sending,
     sendMessage,
     deleteMessage,
