@@ -20,9 +20,8 @@ function isMobileInAppBrowser(): boolean {
 }
 
 /**
- * Google-only login form with @berkeley.edu restriction.
+ * Google-only login form.
  * Supports desktop popup and mobile redirect OAuth flows.
- * Shows an error if a non-berkeley.edu account attempts to sign in.
  */
 export default function LoginForm() {
   const searchParams = useSearchParams();
@@ -41,8 +40,8 @@ export default function LoginForm() {
 
   useEffect(() => {
     const errorParam = searchParams.get("error");
-    if (errorParam === "berkeley-only") {
-      setError("caltodo is currently only available for @berkeley.edu accounts");
+    if (errorParam) {
+      setError("Sign-in failed. Please try again.");
     }
   }, [searchParams]);
 

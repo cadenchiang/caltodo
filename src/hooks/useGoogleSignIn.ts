@@ -41,7 +41,7 @@ export function useGoogleSignIn() {
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
           skipBrowserRedirect: true,
-          queryParams: { hd: "berkeley.edu", prompt: "select_account" },
+          queryParams: { prompt: "select_account" },
         },
       });
 
@@ -58,7 +58,7 @@ export function useGoogleSignIn() {
             provider: "google",
             options: {
               redirectTo: `${window.location.origin}/auth/callback`,
-              queryParams: { hd: "berkeley.edu", prompt: "select_account" },
+              queryParams: { prompt: "select_account" },
             },
           });
           return;
@@ -105,7 +105,7 @@ export function useGoogleSignIn() {
         provider: "google",
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
-          queryParams: { hd: "berkeley.edu", prompt: "select_account" },
+          queryParams: { prompt: "select_account" },
         },
       });
 
