@@ -8,7 +8,7 @@ import FadeIn from "@/components/landing/FadeIn";
  */
 export default function FeatureHighlight() {
   return (
-    <section className="w-full bg-[#FCFCFD] py-16 sm:py-24 px-6 lg:px-10">
+    <section className="w-full bg-[#FCFCFD] py-10 sm:py-14 px-6 lg:px-10">
       <div className="max-w-4xl mx-auto">
         {/* Badge + Heading */}
         <FadeIn>

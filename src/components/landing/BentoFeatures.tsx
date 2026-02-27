@@ -55,7 +55,7 @@ export default function BentoFeatures() {
             <FadeIn key={feature.title} delay={i * 75} className={feature.className}>
               <div
                 className={cn(
-                  "rounded-2xl border border-black/[0.08] bg-white p-5 sm:p-6 h-full",
+                  "rounded-2xl border border-black/[0.06] bg-white p-5 sm:p-6 h-full",
                   "shadow-sm transition-shadow duration-200 hover:shadow-md",
                 )}
               >

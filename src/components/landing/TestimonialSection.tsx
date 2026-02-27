@@ -61,9 +61,9 @@ const testimonials: Testimonial[] = [
  */
 export default function TestimonialSection() {
   return (
-    <section>
-      <div className="py-24">
-        <div className="mx-auto w-full max-w-5xl px-6">
+    <section className="w-full bg-[#FCFCFD] px-6 lg:px-10">
+      <div className="py-10 sm:py-14">
+        <div className="max-w-4xl mx-auto">
           <h2
             className="text-[22px] sm:text-[32px] font-medium text-black leading-[1.05] tracking-tight mb-6"
             style={{ fontFamily: '-apple-system, "SF Pro Display", BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' }}
@@ -85,14 +85,14 @@ export default function TestimonialSection() {
 
                 <p className="text-foreground my-4">{t.content}</p>
 
-                <div className="flex items-center gap-2">
-                  <Avatar className="ring-foreground/10 size-8 border border-transparent shadow ring-1">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Avatar className="ring-foreground/10 size-7 border border-transparent shadow ring-1 shrink-0">
                     <AvatarImage src={t.avatar} alt={t.name} />
                     <AvatarFallback>{t.name.charAt(0)}</AvatarFallback>
                   </Avatar>
-                  <div className="text-foreground text-sm font-medium">{t.name}</div>
-                  <span aria-hidden className="bg-foreground/25 size-1 rounded-full" />
-                  <span className="text-muted-foreground text-sm">{t.role}</span>
+                  <div className="text-foreground text-xs font-medium truncate">{t.name}</div>
+                  <span aria-hidden className="bg-foreground/25 size-1 rounded-full shrink-0" />
+                  <span className="text-muted-foreground text-xs truncate">{t.role}</span>
                 </div>
               </div>
             ))}

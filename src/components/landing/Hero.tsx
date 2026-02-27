@@ -208,7 +208,7 @@ export default function Hero() {
                   key={img.src}
                   src={img.src}
                   alt={img.alt}
-                  className={`w-full rounded-xl border border-gray-200 transition-opacity duration-700 ease-in-out ${
+                  className={`w-full rounded-xl transition-opacity duration-700 ease-in-out ${
                     i === 0 ? "relative" : "absolute inset-0"
                   }`}
                   style={{ opacity: activeImage === i ? 1 : 0 }}
@@ -237,8 +237,8 @@ export default function Hero() {
       <div className="w-full" style={{ background: "linear-gradient(to bottom, #ffffff, #FCFCFD)" }}>
         <div className="flex flex-col items-center px-6 lg:px-10">
           {/* Tagline below mockup */}
-          <FadeIn className="max-w-4xl mt-14 sm:mt-24 mb-12 sm:mb-20">
-            <p className="text-[24px] sm:text-[40px] font-medium text-black text-left leading-[1.05] tracking-tight" style={{ fontFamily: '-apple-system, "SF Pro Display", BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' }}>
+          <FadeIn className="max-w-4xl mt-12 sm:mt-20 mb-12 sm:mb-20">
+            <p className="text-[22px] sm:text-[32px] font-medium text-black text-left leading-[1.05] tracking-tight" style={{ fontFamily: '-apple-system, "SF Pro Display", BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' }}>
               The easiest way to sync your deadlines, track assignments, and stay connected with your class.
             </p>
           </FadeIn>
