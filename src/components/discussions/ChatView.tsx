@@ -3,9 +3,11 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import type { ChatMessage } from "@/lib/types";
 import type { ReactionsMap } from "@/hooks/useMessageReactions";
+import type { TypingUser } from "@/hooks/useTypingIndicator";
 import MessageBubble from "./MessageBubble";
 import ChatInput from "./ChatInput";
 import DateSeparator from "./DateSeparator";
+import TypingIndicator from "./TypingIndicator";
 import { ChevronDown, X } from "lucide-react";
 
 /**
@@ -32,11 +34,19 @@ interface ChatViewProps {
   sending: boolean;
   error: string | null;
   currentUserId: string;
+  /** Whether the current user is an admin (can reveal anonymous identities). */
+  isAdmin?: boolean;
   reactionsMap?: ReactionsMap;
   onSend: (body: string, files?: File[], anonymous?: boolean, replyToId?: string) => void;
   onDelete: (messageId: string) => void;
   onToggleReaction?: (messageId: string, emoji: string, userId: string) => void;
   onLoadMore: () => void;
+  /** Users currently typing in this channel (self excluded). */
+  typingUsers?: TypingUser[];
+  /** Called on each keystroke in the input to signal typing presence. */
+  onTyping?: () => void;
+  /** Called after a message is sent to immediately clear typing state. */
+  onSendComplete?: () => void;
 }
 
 /**
@@ -61,15 +71,21 @@ export default function ChatView({
   sending,
   error,
   currentUserId,
+  isAdmin,
   onSend,
   onDelete,
   onToggleReaction,
   onLoadMore,
   reactionsMap,
+  typingUsers,
+  onTyping,
+  onSendComplete,
 }: ChatViewProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const bottomBarRef = useRef<HTMLDivElement>(null);
   const [showNewBadge, setShowNewBadge] = useState(false);
+  const [showScrollBtn, setShowScrollBtn] = useState(false);
   const [replyTarget, setReplyTarget] = useState<ChatMessage | null>(null);
   const prevMessageCountRef = useRef(0);
   const isNearBottomRef = useRef(true);
@@ -87,7 +103,14 @@ export default function ChatView({
    * Scrolls to the bottom of the message list.
    */
   const scrollToBottom = useCallback((smooth = false) => {
-    bottomRef.current?.scrollIntoView({ behavior: smooth ? "smooth" : "instant" });
+    const el = scrollRef.current;
+    if (el) {
+      if (smooth) {
+        el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+      } else {
+        el.scrollTop = el.scrollHeight;
+      }
+    }
     setShowNewBadge(false);
   }, []);
 
@@ -103,9 +126,52 @@ export default function ChatView({
     prevMessageCountRef.current = messages.length;
   }, [messages.length, scrollToBottom]);
 
-  // Initial scroll to bottom
+  // Auto-scroll when content height grows (e.g. images loading, typing indicator)
+  // while locked to bottom. Uses smooth scroll for a subtle feel.
+  const prevScrollHeightRef = useRef(0);
   useEffect(() => {
-    if (!loading && messages.length > 0) {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const observer = new ResizeObserver(() => {
+      const newHeight = el.scrollHeight;
+      if (newHeight > prevScrollHeightRef.current && isNearBottomRef.current) {
+        el.scrollTo({ top: newHeight, behavior: "smooth" });
+      }
+      prevScrollHeightRef.current = newHeight;
+    });
+
+    // Observe all children so images, typing indicator, etc. trigger re-check
+    for (const child of Array.from(el.children)) {
+      observer.observe(child);
+    }
+
+    return () => observer.disconnect();
+  }, [messages.length]);
+
+  // Dynamically size the bottom spacer to match the bottom bar's actual height.
+  // Adapts automatically when the input grows (multi-line, attachments, reply bar, typing indicator).
+  const [bottomBarHeight, setBottomBarHeight] = useState(72);
+  useEffect(() => {
+    const barEl = bottomBarRef.current;
+    if (!barEl) return;
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const height = entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height;
+        setBottomBarHeight(height);
+      }
+    });
+
+    observer.observe(barEl);
+    return () => observer.disconnect();
+  }, []);
+
+  // Initial scroll to bottom — only once when loading finishes
+  const hasInitialScrolled = useRef(false);
+  useEffect(() => {
+    if (!loading && messages.length > 0 && !hasInitialScrolled.current) {
+      hasInitialScrolled.current = true;
       scrollToBottom();
     }
   }, [loading, scrollToBottom, messages.length]);
@@ -133,6 +199,9 @@ export default function ChatView({
     isNearBottomRef.current = checkNearBottom();
     if (isNearBottomRef.current) {
       setShowNewBadge(false);
+      setShowScrollBtn(false);
+    } else {
+      setShowScrollBtn(true);
     }
     if (el.scrollTop < 100 && hasMore) {
       onLoadMore();
@@ -264,8 +333,8 @@ export default function ChatView({
   // Loading skeleton
   if (loading && messages.length === 0) {
     return (
-      <div className="flex flex-col h-full">
-        <div className="flex-1 p-4 space-y-4">
+      <div className="relative h-full overflow-hidden">
+        <div className="absolute inset-0 overflow-y-auto p-4 space-y-4 pb-24">
           {Array.from({ length: 6 }).map((_, i) => (
             <div
               key={i}
@@ -280,18 +349,20 @@ export default function ChatView({
             </div>
           ))}
         </div>
-        <ChatInput onSend={() => {}} disabled />
+        <div className="absolute bottom-0 left-0 right-0 z-10">
+          <ChatInput onSend={() => {}} disabled />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full relative">
-      {/* Message area */}
+    <div className="relative h-full overflow-hidden">
+      {/* Message area — fills full height; bottom spacer keeps last messages above the glass input */}
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto px-3 py-3 scroll-smooth"
+        className="absolute inset-0 overflow-y-auto px-3 py-3 scroll-smooth"
       >
         {/* Chat creation date — always visible at top */}
         <div className="flex justify-center py-4 h-[44px]">
@@ -342,6 +413,7 @@ export default function ChatView({
                 anonymousNumber={!msg.author_name ? anonymousNumberMap.get(msg.author_id) : undefined}
                 reactions={reactionsMap?.get(msg.id)}
                 currentUserId={currentUserId}
+                isAdmin={isAdmin}
                 replyTo={msg.reply_to_id ? messages.find((m) => m.id === msg.reply_to_id) ?? null : null}
                 onDelete={isOwn ? onDelete : undefined}
                 onReply={setReplyTarget}
@@ -352,50 +424,69 @@ export default function ChatView({
           );
         })}
 
-        <div ref={bottomRef} />
+        {/* Typing indicator — inside scroll area so it doesn't cover messages */}
+        <TypingIndicator typingUsers={typingUsers ?? []} />
+
+        <div ref={bottomRef} style={{
+          height: Math.max(0, bottomBarHeight - (
+            messages.length > 0 && messages[messages.length - 1].author_id === currentUserId ? 20 : 0
+          ))
+        }} />
       </div>
 
-      {/* New messages badge */}
-      {showNewBadge && (
-        <button
-          onClick={() => scrollToBottom(true)}
-          className="absolute bottom-16 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#007AFF] text-white text-xs font-medium shadow-lg cursor-pointer hover:bg-[#0066D6] transition-all z-10"
-        >
-          <ChevronDown size={14} />
-          New messages
-        </button>
-      )}
-
-      {/* Reply preview bar */}
-      {replyTarget && (
-        <div className="flex items-center gap-2 px-5 py-2 border-t border-border bg-muted/30">
-          <div className="flex-1 min-w-0">
-            <span className="text-[11px] font-medium text-muted-foreground">
-              Replying to {replyTarget.author_name ?? "Anonymous"}
+      {/* Scroll-to-bottom button — appears when scrolled up */}
+      {showScrollBtn && (
+        <div className="absolute bottom-24 right-4 z-20 flex flex-col items-center gap-1.5">
+          {showNewBadge && (
+            <span className="px-2.5 py-1 rounded-full bg-[#007AFF] text-white text-[11px] font-medium shadow-lg whitespace-nowrap">
+              New messages
             </span>
-            <p className="text-[12px] text-muted-foreground/70 truncate">
-              {replyTarget.body.slice(0, 80)}
-            </p>
-          </div>
+          )}
           <button
-            onClick={() => setReplyTarget(null)}
-            className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:bg-accent transition-colors cursor-pointer shrink-0"
-            aria-label="Cancel reply"
+            onClick={() => scrollToBottom(true)}
+            className="w-8 h-8 rounded-full bg-white dark:bg-zinc-800 border border-black/10 dark:border-white/15 shadow-md flex items-center justify-center text-muted-foreground hover:bg-gray-50 dark:hover:bg-zinc-700 transition-all cursor-pointer"
+            aria-label="Scroll to bottom"
           >
-            <X size={12} />
+            <ChevronDown size={16} />
           </button>
         </div>
       )}
 
-      {/* Input */}
-      <ChatInput
-        onSend={(body, files, anonymous) => {
-          onSend(body, files, anonymous, replyTarget?.id);
-          setReplyTarget(null);
-        }}
-        disabled={sending}
-        error={error}
-      />
+      {/* Glass bottom bar: reply + input — overlays scroll area */}
+      <div ref={bottomBarRef} className="absolute bottom-0 left-0 right-0 z-10">
+        {/* Reply preview bar */}
+        {replyTarget && (
+          <div className="flex items-center gap-2 px-5 py-2 border-t border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-xl">
+            <div className="flex-1 min-w-0">
+              <span className="text-[11px] font-medium text-muted-foreground">
+                Replying to {replyTarget.author_name ?? "Anonymous"}
+              </span>
+              <p className="text-[12px] text-muted-foreground/70 truncate">
+                {replyTarget.body.slice(0, 80)}
+              </p>
+            </div>
+            <button
+              onClick={() => setReplyTarget(null)}
+              className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:bg-accent transition-colors cursor-pointer shrink-0"
+              aria-label="Cancel reply"
+            >
+              <X size={12} />
+            </button>
+          </div>
+        )}
+
+        {/* Input */}
+        <ChatInput
+          onSend={(body, files, anonymous) => {
+            onSend(body, files, anonymous, replyTarget?.id);
+            setReplyTarget(null);
+            onSendComplete?.();
+          }}
+          disabled={sending}
+          error={error}
+          onTyping={onTyping}
+        />
+      </div>
     </div>
   );
 }

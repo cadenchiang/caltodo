@@ -26,13 +26,15 @@ interface ChatInputProps {
   onSend: (body: string, files?: File[], anonymous?: boolean) => void;
   disabled?: boolean;
   error?: string | null;
+  /** Called on each keystroke so the parent can signal typing presence. */
+  onTyping?: () => void;
 }
 
 /** Max file size: 10 MB */
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf"];
 
-export default function ChatInput({ onSend, disabled, error }: ChatInputProps) {
+export default function ChatInput({ onSend, disabled, error, onTyping }: ChatInputProps) {
   const [value, setValue] = useState("");
   const [anonymous, setAnonymous] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -57,8 +59,9 @@ export default function ChatInput({ onSend, disabled, error }: ChatInputProps) {
     (e: ChangeEvent<HTMLTextAreaElement>) => {
       setValue(e.target.value);
       autoResize();
+      onTyping?.();
     },
-    [autoResize]
+    [autoResize, onTyping]
   );
 
   /**
@@ -75,6 +78,8 @@ export default function ChatInput({ onSend, disabled, error }: ChatInputProps) {
     setFileError(null);
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
+      // Keep cursor in the textarea so user can keep typing
+      textareaRef.current.focus();
     }
   }, [value, attachments, disabled, anonymous, onSend]);
 
@@ -177,7 +182,7 @@ export default function ChatInput({ onSend, disabled, error }: ChatInputProps) {
   }, []);
 
   return (
-    <div className="px-5 py-4 relative">
+    <div className="px-5 pt-2 pb-4 relative">
       {/* Emoji picker popover */}
       {showEmojiPicker && (
         <div ref={emojiRef} className="absolute bottom-16 right-4 z-30 shadow-xl rounded-xl overflow-hidden">
@@ -261,7 +266,7 @@ export default function ChatInput({ onSend, disabled, error }: ChatInputProps) {
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
-          className="w-10 h-10 rounded-full bg-gray-200/80 dark:bg-white/20 backdrop-blur-sm border border-black/10 dark:border-white/10 flex items-center justify-center shrink-0 text-gray-500 dark:text-gray-300 hover:bg-gray-300/80 dark:hover:bg-white/30 transition-colors cursor-pointer active:scale-95"
+          className="w-10 h-10 rounded-full bg-gray-200/80 dark:bg-black/50 dark:backdrop-blur-sm border border-black/5 dark:border-white/15 flex items-center justify-center shrink-0 text-gray-500 dark:text-gray-300 hover:bg-gray-300/80 dark:hover:bg-black/60 transition-colors cursor-pointer active:scale-95"
           aria-label="Add attachment"
         >
           <Plus size={20} strokeWidth={2.5} />
@@ -269,17 +274,17 @@ export default function ChatInput({ onSend, disabled, error }: ChatInputProps) {
         <button
           type="button"
           onClick={() => setAnonymous(!anonymous)}
-          className={`w-10 h-10 rounded-full backdrop-blur-sm border flex items-center justify-center shrink-0 transition-colors cursor-pointer active:scale-95 ${
+          className={`w-10 h-10 rounded-full border flex items-center justify-center shrink-0 transition-colors cursor-pointer active:scale-95 ${
             anonymous
               ? "bg-zinc-800 dark:bg-white border-zinc-800 dark:border-white text-white dark:text-zinc-900"
-              : "bg-gray-200/80 dark:bg-white/20 border-black/10 dark:border-white/10 text-gray-500 dark:text-gray-300 hover:bg-gray-300/80 dark:hover:bg-white/30"
+              : "bg-gray-200/80 dark:bg-black/50 dark:backdrop-blur-sm border-black/5 dark:border-white/15 text-gray-500 dark:text-gray-300 hover:bg-gray-300/80 dark:hover:bg-black/60"
           }`}
           aria-label={anonymous ? "Switch to named message" : "Send anonymously"}
           title={anonymous ? "Anonymous mode on" : "Send anonymously"}
         >
           <EyeOff size={18} />
         </button>
-        <div className="flex-1 bg-white dark:bg-[#1C1C1E] rounded-[22px] border border-black/30 dark:border-white/20 px-4 py-2.5 flex items-center">
+        <div className="flex-1 bg-gray-200/80 dark:bg-black/50 dark:backdrop-blur-sm rounded-[22px] border border-black/5 dark:border-white/15 px-4 py-2.5 flex items-center">
           <textarea
             ref={textareaRef}
             value={value}
@@ -287,7 +292,6 @@ export default function ChatInput({ onSend, disabled, error }: ChatInputProps) {
             onKeyDown={handleKeyDown}
             placeholder="Message"
             rows={1}
-            disabled={disabled}
             className="flex-1 bg-transparent text-[15px] text-foreground placeholder:text-gray-400 dark:placeholder:text-zinc-500 resize-none outline-none min-h-[24px] max-h-[120px] leading-[24px] py-0"
           />
         </div>
@@ -295,7 +299,7 @@ export default function ChatInput({ onSend, disabled, error }: ChatInputProps) {
           ref={emojiBtnRef}
           type="button"
           onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-          className="w-10 h-10 rounded-full bg-gray-200/80 dark:bg-white/20 backdrop-blur-sm border border-black/10 dark:border-white/10 flex items-center justify-center shrink-0 text-gray-500 dark:text-gray-300 hover:bg-gray-300/80 dark:hover:bg-white/30 transition-colors cursor-pointer active:scale-95"
+          className="w-10 h-10 rounded-full bg-gray-200/80 dark:bg-black/50 dark:backdrop-blur-sm border border-black/5 dark:border-white/15 flex items-center justify-center shrink-0 hover:bg-gray-300/80 dark:hover:bg-black/60 transition-colors cursor-pointer active:scale-95"
           aria-label="Emoji"
         >
           <Smile size={20} />
