@@ -15,7 +15,7 @@ import { PostHogProvider as PHProvider } from "posthog-js/react";
  * - NEXT_REDIRECT: Next.js internal mechanism, not a real error
  * - AbortError: Fetch requests cancelled during navigation
  * - Script error: Cross-origin scripts with no useful info
- * - Minified React error #418: Hydration mismatches, often from browser extensions
+ * - Minified React error #418/#423: Hydration mismatches, often from browser extensions
  * - ChunkLoadError: Handled by ChunkErrorRecovery with auto-reload
  * - unexpected response: Transient network issues
  */
@@ -32,6 +32,45 @@ const IGNORED_ERROR_PATTERNS = [
   "An unexpected response was received from the server",
 ];
 
+/**
+ * Checks whether an exception event matches any ignored error pattern.
+ * Inspects both legacy top-level properties ($exception_message, $exception_type)
+ * and the newer $exception_list array format used by PostHog SDK v1.100+.
+ *
+ * @param properties - The event properties from a PostHog $exception event
+ * @returns true if the error matches a known benign pattern and should be dropped
+ */
+function isIgnoredException(
+  properties: Record<string, unknown> | undefined,
+): boolean {
+  if (!properties) return false;
+
+  // Check top-level $exception_message + $exception_type (legacy format)
+  const message = (properties.$exception_message as string) ?? "";
+  const type = (properties.$exception_type as string) ?? "";
+  const combined = `${type} ${message}`;
+
+  for (const pattern of IGNORED_ERROR_PATTERNS) {
+    if (combined.includes(pattern)) return true;
+  }
+
+  // Check $exception_list entries (PostHog SDK v1.100+ exception autocapture)
+  const exceptionList = properties.$exception_list;
+  if (Array.isArray(exceptionList)) {
+    for (const entry of exceptionList) {
+      const entryType = (entry?.type as string) ?? "";
+      const entryValue = (entry?.value as string) ?? "";
+      const entryCombined = `${entryType} ${entryValue}`;
+
+      for (const pattern of IGNORED_ERROR_PATTERNS) {
+        if (entryCombined.includes(pattern)) return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 if (typeof window !== "undefined" && process.env.NODE_ENV === "production") {
   const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
 
@@ -46,18 +85,8 @@ if (typeof window !== "undefined" && process.env.NODE_ENV === "production") {
       before_send: (event) => {
         if (!event) return event;
         // Filter out known benign errors from $exception events
-        if (event.event === "$exception") {
-          const message =
-            (event.properties?.$exception_message as string) ?? "";
-          const type =
-            (event.properties?.$exception_type as string) ?? "";
-          const combined = `${type} ${message}`;
-
-          for (const pattern of IGNORED_ERROR_PATTERNS) {
-            if (combined.includes(pattern)) {
-              return null;
-            }
-          }
+        if (event.event === "$exception" && isIgnoredException(event.properties)) {
+          return null;
         }
         return event;
       },
