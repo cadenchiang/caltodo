@@ -303,7 +303,7 @@ export default function ChatSidebar({
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="px-4 pt-5 pb-3 shrink-0">
-        <h2 className="text-[15px] font-bold text-foreground">Messages</h2>
+        <h2 className="text-base md:text-xl font-bold text-foreground">Messages</h2>
       </div>
 
       {/* Conversation list */}

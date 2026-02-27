@@ -15,8 +15,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getValidAccessToken, getCalendarId } from "@/lib/gcal/token-manager";
-import { updateAttendeeResponseStatus } from "@/lib/gcal/calendar-attendees";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
 
@@ -152,52 +150,5 @@ export async function POST(
     newTaskId: copiedTask.id,
   });
 
-  // Fire-and-forget: update GCal attendee status to "accepted" if applicable
-  if (sourceTask.google_event_id) {
-    syncGCalAcceptStatus(
-      supabase,
-      share.inviter_id,
-      sourceTask.google_event_id,
-      user.email ?? ""
-    ).catch((err) => {
-      logger.warn("POST /api/tasks/invite/[shareId]/respond: GCal sync failed (non-blocking)", {
-        error: err instanceof Error ? err.message : String(err),
-      });
-    });
-  }
-
   return NextResponse.json({ success: true, taskId: copiedTask.id });
-}
-
-/**
- * Fire-and-forget helper to update the invitee's attendee status
- * on the inviter's Google Calendar event to "accepted".
- * Silently skips if the inviter does not have GCal connected.
- *
- * @param supabase - Authenticated Supabase client
- * @param inviterId - The inviter's user ID (owns the GCal event)
- * @param googleEventId - The Google Calendar event ID
- * @param inviteeEmail - The invitee's email address
- */
-async function syncGCalAcceptStatus(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  inviterId: string,
-  googleEventId: string,
-  inviteeEmail: string
-): Promise<void> {
-  if (!inviteeEmail) return;
-
-  const accessToken = await getValidAccessToken(supabase, inviterId);
-  if (!accessToken) return;
-
-  const calendarId = await getCalendarId(supabase, inviterId);
-  if (!calendarId) return;
-
-  await updateAttendeeResponseStatus(
-    accessToken,
-    calendarId,
-    googleEventId,
-    inviteeEmail,
-    "accepted"
-  );
 }

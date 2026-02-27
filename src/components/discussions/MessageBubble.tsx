@@ -43,6 +43,8 @@ interface MessageBubbleProps {
   onReport?: (messageId: string) => void;
   onReply?: (message: ChatMessage) => void;
   onToggleReaction?: (emoji: string) => void;
+  /** Callback to open the reactions detail modal for this message. */
+  onViewReactions?: (messageId: string) => void;
   /** Callback to scroll to a specific message (for reply quote clicks). */
   onScrollToMessage?: (messageId: string) => void;
 }
@@ -82,7 +84,7 @@ function isAnonymous(message: ChatMessage): boolean {
 
 export default function MessageBubble({
   message, isOwn, showAuthor, isLastInGroup, isLastMessage,
-  anonymousNumber, reactions, currentUserId, isAdmin, revealedIdentity, onRevealIdentity, replyTo, onDelete, onReport, onReply, onToggleReaction, onScrollToMessage,
+  anonymousNumber, reactions, currentUserId, isAdmin, revealedIdentity, onRevealIdentity, replyTo, onDelete, onReport, onReply, onToggleReaction, onViewReactions, onScrollToMessage,
 }: MessageBubbleProps) {
   const anonymous = isAnonymous(message);
   const isSending = message._status === "sending";
@@ -123,6 +125,12 @@ export default function MessageBubble({
 
   const showStatus = isOwn && (isSending || isFailed || (isLastMessage && !isSending && !isFailed));
   const hasReactions = reactions && reactions.length > 0;
+  /** Set of emojis the current user has reacted with (for picker highlighting). */
+  const myReactions = new Set(
+    reactions?.filter((g) => currentUserId && g.userIds.includes(currentUserId)).map((g) => g.emoji) ?? [],
+  );
+  /** Total number of reactions across all emojis. */
+  const totalReactionCount = reactions?.reduce((sum, g) => sum + g.userIds.length, 0) ?? 0;
 
   return (
     <div
@@ -215,8 +223,8 @@ export default function MessageBubble({
         )}
 
         {/* Bubble content + hover toolbar in a row */}
-        <div className={`flex items-center gap-1 ${isOwn ? "flex-row-reverse" : "flex-row"}`}>
-          {/* Bubble content */}
+        <div className={`flex items-center gap-1 ${isOwn ? "flex-row-reverse" : "flex-row"} ${hasReactions ? "mb-2" : ""}`}>
+          {/* Bubble content with reaction badge overlay */}
           <div className={`relative flex flex-col ${isOwn ? "items-end" : "items-start"} min-w-0`}>
             {(() => {
               const lines = message.body.split("\n");
@@ -231,12 +239,12 @@ export default function MessageBubble({
                       className={`px-3.5 py-2 text-[14.5px] leading-[1.35] break-words whitespace-pre-wrap ${
                         isOwn
                           ? `${anonymous ? "bg-[#1C1C1E] dark:bg-[#2C2C2E]" : "bg-[#007AFF]"} text-white ${
-                              isLastInGroup && imageUrls.length === 0 && !hasReactions
+                              isLastInGroup && imageUrls.length === 0
                                 ? "rounded-[20px] rounded-br-[6px]"
                                 : "rounded-[20px]"
                             }${isSending ? " opacity-70" : ""}`
                           : `bg-[#E9E9EB] dark:bg-[#303030] text-black dark:text-white ${
-                              isLastInGroup && imageUrls.length === 0 && !hasReactions
+                              isLastInGroup && imageUrls.length === 0
                                 ? "rounded-[20px] rounded-bl-[6px]"
                                 : "rounded-[20px]"
                             }`
@@ -276,28 +284,21 @@ export default function MessageBubble({
               );
             })()}
 
-            {/* Reaction pills below the bubble */}
+            {/* Compact reaction badge — overlaps the bottom corner of the bubble */}
             {hasReactions && (
-              <div className={`flex flex-wrap gap-1 mt-1 ${isOwn ? "mr-1" : "ml-1"}`}>
-                {reactions.map(({ emoji, userIds }) => {
-                  const isOwnReaction = currentUserId ? userIds.includes(currentUserId) : false;
-                  return (
-                    <button
-                      key={emoji}
-                      onClick={() => onToggleReaction?.(emoji)}
-                      className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs border transition-colors cursor-pointer ${
-                        isOwnReaction
-                          ? "bg-blue-100 dark:bg-blue-900/30 border-blue-300 dark:border-blue-700"
-                          : "bg-muted/50 border-border hover:bg-muted"
-                      }`}
-                    >
-                      <span>{emoji}</span>
-                      {userIds.length > 1 && (
-                        <span className="text-[10px] text-muted-foreground">{userIds.length}</span>
-                      )}
-                    </button>
-                  );
-                })}
+              <div
+                className={`absolute -bottom-2 flex items-center gap-[2px] px-1 py-[1px] rounded-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 ${
+                  isOwn ? "right-1" : "left-1"
+                }`}
+              >
+                {reactions.slice(0, 3).map(({ emoji }) => (
+                  <span key={emoji} className="text-[9px] leading-none">{emoji}</span>
+                ))}
+                {totalReactionCount > 1 && (
+                  <span className="text-[9px] font-medium text-muted-foreground leading-none ml-[1px]">
+                    {totalReactionCount}
+                  </span>
+                )}
               </div>
             )}
           </div>
@@ -322,18 +323,25 @@ export default function MessageBubble({
                   <div className={`absolute bottom-8 z-30 bg-popover border border-border rounded-full shadow-lg px-1.5 py-1 flex items-center gap-0.5 ${
                     isOwn ? "right-0" : "left-0"
                   }`}>
-                    {TAPBACK_EMOJI.map((emoji) => (
-                      <button
-                        key={emoji}
-                        onClick={() => {
-                          onToggleReaction?.(emoji);
-                          setShowReactPicker(false);
-                        }}
-                        className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-muted transition-colors cursor-pointer text-base"
-                      >
-                        {emoji}
-                      </button>
-                    ))}
+                    {TAPBACK_EMOJI.map((emoji) => {
+                      const isActive = myReactions.has(emoji);
+                      return (
+                        <button
+                          key={emoji}
+                          onClick={() => {
+                            onToggleReaction?.(emoji);
+                            setShowReactPicker(false);
+                          }}
+                          className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors cursor-pointer text-base ${
+                            isActive
+                              ? "bg-blue-100 dark:bg-blue-900/30 ring-1 ring-blue-300 dark:ring-blue-700"
+                              : "hover:bg-muted"
+                          }`}
+                        >
+                          {emoji}
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </div>

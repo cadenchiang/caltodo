@@ -8,6 +8,8 @@ import MessageBubble from "./MessageBubble";
 import ChatInput from "./ChatInput";
 import DateSeparator from "./DateSeparator";
 import TypingIndicator from "./TypingIndicator";
+import UnsendConfirmModal from "./UnsendConfirmModal";
+import ReactionsDetailModal, { type ReactionDetail } from "./ReactionsDetailModal";
 import { ChevronDown, X } from "lucide-react";
 
 /**
@@ -88,6 +90,10 @@ export default function ChatView({
   const [replyTarget, setReplyTarget] = useState<ChatMessage | null>(null);
   /** Map of anonymous userId → revealed identity. Shared across all MessageBubbles. */
   const [revealedIdentities, setRevealedIdentities] = useState<Map<string, { name: string; avatar: string | null }>>(new Map());
+  /** Message ID pending unsend confirmation (null = modal closed). */
+  const [unsendTargetId, setUnsendTargetId] = useState<string | null>(null);
+  /** Message ID whose reactions detail modal is open (null = closed). */
+  const [reactionDetailMessageId, setReactionDetailMessageId] = useState<string | null>(null);
   const prevMessageCountRef = useRef(0);
   const isNearBottomRef = useRef(true);
   /** Tracks the first message ID to detect when the chat is switched (full replace vs append). */
@@ -249,6 +255,78 @@ export default function ChatView({
       window.alert("Network error. Please try again.");
     }
   }, []);
+
+  /**
+   * Opens the unsend confirmation modal for a given message.
+   *
+   * @param messageId - The ID of the message the user wants to unsend
+   */
+  const handleUnsendRequest = useCallback((messageId: string) => {
+    setUnsendTargetId(messageId);
+  }, []);
+
+  /**
+   * Confirms the unsend action — deletes the message and closes the modal.
+   */
+  const handleUnsendConfirm = useCallback(() => {
+    if (unsendTargetId) {
+      onDelete(unsendTargetId);
+    }
+    setUnsendTargetId(null);
+  }, [unsendTargetId, onDelete]);
+
+  /**
+   * Cancels the unsend action and closes the modal.
+   */
+  const handleUnsendCancel = useCallback(() => {
+    setUnsendTargetId(null);
+  }, []);
+
+  /**
+   * Opens the reactions detail modal for a message.
+   *
+   * @param messageId - The ID of the message whose reactions to display
+   */
+  const handleViewReactions = useCallback((messageId: string) => {
+    setReactionDetailMessageId(messageId);
+  }, []);
+
+  /**
+   * Builds a lookup map of userId → { name, avatar } from all messages.
+   * Used to display reactor names in the reactions detail modal.
+   * Users who only sent anonymous messages won't have entries.
+   */
+  const userInfoMap = useMemo(() => {
+    const map = new Map<string, { name: string | null; avatar: string | null }>();
+    for (const msg of messages) {
+      if (msg.author_name && !map.has(msg.author_id)) {
+        map.set(msg.author_id, { name: msg.author_name, avatar: msg.author_avatar ?? null });
+      }
+    }
+    return map;
+  }, [messages]);
+
+  /**
+   * Flat list of reaction details for the currently open reactions modal.
+   * Resolves user IDs to names/avatars via userInfoMap.
+   */
+  const reactionDetails: ReactionDetail[] = useMemo(() => {
+    if (!reactionDetailMessageId || !reactionsMap) return [];
+    const groups = reactionsMap.get(reactionDetailMessageId) ?? [];
+    const details: ReactionDetail[] = [];
+    for (const group of groups) {
+      for (const userId of group.userIds) {
+        const info = userInfoMap.get(userId);
+        details.push({
+          userId,
+          emoji: group.emoji,
+          userName: info?.name ?? null,
+          userAvatar: info?.avatar ?? null,
+        });
+      }
+    }
+    return details;
+  }, [reactionDetailMessageId, reactionsMap, userInfoMap]);
 
   /**
    * Handles scroll events to track position and trigger pagination.
@@ -479,10 +557,11 @@ export default function ChatView({
                 revealedIdentity={revealedIdentities.get(msg.author_id)}
                 onRevealIdentity={onRevealIdentity}
                 replyTo={msg.reply_to_id ? messages.find((m) => m.id === msg.reply_to_id) ?? null : null}
-                onDelete={isOwn ? onDelete : undefined}
+                onDelete={isOwn ? handleUnsendRequest : undefined}
                 onReport={!isOwn ? handleReport : undefined}
                 onReply={setReplyTarget}
                 onToggleReaction={onToggleReaction ? (emoji) => onToggleReaction(msg.id, emoji, currentUserId) : undefined}
+                onViewReactions={handleViewReactions}
                 onScrollToMessage={scrollToMessage}
               />
             </div>
@@ -552,6 +631,20 @@ export default function ChatView({
           onTyping={onTyping}
         />
       </div>
+
+      {/* Unsend confirmation modal */}
+      <UnsendConfirmModal
+        open={unsendTargetId !== null}
+        onConfirm={handleUnsendConfirm}
+        onCancel={handleUnsendCancel}
+      />
+
+      {/* Reactions detail modal */}
+      <ReactionsDetailModal
+        open={reactionDetailMessageId !== null}
+        reactions={reactionDetails}
+        onClose={() => setReactionDetailMessageId(null)}
+      />
     </div>
   );
 }

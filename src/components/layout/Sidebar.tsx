@@ -10,6 +10,7 @@ import SidebarNavItem from "./SidebarNavItem";
 import ProfilePopup from "./ProfilePopup";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useCalChatUnread } from "@/hooks/useCalChatUnread";
+import { useNotifications } from "@/contexts/NotificationContext";
 
 /** localStorage keys for GCal status. */
 const GCAL_CACHE_KEY = "gcal_status";
@@ -71,6 +72,23 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
   }, []);
   const [showCalBadge, setShowCalBadge] = useState(false);
   const hasCalChatUnread = useCalChatUnread();
+  const { pendingInviteCount } = useNotifications();
+
+  // Track whether user has clicked CalChat to dismiss "NEW" badge
+  const [calchatClicked, setCalchatClicked] = useState(true); // default true to avoid flash
+  useEffect(() => {
+    try {
+      setCalchatClicked(localStorage.getItem("calchat_new_dismissed") === "true");
+    } catch { /* ignore */ }
+  }, []);
+
+  // Dismiss "NEW" badge when user navigates to CalChat
+  useEffect(() => {
+    if (pathname.startsWith("/app/discussions") && !calchatClicked) {
+      setCalchatClicked(true);
+      try { localStorage.setItem("calchat_new_dismissed", "true"); } catch { /* ignore */ }
+    }
+  }, [pathname, calchatClicked]);
 
   // Derive active settings section directly from URL search params (single source of truth)
   const sectionParam = searchParams.get("section");
@@ -230,9 +248,15 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
                   label={isInbox ? inboxConfig.label : item.label}
                   href={item.href}
                   icon={isInbox ? inboxConfig.icon : item.icon}
-                  badge={isCalendar && showCalBadge}
-                  badgeCount={isChat ? hasCalChatUnread : undefined}
-                  badgeText={isChat && hasCalChatUnread === 0 ? "BETA" : undefined}
+                  badge={false}
+                  badgeCount={
+                    isChat
+                      ? hasCalChatUnread
+                      : (isInbox || isCalendar) && pendingInviteCount > 0
+                        ? pendingInviteCount
+                        : undefined
+                  }
+                  badgeText={isChat && hasCalChatUnread === 0 && !calchatClicked ? "NEW" : undefined}
                   id={`tour-nav-${item.label.toLowerCase()}`}
                   imageSrc={undefined}
                   imageClassName={undefined}

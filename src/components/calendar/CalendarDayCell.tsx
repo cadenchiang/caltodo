@@ -70,7 +70,7 @@ export default function CalendarDayCell({
 
   return (
     <div
-      className={`p-0.5 md:p-1.5 ${isLastCol ? "" : "border-r"} border-b border-border transition-colors relative ${
+      className={`p-0.5 md:p-1.5 ${isLastCol ? "" : "border-r"} border-b border-gray-300 dark:border-gray-600 transition-colors relative ${
         !isCurrentMonth
           ? "bg-muted/40"
           : isSelected && isMobile

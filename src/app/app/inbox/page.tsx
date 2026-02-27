@@ -175,7 +175,7 @@ function saveSelections(courses: SelectedCourse[]): void {
 export default function InboxPage() {
   const {
     tasks, loading, error, addTask, toggleComplete, deleteTask, updateTask,
-    syncing, triggerSync, reorderTasks,
+    syncing, triggerSync, reorderTasks, fetchTasks,
   } = useTaskContext();
   const inboxRouter = useRouter();
   const searchParams = useSearchParams();
@@ -258,20 +258,49 @@ export default function InboxPage() {
       if (res.ok) {
         setPendingInvites((prev) => {
           const updated = prev.filter((i) => i.shareId !== shareId);
-          setPendingInviteCount(updated.length);
+          // Defer cross-component state update to avoid setState-during-render
+          queueMicrotask(() => setPendingInviteCount(updated.length));
           return updated;
         });
 
-        // On accept, the task context will pick up the new task on next fetch
-        // Trigger a page-level refetch by dispatching a custom event
+        // On accept, refetch tasks so the newly copied task appears in the inbox.
+        // Small delay lets the admin-inserted row propagate through RLS.
         if (action === "accept") {
-          window.dispatchEvent(new CustomEvent("caltodo-tasks-changed"));
+          await new Promise((r) => setTimeout(r, 300));
+          await fetchTasks();
         }
       }
     } catch {
       // Non-critical — user can retry
     }
-  }, [setPendingInviteCount]);
+  }, [setPendingInviteCount, fetchTasks]);
+
+  /**
+   * Accepts all pending invites at once by firing accept for each.
+   */
+  const handleAcceptAllInvites = useCallback(async () => {
+    const invites = [...pendingInvites];
+    if (invites.length === 0) return;
+
+    // Clear the list immediately for instant UI feedback
+    setPendingInvites([]);
+    queueMicrotask(() => setPendingInviteCount(0));
+
+    // Fire all accept calls in parallel
+    await Promise.allSettled(
+      invites.map((invite) =>
+        fetch(`/api/tasks/invite/${invite.shareId}/respond`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "accept" }),
+        })
+      )
+    );
+
+    // Refetch tasks so accepted ones appear
+    await new Promise((r) => setTimeout(r, 300));
+    await fetchTasks();
+  }, [pendingInvites, setPendingInviteCount, fetchTasks]);
 
   // Auto-select task from ?task= query param (e.g. from notification click-through)
   const taskParamHandled = useRef(false);
@@ -755,6 +784,7 @@ export default function InboxPage() {
                   onReorder={sortMode === "date" ? handleReorder : undefined}
                   pendingInvites={pendingInvites}
                   onRespondInvite={handleRespondInvite}
+                  onAcceptAllInvites={handleAcceptAllInvites}
                   placeholder='Add task to "Inbox". Press Enter to save.'
                 />
               ) : (

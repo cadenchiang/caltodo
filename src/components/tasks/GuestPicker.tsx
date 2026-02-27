@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Loader2, UserPlus, X } from "lucide-react";
+import { Loader2, Send, UserPlus, X } from "lucide-react";
 import { useDebounce } from "@/hooks/useDebounce";
 import UserAvatar from "@/components/ui/UserAvatar";
 
@@ -23,28 +23,32 @@ interface GuestPickerProps {
 }
 
 /**
- * Compact inline guest picker with debounced autocomplete.
- * Shows a search input, autocomplete dropdown, and selected guest chips.
- * Used inside task add forms to collect inviteEmails before task creation.
+ * Self-contained guest picker matching InviteSection's visual pattern.
+ * Renders a Send icon with collapsed/expanded toggle, guest chips,
+ * and debounced autocomplete dropdown. Used inside task create/edit modals.
  *
  * @param selectedEmails - Array of currently selected email strings
  * @param onEmailsChange - Callback when emails are added or removed
  */
 export default function GuestPicker({ selectedEmails, onEmailsChange }: GuestPickerProps) {
+  const [expanded, setExpanded] = useState(false);
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<SearchUser[]>([]);
   const [searching, setSearching] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const debouncedQuery = useDebounce(query, 150);
 
+  // Focus input when expanded
   useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
+    if (expanded) inputRef.current?.focus();
+  }, [expanded]);
 
   // Search users when debounced query changes
   useEffect(() => {
     if (debouncedQuery.length < 2) {
       setSuggestions([]);
+      setSearching(false);
       return;
     }
 
@@ -57,10 +61,9 @@ export default function GuestPicker({ selectedEmails, onEmailsChange }: GuestPic
         if (res.ok && !cancelled) {
           const data = await res.json();
           const alreadySelected = new Set(selectedEmails);
-          const filtered = (data.users ?? []).filter(
-            (u: SearchUser) => !alreadySelected.has(u.email)
+          setSuggestions(
+            (data.users ?? []).filter((u: SearchUser) => !alreadySelected.has(u.email))
           );
-          setSuggestions(filtered);
         }
       } catch {
         // Non-critical
@@ -72,6 +75,22 @@ export default function GuestPicker({ selectedEmails, onEmailsChange }: GuestPic
     search();
     return () => { cancelled = true; };
   }, [debouncedQuery, selectedEmails]);
+
+  // Close on outside click
+  useEffect(() => {
+    if (!expanded) return;
+
+    function handleClickOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setExpanded(false);
+        setQuery("");
+        setSuggestions([]);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [expanded]);
 
   /**
    * Adds an email to the selected list and clears the search.
@@ -97,9 +116,16 @@ export default function GuestPicker({ selectedEmails, onEmailsChange }: GuestPic
   }
 
   /**
-   * Handles Enter and Escape key events in the search input.
+   * Handles keyboard events in the search input.
+   * Enter adds the first suggestion or raw email. Escape collapses.
    */
   function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "Escape") {
+      setExpanded(false);
+      setQuery("");
+      setSuggestions([]);
+      return;
+    }
     if (e.key === "Enter") {
       e.preventDefault();
       e.stopPropagation();
@@ -112,16 +138,16 @@ export default function GuestPicker({ selectedEmails, onEmailsChange }: GuestPic
   }
 
   return (
-    <div className="space-y-2">
-      {/* Selected guest chips */}
+    <div ref={containerRef} className="space-y-1.5">
+      {/* Guest chips */}
       {selectedEmails.length > 0 && (
-        <div className="flex flex-wrap gap-1">
+        <div className="flex flex-wrap gap-1.5 ml-7">
           {selectedEmails.map((email) => (
             <span
               key={email}
               className="inline-flex items-center gap-1 text-[11px] font-medium pl-2 pr-1 py-0.5 rounded-full border border-border bg-muted/50 text-foreground"
             >
-              <span className="truncate max-w-[100px]">{email}</span>
+              <span className="truncate max-w-[120px]">{email}</span>
               <button
                 type="button"
                 onClick={() => removeEmail(email)}
@@ -135,56 +161,76 @@ export default function GuestPicker({ selectedEmails, onEmailsChange }: GuestPic
         </div>
       )}
 
-      {/* Search input */}
+      {/* Search row — matches InviteSection's collapsed/expanded layout */}
       <div className="relative">
-        <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-input-border bg-transparent text-sm">
-          <UserPlus size={13} className="text-muted-foreground flex-shrink-0" />
-          <input
-            ref={inputRef}
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Search name or email..."
-            className="flex-1 min-w-0 bg-transparent text-foreground placeholder-muted-foreground focus:outline-none text-xs"
-          />
-          {searching && (
-            <Loader2 size={12} className="animate-spin text-muted-foreground" />
-          )}
+        <div
+          className={`flex items-center gap-3 px-2 py-1 ${!expanded ? "cursor-text" : ""}`}
+          onClick={() => !expanded && setExpanded(true)}
+        >
+          <Send size={16} className="text-muted-foreground shrink-0" />
+          <div
+            className={`flex-1 flex items-center py-1.5 rounded-lg ${
+              expanded
+                ? "px-3 bg-muted border border-input-border"
+                : "px-1.5 hover:bg-accent"
+            }`}
+          >
+            {expanded ? (
+              <>
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Search by name or email..."
+                  className="flex-1 min-w-0 bg-transparent text-foreground placeholder-muted-foreground focus:outline-none text-sm"
+                />
+                {searching && (
+                  <Loader2 size={12} className="animate-spin text-muted-foreground shrink-0 ml-2" />
+                )}
+              </>
+            ) : (
+              <span className="text-sm text-muted-foreground">
+                {selectedEmails.length > 0 ? `${selectedEmails.length} guest(s)` : "Send assignment"}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Autocomplete dropdown */}
-        {(suggestions.length > 0 || (query.includes("@") && query.length >= 3 && suggestions.length === 0 && !searching)) && (
-          <div className="absolute left-0 right-0 top-full mt-1 z-30 rounded-lg border border-border bg-popover shadow-xl overflow-hidden max-h-[160px] overflow-y-auto">
+        {expanded && (suggestions.length > 0 || (query.includes("@") && query.length >= 3 && suggestions.length === 0 && !searching)) && (
+          <div className="absolute left-7 right-0 top-full mt-1 z-[60] rounded-lg border border-border bg-popover shadow-xl overflow-hidden max-h-[200px] overflow-y-auto">
             {suggestions.map((user) => (
               <button
                 key={user.id}
                 type="button"
                 onClick={() => addEmail(user.email)}
-                className="flex items-center gap-2.5 w-full text-left px-2.5 py-1.5 hover:bg-accent transition-colors"
+                className="flex items-center gap-3 w-full text-left px-3 py-2 hover:bg-accent transition-colors"
               >
                 <UserAvatar
                   url={user.avatar_url}
                   name={user.full_name}
                   email={user.email}
-                  size={24}
+                  size={28}
                 />
                 <div className="flex-1 min-w-0">
                   {user.full_name && (
-                    <p className="text-xs font-medium text-foreground truncate">{user.full_name}</p>
+                    <p className="text-sm font-medium text-foreground truncate">{user.full_name}</p>
                   )}
-                  <p className="text-[11px] text-muted-foreground truncate">{user.email}</p>
+                  <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                 </div>
               </button>
             ))}
+            {/* Raw email fallback when no suggestions match */}
             {suggestions.length === 0 && query.includes("@") && query.length >= 3 && !searching && (
               <button
                 type="button"
                 onClick={() => addEmail(query)}
-                className="flex items-center gap-2.5 w-full text-left px-2.5 py-1.5 hover:bg-accent transition-colors"
+                className="flex items-center gap-3 w-full text-left px-3 py-2 hover:bg-accent transition-colors"
               >
-                <UserPlus size={14} className="text-muted-foreground ml-1" />
-                <span className="text-xs text-foreground">
+                <UserPlus size={16} className="text-muted-foreground ml-1.5" />
+                <span className="text-sm text-foreground">
                   Invite <span className="font-medium">{query}</span>
                 </span>
               </button>

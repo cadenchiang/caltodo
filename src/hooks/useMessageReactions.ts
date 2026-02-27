@@ -73,32 +73,39 @@ export function useMessageReactions(courseId: string) {
     emoji: string,
     userId: string,
   ) => {
-    // Optimistic update
+    // Optimistic update — one reaction per user per message
     setReactionsMap((prev) => {
       const next = new Map(prev);
-      const groups = [...(next.get(messageId) ?? [])];
-      const group = groups.find((g) => g.emoji === emoji);
+      let groups = [...(next.get(messageId) ?? [])];
+      const existingGroup = groups.find((g) => g.userIds.includes(userId));
 
-      if (group) {
-        if (group.userIds.includes(userId)) {
-          // Remove user from this reaction
-          group.userIds = group.userIds.filter((id) => id !== userId);
-          if (group.userIds.length === 0) {
-            next.set(messageId, groups.filter((g) => g.emoji !== emoji));
-          } else {
-            next.set(messageId, groups);
-          }
-        } else {
-          // Add user to this reaction
-          group.userIds = [...group.userIds, userId];
-          next.set(messageId, groups);
+      if (existingGroup && existingGroup.emoji === emoji) {
+        // Same emoji → toggle off (remove)
+        existingGroup.userIds = existingGroup.userIds.filter((id) => id !== userId);
+        if (existingGroup.userIds.length === 0) {
+          groups = groups.filter((g) => g.emoji !== emoji);
         }
-      } else {
-        // New reaction
-        groups.push({ emoji, userIds: [userId] });
         next.set(messageId, groups);
+        return next;
       }
 
+      // Remove user from any existing reaction group first
+      if (existingGroup) {
+        existingGroup.userIds = existingGroup.userIds.filter((id) => id !== userId);
+        if (existingGroup.userIds.length === 0) {
+          groups = groups.filter((g) => g.emoji !== existingGroup.emoji);
+        }
+      }
+
+      // Add user to the new emoji group
+      const targetGroup = groups.find((g) => g.emoji === emoji);
+      if (targetGroup) {
+        targetGroup.userIds = [...targetGroup.userIds, userId];
+      } else {
+        groups.push({ emoji, userIds: [userId] });
+      }
+
+      next.set(messageId, groups);
       return next;
     });
 

@@ -83,7 +83,7 @@ export async function sendInviteEmail(
     const { error } = await client.emails.send({
       from: fromAddress,
       to: recipientEmail,
-      subject: `${inviterName} shared a homework with you on caltodo`,
+      subject: `${inviterName} sent you an assignment on caltodo`,
       html: buildInviteEmailHtml(inviterName, taskTitle, appUrl),
     });
 
@@ -133,10 +133,10 @@ function buildInviteEmailHtml(
         <img src="${appUrl}/logo.png" alt="caltodo" style="height: 40px; display: inline-block;" />
       </div>
       <h2 style="font-size: 20px; font-weight: 600; color: #1a1a1a; margin: 0 0 16px;">
-        You have a pending homework invite
+        You have a pending assignment
       </h2>
       <p style="font-size: 15px; color: #4a4a4a; line-height: 1.5; margin: 0 0 8px;">
-        <strong>${escapeHtml(inviterName)}</strong> shared an assignment with you:
+        <strong>${escapeHtml(inviterName)}</strong> sent you an assignment:
       </p>
       <p style="font-size: 15px; color: #1a1a1a; font-weight: 500; background: #f5f5f5; padding: 12px 16px; border-radius: 8px; margin: 0 0 24px;">
         ${escapeHtml(taskTitle)}

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { CalendarDays, Clock, ExternalLink, EyeOff, MoreVertical, Tag, Trash2 } from "lucide-react";
+import { CalendarDays, Clock, ExternalLink, EyeOff, MoreVertical, PenLine, Tag, Trash2 } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { format } from "date-fns";
 import type { Task, TaskUpdate } from "@/lib/types";
@@ -12,6 +12,7 @@ import { useTaskContext } from "@/contexts/TaskContext";
 import DatePicker from "./DatePicker";
 import TagPicker from "./TagPicker";
 import InviteSection from "./InviteSection";
+import TaskCreateModal from "./TaskCreateModal";
 import Popover from "@/components/ui/Popover";
 
 /** Duration presets for the snooze submenu. */
@@ -110,9 +111,8 @@ export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: Tas
   const { availableTags, snoozeTask } = useTaskContext();
   const { colorTheme } = useTheme();
   const isMiffy = colorTheme === "miffy";
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
   const [tags, setTags] = useState<string[]>([]);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [dueDate, setDueDate] = useState<string | null>(null);
   const [dueTime, setDueTime] = useState<string | null>(null);
   const [color, setColor] = useState("#3B82F6");
@@ -126,7 +126,6 @@ export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: Tas
   const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [snoozeOpen, setSnoozeOpen] = useState(false);
   const [customHours, setCustomHours] = useState("");
-  const descRef = useRef<HTMLTextAreaElement>(null);
   const dateButtonRef = useRef<HTMLButtonElement>(null);
   const colorButtonRef = useRef<HTMLButtonElement>(null);
   const menuBtnRef = useRef<HTMLButtonElement>(null);
@@ -134,8 +133,6 @@ export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: Tas
   // Sync state when a different task is selected
   useEffect(() => {
     if (task) {
-      setTitle(task.title);
-      setDescription(task.description);
       setDueDate(task.due_date);
       setDueTime(task.due_time);
       setColor(task.color);
@@ -146,24 +143,13 @@ export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: Tas
       setRepeatEndCount(task.repeat_end_count);
       setShowDatePicker(false);
       setShowColorPicker(false);
+      setShowEditModal(false);
       setMenuOpen(false);
       setSnoozeOpen(false);
       setCustomHours("");
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [task?.id]);
-
-  /**
-   * Persists title and description on blur.
-   * Only sends text fields to avoid racing with picker saves that update
-   * due_date, due_time, color, or repeat fields via saveWith().
-   */
-  function save() {
-    if (!task) return;
-    const trimmed = title.trim();
-    if (!trimmed) return;
-    onSave(task.id, { title: trimmed, description });
-  }
 
   /**
    * Saves only the specified field overrides (from pickers).
@@ -325,6 +311,16 @@ export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: Tas
               </a>
             )}
 
+            {/* Edit (pencil) icon — opens edit modal */}
+            <button
+              type="button"
+              onClick={() => setShowEditModal(true)}
+              className="p-1 text-subtle-foreground hover:text-foreground rounded-lg hover:bg-accent transition-colors"
+              aria-label="Edit task"
+            >
+              <PenLine size={14} />
+            </button>
+
             {/* Three-dots menu button */}
             {onDelete && (
               <button
@@ -390,25 +386,40 @@ export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: Tas
             <InviteSection taskId={task.id} />
           </div>
 
-          {/* Title + Description */}
+          {/* Title + Description (read-only — edit via pencil icon) */}
           <div className="flex-1 overflow-auto px-5 pt-3">
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              onBlur={save}
-              className="w-full text-lg font-bold text-foreground bg-transparent focus:outline-none placeholder-subtle-foreground mb-2"
-              placeholder="Task title"
-            />
-            <textarea
-              ref={descRef}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              onBlur={save}
-              placeholder="Write something..."
-              className="w-full text-sm text-secondary-foreground bg-transparent focus:outline-none resize-none placeholder-subtle-foreground leading-relaxed min-h-[200px]"
-            />
+            <p className="text-lg font-bold text-foreground mb-2">
+              {task.title}
+            </p>
+            {task.description ? (
+              <p className="text-sm text-secondary-foreground whitespace-pre-wrap leading-relaxed">
+                {task.description}
+              </p>
+            ) : (
+              <p className="text-sm text-subtle-foreground italic">No description</p>
+            )}
           </div>
+
+          {/* Edit modal — opened by pencil icon */}
+          <TaskCreateModal
+            open={showEditModal}
+            onClose={() => setShowEditModal(false)}
+            onAdd={() => {}}
+            editTask={task}
+            onSave={(id, updates) => {
+              // Update local state for picker-controlled fields
+              if (updates.due_date !== undefined) setDueDate(updates.due_date ?? null);
+              if (updates.due_time !== undefined) setDueTime(updates.due_time ?? null);
+              if (updates.color !== undefined) setColor(updates.color ?? "#3B82F6");
+              if (updates.tags !== undefined) setTags(updates.tags ?? []);
+              if (updates.repeat_interval !== undefined) setRepeatInterval(updates.repeat_interval ?? null);
+              if (updates.repeat_unit !== undefined) setRepeatUnit(updates.repeat_unit ?? null);
+              if (updates.repeat_end_date !== undefined) setRepeatEndDate(updates.repeat_end_date ?? null);
+              if (updates.repeat_end_count !== undefined) setRepeatEndCount(updates.repeat_end_count ?? null);
+              onSave(id, updates);
+              setShowEditModal(false);
+            }}
+          />
 
           {/* Delete menu (three-dots dropdown) */}
           {menuOpen && onDelete && typeof document !== "undefined" && createPortal(

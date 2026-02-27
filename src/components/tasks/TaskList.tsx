@@ -10,6 +10,7 @@ import TaskItem from "./TaskItem";
 import TaskCreateModal from "./TaskCreateModal";
 import ClassGroupHeader from "./ClassGroupHeader";
 import UserAvatar from "@/components/ui/UserAvatar";
+import { pendingInviteToPseudoTask } from "@/lib/pending-invite-helpers";
 import { useTheme } from "@/contexts/ThemeContext";
 
 /**
@@ -131,6 +132,8 @@ interface TaskListProps {
   pendingInvites?: PendingInvite[];
   /** Callback when user accepts or declines an invite. */
   onRespondInvite?: (shareId: string, action: "accept" | "decline") => void;
+  /** Callback to accept all pending invites at once. */
+  onAcceptAllInvites?: () => void;
 }
 
 /**
@@ -213,6 +216,7 @@ export default function TaskList({
   onReorder,
   pendingInvites = [],
   onRespondInvite,
+  onAcceptAllInvites,
 }: TaskListProps) {
   const { unsnoozeTask } = useTaskContext();
   const { colorTheme } = useTheme();
@@ -442,34 +446,50 @@ export default function TaskList({
       {/* Requests section (pending invites) — shown above active tasks */}
       {pendingInvites.length > 0 && (
         <div className="mt-1">
-          <div
-            className="flex items-center mx-2 pl-2.5 pr-1 py-1.5 rounded-lg hover:bg-accent transition-colors cursor-pointer"
-            onClick={() => {
-              const next = !requestsExpanded;
-              setRequestsExpanded(next);
-              try { localStorage.setItem("caltodo_requests_expanded", String(next)); } catch { /* ignore */ }
-            }}
-          >
-            <ChevronRight
-              size={12}
-              className={`shrink-0 text-secondary-foreground transition-transform duration-200 ${
-                requestsExpanded ? "rotate-90" : ""
-              }`}
-            />
-            <span className="text-sm font-semibold text-foreground ml-0.5">Requests</span>
-            <span className="text-xs text-amber-500 font-medium ml-1.5">{pendingInvites.length}</span>
+          <div className="flex items-center mx-2 pl-2.5 pr-1 py-1.5">
+            <div
+              className="flex items-center flex-1 rounded-lg hover:bg-accent transition-colors cursor-pointer px-0.5 py-0.5 -mx-0.5"
+              onClick={() => {
+                const next = !requestsExpanded;
+                setRequestsExpanded(next);
+                try { localStorage.setItem("caltodo_requests_expanded", String(next)); } catch { /* ignore */ }
+              }}
+            >
+              <ChevronRight
+                size={12}
+                className={`shrink-0 text-secondary-foreground transition-transform duration-200 ${
+                  requestsExpanded ? "rotate-90" : ""
+                }`}
+              />
+              <span className="text-sm font-semibold text-foreground ml-0.5">Requests</span>
+              <span className="text-xs text-amber-500 font-medium ml-1.5">{pendingInvites.length}</span>
+            </div>
+            {requestsExpanded && pendingInvites.length > 1 && onAcceptAllInvites && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onAcceptAllInvites(); }}
+                className="text-xs font-medium text-blue-500 hover:text-blue-600 transition-colors px-2 py-0.5 rounded-md hover:bg-blue-50 dark:hover:bg-blue-500/10 shrink-0"
+              >
+                Accept all
+              </button>
+            )}
           </div>
           {requestsExpanded && (
-            <>
-              {pendingInvites.map((invite, i) => (
-                <div key={invite.shareId}>
-                  {i > 0 && <div className="mx-12 h-px bg-border" />}
-                  <div className="flex items-center gap-3 px-4 py-2.5">
+            <div className="space-y-1 mt-0.5">
+              {pendingInvites.map((invite) => (
+                <div
+                  key={invite.shareId}
+                  className="mx-1 md:mx-2 rounded-xl border border-border bg-card"
+                >
+                  <div
+                    className="flex items-center gap-2 md:gap-3 px-3 md:px-4 py-2.5 cursor-pointer hover:bg-accent/50 rounded-t-xl transition-colors"
+                    onClick={() => onSelect(pendingInviteToPseudoTask(invite))}
+                  >
                     <UserAvatar
                       url={invite.inviterAvatar}
                       name={invite.inviterName}
                       email={invite.inviterEmail}
-                      size={28}
+                      size={24}
                     />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-foreground truncate">
@@ -484,26 +504,26 @@ export default function TaskList({
                         )}
                       </p>
                     </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => onRespondInvite?.(invite.shareId, "accept")}
-                        className="px-2.5 py-1 rounded-md text-xs font-medium bg-blue-500 text-white hover:bg-blue-600 transition-colors"
-                      >
-                        Accept
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onRespondInvite?.(invite.shareId, "decline")}
-                        className="px-2.5 py-1 rounded-md text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                      >
-                        Decline
-                      </button>
-                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 px-3 md:px-4 pb-2.5 pt-0.5">
+                    <button
+                      type="button"
+                      onClick={() => onRespondInvite?.(invite.shareId, "accept")}
+                      className="px-3 py-1 rounded-lg text-xs font-medium bg-blue-500 text-white hover:bg-blue-600 transition-colors"
+                    >
+                      Accept
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onRespondInvite?.(invite.shareId, "decline")}
+                      className="px-3 py-1 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                    >
+                      Decline
+                    </button>
                   </div>
                 </div>
               ))}
-            </>
+            </div>
           )}
         </div>
       )}

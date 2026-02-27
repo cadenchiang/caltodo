@@ -980,6 +980,56 @@ textarea:-webkit-autofill {
   contain-intrinsic-size: auto 200px;
 }
 
+/* Unsend confirm modal — subtle, smooth entrance/exit */
+@keyframes unsendBackdropIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes unsendBackdropOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes unsendCardIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes unsendCardOut {
+  from {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.97) translateY(4px);
+  }
+}
+
+.animate-unsend-backdrop-in {
+  animation: unsendBackdropIn 200ms ease-out both;
+}
+
+.animate-unsend-backdrop-out {
+  animation: unsendBackdropOut 180ms ease-in both;
+}
+
+.animate-unsend-card-in {
+  animation: unsendCardIn 250ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: 30ms;
+}
+
+.animate-unsend-card-out {
+  animation: unsendCardOut 150ms ease-in both;
+}
+
 /* Chat message subtle opacity fade-in (no translateY to avoid layout shift) */
 @keyframes msgFadeIn {
   from { opacity: 0; }

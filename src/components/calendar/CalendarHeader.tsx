@@ -182,7 +182,7 @@ export default function CalendarHeader({
 
         {/* GCal synced tag — hidden on mobile to save space */}
         {gcalConnected && (
-          <div className="relative shrink-0 hidden md:block">
+          <div className="relative shrink-0 hidden md:block ml-2">
             <button
               ref={buttonRef}
               onClick={() => setShowPopover(!showPopover)}
@@ -225,7 +225,7 @@ export default function CalendarHeader({
           </div>
         )}
         {gcalConnected === false && !badgeDismissed && (
-          <div className="relative shrink-0 hidden md:flex items-center group/badge">
+          <div className="relative shrink-0 hidden md:flex items-center group/badge ml-2">
             <a
               href="/app/settings?section=integrations"
               title="Sync your tasks to Google Calendar"

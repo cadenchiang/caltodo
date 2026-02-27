@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { UserPlus, X, Loader2 } from "lucide-react";
+import { Send, UserPlus, X, Loader2 } from "lucide-react";
 import { useDebounce } from "@/hooks/useDebounce";
 import UserAvatar from "@/components/ui/UserAvatar";
 
@@ -166,7 +166,7 @@ export default function InviteSection({ taskId }: InviteSectionProps) {
 
       if (!res.ok) {
         if (data.code === "already_shared") {
-          setError("Already shared with this person");
+          setError("Already sent to this person");
         } else if (data.code === "self_invite") {
           setError("You can't invite yourself");
         } else {
@@ -278,44 +278,37 @@ export default function InviteSection({ taskId }: InviteSectionProps) {
         </div>
       )}
 
-      {/* Single layout — collapsed shows text, expanded shows input, no layout shift */}
+      {/* Single layout — collapsed shows text, expanded shows input */}
       <div className="relative">
         <div
           className={`flex items-center gap-3 py-1 ${!expanded ? "cursor-text" : ""}`}
           onClick={() => !expanded && setExpanded(true)}
         >
-          <UserPlus size={16} className="text-muted-foreground shrink-0" />
+          <Send size={16} className="text-muted-foreground shrink-0" />
           <div
-            className={`relative flex-1 flex items-center py-1.5 transition-colors ${
+            className={`flex-1 flex items-center py-1.5 rounded-lg ${
               expanded
-                ? "px-3 bg-gray-100 dark:bg-zinc-800 rounded-t-lg"
-                : "px-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800"
+                ? "px-3 bg-muted border border-input-border"
+                : "px-1.5 hover:bg-accent"
             }`}
           >
             {expanded ? (
-              <input
-                ref={inputRef}
-                type="text"
-                value={query}
-                onChange={(e) => { setQuery(e.target.value); setError(null); }}
-                onKeyDown={handleKeyDown}
-                placeholder="Search by name or email..."
-                className="flex-1 min-w-0 bg-transparent text-foreground placeholder-muted-foreground focus:outline-none text-sm"
-              />
-            ) : (
-              <span className="text-sm text-muted-foreground">Share assignment</span>
-            )}
-            {/* Bottom bar — straight blue line, fast progress when searching */}
-            {expanded && (
-              <div className="absolute bottom-0 left-0 right-0 h-[2px] overflow-hidden">
-                <div
-                  className={`h-full bg-blue-500 ${
-                    searching
-                      ? "animate-[progress_0.6s_linear_infinite] w-2/5"
-                      : "w-full"
-                  }`}
+              <>
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={query}
+                  onChange={(e) => { setQuery(e.target.value); setError(null); }}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Search by name or email..."
+                  className="flex-1 min-w-0 bg-transparent text-foreground placeholder-muted-foreground focus:outline-none text-sm"
                 />
-              </div>
+                {searching && (
+                  <Loader2 size={12} className="animate-spin text-muted-foreground shrink-0 ml-2" />
+                )}
+              </>
+            ) : (
+              <span className="text-sm text-muted-foreground">Send assignment</span>
             )}
           </div>
         </div>
@@ -327,7 +320,7 @@ export default function InviteSection({ taskId }: InviteSectionProps) {
 
         {/* Autocomplete dropdown */}
         {expanded && (suggestions.length > 0 || (query.includes("@") && query.length >= 3 && suggestions.length === 0 && !searching)) && (
-          <div className="absolute left-7 right-0 top-full mt-1 z-20 rounded-lg border border-border bg-popover shadow-xl overflow-hidden max-h-[200px] overflow-y-auto">
+          <div className="absolute left-7 right-0 top-full mt-1 z-50 rounded-lg border border-border bg-popover shadow-xl overflow-hidden max-h-[200px] overflow-y-auto">
             {suggestions.map((user) => (
               <button
                 key={user.id}

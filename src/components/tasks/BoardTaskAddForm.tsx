@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Plus, CalendarDays, ChevronDown, Tag, UserPlus } from "lucide-react";
+import { Plus, CalendarDays, ChevronDown, Tag, Send } from "lucide-react";
 import { format } from "date-fns";
 import type { TaskInsert } from "@/lib/types";
 import { DEFAULT_TASK_COLOR } from "@/lib/constants";
@@ -379,8 +379,8 @@ export default function BoardTaskAddForm({ onAdd, onCancel, courseName, defaultC
             }}
             className="flex items-center gap-2.5 w-full text-left px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
           >
-            <UserPlus size={14} />
-            Add guests
+            <Send size={14} />
+            Send assignment
             {inviteEmails.length > 0 && (
               <span className="ml-auto text-[10px] font-medium text-blue-500">{inviteEmails.length}</span>
             )}

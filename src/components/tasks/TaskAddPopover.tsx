@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { format } from "date-fns";
-import { CalendarDays, Loader2, Tag, UserPlus, X } from "lucide-react";
+import { CalendarDays, Loader2, Tag, Send, X } from "lucide-react";
 import type { TaskInsert } from "@/lib/types";
 import { DEFAULT_TASK_COLOR } from "@/lib/constants";
 import ColorWheel from "@/components/ui/ColorWheel";
@@ -335,7 +335,7 @@ export default function TaskAddPopover({ date, anchorRect, onClose, onAdd }: Tas
               }`}
               aria-label="Invite people"
             >
-              <UserPlus size={14} />
+              <Send size={14} />
             </button>
 
             {/* Invited count badge */}
@@ -441,7 +441,7 @@ export default function TaskAddPopover({ date, anchorRect, onClose, onAdd }: Tas
               )}
               <div className="relative">
                 <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-input-border bg-transparent text-xs">
-                  <UserPlus size={12} className="text-muted-foreground shrink-0" />
+                  <Send size={12} className="text-muted-foreground shrink-0" />
                   <input
                     ref={inviteInputRef}
                     type="text"

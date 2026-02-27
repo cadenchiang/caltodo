@@ -100,32 +100,44 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Not a member" }, { status: 403 });
   }
 
-  // Check if reaction already exists
+  // Check if user already has ANY reaction on this message (one reaction per user)
   const { data: existing } = await supabase
     .from("message_reactions")
-    .select("id")
+    .select("id, emoji")
     .eq("message_id", messageId)
     .eq("user_id", user.id)
-    .eq("emoji", emoji)
     .maybeSingle();
 
   if (existing) {
-    // Remove reaction
+    // Same emoji → toggle off (remove)
+    if (existing.emoji === emoji) {
+      const { error: delErr } = await supabase
+        .from("message_reactions")
+        .delete()
+        .eq("id", existing.id);
+
+      if (delErr) {
+        logger.error("Failed to remove reaction", { userId: user.id, messageId, error: delErr.message });
+        return NextResponse.json({ error: "Failed to remove reaction" }, { status: 500 });
+      }
+
+      logger.info("Reaction removed", { userId: user.id, messageId, emoji });
+      return NextResponse.json({ action: "removed" });
+    }
+
+    // Different emoji → replace (delete old, insert new)
     const { error: delErr } = await supabase
       .from("message_reactions")
       .delete()
       .eq("id", existing.id);
 
     if (delErr) {
-      logger.error("Failed to remove reaction", { userId: user.id, messageId, error: delErr.message });
-      return NextResponse.json({ error: "Failed to remove reaction" }, { status: 500 });
+      logger.error("Failed to remove old reaction", { userId: user.id, messageId, error: delErr.message });
+      return NextResponse.json({ error: "Failed to replace reaction" }, { status: 500 });
     }
-
-    logger.info("Reaction removed", { userId: user.id, messageId, emoji });
-    return NextResponse.json({ action: "removed" });
   }
 
-  // Add reaction
+  // Add new reaction
   const { error: insErr } = await supabase
     .from("message_reactions")
     .insert({ message_id: messageId, course_id: courseId, user_id: user.id, emoji });

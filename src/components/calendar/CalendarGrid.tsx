@@ -83,7 +83,7 @@ export default function CalendarGrid({
   return (
     <div id="tour-calendar-grid" className="bg-card h-full flex flex-col">
       {/* Weekday headers */}
-      <div className="grid grid-cols-7 border-b border-border shrink-0">
+      <div className="grid grid-cols-7 border-b border-gray-300 dark:border-gray-600 shrink-0">
         {labels.map((label, i) => (
           <div
             key={`${label}-${i}`}

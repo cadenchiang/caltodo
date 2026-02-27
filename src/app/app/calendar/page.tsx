@@ -18,7 +18,7 @@ import CalendarGrid from "@/components/calendar/CalendarGrid";
 import CalendarWeekView from "@/components/calendar/CalendarWeekView";
 import CalendarDayView from "@/components/calendar/CalendarDayView";
 import TaskPopover from "@/components/tasks/TaskPopover";
-import TaskAddPopover from "@/components/tasks/TaskAddPopover";
+import TaskCreateModal from "@/components/tasks/TaskCreateModal";
 import PageTransition from "@/components/ui/PageTransition";
 import type { Task, PendingInvite } from "@/lib/types";
 
@@ -35,7 +35,6 @@ export default function CalendarPage() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [editAnchorRect, setEditAnchorRect] = useState<DOMRect | null>(null);
   const [addingDate, setAddingDate] = useState<string | null>(null);
-  const [addAnchorRect, setAddAnchorRect] = useState<DOMRect | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   const { tasks, loading, error, addTask, updateTask, deleteTask } = useTaskContext();
@@ -119,7 +118,6 @@ export default function CalendarPage() {
 
   function handleTaskClick(task: Task, rect: DOMRect) {
     setAddingDate(null);
-    setAddAnchorRect(null);
     setEditingTask(task);
     setEditAnchorRect(rect);
   }
@@ -128,7 +126,6 @@ export default function CalendarPage() {
     setEditingTask(null);
     setEditAnchorRect(null);
     setAddingDate(date);
-    setAddAnchorRect(rect);
   }
 
   function closeEditPopover() {
@@ -138,7 +135,6 @@ export default function CalendarPage() {
 
   function closeAddPopover() {
     setAddingDate(null);
-    setAddAnchorRect(null);
   }
 
   return (
@@ -204,17 +200,13 @@ export default function CalendarPage() {
           </div>
         </div>
 
-        {/* Floating add-task popover */}
-        {addingDate && addAnchorRect && (
-          <TaskAddPopover
-            date={addingDate}
-            anchorRect={addAnchorRect}
-            onClose={closeAddPopover}
-            onAdd={(taskData) => {
-              addTask(taskData);
-            }}
-          />
-        )}
+        {/* Task create modal (same as inbox/board views) */}
+        <TaskCreateModal
+          open={!!addingDate}
+          onClose={closeAddPopover}
+          onAdd={(task) => { addTask(task); closeAddPopover(); }}
+          defaultDate={addingDate}
+        />
 
         {/* Floating edit popover */}
         {editingTask && editAnchorRect && (

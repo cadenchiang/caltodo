@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { ClipboardList, PlusCircle, Search, LayoutGrid, Compass, CalendarDays } from "lucide-react";
+import { ClipboardList, PlusCircle, Search, LayoutGrid, CalendarDays, MessageSquare } from "lucide-react";
 import { TourProvider, TourStartDialog, useTour, type TourStep } from "./AppTour";
 
 /** localStorage key set by onboarding to trigger the tour. */
@@ -78,14 +78,6 @@ const TOUR_STEPS: TourStep[] = [
     ],
   },
   {
-    targetId: "tour-sidebar-nav",
-    title: "Navigation",
-    icon: <Compass size={ICON_SIZE} />,
-    description: "Switch between Inbox and Calendar views.",
-    position: "right",
-    route: "/app/inbox",
-  },
-  {
     targetId: "tour-calendar-grid",
     title: "Calendar",
     icon: <CalendarDays size={ICON_SIZE} />,
@@ -93,6 +85,14 @@ const TOUR_STEPS: TourStep[] = [
     position: "top",
     route: "/app/calendar",
     clickTargetId: "tour-nav-calendar",
+  },
+  {
+    targetId: "tour-nav-calchat",
+    title: "CalChat",
+    icon: <MessageSquare size={ICON_SIZE} />,
+    description: "Message your classmates anonymously, organized by course.",
+    position: "right",
+    route: "/app/inbox",
   },
 ];
 
