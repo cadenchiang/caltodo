@@ -299,7 +299,7 @@ export default function ChatInput({ onSend, disabled, error, onTyping }: ChatInp
           ref={emojiBtnRef}
           type="button"
           onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-          className="w-10 h-10 rounded-full bg-gray-200/80 dark:bg-black/50 dark:backdrop-blur-sm border border-black/5 dark:border-white/15 flex items-center justify-center shrink-0 hover:bg-gray-300/80 dark:hover:bg-black/60 transition-colors cursor-pointer active:scale-95"
+          className="w-10 h-10 rounded-full bg-gray-200/80 dark:bg-black/50 dark:backdrop-blur-sm border border-black/5 dark:border-white/15 flex items-center justify-center shrink-0 text-gray-500 dark:text-gray-300 hover:bg-gray-300/80 dark:hover:bg-black/60 transition-colors cursor-pointer active:scale-95"
           aria-label="Emoji"
         >
           <Smile size={20} />

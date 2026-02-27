@@ -6,6 +6,7 @@ import { ArrowLeft, Users } from "lucide-react";
 import { useCourseChat } from "@/hooks/useCourseChat";
 import { useMessageReactions } from "@/hooks/useMessageReactions";
 import { usePresence } from "@/contexts/PresenceContext";
+import { useTypingIndicator } from "@/hooks/useTypingIndicator";
 import ChatView from "@/components/discussions/ChatView";
 import ChatSidebar from "@/components/discussions/ChatSidebar";
 import ChatDetailsSidebar from "@/components/discussions/ChatDetailsSidebar";
@@ -14,6 +15,7 @@ import { useDiscussionBoards } from "@/hooks/useDiscussionBoards";
 import CalChatWelcomeModal from "@/components/discussions/CalChatWelcomeModal";
 import { stripParentheses } from "@/lib/chat-utils";
 import { NAME_KEY_PREFIX, MUTE_KEY_PREFIX } from "@/lib/chat-actions";
+import { isAdmin as checkIsAdmin } from "@/lib/admin";
 
 const LAST_CHAT_KEY = "calchat_last_course";
 
@@ -90,10 +92,17 @@ export default function CourseChatPage({ params }: PageProps) {
   const displayName = nameOverride || stripParentheses(activeCourseName);
 
   const supabaseRef = useRef(createClient());
+  /** Tracks message count to detect genuinely new messages (vs initial load). */
+  const notifBaselineRef = useRef<number | null>(null);
   const { boards } = useDiscussionBoards();
   const activeBoard = boards.find((b) => b.course.id === activeCourseId);
   const activeMemberCount = activeBoard?.member_count ?? 0;
   const isSystemCourse = activeBoard?.course.source === "system";
+
+  const [currentUserId, setCurrentUserId] = useState<string>("");
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [ready, setReady] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
 
   const {
     messages,
@@ -105,19 +114,20 @@ export default function CourseChatPage({ params }: PageProps) {
     sendMessage,
     deleteMessage,
     loadMore,
-  } = useCourseChat(activeCourseId, { isSystemCourse });
+  } = useCourseChat(activeCourseId, { isSystemCourse, isAdmin });
 
   const { onlineUsers, onlineUserIds } = usePresence();
   const { reactionsMap, toggleReaction } = useMessageReactions(activeCourseId);
+  const { typingUsers, startTyping, stopTyping } = useTypingIndicator(activeCourseId, currentUserId);
 
-  const [currentUserId, setCurrentUserId] = useState<string>("");
-  const [ready, setReady] = useState(false);
-  const [showDetails, setShowDetails] = useState(false);
-
-  // Get current user ID for message ownership — only once
+  // Get current user ID and admin status — only once
   useEffect(() => {
     supabaseRef.current.auth.getUser().then(({ data: { user } }) => {
-      if (user) setCurrentUserId(user.id);
+      if (user) {
+        setCurrentUserId(user.id);
+        // UI hint only — server enforces admin in /api/discussions/admin/reveal
+        setIsAdmin(checkIsAdmin(user.email));
+      }
       setReady(true);
     });
   }, []);
@@ -145,6 +155,7 @@ export default function CourseChatPage({ params }: PageProps) {
       if (courseId === activeCourseId) return;
       setActiveCourseId(courseId);
       setActiveCourseName(courseName);
+      notifBaselineRef.current = null; // Reset so first load of new chat doesn't notify
       const url = `/app/discussions/${courseId}?name=${encodeURIComponent(courseName)}`;
       window.history.replaceState(null, "", url);
     },
@@ -158,44 +169,58 @@ export default function CourseChatPage({ params }: PageProps) {
     }
   }, []);
 
-  // Desktop notifications for new messages from others (suppressed when muted)
+  // Desktop notifications for new messages from others (suppressed when muted).
+  // Uses a baseline ref to avoid false notifications on initial load.
   useEffect(() => {
-    if (
-      !isMuted &&
-      messages.length > 0 &&
-      currentUserId &&
-      "Notification" in window &&
-      Notification.permission === "granted" &&
-      document.hidden
-    ) {
-      const lastMsg = messages[messages.length - 1];
-      if (lastMsg.author_id !== currentUserId) {
-        const senderLabel = lastMsg.author_name ?? "Anonymous";
-        // Summarize message body: replace image URLs with friendly label
-        const imageExt = /\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i;
-        const lines = lastMsg.body.split("\n");
-        const textLines = lines.filter((l) => {
-          const t = l.trim();
-          if (!t.startsWith("http://") && !t.startsWith("https://")) return true;
-          try { return !imageExt.test(new URL(t).pathname); } catch { return true; }
-        });
-        const imageCount = lines.length - textLines.length;
-        const textPart = textLines.join(" ").trim();
-        let notifBody: string;
-        if (textPart && imageCount > 0) {
-          notifBody = `${textPart.slice(0, 80)} · ${imageCount} attachment${imageCount > 1 ? "s" : ""}`;
-        } else if (imageCount > 0) {
-          notifBody = `${imageCount} attachment${imageCount > 1 ? "s" : ""}`;
-        } else {
-          notifBody = textPart.slice(0, 100);
-        }
-        new Notification(`${senderLabel} in ${displayName}`, {
-          body: notifBody,
-          icon: lastMsg.author_avatar ?? "/icon-light.png",
-          tag: `chat-${activeCourseId}`,
-        });
-      }
+    // Establish baseline on first render — don't notify for pre-existing messages
+    if (notifBaselineRef.current === null) {
+      notifBaselineRef.current = messages.length;
+      return;
     }
+
+    // Only notify when messages actually increased beyond baseline
+    if (
+      messages.length <= notifBaselineRef.current ||
+      isMuted ||
+      !currentUserId ||
+      !("Notification" in window) ||
+      Notification.permission !== "granted" ||
+      !document.hidden
+    ) {
+      notifBaselineRef.current = messages.length;
+      return;
+    }
+
+    notifBaselineRef.current = messages.length;
+
+    const lastMsg = messages[messages.length - 1];
+    if (lastMsg.author_id === currentUserId || lastMsg._systemText) return;
+
+    const senderLabel = lastMsg.author_name ?? "Anonymous";
+    // Summarize message body: replace image URLs with friendly label
+    const imageExt = /\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i;
+    const lines = lastMsg.body.split("\n");
+    const textLines = lines.filter((l) => {
+      const t = l.trim();
+      if (!t.startsWith("http://") && !t.startsWith("https://")) return true;
+      try { return !imageExt.test(new URL(t).pathname); } catch { return true; }
+    });
+    const imageCount = lines.length - textLines.length;
+    const textPart = textLines.join(" ").trim();
+    let notifBody: string;
+    if (textPart && imageCount > 0) {
+      notifBody = `${textPart.slice(0, 80)} · ${imageCount} attachment${imageCount > 1 ? "s" : ""}`;
+    } else if (imageCount > 0) {
+      notifBody = `${imageCount} attachment${imageCount > 1 ? "s" : ""}`;
+    } else {
+      notifBody = textPart.slice(0, 100);
+    }
+
+    new Notification(`CalTodo — ${senderLabel}`, {
+      body: `${displayName}: ${notifBody}`,
+      icon: "/icon-light.png",
+      tag: `caltodo-chat-${activeCourseId}`,
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages.length]);
 
@@ -222,18 +247,18 @@ export default function CourseChatPage({ params }: PageProps) {
         {/* Header bar */}
         <div className="flex items-center gap-3 px-4 pt-5 pb-3 border-b border-black/30 dark:border-white/20 shrink-0">
           <button
-            onClick={() => router.push("/app/discussions")}
+            onClick={() => router.push("/app")}
             className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer md:hidden"
             title="Back to all chats"
           >
             <ArrowLeft size={18} className="text-muted-foreground" />
           </button>
           {isSystemCourse && (
-            <div className="w-7 h-7 rounded-full overflow-hidden bg-white dark:bg-white flex items-center justify-center shrink-0">
+            <div className="w-7 h-7 rounded-full overflow-hidden shrink-0">
               <img
-                src="/logo.png"
+                src="/cal-logo.webp"
                 alt=""
-                className="w-4.5 h-4.5 object-contain"
+                className="w-full h-full object-cover"
               />
             </div>
           )}
@@ -269,11 +294,15 @@ export default function CourseChatPage({ params }: PageProps) {
               sending={sending}
               error={error}
               currentUserId={currentUserId}
+              isAdmin={isAdmin}
               reactionsMap={reactionsMap}
               onSend={sendMessage}
               onDelete={deleteMessage}
               onToggleReaction={toggleReaction}
               onLoadMore={loadMore}
+              typingUsers={typingUsers}
+              onTyping={startTyping}
+              onSendComplete={stopTyping}
             />
           ) : (
             <div className="flex-1" />

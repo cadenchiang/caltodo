@@ -425,7 +425,11 @@ export default function ChatView({
         })}
 
         {/* Typing indicator — inside scroll area so it doesn't cover messages */}
-        <TypingIndicator typingUsers={typingUsers ?? []} />
+        <div style={{
+          marginBottom: messages.length > 0 && messages[messages.length - 1].author_id === currentUserId ? 20 : 0
+        }}>
+          <TypingIndicator typingUsers={typingUsers ?? []} />
+        </div>
 
         <div ref={bottomRef} style={{
           height: Math.max(0, bottomBarHeight - (
