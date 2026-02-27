@@ -85,13 +85,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Message too long" }, { status: 400 });
   }
 
+  // Validate email format if provided
+  const email = body.email?.trim();
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return NextResponse.json({ error: "Invalid email format" }, { status: 400 });
+  }
+
   // Store in database
   const { error: insertError } = await supabase
     .from("contact_messages")
     .insert({
       user_id: user.id,
       name: body.name || null,
-      email: body.email || user.email || null,
+      email: email || user.email || null,
       message,
     });
 
@@ -104,7 +110,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Send email notification
-  const senderEmail = body.email || user.email || "unknown";
+  const senderEmail = email || user.email || "unknown";
   const emailResult = await sendEmailNotification(
     body.name || "Anonymous",
     senderEmail,

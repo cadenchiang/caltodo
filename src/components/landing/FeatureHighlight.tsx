@@ -17,7 +17,7 @@ export default function FeatureHighlight() {
               New
             </span>
             <h2
-              className="text-[22px] sm:text-[32px] font-semibold text-[#ff5a05] leading-[1.05] tracking-tight"
+              className="text-[22px] sm:text-[32px] font-medium text-[#ff5a05] leading-[1.05] tracking-tight"
             style={{
               fontFamily:
                 '-apple-system, "SF Pro Display", BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
@@ -33,7 +33,7 @@ export default function FeatureHighlight() {
 
         {/* Image placeholder — swap src when ready */}
         <FadeIn delay={150}>
-          <div className="mt-10 sm:mt-14 rounded-2xl overflow-hidden">
+          <div className="mt-5 sm:mt-8 rounded-2xl overflow-hidden">
             <img
               src="/chat-feature-preview.png"
               alt="caltodo class chat feature preview"

@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { Camera, Check, Loader2, Search, Send, UserMinus, UserPlus, Users, X } from "lucide-react";
+import { Camera, Check, Flag, Loader2, Pencil, Search, Send, UserMinus, UserPlus, Users, X } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 import { useDebounce } from "@/hooks/useDebounce";
 import UserAvatar from "@/components/ui/UserAvatar";
+import EditProfileModal from "@/components/ui/EditProfileModal";
 
 /**
  * Friend/request entry returned by the friends API.
@@ -42,6 +43,7 @@ export default function ProfileSection() {
   const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
   const [imgError, setImgError] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [showEditProfile, setShowEditProfile] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState("");
   const [savingName, setSavingName] = useState(false);
@@ -84,10 +86,28 @@ export default function ProfileSection() {
   const [viewingUser, setViewingUser] = useState<SearchUser | null>(null);
   const [modalClosing, setModalClosing] = useState(false);
   const [viewingUserFriendCount, setViewingUserFriendCount] = useState<number>(0);
+  const [ownKarma, setOwnKarma] = useState<number | null>(null);
+  const [viewingUserKarma, setViewingUserKarma] = useState<number>(0);
 
-  // Fetch friend count when viewing a user profile
+  // Fetch own karma on mount
   useEffect(() => {
-    if (!viewingUser) { setViewingUserFriendCount(0); return; }
+    let cancelled = false;
+    async function fetchOwnKarma() {
+      try {
+        const res = await fetch("/api/users/karma?userId=self");
+        if (res.ok && !cancelled) {
+          const data = await res.json();
+          setOwnKarma(data.karma ?? 0);
+        }
+      } catch { /* non-critical */ }
+    }
+    fetchOwnKarma();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Fetch friend count and karma when viewing a user profile
+  useEffect(() => {
+    if (!viewingUser) { setViewingUserFriendCount(0); setViewingUserKarma(0); return; }
     let cancelled = false;
     async function fetchCount() {
       try {
@@ -98,7 +118,17 @@ export default function ProfileSection() {
         }
       } catch { /* non-critical */ }
     }
+    async function fetchKarma() {
+      try {
+        const res = await fetch(`/api/users/karma?userId=${encodeURIComponent(viewingUser!.id)}`);
+        if (res.ok && !cancelled) {
+          const data = await res.json();
+          setViewingUserKarma(data.karma ?? 0);
+        }
+      } catch { /* non-critical */ }
+    }
     fetchCount();
+    fetchKarma();
     return () => { cancelled = true; };
   }, [viewingUser]);
   const debouncedFriendQuery = useDebounce(friendQuery, 150);
@@ -542,25 +572,38 @@ export default function ProfileSection() {
             )}
           </div>
 
-          {/* Email — lighter, below name */}
-          {userEmail && (
-            <p className="text-sm text-muted-foreground mt-0.5 truncate">{userEmail}</p>
-          )}
-
-          {/* Stats row — like Instagram: 0 Friends  0 Requests  0 Sent */}
+          {/* Stats row */}
           <div className="flex items-center gap-5 mt-2.5">
             <span className="text-sm text-foreground">
               <span className="font-bold">{friends.length}</span> Friends
             </span>
-            <span className="text-sm text-foreground">
-              <span className="font-bold">{pendingReceived.length}</span> Requests
-            </span>
-            <span className="text-sm text-foreground">
-              <span className="font-bold">{pendingSent.length}</span> Sent
+            <span className="text-sm text-foreground group relative cursor-default">
+              <span className="font-bold">{ownKarma ?? "–"}</span> Karma
+              <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1 rounded-lg bg-popover border border-border text-xs text-muted-foreground px-2.5 py-1.5 shadow-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
+                Total messages sent in CalChat
+              </span>
             </span>
           </div>
+
+          {/* Edit Profile button */}
+          <button
+            onClick={() => setShowEditProfile(true)}
+            className="flex items-center gap-1.5 mt-3 px-3 py-1.5 text-xs font-medium rounded-lg border border-border text-foreground hover:bg-accent transition-colors"
+          >
+            <Pencil size={12} />
+            Edit Profile
+          </button>
         </div>
       </div>
+
+      {/* Edit profile modal */}
+      <EditProfileModal
+        open={showEditProfile}
+        onClose={() => setShowEditProfile(false)}
+        avatarUrl={userAvatarUrl}
+        fullName={userFullName}
+        email={userEmail}
+      />
 
       {/* Friend Requests — highlighted card with blue left border */}
       {pendingReceived.length > 0 && (
@@ -861,13 +904,39 @@ export default function ProfileSection() {
               className={`relative bg-card rounded-2xl border border-border shadow-2xl w-[380px] max-w-[90vw] overflow-hidden transition-all duration-150 ${modalClosing ? "scale-95 opacity-0" : "animate-in zoom-in-95 fade-in duration-200"}`}
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Close button */}
-              <button
-                onClick={closeModal}
-                className="absolute top-3 right-3 z-10 p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-accent transition-colors"
-              >
-                <X size={16} />
-              </button>
+              {/* Report + Close buttons */}
+              <div className="absolute top-3 right-3 z-10 flex items-center gap-1">
+                <button
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    try {
+                      const res = await fetch("/api/users/report", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ userId: viewingUser.id }),
+                      });
+                      if (res.ok) {
+                        showToast("Report submitted. Thank you.");
+                      } else {
+                        const data = await res.json().catch(() => ({}));
+                        showToast(data.error || "Failed to submit report.");
+                      }
+                    } catch {
+                      showToast("Failed to submit report.");
+                    }
+                  }}
+                  className="p-1.5 text-muted-foreground hover:text-red-500 rounded-lg hover:bg-accent transition-colors"
+                  title="Report user"
+                >
+                  <Flag size={14} />
+                </button>
+                <button
+                  onClick={closeModal}
+                  className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-accent transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              </div>
 
               {/* Profile header — left-aligned, matches our profile layout */}
               <div className="flex items-center gap-5 p-5">
@@ -888,6 +957,12 @@ export default function ProfileSection() {
                   <div className="flex items-center gap-4 mt-2">
                     <span className="text-sm text-foreground">
                       <span className="font-bold">{viewingUserFriendCount}</span> Friends
+                    </span>
+                    <span className="text-sm text-foreground group relative cursor-default">
+                      <span className="font-bold">{viewingUserKarma}</span> Karma
+                      <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1 rounded-lg bg-popover border border-border text-xs text-muted-foreground px-2.5 py-1.5 shadow-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
+                        Total messages sent in CalChat
+                      </span>
                     </span>
                   </div>
                 </div>

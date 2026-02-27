@@ -109,6 +109,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Cannot send request to yourself" }, { status: 400 });
   }
 
+  // Validate receiver exists before creating a friend request (prevents orphaned rows)
+  const userMap = await getCachedUserMap();
+  if (!userMap.has(userId)) {
+    return NextResponse.json({ error: "User not found" }, { status: 404 });
+  }
+
   try {
     // Use admin client to bypass RLS for server-validated inserts.
     // Auth check is already done above; RLS uid() can be unreliable in server context.

@@ -10,7 +10,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { encrypt } from "@/lib/crypto";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
-import type { IntegrationCredentials, CredentialsSavePayload } from "@/lib/types";
+import { isAllowedCanvasUrl } from "@/lib/canvas-url-validation";
+import type { IntegrationCredentials, CredentialsSavePayload, AdditionalCanvasAccount } from "@/lib/types";
 
 /** Base columns selected from integration_credentials (excludes additional_canvas_accounts for fallback). */
 const BASE_SELECT = "canvas_token, canvas_base_url, gradescope_email, gradescope_password_encrypted, last_synced_at, selected_canvas_courses, selected_gradescope_courses, selected_pensieve_courses, google_access_token_encrypted, google_calendar_id, google_email, google_photo_url, canvas_token_created_at, is_founding_member, pensieve_calendar_url, gradescope_auth_failed";
@@ -145,6 +146,22 @@ export async function PUT(request: Request) {
     updateData.pensieve_calendar_url = body.pensieve_calendar_url;
   }
   if (body.additional_canvas_accounts !== undefined) {
+    // Validate each additional Canvas account URL against allowlist
+    const accounts = body.additional_canvas_accounts as AdditionalCanvasAccount[] | null;
+    if (accounts && accounts.length > 0) {
+      for (const account of accounts) {
+        if (account.base_url && !isAllowedCanvasUrl(account.base_url)) {
+          logger.warn("PUT /api/credentials: rejected disallowed additional Canvas URL", {
+            userId: user.id,
+            baseUrl: account.base_url,
+          });
+          return NextResponse.json(
+            { error: `Invalid Canvas base URL: ${account.base_url}. Only bcourses.berkeley.edu and *.instructure.com are allowed.` },
+            { status: 400 }
+          );
+        }
+      }
+    }
     updateData.additional_canvas_accounts = body.additional_canvas_accounts;
   }
   // Only update password if explicitly provided (not null/undefined means "keep existing")

@@ -6,6 +6,8 @@ import type { ChatMessage } from "@/lib/types";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { createSystemEvent, fetchUserName } from "./chatSystemEvents";
 import { readCache, writeCache } from "./chatCache";
+import { obfuscateAuthorId } from "@/lib/author-obfuscate";
+import { compressImage } from "@/lib/compress-image";
 
 const PAGE_SIZE = 50;
 
@@ -20,15 +22,18 @@ const PAGE_SIZE = 50;
 /** Interval for flushing batched join events in system courses. */
 const JOIN_BATCH_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 
-export function useCourseChat(courseId: string, options?: { isSystemCourse?: boolean }) {
+export function useCourseChat(courseId: string, options?: { isSystemCourse?: boolean; isAdmin?: boolean }) {
   const isSystemCourse = options?.isSystemCourse ?? false;
+  const isAdminUser = options?.isAdmin ?? false;
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [sending, setSending] = useState(false);
+  const [spamCooldownEnd, setSpamCooldownEnd] = useState<number>(0);
   const [initialFetchDone, setInitialFetchDone] = useState(false);
   const channelRef = useRef<RealtimeChannel | null>(null);
+  const cooldownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const prevCourseIdRef = useRef(courseId);
   /** Accumulates join names for system courses to batch into one notification. */
   const pendingJoinsRef = useRef<string[]>([]);
@@ -131,11 +136,12 @@ export function useCourseChat(courseId: string, options?: { isSystemCourse?: boo
   const uploadFiles = useCallback(async (files: File[]): Promise<string[]> => {
     const urls: string[] = [];
     for (const file of files) {
-      const ext = file.name.split(".").pop() ?? "bin";
+      const processedFile = await compressImage(file);
+      const ext = processedFile.name.split(".").pop() ?? "bin";
       const path = `${courseId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
       const { error: uploadError } = await supabase.storage
         .from("chat-attachments")
-        .upload(path, file, { cacheControl: "3600", upsert: false });
+        .upload(path, processedFile, { cacheControl: "3600", upsert: false });
       if (uploadError) {
         const isBucketMissing = uploadError.message?.includes("Bucket not found");
         throw new Error(
@@ -214,6 +220,41 @@ export function useCourseChat(courseId: string, options?: { isSystemCourse?: boo
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
+
+        // Handle spam detection 429 with retryAfter countdown
+        if (res.status === 429 && data.retryAfter) {
+          const endTime = Date.now() + data.retryAfter * 1000;
+          setSpamCooldownEnd(endTime);
+
+          // Clear any existing countdown timer
+          if (cooldownTimerRef.current) {
+            clearInterval(cooldownTimerRef.current);
+          }
+
+          const updateCountdown = () => {
+            const remaining = Math.ceil((endTime - Date.now()) / 1000);
+            if (remaining <= 0) {
+              setError(null);
+              setSpamCooldownEnd(0);
+              if (cooldownTimerRef.current) {
+                clearInterval(cooldownTimerRef.current);
+                cooldownTimerRef.current = null;
+              }
+            } else {
+              setError(`Sending too fast. Try again in ${remaining}s.`);
+            }
+          };
+
+          updateCountdown();
+          cooldownTimerRef.current = setInterval(updateCountdown, 1000);
+
+          // Remove the optimistic message and clean up sentinel
+          tempToServerIdRef.current.delete(tempId);
+          setMessages((prev) => prev.filter((m) => m.id !== tempId));
+          setSending(false);
+          return;
+        }
+
         throw new Error(data.error || "Failed to send message");
       }
 
@@ -275,7 +316,7 @@ export function useCourseChat(courseId: string, options?: { isSystemCourse?: boo
           }
         }
         const num = anonMap.get(msg.author_id);
-        label = `Anonymous${num ? ` #${num}` : ""}`;
+        label = `#${num ?? "?"}`;
       }
 
       const filtered = prev.filter((m) => m.id !== messageId);
@@ -348,7 +389,11 @@ export function useCourseChat(courseId: string, options?: { isSystemCourse?: boo
 
           // Avoid duplicates from normal flow
           if (prev.some((m) => m.id === newMsg.id)) return prev;
-          const updated = [...prev, newMsg];
+          // Obfuscate anonymous messages from other users (non-admin)
+          const finalMsg = (!isAdminUser && !newMsg.author_name)
+            ? { ...newMsg, author_id: obfuscateAuthorId(newMsg.author_id, courseId) }
+            : newMsg;
+          const updated = [...prev, finalMsg];
           writeCache(courseId, updated);
           return updated;
         });
@@ -387,7 +432,7 @@ export function useCourseChat(courseId: string, options?: { isSystemCourse?: boo
               }
             }
             const num = old.author_id ? anonMap.get(old.author_id) : undefined;
-            label = `Anonymous${num ? ` #${num}` : ""}`;
+            label = `#${num ?? "?"}`;
           }
 
           const filtered = prev.filter((m) => m.id !== old.id);
@@ -403,12 +448,43 @@ export function useCourseChat(courseId: string, options?: { isSystemCourse?: boo
     // Subscribe to membership changes for join/leave system events
     const memberChannel = supabase.channel(`members:${courseId}`);
 
+    /** localStorage key for persisting pending join names across navigation. */
+    const JOIN_STORAGE_KEY = `calchat_pending_joins_${courseId}`;
+
+    /** Reads persisted pending joins from localStorage. */
+    function loadPendingJoins(): string[] {
+      try {
+        const raw = localStorage.getItem(JOIN_STORAGE_KEY);
+        return raw ? JSON.parse(raw) : [];
+      } catch { return []; }
+    }
+
+    /** Persists pending joins to localStorage. */
+    function savePendingJoins(names: string[]): void {
+      try {
+        if (names.length === 0) {
+          localStorage.removeItem(JOIN_STORAGE_KEY);
+        } else {
+          localStorage.setItem(JOIN_STORAGE_KEY, JSON.stringify(names));
+        }
+      } catch { /* localStorage unavailable */ }
+    }
+
+    // Restore any pending joins from a previous session
+    if (isSystemCourse) {
+      const persisted = loadPendingJoins();
+      if (persisted.length > 0) {
+        pendingJoinsRef.current = persisted;
+      }
+    }
+
     /**
      * Flushes accumulated join names into a single batched system event.
      * Called on an interval for system courses (calfam).
      */
     function flushJoinBatch() {
       const names = pendingJoinsRef.current.splice(0);
+      savePendingJoins([]);
       if (names.length === 0) return;
       const text = names.length === 1
         ? `${names[0]} joined the group`
@@ -429,6 +505,7 @@ export function useCourseChat(courseId: string, options?: { isSystemCourse?: boo
         const name = await fetchUserName(newMember.user_id);
         if (isSystemCourse) {
           pendingJoinsRef.current.push(name);
+          savePendingJoins(pendingJoinsRef.current);
         } else {
           setMessages((prev) => [...prev, createSystemEvent(courseId, `sys-join-${newMember.user_id}-${Date.now()}`, `${name} joined the group`)]);
         }
@@ -475,11 +552,21 @@ export function useCourseChat(courseId: string, options?: { isSystemCourse?: boo
         clearInterval(joinTimerRef.current);
         joinTimerRef.current = null;
       }
-      // Flush any remaining batched joins on unmount
-      flushJoinBatch();
+      // Persist any remaining pending joins so they survive navigation
+      savePendingJoins(pendingJoinsRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [courseId]);
+
+  // Clean up cooldown timer on unmount
+  useEffect(() => {
+    return () => {
+      if (cooldownTimerRef.current) {
+        clearInterval(cooldownTimerRef.current);
+        cooldownTimerRef.current = null;
+      }
+    };
+  }, []);
 
   return {
     messages,
@@ -488,6 +575,8 @@ export function useCourseChat(courseId: string, options?: { isSystemCourse?: boo
     hasMore,
     initialFetchDone,
     sending,
+    /** Unix timestamp (ms) when the spam cooldown expires. 0 = no cooldown. */
+    spamCooldownEnd,
     sendMessage,
     deleteMessage,
     loadMore,

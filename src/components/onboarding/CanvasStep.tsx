@@ -14,6 +14,7 @@ import { useToast } from "@/contexts/ToastContext";
 const TOKEN_STEPS: Array<{ label: string; time: number }> = [
   { label: "open bCourses settings", time: 0 },
   { label: "create + new access token", time: 5 },
+  { label: "name the token whatever you want", time: 9 },
   { label: "set expiration to max (120 days)", time: 12 },
   { label: "copy your token", time: 18 },
 ];

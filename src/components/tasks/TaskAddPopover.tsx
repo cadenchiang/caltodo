@@ -5,7 +5,8 @@ import { createPortal } from "react-dom";
 import { format } from "date-fns";
 import { CalendarDays, Loader2, Tag, UserPlus, X } from "lucide-react";
 import type { TaskInsert } from "@/lib/types";
-import { TASK_COLORS, DEFAULT_TASK_COLOR } from "@/lib/constants";
+import { DEFAULT_TASK_COLOR } from "@/lib/constants";
+import ColorWheel from "@/components/ui/ColorWheel";
 import { getRepeatLabel } from "@/lib/repeat";
 import { useTaskContext } from "@/contexts/TaskContext";
 import useClickOutside from "@/hooks/useClickOutside";
@@ -352,25 +353,13 @@ export default function TaskAddPopover({ date, anchorRect, onClose, onAdd }: Tas
               className="absolute left-0 top-full mt-1 z-10"
             >
               <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-2xl border border-border p-3">
-                <div className="flex gap-2">
-                  {TASK_COLORS.map((c) => (
-                    <button
-                      key={c}
-                      type="button"
-                      onClick={() => {
-                        setColor(c);
-                        setShowColorPicker(false);
-                      }}
-                      className={`w-6 h-6 rounded-full transition-all ${
-                        color === c ? "scale-125" : "hover:scale-110"
-                      }`}
-                      style={{
-                        backgroundColor: c,
-                        boxShadow: color === c ? `0 0 0 2px white, 0 0 0 3.5px ${c}` : "none",
-                      }}
-                    />
-                  ))}
-                </div>
+                <ColorWheel
+                  value={color}
+                  onChange={(c) => {
+                    setColor(c);
+                    setShowColorPicker(false);
+                  }}
+                />
               </div>
             </Popover>
 

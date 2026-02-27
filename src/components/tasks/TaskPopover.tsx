@@ -19,7 +19,7 @@ const SNOOZE_PRESETS = [
 
 /** Far-future date used for "Until I unhide" snooze (~100 years). */
 const FOREVER_HOURS = 876_000;
-import { TASK_COLORS } from "@/lib/constants";
+import ColorWheel from "@/components/ui/ColorWheel";
 import { getRepeatLabel } from "@/lib/repeat";
 import DatePicker from "./DatePicker";
 import TagPicker from "./TagPicker";
@@ -60,14 +60,16 @@ interface TaskPopoverProps {
 
 /**
  * Computes popover position relative to the viewport.
- * Flips direction if the popover would overflow edges.
+ * Tries to vertically center the popover on the anchor row, then clamps to viewport.
+ * Uses measured height when available; falls back to a conservative estimate.
  *
  * @param anchorRect - Bounding rect of the clicked task row
+ * @param measuredHeight - Actual popover height after mount (optional)
  * @returns CSS position properties for the popover
  */
-function computePosition(anchorRect: DOMRect): { top: number; left: number } {
+function computePosition(anchorRect: DOMRect, measuredHeight?: number): { top: number; left: number } {
   const popoverWidth = Math.min(380, window.innerWidth - 16);
-  const popoverHeight = 420;
+  const popoverHeight = measuredHeight ?? 300;
   const margin = 8;
   const isMobile = window.innerWidth < 768;
 
@@ -75,21 +77,20 @@ function computePosition(anchorRect: DOMRect): { top: number; left: number } {
   let top: number;
 
   if (isMobile) {
-    // Center horizontally on mobile
     left = (window.innerWidth - popoverWidth) / 2;
-    top = anchorRect.top;
+    // Center popover vertically on the anchor
+    top = anchorRect.top + anchorRect.height / 2 - popoverHeight / 2;
   } else {
     // Place to the right of the anchor
     left = anchorRect.right + margin;
     if (left + popoverWidth > window.innerWidth) {
-      // Flip to left side
       left = anchorRect.left - popoverWidth - margin;
     }
     if (left < margin) {
       left = margin;
     }
 
-    // Vertically center on the anchor
+    // Center popover vertically on the anchor row
     top = anchorRect.top + anchorRect.height / 2 - popoverHeight / 2;
   }
 
@@ -177,6 +178,7 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
+  const [pos, setPos] = useState(() => computePosition(anchorRect));
   const ref = useRef<HTMLDivElement>(null);
   const menuBtnRef = useRef<HTMLButtonElement>(null);
   const menuDropdownRef = useRef<HTMLDivElement>(null);
@@ -205,12 +207,20 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
     setIsEditingDescription(false);
   }, [task.id, task.title, task.description, task.due_date, task.due_time, task.color, task.is_completed, task.repeat_interval, task.repeat_unit, task.repeat_end_date, task.repeat_end_count, task.tags]);
 
+  // Phase 1: mount the portal (invisible)
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  // Phase 2: measure actual height, refine position, then animate in
+  useEffect(() => {
+    if (!mounted || !ref.current) return;
+    const actualHeight = ref.current.offsetHeight;
+    setPos(computePosition(anchorRect, actualHeight));
     requestAnimationFrame(() => {
       requestAnimationFrame(() => setVisible(true));
     });
-  }, []);
+  }, [mounted, anchorRect]);
 
   useEffect(() => {
     const handleScroll = (e: Event) => {
@@ -282,8 +292,6 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
 
   if (!mounted) return null;
 
-  const pos = computePosition(anchorRect);
-
   return createPortal(
     <div
       ref={ref}
@@ -328,24 +336,14 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
             triggerRef={colorBtnRef}
           >
             <div className="bg-card rounded-xl shadow-2xl border border-border p-3">
-              <div className="flex gap-2">
-                {TASK_COLORS.map((c) => (
-                  <button
-                    key={c}
-                    type="button"
-                    onClick={() => {
-                      setColor(c);
-                      setShowColorPicker(false);
-                      onSave(task.id, { color: c });
-                    }}
-                    className={`w-6 h-6 rounded-full transition-all ${color === c ? "scale-125" : "hover:scale-110"}`}
-                    style={{
-                      backgroundColor: c,
-                      boxShadow: color === c ? `0 0 0 2px white, 0 0 0 3.5px ${c}` : "none",
-                    }}
-                  />
-                ))}
-              </div>
+              <ColorWheel
+                value={color || "#9CA3AF"}
+                onChange={(c) => {
+                  setColor(c);
+                  setShowColorPicker(false);
+                  onSave(task.id, { color: c });
+                }}
+              />
             </div>
           </Popover>
         </div>

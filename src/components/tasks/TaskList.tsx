@@ -5,8 +5,9 @@ import { createPortal } from "react-dom";
 import { ChevronRight, MoreVertical, Eye, Check, Trash2 } from "lucide-react";
 import type { Task, TaskInsert, PendingInvite } from "@/lib/types";
 import { useTaskContext } from "@/contexts/TaskContext";
+import { Plus } from "lucide-react";
 import TaskItem from "./TaskItem";
-import TaskAddForm from "./TaskAddForm";
+import TaskCreateModal from "./TaskCreateModal";
 import ClassGroupHeader from "./ClassGroupHeader";
 import UserAvatar from "@/components/ui/UserAvatar";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -227,6 +228,7 @@ export default function TaskList({
   const [aliases, setAliases] = useState<Map<string, string>>(() => loadColumnAliases());
   const [hideHours, setHideHours] = useState<number>(() => loadHideHours());
   const [completedMenuOpen, setCompletedMenuOpen] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const completedMenuBtnRef = useRef<HTMLButtonElement>(null);
   const completedMenuRef = useRef<HTMLDivElement>(null);
 
@@ -423,7 +425,19 @@ export default function TaskList({
 
   return (
     <div className="flex flex-col">
-      <TaskAddForm onAdd={onAdd} defaultDate={defaultDate} placeholder={placeholder} />
+      <button
+        onClick={() => setShowCreateModal(true)}
+        className="flex items-center gap-2 mx-2 mb-1 px-3 py-2.5 rounded-xl border border-dashed border-border text-sm text-muted-foreground hover:text-foreground hover:border-foreground/30 hover:bg-accent transition-colors cursor-pointer"
+      >
+        <Plus size={16} />
+        {placeholder || "Add task"}
+      </button>
+      <TaskCreateModal
+        open={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onAdd={(task) => { onAdd(task); setShowCreateModal(false); }}
+        defaultDate={defaultDate}
+      />
 
       {/* Requests section (pending invites) — shown above active tasks */}
       {pendingInvites.length > 0 && (

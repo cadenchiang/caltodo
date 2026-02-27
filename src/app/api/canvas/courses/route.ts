@@ -11,28 +11,7 @@ import { createClient } from "@/lib/supabase/server";
 import { fetchCanvasCourses } from "@/lib/canvas-client";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
-
-/**
- * Validates that a Canvas base URL belongs to a known, trusted domain.
- * Prevents SSRF by rejecting arbitrary URLs.
- *
- * @param url - The base URL to validate.
- * @returns true if the URL is on an allowed Canvas domain.
- */
-function isAllowedCanvasUrl(url: string): boolean {
-  try {
-    const parsed = new URL(url);
-    const hostname = parsed.hostname.toLowerCase();
-    return (
-      hostname === "bcourses.berkeley.edu" ||
-      hostname === "instructure.com" ||
-      hostname.endsWith(".instructure.com") ||
-      hostname.endsWith(".edu")
-    );
-  } catch {
-    return false;
-  }
-}
+import { isAllowedCanvasUrl } from "@/lib/canvas-url-validation";
 
 /**
  * GET /api/canvas/courses
@@ -69,7 +48,7 @@ export async function GET(request: NextRequest) {
         baseUrl: queryBaseUrl,
       });
       return NextResponse.json(
-        { error: "Invalid Canvas base URL. Only *.edu domains and *.instructure.com are allowed." },
+        { error: "Invalid Canvas base URL. Only bcourses.berkeley.edu and *.instructure.com are allowed." },
         { status: 400 }
       );
     }

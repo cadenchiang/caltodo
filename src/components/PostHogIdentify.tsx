@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import posthog from "posthog-js";
+import { ADMIN_EMAIL } from "@/lib/admin";
 
 /**
  * Client component that identifies the current user in PostHog.
@@ -22,7 +23,7 @@ export default function PostHogIdentify({
     if (!userId) return;
 
     // Exclude the app owner from analytics to avoid skewing results
-    if (email === "cadenchiang@berkeley.edu") {
+    if (email === ADMIN_EMAIL) {
       posthog.opt_out_capturing();
       return;
     }

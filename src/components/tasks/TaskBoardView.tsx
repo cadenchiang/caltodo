@@ -19,7 +19,7 @@ import {
 } from "@dnd-kit/sortable";
 import type { Task, TaskInsert } from "@/lib/types";
 import { TASK_COLORS, getMiffyColor } from "@/lib/constants";
-import BoardTaskAddForm from "./BoardTaskAddForm";
+import TaskCreateModal from "./TaskCreateModal";
 import SortableColumn from "./SortableColumn";
 import { useTheme } from "@/contexts/ThemeContext";
 
@@ -308,6 +308,7 @@ export default function TaskBoardView({
   const { colorTheme } = useTheme();
   const isMiffy = colorTheme === "miffy";
   const [aliases, setAliases] = useState<Map<string, string>>(() => loadColumnAliases());
+  const [emptyStateCreateOpen, setEmptyStateCreateOpen] = useState(false);
 
   /** Renames a column by saving a display alias. */
   const renameColumn = useCallback((originalName: string, newDisplayName: string) => {
@@ -414,7 +415,18 @@ export default function TaskBoardView({
     return (
       <div className="px-6">
         <div className="max-w-[320px]">
-          <BoardTaskAddForm onAdd={onAdd} onCancel={() => {}} />
+          <button
+            onClick={() => setEmptyStateCreateOpen(true)}
+            className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-dashed border-border text-sm text-muted-foreground hover:text-foreground hover:border-foreground/30 hover:bg-accent transition-colors cursor-pointer w-full"
+          >
+            <Plus size={16} />
+            Add task
+          </button>
+          <TaskCreateModal
+            open={emptyStateCreateOpen}
+            onClose={() => setEmptyStateCreateOpen(false)}
+            onAdd={(task) => { onAdd(task); setEmptyStateCreateOpen(false); }}
+          />
         </div>
         <div className="flex flex-col items-center py-12 text-subtle-foreground text-sm gap-3">
           {isMiffy && (
@@ -792,20 +804,15 @@ function BoardColumn({
         )}
       </div>
 
-      {/* Add form — outside scroll container so popovers aren't clipped */}
-      {showAddForm && (
-        <div className="relative pb-2">
-          <BoardTaskAddForm
-            onAdd={(task) => {
-              onAdd(task);
-              setShowAddForm(false);
-            }}
-            onCancel={() => setShowAddForm(false)}
-            courseName={name}
-            defaultColor={columnColor}
-          />
-        </div>
-      )}
+      {/* Task creation modal — triggered by column + button */}
+      <TaskCreateModal
+        open={showAddForm}
+        onClose={() => setShowAddForm(false)}
+        onAdd={(task) => {
+          onAdd({ ...task, course_name: name });
+          setShowAddForm(false);
+        }}
+      />
 
       {/* Scrollable card area */}
       <div className="flex-1 overflow-y-auto flex flex-col gap-2">

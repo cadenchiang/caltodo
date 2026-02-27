@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
-    maxAge: 600, // 10 minutes
+    maxAge: 1800, // 30 minutes — allows time for slow OAuth flows
     path: "/",
   });
 

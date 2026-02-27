@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import type { Task, TaskUpdate } from "@/lib/types";
-import { TASK_COLORS } from "@/lib/constants";
+import ColorWheel from "@/components/ui/ColorWheel";
 import DatePicker from "./DatePicker";
 import Popover from "@/components/ui/Popover";
 
@@ -133,22 +133,7 @@ export default function TaskEditModal({ task, onClose, onSave }: TaskEditModalPr
         {/* Color */}
         <div className="mb-6">
           <label className="block text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">Color</label>
-          <div className="flex gap-2.5">
-            {TASK_COLORS.map((c) => (
-              <button
-                key={c}
-                type="button"
-                onClick={() => setColor(c)}
-                className={`w-7 h-7 rounded-full transition-all ${
-                  color === c ? "scale-125 shadow-lg" : "hover:scale-110"
-                }`}
-                style={{
-                  backgroundColor: c,
-                  boxShadow: color === c ? `0 4px 12px ${c}60` : "none",
-                }}
-              />
-            ))}
-          </div>
+          <ColorWheel value={color} onChange={setColor} />
         </div>
 
         {/* Actions */}

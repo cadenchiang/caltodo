@@ -8,21 +8,10 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
-
-/** Words/patterns blocked from chat messages. */
-const BLOCKED_PATTERNS = [
-  /\b(fuck|shit|damn|bitch|ass|dick|pussy|cock|cunt)\b/i,
-];
-
-/**
- * Checks message body against blocked content patterns.
- *
- * @param body - The message text to check
- * @returns true if the message contains blocked content
- */
-function containsBlockedContent(body: string): boolean {
-  return BLOCKED_PATTERNS.some((pattern) => pattern.test(body));
-}
+import { containsBlockedContent } from "@/lib/content-moderation";
+import { checkSpam } from "@/lib/spam-detection";
+import { isAdmin } from "@/lib/admin";
+import { obfuscateAuthorId } from "@/lib/author-obfuscate";
 
 /**
  * GET /api/discussions/messages?courseId=<uuid>&limit=50&before=<iso>
@@ -97,7 +86,18 @@ export async function GET(request: Request) {
       count: messages?.length ?? 0,
     });
 
-    return NextResponse.json(messages ?? []);
+    // Obfuscate author_id for anonymous messages from other users (non-admin).
+    // Own messages keep real author_id (needed for isOwn check on client).
+    // Admin gets all real author_ids (needed for reveal feature).
+    const userIsAdmin = isAdmin(user.email);
+    const sanitized = (messages ?? []).map((msg) => {
+      if (userIsAdmin) return msg;
+      if (msg.author_id === user.id) return msg;
+      if (msg.author_name) return msg; // named messages — not anonymous
+      return { ...msg, author_id: obfuscateAuthorId(msg.author_id, courseId) };
+    });
+
+    return NextResponse.json(sanitized);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     logger.error("GET /api/discussions/messages: unexpected error", {
@@ -123,6 +123,15 @@ export async function POST(request: Request) {
 
   if (authError || !user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Burst spam detection (escalating timeouts for rapid-fire messages)
+  const spam = checkSpam(user.id);
+  if (!spam.allowed) {
+    return NextResponse.json(
+      { error: "Slow down — try again shortly", retryAfter: spam.retryAfter },
+      { status: 429 }
+    );
   }
 
   const { allowed } = rateLimit(`chat-message-send:${user.id}`, 30, 60_000);

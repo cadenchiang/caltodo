@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Inbox, CalendarDays, Settings, Sun, CalendarRange, MessageSquare } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useCalChatUnread } from "@/hooks/useCalChatUnread";
 
 /** localStorage keys for GCal status. */
 const GCAL_CACHE_KEY = "gcal_status";
@@ -19,6 +20,7 @@ export default function MobileTabBar() {
   const pathname = usePathname();
   const [showCalBadge, setShowCalBadge] = useState(false);
   const [inboxFilter, setInboxFilter] = useState<string>("all");
+  const calChatUnreadCount = useCalChatUnread();
 
   // Hydrate inbox filter from localStorage after mount to avoid SSR mismatch
   useEffect(() => {
@@ -85,8 +87,9 @@ export default function MobileTabBar() {
     return () => window.removeEventListener("storage", handleStorage);
   }, []);
 
-  // Hide navigation during onboarding and settings
+  // Hide navigation during onboarding, settings, and inside a specific chat
   if (pathname.startsWith("/app/onboarding") || pathname.startsWith("/app/settings")) return null;
+  if (pathname.match(/^\/app\/discussions\/[^/]+$/)) return null;
 
   /** Returns the appropriate inbox icon based on the active filter. */
   function getInboxIcon() {
@@ -114,7 +117,13 @@ export default function MobileTabBar() {
 
   const InboxIcon = getInboxIcon();
 
-  const tabs = [
+  const tabs: Array<{
+    label: string;
+    href: string;
+    icon: typeof Inbox;
+    badge: boolean;
+    badgeCount?: number;
+  }> = [
     {
       label: getInboxLabel(),
       href: "/app/inbox",
@@ -132,6 +141,7 @@ export default function MobileTabBar() {
       href: "/app/discussions",
       icon: MessageSquare,
       badge: false,
+      badgeCount: calChatUnreadCount,
     },
     {
       label: "Settings",
@@ -164,6 +174,11 @@ export default function MobileTabBar() {
                 <Icon size={20} />
                 {tab.badge && (
                   <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500" />
+                )}
+                {tab.badgeCount !== undefined && tab.badgeCount > 0 && (
+                  <span className="absolute -top-1.5 -right-2.5 min-w-[16px] h-[16px] rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center px-0.5">
+                    {tab.badgeCount > 99 ? "99+" : tab.badgeCount}
+                  </span>
                 )}
               </div>
               <span className="text-[10px] mt-0.5 font-medium">

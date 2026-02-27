@@ -6,6 +6,7 @@ import { ArrowDown, Eye, EyeOff, Loader2, Play, X } from "lucide-react";
 /** Clickable chapter timestamps for the Gradescope instruction video. */
 const GRADESCOPE_CHAPTERS: Array<{ label: string; time: number }> = [
   { label: "Reset password", time: 0 },
+  { label: "Ignore \"you must be logged out to access this page\"", time: 5 },
   { label: "Check your email", time: 15 },
   { label: "Set new password", time: 23 },
   { label: "Sign in", time: 33 },

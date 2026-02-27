@@ -10,6 +10,7 @@ import { fetchAllGradescopeAssignments, fetchGradescopeAssignmentsForCourses } f
 import { fetchPensieveAssignments, PENSIEVE_COLOR } from "@/lib/pensieve-client";
 import { decrypt } from "@/lib/crypto";
 import { logger } from "@/lib/logger";
+import { isAllowedCanvasUrl } from "@/lib/canvas-url-validation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { syncCourseEnrollments, gatherEnrollableCourses } from "@/lib/course-enrollment";
 import type { SyncResult, SyncSourceResult, AdditionalCanvasAccount } from "@/lib/types";
@@ -228,6 +229,16 @@ async function syncAdditionalCanvas(
 ): Promise<SyncSourceResult> {
   if (!account.token) {
     return { synced: 0, errors: [] };
+  }
+
+  // Defense-in-depth: validate URL before making any outbound request
+  if (!isAllowedCanvasUrl(account.base_url)) {
+    logger.warn("syncAdditionalCanvas: rejected disallowed base_url", {
+      userId,
+      accountId: account.id,
+      baseUrl: account.base_url,
+    });
+    return { synced: 0, errors: [`${account.label}: URL not allowed (${account.base_url})`] };
   }
 
   try {

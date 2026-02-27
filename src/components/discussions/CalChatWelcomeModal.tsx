@@ -138,7 +138,7 @@ export default function CalChatWelcomeModal() {
               className="mt-0.5 w-4 h-4 rounded border-border accent-[#007AFF] cursor-pointer"
             />
             <span className="text-[13px] text-foreground leading-snug">
-              I understand anonymous messages are tracked for safety
+              I understand anonymous messages are tracked for safety, but won't be shown to other students
             </span>
           </label>
         </div>

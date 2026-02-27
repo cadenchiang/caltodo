@@ -82,13 +82,16 @@ export default function ChatView({
   onSendComplete,
 }: ChatViewProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
   const bottomBarRef = useRef<HTMLDivElement>(null);
-  const [showNewBadge, setShowNewBadge] = useState(false);
+  const [newMessageCount, setNewMessageCount] = useState(0);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const [replyTarget, setReplyTarget] = useState<ChatMessage | null>(null);
+  /** Map of anonymous userId → revealed identity. Shared across all MessageBubbles. */
+  const [revealedIdentities, setRevealedIdentities] = useState<Map<string, { name: string; avatar: string | null }>>(new Map());
   const prevMessageCountRef = useRef(0);
   const isNearBottomRef = useRef(true);
+  /** Tracks the first message ID to detect when the chat is switched (full replace vs append). */
+  const prevFirstMessageIdRef = useRef<string | null>(null);
 
   /**
    * Checks if the scroll position is near the bottom (within 100px).
@@ -111,16 +114,31 @@ export default function ChatView({
         el.scrollTop = el.scrollHeight;
       }
     }
-    setShowNewBadge(false);
+    setNewMessageCount(0);
   }, []);
+
+  // Reset stale count when switching chats (messages array fully replaced)
+  useEffect(() => {
+    const firstId = messages.length > 0 ? messages[0].id : null;
+    if (prevFirstMessageIdRef.current !== null && firstId !== prevFirstMessageIdRef.current) {
+      setNewMessageCount(0);
+      setShowScrollBtn(false);
+      isNearBottomRef.current = true;
+      prevMessageCountRef.current = messages.length;
+      hasInitialScrolled.current = false;
+    }
+    prevFirstMessageIdRef.current = firstId;
+  }, [messages]);
 
   // Auto-scroll on new messages when near bottom
   useEffect(() => {
     if (messages.length > prevMessageCountRef.current) {
+      const newCount = messages.length - prevMessageCountRef.current;
       if (isNearBottomRef.current) {
-        requestAnimationFrame(() => scrollToBottom(true));
+        // Double rAF ensures DOM has fully laid out the new message before scrolling
+        requestAnimationFrame(() => requestAnimationFrame(() => scrollToBottom(true)));
       } else {
-        setShowNewBadge(true);
+        setNewMessageCount((prev) => prev + newCount);
       }
     }
     prevMessageCountRef.current = messages.length;
@@ -149,8 +167,8 @@ export default function ChatView({
     return () => observer.disconnect();
   }, [messages.length]);
 
-  // Dynamically size the bottom spacer to match the bottom bar's actual height.
-  // Adapts automatically when the input grows (multi-line, attachments, reply bar, typing indicator).
+  // Dynamically size the bottom padding to match the bottom bar's actual height.
+  // Adapts automatically when the input grows (multi-line, attachments, reply bar).
   const [bottomBarHeight, setBottomBarHeight] = useState(72);
   useEffect(() => {
     const barEl = bottomBarRef.current;
@@ -191,6 +209,48 @@ export default function ChatView({
   }, []);
 
   /**
+   * Records a revealed anonymous identity so all messages from that user update.
+   *
+   * @param userId - The anonymous user's auth ID
+   * @param name - Their real display name
+   * @param avatar - Their avatar URL (or null)
+   */
+  const onRevealIdentity = useCallback((userId: string, name: string, avatar: string | null) => {
+    setRevealedIdentities((prev) => {
+      const next = new Map(prev);
+      next.set(userId, { name, avatar });
+      return next;
+    });
+  }, []);
+
+  /**
+   * Reports another user's message to admins via the API.
+   * Shows confirmation/error via window.alert (lightweight, no toast dependency).
+   *
+   * @param messageId - The ID of the message being reported
+   */
+  const handleReport = useCallback(async (messageId: string) => {
+    const confirmed = window.confirm("Report this message to admins?");
+    if (!confirmed) return;
+
+    try {
+      const res = await fetch("/api/discussions/report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messageId }),
+      });
+      if (res.ok) {
+        window.alert("Report submitted. An admin will review this message.");
+      } else {
+        const data = await res.json().catch(() => ({ error: "Unknown error" }));
+        window.alert(data.error ?? "Failed to submit report.");
+      }
+    } catch {
+      window.alert("Network error. Please try again.");
+    }
+  }, []);
+
+  /**
    * Handles scroll events to track position and trigger pagination.
    */
   const handleScroll = useCallback(() => {
@@ -198,7 +258,7 @@ export default function ChatView({
     if (!el) return;
     isNearBottomRef.current = checkNearBottom();
     if (isNearBottomRef.current) {
-      setShowNewBadge(false);
+      setNewMessageCount(0);
       setShowScrollBtn(false);
     } else {
       setShowScrollBtn(true);
@@ -358,12 +418,14 @@ export default function ChatView({
 
   return (
     <div className="relative h-full overflow-hidden">
-      {/* Message area — fills full height; bottom spacer keeps last messages above the glass input */}
+      {/* Message area — fills full height; paddingBottom keeps last messages above the glass input */}
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className="absolute inset-0 overflow-y-auto px-3 py-3 scroll-smooth"
+        className="absolute inset-0 overflow-y-auto px-3 pt-3 pb-0 scroll-smooth"
       >
+        <div className="flex flex-col">
+
         {/* Chat creation date — always visible at top */}
         <div className="flex justify-center py-4 h-[44px]">
           {!hasMore && (
@@ -414,8 +476,11 @@ export default function ChatView({
                 reactions={reactionsMap?.get(msg.id)}
                 currentUserId={currentUserId}
                 isAdmin={isAdmin}
+                revealedIdentity={revealedIdentities.get(msg.author_id)}
+                onRevealIdentity={onRevealIdentity}
                 replyTo={msg.reply_to_id ? messages.find((m) => m.id === msg.reply_to_id) ?? null : null}
                 onDelete={isOwn ? onDelete : undefined}
+                onReport={!isOwn ? handleReport : undefined}
                 onReply={setReplyTarget}
                 onToggleReaction={onToggleReaction ? (emoji) => onToggleReaction(msg.id, emoji, currentUserId) : undefined}
                 onScrollToMessage={scrollToMessage}
@@ -424,28 +489,24 @@ export default function ChatView({
           );
         })}
 
-        {/* Typing indicator — inside scroll area so it doesn't cover messages */}
-        <div style={{
-          marginBottom: messages.length > 0 && messages[messages.length - 1].author_id === currentUserId ? 20 : 0
-        }}>
-          <TypingIndicator typingUsers={typingUsers ?? []} />
+        {/* Typing indicator — inside scroll area, below the last message */}
+        <TypingIndicator typingUsers={typingUsers ?? []} />
         </div>
 
-        <div ref={bottomRef} style={{
-          height: Math.max(0, bottomBarHeight - (
-            messages.length > 0 && messages[messages.length - 1].author_id === currentUserId ? 20 : 0
-          ))
-        }} />
+        {/* Spacer — guarantees messages never overlap the input bar.
+            Uses max of measured height and 100px floor so it works even before ResizeObserver fires. */}
+        <div style={{ height: Math.max(bottomBarHeight + 20, 100) }} />
       </div>
 
       {/* Scroll-to-bottom button — appears when scrolled up */}
       {showScrollBtn && (
-        <div className="absolute bottom-24 right-4 z-20 flex flex-col items-center gap-1.5">
-          {showNewBadge && (
-            <span className="px-2.5 py-1 rounded-full bg-[#007AFF] text-white text-[11px] font-medium shadow-lg whitespace-nowrap">
-              New messages
-            </span>
-          )}
+        <div className="absolute left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-1.5" style={{ bottom: bottomBarHeight + 12 }}>
+          <button
+            onClick={() => scrollToBottom(true)}
+            className={`px-2.5 py-1 rounded-full bg-white dark:bg-zinc-800 text-muted-foreground border border-black/10 dark:border-white/10 shadow-sm text-[11px] font-normal whitespace-nowrap transition-all duration-300 ease-out cursor-pointer ${newMessageCount > 0 ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2 pointer-events-none"}`}
+          >
+            {newMessageCount === 1 ? "1 new message" : `${newMessageCount} new messages`}
+          </button>
           <button
             onClick={() => scrollToBottom(true)}
             className="w-8 h-8 rounded-full bg-white dark:bg-zinc-800 border border-black/10 dark:border-white/15 shadow-md flex items-center justify-center text-muted-foreground hover:bg-gray-50 dark:hover:bg-zinc-700 transition-all cursor-pointer"
@@ -456,7 +517,7 @@ export default function ChatView({
         </div>
       )}
 
-      {/* Glass bottom bar: reply + input — overlays scroll area */}
+      {/* Glass bottom bar: typing indicator + reply + input — overlays scroll area */}
       <div ref={bottomBarRef} className="absolute bottom-0 left-0 right-0 z-10">
         {/* Reply preview bar */}
         {replyTarget && (

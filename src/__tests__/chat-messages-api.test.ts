@@ -18,6 +18,10 @@ vi.mock("@/lib/rate-limit", () => ({
   rateLimit: vi.fn().mockReturnValue({ allowed: true }),
 }));
 
+vi.mock("@/lib/spam-detection", () => ({
+  checkSpam: vi.fn().mockReturnValue({ allowed: true }),
+}));
+
 import { GET, POST } from "@/app/api/discussions/messages/route";
 import { createClient } from "@/lib/supabase/server";
 
@@ -172,7 +176,7 @@ describe("POST /api/discussions/messages", () => {
 
     const request = new Request("http://localhost/api/discussions/messages", {
       method: "POST",
-      body: JSON.stringify({ courseId: "course-1", body: "what the fuck" }),
+      body: JSON.stringify({ courseId: "course-1", body: "you are a nigger" }),
     });
     const response = await POST(request);
     expect(response.status).toBe(422);

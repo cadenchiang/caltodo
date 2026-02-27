@@ -230,8 +230,9 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
                   label={isInbox ? inboxConfig.label : item.label}
                   href={item.href}
                   icon={isInbox ? inboxConfig.icon : item.icon}
-                  badge={(isCalendar && showCalBadge) || (isChat && hasCalChatUnread)}
-                  badgeText={isChat && !hasCalChatUnread ? "BETA" : undefined}
+                  badge={isCalendar && showCalBadge}
+                  badgeCount={isChat ? hasCalChatUnread : undefined}
+                  badgeText={isChat && hasCalChatUnread === 0 ? "BETA" : undefined}
                   id={`tour-nav-${item.label.toLowerCase()}`}
                   imageSrc={undefined}
                   imageClassName={undefined}

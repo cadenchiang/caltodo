@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { EyeOff, MoreVertical, Undo2, Smile, CornerUpLeft } from "lucide-react";
+import { EyeOff, MoreVertical, Undo2, Smile, CornerUpLeft, Flag } from "lucide-react";
 import type { ChatMessage } from "@/lib/types";
 import type { ReactionGroup } from "@/hooks/useMessageReactions";
+import ImageLightbox from "./ImageLightbox";
 
 /**
  * iMessage-style chat bubble with hover action toolbar and tapback reactions.
@@ -29,9 +30,17 @@ interface MessageBubbleProps {
   anonymousNumber?: number;
   reactions?: ReactionGroup[];
   currentUserId?: string;
+  /** Whether the current user is an admin (can reveal anonymous identities). */
+  isAdmin?: boolean;
+  /** Pre-revealed identity for this message's author (lifted from ChatView). */
+  revealedIdentity?: { name: string; avatar: string | null };
+  /** Callback to record a revealed identity in the parent so all messages from the user update. */
+  onRevealIdentity?: (userId: string, name: string, avatar: string | null) => void;
   /** The message being replied to (null if not found or not a reply). */
   replyTo?: ChatMessage | null;
   onDelete?: (messageId: string) => void;
+  /** Callback to report another user's message. Only shown for non-own messages. */
+  onReport?: (messageId: string) => void;
   onReply?: (message: ChatMessage) => void;
   onToggleReaction?: (emoji: string) => void;
   /** Callback to scroll to a specific message (for reply quote clicks). */
@@ -73,13 +82,18 @@ function isAnonymous(message: ChatMessage): boolean {
 
 export default function MessageBubble({
   message, isOwn, showAuthor, isLastInGroup, isLastMessage,
-  anonymousNumber, reactions, currentUserId, replyTo, onDelete, onReply, onToggleReaction, onScrollToMessage,
+  anonymousNumber, reactions, currentUserId, isAdmin, revealedIdentity, onRevealIdentity, replyTo, onDelete, onReport, onReply, onToggleReaction, onScrollToMessage,
 }: MessageBubbleProps) {
   const anonymous = isAnonymous(message);
   const isSending = message._status === "sending";
   const isFailed = message._status === "failed";
   const [showMenu, setShowMenu] = useState(false);
   const [showReactPicker, setShowReactPicker] = useState(false);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+  /** Real name and avatar from lifted reveal state (shared across all messages from same user). */
+  const revealedName = revealedIdentity?.name ?? null;
+  const revealedAvatar = revealedIdentity?.avatar ?? null;
+  const [revealing, setRevealing] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const reactPickerRef = useRef<HTMLDivElement>(null);
 
@@ -112,26 +126,26 @@ export default function MessageBubble({
 
   return (
     <div
-      className={`flex gap-2 group/msg ${
+      className={`flex gap-1.5 group/msg ${
         isOwn ? "flex-row-reverse" : "flex-row"
       } ${showAuthor ? "mt-3" : "mt-0.5"} ${isSending ? "animate-[fadeInUp_200ms_ease-out]" : "animate-[msgFadeIn_150ms_ease-out]"}`}
     >
       {/* Avatar spacer / avatar — only for others' messages */}
-      {!isOwn && <div className="w-7 shrink-0 flex flex-col justify-end">
-        {showAuthor && isLastInGroup && (
-          anonymous ? (
-            <div className="w-7 h-7 rounded-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center">
-              <EyeOff size={13} className="text-zinc-500 dark:text-zinc-400" />
+      {!isOwn && <div className="w-6 shrink-0 flex flex-col justify-end">
+        {isLastInGroup && (
+          anonymous && !revealedAvatar ? (
+            <div className="w-6 h-6 rounded-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center">
+              <EyeOff size={12} className="text-zinc-500 dark:text-zinc-400" />
             </div>
-          ) : message.author_avatar ? (
+          ) : (revealedAvatar || message.author_avatar) ? (
             <img
-              src={message.author_avatar}
+              src={revealedAvatar ?? message.author_avatar ?? undefined}
               alt=""
               referrerPolicy="no-referrer"
-              className="w-7 h-7 rounded-full object-cover"
+              className="w-6 h-6 rounded-full object-cover"
             />
           ) : (
-            <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center text-[10px] font-medium text-muted-foreground">
+            <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-[10px] font-medium text-muted-foreground">
               {(message.author_name ?? "?")[0]?.toUpperCase()}
             </div>
           )
@@ -142,12 +156,37 @@ export default function MessageBubble({
       <div className={`flex flex-col ${isOwn ? "items-end" : "items-start"} max-w-[75%]`}>
         {/* Author name */}
         {!isOwn && showAuthor && (
-          <span className={`text-[11px] font-medium mb-0.5 ml-1 ${
+          <span className={`text-[11px] font-medium mb-0.5 ml-1 flex items-center gap-1 ${
             anonymous ? "text-zinc-400 dark:text-zinc-500 italic" : "text-muted-foreground"
           }`}>
             {anonymous
-              ? `Anonymous${anonymousNumber ? ` #${anonymousNumber}` : ""}`
+              ? `#${anonymousNumber ?? "?"}`
               : (message.author_name ?? "Unknown")}
+            {/* Admin: reveal anonymous identity */}
+            {isAdmin && anonymous && !revealedName && (
+              <button
+                onClick={async () => {
+                  setRevealing(true);
+                  try {
+                    const res = await fetch(`/api/discussions/admin/reveal?userId=${message.author_id}`);
+                    if (res.ok) {
+                      const data = await res.json();
+                      const name = data.userName ?? "Unknown";
+                      const avatar = data.userAvatar ?? null;
+                      onRevealIdentity?.(message.author_id, name, avatar);
+                    }
+                  } catch { /* silent */ }
+                  setRevealing(false);
+                }}
+                disabled={revealing}
+                className="text-[9px] text-blue-400 hover:text-blue-500 cursor-pointer opacity-0 group-hover/msg:opacity-100 transition-opacity"
+              >
+                {revealing ? "…" : "reveal"}
+              </button>
+            )}
+            {isAdmin && revealedName && (
+              <span className="text-[9px] text-blue-400 not-italic">({revealedName})</span>
+            )}
           </span>
         )}
 
@@ -178,7 +217,7 @@ export default function MessageBubble({
         {/* Bubble content + hover toolbar in a row */}
         <div className={`flex items-center gap-1 ${isOwn ? "flex-row-reverse" : "flex-row"}`}>
           {/* Bubble content */}
-          <div className={`flex flex-col ${isOwn ? "items-end" : "items-start"} min-w-0`}>
+          <div className={`relative flex flex-col ${isOwn ? "items-end" : "items-start"} min-w-0`}>
             {(() => {
               const lines = message.body.split("\n");
               const textLines = lines.filter((l) => !isImageUrl(l));
@@ -191,7 +230,7 @@ export default function MessageBubble({
                     <div
                       className={`px-3.5 py-2 text-[14.5px] leading-[1.35] break-words whitespace-pre-wrap ${
                         isOwn
-                          ? `bg-[#007AFF] text-white ${
+                          ? `${anonymous ? "bg-[#1C1C1E] dark:bg-[#2C2C2E]" : "bg-[#007AFF]"} text-white ${
                               isLastInGroup && imageUrls.length === 0 && !hasReactions
                                 ? "rounded-[20px] rounded-br-[6px]"
                                 : "rounded-[20px]"
@@ -212,7 +251,8 @@ export default function MessageBubble({
                       key={i}
                       src={url}
                       alt="Attachment"
-                      className={`max-w-full rounded-2xl mt-1 ${
+                      onClick={() => setLightboxSrc(url)}
+                      className={`max-w-[240px] max-h-[320px] object-cover rounded-2xl mt-1 cursor-zoom-in ${
                         isLastInGroup && i === imageUrls.length - 1
                           ? isOwn ? "rounded-br-[6px]" : "rounded-bl-[6px]"
                           : ""
@@ -225,7 +265,7 @@ export default function MessageBubble({
                     <div
                       className={`px-3.5 py-2 text-[14.5px] leading-[1.35] break-words whitespace-pre-wrap ${
                         isOwn
-                          ? `bg-[#007AFF] text-white rounded-[20px] rounded-br-[6px]${isSending ? " opacity-70" : ""}`
+                          ? `${anonymous ? "bg-[#1C1C1E] dark:bg-[#2C2C2E]" : "bg-[#007AFF]"} text-white rounded-[20px] rounded-br-[6px]${isSending ? " opacity-70" : ""}`
                           : "bg-[#E9E9EB] dark:bg-[#303030] text-black dark:text-white rounded-[20px] rounded-bl-[6px]"
                       }`}
                     >
@@ -306,7 +346,7 @@ export default function MessageBubble({
                 <CornerUpLeft size={14} />
               </button>
 
-              {isOwn && onDelete && (
+              {((isOwn && onDelete) || (!isOwn && onReport)) && (
                 <div className="relative" ref={menuRef}>
                   <button
                     onClick={() => setShowMenu((v) => !v)}
@@ -317,16 +357,30 @@ export default function MessageBubble({
                   </button>
                   {showMenu && (
                     <div className="absolute top-7 right-0 z-20 bg-popover border border-border rounded-lg shadow-lg py-1 min-w-[120px]">
-                      <button
-                        onClick={() => {
-                          setShowMenu(false);
-                          onDelete(message.id);
-                        }}
-                        className="flex items-center gap-2 w-full px-3 py-1.5 text-[13px] text-red-500 hover:bg-accent transition-colors cursor-pointer"
-                      >
-                        <Undo2 size={13} />
-                        Unsend
-                      </button>
+                      {isOwn && onDelete && (
+                        <button
+                          onClick={() => {
+                            setShowMenu(false);
+                            onDelete(message.id);
+                          }}
+                          className="flex items-center gap-2 w-full px-3 py-1.5 text-[13px] text-red-500 hover:bg-accent transition-colors cursor-pointer"
+                        >
+                          <Undo2 size={13} />
+                          Unsend
+                        </button>
+                      )}
+                      {!isOwn && onReport && (
+                        <button
+                          onClick={() => {
+                            setShowMenu(false);
+                            onReport(message.id);
+                          }}
+                          className="flex items-center gap-2 w-full px-3 py-1.5 text-[13px] text-red-500 hover:bg-accent transition-colors cursor-pointer"
+                        >
+                          <Flag size={13} />
+                          Report
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -350,6 +404,11 @@ export default function MessageBubble({
           </span>
         )}
       </div>
+
+      {/* Image lightbox overlay */}
+      {lightboxSrc && (
+        <ImageLightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />
+      )}
     </div>
   );
 }

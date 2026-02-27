@@ -4,7 +4,8 @@ import { useState, useRef, useEffect } from "react";
 import { Plus, CalendarDays, ChevronDown, Tag, UserPlus } from "lucide-react";
 import { format } from "date-fns";
 import type { TaskInsert } from "@/lib/types";
-import { TASK_COLORS, DEFAULT_TASK_COLOR } from "@/lib/constants";
+import { DEFAULT_TASK_COLOR } from "@/lib/constants";
+import ColorWheel from "@/components/ui/ColorWheel";
 import { getRepeatLabel } from "@/lib/repeat";
 import { useTaskContext } from "@/contexts/TaskContext";
 import DatePicker from "./DatePicker";
@@ -335,26 +336,14 @@ export default function BoardTaskAddForm({ onAdd, onCancel, courseName, defaultC
         className="absolute right-12 top-full mt-1 z-20"
       >
         <div className="bg-card rounded-xl shadow-2xl border border-border p-3">
-          <div className="flex gap-2">
-            {TASK_COLORS.map((c) => (
-              <button
-                key={c}
-                type="button"
-                onClick={() => {
-                  setColor(c);
-                  setShowColorPicker(false);
-                  inputRef.current?.focus();
-                }}
-                className={`w-6 h-6 rounded-full transition-all ${
-                  color === c ? "scale-125" : "hover:scale-110"
-                }`}
-                style={{
-                  backgroundColor: c,
-                  boxShadow: color === c ? `0 0 0 2px white, 0 0 0 3.5px ${c}` : "none",
-                }}
-              />
-            ))}
-          </div>
+          <ColorWheel
+            value={color}
+            onChange={(c) => {
+              setColor(c);
+              setShowColorPicker(false);
+              inputRef.current?.focus();
+            }}
+          />
         </div>
       </Popover>
 

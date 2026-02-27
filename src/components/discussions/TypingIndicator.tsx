@@ -20,7 +20,7 @@ export default function TypingIndicator({
 
   return (
     <div
-      className={`flex items-center gap-1 pl-10 mt-2 mb-3 h-4 overflow-hidden transition-opacity duration-200 ${active ? "opacity-100" : "opacity-0"}`}
+      className={`flex items-center gap-1 pl-8 overflow-hidden transition-all duration-200 ${active ? "opacity-100 h-4 mt-4 mb-0" : "opacity-0 h-0 mt-0 mb-0"}`}
     >
       {active && (
         <>

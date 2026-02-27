@@ -7,14 +7,14 @@ const MUTE_KEY_PREFIX = "calchat_muted_";
 const READ_AT_PREFIX = "calchat_read_at_";
 
 /**
- * Checks whether any non-muted CalChat board has unread messages.
+ * Counts how many non-muted CalChat boards have unread messages.
  * Reads boards from sessionStorage cache and compares timestamps.
  * Re-checks on storage events, custom events, and a 10-second interval.
  *
- * @returns true if any board has unread messages
+ * @returns Number of boards with unread messages
  */
-export function useCalChatUnread(): boolean {
-  const [hasUnread, setHasUnread] = useState(false);
+export function useCalChatUnread(): number {
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const check = useCallback(() => {
     try {
@@ -26,19 +26,20 @@ export function useCalChatUnread(): boolean {
         last_message_at?: string | null;
       }> = entry.boards ?? [];
 
-      const unread = boards.some((board) => {
-        if (!board.last_message_at) return false;
+      let count = 0;
+      for (const board of boards) {
+        if (!board.last_message_at) continue;
         try {
-          if (localStorage.getItem(MUTE_KEY_PREFIX + board.course.id) === "true") return false;
+          if (localStorage.getItem(MUTE_KEY_PREFIX + board.course.id) === "true") continue;
           const readAt = localStorage.getItem(READ_AT_PREFIX + board.course.id);
-          if (!readAt) return true;
-          return new Date(board.last_message_at!) > new Date(readAt);
+          if (!readAt) { count++; continue; }
+          if (new Date(board.last_message_at!) > new Date(readAt)) count++;
         } catch {
-          return false;
+          // Storage unavailable for this board
         }
-      });
+      }
 
-      setHasUnread(unread);
+      setUnreadCount(count);
     } catch {
       // Storage unavailable
     }
@@ -62,5 +63,5 @@ export function useCalChatUnread(): boolean {
     };
   }, [check]);
 
-  return hasUnread;
+  return unreadCount;
 }

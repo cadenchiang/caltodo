@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { X } from "lucide-react";
+import { Flag, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 /**
@@ -51,7 +51,9 @@ export default function UserProfileModal({ userId, onClose }: UserProfileModalPr
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
   const [sharedCourses, setSharedCourses] = useState<SharedCourse[]>([]);
   const [friendCount, setFriendCount] = useState<number>(0);
+  const [karma, setKarma] = useState<number>(0);
   const [closing, setClosing] = useState(false);
+  const [reporting, setReporting] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -84,8 +86,21 @@ export default function UserProfileModal({ userId, onClose }: UserProfileModalPr
       }
     }
 
+    async function fetchKarma() {
+      try {
+        const res = await fetch(`/api/users/karma?userId=${encodeURIComponent(userId)}`);
+        if (res.ok && !cancelled) {
+          const data = await res.json();
+          setKarma(data.karma ?? 0);
+        }
+      } catch {
+        /* non-critical */
+      }
+    }
+
     fetchProfile();
     fetchFriendCount();
+    fetchKarma();
     return () => { cancelled = true; };
   }, [userId]);
 
@@ -96,6 +111,31 @@ export default function UserProfileModal({ userId, onClose }: UserProfileModalPr
     setClosing(true);
     setTimeout(() => onClose(), 150);
   }, [onClose]);
+
+  /**
+   * Reports the user via POST /api/users/report and shows a confirmation alert.
+   */
+  async function handleReport() {
+    if (reporting) return;
+    setReporting(true);
+    try {
+      const res = await fetch("/api/users/report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+      if (res.ok) {
+        alert("Report submitted. Thank you.");
+      } else {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || "Failed to submit report.");
+      }
+    } catch {
+      alert("Failed to submit report.");
+    } finally {
+      setReporting(false);
+    }
+  }
 
   return createPortal(
     <div
@@ -110,14 +150,25 @@ export default function UserProfileModal({ userId, onClose }: UserProfileModalPr
         }`}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Close button */}
-        <button
-          onClick={handleClose}
-          className="absolute top-3 right-3 z-10 p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-accent transition-colors cursor-pointer"
-          aria-label="Close profile"
-        >
-          <X size={16} />
-        </button>
+        {/* Report + Close buttons */}
+        <div className="absolute top-3 right-3 z-10 flex items-center gap-1">
+          <button
+            onClick={handleReport}
+            disabled={reporting}
+            className="p-1.5 text-muted-foreground hover:text-red-500 rounded-lg hover:bg-accent transition-colors cursor-pointer disabled:opacity-40"
+            aria-label="Report user"
+            title="Report user"
+          >
+            <Flag size={14} />
+          </button>
+          <button
+            onClick={handleClose}
+            className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-accent transition-colors cursor-pointer"
+            aria-label="Close profile"
+          >
+            <X size={16} />
+          </button>
+        </div>
 
         {loading ? (
           /* Loading skeleton */
@@ -155,16 +206,24 @@ export default function UserProfileModal({ userId, onClose }: UserProfileModalPr
                 <h3 className="text-lg font-bold text-foreground truncate">
                   {userName || "Unknown"}
                 </h3>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {friendCount} {friendCount === 1 ? "Friend" : "Friends"}
-                </p>
+                <div className="flex items-center gap-3 mt-1">
+                  <p className="text-xs text-muted-foreground">
+                    {friendCount} {friendCount === 1 ? "Friend" : "Friends"}
+                  </p>
+                  <p className="text-xs text-muted-foreground group relative cursor-default">
+                    {karma} Karma
+                    <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1 rounded-lg bg-popover border border-border text-xs text-muted-foreground px-2.5 py-1.5 shadow-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
+                      Total messages sent in CalChat
+                    </span>
+                  </p>
+                </div>
               </div>
             </div>
 
             {/* Shared courses */}
             {sharedCourses.length > 0 && (
               <div className="px-5 pb-5">
-                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-2">
+                <p className="text-[11px] font-medium text-foreground mb-2">
                   Shared Courses
                 </p>
                 <div className="space-y-1">

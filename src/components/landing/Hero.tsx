@@ -161,10 +161,10 @@ export default function Hero() {
 
           {/* Heading */}
           <h2 className="text-[36px] sm:text-[64px] leading-[0.95] sm:leading-[0.95] tracking-tight text-center text-black" style={{ fontFamily: '-apple-system, "SF Pro Display", BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' }}>
-            <span className="font-semibold">Deadlines synced.</span>
+            <span className="font-medium">Sync deadlines,</span>
             <br />
-            <span className="font-semibold italic">Class </span>
-            <span className="font-semibold">connected.</span>
+            <span className="font-medium italic">message </span>
+            <span className="font-medium">classmates.</span>
           </h2>
 
           {/* Subtitle */}
@@ -238,7 +238,7 @@ export default function Hero() {
         <div className="flex flex-col items-center px-6 lg:px-10">
           {/* Tagline below mockup */}
           <FadeIn className="max-w-4xl mt-14 sm:mt-24 mb-12 sm:mb-20">
-            <p className="text-[24px] sm:text-[40px] font-semibold text-black text-left leading-[1.05] tracking-tight" style={{ fontFamily: '-apple-system, "SF Pro Display", BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' }}>
+            <p className="text-[24px] sm:text-[40px] font-medium text-black text-left leading-[1.05] tracking-tight" style={{ fontFamily: '-apple-system, "SF Pro Display", BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' }}>
               The easiest way to sync your deadlines, track assignments, and stay connected with your class.
             </p>
           </FadeIn>

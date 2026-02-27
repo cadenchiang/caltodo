@@ -33,6 +33,10 @@ export async function middleware(request: NextRequest) {
     }
   );
 
+  // getSession() reads from cookies and triggers token refresh internally if needed.
+  // This ensures fresh tokens are written back to cookies via setAll.
+  await supabase.auth.getSession();
+
   const {
     data: { user },
   } = await supabase.auth.getUser();

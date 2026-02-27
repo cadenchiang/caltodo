@@ -6,6 +6,7 @@ import MobileTabBar from "@/components/layout/MobileTabBar";
 import { TaskProvider } from "@/contexts/TaskContext";
 import { ToastProvider } from "@/contexts/ToastContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
+import { PresenceProvider } from "@/contexts/PresenceContext";
 import InboxTour from "@/components/ui/InboxTour";
 import NotificationCenter from "@/components/ui/NotificationCenter";
 import CanvasTokenExpiredModal from "@/components/ui/CanvasTokenExpiredModal";
@@ -47,6 +48,7 @@ export default async function AppLayout({
       <PostHogIdentify userId={session.user.id} email={email} />
       <ToastProvider>
         <NotificationProvider>
+          <PresenceProvider>
           <TaskProvider>
             <InboxTour>
             <Sidebar avatarUrl={avatarUrl} fullName={fullName} email={email} />
@@ -59,6 +61,7 @@ export default async function AppLayout({
             <FeedbackModal userCreatedAt={session.user.created_at} />
             </InboxTour>
           </TaskProvider>
+          </PresenceProvider>
         </NotificationProvider>
       </ToastProvider>
     </div>

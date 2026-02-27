@@ -30,27 +30,30 @@ export async function GET() {
   }
 
   try {
-    // Auto-enroll user in CalTodo Fam if not already a member
+    // Auto-enroll user in calyak if not already a member
     const { data: initialData } = await supabase.rpc("get_user_boards");
-    const hasFam = (initialData ?? []).some(
+    const hasYak = (initialData ?? []).some(
       (r: { course_source: string }) => r.course_source === "system"
     );
 
-    if (!hasFam) {
-      const admin = createAdminClient();
-      const { data: famCourse } = await admin
-        .from("courses")
-        .select("id")
-        .eq("source", "system")
-        .eq("external_id", "caltodo-fam")
-        .single();
+    if (!hasYak) {
+      const userEmail = user.email ?? "";
+      if (userEmail.toLowerCase().endsWith(".edu")) {
+        const admin = createAdminClient();
+        const { data: yakCourse } = await admin
+          .from("courses")
+          .select("id")
+          .eq("source", "system")
+          .eq("external_id", "caltodo-yak")
+          .single();
 
-      if (famCourse) {
-        await admin.from("course_memberships").upsert(
-          { user_id: user.id, course_id: famCourse.id },
-          { onConflict: "user_id,course_id" }
-        );
-        logger.info("Auto-enrolled user in CalTodo Fam", { userId: user.id });
+        if (yakCourse) {
+          await admin.from("course_memberships").upsert(
+            { user_id: user.id, course_id: yakCourse.id },
+            { onConflict: "user_id,course_id" }
+          );
+          logger.info("Auto-enrolled user in calyak", { userId: user.id });
+        }
       }
     }
 
