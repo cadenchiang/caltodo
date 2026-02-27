@@ -33,7 +33,7 @@ export default function FeatureHighlight() {
 
         {/* Image placeholder — swap src when ready */}
         <FadeIn delay={150}>
-          <div className="mt-5 sm:mt-8 rounded-2xl overflow-hidden">
+          <div className="mt-5 sm:mt-8 rounded-2xl overflow-hidden border border-gray-200">
             <img
               src="/chat-feature-preview.png"
               alt="caltodo class chat feature preview"

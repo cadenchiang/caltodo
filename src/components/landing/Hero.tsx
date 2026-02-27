@@ -8,6 +8,7 @@ import GoogleOneTap from "@/components/auth/GoogleOneTap";
 import BentoFeatures from "@/components/landing/BentoFeatures";
 import FadeIn from "@/components/landing/FadeIn";
 import FeatureHighlight from "@/components/landing/FeatureHighlight";
+import TestimonialSection from "@/components/landing/TestimonialSection";
 
 const HERO_IMAGES = [
   { src: "/app-screenshot-calendar.png", alt: "caltodo calendar view with synced assignments" },
@@ -161,10 +162,9 @@ export default function Hero() {
 
           {/* Heading */}
           <h2 className="text-[36px] sm:text-[64px] leading-[0.95] sm:leading-[0.95] tracking-tight text-center text-black" style={{ fontFamily: '-apple-system, "SF Pro Display", BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' }}>
-            <span className="font-medium">Sync deadlines,</span>
+            <span className="font-medium">Sync deadlines.</span>
             <br />
-            <span className="font-medium italic">message </span>
-            <span className="font-medium">classmates.</span>
+            <span className="font-medium italic">Message </span><span className="font-medium">classmates.</span>
           </h2>
 
           {/* Subtitle */}
@@ -208,7 +208,7 @@ export default function Hero() {
                   key={img.src}
                   src={img.src}
                   alt={img.alt}
-                  className={`w-full rounded-xl transition-opacity duration-700 ease-in-out ${
+                  className={`w-full rounded-xl border border-gray-200 transition-opacity duration-700 ease-in-out ${
                     i === 0 ? "relative" : "absolute inset-0"
                   }`}
                   style={{ opacity: activeImage === i ? 1 : 0 }}
@@ -250,6 +250,8 @@ export default function Hero() {
       </div>
 
       <FeatureHighlight />
+
+      <TestimonialSection />
 
       {/* Footer */}
       <footer className="py-6 text-center text-xs text-black/30 bg-[#FCFCFD]">

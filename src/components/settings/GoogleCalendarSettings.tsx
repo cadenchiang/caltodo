@@ -184,19 +184,19 @@ export default function GoogleCalendarSettings() {
         }
         if (finalResult && finalResult.synced > 0) {
           const msg = finalResult.synced === finalResult.total
-            ? `Synced ${finalResult.synced} task${finalResult.synced === 1 ? "" : "s"} to Google Calendar.`
-            : `Synced ${finalResult.synced} of ${finalResult.total} tasks to Google Calendar.`;
+            ? `Synced ${finalResult.synced} task${finalResult.synced === 1 ? "" : "s"} to Google Calendar. New tasks will sync automatically.`
+            : `Synced ${finalResult.synced} of ${finalResult.total} tasks to Google Calendar. New tasks will sync automatically.`;
           toast(msg, openAction);
           window.open(gcalUrl, "_blank");
         } else if (finalResult && finalResult.total > 0 && finalResult.synced === 0) {
           toast(`Sync failed for all ${finalResult.total} tasks. Check your Google Calendar permissions.`);
         } else if (finalResult && finalResult.total === 0) {
-          toast("Google Calendar connected! No tasks to sync.", openAction);
+          toast("Google Calendar connected! No tasks to sync yet — new tasks will sync automatically.", openAction);
           window.open(gcalUrl, "_blank");
         }
         /* sync complete */
       } else {
-        toast("Google Calendar connected!", openAction);
+        toast("Google Calendar connected! New tasks will sync automatically.", openAction);
         /* sync complete */
         window.open(gcalUrl, "_blank");
       }
