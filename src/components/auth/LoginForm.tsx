@@ -21,9 +21,8 @@ function isMobileInAppBrowser(): boolean {
 }
 
 /**
- * Google-only login form with @berkeley.edu restriction.
+ * Google-only login form.
  * Supports desktop popup and mobile redirect OAuth flows.
- * Shows an error if a non-berkeley.edu account attempts to sign in.
  */
 export default function LoginForm() {
   const searchParams = useSearchParams();
@@ -37,8 +36,8 @@ export default function LoginForm() {
 
   useEffect(() => {
     const errorParam = searchParams.get("error");
-    if (errorParam === "berkeley-only") {
-      setError("caltodo is currently only available for @berkeley.edu accounts");
+    if (errorParam) {
+      setError("Sign-in failed. Please try again.");
     }
   }, [searchParams]);
 
@@ -52,13 +51,10 @@ export default function LoginForm() {
   }
 
   /**
-   * Initiates Google OAuth sign-in via Supabase with @berkeley.edu restriction.
+   * Initiates Google OAuth sign-in via Supabase.
    * Desktop: opens Google consent in a centered popup, polls for completion.
    * Mobile: full-page redirect to Google, then back to /auth/callback.
    * Falls back to redirect if popup is blocked by browser.
-   *
-   * The hd query param hints Google to only show @berkeley.edu accounts.
-   * Server-side validation in /auth/callback enforces this as a hard check.
    */
   async function handleGoogleSignIn() {
     setError(null);
@@ -85,7 +81,7 @@ export default function LoginForm() {
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
           skipBrowserRedirect: true,
-          queryParams: { hd: "berkeley.edu", prompt: "select_account" },
+          queryParams: { prompt: "select_account" },
         },
       });
 
@@ -102,7 +98,7 @@ export default function LoginForm() {
             provider: "google",
             options: {
               redirectTo: `${window.location.origin}/auth/callback`,
-              queryParams: { hd: "berkeley.edu", prompt: "select_account" },
+              queryParams: { prompt: "select_account" },
             },
           });
           return;
@@ -151,7 +147,7 @@ export default function LoginForm() {
         provider: "google",
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
-          queryParams: { hd: "berkeley.edu", prompt: "select_account" },
+          queryParams: { prompt: "select_account" },
         },
       });
 
