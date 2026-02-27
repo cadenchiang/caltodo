@@ -1,7 +1,6 @@
 "use client";
 
 import { useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import type { ReactNode } from "react";
 
 interface SortableColumnChildProps {
@@ -44,7 +43,7 @@ export default function SortableColumn({ id, children }: SortableColumnProps) {
   } = useSortable({ id });
 
   const style: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
+    transform: transform ? `translate3d(${Math.round(transform.x)}px, 0, 0)` : undefined,
     transition,
     opacity: isDragging ? 0 : 1,
   };

@@ -9,7 +9,6 @@ import { NotificationProvider } from "@/contexts/NotificationContext";
 import InboxTour from "@/components/ui/InboxTour";
 import NotificationCenter from "@/components/ui/NotificationCenter";
 import CanvasTokenExpiredModal from "@/components/ui/CanvasTokenExpiredModal";
-import PensieveAnnouncementModal from "@/components/ui/PensieveAnnouncementModal";
 import FeedbackModal from "@/components/ui/FeedbackModal";
 import PostHogIdentify from "@/components/PostHogIdentify";
 
@@ -57,7 +56,6 @@ export default async function AppLayout({
             <MobileTabBar />
             <NotificationCenter />
             <CanvasTokenExpiredModal />
-            <PensieveAnnouncementModal />
             <FeedbackModal />
             </InboxTour>
           </TaskProvider>

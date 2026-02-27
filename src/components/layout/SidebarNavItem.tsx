@@ -16,7 +16,7 @@ interface SidebarNavItemProps {
 
 /**
  * A single navigation link in the sidebar.
- * Highlights with a frosted active state when the current route matches.
+ * Highlights with an active state when the current route matches.
  * Uses prefetch for instant tab switching.
  *
  * @param label - Display text for the nav item
@@ -28,7 +28,7 @@ export default function SidebarNavItem({ label, href, icon: Icon, badge, id }: S
   const pathname = usePathname();
   const { colorTheme } = useTheme();
   const isMiffy = colorTheme === "miffy";
-  const isActive = pathname === href;
+  const isActive = pathname === href || pathname.startsWith(href + "/");
 
   return (
     <Link
@@ -39,16 +39,14 @@ export default function SidebarNavItem({ label, href, icon: Icon, badge, id }: S
         isActive
           ? isMiffy
             ? "bg-[#fce8ef] dark:bg-[rgba(232,114,154,0.12)] text-foreground"
-            : "bg-accent text-foreground"
-          : "text-muted-foreground hover:bg-accent hover:text-foreground"
+            : "bg-gray-200 dark:bg-zinc-700 text-foreground"
+          : "text-muted-foreground hover:bg-gray-100 dark:hover:bg-zinc-800 hover:text-foreground"
       }`}
     >
-      <Icon key={label} size={16} className="animate-[fadeIn_150ms_ease-out]" />
-      <span key={`label-${label}`} className="animate-[fadeIn_150ms_ease-out]">{label}</span>
+      <Icon size={16} />
+      <span>{label}</span>
       {badge && (
-        <span className="ml-auto min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center shrink-0">
-          1
-        </span>
+        <span className="ml-auto w-2.5 h-2.5 rounded-full bg-[#007AFF] shrink-0" />
       )}
     </Link>
   );

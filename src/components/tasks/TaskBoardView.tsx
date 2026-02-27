@@ -377,22 +377,6 @@ export default function TaskBoardView({
     setActiveId(null);
   }, []);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12 text-subtle-foreground text-sm">
-        Loading tasks...
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="bg-red-50 dark:bg-red-900/20 text-red-500 text-sm p-4 rounded-xl mx-4">
-        Error loading tasks: {error}
-      </div>
-    );
-  }
-
   const isDateMode = groupBy === "date";
 
   // Apply saved column order when in class mode
@@ -409,6 +393,22 @@ export default function TaskBoardView({
 
   /** Active column data for DragOverlay rendering. */
   const activeColumnTasks = activeId ? columns.get(activeId) ?? null : null;
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12 text-subtle-foreground text-sm">
+        Loading tasks...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 dark:bg-red-900/20 text-red-500 text-sm p-4 rounded-xl mx-4">
+        Error loading tasks: {error}
+      </div>
+    );
+  }
 
   if (columns.size === 0 && !isDateMode) {
     return (
@@ -438,6 +438,7 @@ export default function TaskBoardView({
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
       onDragCancel={handleDragCancel}
+      autoScroll={false}
     >
       <SortableContext items={columnIds} strategy={horizontalListSortingStrategy}>
         <div className="flex overflow-x-auto gap-6 px-6 pb-6 h-full">
@@ -475,10 +476,10 @@ export default function TaskBoardView({
         </div>
       </SortableContext>
 
-      {/* Floating drag overlay — fully visible, slightly tilted */}
+      {/* Floating drag overlay — follows cursor with subtle shadow */}
       <DragOverlay dropAnimation={{ duration: 200, easing: "ease" }}>
         {activeId && activeColumnTasks && (
-          <div className="min-w-[280px] max-w-[320px] opacity-90 shadow-2xl rotate-[2deg] scale-[1.02]">
+          <div className="min-w-[280px] max-w-[320px] opacity-95 shadow-2xl cursor-grabbing" style={{ willChange: "transform" }}>
             <BoardColumn
               name={activeId}
               displayName={isDateMode ? activeId : (aliases.get(activeId) || activeId)}
@@ -547,7 +548,34 @@ function BoardColumn({
   onColorChange,
   onDeleteClass,
 }: BoardColumnProps) {
+  const BOARD_ITEMS_LIMIT = 5;
   const [completedExpanded, setCompletedExpanded] = useState(true);
+  const [showAllActive, setShowAllActive] = useState(false);
+  const [showAllCompleted, setShowAllCompleted] = useState(false);
+
+  // Compute the most common task color in this column for new task defaults
+  const columnColor = useMemo(() => {
+    if (tasks.length === 0) return undefined;
+    const counts = new Map<string, number>();
+    for (const t of tasks) {
+      counts.set(t.color, (counts.get(t.color) ?? 0) + 1);
+    }
+    let maxColor = tasks[0].color;
+    let maxCount = 0;
+    for (const [c, n] of counts) {
+      if (n > maxCount) { maxColor = c; maxCount = n; }
+    }
+    return maxColor;
+  }, [tasks]);
+
+  // Hydrate collapsed state from localStorage after mount
+  useEffect(() => {
+    try {
+      const key = `caltodo_board_completed_${name}`;
+      const saved = localStorage.getItem(key);
+      if (saved === "false") setCompletedExpanded(false);
+    } catch { /* ignore */ }
+  }, [name]);
   const [showMenu, setShowMenu] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -660,7 +688,7 @@ function BoardColumn({
         {showMenu && menuBtnRef.current && createPortal(
           <div
             ref={menuDropdownRef}
-            className="fixed z-[9999] rounded-xl shadow-2xl border border-border overflow-hidden animate-in min-w-[150px] bg-white dark:bg-[#1a1a1a]"
+            className="fixed z-[9999] rounded-xl shadow-2xl border border-border overflow-hidden animate-in min-w-[150px] bg-popover"
             style={{
               top: menuBtnRef.current.getBoundingClientRect().bottom + 4,
               left: Math.min(
@@ -774,6 +802,7 @@ function BoardColumn({
             }}
             onCancel={() => setShowAddForm(false)}
             courseName={name}
+            defaultColor={columnColor}
           />
         </div>
       )}
@@ -781,7 +810,7 @@ function BoardColumn({
       {/* Scrollable card area */}
       <div className="flex-1 overflow-y-auto flex flex-col gap-2">
         {/* Active task cards */}
-        {active.map((task) => (
+        {(showAllActive ? active : active.slice(0, BOARD_ITEMS_LIMIT)).map((task) => (
           <TaskCard
             key={task.id}
             task={task}
@@ -791,6 +820,14 @@ function BoardColumn({
             onDelete={onDelete}
           />
         ))}
+        {active.length > BOARD_ITEMS_LIMIT && (
+          <button
+            onClick={() => setShowAllActive(!showAllActive)}
+            className="py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors w-full text-left px-1"
+          >
+            {showAllActive ? "Show less" : `+${active.length - BOARD_ITEMS_LIMIT} more`}
+          </button>
+        )}
 
         {active.length === 0 && completed.length === 0 && (
           hideMenu ? (
@@ -812,7 +849,11 @@ function BoardColumn({
         {completed.length > 0 && (
           <div className="mt-2">
             <button
-              onClick={() => setCompletedExpanded(!completedExpanded)}
+              onClick={() => {
+                const next = !completedExpanded;
+                setCompletedExpanded(next);
+                try { localStorage.setItem(`caltodo_board_completed_${name}`, String(next)); } catch { /* ignore */ }
+              }}
               className="flex items-center gap-1 px-1 py-1.5 w-full text-left"
             >
               <ChevronDown
@@ -826,7 +867,7 @@ function BoardColumn({
             </button>
             {completedExpanded && (
               <div className="flex flex-col gap-2 mt-1">
-                {completed.map((task) => (
+                {(showAllCompleted ? completed : completed.slice(0, BOARD_ITEMS_LIMIT)).map((task) => (
                   <TaskCard
                     key={task.id}
                     task={task}
@@ -836,6 +877,14 @@ function BoardColumn({
                     onDelete={onDelete}
                   />
                 ))}
+                {completed.length > BOARD_ITEMS_LIMIT && (
+                  <button
+                    onClick={() => setShowAllCompleted(!showAllCompleted)}
+                    className="py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors w-full text-left px-1"
+                  >
+                    {showAllCompleted ? "Show less" : `+${completed.length - BOARD_ITEMS_LIMIT} more`}
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -929,7 +978,7 @@ function TaskCard({ task, isSelected, onToggle, onSelect, onDelete }: TaskCardPr
           </button>
           <span
             className={`text-sm leading-snug flex-1 min-w-0 ${
-              isCompleted ? "text-foreground" : "text-foreground"
+              isCompleted ? "text-muted-foreground" : "text-foreground"
             }`}
           >
             {task.title}

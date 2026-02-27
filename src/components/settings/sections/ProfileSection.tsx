@@ -36,16 +36,10 @@ interface SearchUser {
 export default function ProfileSection() {
   const { showToast } = useToast();
 
-  // Profile state — initialise from localStorage for instant render (no flash)
-  const cachedProfile = (() => {
-    try {
-      const c = localStorage.getItem("caltodo_user_profile");
-      return c ? JSON.parse(c) : null;
-    } catch { return null; }
-  })();
-  const [userEmail, setUserEmail] = useState<string | null>(cachedProfile?.email ?? null);
-  const [userFullName, setUserFullName] = useState<string | null>(cachedProfile?.fullName ?? null);
-  const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(cachedProfile?.avatarUrl ?? null);
+  // Profile state — hydrate from localStorage in useEffect to avoid SSR mismatch
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [userFullName, setUserFullName] = useState<string | null>(null);
+  const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
   const [imgError, setImgError] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [editingName, setEditingName] = useState(false);
@@ -53,17 +47,34 @@ export default function ProfileSection() {
   const [savingName, setSavingName] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Friends state — parse localStorage once for instant render
-  const cachedFriends = (() => {
+  // Friends state — hydrate from localStorage in useEffect to avoid SSR mismatch
+  const [friends, setFriends] = useState<FriendEntry[]>([]);
+  const [pendingReceived, setPendingReceived] = useState<FriendEntry[]>([]);
+  const [pendingSent, setPendingSent] = useState<FriendEntry[]>([]);
+  const [loadingFriends, setLoadingFriends] = useState(true);
+
+  // Hydrate cached profile and friends from localStorage after mount
+  useEffect(() => {
+    try {
+      const c = localStorage.getItem("caltodo_user_profile");
+      if (c) {
+        const p = JSON.parse(c);
+        if (p?.email) setUserEmail(p.email);
+        if (p?.fullName) setUserFullName(p.fullName);
+        if (p?.avatarUrl) setUserAvatarUrl(p.avatarUrl);
+      }
+    } catch { /* ignore corrupt cache */ }
     try {
       const c = localStorage.getItem("caltodo_friends_cache");
-      return c ? JSON.parse(c) : null;
-    } catch { return null; }
-  })();
-  const [friends, setFriends] = useState<FriendEntry[]>(cachedFriends?.friends ?? []);
-  const [pendingReceived, setPendingReceived] = useState<FriendEntry[]>(cachedFriends?.pendingReceived ?? []);
-  const [pendingSent, setPendingSent] = useState<FriendEntry[]>(cachedFriends?.pendingSent ?? []);
-  const [loadingFriends, setLoadingFriends] = useState(!cachedFriends);
+      if (c) {
+        const f = JSON.parse(c);
+        if (f?.friends) setFriends(f.friends);
+        if (f?.pendingReceived) setPendingReceived(f.pendingReceived);
+        if (f?.pendingSent) setPendingSent(f.pendingSent);
+        setLoadingFriends(false);
+      }
+    } catch { /* ignore corrupt cache */ }
+  }, []);
   const [friendQuery, setFriendQuery] = useState("");
   const [friendSuggestions, setFriendSuggestions] = useState<SearchUser[]>([]);
   const [searchingFriends, setSearchingFriends] = useState(false);
@@ -181,6 +192,9 @@ export default function ProfileSection() {
         }
       } catch { /* ignore */ }
 
+      // Notify sidebar of avatar change
+      window.dispatchEvent(new CustomEvent("profile-updated", { detail: { avatarUrl: avatar_url } }));
+
       showToast("Profile photo updated.");
     } catch {
       showToast("Failed to upload photo.");
@@ -226,6 +240,9 @@ export default function ProfileSection() {
           localStorage.setItem("caltodo_user_profile", JSON.stringify(profile));
         }
       } catch { /* ignore */ }
+
+      // Notify sidebar of name change
+      window.dispatchEvent(new CustomEvent("profile-updated", { detail: { fullName: trimmed } }));
 
       showToast("Name updated.");
     } catch {

@@ -232,7 +232,7 @@ export default function CalendarHeader({
                 <span className="text-xs font-medium text-blue-600/80 dark:text-blue-300/70">Sync GCal</span>
               </div>
               {/* Red notification dot */}
-              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-red-500 border-2 border-white dark:border-gray-900" />
+              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[#007AFF] border-2 border-white dark:border-gray-900" />
             </a>
             <button
               onClick={(e) => {

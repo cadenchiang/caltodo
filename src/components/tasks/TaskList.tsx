@@ -606,7 +606,7 @@ export default function TaskList({
           {hiddenExpanded && (
             <>
               {snoozed.map((task, i) => (
-                <div key={task.id}>
+                <div key={task.id} className="cv-auto-task">
                   {i > 0 && <div className="mx-12 h-px bg-border" />}
                   <div className="flex items-center px-4 py-2 group">
                     <span className="text-sm text-foreground truncate flex-1 min-w-0">{task.title}</span>
@@ -717,7 +717,7 @@ export default function TaskList({
           {completedExpanded && (
             <>
               {completedToShow.map((task, i) => (
-                <div key={task.id}>
+                <div key={task.id} className="cv-auto-task">
                   {i > 0 && <div className="mx-12 h-px bg-border" />}
                   <TaskItem
                     task={task}

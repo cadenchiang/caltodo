@@ -390,23 +390,6 @@ body {
   animation: stepIn 350ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-/* Popover pop-in animation — uses only opacity + scale to avoid transform conflicts */
-@keyframes popoverIn {
-  0% {
-    opacity: 0;
-    scale: 0.96;
-  }
-  100% {
-    opacity: 1;
-    scale: 1;
-  }
-}
-
-.animate-popover-in {
-  animation: popoverIn 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
-  transform-origin: top center;
-}
-
 /* Hero appear animation */
 @keyframes appear {
   0% {
@@ -671,6 +654,24 @@ body {
 
 .animate-sync-bar {
   animation: syncBar 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+/* Loading bar — fills left to right, pauses, resets */
+@keyframes loadingBar {
+  0% {
+    transform: scaleX(0);
+  }
+  60% {
+    transform: scaleX(1);
+  }
+  80% {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scaleX(1);
+    opacity: 0;
+  }
 }
 
 /* Elevated button — press-in hover effect (primary: dark bg, secondary: light bg) */
@@ -966,4 +967,15 @@ textarea:-webkit-autofill {
 
 .animate-border-spin {
   animation: borderSpin 4s linear infinite;
+}
+
+/* ── Content-visibility optimizations for off-screen content ── */
+.cv-auto-task {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 48px;
+}
+
+.cv-auto-section {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 200px;
 }

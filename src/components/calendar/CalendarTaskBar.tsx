@@ -27,6 +27,23 @@ function hexToRgba(hex: string, opacity: number): string {
   return `rgba(${r}, ${g}, ${b}, ${opacity})`;
 }
 
+/**
+ * Formats a 24-hour time string "HH:MM" to compact 12-hour format.
+ * e.g. "23:59" → "11:59p", "09:00" → "9a", "14:30" → "2:30p"
+ *
+ * @param time24 - Time string in "HH:MM" format
+ * @returns Compact formatted time string
+ */
+function formatTimeCompact(time24: string): string {
+  const [h, m] = time24.split(":");
+  const hour = parseInt(h, 10);
+  const minute = m;
+  const suffix = hour >= 12 ? "p" : "a";
+  const h12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+  if (minute === "00") return `${h12}${suffix}`;
+  return `${h12}:${minute}${suffix}`;
+}
+
 /** Max characters to display before truncating with ellipsis. */
 const MAX_TITLE_CHARS = 28;
 
@@ -64,7 +81,7 @@ export default function CalendarTaskBar({ task, onClick, isPending }: CalendarTa
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className={`w-full text-left flex items-center px-2 py-0.5 rounded-md transition-all overflow-hidden hover:-translate-y-px hover:shadow-sm ${
+      className={`w-full text-left flex items-center gap-1 px-2 py-0.5 rounded-md transition-all overflow-hidden hover:-translate-y-px hover:shadow-sm ${
         task.is_completed ? "opacity-50" : ""
       } ${isPending ? "opacity-50" : ""}`}
       style={isPending ? {
@@ -82,6 +99,14 @@ export default function CalendarTaskBar({ task, onClick, isPending }: CalendarTa
         <svg className="w-3 h-3 shrink-0 mr-1 hidden md:block" style={{ color }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
           <polyline points="20 6 9 17 4 12" />
         </svg>
+      )}
+      {task.due_time && (
+        <span
+          className="text-[10px] font-semibold shrink-0 opacity-70"
+          style={{ color: isPending ? hexToRgba(color, 0.6) : color }}
+        >
+          {formatTimeCompact(task.due_time)}
+        </span>
       )}
       <span
         className={`text-[11px] font-medium truncate ${task.is_completed && !isPending ? "line-through" : ""}`}

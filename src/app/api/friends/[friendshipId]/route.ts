@@ -79,7 +79,7 @@ export async function POST(
   // Accept: update status to "accepted" (RLS ensures only receiver can update)
   const { error: updateError, count } = await supabase
     .from("friendships")
-    .update({ status: "accepted" })
+    .update({ status: "accepted" }, { count: "exact" })
     .eq("id", friendshipId)
     .eq("receiver_id", user.id)
     .eq("status", "pending");
@@ -92,8 +92,10 @@ export async function POST(
     return NextResponse.json({ error: "Failed to accept request" }, { status: 500 });
   }
 
-  // count may be undefined if supabase doesn't return it without { count: "exact" }
-  // The update call above doesn't pass count option, let me check — actually let's just check error
+  if (count === 0) {
+    return NextResponse.json({ error: "Request not found" }, { status: 404 });
+  }
+
   logger.info("POST /api/friends/[friendshipId]: request accepted", {
     friendshipId,
     userId: user.id,

@@ -44,10 +44,30 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
   const isMiffy = colorTheme === "miffy";
   const isDark = resolvedTheme === "dark";
   const isSettings = pathname.startsWith("/app/settings");
-  const [inboxFilter, setInboxFilter] = useState<string>(() => {
-    try { return localStorage.getItem("inbox-filter") || "all"; }
-    catch { return "all"; }
-  });
+  const [inboxFilter, setInboxFilter] = useState<string>("all");
+
+  // Local avatar/name state for reactive updates from profile changes
+  const [localAvatarUrl, setLocalAvatarUrl] = useState(avatarUrl);
+  const [localFullName, setLocalFullName] = useState(fullName);
+
+  // Hydrate inbox filter from localStorage after mount to avoid SSR mismatch
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("inbox-filter");
+      if (saved) setInboxFilter(saved);
+    } catch { /* ignore */ }
+  }, []);
+
+  // Listen for profile updates dispatched from ProfileSection
+  useEffect(() => {
+    function handleProfileUpdate(e: Event) {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.avatarUrl !== undefined) setLocalAvatarUrl(detail.avatarUrl);
+      if (detail?.fullName !== undefined) setLocalFullName(detail.fullName);
+    }
+    window.addEventListener("profile-updated", handleProfileUpdate);
+    return () => window.removeEventListener("profile-updated", handleProfileUpdate);
+  }, []);
   const [showCalBadge, setShowCalBadge] = useState(false);
 
   // Derive active settings section directly from URL search params (single source of truth)
@@ -184,8 +204,8 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
                         isActive
                           ? isMiffy
                             ? "bg-[#fce8ef] dark:bg-[rgba(232,114,154,0.12)] text-foreground"
-                            : "bg-accent text-foreground"
-                          : "text-foreground hover:bg-accent"
+                            : "bg-gray-200 dark:bg-zinc-700 text-foreground"
+                          : "text-foreground hover:bg-gray-100 dark:hover:bg-zinc-800"
                       }`}
                     >
                       <Icon size={16} className="shrink-0" />
@@ -227,7 +247,7 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
             />
           </div>
         )}
-        <ProfilePopup avatarUrl={avatarUrl} fullName={fullName} email={email} />
+        <ProfilePopup avatarUrl={localAvatarUrl} fullName={localFullName} email={email} />
       </div>
     </aside>
   );

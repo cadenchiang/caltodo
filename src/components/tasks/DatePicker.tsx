@@ -77,6 +77,134 @@ function buildDateString(mm: string, dd: string, yyyy: string): string | null {
 }
 
 /**
+ * Custom styled time picker with hour, minute, and AM/PM selectors.
+ * Replaces the native `<input type="time">` for consistent UI across browsers.
+ *
+ * @param value - Current time as "HH:MM" (24h format) or null
+ * @param onChange - Callback with the new time string or null
+ */
+function TimePicker({ value, onChange }: { value: string | null; onChange: (time: string | null) => void }) {
+  // Parse current value into 12h components
+  let hour12 = 12;
+  let minute = 0;
+  let ampm: "AM" | "PM" = "AM";
+  if (value) {
+    const [h, m] = value.split(":").map(Number);
+    minute = m;
+    ampm = h >= 12 ? "PM" : "AM";
+    hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  }
+
+  /** Converts 12h components to 24h "HH:MM" string. */
+  function to24h(h12: number, min: number, ap: "AM" | "PM"): string {
+    let h24 = h12;
+    if (ap === "AM" && h12 === 12) h24 = 0;
+    else if (ap === "PM" && h12 !== 12) h24 = h12 + 12;
+    return `${String(h24).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
+  }
+
+  function setHour(h: number) {
+    onChange(to24h(h, minute, ampm));
+  }
+  function setMinute(m: number) {
+    onChange(to24h(hour12, m, ampm));
+  }
+  function toggleAmPm() {
+    const next = ampm === "AM" ? "PM" : "AM";
+    onChange(to24h(hour12, minute, next));
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-1.5 justify-center">
+        {/* Hour */}
+        <div className="flex flex-col items-center">
+          <button
+            type="button"
+            onClick={() => setHour(hour12 >= 12 ? 1 : hour12 + 1)}
+            className="text-subtle-foreground hover:text-foreground transition-colors cursor-pointer p-0.5"
+          >
+            <ChevronLeft size={12} className="rotate-90" />
+          </button>
+          <div className="w-10 h-8 flex items-center justify-center rounded-lg bg-accent text-sm font-medium text-foreground">
+            {hour12}
+          </div>
+          <button
+            type="button"
+            onClick={() => setHour(hour12 <= 1 ? 12 : hour12 - 1)}
+            className="text-subtle-foreground hover:text-foreground transition-colors cursor-pointer p-0.5"
+          >
+            <ChevronLeft size={12} className="-rotate-90" />
+          </button>
+        </div>
+
+        <span className="text-sm font-medium text-muted-foreground">:</span>
+
+        {/* Minute */}
+        <div className="flex flex-col items-center">
+          <button
+            type="button"
+            onClick={() => setMinute(minute >= 55 ? 0 : minute + 5)}
+            className="text-subtle-foreground hover:text-foreground transition-colors cursor-pointer p-0.5"
+          >
+            <ChevronLeft size={12} className="rotate-90" />
+          </button>
+          <div className="w-10 h-8 flex items-center justify-center rounded-lg bg-accent text-sm font-medium text-foreground">
+            {String(minute).padStart(2, "0")}
+          </div>
+          <button
+            type="button"
+            onClick={() => setMinute(minute <= 0 ? 55 : minute - 5)}
+            className="text-subtle-foreground hover:text-foreground transition-colors cursor-pointer p-0.5"
+          >
+            <ChevronLeft size={12} className="-rotate-90" />
+          </button>
+        </div>
+
+        {/* AM/PM toggle */}
+        <button
+          type="button"
+          onClick={toggleAmPm}
+          className="w-10 h-8 rounded-lg bg-accent text-xs font-medium text-foreground hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors cursor-pointer"
+        >
+          {ampm}
+        </button>
+      </div>
+
+      {/* Quick actions */}
+      <div className="flex items-center justify-between">
+        <div className="flex gap-1">
+          {[
+            { label: "9 AM", h: 9, m: 0, ap: "AM" as const },
+            { label: "12 PM", h: 12, m: 0, ap: "PM" as const },
+            { label: "5 PM", h: 5, m: 0, ap: "PM" as const },
+            { label: "11:59 PM", h: 11, m: 59, ap: "PM" as const },
+          ].map((preset) => (
+            <button
+              key={preset.label}
+              type="button"
+              onClick={() => onChange(to24h(preset.h, preset.m, preset.ap))}
+              className="text-[10px] px-1.5 py-0.5 rounded bg-accent text-secondary-foreground hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors cursor-pointer"
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
+        {value && (
+          <button
+            type="button"
+            onClick={() => onChange(null)}
+            className="text-[10px] text-subtle-foreground hover:text-secondary-foreground transition-colors shrink-0 cursor-pointer"
+          >
+            Clear
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
  * Unified date picker with structured MM/DD/YYYY input, calendar grid,
  * optional time input, and optional integrated repeat section.
  *
@@ -364,24 +492,11 @@ export default function DatePicker({
                 />
               </button>
               {expandedSection === "time" && (
-                <div className="px-2 pb-1.5 pt-1">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="time"
-                      value={timeValue ?? ""}
-                      onChange={(e) => onTimeChange(e.target.value || null)}
-                      className="flex-1 px-3 py-1.5 text-xs rounded-lg border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-all"
-                    />
-                    {timeValue && (
-                      <button
-                        type="button"
-                        onClick={() => onTimeChange(null)}
-                        className="text-[10px] text-subtle-foreground hover:text-secondary-foreground transition-colors shrink-0"
-                      >
-                        Clear
-                      </button>
-                    )}
-                  </div>
+                <div className="px-2 pb-2 pt-1">
+                  <TimePicker
+                    value={timeValue ?? null}
+                    onChange={(t) => onTimeChange(t)}
+                  />
                 </div>
               )}
             </div>

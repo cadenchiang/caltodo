@@ -2,29 +2,34 @@
 
 import { useState, useEffect } from "react";
 import { format, isSameDay, startOfWeek, addDays } from "date-fns";
-import type { Task } from "@/lib/types";
+import type { Task, PendingInvite } from "@/lib/types";
 import { getMiffyColor } from "@/lib/constants";
+import { pendingInviteToPseudoTask } from "@/lib/pending-invite-helpers";
 import { useTheme } from "@/contexts/ThemeContext";
 
 interface CalendarWeekViewProps {
   currentDate: Date;
   tasks: Task[];
+  pendingInvites?: PendingInvite[];
   onDayClick: (date: string, rect: DOMRect) => void;
   onTaskClick: (task: Task, rect: DOMRect) => void;
 }
 
 /**
  * Formats a 24-hour time string to compact 12-hour format.
+ * e.g. "23:59" → "11:59p", "09:00" → "9a", "14:30" → "2:30p"
  *
  * @param time24 - "HH:MM" format
- * @returns e.g. "6:43 PM"
+ * @returns Compact formatted time string
  */
 function formatTime(time24: string): string {
   const [h, m] = time24.split(":");
   const hour = parseInt(h, 10);
-  const ampm = hour >= 12 ? "PM" : "AM";
+  const minute = m;
+  const suffix = hour >= 12 ? "p" : "a";
   const h12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-  return `${h12}:${m} ${ampm}`;
+  if (minute === "00") return `${h12}${suffix}`;
+  return `${h12}:${minute}${suffix}`;
 }
 
 /**
@@ -55,6 +60,7 @@ function hexToRgba(hex: string, opacity: number): string {
 export default function CalendarWeekView({
   currentDate,
   tasks,
+  pendingInvites = [],
   onDayClick,
   onTaskClick,
 }: CalendarWeekViewProps) {
@@ -74,6 +80,14 @@ export default function CalendarWeekView({
     if (task.due_date) {
       if (!tasksByDate[task.due_date]) tasksByDate[task.due_date] = [];
       tasksByDate[task.due_date].push(task);
+    }
+  }
+
+  const invitesByDate: Record<string, PendingInvite[]> = {};
+  for (const invite of pendingInvites) {
+    if (invite.taskDueDate) {
+      if (!invitesByDate[invite.taskDueDate]) invitesByDate[invite.taskDueDate] = [];
+      invitesByDate[invite.taskDueDate].push(invite);
     }
   }
 
@@ -120,6 +134,7 @@ export default function CalendarWeekView({
               key={dateStr}
               dateStr={dateStr}
               tasks={dayTasks}
+              pendingInvites={invitesByDate[dateStr] ?? []}
               isLastCol={isLastCol}
               isMobile={isMobile}
               onDayClick={onDayClick}
@@ -138,6 +153,7 @@ export default function CalendarWeekView({
 function WeekDayColumn({
   dateStr,
   tasks,
+  pendingInvites,
   isLastCol,
   isMobile,
   onDayClick,
@@ -145,6 +161,7 @@ function WeekDayColumn({
 }: {
   dateStr: string;
   tasks: Task[];
+  pendingInvites: PendingInvite[];
   isLastCol: boolean;
   isMobile: boolean;
   onDayClick: (date: string, rect: DOMRect) => void;
@@ -172,13 +189,23 @@ function WeekDayColumn({
       {isMobile ? (
         /* Mobile: centered colored dots */
         <div className="flex flex-col items-center justify-start pt-1 gap-1.5">
-          {tasks.length > 0 && (
+          {(tasks.length > 0 || pendingInvites.length > 0) && (
             <div className="flex items-center justify-center gap-[3px] flex-wrap max-w-[36px]">
               {tasks.slice(0, maxDots).map((task) => (
                 <span
                   key={task.id}
                   className={`w-[5px] h-[5px] rounded-full shrink-0 ${task.is_completed ? "opacity-40" : ""}`}
                   style={{ backgroundColor: isMiffyTheme ? getMiffyColor(task.color) : (task.color || "#6b7280") }}
+                />
+              ))}
+              {pendingInvites.map((invite) => (
+                <span
+                  key={invite.shareId}
+                  className="w-[5px] h-[5px] rounded-full shrink-0 opacity-40"
+                  style={{
+                    backgroundColor: "transparent",
+                    border: `1px dashed ${isMiffyTheme ? getMiffyColor(invite.taskColor) : (invite.taskColor || "#6b7280")}`,
+                  }}
                 />
               ))}
               {tasks.length > maxDots && (
@@ -211,6 +238,14 @@ function WeekDayColumn({
           {tasks.map((task) => (
             <WeekTaskCard key={task.id} task={task} onTaskClick={onTaskClick} />
           ))}
+          {pendingInvites.map((invite) => (
+            <WeekTaskCard
+              key={invite.shareId}
+              task={pendingInviteToPseudoTask(invite)}
+              onTaskClick={() => {}}
+              isPending
+            />
+          ))}
         </>
       )}
     </div>
@@ -222,13 +257,16 @@ function WeekDayColumn({
  *
  * @param task - The task to render
  * @param onTaskClick - Click callback
+ * @param isPending - When true, renders with dashed outline for pending invites
  */
 function WeekTaskCard({
   task,
   onTaskClick,
+  isPending,
 }: {
   task: Task;
   onTaskClick: (task: Task, rect: DOMRect) => void;
+  isPending?: boolean;
 }) {
   const { colorTheme } = useTheme();
   const rawColor = task.color || "#6b7280";
@@ -242,20 +280,29 @@ function WeekTaskCard({
       }}
       className={`group w-full text-left rounded-lg p-1.5 md:p-2.5 transition-all hover:-translate-y-px hover:shadow-sm ${
         task.is_completed ? "opacity-50" : ""
-      }`}
-      style={{
+      } ${isPending ? "opacity-50" : ""}`}
+      style={isPending ? {
+        backgroundColor: "transparent",
+        border: `1px dashed ${hexToRgba(color, 0.4)}`,
+        borderLeftWidth: "2px",
+        borderLeftStyle: "dashed",
+        borderLeftColor: color,
+      } : {
         backgroundColor: hexToRgba(color, 0.1),
         borderLeft: `2px solid ${color}`,
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.backgroundColor = hexToRgba(color, 0.18);
+        if (!isPending) e.currentTarget.style.backgroundColor = hexToRgba(color, 0.18);
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.backgroundColor = hexToRgba(color, 0.1);
+        if (!isPending) e.currentTarget.style.backgroundColor = hexToRgba(color, 0.1);
       }}
     >
-      <p className={`text-[11px] md:text-[13px] font-semibold leading-snug flex items-center gap-1 ${task.is_completed ? "line-through" : ""}`} style={{ color }}>
-        {task.is_completed && (
+      <p
+        className={`text-[11px] md:text-[13px] font-semibold leading-snug flex items-center gap-1 ${task.is_completed && !isPending ? "line-through" : ""}`}
+        style={{ color: isPending ? hexToRgba(color, 0.6) : color }}
+      >
+        {task.is_completed && !isPending && (
           <svg className="w-3.5 h-3.5 shrink-0 hidden md:block" style={{ color }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="20 6 9 17 4 12" />
           </svg>
@@ -263,7 +310,7 @@ function WeekTaskCard({
         {task.title}
       </p>
       {task.due_time && (
-        <p className="hidden md:flex text-xs mt-1 items-center gap-1" style={{ color, opacity: 0.7 }}>
+        <p className="hidden md:flex text-xs mt-1 items-center gap-1" style={{ color: isPending ? hexToRgba(color, 0.6) : color, opacity: 0.7 }}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="10" />
             <polyline points="12 6 12 12 16 14" />

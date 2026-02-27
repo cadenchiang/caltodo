@@ -213,7 +213,11 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
   }, []);
 
   useEffect(() => {
-    const handleScroll = () => onClose();
+    const handleScroll = (e: Event) => {
+      // Ignore scroll events originating inside the popover itself
+      if (ref.current && e.target instanceof Node && ref.current.contains(e.target)) return;
+      onClose();
+    };
     window.addEventListener("scroll", handleScroll, true);
     return () => window.removeEventListener("scroll", handleScroll, true);
   }, [onClose]);
@@ -536,7 +540,6 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
               timeValue={dueTime}
               onChange={(date) => {
                 setDueDate(date);
-                setShowDatePicker(false);
                 onSave(task.id, { due_date: date });
               }}
               onTimeChange={(time) => {
@@ -626,7 +629,7 @@ export default function TaskPopover({ task, anchorRect, onClose, onSave, onDelet
               type="button"
               onClick={() => { setShowTagPicker(!showTagPicker); setShowDatePicker(false); setShowColorPicker(false); }}
               className={`p-1 rounded-lg hover:bg-accent transition-colors ${
-                localTags.length > 0 ? "text-blue-500" : "text-muted-foreground hover:text-blue-500 hidden"
+                localTags.length > 0 ? "text-blue-500" : isEditing ? "text-muted-foreground hover:text-blue-500" : "text-muted-foreground hover:text-blue-500 hidden"
               }`}
               aria-label="Edit tags"
             >

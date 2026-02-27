@@ -460,6 +460,8 @@ export function TaskProvider({ children }: { children: ReactNode }) {
           due_date: nextDueDate,
           due_time: task.due_time,
           color: task.color,
+          course_name: task.course_name || undefined,
+          tags: task.tags?.length ? task.tags : undefined,
           repeat_interval: task.repeat_interval,
           repeat_unit: task.repeat_unit,
           repeat_end_date: task.repeat_end_date,

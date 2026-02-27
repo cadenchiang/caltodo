@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ClipboardList, PlusCircle, Search, LayoutGrid, Compass, CalendarDays } from "lucide-react";
 import { TourProvider, TourStartDialog, useTour, type TourStep } from "./AppTour";
@@ -101,8 +101,14 @@ const TOUR_STEPS: TourStep[] = [
  * Must be rendered inside TourProvider. Shows a "Start tour?" dialog with
  * skip option rather than auto-starting.
  */
+/**
+ * Module-level flag to prevent re-triggering the tour dialog within the same
+ * page session. Survives React re-mounts (e.g. navigating between pages).
+ */
+let dialogShownThisSession = false;
+
 function TourTrigger() {
-  const { isCompleted } = useTour();
+  const { isCompleted, endTour } = useTour();
   const pathname = usePathname();
   const [showDialog, setShowDialog] = useState(false);
   const hasTriggeredRef = useRef(false);
@@ -110,12 +116,13 @@ function TourTrigger() {
   // Show dialog after onboarding — re-check when route changes
   // Tour is desktop-only: the steps reference sidebar and split-screen layout
   useEffect(() => {
-    if (isCompleted || hasTriggeredRef.current) return;
+    if (isCompleted || hasTriggeredRef.current || dialogShownThisSession) return;
     if (typeof window !== "undefined" && window.innerWidth < 768) return;
     try {
       const pending = localStorage.getItem(TOUR_PENDING_KEY);
       if (pending === "true") {
         hasTriggeredRef.current = true;
+        dialogShownThisSession = true;
         localStorage.removeItem(TOUR_PENDING_KEY);
         const timer = setTimeout(() => setShowDialog(true), 1200);
         return () => clearTimeout(timer);
@@ -129,12 +136,13 @@ function TourTrigger() {
   // Keeps running until user makes a choice (Start Tour or Skip).
   // Tour is desktop-only.
   useEffect(() => {
-    if (isCompleted || hasTriggeredRef.current) return;
+    if (isCompleted || hasTriggeredRef.current || dialogShownThisSession) return;
     if (typeof window !== "undefined" && window.innerWidth < 768) return;
     const pollTimer = setInterval(() => {
       try {
         if (localStorage.getItem(TOUR_PENDING_KEY) === "true") {
           hasTriggeredRef.current = true;
+          dialogShownThisSession = true;
           localStorage.removeItem(TOUR_PENDING_KEY);
           clearInterval(pollTimer);
           setShowDialog(true);
@@ -148,13 +156,26 @@ function TourTrigger() {
   useEffect(() => {
     function handleRestart() {
       hasTriggeredRef.current = false;
+      dialogShownThisSession = false;
       setShowDialog(true);
     }
     window.addEventListener("caltodo-restart-tour", handleRestart);
     return () => window.removeEventListener("caltodo-restart-tour", handleRestart);
   }, []);
 
-  return <TourStartDialog open={showDialog} onClose={() => setShowDialog(false)} />;
+  /**
+   * Handles closing the tour dialog. When user skips, marks tour as completed
+   * so it doesn't re-show on navigation or re-mount.
+   */
+  const handleDialogClose = useCallback(() => {
+    setShowDialog(false);
+    // If user skips, persist completion so it never re-triggers
+    if (!isCompleted) {
+      endTour();
+    }
+  }, [isCompleted, endTour]);
+
+  return <TourStartDialog open={showDialog} onClose={handleDialogClose} />;
 }
 
 /**
