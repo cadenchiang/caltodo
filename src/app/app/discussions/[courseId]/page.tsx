@@ -1,31 +1,21 @@
 "use client";
 
-import { use, useEffect, useState, useMemo, useRef, useCallback } from "react";
+import { use, useEffect, useState, useRef, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Users } from "lucide-react";
 import { useCourseChat } from "@/hooks/useCourseChat";
 import { useMessageReactions } from "@/hooks/useMessageReactions";
+import { usePresence } from "@/contexts/PresenceContext";
 import ChatView from "@/components/discussions/ChatView";
 import ChatSidebar from "@/components/discussions/ChatSidebar";
 import ChatDetailsSidebar from "@/components/discussions/ChatDetailsSidebar";
 import { createClient } from "@/lib/supabase/client";
 import { useDiscussionBoards } from "@/hooks/useDiscussionBoards";
 import CalChatWelcomeModal from "@/components/discussions/CalChatWelcomeModal";
+import { stripParentheses } from "@/lib/chat-utils";
+import { NAME_KEY_PREFIX, MUTE_KEY_PREFIX } from "@/lib/chat-actions";
 
-const NAME_KEY_PREFIX = "calchat_name_";
-const MUTE_KEY_PREFIX = "calchat_muted_";
 const LAST_CHAT_KEY = "calchat_last_course";
-
-/**
- * Strips parenthetical content from a course name.
- * e.g. "CS 61A (Spring 2026)" -> "CS 61A"
- *
- * @param name - The raw course name
- * @returns Cleaned course name
- */
-function stripParentheses(name: string): string {
-  return name.replace(/\s*\([^)]*\)/g, "").trim();
-}
 
 /**
  * Thin loading bar at the top that reflects actual load progress.
@@ -99,6 +89,12 @@ export default function CourseChatPage({ params }: PageProps) {
   const [isMuted, setIsMuted] = useState(false);
   const displayName = nameOverride || stripParentheses(activeCourseName);
 
+  const supabaseRef = useRef(createClient());
+  const { boards } = useDiscussionBoards();
+  const activeBoard = boards.find((b) => b.course.id === activeCourseId);
+  const activeMemberCount = activeBoard?.member_count ?? 0;
+  const isSystemCourse = activeBoard?.course.source === "system";
+
   const {
     messages,
     loading,
@@ -106,22 +102,17 @@ export default function CourseChatPage({ params }: PageProps) {
     initialFetchDone,
     sending,
     error,
-    onlineUsers,
     sendMessage,
     deleteMessage,
     loadMore,
-  } = useCourseChat(activeCourseId);
+  } = useCourseChat(activeCourseId, { isSystemCourse });
 
+  const { onlineUsers, onlineUserIds } = usePresence();
   const { reactionsMap, toggleReaction } = useMessageReactions(activeCourseId);
 
   const [currentUserId, setCurrentUserId] = useState<string>("");
   const [ready, setReady] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
-  const supabaseRef = useRef(createClient());
-  const { boards } = useDiscussionBoards();
-  const activeBoard = boards.find((b) => b.course.id === activeCourseId);
-  const activeMemberCount = activeBoard?.member_count ?? 0;
-  const isSystemCourse = activeBoard?.course.source === "system";
 
   // Get current user ID for message ownership — only once
   useEffect(() => {
@@ -158,12 +149,6 @@ export default function CourseChatPage({ params }: PageProps) {
       window.history.replaceState(null, "", url);
     },
     [activeCourseId]
-  );
-
-  // Build online user IDs set for MemberList
-  const onlineUserIds = useMemo(
-    () => new Set(onlineUsers.map((u) => u.user_id)),
-    [onlineUsers]
   );
 
   // Request desktop notification permission on mount
@@ -244,11 +229,13 @@ export default function CourseChatPage({ params }: PageProps) {
             <ArrowLeft size={18} className="text-muted-foreground" />
           </button>
           {isSystemCourse && (
-            <img
-              src="/calchatlogo-clean.png"
-              alt=""
-              className="w-7 h-7 rounded-full object-cover dark:invert shrink-0"
-            />
+            <div className="w-7 h-7 rounded-full overflow-hidden bg-white dark:bg-white flex items-center justify-center shrink-0">
+              <img
+                src="/logo.png"
+                alt=""
+                className="w-4.5 h-4.5 object-contain"
+              />
+            </div>
           )}
           <div className="flex-1 min-w-0">
             <h1 className="text-sm font-semibold text-foreground truncate">

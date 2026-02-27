@@ -1,13 +1,32 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { BellOff } from "lucide-react";
+import { useEffect, useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { BellOff, Pin } from "lucide-react";
 import { useDiscussionBoards } from "@/hooks/useDiscussionBoards";
 import type { DiscussionBoard } from "@/lib/types";
 import GroupAvatar from "./GroupAvatar";
-
-const MUTE_KEY_PREFIX = "calchat_muted_";
-const READ_AT_PREFIX = "calchat_read_at_";
+import ChatContextMenu from "./ChatContextMenu";
+import LeaveGroupModal from "./LeaveGroupModal";
+import {
+  MUTE_KEY_PREFIX,
+  READ_AT_PREFIX,
+  PIN_KEY_PREFIX,
+  toggleMute,
+  markAsUnread,
+  togglePin,
+  isPinned as readPinState,
+  leaveGroup,
+} from "@/lib/chat-actions";
+import {
+  stripParentheses,
+  summarizeBody,
+  relativeTime,
+  getInitials,
+  hasFreshCache,
+  prefetchMessages,
+  prefetchMembers,
+} from "@/lib/chat-utils";
 
 /**
  * Instagram DM-style conversation list sidebar.
@@ -24,166 +43,39 @@ interface ChatSidebarProps {
 }
 
 /**
- * Strips parenthetical content from a course name.
- *
- * @param name - Raw course name
- * @returns Cleaned name without parentheses
- */
-function stripParentheses(name: string): string {
-  return name.replace(/\s*\([^)]*\)/g, "").trim();
-}
-
-/** Image file extensions to detect in message body URLs. */
-const IMAGE_EXT = /\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i;
-
-/**
- * Summarizes a message body for preview: replaces image URLs with a label.
- *
- * @param body - The raw message body
- * @returns Human-readable preview string
- */
-function summarizeBody(body: string): string {
-  const lines = body.split("\n");
-  const textLines: string[] = [];
-  let imageCount = 0;
-  for (const line of lines) {
-    const t = line.trim();
-    if ((t.startsWith("http://") || t.startsWith("https://")) && (() => { try { return IMAGE_EXT.test(new URL(t).pathname); } catch { return false; } })()) {
-      imageCount++;
-    } else {
-      textLines.push(line);
-    }
-  }
-  const text = textLines.join(" ").trim();
-  if (text && imageCount > 0) return `${text} · ${imageCount} attachment${imageCount > 1 ? "s" : ""}`;
-  if (imageCount > 0) return `${imageCount} attachment${imageCount > 1 ? "s" : ""}`;
-  return text;
-}
-
-/**
- * Formats a timestamp as a relative time string.
- *
- * @param dateStr - ISO date string
- * @returns Short relative time like "2m", "1h", "3d"
- */
-function relativeTime(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60_000);
-  if (mins < 1) return "now";
-  if (mins < 60) return `${mins}m`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}d`;
-  return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
-
-/**
- * Generates initials for a course name (first letter of first two words).
- *
- * @param name - Course display name
- * @returns 1-2 character initials string
- */
-function getInitials(name: string): string {
-  const words = name.split(/\s+/).filter(Boolean);
-  if (words.length === 0) return "?";
-  if (words.length === 1) return words[0][0].toUpperCase();
-  return (words[0][0] + words[1][0]).toUpperCase();
-}
-
-const CACHE_PREFIX = "chat_messages_cache_";
-const CACHE_TTL = 5 * 60_000;
-
-/**
- * Checks if a fresh sessionStorage cache exists for a course.
- *
- * @param courseId - The course UUID
- * @returns true if valid cache exists
- */
-function hasFreshCache(courseId: string): boolean {
-  try {
-    const raw = sessionStorage.getItem(CACHE_PREFIX + courseId);
-    if (!raw) return false;
-    const entry = JSON.parse(raw);
-    return Date.now() - entry.timestamp < CACHE_TTL;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Prefetches messages for a course and stores them in sessionStorage cache.
- *
- * @param courseId - The course UUID to prefetch
- */
-async function prefetchMessages(courseId: string): Promise<void> {
-  try {
-    const res = await fetch(
-      `/api/discussions/messages?courseId=${encodeURIComponent(courseId)}&limit=50`
-    );
-    if (!res.ok) return;
-    const data = await res.json();
-    const sorted = [...data].reverse();
-    sessionStorage.setItem(
-      CACHE_PREFIX + courseId,
-      JSON.stringify({ messages: sorted.slice(0, 200), timestamp: Date.now() })
-    );
-  } catch {
-    // Silent failure for prefetch
-  }
-}
-
-const MEMBERS_CACHE_PREFIX = "chat_members_cache_";
-
-/**
- * Prefetches members for a course and stores in sessionStorage.
- *
- * @param courseId - The course UUID to prefetch
- */
-async function prefetchMembers(courseId: string): Promise<void> {
-  try {
-    const existing = sessionStorage.getItem(MEMBERS_CACHE_PREFIX + courseId);
-    if (existing) {
-      const entry = JSON.parse(existing);
-      if (Date.now() - entry.timestamp < CACHE_TTL) return;
-    }
-    const res = await fetch(
-      `/api/discussions/members?courseId=${encodeURIComponent(courseId)}`
-    );
-    if (!res.ok) return;
-    const data = await res.json();
-    sessionStorage.setItem(
-      MEMBERS_CACHE_PREFIX + courseId,
-      JSON.stringify({ members: data, timestamp: Date.now() })
-    );
-  } catch {
-    // Silent failure
-  }
-}
-
-/**
  * Single conversation row in the sidebar.
+ * Supports right-click context menu and displays pin/mute indicators.
  */
 function ChatRow({
   board,
   isActive,
   isMuted,
+  isPinned,
   isUnread,
   onSelect,
+  onContextMenu,
 }: {
   board: DiscussionBoard;
   isActive: boolean;
   isMuted: boolean;
+  isPinned: boolean;
   isUnread: boolean;
   onSelect: (courseId: string, courseName: string) => void;
+  onContextMenu: (pos: { x: number; y: number }) => void;
 }) {
   const isSystem = board.course.source === "system";
-  const displayName = isSystem ? board.course.name : stripParentheses(board.course.name);
+  const displayName = isSystem
+    ? board.course.name
+    : stripParentheses(board.course.name);
   const initials = getInitials(displayName);
 
   return (
     <button
       onClick={() => onSelect(board.course.id, board.course.name)}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        onContextMenu({ x: e.clientX, y: e.clientY });
+      }}
       disabled={isActive}
       className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors text-left cursor-pointer disabled:cursor-default ${
         isActive
@@ -193,11 +85,13 @@ function ChatRow({
     >
       <div className="relative shrink-0">
         {isSystem ? (
-          <img
-            src="/calchatlogo-clean.png"
-            alt="CalTodo Fam"
-            className="w-11 h-11 rounded-full object-cover dark:invert"
-          />
+          <div className="w-11 h-11 rounded-full overflow-hidden bg-white dark:bg-white flex items-center justify-center">
+            <img
+              src="/logo.png"
+              alt="calfam"
+              className="w-7 h-7 object-contain"
+            />
+          </div>
         ) : (
           <GroupAvatar initials={initials} name={board.course.name} size={44} />
         )}
@@ -208,10 +102,19 @@ function ChatRow({
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-1">
-          <span className={`text-[13px] truncate ${isActive ? "font-semibold text-foreground" : "font-medium text-foreground"}`}>
+          <span
+            className={`text-[13px] truncate ${
+              isActive
+                ? "font-semibold text-foreground"
+                : "font-medium text-foreground"
+            }`}
+          >
             {displayName}
           </span>
           <div className="flex items-center gap-1 shrink-0">
+            {isPinned && (
+              <Pin size={11} className="text-muted-foreground/40" />
+            )}
             {isMuted && (
               <BellOff size={11} className="text-muted-foreground/40" />
             )}
@@ -232,26 +135,49 @@ function ChatRow({
   );
 }
 
-export default function ChatSidebar({ activeCourseId, onChatSelect }: ChatSidebarProps) {
+export default function ChatSidebar({
+  activeCourseId,
+  onChatSelect,
+}: ChatSidebarProps) {
+  const router = useRouter();
   const { boards, loading } = useDiscussionBoards();
   const [mutedIds, setMutedIds] = useState<Set<string>>(new Set());
+  const [pinnedIds, setPinnedIds] = useState<Set<string>>(new Set());
+  const [readUpdateTick, setReadUpdateTick] = useState(0);
 
-  // Read mute states from localStorage on mount and when boards change
+  // Context menu state
+  const [contextMenu, setContextMenu] = useState<{
+    board: DiscussionBoard;
+    position: { x: number; y: number };
+  } | null>(null);
+
+  // Leave confirmation modal target
+  const [leaveTarget, setLeaveTarget] = useState<DiscussionBoard | null>(null);
+
+  // Read mute + pin states from localStorage on mount and when boards change
   useEffect(() => {
     const muted = new Set<string>();
+    const pinned = new Set<string>();
     for (const board of boards) {
       try {
-        if (localStorage.getItem(MUTE_KEY_PREFIX + board.course.id) === "true") {
+        if (
+          localStorage.getItem(MUTE_KEY_PREFIX + board.course.id) === "true"
+        ) {
           muted.add(board.course.id);
         }
-      } catch { /* ignore */ }
+        if (readPinState(board.course.id)) {
+          pinned.add(board.course.id);
+        }
+      } catch {
+        /* ignore */
+      }
     }
     setMutedIds(muted);
+    setPinnedIds(pinned);
   }, [boards]);
 
-  // Listen for mute changes from ChatDetailsSidebar
+  // Listen for mute changes from ChatDetailsSidebar or context menu
   useEffect(() => {
-    // Cross-tab: storage event
     function handleStorage(e: StorageEvent) {
       if (e.key?.startsWith(MUTE_KEY_PREFIX)) {
         const id = e.key.slice(MUTE_KEY_PREFIX.length);
@@ -262,8 +188,16 @@ export default function ChatSidebar({ activeCourseId, onChatSelect }: ChatSideba
           return next;
         });
       }
+      if (e.key?.startsWith(PIN_KEY_PREFIX)) {
+        const id = e.key.slice(PIN_KEY_PREFIX.length);
+        setPinnedIds((prev) => {
+          const next = new Set(prev);
+          if (e.newValue === "true") next.add(id);
+          else next.delete(id);
+          return next;
+        });
+      }
     }
-    // Same-tab: custom event
     function handleMuteChanged(e: Event) {
       const { courseId, muted } = (e as CustomEvent).detail;
       setMutedIds((prev) => {
@@ -273,19 +207,40 @@ export default function ChatSidebar({ activeCourseId, onChatSelect }: ChatSideba
         return next;
       });
     }
+    function handlePinChanged(e: Event) {
+      const { courseId, pinned } = (e as CustomEvent).detail;
+      setPinnedIds((prev) => {
+        const next = new Set(prev);
+        if (pinned) next.add(courseId);
+        else next.delete(courseId);
+        return next;
+      });
+    }
+    function handleReadUpdate() {
+      setReadUpdateTick((t) => t + 1);
+    }
     window.addEventListener("storage", handleStorage);
     window.addEventListener("calchat-mute-changed", handleMuteChanged);
+    window.addEventListener("calchat-pin-changed", handlePinChanged);
+    window.addEventListener("calchat-read-update", handleReadUpdate);
     return () => {
       window.removeEventListener("storage", handleStorage);
       window.removeEventListener("calchat-mute-changed", handleMuteChanged);
+      window.removeEventListener("calchat-pin-changed", handlePinChanged);
+      window.removeEventListener("calchat-read-update", handleReadUpdate);
     };
   }, []);
 
   // Mark the active chat as read whenever it changes
   useEffect(() => {
     try {
-      localStorage.setItem(READ_AT_PREFIX + activeCourseId, new Date().toISOString());
-    } catch { /* ignore */ }
+      localStorage.setItem(
+        READ_AT_PREFIX + activeCourseId,
+        new Date().toISOString()
+      );
+    } catch {
+      /* ignore */
+    }
   }, [activeCourseId]);
 
   /**
@@ -293,10 +248,12 @@ export default function ChatSidebar({ activeCourseId, onChatSelect }: ChatSideba
    * with the stored read_at timestamp.
    */
   function isUnread(board: DiscussionBoard): boolean {
+    // readUpdateTick is used to trigger re-evaluation
+    void readUpdateTick;
     if (!board.last_message_at) return false;
     try {
       const readAt = localStorage.getItem(READ_AT_PREFIX + board.course.id);
-      if (!readAt) return true; // Never opened → unread if has messages
+      if (!readAt) return true;
       return new Date(board.last_message_at) > new Date(readAt);
     } catch {
       return false;
@@ -314,9 +271,37 @@ export default function ChatSidebar({ activeCourseId, onChatSelect }: ChatSideba
     }
   }, [boards]);
 
+  // Sort boards: system first → pinned → rest (stable order within groups)
+  const sortedBoards = useMemo(() => {
+    return [...boards].sort((a, b) => {
+      const aSystem = a.course.source === "system" ? 0 : 1;
+      const bSystem = b.course.source === "system" ? 0 : 1;
+      if (aSystem !== bSystem) return aSystem - bSystem;
+      const aPinned = pinnedIds.has(a.course.id) ? 0 : 1;
+      const bPinned = pinnedIds.has(b.course.id) ? 0 : 1;
+      return aPinned - bPinned;
+    });
+  }, [boards, pinnedIds]);
+
+  /**
+   * Handles the leave group confirmation. Calls the API, then navigates
+   * to discussions list if the left chat was the active one.
+   */
+  async function handleLeaveConfirm() {
+    if (!leaveTarget) return;
+    const courseId = leaveTarget.course.id;
+    const success = await leaveGroup(courseId);
+    if (success) {
+      setLeaveTarget(null);
+      if (courseId === activeCourseId) {
+        router.push("/app/discussions");
+      }
+    }
+  }
+
   return (
     <div className="flex flex-col h-full">
-      {/* Header — no bottom border */}
+      {/* Header */}
       <div className="px-4 pt-5 pb-3 shrink-0">
         <h2 className="text-[15px] font-bold text-foreground">Messages</h2>
       </div>
@@ -326,7 +311,10 @@ export default function ChatSidebar({ activeCourseId, onChatSelect }: ChatSideba
         {loading && boards.length === 0 ? (
           <div className="space-y-1">
             {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="flex items-center gap-3 px-3 py-2.5 animate-pulse">
+              <div
+                key={i}
+                className="flex items-center gap-3 px-3 py-2.5 animate-pulse"
+              >
                 <div className="w-11 h-11 rounded-full bg-muted shrink-0" />
                 <div className="flex-1 min-w-0">
                   <div className="h-3.5 bg-muted rounded w-24 mb-1.5" />
@@ -340,18 +328,54 @@ export default function ChatSidebar({ activeCourseId, onChatSelect }: ChatSideba
             <p className="text-sm text-muted-foreground">No chats yet</p>
           </div>
         ) : (
-          boards.map((board) => (
+          sortedBoards.map((board) => (
             <ChatRow
               key={board.course.id}
               board={board}
               isActive={board.course.id === activeCourseId}
               isMuted={mutedIds.has(board.course.id)}
+              isPinned={pinnedIds.has(board.course.id)}
               isUnread={isUnread(board)}
               onSelect={onChatSelect}
+              onContextMenu={(pos) => setContextMenu({ board, position: pos })}
             />
           ))
         )}
       </div>
+
+      {/* Right-click context menu */}
+      {contextMenu && typeof document !== "undefined" && (
+        <ChatContextMenu
+          position={contextMenu.position}
+          isMuted={mutedIds.has(contextMenu.board.course.id)}
+          isPinned={pinnedIds.has(contextMenu.board.course.id)}
+          isSystemCourse={contextMenu.board.course.source === "system"}
+          onMute={() =>
+            toggleMute(
+              contextMenu.board.course.id,
+              mutedIds.has(contextMenu.board.course.id)
+            )
+          }
+          onMarkUnread={() => markAsUnread(contextMenu.board.course.id)}
+          onPin={() =>
+            togglePin(
+              contextMenu.board.course.id,
+              pinnedIds.has(contextMenu.board.course.id)
+            )
+          }
+          onLeave={() => setLeaveTarget(contextMenu.board)}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
+
+      {/* Leave group confirmation modal */}
+      {leaveTarget && typeof document !== "undefined" && (
+        <LeaveGroupModal
+          courseName={stripParentheses(leaveTarget.course.name)}
+          onConfirm={handleLeaveConfirm}
+          onClose={() => setLeaveTarget(null)}
+        />
+      )}
     </div>
   );
 }

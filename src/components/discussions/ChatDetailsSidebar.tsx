@@ -5,11 +5,12 @@ import { useRouter } from "next/navigation";
 import { X, LogOut, Bell, BellOff } from "lucide-react";
 import MemberList from "@/components/discussions/MemberList";
 import UserProfileModal from "@/components/discussions/UserProfileModal";
-
-const NAME_KEY_PREFIX = "calchat_name_";
-const MUTE_KEY_PREFIX = "calchat_muted_";
-const MSG_CACHE_PREFIX = "chat_messages_cache_";
-const MEM_CACHE_PREFIX = "chat_members_cache_";
+import {
+  NAME_KEY_PREFIX,
+  MUTE_KEY_PREFIX,
+  toggleMute as sharedToggleMute,
+  leaveGroup,
+} from "@/lib/chat-actions";
 
 /**
  * Props for the ChatDetailsSidebar component.
@@ -99,61 +100,23 @@ export default function ChatDetailsSidebar({
   }, [courseId, courseName, nameInput, onNameOverride]);
 
   /**
-   * Toggles the mute state, persists to localStorage, and notifies parent.
+   * Toggles the mute state using shared action, then updates local + parent state.
    */
   const handleToggleMute = useCallback(() => {
-    const newMuted = !isMuted;
+    const newMuted = sharedToggleMute(courseId, isMuted);
     setIsMuted(newMuted);
-    try {
-      localStorage.setItem(MUTE_KEY_PREFIX + courseId, String(newMuted));
-    } catch {
-      // localStorage unavailable
-    }
-    // Notify sidebar about mute change (same-tab)
-    window.dispatchEvent(new CustomEvent("calchat-mute-changed", {
-      detail: { courseId, muted: newMuted },
-    }));
     onMuteChange(newMuted);
   }, [courseId, isMuted, onMuteChange]);
 
   /**
-   * Calls the leave API, clears caches, and navigates to discussions list.
+   * Calls the shared leave action, then navigates to discussions list on success.
    */
   const handleLeave = useCallback(async () => {
     setLeaving(true);
-    try {
-      const res = await fetch("/api/discussions/leave", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ courseId }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        console.error("Failed to leave chat:", data.error ?? res.statusText);
-        setLeaving(false);
-        return;
-      }
-
-      // Clear sessionStorage caches for this course
-      try {
-        sessionStorage.removeItem(MSG_CACHE_PREFIX + courseId);
-        sessionStorage.removeItem(MEM_CACHE_PREFIX + courseId);
-      } catch {
-        // sessionStorage unavailable
-      }
-
-      // Clear localStorage overrides
-      try {
-        localStorage.removeItem(NAME_KEY_PREFIX + courseId);
-        localStorage.removeItem(MUTE_KEY_PREFIX + courseId);
-      } catch {
-        // localStorage unavailable
-      }
-
+    const success = await leaveGroup(courseId);
+    if (success) {
       router.push("/app/discussions");
-    } catch (err) {
-      console.error("Leave chat error:", err);
+    } else {
       setLeaving(false);
     }
   }, [courseId, router]);
