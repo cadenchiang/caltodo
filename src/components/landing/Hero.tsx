@@ -5,6 +5,9 @@ import Link from "next/link";
 import { Mockup, MockupFrame } from "@/components/ui/mockup";
 import { InteractiveHoverButton } from "@/components/ui/interactive-hover-button";
 import GoogleOneTap from "@/components/auth/GoogleOneTap";
+import BentoFeatures from "@/components/landing/BentoFeatures";
+import FadeIn from "@/components/landing/FadeIn";
+import FeatureHighlight from "@/components/landing/FeatureHighlight";
 
 const HERO_IMAGES = [
   { src: "/app-screenshot-calendar.png", alt: "caltodo calendar view with synced assignments" },
@@ -35,23 +38,7 @@ export default function Hero() {
       .catch(() => setUserCount(0));
   }, []);
 
-  // Scroll-driven scale animation for the mockup
   const mockupRef = useRef<HTMLDivElement>(null);
-  const [mockupScale, setMockupScale] = useState(0.85);
-
-  const handleScroll = useCallback(() => {
-    if (!mockupRef.current) return;
-    const rect = mockupRef.current.getBoundingClientRect();
-    const windowH = window.innerHeight;
-    const progress = Math.min(1, Math.max(0, (windowH - rect.top) / (windowH * 0.6)));
-    setMockupScale(0.85 + progress * 0.15);
-  }, []);
-
-  useEffect(() => {
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    handleScroll(); // initial check
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [handleScroll]);
 
   return (
     <div className="min-h-dvh flex flex-col bg-white text-black overflow-x-hidden">
@@ -82,8 +69,14 @@ export default function Hero() {
             Login
           </Link>
           <Link
+            href="/mobile"
+            className="sm:hidden px-4 py-1.5 text-xs font-medium rounded-full bg-[#0071E3] text-white hover:scale-[1.05] active:scale-[0.97] transition-transform duration-200"
+          >
+            Get caltodo free
+          </Link>
+          <Link
             href="/login?signup=true"
-            className="px-4 py-1.5 text-xs sm:px-5 sm:py-2 sm:text-sm font-medium rounded-full bg-[#0071E3] text-white hover:scale-[1.05] active:scale-[0.97] transition-transform duration-200"
+            className="hidden sm:block px-5 py-2 text-sm font-medium rounded-full bg-[#0071E3] text-white hover:scale-[1.05] active:scale-[0.97] transition-transform duration-200"
           >
             Get caltodo free
           </Link>
@@ -167,21 +160,21 @@ export default function Hero() {
 
 
           {/* Heading */}
-          <h2 className="text-[40px] sm:text-[80px] leading-[0.95] sm:leading-[0.95] tracking-tight text-center text-black" style={{ fontFamily: '-apple-system, "SF Pro Display", BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' }}>
-            <span className="font-semibold">All your deadlines.</span>
+          <h2 className="text-[36px] sm:text-[64px] leading-[0.95] sm:leading-[0.95] tracking-tight text-center text-black" style={{ fontFamily: '-apple-system, "SF Pro Display", BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' }}>
+            <span className="font-semibold">Deadlines synced.</span>
             <br />
-            <span className="font-semibold italic">One </span>
-            <span className="font-semibold">calendar.</span>
+            <span className="font-semibold italic">Class </span>
+            <span className="font-semibold">connected.</span>
           </h2>
 
           {/* Subtitle */}
           <p className="text-sm sm:text-xl text-center font-sans font-light mt-3 sm:mt-6 mb-5 sm:mb-8 leading-relaxed text-black/45 max-w-[280px] sm:max-w-none">
-            bCourses, Gradescope, and Pensieve, one calendar.
+            View your assignments, chat with your class.
           </p>
 
           {/* CTA — simple pill on mobile, interactive hover button on desktop */}
           <Link
-            href="/login?signup=true"
+            href="/mobile"
             className="sm:hidden flex items-center gap-2 px-6 py-2.5 rounded-full bg-[#0071E3] text-white text-sm font-semibold mb-6 active:scale-[0.97] transition-transform"
           >
             Get caltodo free
@@ -206,12 +199,7 @@ export default function Hero() {
         {/* Mockup — scroll-driven scale animation */}
         <div
           ref={mockupRef}
-          className="mt-4 sm:mt-8 md:mt-10 w-full sm:max-w-5xl mx-auto relative px-1 sm:px-0"
-          style={{
-            transform: `scale(${mockupScale})`,
-            willChange: "transform",
-            transition: "transform 0.1s ease-out",
-          }}
+          className="-mt-4 sm:-mt-6 w-full sm:max-w-4xl mx-auto relative px-1 sm:px-0"
         >
           <div className="sm:max-h-[50vh] md:max-h-none overflow-hidden rounded-2xl pt-4 sm:pt-6">
             <div className="relative w-full">
@@ -227,13 +215,6 @@ export default function Hero() {
                 />
               ))}
             </div>
-            <div
-              className="absolute bottom-0 left-0 right-0 w-full h-[100px] sm:h-[303px]"
-              style={{
-                background: "linear-gradient(to top, #ffffff 0%, rgba(255,255,255,0) 100%)",
-                zIndex: 10,
-              }}
-            />
           </div>
           {/* Image indicator dots — outside clipped area */}
           <div className="flex justify-center gap-2 mt-3 relative z-20">
@@ -249,10 +230,29 @@ export default function Hero() {
             ))}
           </div>
         </div>
+
       </main>
 
+      {/* Gradient transition into light gray section */}
+      <div className="w-full" style={{ background: "linear-gradient(to bottom, #ffffff, #FCFCFD)" }}>
+        <div className="flex flex-col items-center px-6 lg:px-10">
+          {/* Tagline below mockup */}
+          <FadeIn className="max-w-4xl mt-14 sm:mt-24 mb-12 sm:mb-20">
+            <p className="text-[24px] sm:text-[40px] font-semibold text-black text-left leading-[1.05] tracking-tight" style={{ fontFamily: '-apple-system, "SF Pro Display", BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' }}>
+              The easiest way to sync your deadlines, track assignments, and stay connected with your class.
+            </p>
+          </FadeIn>
+
+          <FadeIn delay={100}>
+            <BentoFeatures />
+          </FadeIn>
+        </div>
+      </div>
+
+      <FeatureHighlight />
+
       {/* Footer */}
-      <footer className="py-6 text-center text-xs text-black/30">
+      <footer className="py-6 text-center text-xs text-black/30 bg-[#FCFCFD]">
         Built for Bears, by Bears.
         <span className="mx-1">·</span>
         <Link href="/privacy" className="hover:text-black/50 transition-colors">Privacy</Link>
