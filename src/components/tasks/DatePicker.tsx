@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import {
   format,
   startOfMonth,
@@ -49,41 +49,13 @@ const REPEAT_PRESETS: Array<{ label: string; interval: number; unit: RepeatUnit 
 ];
 
 /**
- * Validates and selects a date from the structured MM/DD/YYYY input fields.
- *
- * @param mm - Month string (1-12)
- * @param dd - Day string (1-31)
- * @param yyyy - Year string (4 digits)
- * @returns YYYY-MM-DD string if valid, null otherwise
- */
-function buildDateString(mm: string, dd: string, yyyy: string): string | null {
-  const month = parseInt(mm, 10);
-  const day = parseInt(dd, 10);
-  const year = parseInt(yyyy, 10);
-  if (!month || !day || !year) return null;
-  if (month < 1 || month > 12) return null;
-  if (day < 1 || day > 31) return null;
-  if (yyyy.length !== 4) return null;
-
-  // Validate actual date
-  const date = new Date(year, month - 1, day);
-  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
-    return null;
-  }
-
-  const m = String(month).padStart(2, "0");
-  const d = String(day).padStart(2, "0");
-  return `${year}-${m}-${d}`;
-}
-
-/**
  * Custom styled time picker with hour, minute, and AM/PM selectors.
  * Replaces the native `<input type="time">` for consistent UI across browsers.
  *
  * @param value - Current time as "HH:MM" (24h format) or null
  * @param onChange - Callback with the new time string or null
  */
-function TimePicker({ value, onChange }: { value: string | null; onChange: (time: string | null) => void }) {
+export function TimePicker({ value, onChange }: { value: string | null; onChange: (time: string | null) => void }) {
   // Parse current value into 12h components
   let hour12 = 12;
   let minute = 0;
@@ -171,25 +143,8 @@ function TimePicker({ value, onChange }: { value: string | null; onChange: (time
         </button>
       </div>
 
-      {/* Quick actions */}
-      <div className="flex items-center justify-between">
-        <div className="flex gap-1">
-          {[
-            { label: "9 AM", h: 9, m: 0, ap: "AM" as const },
-            { label: "12 PM", h: 12, m: 0, ap: "PM" as const },
-            { label: "5 PM", h: 5, m: 0, ap: "PM" as const },
-            { label: "11:59 PM", h: 11, m: 59, ap: "PM" as const },
-          ].map((preset) => (
-            <button
-              key={preset.label}
-              type="button"
-              onClick={() => onChange(to24h(preset.h, preset.m, preset.ap))}
-              className="text-[10px] px-1.5 py-0.5 rounded bg-accent text-secondary-foreground hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors cursor-pointer"
-            >
-              {preset.label}
-            </button>
-          ))}
-        </div>
+      {/* Clear action */}
+      <div className="flex items-center justify-end">
         {value && (
           <button
             type="button"
@@ -238,28 +193,6 @@ export default function DatePicker({
   const [customUnit, setCustomUnit] = useState<RepeatUnit>(repeatUnit ?? "day");
   const [expandedSection, setExpandedSection] = useState<ExpandedSection>(null);
 
-  // Structured date input fields
-  const [mm, setMm] = useState("");
-  const [dd, setDd] = useState("");
-  const [yyyy, setYyyy] = useState("");
-  const mmRef = useRef<HTMLInputElement>(null);
-  const ddRef = useRef<HTMLInputElement>(null);
-  const yyyyRef = useRef<HTMLInputElement>(null);
-
-  // Sync input fields when the selected date (prop) changes
-  useEffect(() => {
-    if (value) {
-      const parts = value.split("-"); // "YYYY-MM-DD"
-      setMm(parts[1] ?? "");
-      setDd(parts[2] ?? "");
-      setYyyy(parts[0] ?? "");
-    } else {
-      setMm("");
-      setDd("");
-      setYyyy("");
-    }
-  }, [value]);
-
   // Derive end mode from props
   const endMode = repeatEndDate ? "date" : repeatEndCount ? "count" : "never";
   const [localEndCount, setLocalEndCount] = useState(repeatEndCount ?? 5);
@@ -272,65 +205,6 @@ export default function DatePicker({
 
   const weekDays = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
   const today = startOfDay(new Date());
-
-  /**
-   * Handles input in the MM field. Auto-advances to DD when 2 digits entered.
-   */
-  function handleMmChange(val: string) {
-    const digits = val.replace(/\D/g, "").slice(0, 2);
-    setMm(digits);
-    if (digits.length === 2) {
-      ddRef.current?.focus();
-    }
-  }
-
-  /**
-   * Handles input in the DD field. Auto-advances to YYYY when 2 digits entered.
-   */
-  function handleDdChange(val: string) {
-    const digits = val.replace(/\D/g, "").slice(0, 2);
-    setDd(digits);
-    if (digits.length === 2) {
-      yyyyRef.current?.focus();
-    }
-  }
-
-  /**
-   * Handles input in the YYYY field. Auto-selects date when 4 digits entered.
-   */
-  function handleYyyyChange(val: string) {
-    const digits = val.replace(/\D/g, "").slice(0, 4);
-    setYyyy(digits);
-    if (digits.length === 4) {
-      const dateStr = buildDateString(mm, dd, digits);
-      if (dateStr) {
-        onChange(dateStr);
-        setCurrentMonth(new Date(dateStr + "T00:00:00"));
-        setMm("");
-        setDd("");
-        setYyyy("");
-        yyyyRef.current?.blur();
-      }
-    }
-  }
-
-  /**
-   * Handles backspace on empty DD field — moves focus back to MM.
-   */
-  function handleDdKeyDown(e: React.KeyboardEvent) {
-    if (e.key === "Backspace" && dd === "") {
-      mmRef.current?.focus();
-    }
-  }
-
-  /**
-   * Handles backspace on empty YYYY field — moves focus back to DD.
-   */
-  function handleYyyyKeyDown(e: React.KeyboardEvent) {
-    if (e.key === "Backspace" && yyyy === "") {
-      ddRef.current?.focus();
-    }
-  }
 
   /**
    * Checks if a repeat preset matches the current configuration.
@@ -370,44 +244,6 @@ export default function DatePicker({
 
   return (
     <div className="bg-card rounded-2xl shadow-2xl border border-border p-3 w-64">
-      {/* Structured date input: MM / DD / YYYY */}
-      <div className="flex items-center gap-0 rounded-lg border border-border bg-card px-2 py-1.5 mb-3 focus-within:ring-2 focus-within:ring-ring focus-within:border-blue-400 transition-all">
-        <input
-          ref={mmRef}
-          type="text"
-          inputMode="numeric"
-          value={mm}
-          onChange={(e) => handleMmChange(e.target.value)}
-          placeholder="MM"
-          className="w-7 text-center text-xs bg-transparent text-foreground placeholder-subtle-foreground focus:outline-none"
-          maxLength={2}
-        />
-        <span className="text-xs text-subtle-foreground select-none">/</span>
-        <input
-          ref={ddRef}
-          type="text"
-          inputMode="numeric"
-          value={dd}
-          onChange={(e) => handleDdChange(e.target.value)}
-          onKeyDown={handleDdKeyDown}
-          placeholder="DD"
-          className="w-7 text-center text-xs bg-transparent text-foreground placeholder-subtle-foreground focus:outline-none"
-          maxLength={2}
-        />
-        <span className="text-xs text-subtle-foreground select-none">/</span>
-        <input
-          ref={yyyyRef}
-          type="text"
-          inputMode="numeric"
-          value={yyyy}
-          onChange={(e) => handleYyyyChange(e.target.value)}
-          onKeyDown={handleYyyyKeyDown}
-          placeholder="YYYY"
-          className="w-10 text-center text-xs bg-transparent text-foreground placeholder-subtle-foreground focus:outline-none"
-          maxLength={4}
-        />
-      </div>
-
       {/* Month navigation header */}
       <div className="flex items-center justify-between mb-1">
         <button

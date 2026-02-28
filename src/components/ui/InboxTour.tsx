@@ -58,6 +58,8 @@ const TOUR_STEPS: TourStep[] = [
     description: "Switch between list and board view. Board organizes tasks into columns by class.",
     position: "bottom",
     route: "/app/inbox",
+    onEnter: () => setTourViewMode("board"),
+    onExit: () => setTourViewMode("list"),
   },
   {
     targetId: "tour-calendar-grid",
@@ -69,12 +71,13 @@ const TOUR_STEPS: TourStep[] = [
     clickTargetId: "tour-nav-calendar",
   },
   {
-    targetId: "tour-nav-calchat",
+    targetId: "tour-calchat-page",
     title: "CalChat",
     icon: <MessageSquare size={ICON_SIZE} />,
-    description: "Message your classmates anonymously, organized by course.",
+    description: "Message your classmates anonymously, organized by course. Sync your classes to unlock it.",
     position: "right",
-    route: "/app/inbox",
+    route: "/app/discussions",
+    clickTargetId: "tour-nav-calchat",
   },
 ];
 
@@ -95,10 +98,12 @@ function TourTrigger() {
   const [showDialog, setShowDialog] = useState(false);
   const hasTriggeredRef = useRef(false);
 
-  // Show dialog after onboarding — re-check when route changes
-  // Tour is desktop-only: the steps reference sidebar and split-screen layout
+  // Show dialog after onboarding — re-check when route changes.
+  // Only trigger on inbox route so the tour doesn't fire while on settings.
+  // Tour is desktop-only: the steps reference sidebar and split-screen layout.
   useEffect(() => {
     if (isCompleted || hasTriggeredRef.current || dialogShownThisSession) return;
+    if (!pathname?.startsWith("/app/inbox")) return;
     if (typeof window !== "undefined" && window.innerWidth < 768) return;
     try {
       const pending = localStorage.getItem(TOUR_PENDING_KEY);
@@ -114,11 +119,12 @@ function TourTrigger() {
     }
   }, [isCompleted, pathname]);
 
-  // Poll indefinitely in case the flag was set just before navigation (race condition).
+  // Poll for the pending flag, but only when on inbox route.
   // Keeps running until user makes a choice (Start Tour or Skip).
   // Tour is desktop-only.
   useEffect(() => {
     if (isCompleted || hasTriggeredRef.current || dialogShownThisSession) return;
+    if (!pathname?.startsWith("/app/inbox")) return;
     if (typeof window !== "undefined" && window.innerWidth < 768) return;
     const pollTimer = setInterval(() => {
       try {
@@ -132,7 +138,7 @@ function TourTrigger() {
       } catch { /* non-critical */ }
     }, 500);
     return () => clearInterval(pollTimer);
-  }, [isCompleted]);
+  }, [isCompleted, pathname]);
 
   // Listen for restart-tour event from settings — show the dialog
   useEffect(() => {
@@ -143,6 +149,16 @@ function TourTrigger() {
     }
     window.addEventListener("caltodo-restart-tour", handleRestart);
     return () => window.removeEventListener("caltodo-restart-tour", handleRestart);
+  }, []);
+
+  // Listen for redo-setup event — reset so tour can re-trigger
+  useEffect(() => {
+    function handleRedo() {
+      hasTriggeredRef.current = false;
+      dialogShownThisSession = false;
+    }
+    window.addEventListener("caltodo-redo-setup", handleRedo);
+    return () => window.removeEventListener("caltodo-redo-setup", handleRedo);
   }, []);
 
   /**

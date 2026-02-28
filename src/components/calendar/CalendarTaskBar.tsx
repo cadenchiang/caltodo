@@ -82,7 +82,7 @@ export default function CalendarTaskBar({ task, onClick, isPending }: CalendarTa
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       className={`w-full text-left flex items-center gap-1 px-2 py-0.5 rounded-md transition-all overflow-hidden hover:-translate-y-px hover:shadow-sm ${
-        task.is_completed ? "opacity-50" : ""
+        task.is_completed ? "opacity-70" : ""
       } ${isPending ? "opacity-50" : ""}`}
       style={isPending ? {
         backgroundColor: "transparent",

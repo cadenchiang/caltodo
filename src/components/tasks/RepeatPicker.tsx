@@ -1,129 +1,139 @@
 "use client";
 
-import { useState } from "react";
+import { format } from "date-fns";
 import { getRepeatLabel } from "@/lib/repeat";
 
 type RepeatUnit = "day" | "week" | "month";
+
+interface RepeatOption {
+  label: string;
+  interval: number | null;
+  unit: RepeatUnit | null;
+}
 
 interface RepeatPickerProps {
   interval: number | null;
   unit: RepeatUnit | null;
   onChange: (interval: number | null, unit: RepeatUnit | null) => void;
+  /** Selected due date — used to generate context-aware labels. */
+  dueDate: string | null;
+  /** Called when user selects "Custom..." to open the custom recurrence modal. */
+  onCustom: () => void;
 }
 
-/** Preset repeat options displayed as quick-select buttons. */
-const PRESETS: Array<{ label: string; interval: number; unit: RepeatUnit }> = [
-  { label: "Daily", interval: 1, unit: "day" },
-  { label: "Weekly", interval: 1, unit: "week" },
-  { label: "Biweekly", interval: 2, unit: "week" },
-  { label: "Monthly", interval: 1, unit: "month" },
-];
+/**
+ * Returns ordinal suffix for a number (1st, 2nd, 3rd, 4th, etc.).
+ *
+ * @param n - Positive integer
+ * @returns Ordinal suffix string ("st", "nd", "rd", or "th")
+ */
+function getOrdinalSuffix(n: number): string {
+  const s = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return s[(v - 20) % 10] || s[v] || s[0];
+}
 
 /**
- * Popover content for choosing a repeat interval.
- * Shows preset buttons (Daily, Weekly, Biweekly, Monthly),
- * a "Custom..." toggle for arbitrary intervals, and a Clear button.
+ * Builds context-aware repeat options based on the selected due date.
+ * Mirrors Google Calendar's repeat dropdown style.
+ *
+ * @param dueDate - YYYY-MM-DD string or null
+ * @returns Array of repeat option objects
+ */
+function getRepeatOptions(dueDate: string | null): RepeatOption[] {
+  const options: RepeatOption[] = [
+    { label: "Does not repeat", interval: null, unit: null },
+    { label: "Daily", interval: 1, unit: "day" },
+  ];
+
+  if (dueDate) {
+    const d = new Date(dueDate + "T00:00:00");
+    const dayName = format(d, "EEEE");
+    const dayOfMonth = d.getDate();
+    const suffix = getOrdinalSuffix(dayOfMonth);
+
+    options.push({ label: `Weekly on ${dayName}`, interval: 1, unit: "week" });
+    options.push({
+      label: `Monthly on the ${dayOfMonth}${suffix}`,
+      interval: 1,
+      unit: "month",
+    });
+  } else {
+    options.push({ label: "Weekly", interval: 1, unit: "week" });
+    options.push({ label: "Monthly", interval: 1, unit: "month" });
+  }
+
+  return options;
+}
+
+/**
+ * Google Calendar-style repeat dropdown.
+ * Shows contextual preset options (Does not repeat, Daily, Weekly on X, etc.)
+ * and a "Custom..." option that opens the custom recurrence modal.
  *
  * @param interval - Current repeat interval or null
  * @param unit - Current repeat unit or null
- * @param onChange - Callback with new interval and unit (both null to clear)
+ * @param onChange - Callback with new interval and unit
+ * @param dueDate - Selected due date for contextual labels
+ * @param onCustom - Callback to open the custom recurrence modal
  */
-export default function RepeatPicker({ interval, unit, onChange }: RepeatPickerProps) {
-  const [showCustom, setShowCustom] = useState(false);
-  const [customInterval, setCustomInterval] = useState(interval ?? 1);
-  const [customUnit, setCustomUnit] = useState<RepeatUnit>(unit ?? "day");
+export default function RepeatPicker({
+  interval,
+  unit,
+  onChange,
+  dueDate,
+  onCustom,
+}: RepeatPickerProps) {
+  const options = getRepeatOptions(dueDate);
 
-  const currentLabel = interval && unit ? getRepeatLabel(interval, unit) : null;
-
-  /**
-   * Checks if a preset matches the current repeat configuration.
-   */
-  function isPresetActive(p: { interval: number; unit: RepeatUnit }): boolean {
-    return interval === p.interval && unit === p.unit;
+  /** Checks if an option matches the current repeat configuration. */
+  function isActive(opt: RepeatOption): boolean {
+    return interval === opt.interval && unit === opt.unit;
   }
 
+  // If current config doesn't match any preset, it's a custom value
+  const hasCustomValue =
+    interval !== null &&
+    unit !== null &&
+    !options.some((o) => o.interval === interval && o.unit === unit);
+
   return (
-    <div className="bg-card rounded-2xl shadow-2xl border border-border p-3 w-56">
-      {/* Current selection label */}
-      {currentLabel && (
-        <div className="text-xs font-medium text-blue-500 mb-2 px-1">
-          {currentLabel}
-        </div>
-      )}
+    <div className="bg-popover rounded-xl shadow-2xl border border-border py-1 w-64 animate-in fade-in zoom-in-95 duration-100">
+      {options.map((opt) => (
+        <button
+          key={opt.label}
+          type="button"
+          onClick={() => onChange(opt.interval, opt.unit)}
+          className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
+            isActive(opt)
+              ? "bg-accent font-medium text-foreground"
+              : "text-foreground hover:bg-gray-100 dark:hover:bg-gray-800"
+          }`}
+        >
+          {opt.label}
+        </button>
+      ))}
 
-      {/* Preset buttons */}
-      <div className="grid grid-cols-2 gap-1.5 mb-2">
-        {PRESETS.map((p) => (
-          <button
-            key={p.label}
-            type="button"
-            onClick={() => {
-              onChange(p.interval, p.unit);
-              setShowCustom(false);
-            }}
-            className={`text-xs py-1.5 px-2 rounded-lg transition-all ${
-              isPresetActive(p)
-                ? "bg-blue-500 text-white"
-                : "bg-accent text-secondary-foreground hover:bg-blue-50 dark:hover:bg-blue-900/30"
-            }`}
-          >
-            {p.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Custom toggle */}
-      {!showCustom ? (
+      {/* Show current custom value if it doesn't match a preset */}
+      {hasCustomValue && (
         <button
           type="button"
-          onClick={() => setShowCustom(true)}
-          className="w-full text-xs text-secondary-foreground hover:text-foreground py-1.5 rounded-lg hover:bg-accent transition-all"
+          onClick={onCustom}
+          className="w-full text-left px-4 py-2.5 text-sm bg-accent font-medium text-foreground"
+        >
+          {getRepeatLabel(interval!, unit!)}
+        </button>
+      )}
+
+      <div className="border-t border-border mt-1 pt-1">
+        <button
+          type="button"
+          onClick={onCustom}
+          className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
         >
           Custom...
         </button>
-      ) : (
-        <div className="border-t border-border pt-2 mt-1">
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-secondary-foreground shrink-0">Every</span>
-            <input
-              type="number"
-              min={1}
-              max={365}
-              value={customInterval}
-              onChange={(e) => setCustomInterval(Math.max(1, parseInt(e.target.value) || 1))}
-              className="w-14 px-2 py-1 text-xs rounded-lg border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-            <select
-              value={customUnit}
-              onChange={(e) => setCustomUnit(e.target.value as RepeatUnit)}
-              className="flex-1 px-2 py-1 text-xs rounded-lg border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-            >
-              <option value="day">{customInterval === 1 ? "day" : "days"}</option>
-              <option value="week">{customInterval === 1 ? "week" : "weeks"}</option>
-              <option value="month">{customInterval === 1 ? "month" : "months"}</option>
-            </select>
-          </div>
-          <button
-            type="button"
-            onClick={() => onChange(customInterval, customUnit)}
-            className="w-full mt-2 text-xs font-medium text-white bg-blue-500 hover:bg-blue-600 py-1.5 rounded-lg transition-colors"
-          >
-            Set
-          </button>
-        </div>
-      )}
-
-      {/* Clear button */}
-      <button
-        type="button"
-        onClick={() => {
-          onChange(null, null);
-          setShowCustom(false);
-        }}
-        className="mt-2 w-full text-xs text-subtle-foreground hover:text-secondary-foreground py-1.5 rounded-lg hover:bg-accent transition-all"
-      >
-        Clear repeat
-      </button>
+      </div>
     </div>
   );
 }

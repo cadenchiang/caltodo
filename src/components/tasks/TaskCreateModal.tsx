@@ -3,15 +3,18 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import {
-  CalendarDays, Palette, Tag, X, AlignLeft, Trash2, Plus,
+  CalendarDays, Tag, X, AlignLeft, Trash2, Plus, BookOpen, ChevronDown, Clock, Repeat,
 } from "lucide-react";
 import { format } from "date-fns";
 import type { Task, TaskInsert, TaskUpdate } from "@/lib/types";
 import { TASK_COLORS, DEFAULT_TASK_COLOR, getMiffyColor } from "@/lib/constants";
 import { getRepeatLabel } from "@/lib/repeat";
+import { formatTime12h } from "@/lib/task-utils";
 import { useTaskContext } from "@/contexts/TaskContext";
 import { useTheme } from "@/contexts/ThemeContext";
-import DatePicker from "./DatePicker";
+import DatePicker, { TimePicker } from "./DatePicker";
+import RepeatPicker from "./RepeatPicker";
+import CustomRecurrenceModal from "./CustomRecurrenceModal";
 import ColorWheel from "@/components/ui/ColorWheel";
 
 type RepeatUnit = "day" | "week" | "month";
@@ -49,7 +52,7 @@ interface TaskCreateModalProps {
 export default function TaskCreateModal({
   open, onClose, onAdd, defaultDate, editTask, onSave, onDelete, onSaveColorForClass,
 }: TaskCreateModalProps) {
-  const { availableTags } = useTaskContext();
+  const { availableTags, availableCourses, courseColors } = useTaskContext();
   const { colorTheme } = useTheme();
   const isMiffy = colorTheme === "miffy";
   const isEditMode = !!editTask;
@@ -65,6 +68,7 @@ export default function TaskCreateModal({
   const [repeatUnit, setRepeatUnit] = useState<RepeatUnit | null>(null);
   const [repeatEndDate, setRepeatEndDate] = useState<string | null>(null);
   const [repeatEndCount, setRepeatEndCount] = useState<number | null>(null);
+  const [courseName, setCourseName] = useState<string | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [closing, setClosing] = useState(false);
   const [datePickerPos, setDatePickerPos] = useState({ top: 0, left: 0 });
@@ -74,9 +78,29 @@ export default function TaskCreateModal({
   const [tagSearch, setTagSearch] = useState("");
   const [tagDropdownPos, setTagDropdownPos] = useState({ top: 0, left: 0 });
 
-  // Color wheel popover state
+  // Course dropdown state
+  const [showCourseDropdown, setShowCourseDropdown] = useState(false);
+  const [courseDropdownPos, setCourseDropdownPos] = useState({ top: 0, left: 0 });
+  const [courseSearch, setCourseSearch] = useState("");
+
+  // Color popover state (circle next to title)
+  const [showColorPopover, setShowColorPopover] = useState(false);
+  const [colorPopoverPos, setColorPopoverPos] = useState({ top: 0, left: 0 });
+
+  // Color wheel popover state (from inside color popover)
   const [showColorWheel, setShowColorWheel] = useState(false);
   const [colorWheelPos, setColorWheelPos] = useState({ top: 0, left: 0 });
+
+  // Time picker state
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [timePickerPos, setTimePickerPos] = useState({ top: 0, left: 0 });
+
+  // Repeat picker state
+  const [showRepeatPicker, setShowRepeatPicker] = useState(false);
+  const [repeatPickerPos, setRepeatPickerPos] = useState({ top: 0, left: 0 });
+
+  // Custom recurrence modal state
+  const [showCustomRecurrence, setShowCustomRecurrence] = useState(false);
 
   const titleRef = useRef<HTMLInputElement>(null);
   const dateRowRef = useRef<HTMLButtonElement>(null);
@@ -84,8 +108,17 @@ export default function TaskCreateModal({
   const tagAddRef = useRef<HTMLButtonElement>(null);
   const tagDropdownRef = useRef<HTMLDivElement>(null);
   const tagSearchRef = useRef<HTMLInputElement>(null);
+  const courseRowRef = useRef<HTMLButtonElement>(null);
+  const courseDropdownRef = useRef<HTMLDivElement>(null);
+  const courseSearchRef = useRef<HTMLInputElement>(null);
+  const colorCircleRef = useRef<HTMLButtonElement>(null);
+  const colorPopoverRef = useRef<HTMLDivElement>(null);
   const colorWheelBtnRef = useRef<HTMLButtonElement>(null);
   const colorWheelRef = useRef<HTMLDivElement>(null);
+  const timeFieldRef = useRef<HTMLButtonElement>(null);
+  const timePickerRef = useRef<HTMLDivElement>(null);
+  const repeatFieldRef = useRef<HTMLButtonElement>(null);
+  const repeatPickerRef = useRef<HTMLDivElement>(null);
 
   // Auto-focus title when modal opens
   useEffect(() => {
@@ -106,6 +139,7 @@ export default function TaskCreateModal({
       setDueTime(editTask.due_time);
       setColor(editTask.color);
       setTags(editTask.tags ?? []);
+      setCourseName(editTask.course_name);
       setRepeatInterval(editTask.repeat_interval);
       setRepeatUnit(editTask.repeat_unit);
       setRepeatEndDate(editTask.repeat_end_date);
@@ -123,14 +157,21 @@ export default function TaskCreateModal({
     setDueTime(null);
     setColor(DEFAULT_TASK_COLOR);
     setTags([]);
+    setCourseName(null);
     setRepeatInterval(null);
     setRepeatUnit(null);
     setRepeatEndDate(null);
     setRepeatEndCount(null);
     setShowDatePicker(false);
     setShowTagDropdown(false);
+    setShowCourseDropdown(false);
+    setCourseSearch("");
+    setShowColorPopover(false);
     setShowColorWheel(false);
     setShowColorConfirm(false);
+    setShowTimePicker(false);
+    setShowRepeatPicker(false);
+    setShowCustomRecurrence(false);
     setTagSearch("");
   }
 
@@ -157,6 +198,7 @@ export default function TaskCreateModal({
       due_time: dueTime,
       color,
       tags,
+      course_name: courseName,
       repeat_interval: repeatInterval,
       repeat_unit: repeatUnit,
       repeat_end_date: repeatEndDate,
@@ -177,7 +219,7 @@ export default function TaskCreateModal({
     if (isEditMode && editTask && onSave) {
       // Check if color changed and task belongs to a class
       const colorChanged = color.toUpperCase() !== editTask.color.toUpperCase();
-      if (colorChanged && editTask.course_name && onSaveColorForClass) {
+      if (colorChanged && courseName && onSaveColorForClass) {
         setShowColorConfirm(true);
         return;
       }
@@ -190,6 +232,7 @@ export default function TaskCreateModal({
         due_time: dueTime,
         color,
         tags: tags.length > 0 ? tags : undefined,
+        course_name: courseName || undefined,
         repeat_interval: repeatInterval,
         repeat_unit: repeatUnit,
         repeat_end_date: repeatEndDate,
@@ -215,9 +258,9 @@ export default function TaskCreateModal({
    * Saves this task and applies color to all tasks in the same class.
    */
   function handleColorConfirmAll() {
-    if (editTask && onSave && onSaveColorForClass && editTask.course_name) {
+    if (editTask && onSave && onSaveColorForClass && courseName) {
       onSave(editTask.id, buildUpdates());
-      onSaveColorForClass(editTask.course_name, color);
+      onSaveColorForClass(courseName, color);
     }
     setShowColorConfirm(false);
     handleClose();
@@ -255,6 +298,23 @@ export default function TaskCreateModal({
   );
 
   /**
+   * Toggles the color popover below the color circle.
+   */
+  function toggleColorPopover() {
+    if (showColorPopover) {
+      setShowColorPopover(false);
+      return;
+    }
+    setShowDatePicker(false);
+    setShowTagDropdown(false);
+    setShowTimePicker(false);
+    setShowRepeatPicker(false);
+    setShowColorWheel(false);
+    setColorPopoverPos(computePortalPos(colorCircleRef.current, 200));
+    setShowColorPopover(true);
+  }
+
+  /**
    * Toggles the date picker portal and computes its position.
    */
   function toggleDatePicker() {
@@ -263,8 +323,43 @@ export default function TaskCreateModal({
       return;
     }
     setShowTagDropdown(false);
+    setShowTimePicker(false);
+    setShowRepeatPicker(false);
+    setShowColorPopover(false);
     setDatePickerPos(computePortalPos(dateRowRef.current, 420));
     setShowDatePicker(true);
+  }
+
+  /**
+   * Toggles the time picker portal and computes its position.
+   */
+  function toggleTimePicker() {
+    if (showTimePicker) {
+      setShowTimePicker(false);
+      return;
+    }
+    setShowDatePicker(false);
+    setShowTagDropdown(false);
+    setShowRepeatPicker(false);
+    setShowColorPopover(false);
+    setTimePickerPos(computePortalPos(timeFieldRef.current, 160));
+    setShowTimePicker(true);
+  }
+
+  /**
+   * Toggles the repeat picker portal and computes its position.
+   */
+  function toggleRepeatPicker() {
+    if (showRepeatPicker) {
+      setShowRepeatPicker(false);
+      return;
+    }
+    setShowDatePicker(false);
+    setShowTagDropdown(false);
+    setShowTimePicker(false);
+    setShowColorPopover(false);
+    setRepeatPickerPos(computePortalPos(repeatFieldRef.current, 260));
+    setShowRepeatPicker(true);
   }
 
   /**
@@ -281,6 +376,29 @@ export default function TaskCreateModal({
     setTagSearch("");
     setTimeout(() => tagSearchRef.current?.focus(), 50);
   }
+
+  // -- Course selection helper --
+  /**
+   * Selects a course and auto-sets the color to match existing tasks in that class.
+   *
+   * @param name - Course name to select, or null to clear
+   */
+  function selectCourse(name: string | null) {
+    setCourseName(name);
+    if (name) {
+      const classColor = courseColors.get(name);
+      if (classColor) setColor(classColor);
+    }
+    setCourseSearch("");
+    setShowCourseDropdown(false);
+  }
+
+  // Filtered course suggestions for the dropdown
+  const filteredCourses = courseSearch.trim()
+    ? availableCourses.filter((c) =>
+        c.toLowerCase().includes(courseSearch.toLowerCase())
+      )
+    : availableCourses;
 
   // -- Inline tag helpers --
   const selectedLower = tags.map((t) => t.toLowerCase());
@@ -316,7 +434,7 @@ export default function TaskCreateModal({
 
   // Click-outside handler for portaled pickers
   useEffect(() => {
-    if (!showDatePicker && !showTagDropdown && !showColorWheel) return;
+    if (!showDatePicker && !showTagDropdown && !showCourseDropdown && !showColorWheel && !showColorPopover && !showTimePicker && !showRepeatPicker) return;
 
     function handleClick(e: MouseEvent) {
       const target = e.target as Node;
@@ -335,44 +453,59 @@ export default function TaskCreateModal({
         setShowTagDropdown(false);
       }
       if (
+        showCourseDropdown &&
+        courseDropdownRef.current && !courseDropdownRef.current.contains(target) &&
+        courseRowRef.current && !courseRowRef.current.contains(target)
+      ) {
+        setShowCourseDropdown(false);
+      }
+      if (
+        showColorPopover &&
+        colorPopoverRef.current && !colorPopoverRef.current.contains(target) &&
+        colorCircleRef.current && !colorCircleRef.current.contains(target)
+      ) {
+        setShowColorPopover(false);
+      }
+      if (
         showColorWheel &&
         colorWheelRef.current && !colorWheelRef.current.contains(target) &&
         colorWheelBtnRef.current && !colorWheelBtnRef.current.contains(target)
       ) {
         setShowColorWheel(false);
       }
+      if (
+        showTimePicker &&
+        timePickerRef.current && !timePickerRef.current.contains(target) &&
+        timeFieldRef.current && !timeFieldRef.current.contains(target)
+      ) {
+        setShowTimePicker(false);
+      }
+      if (
+        showRepeatPicker &&
+        repeatPickerRef.current && !repeatPickerRef.current.contains(target) &&
+        repeatFieldRef.current && !repeatFieldRef.current.contains(target)
+      ) {
+        setShowRepeatPicker(false);
+      }
     }
 
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
-  }, [showDatePicker, showTagDropdown, showColorWheel]);
+  }, [showDatePicker, showTagDropdown, showCourseDropdown, showColorWheel, showColorPopover, showTimePicker, showRepeatPicker]);
 
   if (!open) return null;
 
-  /**
-   * Formats the due date for the date row label.
-   *
-   * @returns Formatted string like "Mar 3 at 11:00" or "Set date"
-   */
-  function formatDueLabel(): string {
-    if (!dueDate) return "Set date";
-    const d = new Date(dueDate + "T00:00:00");
-    let label = format(d, "EEEE, MMMM d");
-    if (dueTime) label += `  ${dueTime}`;
-    return label;
-  }
+  /** Display color accounting for Miffy theme. */
+  const displayColor = isMiffy ? getMiffyColor(color) : color;
 
-  /**
-   * Formats the repeat sub-label for the date row.
-   *
-   * @returns Repeat description or "Does not repeat"
-   */
-  function formatRepeatSub(): string {
-    if (repeatInterval && repeatUnit) {
-      return getRepeatLabel(repeatInterval, repeatUnit);
-    }
-    return "Does not repeat";
-  }
+  /** Source badge for the tags row (edit mode only, platform label only). */
+  const sourceBadge = isEditMode && editTask?.source
+    ? ({
+        canvas: { label: "bCourses", cls: "text-blue-600 bg-blue-50 dark:bg-blue-900/30" },
+        gradescope: { label: "Gradescope", cls: "text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30" },
+        pensieve: { label: "Pensieve", cls: "text-purple-600 bg-purple-50 dark:bg-purple-900/30" },
+      } as Record<string, { label: string; cls: string }>)[editTask.source] ?? null
+    : null;
 
   return createPortal(
     <div
@@ -395,11 +528,23 @@ export default function TaskCreateModal({
           if (showTagDropdown && tagAddRef.current && !tagAddRef.current.contains(target)) {
             setShowTagDropdown(false);
           }
+          if (showCourseDropdown && courseRowRef.current && !courseRowRef.current.contains(target)) {
+            setShowCourseDropdown(false);
+          }
           if (showDatePicker && dateRowRef.current && !dateRowRef.current.contains(target)) {
             setShowDatePicker(false);
           }
+          if (showColorPopover && colorCircleRef.current && !colorCircleRef.current.contains(target)) {
+            setShowColorPopover(false);
+          }
           if (showColorWheel && colorWheelBtnRef.current && !colorWheelBtnRef.current.contains(target)) {
             setShowColorWheel(false);
+          }
+          if (showTimePicker && timeFieldRef.current && !timeFieldRef.current.contains(target)) {
+            setShowTimePicker(false);
+          }
+          if (showRepeatPicker && repeatFieldRef.current && !repeatFieldRef.current.contains(target)) {
+            setShowRepeatPicker(false);
           }
           e.stopPropagation();
         }}
@@ -414,147 +559,176 @@ export default function TaskCreateModal({
         </button>
 
         <form onSubmit={handleSubmit} className="pt-8 pb-4">
-          {/* ── Title — aligned with row text (past icon+gap) ── */}
-          <div className="pl-[60px] pr-6 pb-2">
+          {/* ── Color circle + Title ── */}
+          <div className="pl-4 pr-6 pb-4 flex items-center gap-3">
+            <button
+              ref={colorCircleRef}
+              type="button"
+              onClick={toggleColorPopover}
+              className="w-5 h-5 rounded-full shrink-0 cursor-pointer hover:scale-110 transition-all border border-black/10 dark:border-white/10"
+              style={{ backgroundColor: displayColor }}
+              aria-label="Pick color"
+            />
             <input
               ref={titleRef}
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Add title"
-              className="w-full text-[22px] text-foreground bg-transparent placeholder-muted-foreground/60 focus:outline-none border-b-2 border-transparent focus:border-blue-500 transition-colors duration-200 pb-2 pr-8"
+              className="w-full text-[22px] text-foreground bg-transparent placeholder-muted-foreground/60 focus:outline-none border-b-2 border-transparent focus:border-blue-500 transition-colors duration-200 pr-8"
               maxLength={200}
             />
           </div>
 
           {/* ── Rows ── */}
           <div className="px-2">
-            {/* Date row */}
+            {/* Class row */}
             <button
-              ref={dateRowRef}
+              ref={courseRowRef}
               type="button"
-              onClick={toggleDatePicker}
-              className="w-full flex items-start gap-4 px-4 py-4 rounded-xl text-left transition-colors duration-150 hover:bg-accent/60 active:scale-[0.99] cursor-pointer"
+              onClick={() => {
+                if (showCourseDropdown) {
+                  setShowCourseDropdown(false);
+                  return;
+                }
+                setShowDatePicker(false);
+                setShowTagDropdown(false);
+                setShowColorWheel(false);
+                setCourseDropdownPos(computePortalPos(courseRowRef.current, 220));
+                setShowCourseDropdown(true);
+                setCourseSearch("");
+                setTimeout(() => courseSearchRef.current?.focus(), 50);
+              }}
+              className="w-full flex items-center gap-4 px-4 py-4 rounded-xl text-left transition-colors duration-150 hover:bg-gray-100 dark:hover:bg-gray-800 active:scale-[0.99] cursor-pointer"
             >
-              <CalendarDays
+              <BookOpen
                 size={20}
-                className="shrink-0 mt-0.5 text-muted-foreground"
+                className="shrink-0 text-foreground"
               />
-              <div className="min-w-0">
+              <span
+                className={`text-sm leading-snug flex-1 min-w-0 truncate ${
+                  courseName ? "text-foreground" : "text-muted-foreground"
+                }`}
+              >
+                {courseName || "Set class"}
+              </span>
+              <ChevronDown size={14} className="shrink-0 text-foreground" />
+            </button>
+
+            {/* Date + Time row */}
+            <div className="flex items-center">
+              <button
+                ref={dateRowRef}
+                type="button"
+                onClick={toggleDatePicker}
+                className="flex items-center gap-4 px-4 py-4 rounded-xl text-left transition-colors duration-150 hover:bg-gray-100 dark:hover:bg-gray-800 active:scale-[0.99] cursor-pointer"
+              >
+                <CalendarDays
+                  size={20}
+                  className="shrink-0 text-muted-foreground"
+                />
                 <span
                   className={`text-sm leading-snug ${
                     dueDate ? "text-foreground" : "text-muted-foreground"
                   }`}
                 >
-                  {formatDueLabel()}
+                  {dueDate
+                    ? format(new Date(dueDate + "T00:00:00"), "EEEE, MMMM d")
+                    : "Set date"}
                 </span>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {formatRepeatSub()}
-                </p>
-              </div>
-            </button>
-
-            {/* Color row */}
-            <div className="flex items-center gap-4 px-4 py-4">
-              <Palette
-                size={20}
-                className="shrink-0 text-muted-foreground"
-              />
-              <div className="flex items-center gap-2 flex-wrap">
-                {TASK_COLORS.map((c) => {
-                  const displayColor = isMiffy ? getMiffyColor(c) : c;
-                  const isSelected =
-                    color.toUpperCase() === c.toUpperCase();
-                  return (
-                    <button
-                      key={c}
-                      type="button"
-                      onClick={() => setColor(c)}
-                      className={`w-6 h-6 rounded-full transition-all duration-150 cursor-pointer ${
-                        isSelected
-                          ? "ring-2 ring-offset-2 ring-blue-500 dark:ring-offset-gray-900 scale-110"
-                          : "hover:scale-110"
-                      }`}
-                      style={{ backgroundColor: displayColor }}
-                      aria-label={`Color ${c}`}
-                    />
-                  );
-                })}
-                {/* Rainbow color wheel button */}
-                <button
-                  ref={colorWheelBtnRef}
-                  type="button"
-                  onClick={() => {
-                    if (showColorWheel) {
-                      setShowColorWheel(false);
-                      return;
-                    }
-                    setShowDatePicker(false);
-                    setShowTagDropdown(false);
-                    setColorWheelPos(
-                      computePortalPos(colorWheelBtnRef.current, 300)
-                    );
-                    setShowColorWheel(true);
-                  }}
-                  className="w-6 h-6 rounded-full transition-all duration-150 cursor-pointer hover:scale-110 border border-border/50"
-                  style={{
-                    background:
-                      "conic-gradient(red, yellow, lime, aqua, blue, magenta, red)",
-                  }}
-                  aria-label="Custom color"
-                />
-              </div>
+              </button>
+              <button
+                ref={timeFieldRef}
+                type="button"
+                onClick={toggleTimePicker}
+                className="flex items-center gap-2 px-4 py-4 rounded-xl text-left transition-colors duration-150 hover:bg-gray-100 dark:hover:bg-gray-800 active:scale-[0.99] cursor-pointer"
+              >
+                <Clock size={16} className="shrink-0 text-foreground" />
+                <span
+                  className={`text-sm leading-snug ${
+                    dueTime ? "text-foreground" : "text-muted-foreground"
+                  }`}
+                >
+                  {dueTime ? formatTime12h(dueTime) : "Time"}
+                </span>
+              </button>
             </div>
 
-            {/* Tags row */}
-            <div className="flex items-start gap-4 px-4 py-4">
+            {/* Repeat row */}
+            <button
+              ref={repeatFieldRef}
+              type="button"
+              onClick={toggleRepeatPicker}
+              className="w-full flex items-center gap-4 px-4 py-4 rounded-xl text-left transition-colors duration-150 hover:bg-gray-100 dark:hover:bg-gray-800 active:scale-[0.99] cursor-pointer"
+            >
+              <Repeat
+                size={20}
+                className="shrink-0 text-foreground"
+              />
+              <span className="text-sm leading-snug text-muted-foreground flex-1 min-w-0 truncate">
+                {repeatInterval && repeatUnit
+                  ? getRepeatLabel(repeatInterval, repeatUnit)
+                  : "Does not repeat"}
+              </span>
+              <ChevronDown size={14} className="shrink-0 text-foreground" />
+            </button>
+
+            {/* Tags row — entire bar is clickable */}
+            <button
+              ref={tagAddRef}
+              type="button"
+              onClick={openTagDropdown}
+              className="w-full flex items-start gap-4 px-4 py-4 rounded-xl text-left transition-colors duration-150 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
+            >
               <Tag
                 size={20}
-                className="shrink-0 mt-0.5 text-muted-foreground"
+                className="shrink-0 mt-0.5 text-foreground"
               />
               <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                {/* Source badge (read-only, edit mode only) */}
+                {sourceBadge && (
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${sourceBadge.cls}`}>
+                    {sourceBadge.label}
+                  </span>
+                )}
                 {tags.map((tag) => (
                   <span
                     key={tag}
                     className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 max-w-[240px]"
                   >
                     <span className="truncate">{tag}</span>
-                    <button
-                      type="button"
-                      onClick={() => removeTag(tag)}
-                      className="hover:text-blue-800 dark:hover:text-blue-200 transition-colors"
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        removeTag(tag);
+                      }}
+                      className="hover:text-blue-800 dark:hover:text-blue-200 transition-colors cursor-pointer"
                       aria-label={`Remove ${tag}`}
                     >
                       <X size={10} />
-                    </button>
+                    </span>
                   </span>
                 ))}
-                <button
-                  ref={tagAddRef}
-                  type="button"
-                  onClick={openTagDropdown}
-                  className={`inline-flex items-center gap-1 text-sm transition-colors duration-150 cursor-pointer ${
-                    tags.length > 0
-                      ? "text-muted-foreground hover:text-foreground"
-                      : "text-muted-foreground"
-                  }`}
-                >
-                  {tags.length === 0 && "Add tags"}
-                  {tags.length > 0 && (
-                    <>
-                      <Plus size={12} />
-                      <span className="text-xs">Tag</span>
-                    </>
-                  )}
-                </button>
+                {tags.length === 0 && !sourceBadge && (
+                  <span className="text-sm text-muted-foreground">Add tags</span>
+                )}
+                {tags.length > 0 && (
+                  <span className="inline-flex items-center gap-1 text-muted-foreground">
+                    <Plus size={12} />
+                    <span className="text-xs">Tag</span>
+                  </span>
+                )}
               </div>
-            </div>
+            </button>
 
             {/* Description row */}
-            <div className="flex items-start gap-4 px-4 py-4">
+            <div className="flex items-start gap-4 px-4 py-4 rounded-xl transition-colors duration-150 hover:bg-gray-100 dark:hover:bg-gray-800">
               <AlignLeft
                 size={20}
-                className="shrink-0 mt-0.5 text-muted-foreground"
+                className="shrink-0 mt-0.5 text-foreground"
               />
               <textarea
                 value={description}
@@ -620,20 +794,6 @@ export default function TaskCreateModal({
               onChange={(date) => {
                 setDueDate(date);
                 setShowDatePicker(false);
-              }}
-              timeValue={dueTime}
-              onTimeChange={setDueTime}
-              repeatInterval={repeatInterval}
-              repeatUnit={repeatUnit}
-              onRepeatChange={(interval, unit) => {
-                setRepeatInterval(interval);
-                setRepeatUnit(unit);
-              }}
-              repeatEndDate={repeatEndDate}
-              repeatEndCount={repeatEndCount}
-              onRepeatEndChange={(endDate, endCount) => {
-                setRepeatEndDate(endDate);
-                setRepeatEndCount(endCount);
               }}
             />
           </div>,
@@ -720,6 +880,204 @@ export default function TaskCreateModal({
           document.body
         )}
 
+      {/* ── Portaled Course Dropdown ── */}
+      {showCourseDropdown &&
+        createPortal(
+          <div
+            ref={courseDropdownRef}
+            onMouseDown={(e) => e.stopPropagation()}
+            style={{
+              position: "fixed",
+              top: courseDropdownPos.top,
+              left: courseDropdownPos.left,
+              zIndex: 10000,
+            }}
+          >
+            <div className="w-64 bg-popover rounded-xl shadow-2xl border border-border py-1.5 max-h-56 overflow-y-auto animate-in fade-in zoom-in-95 duration-100">
+              {/* Search input */}
+              <div className="px-2.5 pb-1.5">
+                <input
+                  ref={courseSearchRef}
+                  type="text"
+                  value={courseSearch}
+                  onChange={(e) => setCourseSearch(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      if (courseSearch.trim()) {
+                        selectCourse(courseSearch.trim());
+                      }
+                    }
+                    if (e.key === "Escape") setShowCourseDropdown(false);
+                  }}
+                  placeholder="Search or add class..."
+                  className="w-full px-2.5 py-1.5 text-sm rounded-lg border border-border bg-card text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                />
+              </div>
+              {/* None option */}
+              {!courseSearch.trim() && (
+                <button
+                  type="button"
+                  onClick={() => selectCourse(null)}
+                  className={`w-full text-left px-4 py-1.5 text-sm transition-colors truncate ${
+                    !courseName
+                      ? "text-blue-500 font-medium"
+                      : "text-muted-foreground hover:bg-accent"
+                  }`}
+                >
+                  None
+                </button>
+              )}
+              {/* Existing courses */}
+              {filteredCourses.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => selectCourse(c)}
+                  className={`w-full text-left px-4 py-1.5 text-sm transition-colors truncate ${
+                    courseName === c
+                      ? "text-blue-500 font-medium"
+                      : "text-foreground hover:bg-accent"
+                  }`}
+                >
+                  {c}
+                </button>
+              ))}
+              {/* Add custom class */}
+              {courseSearch.trim() &&
+                !availableCourses.some(
+                  (c) => c.toLowerCase() === courseSearch.trim().toLowerCase()
+                ) && (
+                  <button
+                    type="button"
+                    onClick={() => selectCourse(courseSearch.trim())}
+                    className="w-full text-left px-4 py-1.5 text-sm text-blue-500 hover:bg-accent transition-colors"
+                  >
+                    Add &ldquo;{courseSearch.trim()}&rdquo;
+                  </button>
+                )}
+              {/* Empty state */}
+              {filteredCourses.length === 0 && !courseSearch.trim() && (
+                <p className="px-4 py-2 text-sm text-muted-foreground">
+                  No classes yet. Type to create one.
+                </p>
+              )}
+            </div>
+          </div>,
+          document.body
+        )}
+
+      {/* ── Portaled Color Popover (grid of swatches + wheel button) ── */}
+      {showColorPopover &&
+        createPortal(
+          <div
+            ref={colorPopoverRef}
+            onMouseDown={(e) => e.stopPropagation()}
+            style={{
+              position: "fixed",
+              top: colorPopoverPos.top,
+              left: colorPopoverPos.left,
+              zIndex: 10000,
+            }}
+          >
+            <div className="bg-popover rounded-xl shadow-2xl border border-border p-3 animate-in fade-in zoom-in-95 duration-100">
+              <div className="grid grid-cols-6 gap-2">
+                {TASK_COLORS.map((c) => {
+                  const dc = isMiffy ? getMiffyColor(c) : c;
+                  const isSelected = color.toUpperCase() === c.toUpperCase();
+                  return (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => {
+                        setColor(c);
+                        setShowColorPopover(false);
+                      }}
+                      className={`w-7 h-7 rounded-full transition-all duration-150 cursor-pointer ${
+                        isSelected
+                          ? "ring-2 ring-offset-2 ring-blue-500 dark:ring-offset-gray-900 scale-110"
+                          : "hover:scale-110"
+                      }`}
+                      style={{ backgroundColor: dc }}
+                      aria-label={`Color ${c}`}
+                    />
+                  );
+                })}
+                {/* Rainbow color wheel button */}
+                <button
+                  ref={colorWheelBtnRef}
+                  type="button"
+                  onClick={() => {
+                    if (showColorWheel) {
+                      setShowColorWheel(false);
+                      return;
+                    }
+                    setShowColorPopover(false);
+                    setColorWheelPos(computePortalPos(colorCircleRef.current, 300));
+                    setShowColorWheel(true);
+                  }}
+                  className="w-7 h-7 rounded-full transition-all duration-150 cursor-pointer hover:scale-110 overflow-hidden"
+                  aria-label="Custom color"
+                >
+                  <img src="/color-wheel.svg" alt="" className="w-full h-full" draggable={false} />
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
+      {/* ── Portaled Time Picker ── */}
+      {showTimePicker &&
+        createPortal(
+          <div
+            ref={timePickerRef}
+            onMouseDown={(e) => e.stopPropagation()}
+            style={{
+              position: "fixed",
+              top: timePickerPos.top,
+              left: timePickerPos.left,
+              zIndex: 10000,
+            }}
+          >
+            <div className="bg-popover rounded-xl shadow-2xl border border-border p-3 animate-in fade-in zoom-in-95 duration-100">
+              <TimePicker value={dueTime} onChange={setDueTime} />
+            </div>
+          </div>,
+          document.body
+        )}
+
+      {/* ── Portaled Repeat Picker ── */}
+      {showRepeatPicker &&
+        createPortal(
+          <div
+            ref={repeatPickerRef}
+            onMouseDown={(e) => e.stopPropagation()}
+            style={{
+              position: "fixed",
+              top: repeatPickerPos.top,
+              left: repeatPickerPos.left,
+              zIndex: 10000,
+            }}
+          >
+            <RepeatPicker
+              interval={repeatInterval}
+              unit={repeatUnit}
+              dueDate={dueDate}
+              onChange={(interval, unit) => {
+                setRepeatInterval(interval);
+                setRepeatUnit(unit);
+                setShowRepeatPicker(false);
+              }}
+              onCustom={() => {
+                setShowRepeatPicker(false);
+                setShowCustomRecurrence(true);
+              }}
+            />
+          </div>,
+          document.body
+        )}
+
       {/* ── Portaled Color Wheel ── */}
       {showColorWheel &&
         createPortal(
@@ -743,8 +1101,25 @@ export default function TaskCreateModal({
           document.body
         )}
 
+      {/* ── Custom Recurrence Modal ── */}
+      <CustomRecurrenceModal
+        open={showCustomRecurrence}
+        onClose={() => setShowCustomRecurrence(false)}
+        interval={repeatInterval}
+        unit={repeatUnit}
+        repeatEndDate={repeatEndDate}
+        repeatEndCount={repeatEndCount}
+        onDone={(interval, unit, endDate, endCount) => {
+          setRepeatInterval(interval);
+          setRepeatUnit(unit);
+          setRepeatEndDate(endDate);
+          setRepeatEndCount(endCount);
+          setShowCustomRecurrence(false);
+        }}
+      />
+
       {/* ── Color change confirmation dialog ── */}
-      {showColorConfirm && editTask?.course_name &&
+      {showColorConfirm && courseName &&
         createPortal(
           <div
             className="fixed inset-0 z-[10001] flex items-center justify-center bg-black/40"
@@ -758,15 +1133,15 @@ export default function TaskCreateModal({
             >
               <p className="text-sm font-semibold text-foreground mb-1">Apply color change?</p>
               <p className="text-sm text-muted-foreground mb-5">
-                Apply to all <span className="font-medium text-foreground">{editTask.course_name}</span> tasks or just this one?
+                Apply to all <span className="font-medium text-foreground">{courseName}</span> tasks or just this one?
               </p>
               <div className="flex flex-col gap-2">
                 <button
                   type="button"
                   onClick={handleColorConfirmAll}
-                  className="w-full px-4 py-2.5 text-sm font-medium rounded-xl bg-blue-500 text-white hover:bg-blue-600 transition-colors cursor-pointer"
+                  className="w-full px-4 py-2.5 text-sm font-medium rounded-xl text-foreground hover:bg-accent border border-border transition-colors cursor-pointer"
                 >
-                  All {editTask.course_name} tasks
+                  All tasks
                 </button>
                 <button
                   type="button"

@@ -78,8 +78,12 @@ interface TaskContextValue {
   syncing: boolean;
   lastSyncedAt: string | null;
   syncResult: SyncResult | null;
-  /** Distinct course/tag names available for tagging, derived from all tasks. */
+  /** Distinct user-assigned tag names (excludes course names). */
   availableTags: string[];
+  /** Distinct non-null course_name values from all tasks. */
+  availableCourses: string[];
+  /** Maps each course_name to its dominant task color. */
+  courseColors: Map<string, string>;
   addTask: (data: TaskInsert) => Promise<void>;
   updateTask: (id: string, updates: TaskUpdate) => Promise<void>;
   toggleComplete: (id: string) => Promise<void>;
@@ -892,18 +896,47 @@ export function TaskProvider({ children }: { children: ReactNode }) {
   }
 
   /**
-   * Distinct tag names derived from course_names and user-assigned tags across all tasks.
+   * Distinct user-assigned tag names across all tasks (excludes course names).
    * Used to populate the tag picker dropdown.
    */
   const availableTags = useMemo(() => {
-    const tagSet = new Set<string>();
+    const tagSet = new Set<string>(["bCourses", "Canvas", "Gradescope", "Pensieve"]);
     for (const t of tasks) {
-      if (t.course_name) tagSet.add(t.course_name);
       if (t.tags) {
         for (const tag of t.tags) tagSet.add(tag);
       }
     }
     return Array.from(tagSet).sort();
+  }, [tasks]);
+
+  /** Distinct non-null course_name values across all tasks, sorted alphabetically. */
+  const availableCourses = useMemo(() => {
+    const set = new Set<string>();
+    for (const t of tasks) {
+      if (t.course_name) set.add(t.course_name);
+    }
+    return Array.from(set).sort();
+  }, [tasks]);
+
+  /** Maps each course_name to its most common task color. */
+  const courseColors = useMemo(() => {
+    const counts = new Map<string, Map<string, number>>();
+    for (const t of tasks) {
+      if (!t.course_name) continue;
+      if (!counts.has(t.course_name)) counts.set(t.course_name, new Map());
+      const m = counts.get(t.course_name)!;
+      m.set(t.color, (m.get(t.color) || 0) + 1);
+    }
+    const result = new Map<string, string>();
+    for (const [course, m] of counts) {
+      let best = "";
+      let max = 0;
+      for (const [c, n] of m) {
+        if (n > max) { max = n; best = c; }
+      }
+      if (best) result.set(course, best);
+    }
+    return result;
   }, [tasks]);
 
   return (
@@ -916,6 +949,8 @@ export function TaskProvider({ children }: { children: ReactNode }) {
         lastSyncedAt,
         syncResult,
         availableTags,
+        availableCourses,
+        courseColors,
         addTask,
         updateTask,
         toggleComplete,

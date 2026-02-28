@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { format, isSameDay, isSameMonth } from "date-fns";
+import { format, isSameDay, isSameMonth, isBefore, startOfDay } from "date-fns";
 import type { Task, PendingInvite } from "@/lib/types";
 import { getMiffyColor } from "@/lib/constants";
 import { pendingInviteToPseudoTask } from "@/lib/pending-invite-helpers";
@@ -50,6 +50,7 @@ export default function CalendarDayCell({
   const [hovered, setHovered] = useState(false);
   const isCurrentMonth = isSameMonth(day, currentMonth);
   const isToday = isSameDay(day, new Date());
+  const isPast = isCurrentMonth && isBefore(day, startOfDay(new Date())) && !isToday;
   const dateStr = format(day, "yyyy-MM-dd");
 
   useEffect(() => {
@@ -73,9 +74,11 @@ export default function CalendarDayCell({
       className={`p-0.5 md:p-1.5 ${isLastCol ? "" : "border-r"} border-b border-gray-300 dark:border-gray-600 transition-colors relative ${
         !isCurrentMonth
           ? "bg-muted/40"
-          : isSelected && isMobile
-            ? "bg-muted/60"
-            : "bg-card"
+          : isPast
+            ? "bg-gray-100 dark:bg-gray-900/60"
+            : isSelected && isMobile
+              ? "bg-muted/60"
+              : "bg-card"
       } hover:bg-muted/50`}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -107,7 +110,7 @@ export default function CalendarDayCell({
               {dotTasks.map((task) => (
                 <span
                   key={task.id}
-                  className={`w-[5px] h-[5px] rounded-full shrink-0 ${task.is_completed ? "opacity-40" : ""}`}
+                  className={`w-[5px] h-[5px] rounded-full shrink-0 ${task.is_completed ? "opacity-60" : ""}`}
                   style={{ backgroundColor: isMiffyTheme ? getMiffyColor(task.color) : (task.color || "#6b7280") }}
                 />
               ))}
