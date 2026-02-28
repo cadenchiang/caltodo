@@ -23,9 +23,10 @@ interface GuestPickerProps {
 }
 
 /**
- * Self-contained guest picker matching InviteSection's visual pattern.
- * Renders a Send icon with collapsed/expanded toggle, guest chips,
- * and debounced autocomplete dropdown. Used inside task create/edit modals.
+ * Guest picker matching the modal icon+text row pattern exactly.
+ * Collapsed: Send icon + "Send assignment" placeholder (same style as "Add description").
+ * Expanded: Send icon + search input in-place (same position, same font).
+ * Guest chips appear above the row, aligned with the text column.
  *
  * @param selectedEmails - Array of currently selected email strings
  * @param onEmailsChange - Callback when emails are added or removed
@@ -138,69 +139,70 @@ export default function GuestPicker({ selectedEmails, onEmailsChange }: GuestPic
   }
 
   return (
-    <div ref={containerRef} className="space-y-1.5">
-      {/* Guest chips */}
-      {selectedEmails.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 ml-7">
-          {selectedEmails.map((email) => (
-            <span
-              key={email}
-              className="inline-flex items-center gap-1 text-[11px] font-medium pl-2 pr-1 py-0.5 rounded-full border border-border bg-muted/50 text-foreground"
+    <div ref={containerRef}>
+      {/* Guest chips — aligned with text column, smooth height transition */}
+      <div
+        className="flex flex-wrap gap-1.5 px-4 overflow-hidden transition-all duration-200 ease-out"
+        style={{
+          paddingLeft: "52px",
+          maxHeight: selectedEmails.length > 0 ? "200px" : "0px",
+          marginBottom: selectedEmails.length > 0 ? "4px" : "0px",
+          opacity: selectedEmails.length > 0 ? 1 : 0,
+        }}
+      >
+        {selectedEmails.map((email) => (
+          <span
+            key={email}
+            className="inline-flex items-center gap-1 text-xs font-medium pl-2 pr-1 py-0.5 rounded-full border border-border bg-muted/50 text-foreground animate-in fade-in zoom-in-95 duration-150"
+          >
+            <span className="truncate max-w-[120px]">{email}</span>
+            <button
+              type="button"
+              onClick={() => removeEmail(email)}
+              className="text-muted-foreground hover:text-red-500 transition-colors p-0.5"
+              aria-label={`Remove ${email}`}
             >
-              <span className="truncate max-w-[120px]">{email}</span>
-              <button
-                type="button"
-                onClick={() => removeEmail(email)}
-                className="text-muted-foreground hover:text-red-500 transition-colors p-0.5"
-                aria-label={`Remove ${email}`}
-              >
-                <X size={10} />
-              </button>
-            </span>
-          ))}
-        </div>
-      )}
+              <X size={10} />
+            </button>
+          </span>
+        ))}
+      </div>
 
-      {/* Search row — matches InviteSection's collapsed/expanded layout */}
+      {/* Main row — identical structure to description/date/tags rows */}
       <div className="relative">
         <div
-          className={`flex items-center gap-3 px-2 py-1 ${!expanded ? "cursor-text" : ""}`}
+          className={`flex items-center gap-4 px-4 py-3 ${!expanded ? "cursor-text" : ""}`}
           onClick={() => !expanded && setExpanded(true)}
         >
-          <Send size={16} className="text-muted-foreground shrink-0" />
-          <div
-            className={`flex-1 flex items-center py-1.5 rounded-lg ${
-              expanded
-                ? "px-3 bg-muted border border-input-border"
-                : "px-1.5 hover:bg-accent"
-            }`}
-          >
-            {expanded ? (
-              <>
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Search by name or email..."
-                  className="flex-1 min-w-0 bg-transparent text-foreground placeholder-muted-foreground focus:outline-none text-sm"
-                />
-                {searching && (
-                  <Loader2 size={12} className="animate-spin text-muted-foreground shrink-0 ml-2" />
-                )}
-              </>
-            ) : (
-              <span className="text-sm text-muted-foreground">
-                {selectedEmails.length > 0 ? `${selectedEmails.length} guest(s)` : "Send assignment"}
-              </span>
-            )}
-          </div>
+          <Send size={20} className="shrink-0 text-muted-foreground" />
+          {expanded ? (
+            <>
+              <input
+                ref={inputRef}
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Search by name or email..."
+                className="flex-1 min-w-0 text-sm text-foreground bg-transparent placeholder-muted-foreground/60 focus:outline-none"
+              />
+              {searching && (
+                <Loader2 size={14} className="animate-spin text-muted-foreground shrink-0" />
+              )}
+            </>
+          ) : (
+            <span className="text-sm text-muted-foreground/60">
+              {selectedEmails.length > 0 ? `${selectedEmails.length} guest(s)` : "Send assignment"}
+            </span>
+          )}
         </div>
 
         {/* Autocomplete dropdown */}
         {expanded && (suggestions.length > 0 || (query.includes("@") && query.length >= 3 && suggestions.length === 0 && !searching)) && (
-          <div className="absolute left-7 right-0 top-full mt-1 z-[60] rounded-lg border border-border bg-popover shadow-xl overflow-hidden max-h-[200px] overflow-y-auto">
+          <div
+            className="absolute right-4 top-full mt-1 z-[60] rounded-lg border border-border bg-popover shadow-xl overflow-hidden max-h-[200px] overflow-y-auto"
+            style={{ left: "52px" }}
+          >
             {suggestions.map((user) => (
               <button
                 key={user.id}

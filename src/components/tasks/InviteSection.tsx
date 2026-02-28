@@ -278,37 +278,33 @@ export default function InviteSection({ taskId }: InviteSectionProps) {
         </div>
       )}
 
-      {/* Single layout — collapsed shows text, expanded shows input */}
+      {/* Single layout — collapsed shows text, expanded shows input in-place */}
       <div className="relative">
         <div
-          className={`flex items-center gap-3 py-1 ${!expanded ? "cursor-text" : ""}`}
+          className={`flex items-center gap-3 py-2 px-1.5 ${!expanded ? "cursor-text" : ""}`}
           onClick={() => !expanded && setExpanded(true)}
         >
           <Send size={16} className="text-muted-foreground shrink-0" />
           <div
-            className={`flex-1 flex items-center py-1.5 rounded-lg ${
-              expanded
-                ? "px-3 bg-muted border border-input-border"
-                : "px-1.5 hover:bg-accent"
+            className={`flex-1 flex items-center rounded-lg px-2 py-1.5 transition-colors duration-200 ${
+              expanded ? "bg-accent/60" : ""
             }`}
           >
             {expanded ? (
-              <>
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={query}
-                  onChange={(e) => { setQuery(e.target.value); setError(null); }}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Search by name or email..."
-                  className="flex-1 min-w-0 bg-transparent text-foreground placeholder-muted-foreground focus:outline-none text-sm"
-                />
-                {searching && (
-                  <Loader2 size={12} className="animate-spin text-muted-foreground shrink-0 ml-2" />
-                )}
-              </>
+              <input
+                ref={inputRef}
+                type="text"
+                value={query}
+                onChange={(e) => { setQuery(e.target.value); setError(null); }}
+                onKeyDown={handleKeyDown}
+                placeholder="Search by name or email..."
+                className="flex-1 min-w-0 bg-transparent text-foreground placeholder-muted-foreground focus:outline-none text-sm"
+              />
             ) : (
               <span className="text-sm text-muted-foreground">Send assignment</span>
+            )}
+            {expanded && searching && (
+              <Loader2 size={12} className="animate-spin text-muted-foreground shrink-0 ml-2" />
             )}
           </div>
         </div>

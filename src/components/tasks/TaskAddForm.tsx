@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { AlignLeft, Plus, CalendarDays, ChevronDown, Tag, Send } from "lucide-react";
+import { AlignLeft, Plus, CalendarDays, ChevronDown, Tag } from "lucide-react";
 import { format } from "date-fns";
 import type { TaskInsert } from "@/lib/types";
 import { DEFAULT_TASK_COLOR } from "@/lib/constants";
@@ -10,7 +10,6 @@ import { getRepeatLabel } from "@/lib/repeat";
 import { useTaskContext } from "@/contexts/TaskContext";
 import DatePicker from "./DatePicker";
 import TagPicker from "./TagPicker";
-import GuestPicker from "./GuestPicker";
 import Popover from "@/components/ui/Popover";
 
 type RepeatUnit = "day" | "week" | "month";
@@ -43,12 +42,10 @@ export default function TaskAddForm({ onAdd, defaultDate, placeholder }: TaskAdd
   const [repeatUnit, setRepeatUnit] = useState<RepeatUnit | null>(null);
   const [repeatEndDate, setRepeatEndDate] = useState<string | null>(null);
   const [repeatEndCount, setRepeatEndCount] = useState<number | null>(null);
-  const [inviteEmails, setInviteEmails] = useState<string[]>([]);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showTagPicker, setShowTagPicker] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
-  const [showGuestPicker, setShowGuestPicker] = useState(false);
   const [showDescription, setShowDescription] = useState(false);
   const [focused, setFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -90,7 +87,6 @@ export default function TaskAddForm({ onAdd, defaultDate, placeholder }: TaskAdd
       repeat_unit: repeatUnit,
       repeat_end_date: repeatEndDate,
       repeat_end_count: repeatEndCount,
-      inviteEmails: inviteEmails.length > 0 ? inviteEmails : undefined,
     });
 
     setTitle("");
@@ -99,7 +95,6 @@ export default function TaskAddForm({ onAdd, defaultDate, placeholder }: TaskAdd
     setDueTime(null);
     setColor(DEFAULT_TASK_COLOR);
     setTags([]);
-    setInviteEmails([]);
     setRepeatInterval(null);
     setRepeatUnit(null);
     setRepeatEndDate(null);
@@ -108,7 +103,6 @@ export default function TaskAddForm({ onAdd, defaultDate, placeholder }: TaskAdd
     setShowColorPicker(false);
     setShowTagPicker(false);
     setShowMoreMenu(false);
-    setShowGuestPicker(false);
     setShowDescription(false);
     inputRef.current?.focus();
   }
@@ -121,7 +115,6 @@ export default function TaskAddForm({ onAdd, defaultDate, placeholder }: TaskAdd
       setShowColorPicker(false);
       setShowTagPicker(false);
       setShowMoreMenu(false);
-      setShowGuestPicker(false);
       setShowDescription(false);
     }
   }
@@ -296,12 +289,6 @@ export default function TaskAddForm({ onAdd, defaultDate, placeholder }: TaskAdd
           </>
         )}
 
-        {/* Guest email count badge (visible even when unfocused) */}
-        {inviteEmails.length > 0 && !focused && (
-          <span className="text-[10px] text-blue-500 bg-blue-50 dark:bg-blue-900/30 px-1.5 py-0.5 rounded shrink-0">
-            {inviteEmails.length} guest{inviteEmails.length > 1 ? "s" : ""}
-          </span>
-        )}
       </form>
 
       {/* Description textarea (collapsible) */}
@@ -400,35 +387,6 @@ export default function TaskAddForm({ onAdd, defaultDate, placeholder }: TaskAdd
             <AlignLeft size={14} />
             {showDescription ? "Hide description" : "Add description"}
           </button>
-          <button
-            type="button"
-            onClick={() => {
-              setShowMoreMenu(false);
-              setShowGuestPicker(!showGuestPicker);
-            }}
-            className="flex items-center gap-2.5 w-full text-left px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-          >
-            <Send size={14} />
-            Send assignment
-            {inviteEmails.length > 0 && (
-              <span className="ml-auto text-[10px] font-medium text-blue-500">{inviteEmails.length}</span>
-            )}
-          </button>
-        </div>
-      </Popover>
-
-      {/* Guest picker popup */}
-      <Popover
-        open={showGuestPicker}
-        onClose={() => setShowGuestPicker(false)}
-        triggerRef={moreButtonRef}
-        className="absolute right-2 top-full mt-1 z-20"
-      >
-        <div className="bg-card rounded-xl shadow-2xl border border-border p-3 w-64">
-          <GuestPicker
-            selectedEmails={inviteEmails}
-            onEmailsChange={setInviteEmails}
-          />
         </div>
       </Popover>
     </div>

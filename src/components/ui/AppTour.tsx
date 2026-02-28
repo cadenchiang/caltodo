@@ -177,6 +177,11 @@ export function TourProvider({ children, steps, onComplete }: TourProviderProps)
   const [navigating, setNavigating] = useState(false);
   const [isClickAnimating, setIsClickAnimating] = useState(false);
   const rafRef = useRef<number | null>(null);
+  /** Ref to read current pathname without re-creating activateStep on navigation. */
+  const pathnameRef = useRef(pathname);
+  pathnameRef.current = pathname;
+  /** Monotonic counter to abort stale activateStep invocations. */
+  const activationIdRef = useRef(0);
 
   // Check if tour was already completed
   useEffect(() => {
@@ -224,8 +229,10 @@ export function TourProvider({ children, steps, onComplete }: TourProviderProps)
    */
   const activateStep = useCallback(async (stepIndex: number) => {
     if (stepIndex < 0 || stepIndex >= steps.length) return;
+    const myId = ++activationIdRef.current;
+    const isStale = () => activationIdRef.current !== myId;
     const step = steps[stepIndex];
-    const needsNavigation = step.route && pathname !== step.route;
+    const needsNavigation = step.route && pathnameRef.current !== step.route;
 
     // ── Multi-click animation sequence ──
     const clickTargets = step.clickSequence
@@ -236,10 +243,12 @@ export function TourProvider({ children, steps, onComplete }: TourProviderProps)
       setCardPos(null);
 
       for (let i = 0; i < clickTargets.length; i++) {
+        if (isStale()) return;
         const ct = clickTargets[i];
 
         // Wait for the click target element to appear
         const clickEl = await waitForElement(ct.targetId, TARGET_WAIT_TIMEOUT);
+        if (isStale()) return;
         if (!clickEl) {
           // Error recovery: skip this broken step instead of getting stuck
           console.warn(`[AppTour] Click target "${ct.targetId}" not found, skipping step ${stepIndex}`);
@@ -257,6 +266,7 @@ export function TourProvider({ children, steps, onComplete }: TourProviderProps)
         if (!clickVisible) {
           clickEl.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
           await new Promise((r) => setTimeout(r, 200));
+          if (isStale()) return;
         }
 
         // Position highlight on the click target (re-read rect after possible scroll)
@@ -265,17 +275,20 @@ export function TourProvider({ children, steps, onComplete }: TourProviderProps)
 
         // Let highlight slide into position
         await new Promise((r) => setTimeout(r, 600));
+        if (isStale()) return;
 
         // Add pulse class to the click target element
         clickEl.classList.add("tour-click-pulse");
         await new Promise((r) => setTimeout(r, 500));
         clickEl.classList.remove("tour-click-pulse");
+        if (isStale()) return;
 
         // Fire this click target's action (e.g. open a dropdown)
         ct.action?.();
 
         // Pause so user can see what was "clicked"
         await new Promise((r) => setTimeout(r, 400));
+        if (isStale()) return;
       }
 
       // Fire onEnter (e.g. switch view mode) and navigate if needed
@@ -286,9 +299,11 @@ export function TourProvider({ children, steps, onComplete }: TourProviderProps)
 
       // Let side effects settle
       await new Promise((r) => setTimeout(r, 400));
+      if (isStale()) return;
 
       // Wait for the final target element
       const finalEl = await waitForElement(step.targetId, TARGET_WAIT_TIMEOUT);
+      if (isStale()) return;
       if (!finalEl) {
         // Error recovery: skip this broken step instead of getting stuck
         console.warn(`[AppTour] Final target "${step.targetId}" not found, skipping step ${stepIndex}`);
@@ -317,10 +332,14 @@ export function TourProvider({ children, steps, onComplete }: TourProviderProps)
       setTargetRect(null);
       setCardPos(null);
       router.push(step.route!);
+      // Wait for navigation to complete before looking for the element
+      await new Promise((r) => setTimeout(r, 300));
+      if (isStale()) return;
     }
 
     // Wait for the target element to appear in the DOM
     const el = await waitForElement(step.targetId, TARGET_WAIT_TIMEOUT);
+    if (isStale()) return;
     setNavigating(false);
 
     if (!el) {
@@ -339,6 +358,7 @@ export function TourProvider({ children, steps, onComplete }: TourProviderProps)
     if (completelyOffScreen) {
       el.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
       await new Promise((r) => setTimeout(r, 200));
+      if (isStale()) return;
     }
 
     // Fire onEnter callback (e.g. switch view mode)
@@ -347,6 +367,7 @@ export function TourProvider({ children, steps, onComplete }: TourProviderProps)
     // Brief settle only when needed (navigation or onEnter side effects)
     if (step.onEnter || needsNavigation) {
       await new Promise((r) => setTimeout(r, 150));
+      if (isStale()) return;
     }
 
     // For large elements that extend beyond viewport, clamp the highlight
@@ -356,20 +377,35 @@ export function TourProvider({ children, steps, onComplete }: TourProviderProps)
     // Merge secondary target (e.g. dropdown opened by onEnter)
     if (step.secondaryTargetId) {
       const secondaryEl = await waitForElement(step.secondaryTargetId, 500);
+      if (isStale()) return;
       if (secondaryEl) {
         finalRect = unionRects(finalRect, secondaryEl.getBoundingClientRect());
       }
     }
 
-    const clampedRect = new DOMRect(
+    let clampedRect = new DOMRect(
       finalRect.x,
       Math.max(finalRect.y, 0),
       finalRect.width,
       Math.min(finalRect.bottom, window.innerHeight) - Math.max(finalRect.y, 0),
     );
+
+    // Cap very tall highlights (e.g. full-page containers) so the spotlight
+    // doesn't cover the entire screen, making the highlight meaningless.
+    const maxH = window.innerHeight * 0.55;
+    if (clampedRect.height > maxH) {
+      const overflow = clampedRect.height - maxH;
+      clampedRect = new DOMRect(
+        clampedRect.x,
+        clampedRect.y + overflow / 2,
+        clampedRect.width,
+        maxH,
+      );
+    }
+
     setTargetRect(clampedRect);
     setCardPos(computeCardPosition(clampedRect, step.position));
-  }, [steps, pathname, router]);
+  }, [steps, router]);
 
   // Activate step whenever currentStep changes
   useEffect(() => {
@@ -478,10 +514,9 @@ export function TourProvider({ children, steps, onComplete }: TourProviderProps)
           className="fixed inset-0 z-[10000] transition-opacity duration-150"
           style={{ opacity: targetRect ? 1 : 0 }}
           onMouseDown={(e) => {
-            // Prevent clicks on the dark overlay from bubbling to document,
-            // which would trigger click-outside handlers on dropdowns/popovers
-            // opened by the tour's click sequence (e.g. the view toggle dropdown).
-            if (e.target === e.currentTarget) e.stopPropagation();
+            // Block all mousedown events from bubbling to the document so
+            // outside-click handlers on dropdowns/popovers don't fire.
+            e.stopPropagation();
           }}
         >
           {/* Overlay + highlight — always visible when target exists (including during click animation) */}

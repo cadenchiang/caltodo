@@ -52,7 +52,7 @@ export default function SidebarNavItem({ label, href, icon: Icon, badge, badgeCo
           ? isMiffy
             ? "bg-[#fce8ef] dark:bg-[rgba(232,114,154,0.12)] text-foreground"
             : "bg-gray-200 dark:bg-zinc-700 text-foreground"
-          : "text-muted-foreground hover:bg-gray-100 dark:hover:bg-zinc-800 hover:text-foreground"
+          : "text-foreground hover:bg-gray-100 dark:hover:bg-zinc-800"
       }`}
     >
       {imageSrc ? (

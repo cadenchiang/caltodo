@@ -430,6 +430,7 @@ export default function TaskList({
   return (
     <div className="flex flex-col">
       <button
+        id="tour-add-task"
         onClick={() => setShowCreateModal(true)}
         className="flex items-center gap-2 mx-2 mb-1 px-3 py-2.5 rounded-xl border border-border text-sm text-muted-foreground hover:text-foreground hover:border-foreground/30 hover:bg-accent transition-colors cursor-pointer"
       >

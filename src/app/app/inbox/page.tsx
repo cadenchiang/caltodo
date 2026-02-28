@@ -8,9 +8,10 @@ import { useTaskContext } from "@/contexts/TaskContext";
 import TaskList from "@/components/tasks/TaskList";
 import TaskBoardView from "@/components/tasks/TaskBoardView";
 import TaskDetailPanel from "@/components/tasks/TaskDetailPanel";
-import TaskPopover from "@/components/tasks/TaskPopover";
+import TaskCreateModal from "@/components/tasks/TaskCreateModal";
+import TaskPreviewPopover from "@/components/tasks/TaskPreviewPopover";
 import PageTransition from "@/components/ui/PageTransition";
-import type { Task, IntegrationCredentials, PendingInvite } from "@/lib/types";
+import type { Task, PendingInvite } from "@/lib/types";
 import { useNotifications } from "@/contexts/NotificationContext";
 import { trackEvent } from "@/lib/analytics";
 
@@ -170,7 +171,8 @@ function saveSelections(courses: SelectedCourse[]): void {
 
 /**
  * Inbox page with split-screen layout: task list on left, detail panel on right.
- * Features: time filter dropdown, sync with class selection modal, auto-sync support.
+ * Mobile uses preview popovers instead of the side panel.
+ * Features: time filter dropdown, list/board view, sync with class selection modal.
  */
 export default function InboxPage() {
   const {
@@ -181,6 +183,9 @@ export default function InboxPage() {
   const searchParams = useSearchParams();
   const { setPendingInviteCount } = useNotifications();
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [listPreviewTask, setListPreviewTask] = useState<Task | null>(null);
+  const [listPreviewRect, setListPreviewRect] = useState<DOMRect | null>(null);
+  const [listModalTask, setListModalTask] = useState<Task | null>(null);
   const [filter, setFilterRaw] = useState<InboxFilter>("all");
   const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
 
@@ -313,11 +318,10 @@ export default function InboxPage() {
     const target = tasks.find((t) => t.id === taskId);
     if (target) {
       if (typeof window !== "undefined" && window.innerWidth < 768) {
-        // On mobile, simulate a centered anchor for the popover
-        const rect = new DOMRect(window.innerWidth / 2, window.innerHeight / 2, 0, 0);
-        setMobilePopoverTaskRaw(target);
-        setMobileAnchorRect(rect);
+        // Mobile: no anchor rect from deep link — open full modal
+        setListModalTask(target);
       } else {
+        // Desktop: show in detail panel
         setSelectedTask(target);
       }
     }
@@ -325,44 +329,23 @@ export default function InboxPage() {
     inboxRouter.replace("/app/inbox", { scroll: false });
   }, [searchParams, tasks, loading, inboxRouter]);
 
-  const [boardPopoverTask, setBoardPopoverTaskRaw] = useState<Task | null>(null);
+  const [boardEditTask, setBoardEditTask] = useState<Task | null>(null);
   const [boardAnchorRect, setBoardAnchorRect] = useState<DOMRect | null>(null);
-  const [mobilePopoverTask, setMobilePopoverTaskRaw] = useState<Task | null>(null);
-  const [mobileAnchorRect, setMobileAnchorRect] = useState<DOMRect | null>(null);
+  const [boardModalTask, setBoardModalTask] = useState<Task | null>(null);
 
-  /** Opens board popover near the clicked task card. */
-  const setBoardPopoverTask = useCallback((task: Task | null, anchorRect?: DOMRect) => {
-    setBoardPopoverTaskRaw(task);
-    if (task && anchorRect) {
-      setBoardAnchorRect(anchorRect);
-    } else {
-      setBoardAnchorRect(null);
-    }
-  }, []);
-
-  /** Opens mobile popover near the tapped task row. */
-  const setMobilePopoverTask = useCallback((task: Task | null, anchorRect?: DOMRect) => {
-    setMobilePopoverTaskRaw(task);
-    if (task && anchorRect) {
-      setMobileAnchorRect(anchorRect);
-    } else {
-      setMobileAnchorRect(null);
-    }
-  }, []);
-
-  // Keep selected task in sync with context after updates
+  // Keep selected task in sync with context after updates (desktop detail panel)
   const currentSelectedTask = selectedTask
     ? tasks.find((t) => t.id === selectedTask.id) ?? null
     : null;
 
-  // Keep board popover task in sync with context after updates
-  const currentBoardPopoverTask = boardPopoverTask
-    ? tasks.find((t) => t.id === boardPopoverTask.id) ?? null
+  // Keep list preview task in sync with context after updates (mobile popover)
+  const currentListPreviewTask = listPreviewTask
+    ? tasks.find((t) => t.id === listPreviewTask.id) ?? null
     : null;
 
-  // Keep mobile popover task in sync with context after updates
-  const currentMobilePopoverTask = mobilePopoverTask
-    ? tasks.find((t) => t.id === mobilePopoverTask.id) ?? null
+  // Keep board edit task in sync with context after updates
+  const currentBoardEditTask = boardEditTask
+    ? tasks.find((t) => t.id === boardEditTask.id) ?? null
     : null;
 
   // Filter tasks by date
@@ -606,7 +589,7 @@ export default function InboxPage() {
                 <div
                   id="tour-filter-dropdown"
                   ref={filterDropdownRef}
-                  className="fixed z-[9999] rounded-xl shadow-2xl border border-border overflow-hidden animate-in min-w-[160px] bg-white dark:bg-[#1a1a1a]"
+                  className="fixed z-[9999] rounded-xl shadow-2xl border border-border overflow-hidden animate-in min-w-[160px] bg-popover"
                   style={{
                     top: filterRef.current.getBoundingClientRect().bottom + 4,
                     left: filterRef.current.getBoundingClientRect().left,
@@ -658,7 +641,7 @@ export default function InboxPage() {
                 {showSortMenu && sortMenuRef.current && createPortal(
                   <div
                     ref={sortMenuDropdownRef}
-                    className="fixed z-[9999] rounded-xl shadow-2xl border border-border overflow-hidden animate-in min-w-[120px] bg-white dark:bg-[#1a1a1a]"
+                    className="fixed z-[9999] rounded-xl shadow-2xl border border-border overflow-hidden animate-in min-w-[120px] bg-popover"
                     style={{
                       top: sortMenuRef.current.getBoundingClientRect().bottom + 4,
                       right: window.innerWidth - sortMenuRef.current.getBoundingClientRect().right,
@@ -715,7 +698,7 @@ export default function InboxPage() {
               {showViewMenu && viewMenuRef.current && createPortal(
                 <div
                   ref={viewMenuDropdownRef}
-                  className="fixed z-[9999] rounded-xl shadow-2xl border border-border overflow-hidden animate-in min-w-[140px] bg-white dark:bg-[#1a1a1a]"
+                  className="fixed z-[9999] rounded-xl shadow-2xl border border-border overflow-hidden animate-in min-w-[140px] bg-popover"
                   style={{
                     top: viewMenuRef.current.getBoundingClientRect().bottom + 4,
                     right: window.innerWidth - viewMenuRef.current.getBoundingClientRect().right,
@@ -773,10 +756,12 @@ export default function InboxPage() {
                   onAdd={addTask}
                   onToggle={toggleComplete}
                   onSelect={(task, anchorRect) => {
-                    // On mobile, open popover instead of side panel
                     if (typeof window !== "undefined" && window.innerWidth < 768 && anchorRect) {
-                      setMobilePopoverTask(task, anchorRect);
+                      // Mobile: show preview popover
+                      setListPreviewTask(task);
+                      setListPreviewRect(anchorRect);
                     } else {
+                      // Desktop: show in detail panel
                       setSelectedTask(task);
                     }
                   }}
@@ -792,11 +777,14 @@ export default function InboxPage() {
                   tasks={filteredTasks}
                   loading={loading}
                   error={error}
-                  selectedTaskId={boardPopoverTask?.id}
+                  selectedTaskId={boardEditTask?.id}
                   groupBy={boardGroupBy}
                   onAdd={addTask}
                   onToggle={toggleComplete}
-                  onSelect={(task, anchorRect) => setBoardPopoverTask(task, anchorRect)}
+                  onSelect={(task, anchorRect) => {
+                    setBoardEditTask(task);
+                    setBoardAnchorRect(anchorRect ?? null);
+                  }}
                   onDelete={deleteTask}
                   onColorChange={async (courseName, color) => {
                     const matching = filteredTasks.filter(
@@ -822,7 +810,7 @@ export default function InboxPage() {
 
         {/* Right: detail panel (40%, list view only, hidden on mobile) */}
         {viewMode === "list" && (
-          <div className="hidden md:flex" style={{ flex: "2 1 0%" }}>
+          <div className="hidden md:flex w-[50%] shrink-0">
             <TaskDetailPanel
               task={currentSelectedTask}
               onClose={() => setSelectedTask(null)}
@@ -833,36 +821,84 @@ export default function InboxPage() {
         )}
       </div>
 
-      {/* Board view: floating task popover instead of split-screen detail panel */}
-      {viewMode === "board" && currentBoardPopoverTask && boardAnchorRect && (
-        <TaskPopover
-          task={currentBoardPopoverTask}
+      {/* Board view: preview popover (first click) */}
+      {viewMode === "board" && currentBoardEditTask && boardAnchorRect && (
+        <TaskPreviewPopover
+          task={currentBoardEditTask}
           anchorRect={boardAnchorRect}
-          onClose={() => { setBoardPopoverTask(null); setBoardAnchorRect(null); }}
+          onClose={() => { setBoardEditTask(null); setBoardAnchorRect(null); }}
+          onEdit={(task) => {
+            setBoardEditTask(null);
+            setBoardAnchorRect(null);
+            setBoardModalTask(task);
+          }}
+          onDelete={async (id) => {
+            await deleteTask(id);
+            setBoardEditTask(null);
+            setBoardAnchorRect(null);
+          }}
+          onToggle={toggleComplete}
+        />
+      )}
+
+      {/* Board view: full edit modal (opened from preview pencil) */}
+      {viewMode === "board" && (
+        <TaskCreateModal
+          open={!!boardModalTask}
+          onClose={() => setBoardModalTask(null)}
+          onAdd={() => {}}
+          editTask={boardModalTask}
           onSave={async (id, updates) => {
             await updateTask(id, updates);
           }}
           onDelete={async (id) => {
             await deleteTask(id);
-            setBoardPopoverTask(null);
-            setBoardAnchorRect(null);
+            setBoardModalTask(null);
+          }}
+          onSaveColorForClass={async (courseName, color) => {
+            const matching = tasks.filter(t => (t.course_name || "General") === courseName);
+            for (const t of matching) await updateTask(t.id, { color });
           }}
         />
       )}
 
-      {/* Mobile list view: floating task popover instead of side panel */}
-      {viewMode === "list" && currentMobilePopoverTask && mobileAnchorRect && (
-        <TaskPopover
-          task={currentMobilePopoverTask}
-          anchorRect={mobileAnchorRect}
-          onClose={() => { setMobilePopoverTask(null); setMobileAnchorRect(null); }}
+      {/* List view: preview popover (mobile only — desktop uses TaskDetailPanel) */}
+      {viewMode === "list" && currentListPreviewTask && listPreviewRect && (
+        <TaskPreviewPopover
+          task={currentListPreviewTask}
+          anchorRect={listPreviewRect}
+          onClose={() => { setListPreviewTask(null); setListPreviewRect(null); }}
+          onEdit={(task) => {
+            setListPreviewTask(null);
+            setListPreviewRect(null);
+            setListModalTask(task);
+          }}
+          onDelete={async (id) => {
+            await deleteTask(id);
+            setListPreviewTask(null);
+            setListPreviewRect(null);
+          }}
+          onToggle={toggleComplete}
+        />
+      )}
+
+      {/* List view: full edit modal (opened from preview pencil or deep link) */}
+      {viewMode === "list" && (
+        <TaskCreateModal
+          open={!!listModalTask}
+          onClose={() => setListModalTask(null)}
+          onAdd={() => {}}
+          editTask={listModalTask}
           onSave={async (id, updates) => {
             await updateTask(id, updates);
           }}
           onDelete={async (id) => {
             await deleteTask(id);
-            setMobilePopoverTask(null);
-            setMobileAnchorRect(null);
+            setListModalTask(null);
+          }}
+          onSaveColorForClass={async (courseName, color) => {
+            const matching = tasks.filter(t => (t.course_name || "General") === courseName);
+            for (const t of matching) await updateTask(t.id, { color });
           }}
         />
       )}

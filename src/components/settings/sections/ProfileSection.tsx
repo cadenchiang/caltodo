@@ -136,19 +136,19 @@ export default function ProfileSection() {
 
   // "People you may know" suggestions — initialise from localStorage for instant render
   // Cache format: { suggestions: SearchUser[], ts: number }
-  const suggestionsCache = (() => {
+  // Computed once via useState initializer to avoid re-reading localStorage on every render.
+  const [suggestionsInit] = useState(() => {
     try {
       const c = localStorage.getItem("caltodo_suggestions_cache");
-      return c ? JSON.parse(c) : null;
+      return c ? JSON.parse(c) as { suggestions: SearchUser[]; ts: number } : null;
     } catch { return null; }
-  })();
+  });
   const [peopleSuggestions, setPeopleSuggestions] = useState<SearchUser[]>(
-    suggestionsCache?.suggestions ?? []
+    suggestionsInit?.suggestions ?? []
   );
-  const [loadingSuggestions, setLoadingSuggestions] = useState(!suggestionsCache);
-  const [suggestionsAnimated, setSuggestionsAnimated] = useState(!!suggestionsCache);
-  // Track whether the cache is fresh enough to skip a refetch (5 min TTL)
-  const suggestionsCacheFresh = suggestionsCache?.ts && Date.now() - suggestionsCache.ts < 5 * 60_000;
+  const [loadingSuggestions, setLoadingSuggestions] = useState(!suggestionsInit);
+  /** Ref tracks current suggestions for stale-closure-safe comparison in fetchSuggestions. */
+  const suggestionsRef = useRef(peopleSuggestions);
 
 
   /**
@@ -306,7 +306,9 @@ export default function ProfileSection() {
 
   useEffect(() => { fetchFriends(); }, [fetchFriends]);
 
-  // Fetch friend suggestions ("People you may know")
+  // Fetch friend suggestions ("People you may know").
+  // Uses suggestionsRef to compare old vs new without stale closure issues.
+  // Swaps data in a single setState — no multi-step animation cascade.
   const fetchSuggestions = useCallback(async () => {
     try {
       const res = await fetch("/api/friends/suggestions");
@@ -314,17 +316,12 @@ export default function ProfileSection() {
         const data = await res.json();
         const suggestions: SearchUser[] = data.suggestions ?? [];
 
-        // Check if suggestions actually changed (by comparing IDs)
-        const oldIds = peopleSuggestions.map((s) => s.id).join(",");
+        const oldIds = suggestionsRef.current.map((s) => s.id).join(",");
         const newIds = suggestions.map((s) => s.id).join(",");
 
         if (oldIds !== newIds) {
-          // Fade out, swap, fade in
-          setSuggestionsAnimated(false);
-          await new Promise((r) => setTimeout(r, 150));
+          suggestionsRef.current = suggestions;
           setPeopleSuggestions(suggestions);
-          // Trigger re-animation after a tick
-          requestAnimationFrame(() => setSuggestionsAnimated(true));
         }
 
         try {
@@ -336,14 +333,13 @@ export default function ProfileSection() {
       }
     } catch { /* non-critical */ }
     finally { setLoadingSuggestions(false); }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Only fetch if cache is stale (>5 min) or empty
+  // Fetch suggestions once on mount if cache is stale (>5 min) or empty.
   useEffect(() => {
-    if (!suggestionsCacheFresh) fetchSuggestions();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fetchSuggestions]);
+    const fresh = suggestionsInit?.ts && Date.now() - suggestionsInit.ts < 5 * 60_000;
+    if (!fresh) fetchSuggestions();
+  }, [fetchSuggestions, suggestionsInit]);
 
   // Search users for friends
   useEffect(() => {
@@ -838,7 +834,7 @@ export default function ProfileSection() {
           </div>
         )}
         {peopleSuggestions.length > 0 && (
-          <div className={`mt-32 transition-opacity duration-200 ${suggestionsAnimated ? "opacity-100" : "opacity-0"}`}>
+          <div className="mt-32">
             <h4 className="flex items-center gap-1.5 text-sm font-semibold text-foreground mb-2">
               <UserPlus size={14} className="text-muted-foreground" />
               People you may know

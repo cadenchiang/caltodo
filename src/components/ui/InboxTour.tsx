@@ -39,7 +39,7 @@ const TOUR_STEPS: TourStep[] = [
     targetId: "tour-add-task",
     title: "Add Tasks",
     icon: <PlusCircle size={ICON_SIZE} />,
-    description: "Type and press Enter. Use the calendar icon for a due date or the dot to categorize.",
+    description: "Click here to create a task. Set a due date, color, and tags in the popup.",
     position: "bottom",
     route: "/app/inbox",
   },
@@ -47,35 +47,17 @@ const TOUR_STEPS: TourStep[] = [
     targetId: "tour-filter",
     title: "Filter",
     icon: <Search size={ICON_SIZE} />,
-    description: "Show all tasks, just today's, or the next 7 days.",
+    description: "Click to show all tasks, just today's, or the next 7 days.",
     position: "bottom",
     route: "/app/inbox",
-    secondaryTargetId: "tour-filter-dropdown",
-    onEnter: () => {
-      // Click the filter button to open the dropdown
-      const btn = document.querySelector("#tour-filter button") as HTMLElement | null;
-      btn?.click();
-    },
-    onExit: () => {
-      // Close the dropdown by dispatching a mousedown outside
-      document.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
-    },
   },
   {
-    targetId: "tour-task-list",
+    targetId: "tour-view-toggle",
     title: "Board View",
     icon: <LayoutGrid size={ICON_SIZE} />,
-    description: "Organize tasks into columns by class — like a Kanban board.",
-    position: "top",
+    description: "Switch between list and board view. Board organizes tasks into columns by class.",
+    position: "bottom",
     route: "/app/inbox",
-    onEnter: () => {
-      document.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
-      setTimeout(() => setTourViewMode("board"), 50);
-    },
-    clickSequence: [
-      { targetId: "tour-view-toggle", action: () => document.getElementById("tour-view-toggle")?.click() },
-      { targetId: "tour-board-option" },
-    ],
   },
   {
     targetId: "tour-calendar-grid",
