@@ -276,7 +276,7 @@ export default function CourseChatPage({ params }: PageProps) {
             <h1 className="text-sm font-semibold text-foreground truncate">
               {displayName}
             </h1>
-            <p className="text-[11px] font-medium h-[16px] text-muted-foreground/40">
+            <p className="text-[11px] font-medium h-[16px] text-muted-foreground/40 dark:text-muted-foreground/70">
               {activeMemberCount > 0 && <span>{activeMemberCount} members · </span>}
               {onlineUsers.length > 0
                 ? <span className="text-green-500">{onlineUsers.length} online</span>

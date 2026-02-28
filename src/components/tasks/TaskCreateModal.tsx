@@ -12,6 +12,7 @@ import { getRepeatLabel } from "@/lib/repeat";
 import { formatTime12h } from "@/lib/task-utils";
 import { useTaskContext } from "@/contexts/TaskContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useToast } from "@/contexts/ToastContext";
 import DatePicker, { TimePicker } from "./DatePicker";
 import RepeatPicker from "./RepeatPicker";
 import CustomRecurrenceModal from "./CustomRecurrenceModal";
@@ -54,6 +55,7 @@ export default function TaskCreateModal({
 }: TaskCreateModalProps) {
   const { availableTags, availableCourses, courseColors } = useTaskContext();
   const { colorTheme } = useTheme();
+  const { showToast } = useToast();
   const isMiffy = colorTheme === "miffy";
   const isEditMode = !!editTask;
 
@@ -224,6 +226,7 @@ export default function TaskCreateModal({
         return;
       }
       onSave(editTask.id, buildUpdates());
+      showToast("Task updated");
     } else {
       onAdd({
         title: trimmed,
@@ -238,6 +241,7 @@ export default function TaskCreateModal({
         repeat_end_date: repeatEndDate,
         repeat_end_count: repeatEndCount,
       });
+      showToast("Task created");
     }
 
     handleClose();
