@@ -274,12 +274,12 @@ export function TourProvider({ children, steps, onComplete }: TourProviderProps)
         setTargetRect(clickRect);
 
         // Let highlight slide into position
-        await new Promise((r) => setTimeout(r, 600));
+        await new Promise((r) => setTimeout(r, 300));
         if (isStale()) return;
 
         // Add pulse class to the click target element
         clickEl.classList.add("tour-click-pulse");
-        await new Promise((r) => setTimeout(r, 500));
+        await new Promise((r) => setTimeout(r, 300));
         clickEl.classList.remove("tour-click-pulse");
         if (isStale()) return;
 
@@ -287,7 +287,7 @@ export function TourProvider({ children, steps, onComplete }: TourProviderProps)
         ct.action?.();
 
         // Pause so user can see what was "clicked"
-        await new Promise((r) => setTimeout(r, 400));
+        await new Promise((r) => setTimeout(r, 200));
         if (isStale()) return;
       }
 
@@ -298,7 +298,7 @@ export function TourProvider({ children, steps, onComplete }: TourProviderProps)
       }
 
       // Let side effects settle
-      await new Promise((r) => setTimeout(r, 400));
+      await new Promise((r) => setTimeout(r, 200));
       if (isStale()) return;
 
       // Wait for the final target element
@@ -392,12 +392,12 @@ export function TourProvider({ children, steps, onComplete }: TourProviderProps)
 
     // Cap very tall highlights (e.g. full-page containers) so the spotlight
     // doesn't cover the entire screen, making the highlight meaningless.
-    const maxH = window.innerHeight * 0.55;
+    // Keep the top position so visible content at the top isn't cut off.
+    const maxH = window.innerHeight * 0.6;
     if (clampedRect.height > maxH) {
-      const overflow = clampedRect.height - maxH;
       clampedRect = new DOMRect(
         clampedRect.x,
-        clampedRect.y + overflow / 2,
+        clampedRect.y,
         clampedRect.width,
         maxH,
       );

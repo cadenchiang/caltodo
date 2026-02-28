@@ -13,7 +13,6 @@ interface CanvasSettingsProps {
   syncing?: boolean;
   lastSyncedAt?: string | null;
   syncedCount?: number;
-  loading?: boolean;
 }
 
 /**
@@ -24,7 +23,7 @@ interface CanvasSettingsProps {
  * @param credentials - Current integration credentials from parent
  * @param onUpdate - Callback with updated credentials after disconnect
  */
-export default function CanvasSettings({ credentials, onUpdate, loading }: CanvasSettingsProps) {
+export default function CanvasSettings({ credentials, onUpdate }: CanvasSettingsProps) {
   const router = useRouter();
   const { showToast } = useToast();
   const { tasks, deleteTasksBySource } = useTaskContext();
@@ -70,11 +69,9 @@ export default function CanvasSettings({ credentials, onUpdate, loading }: Canva
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-foreground">bCourses</p>
-          <p className="text-xs text-muted-foreground truncate">Sync assignments from Canvas LMS</p>
+          <p className="text-xs text-muted-foreground truncate">Canvas for Cal students</p>
         </div>
-        {loading ? (
-          <span className="text-xs text-muted-foreground px-3 py-1 shrink-0">Loading...</span>
-        ) : isConnected ? (
+        {isConnected ? (
           isExpired ? (
             <button
               onClick={() => {

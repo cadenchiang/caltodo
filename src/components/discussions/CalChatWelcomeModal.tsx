@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { MessageCircle } from "lucide-react";
 import { useTour } from "@/components/ui/AppTour";
+import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 
 /** localStorage key to permanently dismiss the CalChat welcome modal. */
 const WELCOME_KEY = "calchat_welcome_accepted";
@@ -50,15 +51,16 @@ function markAccepted(): void {
  */
 export default function CalChatWelcomeModal() {
   const { isActive: isTourActive } = useTour();
+  const { hasCompletedOnboarding } = useOnboardingStatus();
   const [visible, setVisible] = useState(false);
   const [exiting, setExiting] = useState(false);
   const [respectChecked, setRespectChecked] = useState(false);
   const [trackingChecked, setTrackingChecked] = useState(false);
 
   useEffect(() => {
-    if (isTourActive || isAlreadyAccepted()) return;
+    if (isTourActive || !hasCompletedOnboarding || isAlreadyAccepted()) return;
     setVisible(true);
-  }, [isTourActive]);
+  }, [isTourActive, hasCompletedOnboarding]);
 
   /**
    * Accepts the community standards and dismisses the modal.

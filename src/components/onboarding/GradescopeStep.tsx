@@ -50,7 +50,7 @@ interface GradescopeStepProps {
 }
 
 /**
- * Gradescope onboarding step with always-white styling.
+ * Gradescope onboarding step with theme-aware styling.
  * Flow: enter email/password -> verify -> select courses -> save.
  *
  * @param onNext - Async callback to save credentials; returns true on success
@@ -184,7 +184,7 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
           <rect x="7.5" y="4.5" width="2" height="7.5" rx="0.5" fill="white" />
           <rect x="10.5" y="2.5" width="2" height="9.5" rx="0.5" fill="white" />
         </svg>
-        <h2 className="text-lg font-bold text-gray-800 animate-drop-in">Gradescope</h2>
+        <h2 className="text-lg font-bold text-foreground animate-drop-in">Gradescope</h2>
       </div>
 
       {/* Login inputs (no courses loaded yet) */}
@@ -219,8 +219,8 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
                           }}
                           className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-200 ${
                             isActive
-                              ? "bg-teal-50 text-teal-600"
-                              : "text-gray-700 hover:text-gray-900 hover:bg-gray-50"
+                              ? "bg-teal-50 dark:bg-teal-500/10 text-teal-600 dark:text-teal-400"
+                              : "text-foreground hover:text-foreground hover:bg-accent"
                           }`}
                         >
                           <span className="tabular-nums text-xs font-mono opacity-60 shrink-0 w-8 text-right">
@@ -230,7 +230,7 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
                             className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
                               isActive
                                 ? "bg-teal-500 text-white"
-                                : "bg-gray-800 text-white"
+                                : "bg-foreground text-background"
                             }`}
                           >
                             {i + 1}
@@ -256,7 +256,7 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
 
                   {/* Video on the right */}
                   <div className="flex-1 min-w-0">
-                    <div className="rounded-xl overflow-hidden shadow-lg border border-gray-200">
+                    <div className="rounded-xl overflow-hidden shadow-lg border border-border">
                       <video
                         ref={videoRef}
                         src="/gradescope-instructions.mp4"
@@ -276,7 +276,7 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
                     setVideoExpanded(false);
                     videoRef.current?.pause();
                   }}
-                  className="text-sm text-gray-400 hover:text-gray-600 transition-colors mb-4 flex items-center gap-1 mx-auto"
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors mb-4 flex items-center gap-1 mx-auto"
                 >
                   <X size={14} />
                   hide video
@@ -298,10 +298,10 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
                   {GRADESCOPE_CHAPTERS.map((step, i) => (
                     <div key={step.time}>
                       <div className="flex items-center gap-3 px-2 py-2">
-                        <span className="w-7 h-7 rounded-full bg-gray-800 text-white flex items-center justify-center text-xs font-bold shrink-0">
+                        <span className="w-7 h-7 rounded-full bg-foreground text-background flex items-center justify-center text-xs font-bold shrink-0">
                           {i + 1}
                         </span>
-                        <span className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                        <span className="text-sm font-medium text-foreground flex items-center gap-1.5">
                           {i === 0 ? (
                             <>
                               <a
@@ -324,12 +324,12 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
                             step.label
                           )}
                           {i === GRADESCOPE_CHAPTERS.length - 1 && (
-                            <ArrowDown size={14} className="text-gray-400" />
+                            <ArrowDown size={14} className="text-muted-foreground" />
                           )}
                         </span>
                       </div>
                       {i === 0 && showWhy && (
-                        <p className="text-xs text-black ml-12 mb-1 leading-relaxed">
+                        <p className="text-xs text-foreground ml-12 mb-1 leading-relaxed">
                           Your CalNet ID password doesn&apos;t work here — Gradescope needs its own separate password.
                         </p>
                       )}
@@ -350,7 +350,7 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
                       }
                     }, 400);
                   }}
-                  className="w-full flex items-center gap-2.5 px-3.5 py-3 mb-4 rounded-xl text-xs font-medium text-teal-600 bg-teal-50 border border-teal-200 hover:bg-teal-100 active:scale-[0.98] transition-all duration-150"
+                  className="w-full flex items-center gap-2.5 px-3.5 py-3 mb-4 rounded-xl text-xs font-medium text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-500/10 border border-teal-200 dark:border-teal-500/30 hover:bg-teal-100 dark:hover:bg-teal-500/20 active:scale-[0.98] transition-all duration-150"
                 >
                   <Play size={14} />
                   watch how to reset your password
@@ -374,7 +374,7 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
               data-lpignore="true"
               data-1p-ignore
               name="gs-email-nofill"
-              className="w-full px-3 py-2.5 rounded-xl border border-gray-300 bg-white text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-gray-500 transition-colors"
+              className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-foreground/50 transition-colors"
             />
             <div className="relative">
               <input
@@ -387,12 +387,12 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
                 data-lpignore="true"
                 data-1p-ignore
                 name="gs-pass-nofill"
-                className="w-full px-3 py-2.5 pr-10 rounded-xl border border-gray-300 bg-white text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-gray-500 transition-colors"
+                className="w-full px-3 py-2.5 pr-10 rounded-xl border border-border bg-card text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-foreground/50 transition-colors"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-800 transition-colors"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
               >
                 {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
               </button>
@@ -402,14 +402,14 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
           <div className="flex gap-3 animate-drop-in delay-300">
             <button
               onClick={onSkip}
-              className="flex-1 px-4 py-2.5 text-sm text-gray-400 rounded-xl bg-white btn-elevated-secondary"
+              className="flex-1 px-4 py-2.5 text-sm text-muted-foreground rounded-xl bg-card btn-elevated-secondary"
             >
               skip
             </button>
             <button
               onClick={handleVerify}
               disabled={verifying || saving}
-              className="flex-1 px-4 py-2.5 bg-gray-800 text-white rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2 btn-elevated-primary"
+              className="flex-1 px-4 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2 btn-elevated-primary"
             >
               {verifying && <Loader2 size={14} className="animate-spin" />}
               {verifying ? "verifying..." : "connect"}
@@ -423,7 +423,7 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
         <>
           <div className="mb-4">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-sm font-medium text-gray-600">
+              <p className="text-sm font-medium text-muted-foreground">
                 select courses to sync ({selectedIds.size}/{courses.length})
               </p>
               <button
@@ -440,28 +440,28 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
                 {selectedIds.size === courses.length ? "deselect all" : "select all"}
               </button>
             </div>
-            <div className="max-h-80 overflow-auto rounded-xl border border-gray-100">
+            <div className="max-h-80 overflow-auto rounded-xl border border-border">
               {courses.map((course) => (
                 <label
                   key={course.id}
-                  className="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 transition-colors duration-100 cursor-pointer border-b border-gray-100 last:border-0"
+                  className="flex items-center gap-3 px-3 py-2.5 hover:bg-accent transition-colors duration-100 cursor-pointer border-b border-border last:border-0"
                 >
                   <input
                     type="checkbox"
                     checked={selectedIds.has(course.id)}
                     onChange={() => toggleCourse(course.id)}
-                    className="w-4 h-4 rounded accent-gray-800"
+                    className="w-4 h-4 rounded accent-foreground"
                   />
                   <div className="flex-1 min-w-0">
-                    <span className="text-sm text-gray-800 block truncate">{course.name}</span>
+                    <span className="text-sm text-foreground block truncate">{course.name}</span>
                     {course.shortName && (
-                      <span className="text-xs text-gray-400 block truncate">{course.shortName}</span>
+                      <span className="text-xs text-muted-foreground block truncate">{course.shortName}</span>
                     )}
                   </div>
                 </label>
               ))}
               {courses.length === 0 && (
-                <div className="px-3 py-4 text-sm text-gray-400 text-center">
+                <div className="px-3 py-4 text-sm text-muted-foreground text-center">
                   no active courses found.
                 </div>
               )}
@@ -479,14 +479,14 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
                 });
               }}
               disabled={saving}
-              className="flex-1 px-4 py-2.5 text-sm text-gray-400 rounded-xl bg-white btn-elevated-secondary disabled:opacity-50"
+              className="flex-1 px-4 py-2.5 text-sm text-muted-foreground rounded-xl bg-card btn-elevated-secondary disabled:opacity-50"
             >
               skip
             </button>
             <button
               onClick={handleSaveAndNext}
               disabled={saving}
-              className="flex-1 px-4 py-2.5 bg-gray-800 text-white rounded-xl text-sm font-semibold disabled:opacity-50 btn-elevated-primary"
+              className="flex-1 px-4 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-sm font-semibold disabled:opacity-50 btn-elevated-primary"
             >
               {saving ? "saving..." : selectedIds.size > 0 ? "save & next" : "next"}
             </button>

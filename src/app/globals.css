@@ -703,6 +703,17 @@ body {
 .btn-elevated-primary:disabled {
   box-shadow: none !important;
 }
+.dark .btn-elevated-primary {
+  border-color: #fff;
+  box-shadow: none;
+}
+.dark .btn-elevated-primary:hover {
+  background-color: #e5e7eb !important;
+  box-shadow: none !important;
+}
+.dark .btn-elevated-primary:active {
+  box-shadow: inset 0 1px 4px rgba(255, 255, 255, 0.1) !important;
+}
 .btn-elevated-secondary {
   border: 1px solid #e5e7eb;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
@@ -716,6 +727,18 @@ body {
 .btn-elevated-secondary:active {
   box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.08) !important;
   transform: scale(0.98) !important;
+}
+.dark .btn-elevated-secondary {
+  border-color: var(--border);
+  box-shadow: none;
+}
+.dark .btn-elevated-secondary:hover {
+  background-color: var(--accent) !important;
+  color: var(--foreground) !important;
+  box-shadow: none !important;
+}
+.dark .btn-elevated-secondary:active {
+  box-shadow: inset 0 1px 3px rgba(255, 255, 255, 0.05) !important;
 }
 
 /* Fix browser autofill background in both light and dark mode */

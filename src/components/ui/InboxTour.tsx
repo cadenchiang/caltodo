@@ -52,11 +52,11 @@ const TOUR_STEPS: TourStep[] = [
     route: "/app/inbox",
   },
   {
-    targetId: "tour-view-toggle",
+    targetId: "tour-task-list",
     title: "Board View",
     icon: <LayoutGrid size={ICON_SIZE} />,
     description: "Switch between list and board view. Board organizes tasks into columns by class.",
-    position: "bottom",
+    position: "right",
     route: "/app/inbox",
     onEnter: () => setTourViewMode("board"),
     onExit: () => setTourViewMode("list"),

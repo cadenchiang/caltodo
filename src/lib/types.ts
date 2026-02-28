@@ -71,6 +71,7 @@ export interface TaskUpdate {
   tags?: string[];
   snoozed_until?: string | null;
   sort_order?: number | null;
+  course_name?: string | null;
 }
 
 /**
@@ -134,6 +135,8 @@ export interface IntegrationCredentials {
   is_founding_member: boolean;
   pensieve_calendar_url: string | null;
   additional_canvas_accounts: AdditionalCanvasAccount[];
+  /** Whether the user has completed onboarding (has at least one integration configured). */
+  has_completed_onboarding: boolean;
 }
 
 /**

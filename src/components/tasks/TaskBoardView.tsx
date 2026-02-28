@@ -19,8 +19,10 @@ import {
 } from "@dnd-kit/sortable";
 import type { Task, TaskInsert } from "@/lib/types";
 import { TASK_COLORS, getMiffyColor } from "@/lib/constants";
+import { getDueDateInfo } from "@/lib/task-utils";
 import TaskCreateModal from "./TaskCreateModal";
 import SortableColumn from "./SortableColumn";
+import TaskCheckbox from "./shared/TaskCheckbox";
 import { useTheme } from "@/contexts/ThemeContext";
 
 /** localStorage key for column name aliases. */
@@ -236,53 +238,6 @@ function sortByDueDate(tasks: Task[]): Task[] {
     if (!b.due_date) return -1;
     return a.due_date.localeCompare(b.due_date);
   });
-}
-
-/**
- * Formats a 24h time string (HH:MM) to 12h format (e.g. "11:59 PM").
- *
- * @param time24 - Time in HH:MM format
- * @returns Formatted 12h time string
- */
-function formatTime12h(time24: string): string {
-  const [hourStr, minute] = time24.split(":");
-  const hour = parseInt(hourStr, 10);
-  const ampm = hour >= 12 ? "PM" : "AM";
-  const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-  return `${hour12}:${minute} ${ampm}`;
-}
-
-/**
- * Returns a human-readable due date + time label and color class for board cards.
- *
- * @param dueDate - ISO date string (YYYY-MM-DD) or null
- * @param dueTime - 24h time string (HH:MM) or null
- * @returns Object with label and className, or null if no date
- */
-function getDueDateLabel(dueDate: string | null, dueTime: string | null): { dateLabel: string; timeLabel: string | null; className: string } | null {
-  if (!dueDate) return null;
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const due = new Date(dueDate + "T00:00:00");
-  const diffMs = due.getTime() - today.getTime();
-  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
-
-  const timeLabel = dueTime ? formatTime12h(dueTime) : null;
-
-  if (diffDays < 0) {
-    const month = due.toLocaleString("en-US", { month: "short" });
-    return { dateLabel: `${month} ${due.getDate()}`, timeLabel, className: "text-red-400" };
-  }
-  if (diffDays === 0) return { dateLabel: "Today", timeLabel, className: "text-blue-500" };
-  if (diffDays === 1) return { dateLabel: "Tomorrow", timeLabel, className: "text-blue-400" };
-  if (diffDays <= 7) {
-    const month = due.toLocaleString("en-US", { month: "short" });
-    return { dateLabel: `${month} ${due.getDate()}`, timeLabel, className: "text-blue-400" };
-  }
-
-  const month = due.toLocaleString("en-US", { month: "short" });
-  return { dateLabel: `${month} ${due.getDate()}`, timeLabel, className: "text-muted-foreground" };
 }
 
 /**
@@ -924,10 +879,10 @@ function TaskCard({ task, isSelected, onToggle, onSelect, onDelete }: TaskCardPr
   const menuBtnRef = useRef<HTMLButtonElement>(null);
   const menuDropdownRef = useRef<HTMLDivElement>(null);
   const isCompleted = task.is_completed || task.is_submitted;
-  const rawBadge = getDueDateLabel(task.due_date, task.due_time);
+  const rawBadge = getDueDateInfo(task.due_date, task.due_time);
   const dueBadge = isCompleted && rawBadge
     ? { ...rawBadge, className: "text-muted-foreground" }
-    : rawBadge && isMiffyCard && (rawBadge.className === "text-blue-400" || rawBadge.className === "text-blue-500")
+    : rawBadge && isMiffyCard && rawBadge.className === "text-blue-400"
       ? { ...rawBadge, className: "text-[#e8729a] dark:text-[#f4a0bc]" }
       : rawBadge;
 
@@ -961,28 +916,14 @@ function TaskCard({ task, isSelected, onToggle, onSelect, onDelete }: TaskCardPr
       >
         {/* Checkbox + title + three-dot menu */}
         <div className="flex items-start gap-2.5">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggle(task.id);
-            }}
-            className="group/check flex-shrink-0 w-3.5 h-3.5 rounded-[3px] mt-0.5 flex items-center justify-center transition-all"
-            style={{
-              backgroundColor: isCompleted ? `color-mix(in srgb, ${taskColor || "#D1D5DB"} 35%, #9CA3AF)` : "transparent",
-              border: isCompleted ? "none" : `1.5px solid ${taskColor || "#D1D5DB"}`,
-            }}
-            aria-label={isCompleted ? "Mark incomplete" : "Mark complete"}
-          >
-            {isCompleted ? (
-              <svg width="8" height="6" viewBox="0 0 10 8" fill="none">
-                <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            ) : (
-              <svg width="8" height="6" viewBox="0 0 10 8" fill="none" className="opacity-0 group-hover/check:opacity-40 transition-opacity">
-                <path d="M1 4L3.5 6.5L9 1" stroke={taskColor || "#D1D5DB"} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            )}
-          </button>
+          <div className="mt-0.5">
+            <TaskCheckbox
+              color={taskColor}
+              isCompleted={isCompleted}
+              onToggle={() => onToggle(task.id)}
+              size="sm"
+            />
+          </div>
           <span
             className={`text-sm leading-snug flex-1 min-w-0 ${
               isCompleted ? "text-muted-foreground" : "text-foreground"

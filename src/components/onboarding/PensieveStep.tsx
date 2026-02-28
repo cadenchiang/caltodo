@@ -27,7 +27,7 @@ interface PensieveStepProps {
 }
 
 /**
- * Pensieve onboarding step with always-white styling.
+ * Pensieve onboarding step with theme-aware styling.
  * Shows numbered instructions and a URL input.
  * Validates the URL format client-side before saving.
  *
@@ -70,7 +70,7 @@ export default function PensieveStep({ onNext, onSkip, saving, error, setError, 
     <div className="text-center">
       <div className="flex items-center justify-center gap-2 mb-4">
         <img src="/pensieve-logo.png" alt="Pensieve" width={22} height={22} className="shrink-0" />
-        <h2 className="text-lg font-bold text-gray-800 animate-drop-in">Pensieve</h2>
+        <h2 className="text-lg font-bold text-foreground animate-drop-in">Pensieve</h2>
       </div>
 
       {/* Numbered instruction steps */}
@@ -78,23 +78,23 @@ export default function PensieveStep({ onNext, onSkip, saving, error, setError, 
         <div className="flex flex-col gap-1 mb-4 text-left">
           {PENSIEVE_STEPS.map((step, i) => (
             <div key={i} className="flex items-center gap-3 px-2 py-2">
-              <span className="w-7 h-7 rounded-full bg-gray-800 text-white flex items-center justify-center text-xs font-bold shrink-0">
+              <span className="w-7 h-7 rounded-full bg-foreground text-background flex items-center justify-center text-xs font-bold shrink-0">
                 {i + 1}
               </span>
               {step.href ? (
-                <span className="text-sm font-medium text-gray-700">
+                <span className="text-sm font-medium text-foreground">
                   Log into{" "}
                   <a
                     href={step.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-600 hover:text-blue-700 underline"
+                    className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 underline"
                   >
                     Pensieve
                   </a>
                 </span>
               ) : (
-                <span className="text-sm font-medium text-gray-700">{step.text}</span>
+                <span className="text-sm font-medium text-foreground">{step.text}</span>
               )}
             </div>
           ))}
@@ -110,7 +110,7 @@ export default function PensieveStep({ onNext, onSkip, saving, error, setError, 
           placeholder="https://api.pensieve.co/api/calendar/...ics"
           autoComplete="off"
           name="pensieve-url-nofill"
-          className="w-full px-3 py-2.5 rounded-xl border border-gray-300 bg-white text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-gray-500 transition-colors"
+          className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-foreground/50 transition-colors"
         />
       </div>
 
@@ -118,14 +118,14 @@ export default function PensieveStep({ onNext, onSkip, saving, error, setError, 
       <div className="flex gap-3 animate-drop-in delay-300">
         <button
           onClick={onSkip}
-          className="flex-1 px-4 py-2.5 text-sm text-gray-400 rounded-xl bg-white btn-elevated-secondary"
+          className="flex-1 px-4 py-2.5 text-sm text-muted-foreground rounded-xl bg-card btn-elevated-secondary"
         >
           skip
         </button>
         <button
           onClick={handleSaveAndNext}
           disabled={saving}
-          className="flex-1 px-4 py-2.5 bg-gray-800 text-white rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2 btn-elevated-primary"
+          className="flex-1 px-4 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2 btn-elevated-primary"
         >
           {saving && <Loader2 size={14} className="animate-spin" />}
           {saving ? "saving..." : "save & next"}

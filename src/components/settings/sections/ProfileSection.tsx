@@ -307,29 +307,29 @@ export default function ProfileSection() {
   useEffect(() => { fetchFriends(); }, [fetchFriends]);
 
   // Fetch friend suggestions ("People you may know").
-  // Uses suggestionsRef to compare old vs new without stale closure issues.
-  // Swaps data in a single setState — no multi-step animation cascade.
+  // When cache exists, show cached data immediately and only update the cache
+  // in the background — never swap the visible list mid-session.
   const fetchSuggestions = useCallback(async () => {
+    const hadCache = suggestionsRef.current.length > 0;
     try {
       const res = await fetch("/api/friends/suggestions");
       if (res.ok) {
         const data = await res.json();
         const suggestions: SearchUser[] = data.suggestions ?? [];
 
-        const oldIds = suggestionsRef.current.map((s) => s.id).join(",");
-        const newIds = suggestions.map((s) => s.id).join(",");
-
-        if (oldIds !== newIds) {
-          suggestionsRef.current = suggestions;
-          setPeopleSuggestions(suggestions);
-        }
-
+        // Always update the cache for the next page load
         try {
           localStorage.setItem("caltodo_suggestions_cache", JSON.stringify({
             suggestions,
             ts: Date.now(),
           }));
         } catch { /* quota exceeded — ignore */ }
+
+        // Only update the visible list if we had no cached data
+        if (!hadCache) {
+          suggestionsRef.current = suggestions;
+          setPeopleSuggestions(suggestions);
+        }
       }
     } catch { /* non-critical */ }
     finally { setLoadingSuggestions(false); }
@@ -339,6 +339,7 @@ export default function ProfileSection() {
   useEffect(() => {
     const fresh = suggestionsInit?.ts && Date.now() - suggestionsInit.ts < 5 * 60_000;
     if (!fresh) fetchSuggestions();
+    else setLoadingSuggestions(false);
   }, [fetchSuggestions, suggestionsInit]);
 
   // Search users for friends

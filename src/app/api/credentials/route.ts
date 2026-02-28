@@ -65,6 +65,12 @@ export async function GET() {
     canvasTokenExpired = now - createdAt > days120;
   }
 
+  const hasCompletedOnboarding = !!(
+    data?.canvas_token ||
+    data?.gradescope_password_encrypted ||
+    data?.pensieve_calendar_url
+  );
+
   const credentials: IntegrationCredentials = {
     canvas_token: data?.canvas_token ?? null,
     canvas_base_url: data?.canvas_base_url ?? "https://bcourses.berkeley.edu",
@@ -84,6 +90,7 @@ export async function GET() {
     is_founding_member: data?.is_founding_member ?? false,
     pensieve_calendar_url: data?.pensieve_calendar_url ?? null,
     additional_canvas_accounts: data?.additional_canvas_accounts ?? [],
+    has_completed_onboarding: hasCompletedOnboarding,
   };
 
   return NextResponse.json(credentials);
@@ -231,6 +238,12 @@ export async function PUT(request: Request) {
     putCanvasTokenExpired = Date.now() - createdAt > days120;
   }
 
+  const putHasCompletedOnboarding = !!(
+    updated?.canvas_token ||
+    updated?.gradescope_password_encrypted ||
+    updated?.pensieve_calendar_url
+  );
+
   const credentials: IntegrationCredentials = {
     canvas_token: updated?.canvas_token ?? null,
     canvas_base_url: updated?.canvas_base_url ?? "https://bcourses.berkeley.edu",
@@ -250,6 +263,7 @@ export async function PUT(request: Request) {
     is_founding_member: updated?.is_founding_member ?? false,
     pensieve_calendar_url: updated?.pensieve_calendar_url ?? null,
     additional_canvas_accounts: updated?.additional_canvas_accounts ?? [],
+    has_completed_onboarding: putHasCompletedOnboarding,
   };
 
   return NextResponse.json(credentials);

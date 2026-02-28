@@ -20,6 +20,8 @@ interface SidebarNavItemProps {
   imageSrc?: string;
   /** CSS class applied to the image (e.g. for invert in light mode). */
   imageClassName?: string;
+  /** Optional click handler. Parent can call e.preventDefault() to block navigation. */
+  onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void;
 }
 
 /**
@@ -35,8 +37,9 @@ interface SidebarNavItemProps {
  * @param badgeText - Text for a colored badge (e.g. "NEW")
  * @param imageSrc - Optional image path to replace the Lucide icon
  * @param imageClassName - Optional CSS class for the image element
+ * @param onClick - Optional click handler; call e.preventDefault() to block navigation
  */
-export default function SidebarNavItem({ label, href, icon: Icon, badge, badgeCount, badgeText, id, imageSrc, imageClassName }: SidebarNavItemProps) {
+export default function SidebarNavItem({ label, href, icon: Icon, badge, badgeCount, badgeText, id, imageSrc, imageClassName, onClick }: SidebarNavItemProps) {
   const pathname = usePathname();
   const { colorTheme } = useTheme();
   const isMiffy = colorTheme === "miffy";
@@ -47,6 +50,7 @@ export default function SidebarNavItem({ label, href, icon: Icon, badge, badgeCo
       id={id}
       href={href}
       prefetch={true}
+      onClick={onClick}
       className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
         isActive
           ? isMiffy

@@ -76,10 +76,17 @@ export default function ColorWheel({ value, onChange }: ColorWheelProps) {
     onChange(rgbToHex(r, g, b));
   }, [onChange]);
 
-  const commitColor = useCallback(() => {
-    saveRecentColor(value);
-    setRecentColors(loadRecentColors());
-  }, [value]);
+  /** Ref tracks the latest value so the cleanup effect can save it on unmount. */
+  const latestValueRef = useRef(value);
+  useEffect(() => { latestValueRef.current = value; }, [value]);
+
+  /** Save the selected color to recent colors when the wheel closes (unmounts). */
+  useEffect(() => {
+    return () => {
+      saveRecentColor(latestValueRef.current);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Hue ring interaction ──
 
@@ -156,9 +163,8 @@ export default function ColorWheel({ value, onChange }: ColorWheelProps) {
   const handlePointerUp = useCallback(() => {
     if (dragging) {
       setDragging(null);
-      commitColor();
     }
-  }, [dragging, commitColor]);
+  }, [dragging]);
 
   // ── Indicator positions ──
 
@@ -230,7 +236,7 @@ export default function ColorWheel({ value, onChange }: ColorWheelProps) {
       </div>
 
       {/* Color preview + hex input */}
-      <div className="flex items-center gap-2 w-full px-2">
+      <div className="flex items-center gap-2 w-full px-2 overflow-hidden">
         <div
           className="w-8 h-8 rounded-lg border border-border shrink-0 transition-colors"
           style={{ backgroundColor: value }}
@@ -244,22 +250,20 @@ export default function ColorWheel({ value, onChange }: ColorWheelProps) {
             if (!h.startsWith("#")) h = "#" + h;
             if (/^#[0-9a-f]{6}$/i.test(h)) {
               onChange(h);
-              saveRecentColor(h);
-              setRecentColors(loadRecentColors());
             } else {
               setHexInput(value);
             }
           }}
           onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
-          className="flex-1 text-xs font-mono text-foreground bg-transparent border border-border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-ring"
+          className="flex-1 min-w-0 text-xs font-mono text-foreground bg-transparent border border-border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-ring"
           maxLength={7}
         />
       </div>
 
       {/* Recent colors */}
       {recentColors.length > 0 && (
-        <div className="w-full px-2 pt-1 border-t border-border">
-          <p className="text-[10px] text-muted-foreground mb-1.5">Recent</p>
+        <div className="w-full px-2 pt-1 border-t border-gray-200 dark:border-gray-500">
+          <p className="text-[10px] text-muted-foreground dark:text-gray-300 mb-1.5">Recent</p>
           <div className="flex gap-2">
             {recentColors.map((c) => (
               <button

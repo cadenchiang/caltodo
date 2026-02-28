@@ -84,14 +84,15 @@ describe("buildEventPayload", () => {
     expect(buildEventPayload(evening).summary).toBe("Test Task [due @ 11:59 PM]");
   });
 
-  it("should prefix completed tasks with checkmark and set cancelled status", () => {
+  it("should prefix completed tasks with checkmark and strikethrough without cancelled status", () => {
     const task = createMockTask({ is_completed: true });
     const payload = buildEventPayload(task);
 
     // Completed: checkmark + strikethrough via U+0336 combining chars
     expect(payload.summary).toContain("\u2713");
     expect(payload.summary).toContain("\u0336");
-    expect(payload.status).toBe("cancelled");
+    // Should NOT set cancelled status — that causes GCal to hide the event
+    expect(payload.status).toBeUndefined();
   });
 
   it("should include course name in description", () => {

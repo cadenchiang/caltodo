@@ -239,7 +239,7 @@ function formatTime12h(time24: string): string {
  * Builds a Google Calendar event payload from a Task.
  * Always creates an all-day event. If the task has a due_time, it is
  * appended to the title as "[due @ 11:59 PM]".
- * Completed tasks get "cancelled" status and a checkmark prefix.
+ * Completed tasks get a checkmark prefix with strikethrough title.
  *
  * @param task - The task to convert to a GCal event payload
  * @returns GCalEventPayload ready for the Google Calendar API
@@ -274,10 +274,6 @@ export function buildEventPayload(task: Task): GCalEventPayload {
     start: { date: "" },
     end: { date: "" },
   };
-
-  if (isCompleted) {
-    payload.status = "cancelled";
-  }
 
   if (task.due_date) {
     // Use noon local time to avoid DST boundary edge cases where

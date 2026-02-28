@@ -23,12 +23,14 @@ export default function AdvancedSection() {
   const [deletingAccount, setDeletingAccount] = useState(false);
 
   useEffect(() => {
-    router.prefetch("/app/onboarding");
+    router.prefetch("/app/inbox");
   }, [router]);
 
   /**
    * Handles redo setup wizard with double-click confirmation.
-   * First click shows confirmation text, second click navigates.
+   * Clears onboarding/tour/sync dismissal flags so the WelcomeModal
+   * appears again on inbox — recreating the first-login experience.
+   * First click shows confirmation text, second click executes.
    * Resets after 3 seconds if not confirmed.
    */
   function handleRedoSetup() {
@@ -38,7 +40,20 @@ export default function AdvancedSection() {
       return;
     }
     setConfirmRedo(false);
-    router.push("/app/onboarding");
+    try {
+      localStorage.removeItem("caltodo_sync_dismissed");
+      localStorage.removeItem("caltodo_sync_badge_dismissed");
+      localStorage.removeItem("caltodo_tour_completed");
+      localStorage.removeItem("caltodo_tour_pending");
+      localStorage.removeItem("caltodo_welcome_resume_tour");
+      sessionStorage.removeItem("caltodo_onboarding_status");
+    } catch { /* non-critical */ }
+    // Set redo flag so SyncClassesModal shows without overriding onboarding status
+    // (keeps CalChat unlocked and prevents re-triggering announcements)
+    localStorage.setItem("caltodo_redo_active", "true");
+    // Reset the module-level dismissal flag in SyncClassesModal
+    window.dispatchEvent(new CustomEvent("caltodo-redo-setup"));
+    router.push("/app/inbox");
   }
 
   /** Restarts the tour immediately — dispatches event, tour handles navigation. */

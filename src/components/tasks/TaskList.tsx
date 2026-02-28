@@ -128,6 +128,10 @@ interface TaskListProps {
   sortMode?: "date" | "class";
   /** Called after a drag-and-drop reorder with the new ordered list of task IDs. Only active in "date" sortMode. */
   onReorder?: (reorderedIds: string[]) => void;
+  /** Callback to change the color for all tasks in a class. */
+  onColorChange?: (courseName: string, color: string) => void;
+  /** Callback to delete all tasks in a class. */
+  onDeleteClass?: (courseName: string) => void;
   /** Pending task invitations to show in the "Requests" collapsible section. */
   pendingInvites?: PendingInvite[];
   /** Callback when user accepts or declines an invite. */
@@ -214,6 +218,8 @@ export default function TaskList({
   placeholder,
   sortMode = "date",
   onReorder,
+  onColorChange,
+  onDeleteClass,
   pendingInvites = [],
   onRespondInvite,
   onAcceptAllInvites,
@@ -444,6 +450,7 @@ export default function TaskList({
         defaultDate={defaultDate}
       />
 
+      <div id="tour-task-list">
       {/* Requests section (pending invites) — shown above active tasks */}
       {pendingInvites.length > 0 && (
         <div className="mt-1">
@@ -559,6 +566,8 @@ export default function TaskList({
                   onToggle={() => toggleGroup(groupName)}
                   onRename={renameGroup}
                   onResetName={resetGroupName}
+                  onColorChange={onColorChange}
+                  onDeleteClass={onDeleteClass}
                 />
                 {!isCollapsed && (
                   <>
@@ -775,6 +784,7 @@ export default function TaskList({
           )}
         </div>
       )}
+      </div>
     </div>
   );
 }

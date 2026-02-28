@@ -17,8 +17,8 @@ import CalendarHeader, { type CalendarViewMode } from "@/components/calendar/Cal
 import CalendarGrid from "@/components/calendar/CalendarGrid";
 import CalendarWeekView from "@/components/calendar/CalendarWeekView";
 import CalendarDayView from "@/components/calendar/CalendarDayView";
-import TaskPopover from "@/components/tasks/TaskPopover";
 import TaskCreateModal from "@/components/tasks/TaskCreateModal";
+import TaskPreviewPopover from "@/components/tasks/TaskPreviewPopover";
 import PageTransition from "@/components/ui/PageTransition";
 import type { Task, PendingInvite } from "@/lib/types";
 
@@ -32,13 +32,19 @@ const VIEW_MODE_KEY = "cal-view-mode";
 export default function CalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<CalendarViewMode>("month");
-  const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const [editAnchorRect, setEditAnchorRect] = useState<DOMRect | null>(null);
+  const [previewTask, setPreviewTask] = useState<Task | null>(null);
+  const [previewRect, setPreviewRect] = useState<DOMRect | null>(null);
+  const [editModalTask, setEditModalTask] = useState<Task | null>(null);
   const [addingDate, setAddingDate] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
-  const { tasks, loading, error, addTask, updateTask, deleteTask } = useTaskContext();
+  const { tasks, loading, error, addTask, updateTask, deleteTask, toggleComplete } = useTaskContext();
   const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
+
+  /** Derive fresh task data from context so toggles reflect immediately. */
+  const currentPreviewTask = previewTask
+    ? tasks.find((t) => t.id === previewTask.id) ?? null
+    : null;
 
   // Fetch pending invites on mount
   useEffect(() => {
@@ -118,19 +124,28 @@ export default function CalendarPage() {
 
   function handleTaskClick(task: Task, rect: DOMRect) {
     setAddingDate(null);
-    setEditingTask(task);
-    setEditAnchorRect(rect);
+    setPreviewTask(task);
+    setPreviewRect(rect);
   }
 
-  function handleDayClick(date: string, rect: DOMRect) {
-    setEditingTask(null);
-    setEditAnchorRect(null);
+  function handleDayClick(date: string, _rect: DOMRect) {
+    setPreviewTask(null);
+    setPreviewRect(null);
     setAddingDate(date);
   }
 
-  function closeEditPopover() {
-    setEditingTask(null);
-    setEditAnchorRect(null);
+  function closePreview() {
+    setPreviewTask(null);
+    setPreviewRect(null);
+  }
+
+  function handlePreviewEdit(task: Task) {
+    closePreview();
+    setEditModalTask(task);
+  }
+
+  function closeEditModal() {
+    setEditModalTask(null);
   }
 
   function closeAddPopover() {
@@ -208,21 +223,35 @@ export default function CalendarPage() {
           defaultDate={addingDate}
         />
 
-        {/* Floating edit popover */}
-        {editingTask && editAnchorRect && (
-          <TaskPopover
-            task={editingTask}
-            anchorRect={editAnchorRect}
-            onClose={closeEditPopover}
-            onSave={async (id, updates) => {
-              await updateTask(id, updates);
-            }}
+        {/* Task preview popover (first click) */}
+        {currentPreviewTask && previewRect && (
+          <TaskPreviewPopover
+            task={currentPreviewTask}
+            anchorRect={previewRect}
+            onClose={closePreview}
+            onEdit={handlePreviewEdit}
             onDelete={async (id) => {
               await deleteTask(id);
-              closeEditPopover();
+              closePreview();
             }}
+            onToggle={toggleComplete}
           />
         )}
+
+        {/* Task edit modal (opened from preview pencil button) */}
+        <TaskCreateModal
+          open={!!editModalTask}
+          onClose={closeEditModal}
+          onAdd={() => {}}
+          editTask={editModalTask}
+          onSave={async (id, updates) => {
+            await updateTask(id, updates);
+          }}
+          onDelete={async (id) => {
+            await deleteTask(id);
+            closeEditModal();
+          }}
+        />
       </div>
     </PageTransition>
   );

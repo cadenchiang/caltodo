@@ -4,7 +4,8 @@ import { useState, useMemo, useCallback } from "react";
 import { useTaskContext } from "@/contexts/TaskContext";
 import TaskList from "@/components/tasks/TaskList";
 import TaskDetailPanel from "@/components/tasks/TaskDetailPanel";
-import TaskPopover from "@/components/tasks/TaskPopover";
+import TaskCreateModal from "@/components/tasks/TaskCreateModal";
+import TaskPreviewPopover from "@/components/tasks/TaskPreviewPopover";
 import PageTransition from "@/components/ui/PageTransition";
 import type { Task } from "@/lib/types";
 
@@ -17,18 +18,9 @@ export default function TodayPage() {
   const today = new Date().toISOString().split("T")[0];
   const { tasks, loading, error, addTask, toggleComplete, deleteTask, updateTask, reorderTasks } = useTaskContext();
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [mobilePopoverTask, setMobilePopoverTaskRaw] = useState<Task | null>(null);
+  const [mobileEditTask, setMobileEditTask] = useState<Task | null>(null);
   const [mobileAnchorRect, setMobileAnchorRect] = useState<DOMRect | null>(null);
-
-  /** Opens mobile popover near the tapped task row. */
-  const setMobilePopoverTask = useCallback((task: Task | null, anchorRect?: DOMRect) => {
-    setMobilePopoverTaskRaw(task);
-    if (task && anchorRect) {
-      setMobileAnchorRect(anchorRect);
-    } else {
-      setMobileAnchorRect(null);
-    }
-  }, []);
+  const [mobileModalTask, setMobileModalTask] = useState<Task | null>(null);
 
   /**
    * Handles drag-and-drop reorder by mapping new ID order to sort_order values.
@@ -53,8 +45,8 @@ export default function TodayPage() {
     ? tasks.find((t) => t.id === selectedTask.id) ?? null
     : null;
 
-  const currentMobilePopoverTask = mobilePopoverTask
-    ? tasks.find((t) => t.id === mobilePopoverTask.id) ?? null
+  const currentMobileEditTask = mobileEditTask
+    ? tasks.find((t) => t.id === mobileEditTask.id) ?? null
     : null;
 
   return (
@@ -74,7 +66,8 @@ export default function TodayPage() {
               onToggle={toggleComplete}
               onSelect={(task, anchorRect) => {
                 if (typeof window !== "undefined" && window.innerWidth < 768 && anchorRect) {
-                  setMobilePopoverTask(task, anchorRect);
+                  setMobileEditTask(task);
+                  setMobileAnchorRect(anchorRect);
                 } else {
                   setSelectedTask(task);
                 }
@@ -97,22 +90,40 @@ export default function TodayPage() {
         </div>
       </div>
 
-      {/* Mobile: floating task popover instead of side panel */}
-      {currentMobilePopoverTask && mobileAnchorRect && (
-        <TaskPopover
-          task={currentMobilePopoverTask}
+      {/* Mobile: preview popover (first click) */}
+      {currentMobileEditTask && mobileAnchorRect && (
+        <TaskPreviewPopover
+          task={currentMobileEditTask}
           anchorRect={mobileAnchorRect}
-          onClose={() => { setMobilePopoverTask(null); setMobileAnchorRect(null); }}
-          onSave={async (id, updates) => {
-            await updateTask(id, updates);
+          onClose={() => { setMobileEditTask(null); setMobileAnchorRect(null); }}
+          onEdit={(task) => {
+            setMobileEditTask(null);
+            setMobileAnchorRect(null);
+            setMobileModalTask(task);
           }}
           onDelete={async (id) => {
             await deleteTask(id);
-            setMobilePopoverTask(null);
+            setMobileEditTask(null);
             setMobileAnchorRect(null);
           }}
+          onToggle={toggleComplete}
         />
       )}
+
+      {/* Mobile: full edit modal (opened from preview pencil) */}
+      <TaskCreateModal
+        open={!!mobileModalTask}
+        onClose={() => setMobileModalTask(null)}
+        onAdd={() => {}}
+        editTask={mobileModalTask}
+        onSave={async (id, updates) => {
+          await updateTask(id, updates);
+        }}
+        onDelete={async (id) => {
+          await deleteTask(id);
+          setMobileModalTask(null);
+        }}
+      />
     </PageTransition>
   );
 }

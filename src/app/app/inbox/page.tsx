@@ -13,7 +13,11 @@ import TaskPreviewPopover from "@/components/tasks/TaskPreviewPopover";
 import PageTransition from "@/components/ui/PageTransition";
 import type { Task, PendingInvite } from "@/lib/types";
 import { useNotifications } from "@/contexts/NotificationContext";
+import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { trackEvent } from "@/lib/analytics";
+
+/** localStorage key to persist dismissal of the "Sync classes" badge. */
+const SYNC_BADGE_DISMISSED_KEY = "caltodo_sync_badge_dismissed";
 
 type InboxFilter = "all" | "today" | "7days";
 type ViewMode = "list" | "board";
@@ -182,6 +186,8 @@ export default function InboxPage() {
   const inboxRouter = useRouter();
   const searchParams = useSearchParams();
   const { setPendingInviteCount } = useNotifications();
+  const { hasCompletedOnboarding } = useOnboardingStatus();
+  const [syncBadgeDismissed, setSyncBadgeDismissed] = useState(true);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [listPreviewTask, setListPreviewTask] = useState<Task | null>(null);
   const [listPreviewRect, setListPreviewRect] = useState<DOMRect | null>(null);
@@ -225,6 +231,9 @@ export default function InboxPage() {
     const savedGroup = localStorage.getItem("inbox-board-group") as "class" | "date" | null;
     if (savedGroup) setBoardGroupBy(savedGroup);
     hydratedRef.current = true;
+    try {
+      setSyncBadgeDismissed(localStorage.getItem(SYNC_BADGE_DISMISSED_KEY) === "true");
+    } catch { /* ignore */ }
   }, []);
 
   // Fetch pending invites on mount
@@ -567,63 +576,97 @@ export default function InboxPage() {
         {/* Left: task list (60%) */}
         <div className="flex flex-col min-w-0 min-h-0" style={{ flex: "3 1 0%" }}>
           <div className="px-4 pt-4 pb-3 md:px-8 md:pt-8 md:pb-4 flex items-center justify-between animate-stagger stagger-1">
-            {/* Clickable title = filter selector */}
-            <div id="tour-filter" ref={filterRef} className="relative">
-              <button
-                onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-                className="flex items-center gap-2 text-xl font-bold text-foreground hover:opacity-80 transition-opacity"
-              >
-                {(() => {
-                  const current = FILTER_OPTIONS.find((o) => o.key === filter) ?? FILTER_OPTIONS[0];
-                  const Icon = current.icon;
-                  return (
-                    <>
-                      <Icon size={20} className="text-muted-foreground" />
-                      {current.label}
-                    </>
-                  );
-                })()}
-                <ChevronDown size={14} className="text-muted-foreground" />
-              </button>
-              {showFilterDropdown && filterRef.current && createPortal(
-                <div
-                  id="tour-filter-dropdown"
-                  ref={filterDropdownRef}
-                  className="fixed z-[9999] rounded-xl shadow-2xl border border-border overflow-hidden animate-in min-w-[160px] bg-popover"
-                  style={{
-                    top: filterRef.current.getBoundingClientRect().bottom + 4,
-                    left: filterRef.current.getBoundingClientRect().left,
-                  }}
+            {/* Left: title + sync badge grouped together */}
+            <div className="flex items-center gap-2.5 min-w-0">
+              {/* Clickable title = filter selector */}
+              <div id="tour-filter" ref={filterRef} className="relative">
+                <button
+                  onClick={() => setShowFilterDropdown(!showFilterDropdown)}
+                  className="flex items-center gap-2 text-xl font-bold text-foreground hover:opacity-80 transition-opacity"
                 >
-                  {FILTER_OPTIONS.map(({ key, label, icon: Icon }) => {
-                    const isDisabled = viewMode === "board" && boardGroupBy === "date" && key !== "all";
+                  {(() => {
+                    const current = FILTER_OPTIONS.find((o) => o.key === filter) ?? FILTER_OPTIONS[0];
+                    const Icon = current.icon;
                     return (
-                      <button
-                        key={key}
-                        disabled={isDisabled}
-                        onClick={() => {
-                          if (isDisabled) return;
-                          setFilter(key);
-                          setShowFilterDropdown(false);
-                        }}
-                        className={`flex items-center gap-2 w-full text-left px-3 py-2 text-sm transition-colors ${
-                          isDisabled
-                            ? "opacity-40 cursor-not-allowed pointer-events-none"
-                            : filter === key
-                              ? "text-foreground font-medium"
-                              : "text-muted-foreground hover:text-foreground"
-                        }`}
-                        style={{
-                          backgroundColor: !isDisabled && filter === key ? "rgba(255,255,255,0.08)" : "transparent",
-                        }}
-                      >
-                        <Icon size={16} />
-                        {label}
-                      </button>
+                      <>
+                        <Icon size={20} className="text-muted-foreground" />
+                        {current.label}
+                      </>
                     );
-                  })}
-                </div>,
-                document.body
+                  })()}
+                  <ChevronDown size={14} className="text-muted-foreground" />
+                </button>
+                {showFilterDropdown && filterRef.current && createPortal(
+                  <div
+                    id="tour-filter-dropdown"
+                    ref={filterDropdownRef}
+                    className="fixed z-[9999] rounded-xl shadow-2xl border border-border overflow-hidden animate-in min-w-[160px] bg-popover"
+                    style={{
+                      top: filterRef.current.getBoundingClientRect().bottom + 4,
+                      left: filterRef.current.getBoundingClientRect().left,
+                    }}
+                  >
+                    {FILTER_OPTIONS.map(({ key, label, icon: Icon }) => {
+                      const isDisabled = viewMode === "board" && boardGroupBy === "date" && key !== "all";
+                      return (
+                        <button
+                          key={key}
+                          disabled={isDisabled}
+                          onClick={() => {
+                            if (isDisabled) return;
+                            setFilter(key);
+                            setShowFilterDropdown(false);
+                          }}
+                          className={`flex items-center gap-2 w-full text-left px-3 py-2 text-sm transition-colors ${
+                            isDisabled
+                              ? "opacity-40 cursor-not-allowed pointer-events-none"
+                              : filter === key
+                                ? "text-foreground font-medium"
+                                : "text-muted-foreground hover:text-foreground"
+                          }`}
+                          style={{
+                            backgroundColor: !isDisabled && filter === key ? "rgba(255,255,255,0.08)" : "transparent",
+                          }}
+                        >
+                          <Icon size={16} />
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>,
+                  document.body
+                )}
+              </div>
+
+              {/* "Sync Classes" badge for unonboarded users — hidden on mobile */}
+              {!hasCompletedOnboarding && !syncBadgeDismissed && (
+                <div className="relative shrink-0 hidden md:flex items-center group/sync">
+                  <a
+                    href="/app/settings?section=integrations"
+                    title="Connect your class platforms"
+                    className="active:scale-95 transition-all relative"
+                  >
+                    <div className="rounded-full bg-[#007AFF] pl-2.5 pr-3 py-1.5 flex items-center gap-1.5 hover:opacity-80 transition-opacity">
+                      <span className="text-xs font-semibold text-white">Sync Classes</span>
+                    </div>
+                  </a>
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setSyncBadgeDismissed(true);
+                      try { localStorage.setItem(SYNC_BADGE_DISMISSED_KEY, "true"); } catch { /* ignore */ }
+                    }}
+                    className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-gray-200 dark:bg-zinc-700 flex items-center justify-center opacity-0 group-hover/sync:opacity-100 transition-opacity hover:bg-gray-300 dark:hover:bg-zinc-600"
+                    aria-label="Dismiss"
+                    title="Dismiss"
+                  >
+                    <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  </button>
+                </div>
               )}
             </div>
 
@@ -744,7 +787,7 @@ export default function InboxPage() {
             </div>
           </div>
 
-          <div id="tour-task-list" className="flex-1 overflow-auto animate-stagger stagger-2">
+          <div className="flex-1 overflow-auto animate-stagger stagger-2">
             <div key={viewMode} className="animate-view-switch h-full">
               {viewMode === "list" ? (
                 <TaskList
@@ -767,6 +810,22 @@ export default function InboxPage() {
                   }}
                   onDelete={deleteTask}
                   onReorder={sortMode === "date" ? handleReorder : undefined}
+                  onColorChange={async (courseName, color) => {
+                    const matching = sortedTasks.filter(
+                      (t) => (t.course_name || "General") === courseName
+                    );
+                    for (const t of matching) {
+                      await updateTask(t.id, { color });
+                    }
+                  }}
+                  onDeleteClass={async (courseName) => {
+                    const matching = sortedTasks.filter(
+                      (t) => (t.course_name || "General") === courseName
+                    );
+                    for (const t of matching) {
+                      await deleteTask(t.id);
+                    }
+                  }}
                   pendingInvites={pendingInvites}
                   onRespondInvite={handleRespondInvite}
                   onAcceptAllInvites={handleAcceptAllInvites}

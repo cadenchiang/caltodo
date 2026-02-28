@@ -10,7 +10,6 @@ interface AdditionalCanvasCardProps {
   account: AdditionalCanvasAccount;
   credentials: IntegrationCredentials;
   onUpdate: (updated: IntegrationCredentials) => void;
-  loading?: boolean;
 }
 
 /**
@@ -21,9 +20,8 @@ interface AdditionalCanvasCardProps {
  * @param account - The additional Canvas account to display
  * @param credentials - Full credentials object (needed to update the array on disconnect)
  * @param onUpdate - Callback with updated credentials after changes
- * @param loading - Whether credentials are still loading
  */
-export default function AdditionalCanvasCard({ account, credentials, onUpdate, loading }: AdditionalCanvasCardProps) {
+export default function AdditionalCanvasCard({ account, credentials, onUpdate }: AdditionalCanvasCardProps) {
   const { showToast } = useToast();
   const { deleteTasksByExternalIdPrefix } = useTaskContext();
   const [disconnecting, setDisconnecting] = useState(false);
@@ -73,15 +71,13 @@ export default function AdditionalCanvasCard({ account, credentials, onUpdate, l
     <div className="rounded-2xl border border-border bg-card px-4 py-3.5 shadow-sm dark:shadow-none">
       <div className="flex items-center gap-3.5">
         <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
-          <img src="/canvas-logo.png" alt="" className="w-5 h-5 object-contain" />
+          <img src="/canvas-logo.png" alt="" className="w-7 h-7 object-contain" />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-foreground">{account.label}</p>
           <p className="text-xs text-muted-foreground truncate">{account.base_url}</p>
         </div>
-        {loading ? (
-          <span className="text-xs text-muted-foreground px-3 py-1 shrink-0">Loading...</span>
-        ) : isExpired ? (
+        {isExpired ? (
           <button
             onClick={() => handleDisconnect()}
             className="text-xs font-semibold text-amber-600 dark:text-amber-400 px-3 py-1 rounded-lg border border-amber-300 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 hover:bg-amber-100 dark:hover:bg-amber-500/20 transition-colors shrink-0 cursor-pointer"

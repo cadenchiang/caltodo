@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useDiscussionBoards } from "@/hooks/useDiscussionBoards";
+import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
+import CalChatLockedModal from "@/components/ui/CalChatLockedModal";
 
 const MSG_CACHE = "chat_messages_cache_";
 const MEM_CACHE = "chat_members_cache_";
@@ -73,6 +75,8 @@ async function prefetchMembers(courseId: string): Promise<void> {
 export default function DiscussionsPage() {
   const router = useRouter();
   const { boards, loading } = useDiscussionBoards();
+  const { hasCompletedOnboarding, loading: onboardingLoading } = useOnboardingStatus();
+  const [showLocked, setShowLocked] = useState(false);
 
   // Redirect to first board's chat as soon as boards load
   useEffect(() => {
@@ -103,10 +107,21 @@ export default function DiscussionsPage() {
     );
   }, [boards, loading, router]);
 
-  // Show minimal loading state while boards load and redirect happens
+  // Show locked modal after a short delay so user sees loading first
+  useEffect(() => {
+    if (!onboardingLoading && !hasCompletedOnboarding) {
+      const timer = setTimeout(() => setShowLocked(true), 800);
+      return () => clearTimeout(timer);
+    }
+  }, [onboardingLoading, hasCompletedOnboarding]);
+
+  // Show loading spinner as base content; overlay locked modal after delay
   return (
-    <div className="flex items-center justify-center h-full">
-      <div className="w-5 h-5 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
-    </div>
+    <>
+      <div className="flex items-center justify-center h-full">
+        <div className="w-5 h-5 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
+      </div>
+      <CalChatLockedModal open={showLocked} onClose={() => router.push("/app/inbox")} />
+    </>
   );
 }

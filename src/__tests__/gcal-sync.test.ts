@@ -109,7 +109,8 @@ describe("sync: update action", () => {
 
     expect(payload.summary).toContain("\u2713");
     expect(payload.summary).toContain("\u0336");
-    expect(payload.status).toBe("cancelled");
+    // Should NOT set cancelled status — that causes GCal to hide the event
+    expect(payload.status).toBeUndefined();
   });
 });
 

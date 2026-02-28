@@ -2,14 +2,20 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import {
-  Pencil, Trash2, X, Tag, AlignLeft, BookOpen,
-} from "lucide-react";
 import { format } from "date-fns";
 import { getRepeatLabel } from "@/lib/repeat";
 import { getMiffyColor } from "@/lib/constants";
 import { useTheme } from "@/contexts/ThemeContext";
 import type { Task } from "@/lib/types";
+import TaskCheckbox from "./shared/TaskCheckbox";
+import TaskActionBar from "./shared/TaskActionBar";
+import {
+  TaskDateTimeLabel,
+  TaskRepeatLabel,
+  TaskCourseRow,
+  TaskTagsRow,
+  TaskDescriptionRow,
+} from "./shared/TaskDetailRows";
 
 /** Width of the popover in pixels. */
 const POPOVER_WIDTH = 448;
@@ -17,8 +23,6 @@ const POPOVER_WIDTH = 448;
 const POPOVER_MAX_HEIGHT = 520;
 /** Gap between anchor and popover edge. */
 const GAP = 12;
-/** Consistent icon size for all detail rows. */
-const ICON_SIZE = 20;
 
 interface TaskPreviewPopoverProps {
   /** The task to display in the preview. */
@@ -159,109 +163,44 @@ export default function TaskPreviewPopover({
       }}
     >
       {/* Header action buttons */}
-      <div className="flex items-center justify-end gap-1 px-5 pt-4 pb-2">
-        <button
-          onClick={() => onEdit(task)}
-          className="p-2 rounded-lg text-secondary-foreground hover:text-foreground hover:bg-accent transition-colors"
-          aria-label="Edit task"
-          title="Edit"
-        >
-          <Pencil size={18} />
-        </button>
-        <button
-          onClick={() => onDelete(task.id)}
-          className="p-2 rounded-lg text-secondary-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors"
-          aria-label="Delete task"
-          title="Delete"
-        >
-          <Trash2 size={18} />
-        </button>
-        <button
-          onClick={onClose}
-          className="p-2 rounded-lg text-secondary-foreground hover:text-foreground hover:bg-accent transition-colors"
-          aria-label="Close preview"
-          title="Close"
-        >
-          <X size={18} />
-        </button>
-      </div>
+      <TaskActionBar
+        onEdit={() => onEdit(task)}
+        onDelete={() => onDelete(task.id)}
+        onClose={onClose}
+      />
 
       {/* Body */}
       <div className="px-6 pb-6">
         {/* Title row: clickable checkbox square + title */}
         <div className="flex items-start gap-4">
-          <button
-            onClick={() => onToggle(task.id)}
-            className="w-5 h-5 rounded-[4px] shrink-0 mt-1 flex items-center justify-center transition-all cursor-pointer"
-            style={{
-              backgroundColor: task.is_completed ? dotColor : "transparent",
-              border: task.is_completed ? "none" : `2px solid ${dotColor}`,
-            }}
-            aria-label={task.is_completed ? "Mark incomplete" : "Mark complete"}
-          >
-            {task.is_completed && (
-              <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
-                <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            )}
-          </button>
+          <TaskCheckbox
+            color={dotColor}
+            isCompleted={task.is_completed}
+            onToggle={() => onToggle(task.id)}
+            size="lg"
+          />
           <span className="text-xl font-semibold text-foreground leading-snug break-words min-w-0">
             {task.title}
           </span>
         </div>
 
         {/* Date + Time under title */}
-        {(dateLabel || timeLabel) && (
-          <div className="pl-9 text-sm text-secondary-foreground mt-1">
-            {[dateLabel, timeLabel].filter(Boolean).join(" \u00B7 ")}
-          </div>
-        )}
+        <TaskDateTimeLabel dateLabel={dateLabel} timeLabel={timeLabel} />
 
         {/* Repeat label under date */}
-        {repeatLabel && (
-          <div className="pl-9 text-sm text-secondary-foreground mt-0.5">
-            {repeatLabel}
-          </div>
-        )}
+        <TaskRepeatLabel repeatLabel={repeatLabel} />
 
         {/* Divider */}
         <div className="border-t border-border my-5" />
 
+        {/* Course name row */}
+        <TaskCourseRow courseName={task.course_name} />
+
         {/* Tags row */}
-        {task.tags && task.tags.length > 0 && (
-          <div className="flex items-start gap-4 py-3">
-            <Tag size={ICON_SIZE} className="shrink-0 mt-0.5 text-secondary-foreground" />
-            <div className="flex flex-wrap gap-1.5 min-w-0">
-              {task.tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="px-2.5 py-0.5 text-xs rounded-full bg-accent text-foreground max-w-[200px] truncate"
-                >
-                  {tag}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
+        <TaskTagsRow tags={task.tags ?? []} />
 
         {/* Description row */}
-        {task.description && (
-          <div className="flex items-start gap-4 py-3">
-            <AlignLeft size={ICON_SIZE} className="shrink-0 mt-0.5 text-secondary-foreground" />
-            <p className="text-sm text-foreground line-clamp-3 break-words min-w-0">
-              {task.description}
-            </p>
-          </div>
-        )}
-
-        {/* Course name row */}
-        {task.course_name && (
-          <div className="flex items-center gap-4 py-3 min-w-0">
-            <BookOpen size={ICON_SIZE} className="shrink-0 text-secondary-foreground" />
-            <span className="text-sm text-foreground truncate">{task.course_name}</span>
-          </div>
-        )}
-
+        <TaskDescriptionRow description={task.description} lineClamp={3} />
       </div>
     </div>,
     document.body,

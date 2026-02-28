@@ -50,7 +50,7 @@ export default function CalendarDayCell({
   const [hovered, setHovered] = useState(false);
   const isCurrentMonth = isSameMonth(day, currentMonth);
   const isToday = isSameDay(day, new Date());
-  const isPast = isCurrentMonth && isBefore(day, startOfDay(new Date())) && !isToday;
+  const isPast = isBefore(day, startOfDay(new Date())) && !isToday;
   const dateStr = format(day, "yyyy-MM-dd");
 
   useEffect(() => {
@@ -72,10 +72,10 @@ export default function CalendarDayCell({
   return (
     <div
       className={`p-0.5 md:p-1.5 ${isLastCol ? "" : "border-r"} border-b border-gray-300 dark:border-gray-600 transition-colors relative ${
-        !isCurrentMonth
-          ? "bg-muted/40"
-          : isPast
-            ? "bg-gray-100 dark:bg-gray-900/60"
+        isPast
+          ? "bg-gray-100 dark:bg-gray-900/60"
+          : !isCurrentMonth
+            ? "bg-muted/40"
             : isSelected && isMobile
               ? "bg-muted/60"
               : "bg-card"

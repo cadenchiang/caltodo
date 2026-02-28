@@ -5,10 +5,8 @@ import Link from "next/link";
 import { Inbox, CalendarDays, Settings, Sun, CalendarRange, MessageSquare } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useCalChatUnread } from "@/hooks/useCalChatUnread";
-
-/** localStorage keys for GCal status. */
-const GCAL_CACHE_KEY = "gcal_status";
-const GCAL_BANNER_DISMISSED_KEY = "gcal_banner_dismissed";
+import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
+import CalChatLockedModal from "@/components/ui/CalChatLockedModal";
 
 /**
  * Fixed bottom tab bar for mobile navigation (visible below md breakpoint).
@@ -18,9 +16,10 @@ const GCAL_BANNER_DISMISSED_KEY = "gcal_banner_dismissed";
  */
 export default function MobileTabBar() {
   const pathname = usePathname();
-  const [showCalBadge, setShowCalBadge] = useState(false);
   const [inboxFilter, setInboxFilter] = useState<string>("all");
   const calChatUnreadCount = useCalChatUnread();
+  const { hasCompletedOnboarding } = useOnboardingStatus();
+  const [showLockedModal, setShowLockedModal] = useState(false);
 
   // Hydrate inbox filter from localStorage after mount to avoid SSR mismatch
   useEffect(() => {
@@ -38,53 +37,6 @@ export default function MobileTabBar() {
     window.addEventListener("inbox-filter-change", handleFilterChange);
     return () =>
       window.removeEventListener("inbox-filter-change", handleFilterChange);
-  }, []);
-
-  // Check if GCal is connected — show badge on Calendar tab if not
-  useEffect(() => {
-    try {
-      if (localStorage.getItem(GCAL_BANNER_DISMISSED_KEY) === "true") return;
-      const cached = localStorage.getItem(GCAL_CACHE_KEY);
-      if (cached && JSON.parse(cached).connected === true) return;
-    } catch {
-      /* ignore */
-    }
-
-    fetch("/api/credentials")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (!data) return;
-        const isConnected = !!data.google_calendar_id;
-        setShowCalBadge(!isConnected);
-        // Write cache so other components stay in sync
-        try {
-          localStorage.setItem(GCAL_CACHE_KEY, JSON.stringify({
-            connected: isConnected,
-            calendarId: data.google_calendar_id ?? null,
-            email: data.google_email ?? null,
-            photoUrl: data.google_photo_url ?? null,
-          }));
-        } catch { /* ignore */ }
-      })
-      .catch(() => {});
-  }, []);
-
-  // Listen for gcal_status or banner dismissal changes from other components
-  useEffect(() => {
-    function handleStorage(e: StorageEvent) {
-      if (e.key === GCAL_BANNER_DISMISSED_KEY && e.newValue === "true") {
-        setShowCalBadge(false);
-      }
-      if (e.key === GCAL_CACHE_KEY && e.newValue) {
-        try {
-          if (JSON.parse(e.newValue).connected === true) {
-            setShowCalBadge(false);
-          }
-        } catch { /* ignore */ }
-      }
-    }
-    window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
   }, []);
 
   // Hide navigation during onboarding, settings, and inside a specific chat
@@ -134,7 +86,7 @@ export default function MobileTabBar() {
       label: "Calendar",
       href: "/app/calendar",
       icon: CalendarDays,
-      badge: showCalBadge,
+      badge: false,
     },
     {
       label: "CalChat",
@@ -152,6 +104,7 @@ export default function MobileTabBar() {
   ];
 
   return (
+    <>
     <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden glass-strong border-t border-border shadow-[0_-1px_3px_rgba(0,0,0,0.08)] dark:shadow-black/30">
       <div
         className="flex items-center justify-around"
@@ -160,10 +113,12 @@ export default function MobileTabBar() {
         {tabs.map((tab) => {
           const isActive = pathname.startsWith(tab.href);
           const Icon = tab.icon;
+          const isChat = tab.href === "/app/discussions";
           return (
             <Link
               key={tab.href}
               href={tab.href}
+              onClick={isChat && !hasCompletedOnboarding ? (e) => { e.preventDefault(); setShowLockedModal(true); } : undefined}
               className={`flex flex-col items-center justify-center min-h-[44px] min-w-[44px] flex-1 py-2 transition-colors relative ${
                 isActive
                   ? "text-blue-500"
@@ -189,5 +144,7 @@ export default function MobileTabBar() {
         })}
       </div>
     </nav>
+    <CalChatLockedModal open={showLockedModal} onClose={() => setShowLockedModal(false)} />
+    </>
   );
 }

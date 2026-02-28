@@ -10,11 +10,9 @@ import SidebarNavItem from "./SidebarNavItem";
 import ProfilePopup from "./ProfilePopup";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useCalChatUnread } from "@/hooks/useCalChatUnread";
+import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { useNotifications } from "@/contexts/NotificationContext";
-
-/** localStorage keys for GCal status. */
-const GCAL_CACHE_KEY = "gcal_status";
-const GCAL_BANNER_DISMISSED_KEY = "gcal_banner_dismissed";
+import CalChatLockedModal from "@/components/ui/CalChatLockedModal";
 
 /** Filter configuration mapping for dynamic sidebar label. */
 const FILTER_CONFIG: Record<string, { label: string; icon: typeof Inbox }> = {
@@ -70,8 +68,9 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
     window.addEventListener("profile-updated", handleProfileUpdate);
     return () => window.removeEventListener("profile-updated", handleProfileUpdate);
   }, []);
-  const [showCalBadge, setShowCalBadge] = useState(false);
   const hasCalChatUnread = useCalChatUnread();
+  const { hasCompletedOnboarding } = useOnboardingStatus();
+  const [showLockedModal, setShowLockedModal] = useState(false);
   const { pendingInviteCount } = useNotifications();
 
   // Track whether user has clicked CalChat to dismiss "NEW" badge
@@ -111,63 +110,6 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
     }
     window.addEventListener("inbox-filter-change", handleFilterChange);
     return () => window.removeEventListener("inbox-filter-change", handleFilterChange);
-  }, []);
-
-  // Check if GCal is connected — show badge on Calendar nav if not
-  useEffect(() => {
-    try {
-      if (localStorage.getItem(GCAL_BANNER_DISMISSED_KEY) === "true") return;
-      const cached = localStorage.getItem(GCAL_CACHE_KEY);
-      if (cached && JSON.parse(cached).connected === true) return;
-    } catch { /* ignore */ }
-
-    fetch("/api/credentials")
-      .then((res) => res.ok ? res.json() : null)
-      .then((data) => {
-        if (!data) return;
-        const isConnected = !!data.google_calendar_id;
-        setShowCalBadge(!isConnected);
-        // Write cache so other components stay in sync
-        try {
-          localStorage.setItem(GCAL_CACHE_KEY, JSON.stringify({
-            connected: isConnected,
-            calendarId: data.google_calendar_id ?? null,
-            email: data.google_email ?? null,
-            photoUrl: data.google_photo_url ?? null,
-          }));
-        } catch { /* ignore */ }
-      })
-      .catch(() => {});
-  }, []);
-
-  // Listen for gcal_status or banner dismissal changes from other tabs (StorageEvent)
-  useEffect(() => {
-    function handleStorage(e: StorageEvent) {
-      if (e.key === GCAL_BANNER_DISMISSED_KEY && e.newValue === "true") {
-        setShowCalBadge(false);
-      }
-      if (e.key === GCAL_CACHE_KEY && e.newValue) {
-        try {
-          if (JSON.parse(e.newValue).connected === true) {
-            setShowCalBadge(false);
-          }
-        } catch { /* ignore */ }
-      }
-    }
-    window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
-  }, []);
-
-  // Listen for same-tab GCal status changes (StorageEvent only fires in other tabs)
-  useEffect(() => {
-    function handleGcalChange(e: Event) {
-      const detail = (e as CustomEvent).detail;
-      if (detail?.connected) {
-        setShowCalBadge(false);
-      }
-    }
-    window.addEventListener("gcal-status-change", handleGcalChange);
-    return () => window.removeEventListener("gcal-status-change", handleGcalChange);
   }, []);
 
   // Hide navigation during onboarding to prevent users from navigating away
@@ -260,6 +202,7 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
                   id={`tour-nav-${item.label.toLowerCase()}`}
                   imageSrc={undefined}
                   imageClassName={undefined}
+                  onClick={isChat && !hasCompletedOnboarding ? (e) => { e.preventDefault(); setShowLockedModal(true); } : undefined}
                 />
               );
             })}
@@ -280,6 +223,7 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
         )}
         <ProfilePopup avatarUrl={localAvatarUrl} fullName={localFullName} email={email} />
       </div>
+      <CalChatLockedModal open={showLockedModal} onClose={() => setShowLockedModal(false)} />
     </aside>
   );
 }

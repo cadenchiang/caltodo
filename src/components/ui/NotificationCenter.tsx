@@ -132,14 +132,23 @@ export default function NotificationCenter() {
   const [isVisible, setIsVisible] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const newSectionRef = useRef<HTMLDivElement>(null);
+  const newThisSessionRef = useRef<Set<string>>(new Set());
 
   const hideOnChat = pathname.startsWith("/app/discussions");
 
   /**
    * Opens the notification panel with entry animation.
-   * Auto-marks all notifications as read on open.
+   * Snapshots unread IDs as "new this session", then marks all as read.
    */
   const openPanel = useCallback(() => {
+    // Snapshot which notifications are currently unread → "new this session"
+    const unreadIds = new Set(
+      notifications.filter((n) => !n.read).map((n) => n.id),
+    );
+    newThisSessionRef.current = unreadIds;
+
     setIsVisible(true);
     requestAnimationFrame(() => {
       requestAnimationFrame(() => setIsOpen(true));
@@ -148,7 +157,7 @@ export default function NotificationCenter() {
     if (unreadCount > 0) {
       markAllAsRead();
     }
-  }, [unreadCount, markAllAsRead]);
+  }, [unreadCount, markAllAsRead, notifications]);
 
   /**
    * Closes the notification panel with exit animation.
@@ -212,6 +221,24 @@ export default function NotificationCenter() {
     return () => document.removeEventListener("keydown", handleEscape);
   }, [isVisible, closePanel]);
 
+  // Auto-scroll past "Earlier" section so only new notifications are visible
+  useEffect(() => {
+    if (!isOpen) return;
+    requestAnimationFrame(() => {
+      if (newSectionRef.current) {
+        newSectionRef.current.scrollIntoView({ block: "start" });
+      }
+    });
+  }, [isOpen]);
+
+  // Split notifications into earlier (already read) and new (unread this session)
+  const earlierNotifications = notifications.filter(
+    (n) => !newThisSessionRef.current.has(n.id),
+  );
+  const newNotifications = notifications.filter((n) =>
+    newThisSessionRef.current.has(n.id),
+  );
+
   // Hide during onboarding or CalChat
   if (pathname?.startsWith("/app/onboarding") || hideOnChat) return null;
 
@@ -267,21 +294,64 @@ export default function NotificationCenter() {
             )}
           </div>
 
-          {/* Notification list */}
-          <div className="flex-1 overflow-y-auto">
+          {/* Notification list with scroll-to-reveal */}
+          <div ref={listRef} className="flex-1 overflow-y-auto">
             {notifications.length === 0 ? (
               <EmptyState message="No notifications yet" />
             ) : (
-              <div className="divide-y divide-border">
-                {notifications.map((n, i) => (
-                  <NotificationRow
-                    key={n.id}
-                    notification={n}
-                    index={i}
-                    onRead={markAsRead}
-                    onNavigate={handleNavigate}
-                  />
-                ))}
+              <div>
+                {/* Earlier (already-read) notifications — dimmed, hidden by scroll */}
+                {earlierNotifications.length > 0 && (
+                  <div className="opacity-60">
+                    <div className="divide-y divide-border">
+                      {earlierNotifications.map((n, i) => (
+                        <NotificationRow
+                          key={n.id}
+                          notification={n}
+                          index={i}
+                          onRead={markAsRead}
+                          onNavigate={handleNavigate}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Divider / scroll target between earlier and new */}
+                <div ref={newSectionRef}>
+                  {earlierNotifications.length > 0 && (
+                    <div className="flex items-center gap-2 px-4 py-2 border-y border-border bg-muted/30">
+                      <span className="text-[11px] text-muted-foreground/70">
+                        ↑ {earlierNotifications.length} earlier
+                      </span>
+                    </div>
+                  )}
+
+                  {/* New notifications — full opacity */}
+                  {newNotifications.length > 0 ? (
+                    <div className="divide-y divide-border">
+                      {newNotifications.map((n, i) => (
+                        <NotificationRow
+                          key={n.id}
+                          notification={n}
+                          index={i}
+                          onRead={markAsRead}
+                          onNavigate={handleNavigate}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
+                      <Bell size={24} className="mb-2 opacity-30" />
+                      <p className="text-sm">No new notifications</p>
+                      {earlierNotifications.length > 0 && (
+                        <p className="text-xs text-muted-foreground/60 mt-1">
+                          Scroll up for earlier
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>

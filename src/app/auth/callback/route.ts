@@ -38,11 +38,14 @@ export async function GET(request: NextRequest) {
           .eq("user_id", user.id)
           .single();
 
-        if (creds) {
-          redirectTo.pathname = "/app/inbox";
-        } else {
-          redirectTo.pathname = "/app/onboarding";
+        if (!creds) {
+          // New user — create bare credentials row and add welcome flag
+          await supabase
+            .from("integration_credentials")
+            .upsert({ user_id: user.id }, { onConflict: "user_id" });
+          redirectTo.searchParams.set("welcome", "1");
         }
+        redirectTo.pathname = "/app/inbox";
       } else {
         redirectTo.pathname = "/app/inbox";
       }

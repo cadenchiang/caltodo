@@ -271,7 +271,7 @@ export default function ChatSidebar({
     }
   }, [boards]);
 
-  // Sort boards: system first → pinned → rest (stable order within groups)
+  // Sort boards: system first → pinned → unread → rest (stable order within groups)
   const sortedBoards = useMemo(() => {
     return [...boards].sort((a, b) => {
       const aSystem = a.course.source === "system" ? 0 : 1;
@@ -279,9 +279,13 @@ export default function ChatSidebar({
       if (aSystem !== bSystem) return aSystem - bSystem;
       const aPinned = pinnedIds.has(a.course.id) ? 0 : 1;
       const bPinned = pinnedIds.has(b.course.id) ? 0 : 1;
-      return aPinned - bPinned;
+      if (aPinned !== bPinned) return aPinned - bPinned;
+      const aUnread = isUnread(a) ? 0 : 1;
+      const bUnread = isUnread(b) ? 0 : 1;
+      return aUnread - bUnread;
     });
-  }, [boards, pinnedIds]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [boards, pinnedIds, readUpdateTick]);
 
   /**
    * Handles the leave group confirmation. Calls the API, then navigates

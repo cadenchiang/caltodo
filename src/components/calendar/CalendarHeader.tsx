@@ -5,12 +5,16 @@ import { createPortal } from "react-dom";
 import { format } from "date-fns";
 import { ChevronLeft, ChevronRight, Unlink, XCircle, Check } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
+import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 
 /** localStorage key matching GoogleCalendarSettings cache. */
 const GCAL_CACHE_KEY = "gcal_status";
 
 /** localStorage key to persist dismissal of the GCal notification badge. */
 const GCAL_BADGE_DISMISSED_KEY = "gcal_badge_dismissed";
+
+/** localStorage key to persist dismissal of the "Sync classes" badge. */
+const SYNC_BADGE_DISMISSED_KEY = "caltodo_sync_badge_dismissed";
 
 export type CalendarViewMode = "month" | "week" | "day";
 
@@ -60,6 +64,8 @@ export default function CalendarHeader({
   onToday,
 }: CalendarHeaderProps) {
   const { showToast } = useToast();
+  const { hasCompletedOnboarding } = useOnboardingStatus();
+  const [syncBadgeDismissed, setSyncBadgeDismissed] = useState(true);
   const [gcalConnected, setGcalConnected] = useState<boolean | null>(null);
   const [gcalEmail, setGcalEmail] = useState<string | null>(null);
   const [gcalPhotoUrl, setGcalPhotoUrl] = useState<string | null>(null);
@@ -74,6 +80,7 @@ export default function CalendarHeader({
   useEffect(() => {
     try {
       setBadgeDismissed(localStorage.getItem(GCAL_BADGE_DISMISSED_KEY) === "true");
+      setSyncBadgeDismissed(localStorage.getItem(SYNC_BADGE_DISMISSED_KEY) === "true");
     } catch { /* ignore */ }
   }, []);
 
@@ -179,6 +186,37 @@ export default function CalendarHeader({
           <ChevronRight size={18} />
         </button>
         <h1 className="text-base md:text-xl font-bold text-foreground truncate ml-0.5 md:ml-1">{title}</h1>
+
+        {/* "Sync classes" badge for unonboarded users — hidden on mobile */}
+        {!hasCompletedOnboarding && !syncBadgeDismissed && (
+          <div className="relative shrink-0 hidden md:flex items-center group/sync ml-2">
+            <a
+              href="/app/settings?section=integrations"
+              title="Connect your class platforms"
+              className="active:scale-95 transition-all relative"
+            >
+              <div className="rounded-full bg-[#007AFF] pl-2.5 pr-3 py-1.5 flex items-center gap-1.5 hover:opacity-80 transition-opacity">
+                <span className="text-xs font-semibold text-white">Sync Classes</span>
+              </div>
+            </a>
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setSyncBadgeDismissed(true);
+                try { localStorage.setItem(SYNC_BADGE_DISMISSED_KEY, "true"); } catch { /* ignore */ }
+              }}
+              className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-gray-200 dark:bg-zinc-700 flex items-center justify-center opacity-0 group-hover/sync:opacity-100 transition-opacity hover:bg-gray-300 dark:hover:bg-zinc-600"
+              aria-label="Dismiss"
+              title="Dismiss"
+            >
+              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+        )}
 
         {/* GCal synced tag — hidden on mobile to save space */}
         {gcalConnected && (

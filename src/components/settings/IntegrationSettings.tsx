@@ -4,6 +4,7 @@ import { createContext, useContext, useState, useEffect, useCallback } from "rea
 import type { IntegrationCredentials } from "@/lib/types";
 import { useTaskContext } from "@/contexts/TaskContext";
 import CanvasSettings from "./CanvasSettings";
+import CanvasGenericCard from "./CanvasGenericCard";
 import GradescopeSettings from "./GradescopeSettings";
 import PensieveSettings from "./PensieveSettings";
 import AdditionalCanvasCard from "./AdditionalCanvasCard";
@@ -58,6 +59,7 @@ const EMPTY_CREDENTIALS: IntegrationCredentials = {
   is_founding_member: false,
   pensieve_calendar_url: null,
   additional_canvas_accounts: [],
+  has_completed_onboarding: false,
 };
 
 /** Shared context so IntegrationSettings and IntegrationClasses use the same credentials state. */
@@ -87,11 +89,10 @@ export function useCredentials() {
  * @param children - Child components that consume credentials context
  */
 export function IntegrationProvider({ children }: { children: React.ReactNode }) {
-  const cached = getCachedCredentials();
-  const [credentials, setCredentials] = useState<IntegrationCredentials>(
-    () => cached ?? EMPTY_CREDENTIALS
-  );
-  const [loading, setLoading] = useState(!cached);
+  // Always start with EMPTY_CREDENTIALS to avoid hydration mismatch
+  // (localStorage is unavailable during SSR). Cache is restored in useEffect.
+  const [credentials, setCredentials] = useState<IntegrationCredentials>(EMPTY_CREDENTIALS);
+  const [loading, setLoading] = useState(true);
 
   const fetchCredentials = useCallback(async () => {
     try {
@@ -109,6 +110,13 @@ export function IntegrationProvider({ children }: { children: React.ReactNode })
   }, []);
 
   useEffect(() => {
+    // Hydrate from localStorage cache first for instant render
+    const cached = getCachedCredentials();
+    if (cached) {
+      setCredentials(cached);
+      setLoading(false);
+    }
+    // Then fetch fresh data from API
     fetchCredentials();
   }, [fetchCredentials]);
 
@@ -133,7 +141,7 @@ export default function IntegrationSettings() {
   const { syncing, lastSyncedAt, syncResult } = useTaskContext();
 
   if (!ctx) throw new Error("IntegrationSettings must be inside IntegrationProvider");
-  const { credentials, loading, handleUpdate } = ctx;
+  const { credentials, handleUpdate } = ctx;
 
   return (
     <div className="space-y-3">
@@ -143,7 +151,6 @@ export default function IntegrationSettings() {
         syncing={syncing}
         lastSyncedAt={lastSyncedAt}
         syncedCount={syncResult?.canvas.synced}
-        loading={loading}
       />
       {/* Additional Canvas accounts */}
       {(credentials.additional_canvas_accounts ?? []).map((account) => (
@@ -152,7 +159,6 @@ export default function IntegrationSettings() {
           account={account}
           credentials={credentials}
           onUpdate={handleUpdate}
-          loading={loading}
         />
       ))}
       <GradescopeSettings
@@ -161,7 +167,6 @@ export default function IntegrationSettings() {
         syncing={syncing}
         lastSyncedAt={lastSyncedAt}
         syncedCount={syncResult?.gradescope.synced}
-        loading={loading}
       />
       <PensieveSettings
         credentials={credentials}
@@ -169,8 +174,8 @@ export default function IntegrationSettings() {
         syncing={syncing}
         lastSyncedAt={lastSyncedAt}
         syncedCount={syncResult?.pensieve.synced}
-        loading={loading}
       />
+      <CanvasGenericCard />
     </div>
   );
 }

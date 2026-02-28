@@ -13,6 +13,8 @@ import ChatDetailsSidebar from "@/components/discussions/ChatDetailsSidebar";
 import { createClient } from "@/lib/supabase/client";
 import { useDiscussionBoards } from "@/hooks/useDiscussionBoards";
 import CalChatWelcomeModal from "@/components/discussions/CalChatWelcomeModal";
+import CalChatLockedModal from "@/components/ui/CalChatLockedModal";
+import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { stripParentheses } from "@/lib/chat-utils";
 import { NAME_KEY_PREFIX, MUTE_KEY_PREFIX } from "@/lib/chat-actions";
 import { isAdmin as checkIsAdmin } from "@/lib/admin";
@@ -82,6 +84,7 @@ export default function CourseChatPage({ params }: PageProps) {
   const { courseId: initialCourseId } = use(params);
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { hasCompletedOnboarding, loading: onboardingLoading } = useOnboardingStatus();
   const initialName = searchParams.get("name") || "Chat";
 
   // Active chat managed as client state for instant switching
@@ -227,6 +230,13 @@ export default function CourseChatPage({ params }: PageProps) {
   // Show loading bar while chat data or user ID is loading
   const isLoading = !ready || (loading && messages.length === 0);
   const loadingDone = ready && !loading;
+
+  // Defense-in-depth: block access if onboarding not completed
+  if (!onboardingLoading && !hasCompletedOnboarding) {
+    return (
+      <CalChatLockedModal open onClose={() => router.push("/app/inbox")} />
+    );
+  }
 
   return (
     <div className="absolute inset-0 flex">

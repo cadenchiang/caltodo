@@ -5,8 +5,10 @@ import { createPortal } from "react-dom";
 import { Trash2, Repeat, MoreVertical, Clock, EyeOff } from "lucide-react";
 import type { Task } from "@/lib/types";
 import { getMiffyColor } from "@/lib/constants";
+import { getDueDateInfo } from "@/lib/task-utils";
 import { useTaskContext } from "@/contexts/TaskContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import TaskCheckbox from "./shared/TaskCheckbox";
 
 /** Duration presets for the snooze submenu. */
 const SNOOZE_PRESETS = [
@@ -30,61 +32,6 @@ interface TaskItemProps {
 }
 
 /**
- * Formats a 24-hour time string "HH:MM" to 12-hour format "h:mm AM/PM".
- *
- * @param time24 - Time string in "HH:MM" format (e.g. "23:59")
- * @returns Formatted time string (e.g. "11:59 PM")
- */
-function formatTime12h(time24: string): string {
-  const [hourStr, minute] = time24.split(":");
-  const hour = parseInt(hourStr, 10);
-  const ampm = hour >= 12 ? "PM" : "AM";
-  const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-  return `${hour12}:${minute} ${ampm}`;
-}
-
-/**
- * Returns a human-readable due date label, optional time label, and color class.
- *
- * @param dueDate - ISO date string ("YYYY-MM-DD") or null
- * @param dueTime - 24-hour time string ("HH:MM") or null
- * @returns Object with dateLabel, timeLabel, and className, or null if no date
- */
-function getDueDateBadge(dueDate: string | null, dueTime: string | null): { dateLabel: string; timeLabel: string | null; className: string } | null {
-  if (!dueDate) return null;
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const due = new Date(dueDate + "T00:00:00");
-
-  const diffMs = due.getTime() - today.getTime();
-  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
-
-  const timeLabel = dueTime ? formatTime12h(dueTime) : null;
-
-  if (diffDays < 0) {
-    const month = due.toLocaleString("en-US", { month: "short" });
-    const day = due.getDate();
-    return { dateLabel: `${month} ${day}`, timeLabel, className: "text-red-400" };
-  }
-  if (diffDays === 0) {
-    return { dateLabel: "Today", timeLabel, className: "text-blue-400" };
-  }
-  if (diffDays === 1) {
-    return { dateLabel: "Tomorrow", timeLabel, className: "text-blue-400" };
-  }
-  if (diffDays <= 7) {
-    const month = due.toLocaleString("en-US", { month: "short" });
-    const day = due.getDate();
-    return { dateLabel: `${month} ${day}`, timeLabel, className: "text-blue-400" };
-  }
-
-  const month = due.toLocaleString("en-US", { month: "short" });
-  const day = due.getDate();
-  return { dateLabel: `${month} ${day}`, timeLabel, className: "text-subtle-foreground" };
-}
-
-/**
  * Single task row with checkbox, title, source logo, and due date.
  * Hover shows dark gray background. Right-click opens delete context menu.
  * Completed tasks render with reduced opacity for a faded look.
@@ -100,7 +47,7 @@ export default function TaskItem({ task, isSelected, onToggle, onSelect, onDelet
   const { colorTheme } = useTheme();
   const isMiffy = colorTheme === "miffy";
   const taskColor = isMiffy ? getMiffyColor(task.color) : task.color;
-  const rawBadge = getDueDateBadge(task.due_date, task.due_time);
+  const rawBadge = getDueDateInfo(task.due_date, task.due_time);
   // Miffy theme: swap blue-400 date badges to pink; completed tasks stay subtle
   const dueBadge = rawBadge && task.is_completed
     ? { ...rawBadge, className: "text-subtle-foreground" }
@@ -155,28 +102,12 @@ export default function TaskItem({ task, isSelected, onToggle, onSelect, onDelet
         onContextMenu={handleContextMenu}
       >
         {/* Checkbox */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggle(task.id);
-          }}
-          className="group/check flex-shrink-0 w-3.5 h-3.5 rounded-[3px] flex items-center justify-center transition-all"
-          style={{
-            backgroundColor: task.is_completed ? `color-mix(in srgb, ${taskColor || "#D1D5DB"} 35%, #9CA3AF)` : "transparent",
-            border: task.is_completed ? "none" : `1px solid ${taskColor || "#D1D5DB"}`,
-          }}
-          aria-label={task.is_completed ? "Mark incomplete" : "Mark complete"}
-        >
-          {task.is_completed ? (
-            <svg width="8" height="6" viewBox="0 0 10 8" fill="none">
-              <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          ) : (
-            <svg width="8" height="6" viewBox="0 0 10 8" fill="none" className="opacity-0 group-hover/check:opacity-40 transition-opacity">
-              <path d="M1 4L3.5 6.5L9 1" stroke={taskColor || "#D1D5DB"} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          )}
-        </button>
+        <TaskCheckbox
+          color={taskColor}
+          isCompleted={task.is_completed}
+          onToggle={() => onToggle(task.id)}
+          size="sm"
+        />
 
         {/* Title + tags */}
         <div className="flex-1 min-w-0 flex items-center gap-1.5">

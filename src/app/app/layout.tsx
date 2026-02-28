@@ -10,7 +10,8 @@ import { PresenceProvider } from "@/contexts/PresenceContext";
 import InboxTour from "@/components/ui/InboxTour";
 import NotificationCenter from "@/components/ui/NotificationCenter";
 import CanvasTokenExpiredModal from "@/components/ui/CanvasTokenExpiredModal";
-import FeedbackModal from "@/components/ui/FeedbackModal";
+import CalChatAnnouncementModal from "@/components/ui/CalChatAnnouncementModal";
+import SyncClassesModal from "@/components/ui/SyncClassesModal";
 import PostHogIdentify from "@/components/PostHogIdentify";
 
 /**
@@ -58,7 +59,8 @@ export default async function AppLayout({
             <MobileTabBar />
             <NotificationCenter />
             <CanvasTokenExpiredModal />
-            <FeedbackModal userCreatedAt={session.user.created_at} />
+            <CalChatAnnouncementModal />
+            <SyncClassesModal />
             </InboxTour>
           </TaskProvider>
           </PresenceProvider>

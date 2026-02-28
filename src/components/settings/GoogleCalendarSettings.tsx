@@ -59,7 +59,7 @@ export default function GoogleCalendarSettings() {
   const { showToast, updateToastProgress } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { credentials, loading: ctxLoading, refresh } = useCredentials();
+  const { credentials, refresh } = useCredentials();
 
   // Derive GCal state from the shared credentials context
   const connected = !!credentials.has_google_calendar;
@@ -73,7 +73,6 @@ export default function GoogleCalendarSettings() {
   // Local override for connected state during OAuth flow (before context refreshes)
   const [oauthConnecting, setOauthConnecting] = useState(false);
   const mountedRef = useRef(true);
-  const loading = ctxLoading && !oauthConnecting;
 
   globalShowToast = showToast;
   globalUpdateProgress = updateToastProgress;
@@ -362,9 +361,7 @@ export default function GoogleCalendarSettings() {
             </p>
           </div>
           {/* Status */}
-          {loading ? (
-            <span className="text-xs text-muted-foreground px-3 py-1 shrink-0">Loading...</span>
-          ) : isConnectedOrConnecting ? (
+          {isConnectedOrConnecting ? (
             <button
               onClick={handleDisconnect}
               disabled={disconnecting}

@@ -80,7 +80,7 @@ export default function TaskCreateModal({
 
   // Course dropdown state
   const [showCourseDropdown, setShowCourseDropdown] = useState(false);
-  const [courseDropdownPos, setCourseDropdownPos] = useState({ top: 0, left: 0 });
+  const [courseDropdownPos, setCourseDropdownPos] = useState({ top: 0, left: 0, width: 0 });
   const [courseSearch, setCourseSearch] = useState("");
 
   // Color popover state (circle next to title)
@@ -469,7 +469,7 @@ export default function TaskCreateModal({
       if (
         showColorWheel &&
         colorWheelRef.current && !colorWheelRef.current.contains(target) &&
-        colorWheelBtnRef.current && !colorWheelBtnRef.current.contains(target)
+        (!colorWheelBtnRef.current || !colorWheelBtnRef.current.contains(target))
       ) {
         setShowColorWheel(false);
       }
@@ -501,9 +501,9 @@ export default function TaskCreateModal({
   /** Source badge for the tags row (edit mode only, platform label only). */
   const sourceBadge = isEditMode && editTask?.source
     ? ({
-        canvas: { label: "bCourses", cls: "text-blue-600 bg-blue-50 dark:bg-blue-900/30" },
-        gradescope: { label: "Gradescope", cls: "text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30" },
-        pensieve: { label: "Pensieve", cls: "text-purple-600 bg-purple-50 dark:bg-purple-900/30" },
+        canvas: { label: "bCourses", cls: "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-600/40" },
+        gradescope: { label: "Gradescope", cls: "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-600/40" },
+        pensieve: { label: "Pensieve", cls: "text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-600/40" },
       } as Record<string, { label: string; cls: string }>)[editTask.source] ?? null
     : null;
 
@@ -537,7 +537,7 @@ export default function TaskCreateModal({
           if (showColorPopover && colorCircleRef.current && !colorCircleRef.current.contains(target)) {
             setShowColorPopover(false);
           }
-          if (showColorWheel && colorWheelBtnRef.current && !colorWheelBtnRef.current.contains(target)) {
+          if (showColorWheel && (!colorWheelBtnRef.current || !colorWheelBtnRef.current.contains(target))) {
             setShowColorWheel(false);
           }
           if (showTimePicker && timeFieldRef.current && !timeFieldRef.current.contains(target)) {
@@ -560,7 +560,7 @@ export default function TaskCreateModal({
 
         <form onSubmit={handleSubmit} className="pt-8 pb-4">
           {/* ── Color circle + Title ── */}
-          <div className="pl-4 pr-6 pb-4 flex items-center gap-3">
+          <div className="pl-6 pr-6 pb-4 flex items-center gap-4">
             <button
               ref={colorCircleRef}
               type="button"
@@ -594,7 +594,9 @@ export default function TaskCreateModal({
                 setShowDatePicker(false);
                 setShowTagDropdown(false);
                 setShowColorWheel(false);
-                setCourseDropdownPos(computePortalPos(courseRowRef.current, 220));
+                const pos = computePortalPos(courseRowRef.current, 220);
+                const rowWidth = courseRowRef.current?.getBoundingClientRect().width ?? 320;
+                setCourseDropdownPos({ ...pos, width: rowWidth });
                 setShowCourseDropdown(true);
                 setCourseSearch("");
                 setTimeout(() => courseSearchRef.current?.focus(), 50);
@@ -625,7 +627,7 @@ export default function TaskCreateModal({
               >
                 <CalendarDays
                   size={20}
-                  className="shrink-0 text-muted-foreground"
+                  className="shrink-0 text-foreground"
                 />
                 <span
                   className={`text-sm leading-snug ${
@@ -893,7 +895,7 @@ export default function TaskCreateModal({
               zIndex: 10000,
             }}
           >
-            <div className="w-64 bg-popover rounded-xl shadow-2xl border border-border py-1.5 max-h-56 overflow-y-auto animate-in fade-in zoom-in-95 duration-100">
+            <div style={{ width: courseDropdownPos.width || 320 }} className="bg-popover rounded-xl shadow-2xl border border-border py-1.5 max-h-56 overflow-y-auto animate-in fade-in zoom-in-95 duration-100">
               {/* Search input */}
               <div className="px-2.5 pb-1.5">
                 <input

@@ -31,9 +31,6 @@ const PLATFORM_OPTIONS: Array<{ id: Platform; label: string; description: string
   { id: "pensieve", label: "Pensieve", description: "Sync CS/DS assignments from Pensieve", logo: "/pensieve-logo.png" },
 ];
 
-/** localStorage key to signal the app tour should start after onboarding. */
-const TOUR_PENDING_KEY = "caltodo_tour_pending";
-
 /** Valid platforms for standalone ?setup= mode. */
 const VALID_SETUP_PLATFORMS = new Set<string>(["canvas", "gradescope", "pensieve", "canvas-add"]);
 
@@ -60,14 +57,14 @@ function DoneStep({ onSyncAndGo }: { onSyncAndGo: () => void }) {
 
   return (
     <div className="text-center">
-      <h2 className="text-lg font-bold text-gray-800 mb-2 animate-drop-in">
+      <h2 className="text-lg font-bold text-foreground mb-2 animate-drop-in">
         you&apos;re all set!
       </h2>
-      <p className="text-sm text-gray-500 mb-6 animate-drop-in delay-100">
+      <p className="text-sm text-muted-foreground mb-6 animate-drop-in delay-100">
         syncing your assignments...
       </p>
       <div className="flex justify-center animate-drop-in delay-200">
-        <div className="h-6 w-6 border-2 border-gray-300 border-t-gray-800 rounded-full animate-spin" />
+        <div className="h-6 w-6 border-2 border-muted-foreground/30 border-t-foreground rounded-full animate-spin" />
       </div>
     </div>
   );
@@ -82,7 +79,6 @@ function DoneStep({ onSyncAndGo }: { onSyncAndGo: () => void }) {
  * 4. Done - Auto-syncs assignments and navigates to inbox
  *
  * Each step saves credentials via PUT /api/credentials.
- * Sets a localStorage flag on completion to trigger the app tour.
  */
 export default function OnboardingPage() {
   const router = useRouter();
@@ -338,17 +334,17 @@ export default function OnboardingPage() {
   // ---- Standalone single-step setup mode rendering ----
   if (isStandaloneSetup) {
     return (
-      <div className={`fixed inset-0 z-50 flex flex-col bg-white force-light transition-opacity duration-75 ${standaloneExiting ? "opacity-0" : "opacity-100"}`}>
+      <div className={`fixed inset-0 z-50 flex flex-col bg-background transition-opacity duration-75 ${standaloneExiting ? "opacity-0" : "opacity-100"}`}>
         {/* Minimal header: back arrow + title */}
         <div className="flex items-center gap-3 px-6 pt-5 pb-3">
           <button
             onClick={handleStandaloneSkip}
-            className="p-1 rounded-lg text-gray-400 hover:text-gray-800 transition-colors"
+            className="p-1 rounded-lg text-muted-foreground hover:text-foreground transition-colors"
             aria-label="Back to settings"
           >
             <ChevronLeft size={20} />
           </button>
-          <h1 className="text-lg font-semibold text-gray-800">
+          <h1 className="text-lg font-semibold text-foreground">
             Set up {SETUP_LABELS[setupParam]}
           </h1>
         </div>
@@ -428,20 +424,22 @@ export default function OnboardingPage() {
 
   /**
    * Starts fade-out, fires sync in background, then navigates to inbox.
-   * Sets tour pending flag so the app tour starts on first inbox visit.
    * Sync continues via TaskContext even after navigation.
    */
   function handleSyncAndGo() {
     trackEvent("onboarding_completed");
     setExiting(true);
-    // Signal the app tour to start after landing on inbox
+    // New users completing onboarding should never see the Pensieve announcement
+    // or CalChat announcement (those are for pre-existing users only)
     try {
-      localStorage.setItem(TOUR_PENDING_KEY, "true");
-      // New users completing onboarding should never see the Pensieve announcement
       localStorage.setItem("caltodo_pensieve_announced", "true");
+      localStorage.setItem("calchat_announcement_seen", "true");
     } catch {
       /* non-critical */
     }
+    // Notify Sidebar/MobileTabBar that onboarding is complete (unlocks CalChat instantly)
+    window.dispatchEvent(new CustomEvent("onboarding-status-change", { detail: { completed: true } }));
+    try { sessionStorage.removeItem("caltodo_onboarding_status"); } catch { /* non-critical */ }
     // Fire sync in background — it runs in TaskContext and survives navigation
     triggerSync().catch(() => {});
     // Navigate after fade-out animation completes
@@ -449,12 +447,12 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className={`fixed inset-0 z-50 flex flex-col bg-white force-light transition-opacity duration-500 ${exiting ? "opacity-0" : "opacity-100"}`}>
+    <div className={`fixed inset-0 z-50 flex flex-col bg-background transition-opacity duration-500 ${exiting ? "opacity-0" : "opacity-100"}`}>
       {/* Top bar: logo left, centered stepper, close right */}
       <div className="flex items-center justify-between px-6 pt-5 pb-3">
         {/* Logo — left corner (non-interactive during onboarding) */}
         <div className="shrink-0">
-          <img src="/logo.png" alt="caltodo" className="h-7" />
+          <img src="/logo.png" alt="caltodo" className="h-7 dark:invert" />
         </div>
 
         {/* Stepper bars + back button — centered with constrained width */}
@@ -466,7 +464,7 @@ export default function OnboardingPage() {
             }}
             className={`p-1 rounded-lg transition-colors shrink-0 ${
               stepIndex > 0
-                ? "text-gray-400 hover:text-gray-800 cursor-pointer"
+                ? "text-muted-foreground hover:text-foreground cursor-pointer"
                 : "text-transparent pointer-events-none"
             }`}
             aria-label="Go back"
@@ -481,14 +479,14 @@ export default function OnboardingPage() {
                 <div key={step} className="flex-1 flex flex-col gap-1">
                   <span
                     className={`text-[11px] font-medium transition-colors duration-300 ${
-                      state === "completed" ? "text-green-600" : state === "active" ? "text-gray-800" : "text-gray-400"
+                      state === "completed" ? "text-green-600" : state === "active" ? "text-foreground" : "text-muted-foreground"
                     }`}
                   >
                     {STEP_LABELS[step]}
                   </span>
                   <div
                     className={`h-1 rounded-full transition-all duration-500 ${
-                      state === "completed" ? "bg-green-500" : state === "active" ? "bg-gray-800" : "bg-gray-200"
+                      state === "completed" ? "bg-green-500" : state === "active" ? "bg-foreground" : "bg-muted"
                     }`}
                   />
                 </div>
@@ -518,25 +516,25 @@ export default function OnboardingPage() {
                   <img
                     src="/logo.png"
                     alt="caltodo"
-                    className="h-14"
+                    className="h-14 dark:invert"
                   />
                 </div>
-                <h1 className="text-2xl font-bold text-gray-800 mb-2 animate-drop-in">
+                <h1 className="text-2xl font-bold text-foreground mb-2 animate-drop-in">
                   welcome to caltodo
                 </h1>
-                <p className="text-gray-500 text-sm mb-3 animate-drop-in delay-100">
+                <p className="text-muted-foreground text-sm mb-3 animate-drop-in delay-100">
                   connect your bCourses, Gradescope, and Pensieve accounts to automatically sync your assignments.
                 </p>
-                <p className="text-gray-800 text-sm font-semibold mb-8 animate-drop-in delay-150 text-center">
+                <p className="text-foreground text-sm font-semibold mb-8 animate-drop-in delay-150 text-center">
                   this takes about 5-10 minutes.
                 </p>
                 {/* Mobile-only recommendation */}
-                <p className="md:hidden text-sm font-semibold text-black mb-6 animate-drop-in delay-150">
+                <p className="md:hidden text-sm font-semibold text-foreground mb-6 animate-drop-in delay-150">
                   For the best experience, we recommend completing setup on a computer.
                 </p>
                 <button
                   onClick={() => setCurrentStep("platforms")}
-                  className="w-full px-4 py-3 bg-gray-800 text-white rounded-xl font-semibold animate-drop-in delay-200 btn-elevated-primary"
+                  className="w-full px-4 py-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl font-semibold animate-drop-in delay-200 btn-elevated-primary"
                 >
                   get started
                 </button>
@@ -545,10 +543,10 @@ export default function OnboardingPage() {
 
             {currentStep === "platforms" && (
               <div>
-                <h2 className="text-lg font-bold text-gray-800 mb-2 animate-drop-in">
+                <h2 className="text-lg font-bold text-foreground mb-2 animate-drop-in">
                   select your platforms
                 </h2>
-                <p className="text-sm text-gray-500 mb-6 animate-drop-in delay-100">
+                <p className="text-sm text-muted-foreground mb-6 animate-drop-in delay-100">
                   which platforms do you use? you can always change this later.
                 </p>
                 <div className="flex flex-col gap-3 mb-8">
@@ -561,8 +559,8 @@ export default function OnboardingPage() {
                         onClick={() => togglePlatform(opt.id)}
                         className={`animate-drop-in flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl border-2 transition-all ${
                           selected
-                            ? "border-gray-800 bg-gray-50"
-                            : "border-gray-200 hover:border-gray-300"
+                            ? "border-foreground bg-muted"
+                            : "border-border hover:border-foreground/30"
                         }`}
                         style={{ animationDelay: `${(i + 2) * 50}ms` }}
                       >
@@ -572,14 +570,14 @@ export default function OnboardingPage() {
                           className="w-8 h-8 object-contain shrink-0"
                         />
                         <div className="flex-1 min-w-0">
-                          <span className="text-sm font-semibold text-gray-800">{opt.label}</span>
-                          <p className="text-xs text-gray-500">{opt.description}</p>
+                          <span className="text-sm font-semibold text-foreground">{opt.label}</span>
+                          <p className="text-xs text-muted-foreground">{opt.description}</p>
                         </div>
                         <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors ${
-                          selected ? "border-gray-800 bg-gray-800" : "border-gray-300"
+                          selected ? "border-foreground bg-foreground" : "border-muted-foreground/40"
                         }`}>
                           {selected && (
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-background">
                               <polyline points="20 6 9 17 4 12" />
                             </svg>
                           )}
@@ -599,7 +597,7 @@ export default function OnboardingPage() {
                       setCurrentStep(nextStepAfter("platforms"));
                     }
                   }}
-                  className="w-full px-4 py-3 bg-gray-800 text-white rounded-xl font-semibold btn-elevated-primary animate-drop-in"
+                  className="w-full px-4 py-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl font-semibold btn-elevated-primary animate-drop-in"
                   style={{ animationDelay: "250ms" }}
                 >
                   {selectedPlatforms.size === 0 ? "skip setup" : "continue"}
