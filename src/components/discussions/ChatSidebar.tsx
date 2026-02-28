@@ -125,7 +125,7 @@ function ChatRow({
             )}
           </div>
         </div>
-        <p className="text-[12px] text-muted-foreground truncate mt-0.5">
+        <p className={`text-[12px] truncate mt-0.5 ${isUnread && !isActive ? "text-foreground font-semibold" : "text-muted-foreground"}`}>
           {board.last_message_body
             ? `${board.last_message_author ?? "Anonymous"}: ${summarizeBody(board.last_message_body)}`
             : "No messages yet"}
@@ -250,10 +250,12 @@ export default function ChatSidebar({
   function isUnread(board: DiscussionBoard): boolean {
     // readUpdateTick is used to trigger re-evaluation
     void readUpdateTick;
-    if (!board.last_message_at) return false;
     try {
       const readAt = localStorage.getItem(READ_AT_PREFIX + board.course.id);
+      // Never opened this chat → treat as unread
       if (!readAt) return true;
+      // No messages yet but user has visited → not unread
+      if (!board.last_message_at) return false;
       return new Date(board.last_message_at) > new Date(readAt);
     } catch {
       return false;

@@ -12,7 +12,6 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { useCalChatUnread } from "@/hooks/useCalChatUnread";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { useNotifications } from "@/contexts/NotificationContext";
-import CalChatLockedModal from "@/components/ui/CalChatLockedModal";
 
 /** Filter configuration mapping for dynamic sidebar label. */
 const FILTER_CONFIG: Record<string, { label: string; icon: typeof Inbox }> = {
@@ -70,7 +69,6 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
   }, []);
   const hasCalChatUnread = useCalChatUnread();
   const { hasCompletedOnboarding } = useOnboardingStatus();
-  const [showLockedModal, setShowLockedModal] = useState(false);
   const { pendingInviteCount } = useNotifications();
 
   // Track whether user has clicked CalChat to dismiss "NEW" badge
@@ -199,7 +197,7 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
                   id={`tour-nav-${item.label.toLowerCase()}`}
                   imageSrc={undefined}
                   imageClassName={undefined}
-                  onClick={isChat && !hasCompletedOnboarding ? (e) => { e.preventDefault(); setShowLockedModal(true); } : undefined}
+                  onClick={undefined}
                 />
               );
             })}
@@ -220,7 +218,6 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
         )}
         <ProfilePopup avatarUrl={localAvatarUrl} fullName={localFullName} email={email} />
       </div>
-      <CalChatLockedModal open={showLockedModal} onClose={() => setShowLockedModal(false)} />
     </aside>
   );
 }

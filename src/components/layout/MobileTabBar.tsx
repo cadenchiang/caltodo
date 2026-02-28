@@ -6,7 +6,6 @@ import { Inbox, CalendarDays, Settings, Sun, CalendarRange, MessageSquare } from
 import { useState, useEffect } from "react";
 import { useCalChatUnread } from "@/hooks/useCalChatUnread";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
-import CalChatLockedModal from "@/components/ui/CalChatLockedModal";
 
 /**
  * Fixed bottom tab bar for mobile navigation (visible below md breakpoint).
@@ -19,7 +18,6 @@ export default function MobileTabBar() {
   const [inboxFilter, setInboxFilter] = useState<string>("all");
   const calChatUnreadCount = useCalChatUnread();
   const { hasCompletedOnboarding } = useOnboardingStatus();
-  const [showLockedModal, setShowLockedModal] = useState(false);
 
   // Hydrate inbox filter from localStorage after mount to avoid SSR mismatch
   useEffect(() => {
@@ -118,7 +116,7 @@ export default function MobileTabBar() {
             <Link
               key={tab.href}
               href={tab.href}
-              onClick={isChat && !hasCompletedOnboarding ? (e) => { e.preventDefault(); setShowLockedModal(true); } : undefined}
+              onClick={undefined}
               className={`flex flex-col items-center justify-center min-h-[44px] min-w-[44px] flex-1 py-2 transition-colors relative ${
                 isActive
                   ? "text-blue-500"
@@ -144,7 +142,6 @@ export default function MobileTabBar() {
         })}
       </div>
     </nav>
-    <CalChatLockedModal open={showLockedModal} onClose={() => setShowLockedModal(false)} />
     </>
   );
 }

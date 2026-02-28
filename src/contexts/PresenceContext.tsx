@@ -35,6 +35,8 @@ export function PresenceProvider({ children }: { children: ReactNode }) {
   const supabase = createClient();
 
   useEffect(() => {
+    const mounted = { current: true };
+
     const channel = supabase.channel("presence:global", {
       config: { presence: { key: "user_id" } },
     });
@@ -55,16 +57,16 @@ export function PresenceProvider({ children }: { children: ReactNode }) {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      if (!user) {
-        await channel.subscribe();
-        return;
-      }
-      await channel.subscribe();
-      await channel.track({
-        user_id: user.id,
-        user_name: user.user_metadata?.full_name ?? null,
-        user_avatar: user.user_metadata?.avatar_url ?? null,
-        online_at: new Date().toISOString(),
+
+      channel.subscribe(async (status) => {
+        if (status !== "SUBSCRIBED" || !mounted.current) return;
+        if (!user) return;
+        await channel.track({
+          user_id: user.id,
+          user_name: user.user_metadata?.full_name ?? null,
+          user_avatar: user.user_metadata?.avatar_url ?? null,
+          online_at: new Date().toISOString(),
+        });
       });
     }
 
@@ -72,7 +74,11 @@ export function PresenceProvider({ children }: { children: ReactNode }) {
     channelRef.current = channel;
 
     return () => {
-      channel.untrack();
+      mounted.current = false;
+      // Only untrack if the channel has finished subscribing
+      if (channel.state === "joined") {
+        channel.untrack();
+      }
       channel.unsubscribe();
       channelRef.current = null;
     };
