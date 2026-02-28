@@ -9,9 +9,11 @@ import { NotificationProvider } from "@/contexts/NotificationContext";
 import { PresenceProvider } from "@/contexts/PresenceContext";
 import InboxTour from "@/components/ui/InboxTour";
 import NotificationCenter from "@/components/ui/NotificationCenter";
+import GettingStartedWidget from "@/components/ui/GettingStartedWidget";
 import CanvasTokenExpiredModal from "@/components/ui/CanvasTokenExpiredModal";
 import CalChatAnnouncementModal from "@/components/ui/CalChatAnnouncementModal";
 import SyncClassesModal from "@/components/ui/SyncClassesModal";
+import GlobalChatNotifier from "@/components/ui/GlobalChatNotifier";
 import PostHogIdentify from "@/components/PostHogIdentify";
 
 /**
@@ -53,14 +55,16 @@ export default async function AppLayout({
           <TaskProvider>
             <InboxTour>
             <Sidebar avatarUrl={avatarUrl} fullName={fullName} email={email} />
-            <main className="flex-1 overflow-hidden p-4 md:p-10 pb-16 md:pb-10 dark:bg-black relative miffy-glow miffy-watermark">
+            <main suppressHydrationWarning className="flex-1 overflow-hidden p-4 md:p-10 pb-16 md:pb-10 dark:bg-black relative miffy-glow miffy-watermark">
               {children}
             </main>
             <MobileTabBar />
             <NotificationCenter />
+            <GettingStartedWidget />
             <CanvasTokenExpiredModal />
             <CalChatAnnouncementModal />
             <SyncClassesModal />
+            <GlobalChatNotifier />
             </InboxTour>
           </TaskProvider>
           </PresenceProvider>

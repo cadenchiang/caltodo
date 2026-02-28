@@ -1505,3 +1505,19 @@ textarea:-webkit-autofill {
     transform: scale(1);
   }
 }
+
+/* In-app chat notification banner — slides down from top-right */
+@keyframes chatNotifIn {
+  from {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-chat-notif-in {
+  animation: chatNotifIn 300ms ease-out;
+}
