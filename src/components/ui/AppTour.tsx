@@ -652,45 +652,62 @@ export function TourStartDialog({ open, onClose }: TourStartDialogProps) {
   if (!open) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center">
-      {/* Backdrop — no click-to-dismiss; use Skip or X to exit */}
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-announce-backdrop-in"
+      onClick={onClose}
+    >
       <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-      />
+        className="bg-popover rounded-2xl shadow-2xl w-full max-w-md mx-4 p-10 text-center animate-announce-card-in"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Logo */}
+        <div
+          className="flex justify-center mb-6 animate-drop-in"
+          style={{ animationDelay: "150ms" }}
+        >
+          <img
+            src="/logo.png"
+            alt="caltodo"
+            className="h-12 dark:invert"
+          />
+        </div>
 
-      {/* Dialog */}
-      <div className="relative bg-card rounded-2xl border border-border shadow-2xl max-w-sm mx-4 p-6 animate-modal-in">
-        <div className="text-center">
-          <div className="flex justify-center mb-4">
-            <img
-              src="/logo.png"
-              alt="caltodo"
-              className="h-12 dark:invert"
-            />
-          </div>
-          <h2 className="text-lg font-semibold text-foreground mb-2">
-            Quick Tour
-          </h2>
-          <p className="text-sm text-muted-foreground mb-6">
-            Take a quick tour to learn how to navigate your inbox, create tasks, and sync your assignments.
+        {/* Title */}
+        <h2
+          className="text-lg font-semibold text-foreground mb-3 animate-drop-in"
+          style={{ animationDelay: "220ms" }}
+        >
+          quick tour
+        </h2>
+
+        {/* Description */}
+        <p
+          className="text-sm text-muted-foreground mb-10 animate-drop-in"
+          style={{ animationDelay: "290ms" }}
+        >
+          take a quick tour to learn how to navigate your inbox, create tasks, and sync your assignments.
+        </p>
+
+        {/* Buttons */}
+        <div
+          className="animate-drop-in"
+          style={{ animationDelay: "360ms" }}
+        >
+          <button
+            onClick={() => {
+              onClose();
+              setTimeout(startTour, 50);
+            }}
+            className="px-8 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-full text-sm font-medium hover:opacity-90 transition-opacity cursor-pointer active:scale-95"
+          >
+            start tour &rarr;
+          </button>
+          <p
+            onClick={onClose}
+            className="text-xs text-muted-foreground hover:text-foreground mt-4 cursor-pointer transition-colors"
+          >
+            skip for now
           </p>
-          <div className="space-y-2">
-            <button
-              onClick={() => {
-                onClose();
-                setTimeout(startTour, 50);
-              }}
-              className="w-full px-4 py-2.5 rounded-xl text-sm font-medium bg-gray-900 text-white dark:bg-white dark:text-gray-900 hover:opacity-80 transition-all"
-            >
-              Start Tour
-            </button>
-            <button
-              onClick={onClose}
-              className="w-full px-4 py-2 rounded-xl text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-            >
-              Skip for now
-            </button>
-          </div>
         </div>
       </div>
     </div>,
