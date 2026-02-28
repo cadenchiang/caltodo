@@ -18,7 +18,7 @@ export type ThemePreference = "light" | "dark" | "auto";
 export type ResolvedTheme = "light" | "dark";
 
 /** Available color theme IDs. null means the default (no color theme). */
-export type ColorTheme = "miffy" | null;
+export type ColorTheme = "miffy" | "ocean" | "forest" | "sunset" | "lavender" | "nord" | "rosewood" | "midnight" | null;
 
 interface ThemeContextValue {
   /** The user's preference: "light", "dark", or "auto". */
@@ -62,7 +62,16 @@ export function resolveTheme(pref: ThemePreference): ResolvedTheme {
 }
 
 /** All known color theme class names for easy removal. */
-const COLOR_THEME_CLASSES = ["theme-miffy"] as const;
+const COLOR_THEME_CLASSES = [
+  "theme-miffy",
+  "theme-ocean",
+  "theme-forest",
+  "theme-sunset",
+  "theme-lavender",
+  "theme-nord",
+  "theme-rosewood",
+  "theme-midnight",
+] as const;
 
 /**
  * Syncs the browser tab favicon based on the current resolved theme and color theme.
@@ -135,6 +144,11 @@ function applyColorTheme(colorTheme: ColorTheme): void {
   syncFavicon();
 }
 
+/** Set of all valid color theme IDs for validation. */
+const VALID_COLOR_THEMES = new Set<string>([
+  "miffy", "ocean", "forest", "sunset", "lavender", "nord", "rosewood", "midnight",
+]);
+
 /**
  * Reads the stored color theme from localStorage.
  * Returns null if nothing valid is stored.
@@ -145,7 +159,7 @@ function getInitialColorTheme(): ColorTheme {
   if (typeof window === "undefined") return null;
   try {
     const stored = localStorage.getItem(COLOR_THEME_KEY);
-    if (stored === "miffy") return stored;
+    if (stored && VALID_COLOR_THEMES.has(stored)) return stored as ColorTheme;
   } catch {
     // localStorage unavailable
   }

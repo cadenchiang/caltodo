@@ -3,7 +3,7 @@
 import { format } from "date-fns";
 import { Plus, CalendarDays } from "lucide-react";
 import type { Task, PendingInvite } from "@/lib/types";
-import { getMiffyColor } from "@/lib/constants";
+import { getThemeColor } from "@/lib/constants";
 import { pendingInviteToPseudoTask } from "@/lib/pending-invite-helpers";
 import { useTheme } from "@/contexts/ThemeContext";
 
@@ -146,8 +146,7 @@ function DayTaskCard({
   isPending?: boolean;
 }) {
   const { colorTheme } = useTheme();
-  const rawColor = task.color || "#6b7280";
-  const color = colorTheme === "miffy" ? getMiffyColor(task.color) : rawColor;
+  const color = getThemeColor(task.color, colorTheme);
 
   return (
     <button

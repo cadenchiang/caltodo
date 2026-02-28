@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import type { Task, TaskInsert, TaskUpdate } from "@/lib/types";
-import { TASK_COLORS, DEFAULT_TASK_COLOR, getMiffyColor } from "@/lib/constants";
+import { TASK_COLORS, DEFAULT_TASK_COLOR, getThemeColor } from "@/lib/constants";
 import { getRepeatLabel } from "@/lib/repeat";
 import { formatTime12h } from "@/lib/task-utils";
 import { useTaskContext } from "@/contexts/TaskContext";
@@ -499,8 +499,8 @@ export default function TaskCreateModal({
 
   if (!open) return null;
 
-  /** Display color accounting for Miffy theme. */
-  const displayColor = isMiffy ? getMiffyColor(color) : color;
+  /** Display color accounting for active color theme. */
+  const displayColor = getThemeColor(color, colorTheme);
 
   /** Source badge for the tags row (edit mode only, platform label only). */
   const sourceBadge = isEditMode && editTask?.source
@@ -989,7 +989,7 @@ export default function TaskCreateModal({
             <div className="bg-popover rounded-xl shadow-2xl border border-border p-3 animate-in fade-in zoom-in-95 duration-100">
               <div className="grid grid-cols-6 gap-2">
                 {TASK_COLORS.map((c) => {
-                  const dc = isMiffy ? getMiffyColor(c) : c;
+                  const dc = getThemeColor(c, colorTheme);
                   const isSelected = color.toUpperCase() === c.toUpperCase();
                   return (
                     <button

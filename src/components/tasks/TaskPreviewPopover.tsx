@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { format } from "date-fns";
 import { getRepeatLabel } from "@/lib/repeat";
-import { getMiffyColor } from "@/lib/constants";
+import { getThemeColor } from "@/lib/constants";
 import { useTheme } from "@/contexts/ThemeContext";
 import type { Task } from "@/lib/types";
 import TaskCheckbox from "./shared/TaskCheckbox";
@@ -129,9 +129,7 @@ export default function TaskPreviewPopover({
     setPos({ left, top });
   }, [anchorRect]);
 
-  const dotColor = colorTheme === "miffy"
-    ? getMiffyColor(task.color)
-    : task.color;
+  const dotColor = getThemeColor(task.color, colorTheme);
 
   const dateLabel = task.due_date
     ? format(new Date(task.due_date + "T00:00:00"), "EEE, MMM d, yyyy")

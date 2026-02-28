@@ -50,7 +50,76 @@ const MIFFY_COLOR_MAP: Record<string, string> = {
   "#D1D5DB": "#f0c0d0", // light gray fallback → soft pink
 };
 
+/**
+ * @deprecated Use getThemeColor(color, colorTheme) instead.
+ */
 export function getMiffyColor(color: string | null | undefined): string {
   if (!color) return MIFFY_COLOR_MAP["#D1D5DB"];
   return MIFFY_COLOR_MAP[color.toUpperCase()] ?? MIFFY_COLOR_MAP[color] ?? "#e8729a";
+}
+
+/** Nord theme: muted arctic tones for task colors. */
+const NORD_COLOR_MAP: Record<string, string> = {
+  "#9CA3AF": "#7b88a0", // gray → nord muted gray
+  "#3B82F6": "#5e81ac", // blue → nord frost blue
+  "#EF4444": "#bf616a", // red → nord aurora red
+  "#10B981": "#a3be8c", // green → nord aurora green
+  "#F59E0B": "#ebcb8b", // amber → nord aurora yellow
+  "#8B5CF6": "#b48ead", // violet → nord aurora purple
+  "#EC4899": "#d08770", // pink → nord aurora orange
+  "#06B6D4": "#88c0d0", // cyan → nord frost teal
+  "#F97316": "#d08770", // orange → nord aurora orange
+  "#D1D5DB": "#8890a0", // light gray fallback
+};
+
+/** Rosewood theme: warm wine-burgundy tones for task colors. */
+const ROSEWOOD_COLOR_MAP: Record<string, string> = {
+  "#9CA3AF": "#a08080", // gray → warm taupe
+  "#3B82F6": "#a03040", // blue → bold burgundy
+  "#EF4444": "#801828", // red → deep wine
+  "#10B981": "#c89898", // green → soft rose
+  "#F59E0B": "#d8b0a0", // amber → warm peach
+  "#8B5CF6": "#702040", // violet → dark berry
+  "#EC4899": "#c06070", // pink → medium rose
+  "#06B6D4": "#e0c0c0", // cyan → pale blush
+  "#F97316": "#b04838", // orange → warm brick
+  "#D1D5DB": "#c0a0a0", // light gray fallback
+};
+
+/** Midnight theme: electric blue accent tones for task colors. */
+const MIDNIGHT_COLOR_MAP: Record<string, string> = {
+  "#9CA3AF": "#607090", // gray → slate blue
+  "#3B82F6": "#3a6cf0", // blue → electric blue
+  "#EF4444": "#e05050", // red → bright red
+  "#10B981": "#40a888", // green → teal green
+  "#F59E0B": "#d8a040", // amber → warm gold
+  "#8B5CF6": "#6850d0", // violet → deep indigo
+  "#EC4899": "#c050a0", // pink → magenta
+  "#06B6D4": "#40a0d0", // cyan → bright cyan
+  "#F97316": "#d87030", // orange → bold orange
+  "#D1D5DB": "#7080a0", // light gray fallback
+};
+
+/** Map of color theme IDs to their task color remap tables. */
+const THEME_COLOR_MAPS: Record<string, Record<string, string>> = {
+  miffy: MIFFY_COLOR_MAP,
+  nord: NORD_COLOR_MAP,
+  rosewood: ROSEWOOD_COLOR_MAP,
+  midnight: MIDNIGHT_COLOR_MAP,
+};
+
+/**
+ * Returns the display color for a task, remapped for the active color theme.
+ * Aesthetic themes (miffy, nord, rosewood, midnight) remap task colors.
+ * Accent themes (ocean, forest, sunset, lavender) return the original color.
+ *
+ * @param color - Original task hex color (e.g. "#3B82F6")
+ * @param colorTheme - Active color theme ID, or null for default
+ * @returns Remapped hex color string, or the original color if no remapping exists
+ */
+export function getThemeColor(color: string | null | undefined, colorTheme: string | null | undefined): string {
+  const map = colorTheme ? THEME_COLOR_MAPS[colorTheme] : undefined;
+  if (!map) return color || "#6b7280";
+  if (!color) return map["#D1D5DB"] ?? "#6b7280";
+  return map[color.toUpperCase()] ?? map[color] ?? color;
 }

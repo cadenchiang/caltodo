@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Inbox, ChevronDown, X, Sun, CalendarRange, CalendarDays, GraduationCap, MoreVertical, List, LayoutGrid, ArrowUpDown, RefreshCw } from "lucide-react";
+import { Inbox, ChevronDown, X, Sun, CalendarRange, CalendarDays, GraduationCap, MoreVertical, List, LayoutGrid, ArrowUpDown, RefreshCw, Plus } from "lucide-react";
 import { useTaskContext } from "@/contexts/TaskContext";
 import TaskList from "@/components/tasks/TaskList";
 import TaskBoardView from "@/components/tasks/TaskBoardView";
@@ -341,6 +341,7 @@ export default function InboxPage() {
   const [boardEditTask, setBoardEditTask] = useState<Task | null>(null);
   const [boardAnchorRect, setBoardAnchorRect] = useState<DOMRect | null>(null);
   const [boardModalTask, setBoardModalTask] = useState<Task | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
 
   // Keep selected task in sync with context after updates (desktop detail panel)
   const currentSelectedTask = selectedTask
@@ -671,15 +672,24 @@ export default function InboxPage() {
             </div>
 
             <div className="flex items-center gap-1">
+              {/* Add task button */}
+              <button
+                id="tour-add-task"
+                onClick={() => setShowAddModal(true)}
+                className="p-1.5 text-foreground hover:bg-accent rounded-lg transition-all"
+                title="Add task"
+              >
+                <Plus size={18} />
+              </button>
               {/* Sort / group-by button — works for both list and board */}
               <div className="relative">
                 <button
                   ref={sortMenuRef}
                   onClick={() => setShowSortMenu(!showSortMenu)}
-                  className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-all"
+                  className="p-1.5 text-foreground hover:bg-accent rounded-lg transition-all"
                   title={viewMode === "list" ? "Sort tasks" : "Group by"}
                 >
-                  <ArrowUpDown size={16} />
+                  <ArrowUpDown size={18} />
                 </button>
                 {showSortMenu && sortMenuRef.current && createPortal(
                   <div
@@ -732,10 +742,10 @@ export default function InboxPage() {
                 id="tour-view-toggle"
                 ref={viewMenuRef}
                 onClick={() => setShowViewMenu(!showViewMenu)}
-                className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-all"
+                className="p-1.5 text-foreground hover:bg-accent rounded-lg transition-all"
                 title="View options"
               >
-                <MoreVertical size={16} />
+                <MoreVertical size={18} />
               </button>
 
               {showViewMenu && viewMenuRef.current && createPortal(
@@ -787,7 +797,14 @@ export default function InboxPage() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-auto animate-stagger stagger-2">
+          {/* Header add-task modal */}
+          <TaskCreateModal
+            open={showAddModal}
+            onClose={() => setShowAddModal(false)}
+            onAdd={(task) => { addTask(task); setShowAddModal(false); }}
+          />
+
+          <div id="tour-task-list" className="flex-1 overflow-auto animate-stagger stagger-2">
             <div key={viewMode} className="animate-view-switch h-full">
               {viewMode === "list" ? (
                 <TaskList
@@ -829,7 +846,6 @@ export default function InboxPage() {
                   pendingInvites={pendingInvites}
                   onRespondInvite={handleRespondInvite}
                   onAcceptAllInvites={handleAcceptAllInvites}
-                  placeholder='Add task to "Inbox". Press Enter to save.'
                 />
               ) : (
                 <TaskBoardView

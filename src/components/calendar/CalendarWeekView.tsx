@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { format, isSameDay, startOfWeek, addDays } from "date-fns";
 import type { Task, PendingInvite } from "@/lib/types";
-import { getMiffyColor } from "@/lib/constants";
+import { getThemeColor } from "@/lib/constants";
 import { pendingInviteToPseudoTask } from "@/lib/pending-invite-helpers";
 import { useTheme } from "@/contexts/ThemeContext";
 
@@ -195,7 +195,7 @@ function WeekDayColumn({
                 <span
                   key={task.id}
                   className={`w-[5px] h-[5px] rounded-full shrink-0 ${task.is_completed ? "opacity-40" : ""}`}
-                  style={{ backgroundColor: isMiffyTheme ? getMiffyColor(task.color) : (task.color || "#6b7280") }}
+                  style={{ backgroundColor: getThemeColor(task.color, colorTheme) }}
                 />
               ))}
               {pendingInvites.map((invite) => (
@@ -204,7 +204,7 @@ function WeekDayColumn({
                   className="w-[5px] h-[5px] rounded-full shrink-0 opacity-40"
                   style={{
                     backgroundColor: "transparent",
-                    border: `1px dashed ${isMiffyTheme ? getMiffyColor(invite.taskColor) : (invite.taskColor || "#6b7280")}`,
+                    border: `1px dashed ${getThemeColor(invite.taskColor, colorTheme)}`,
                   }}
                 />
               ))}
@@ -269,8 +269,7 @@ function WeekTaskCard({
   isPending?: boolean;
 }) {
   const { colorTheme } = useTheme();
-  const rawColor = task.color || "#6b7280";
-  const color = colorTheme === "miffy" ? getMiffyColor(task.color) : rawColor;
+  const color = getThemeColor(task.color, colorTheme);
 
   return (
     <button

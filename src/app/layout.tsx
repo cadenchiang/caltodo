@@ -105,8 +105,8 @@ const themeScript = `
       document.documentElement.classList.add("dark");
     }
     var ct = localStorage.getItem("caltodo_color_theme");
-    if (ct === "miffy") {
-      document.documentElement.classList.add("theme-miffy");
+    if (ct && /^[a-z]+$/.test(ct)) {
+      document.documentElement.classList.add("theme-" + ct);
     }
     var link = document.querySelector('link[rel="icon"]');
     if (link) {

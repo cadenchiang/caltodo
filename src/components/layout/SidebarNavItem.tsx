@@ -22,11 +22,31 @@ interface SidebarNavItemProps {
   imageClassName?: string;
   /** Optional click handler. Parent can call e.preventDefault() to block navigation. */
   onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void;
+  /** Override active state externally (e.g. for query-param-based sections). */
+  active?: boolean;
+}
+
+/**
+ * Shared active/hover class string for sidebar nav items.
+ * Used by both link-based nav and button-based settings nav to stay in sync.
+ * Active background uses --nav-active-bg CSS variable defined per theme.
+ *
+ * @param isActive - Whether the item is currently selected
+ * @param _isMiffy - Deprecated, kept for call-site compatibility
+ * @returns Tailwind class string for active/hover state
+ */
+export function navItemClasses(isActive: boolean, _isMiffy?: boolean): string {
+  const base = "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors";
+  if (isActive) {
+    return `${base} nav-item-active text-foreground`;
+  }
+  return `${base} text-foreground hover:bg-black/[0.04] dark:hover:bg-white/[0.06]`;
 }
 
 /**
  * A single navigation link in the sidebar.
- * Highlights with an active state when the current route matches.
+ * Highlights with an active state when the current route matches,
+ * or when the `active` prop is explicitly set.
  * Uses prefetch for instant tab switching.
  *
  * @param label - Display text for the nav item
@@ -38,12 +58,13 @@ interface SidebarNavItemProps {
  * @param imageSrc - Optional image path to replace the Lucide icon
  * @param imageClassName - Optional CSS class for the image element
  * @param onClick - Optional click handler; call e.preventDefault() to block navigation
+ * @param active - Override active state; when undefined, derives from pathname
  */
-export default function SidebarNavItem({ label, href, icon: Icon, badge, badgeCount, badgeText, id, imageSrc, imageClassName, onClick }: SidebarNavItemProps) {
+export default function SidebarNavItem({ label, href, icon: Icon, badge, badgeCount, badgeText, id, imageSrc, imageClassName, onClick, active }: SidebarNavItemProps) {
   const pathname = usePathname();
   const { colorTheme } = useTheme();
   const isMiffy = colorTheme === "miffy";
-  const isActive = pathname === href || pathname.startsWith(href + "/");
+  const isActive = active ?? (pathname === href || pathname.startsWith(href + "/"));
 
   return (
     <Link
@@ -51,13 +72,7 @@ export default function SidebarNavItem({ label, href, icon: Icon, badge, badgeCo
       href={href}
       prefetch={true}
       onClick={onClick}
-      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-        isActive
-          ? isMiffy
-            ? "bg-[#fce8ef] dark:bg-[rgba(232,114,154,0.12)] text-foreground"
-            : "bg-gray-200 dark:bg-zinc-700 text-foreground"
-          : "text-foreground hover:bg-gray-100 dark:hover:bg-zinc-800"
-      }`}
+      className={navItemClasses(isActive, isMiffy)}
     >
       {imageSrc ? (
         <img src={imageSrc} alt="" className={`w-5 h-5 object-contain ${imageClassName ?? ""}`} />

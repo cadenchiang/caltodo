@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { Task } from "@/lib/types";
-import { getMiffyColor } from "@/lib/constants";
+import { getThemeColor } from "@/lib/constants";
 import { useTheme } from "@/contexts/ThemeContext";
 
 interface CalendarTaskBarProps {
@@ -70,8 +70,7 @@ function truncateTitle(title: string, max: number): string {
 export default function CalendarTaskBar({ task, onClick, isPending }: CalendarTaskBarProps) {
   const { colorTheme } = useTheme();
   const [hovered, setHovered] = useState(false);
-  const rawColor = task.color || "#6b7280";
-  const color = colorTheme === "miffy" ? getMiffyColor(task.color) : rawColor;
+  const color = getThemeColor(task.color, colorTheme);
 
   return (
     <button

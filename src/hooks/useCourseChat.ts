@@ -8,6 +8,8 @@ import { createSystemEvent, fetchUserName } from "./chatSystemEvents";
 import { readCache, writeCache } from "./chatCache";
 import { obfuscateAuthorId } from "@/lib/author-obfuscate";
 import { compressImage } from "@/lib/compress-image";
+import { classifyImage } from "@/lib/nsfw-check";
+import { playMessageSent } from "@/lib/sounds";
 
 const PAGE_SIZE = 50;
 
@@ -137,6 +139,14 @@ export function useCourseChat(courseId: string, options?: { isSystemCourse?: boo
     const urls: string[] = [];
     for (const file of files) {
       const processedFile = await compressImage(file);
+
+      // Classify image files for NSFW content before upload
+      let isSensitive = false;
+      if (processedFile.type.startsWith("image/")) {
+        const result = await classifyImage(processedFile);
+        isSensitive = result.isSensitive;
+      }
+
       const ext = processedFile.name.split(".").pop() ?? "bin";
       const path = `${courseId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
       const { error: uploadError } = await supabase.storage
@@ -153,7 +163,11 @@ export function useCourseChat(courseId: string, options?: { isSystemCourse?: boo
       const { data: urlData } = supabase.storage
         .from("chat-attachments")
         .getPublicUrl(path);
-      urls.push(urlData.publicUrl);
+      // Prefix sensitive image URLs with [sensitive] marker
+      const publicUrl = isSensitive
+        ? `[sensitive]${urlData.publicUrl}`
+        : urlData.publicUrl;
+      urls.push(publicUrl);
     }
     return urls;
   }, [courseId, supabase.storage]);
@@ -206,6 +220,7 @@ export function useCourseChat(courseId: string, options?: { isSystemCourse?: boo
       };
 
       setMessages((prev) => [...prev, optimisticMsg]);
+      playMessageSent();
 
       // Register pending sentinel so the Realtime handler can detect
       // that this tempId is awaiting a server ID, even if the INSERT

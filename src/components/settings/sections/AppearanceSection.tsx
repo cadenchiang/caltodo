@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { Check, Lock } from "lucide-react";
 import ThemeToggle from "@/components/layout/ThemeToggle";
 import { useTheme } from "@/contexts/ThemeContext";
 import type { ColorTheme } from "@/contexts/ThemeContext";
@@ -11,6 +12,83 @@ const UNLOCKED_THEMES_KEY = "caltodo_unlocked_themes";
 
 /** Hardcoded access code for the Miffy theme (case-insensitive). */
 const MIFFY_ACCESS_CODE = "CHENFEI";
+
+/**
+ * Theme option metadata for rendering in the picker grid.
+ *
+ * @param id - Color theme identifier
+ * @param name - Display name
+ * @param description - Short description
+ * @param locked - Whether a code is required to unlock
+ * @param swatches - 4 hex colors for the preview circles
+ */
+interface ThemeOption {
+  id: NonNullable<ColorTheme>;
+  name: string;
+  description: string;
+  locked: boolean;
+  swatches: [string, string, string, string];
+}
+
+/** All available themes displayed in the picker grid. */
+const THEME_OPTIONS: ThemeOption[] = [
+  {
+    id: "ocean",
+    name: "Ocean",
+    description: "Deep blue-teal",
+    locked: false,
+    swatches: ["#5ba4c8", "#2e88b0", "#e0eff5", "#143e52"],
+  },
+  {
+    id: "forest",
+    name: "Forest",
+    description: "Green-emerald earth",
+    locked: false,
+    swatches: ["#4a9a4a", "#388038", "#e4f0e0", "#1a2e1a"],
+  },
+  {
+    id: "sunset",
+    name: "Sunset",
+    description: "Warm orange-coral",
+    locked: false,
+    swatches: ["#e87040", "#d85828", "#fce8dc", "#2c1a10"],
+  },
+  {
+    id: "lavender",
+    name: "Lavender",
+    description: "Soft purple-violet",
+    locked: false,
+    swatches: ["#8a60c0", "#7248a8", "#ebe0f5", "#1e1a2e"],
+  },
+  {
+    id: "nord",
+    name: "Nord",
+    description: "Arctic blue-gray",
+    locked: false,
+    swatches: ["#5e81ac", "#81a1c1", "#d8dee9", "#2e3440"],
+  },
+  {
+    id: "rosewood",
+    name: "Rosewood",
+    description: "Wine-burgundy",
+    locked: false,
+    swatches: ["#a03040", "#882838", "#f0e0e0", "#2a1418"],
+  },
+  {
+    id: "midnight",
+    name: "Midnight",
+    description: "Navy with electric blue",
+    locked: false,
+    swatches: ["#3a6cf0", "#2a58d8", "#dce0ea", "#0a0e18"],
+  },
+  {
+    id: "miffy",
+    name: "Miffy",
+    description: "Pastel pink palette",
+    locked: true,
+    swatches: ["#e8729a", "#f4a0bc", "#fce8ef", "#1a1118"],
+  },
+];
 
 /**
  * Reads the set of unlocked theme IDs from localStorage.
@@ -45,7 +123,8 @@ function saveUnlockedThemes(themes: string[]): void {
 
 /**
  * Appearance settings section.
- * Renders the light/dark/auto theme toggle and exclusive theme cards.
+ * Renders the light/dark/auto theme toggle and a grid of theme cards.
+ * Miffy is locked behind an access code; all other themes are freely selectable.
  */
 export default function AppearanceSection() {
   const { colorTheme, setColorTheme } = useTheme();
@@ -53,6 +132,7 @@ export default function AppearanceSection() {
   const [codeInput, setCodeInput] = useState("");
   const [error, setError] = useState(false);
   const [shaking, setShaking] = useState(false);
+  const [showUnlockFor, setShowUnlockFor] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Load unlocked themes from localStorage on mount
@@ -60,22 +140,22 @@ export default function AppearanceSection() {
     setUnlockedThemes(getUnlockedThemes());
   }, []);
 
-  const isMiffyUnlocked = unlockedThemes.includes("miffy");
-  const isMiffyActive = colorTheme === "miffy";
-
   /**
-   * Attempts to unlock the Miffy theme with the entered code.
+   * Attempts to unlock a locked theme with the entered code.
    * On success: unlocks, activates, and persists.
    * On failure: triggers shake animation and error message.
+   *
+   * @param themeId - The theme ID to unlock
    */
-  const handleUnlock = useCallback(() => {
-    if (codeInput.trim().toUpperCase() === MIFFY_ACCESS_CODE) {
-      const next = [...unlockedThemes, "miffy"];
+  const handleUnlock = useCallback((themeId: string) => {
+    if (themeId === "miffy" && codeInput.trim().toUpperCase() === MIFFY_ACCESS_CODE) {
+      const next = [...unlockedThemes, themeId];
       setUnlockedThemes(next);
       saveUnlockedThemes(next);
-      setColorTheme("miffy");
+      setColorTheme(themeId as ColorTheme);
       setCodeInput("");
       setError(false);
+      setShowUnlockFor(null);
     } else {
       setError(true);
       setShaking(true);
@@ -84,12 +164,20 @@ export default function AppearanceSection() {
   }, [codeInput, unlockedThemes, setColorTheme]);
 
   /**
-   * Toggles the Miffy color theme on or off.
+   * Handles clicking a theme card. Toggles active theme, or shows unlock input for locked themes.
+   *
+   * @param theme - The theme option that was clicked
    */
-  const handleToggleMiffy = useCallback(() => {
-    const next: ColorTheme = isMiffyActive ? null : "miffy";
+  const handleThemeClick = useCallback((theme: ThemeOption) => {
+    if (theme.locked && !unlockedThemes.includes(theme.id)) {
+      setShowUnlockFor(showUnlockFor === theme.id ? null : theme.id);
+      setCodeInput("");
+      setError(false);
+      return;
+    }
+    const next: ColorTheme = colorTheme === theme.id ? null : theme.id;
     setColorTheme(next);
-  }, [isMiffyActive, setColorTheme]);
+  }, [colorTheme, unlockedThemes, showUnlockFor, setColorTheme]);
 
   return (
     <section>
@@ -99,112 +187,148 @@ export default function AppearanceSection() {
       </p>
       <ThemeToggle />
 
-      {/* Exclusive Themes */}
+      {/* Theme Grid */}
       <div className="mt-6">
         <h3 className="text-sm font-medium text-secondary-foreground mb-3">
           Themes
         </h3>
 
-        {/* Miffy Theme Card */}
-        <div
-          className={cn(
-            "relative flex items-center gap-3 rounded-xl border p-3 transition-all duration-200",
-            isMiffyActive
-              ? "border-[#f0b8cc] bg-[#fdf2f5] dark:border-[#4a3542] dark:bg-[#231920]"
-              : "border-border bg-card"
-          )}
-        >
-          {/* Miffy face icon */}
-          <div className="h-10 w-10 shrink-0 rounded-lg overflow-hidden bg-[#fdf2f5] dark:bg-[#231920] flex items-center justify-center p-1">
-            <img
-              src="/miffy/miffy-head.png"
-              alt="Miffy"
-              className="h-full w-full object-contain dark:invert"
-            />
-          </div>
-
-          {/* Label + status */}
-          <div className="flex-1 min-w-0">
+        <div className="grid grid-cols-2 gap-2.5">
+          {/* Default "caltodo" theme card */}
+          <button
+            type="button"
+            onClick={() => setColorTheme(null)}
+            aria-label={colorTheme === null ? "Default theme active" : "Switch to default theme"}
+            className={cn(
+              "relative flex flex-col items-start gap-2 rounded-xl border p-3 transition-all duration-200 cursor-pointer text-left",
+              "hover:border-input-border",
+              colorTheme === null
+                ? "border-ring bg-accent ring-1 ring-ring"
+                : "border-border bg-card"
+            )}
+          >
             <div className="flex items-center gap-1.5">
-              <span className="text-sm font-medium text-foreground">Miffy</span>
-              {isMiffyUnlocked && isMiffyActive && (
-                <span className="text-[10px] font-medium text-[#e8729a] dark:text-[#f4a0bc]">
-                  Active
-                </span>
-              )}
+              <span className="w-4 h-4 rounded-full border border-black/10 dark:border-white/10 bg-[#3B82F6]" />
+              <span className="w-4 h-4 rounded-full border border-black/10 dark:border-white/10 bg-[#f3f4f6] dark:bg-[#404040]" />
+              <span className="w-4 h-4 rounded-full border border-black/10 dark:border-white/10 bg-[#1f2937] dark:bg-[#f3f4f6]" />
+              <span className="w-4 h-4 rounded-full border border-black/10 dark:border-white/10 bg-white dark:bg-[#111111]" />
             </div>
-            <p className="text-[11px] text-muted-foreground">
-              {isMiffyUnlocked ? "Pastel pink palette" : "Enter code to unlock"}
-            </p>
-          </div>
+            <div className="min-w-0">
+              <span className="text-xs font-medium text-foreground">caltodo</span>
+              <p className="text-[10px] text-muted-foreground leading-tight">Default theme</p>
+            </div>
+            {colorTheme === null && (
+              <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-ring flex items-center justify-center">
+                <Check size={12} className="text-white" />
+              </div>
+            )}
+          </button>
 
-          {/* Right side: lock/unlock controls */}
-          {isMiffyUnlocked ? (
-            <button
-              type="button"
-              onClick={handleToggleMiffy}
-              aria-label={isMiffyActive ? "Deactivate Miffy theme" : "Activate Miffy theme"}
-              className={cn(
-                "relative h-6 w-11 shrink-0 rounded-full transition-colors duration-200",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f9a8c9]",
-                isMiffyActive
-                  ? "bg-[#e8729a]"
-                  : "bg-gray-200 dark:bg-zinc-700"
-              )}
-            >
-              <span
-                className={cn(
-                  "absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200",
-                  isMiffyActive && "translate-x-5"
+          {THEME_OPTIONS.map((theme) => {
+            const isActive = colorTheme === theme.id;
+            const isLocked = theme.locked && !unlockedThemes.includes(theme.id);
+            const showingUnlock = showUnlockFor === theme.id;
+
+            return (
+              <div key={theme.id} className="flex flex-col gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => handleThemeClick(theme)}
+                  aria-label={
+                    isLocked
+                      ? `Unlock ${theme.name} theme`
+                      : isActive
+                        ? `Deactivate ${theme.name} theme`
+                        : `Activate ${theme.name} theme`
+                  }
+                  className={cn(
+                    "relative flex flex-col items-start gap-2 rounded-xl border p-3 transition-all duration-200 cursor-pointer text-left",
+                    "hover:border-input-border",
+                    isActive
+                      ? "border-ring bg-accent ring-1 ring-ring"
+                      : "border-border bg-card"
+                  )}
+                >
+                  {/* Swatch row */}
+                  <div className="flex items-center gap-1.5">
+                    {theme.swatches.map((color, i) => (
+                      <span
+                        key={i}
+                        className="w-4 h-4 rounded-full border border-black/10 dark:border-white/10"
+                        style={{ backgroundColor: color }}
+                      />
+                    ))}
+                  </div>
+
+                  {/* Name + description */}
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-medium text-foreground">{theme.name}</span>
+                      {isLocked && <Lock size={10} className="text-muted-foreground" />}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground leading-tight">
+                      {isLocked ? "Enter code to unlock" : theme.description}
+                    </p>
+                  </div>
+
+                  {/* Active checkmark */}
+                  {isActive && (
+                    <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-ring flex items-center justify-center">
+                      <Check size={12} className="text-white" />
+                    </div>
+                  )}
+                </button>
+
+                {/* Unlock input (only for locked themes) */}
+                {isLocked && showingUnlock && (
+                  <div className={cn("flex items-center gap-1.5 px-1", shaking && "animate-shake")}>
+                    <input
+                      ref={inputRef}
+                      type="text"
+                      value={codeInput}
+                      onChange={(e) => {
+                        setCodeInput(e.target.value);
+                        if (error) setError(false);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleUnlock(theme.id);
+                      }}
+                      placeholder="Enter code"
+                      autoFocus
+                      className={cn(
+                        "h-7 flex-1 min-w-0 rounded-md border px-2 text-xs bg-background text-foreground",
+                        "placeholder:text-subtle-foreground",
+                        "focus:outline-none focus:ring-1 focus:ring-ring",
+                        error
+                          ? "border-red-400 dark:border-red-500"
+                          : "border-input-border"
+                      )}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleUnlock(theme.id)}
+                      aria-label="Unlock theme"
+                      className={cn(
+                        "h-7 px-2.5 shrink-0 rounded-md flex items-center justify-center text-xs font-medium",
+                        "bg-accent text-foreground hover:bg-muted",
+                        "transition-colors duration-150"
+                      )}
+                    >
+                      Unlock
+                    </button>
+                  </div>
                 )}
-              />
-            </button>
-          ) : (
-            <div className={cn("flex items-center gap-1.5", shaking && "animate-shake")}>
-              <input
-                ref={inputRef}
-                type="text"
-                value={codeInput}
-                onChange={(e) => {
-                  setCodeInput(e.target.value);
-                  if (error) setError(false);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleUnlock();
-                }}
-                placeholder="Enter code"
-                className={cn(
-                  "h-7 w-24 rounded-md border px-2 text-xs bg-background text-foreground",
-                  "placeholder:text-subtle-foreground",
-                  "focus:outline-none focus:ring-1 focus:ring-[#f9a8c9]",
-                  error
-                    ? "border-red-400 dark:border-red-500"
-                    : "border-input-border"
+
+                {/* Error message for unlock */}
+                {isLocked && showingUnlock && error && (
+                  <p className="text-[11px] text-red-500 dark:text-red-400 pl-1">
+                    Wrong code. Try again.
+                  </p>
                 )}
-              />
-              <button
-                type="button"
-                onClick={handleUnlock}
-                aria-label="Unlock theme"
-                className={cn(
-                  "h-7 px-2.5 shrink-0 rounded-md flex items-center justify-center text-xs font-medium",
-                  "bg-[#fce8ef] text-[#e8729a] hover:bg-[#f9d5e0]",
-                  "dark:bg-[#2a1f26] dark:text-[#f4a0bc] dark:hover:bg-[#3d2e36]",
-                  "transition-colors duration-150"
-                )}
-              >
-                Unlock
-              </button>
-            </div>
-          )}
+              </div>
+            );
+          })}
         </div>
-
-        {/* Error message */}
-        {error && (
-          <p className="mt-1.5 text-[11px] text-red-500 dark:text-red-400 pl-1">
-            Wrong code. Try again.
-          </p>
-        )}
       </div>
     </section>
   );

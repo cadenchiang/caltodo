@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { format, isSameDay, isSameMonth, isBefore, startOfDay } from "date-fns";
 import type { Task, PendingInvite } from "@/lib/types";
-import { getMiffyColor } from "@/lib/constants";
+import { getThemeColor } from "@/lib/constants";
 import { pendingInviteToPseudoTask } from "@/lib/pending-invite-helpers";
 import { useTheme } from "@/contexts/ThemeContext";
 import CalendarTaskBar from "./CalendarTaskBar";
@@ -111,7 +111,7 @@ export default function CalendarDayCell({
                 <span
                   key={task.id}
                   className={`w-[5px] h-[5px] rounded-full shrink-0 ${task.is_completed ? "opacity-60" : ""}`}
-                  style={{ backgroundColor: isMiffyTheme ? getMiffyColor(task.color) : (task.color || "#6b7280") }}
+                  style={{ backgroundColor: getThemeColor(task.color, colorTheme) }}
                 />
               ))}
               {pendingInvites.map((invite) => (
@@ -120,7 +120,7 @@ export default function CalendarDayCell({
                   className="w-[5px] h-[5px] rounded-full shrink-0 opacity-40"
                   style={{
                     backgroundColor: "transparent",
-                    border: `1px dashed ${isMiffyTheme ? getMiffyColor(invite.taskColor) : (invite.taskColor || "#6b7280")}`,
+                    border: `1px dashed ${getThemeColor(invite.taskColor, colorTheme)}`,
                   }}
                 />
               ))}

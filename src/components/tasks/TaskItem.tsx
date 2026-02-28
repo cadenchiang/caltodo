@@ -4,7 +4,7 @@ import { useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import { Trash2, Repeat, MoreVertical, Clock, EyeOff } from "lucide-react";
 import type { Task } from "@/lib/types";
-import { getMiffyColor } from "@/lib/constants";
+import { getThemeColor } from "@/lib/constants";
 import { getDueDateInfo } from "@/lib/task-utils";
 import { useTaskContext } from "@/contexts/TaskContext";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -46,7 +46,7 @@ export default function TaskItem({ task, isSelected, onToggle, onSelect, onDelet
   const { snoozeTask } = useTaskContext();
   const { colorTheme } = useTheme();
   const isMiffy = colorTheme === "miffy";
-  const taskColor = isMiffy ? getMiffyColor(task.color) : task.color;
+  const taskColor = getThemeColor(task.color, colorTheme);
   const rawBadge = getDueDateInfo(task.due_date, task.due_time);
   // Miffy theme: swap blue-400 date badges to pink; completed tasks stay subtle
   const dueBadge = rawBadge && task.is_completed

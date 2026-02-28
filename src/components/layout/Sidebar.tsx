@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Inbox, Sun, CalendarRange, ChevronLeft } from "lucide-react";
 import { NAV_ITEMS } from "@/lib/constants";
 import { SETTINGS_SECTIONS, SETTINGS_GROUPS, DEFAULT_SECTION, type SettingsSectionId } from "@/lib/settingsConfig";
-import SidebarNavItem from "./SidebarNavItem";
+import SidebarNavItem, { navItemClasses } from "./SidebarNavItem";
 import ProfilePopup from "./ProfilePopup";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useCalChatUnread } from "@/hooks/useCalChatUnread";
@@ -118,7 +118,10 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
   const inboxConfig = FILTER_CONFIG[inboxFilter] || FILTER_CONFIG.all;
 
   return (
-    <aside className={`hidden md:flex glass-strong w-52 h-screen flex-col justify-between py-4 px-3 shrink-0 shadow-lg dark:shadow-black/30 ${isMiffy ? "border-r border-[#f9d5e0] dark:border-[#3d2e36]" : ""}`}>
+    <aside
+      className="hidden md:flex glass-strong w-52 h-screen flex-col justify-between py-4 px-3 shrink-0 shadow-lg dark:shadow-black/30"
+      style={{ borderRight: colorTheme ? `1px solid var(--sidebar-border-color)` : undefined }}
+    >
       <div>
         <div className="mb-6 px-3 pt-1">
           {isMiffy ? (
@@ -162,13 +165,7 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
                       onClick={() => {
                         router.push(`/app/settings?section=${section.id}`);
                       }}
-                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors cursor-pointer ${
-                        isActive
-                          ? isMiffy
-                            ? "bg-[#fce8ef] dark:bg-[rgba(232,114,154,0.12)] text-foreground"
-                            : "bg-gray-200 dark:bg-zinc-700 text-foreground"
-                          : "text-foreground hover:bg-gray-100 dark:hover:bg-zinc-800"
-                      }`}
+                      className={`w-full cursor-pointer ${navItemClasses(isActive, isMiffy)}`}
                     >
                       <Icon size={16} className="shrink-0" />
                       <span>{section.label}</span>

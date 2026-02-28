@@ -18,7 +18,7 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import type { Task, TaskInsert } from "@/lib/types";
-import { TASK_COLORS, getMiffyColor } from "@/lib/constants";
+import { TASK_COLORS, getThemeColor } from "@/lib/constants";
 import { getDueDateInfo } from "@/lib/task-utils";
 import TaskCreateModal from "./TaskCreateModal";
 import SortableColumn from "./SortableColumn";
@@ -874,7 +874,7 @@ interface TaskCardProps {
 function TaskCard({ task, isSelected, onToggle, onSelect, onDelete }: TaskCardProps) {
   const { colorTheme } = useTheme();
   const isMiffyCard = colorTheme === "miffy";
-  const taskColor = isMiffyCard ? getMiffyColor(task.color) : task.color;
+  const taskColor = getThemeColor(task.color, colorTheme);
   const [showMenu, setShowMenu] = useState(false);
   const menuBtnRef = useRef<HTMLButtonElement>(null);
   const menuDropdownRef = useRef<HTMLDivElement>(null);

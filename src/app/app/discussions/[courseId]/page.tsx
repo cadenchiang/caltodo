@@ -18,6 +18,7 @@ import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { stripParentheses } from "@/lib/chat-utils";
 import { NAME_KEY_PREFIX, MUTE_KEY_PREFIX } from "@/lib/chat-actions";
 import { isAdmin as checkIsAdmin } from "@/lib/admin";
+import { playMessageReceived } from "@/lib/sounds";
 
 const LAST_CHAT_KEY = "calchat_last_course";
 
@@ -227,6 +228,26 @@ export default function CourseChatPage({ params }: PageProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages.length]);
 
+  // Play receive sound when a new message from another user arrives.
+  // Uses a separate baseline to track genuinely new messages.
+  const soundBaselineRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (soundBaselineRef.current === null) {
+      soundBaselineRef.current = messages.length;
+      return;
+    }
+    if (messages.length <= soundBaselineRef.current || isMuted || !currentUserId) {
+      soundBaselineRef.current = messages.length;
+      return;
+    }
+    soundBaselineRef.current = messages.length;
+
+    const lastMsg = messages[messages.length - 1];
+    if (lastMsg.author_id === currentUserId || lastMsg._systemText) return;
+    playMessageReceived();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages.length]);
+
   // Show loading bar while chat data or user ID is loading
   const isLoading = !ready || (loading && messages.length === 0);
   const loadingDone = ready && !loading;
@@ -239,7 +260,7 @@ export default function CourseChatPage({ params }: PageProps) {
   }
 
   return (
-    <div className="absolute inset-0 flex">
+    <div id="tour-calchat-page" className="absolute inset-0 flex">
       <CalChatWelcomeModal />
       {/* Chat list sidebar — hidden on mobile, visible on md+ */}
       <div className="hidden md:flex w-72 shrink-0 border-r border-black/30 dark:border-white/20 flex-col">

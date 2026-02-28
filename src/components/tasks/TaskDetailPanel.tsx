@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { getRepeatLabel } from "@/lib/repeat";
-import { getMiffyColor } from "@/lib/constants";
+import { getThemeColor } from "@/lib/constants";
 import { getSourceBadges } from "@/lib/task-utils";
 import { useTheme } from "@/contexts/ThemeContext";
 import type { Task, TaskUpdate } from "@/lib/types";
@@ -56,7 +56,7 @@ export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: Tas
     );
   }
 
-  const dotColor = isMiffy ? getMiffyColor(task.color) : task.color;
+  const dotColor = getThemeColor(task.color, colorTheme);
   const dateLabel = task.due_date
     ? format(new Date(task.due_date + "T00:00:00"), "EEE, MMM d, yyyy")
     : null;
