@@ -17,7 +17,7 @@ export default function MobileTabBar() {
   const pathname = usePathname();
   const [inboxFilter, setInboxFilter] = useState<string>("all");
   const calChatUnreadCount = useCalChatUnread();
-  const { hasCompletedOnboarding } = useOnboardingStatus();
+  useOnboardingStatus();
 
   // Hydrate inbox filter from localStorage after mount to avoid SSR mismatch
   useEffect(() => {

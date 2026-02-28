@@ -73,8 +73,10 @@ export default function IntegrationsWelcomeModal() {
 
   useEffect(() => {
     if (isAlreadySeen()) return;
-    seenThisSession = true;
-    const timer = setTimeout(() => setVisible(true), 300);
+    const timer = setTimeout(() => {
+      seenThisSession = true;
+      setVisible(true);
+    }, 300);
     return () => clearTimeout(timer);
   }, []);
 

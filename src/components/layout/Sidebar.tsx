@@ -68,7 +68,7 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
     return () => window.removeEventListener("profile-updated", handleProfileUpdate);
   }, []);
   const hasCalChatUnread = useCalChatUnread();
-  const { hasCompletedOnboarding } = useOnboardingStatus();
+  useOnboardingStatus();
   const { pendingInviteCount } = useNotifications();
 
   // Track whether user has clicked CalChat to dismiss "NEW" badge
