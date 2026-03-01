@@ -25,7 +25,7 @@ const SUPPORTED_TYPES = new Set<string>(Object.keys(WIDGET_REGISTRY));
 const STORAGE_KEY = "home_widget_layout";
 
 /** Schema version for cache invalidation. Bump to reset all users to new defaults. */
-const SCHEMA_VERSION = 5;
+const SCHEMA_VERSION = 6;
 
 /** Old lg column count (v2) and new lg column count (v3). */
 const OLD_LG_COLS = 6;
