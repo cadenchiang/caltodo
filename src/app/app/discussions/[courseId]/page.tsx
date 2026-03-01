@@ -1,12 +1,13 @@
 "use client";
 
-import { use, useEffect, useState, useRef, useCallback } from "react";
+import { use, useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Users } from "lucide-react";
 import { useCourseChat } from "@/hooks/useCourseChat";
 import { useMessageReactions } from "@/hooks/useMessageReactions";
 import { usePresence } from "@/contexts/PresenceContext";
 import { useTypingIndicator } from "@/hooks/useTypingIndicator";
+import { useChatMembers } from "@/hooks/useChatMembers";
 import ChatView from "@/components/discussions/ChatView";
 import ChatSidebar from "@/components/discussions/ChatSidebar";
 import ChatDetailsSidebar from "@/components/discussions/ChatDetailsSidebar";
@@ -120,9 +121,16 @@ export default function CourseChatPage({ params }: PageProps) {
     loadMore,
   } = useCourseChat(activeCourseId, { isSystemCourse, isAdmin });
 
-  const { onlineUsers, onlineUserIds } = usePresence();
+  const { onlineUserIds } = usePresence();
+  const { members: chatMembers } = useChatMembers(activeCourseId);
   const { reactionsMap, toggleReaction } = useMessageReactions(activeCourseId);
   const { typingUsers, startTyping, stopTyping } = useTypingIndicator(activeCourseId, currentUserId);
+
+  // Per-chat online count: only count members of THIS chat who are online
+  const chatOnlineCount = useMemo(() => {
+    if (onlineUserIds.size === 0 || chatMembers.length === 0) return 0;
+    return chatMembers.filter((m) => onlineUserIds.has(m.user_id)).length;
+  }, [onlineUserIds, chatMembers]);
 
   // Get current user ID and admin status — only once
   useEffect(() => {
@@ -338,9 +346,9 @@ export default function CourseChatPage({ params }: PageProps) {
             </h1>
             <p className="text-[11px] font-medium h-[16px] text-muted-foreground/40 dark:text-muted-foreground/70">
               {activeMemberCount > 0 && <span>{activeMemberCount} members · </span>}
-              {onlineUsers.length > 0
-                ? <span className="text-green-500">{onlineUsers.length} online</span>
-                : "– online"
+              {chatOnlineCount > 0
+                ? <span className="text-green-500">{chatOnlineCount} online</span>
+                : "0 online"
               }
             </p>
           </div>

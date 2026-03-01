@@ -1,51 +1,17 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from "react";
-import type { CourseMemberProfile } from "@/lib/types";
-
-const CACHE_PREFIX = "chat_members_cache_";
-const CACHE_TTL = 5 * 60_000;
-
-/**
- * Reads cached members from sessionStorage.
- *
- * @param courseId - The course UUID
- * @returns Cached members or null if missing/expired
- */
-function readCache(courseId: string): CourseMemberProfile[] | null {
-  try {
-    const raw = sessionStorage.getItem(CACHE_PREFIX + courseId);
-    if (!raw) return null;
-    const entry = JSON.parse(raw);
-    if (Date.now() - entry.timestamp > CACHE_TTL) return null;
-    return entry.members;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Writes members to sessionStorage cache.
- *
- * @param courseId - The course UUID
- * @param members - Members to cache
- */
-function writeCache(courseId: string, members: CourseMemberProfile[]) {
-  try {
-    sessionStorage.setItem(
-      CACHE_PREFIX + courseId,
-      JSON.stringify({ members, timestamp: Date.now() })
-    );
-  } catch { /* ignore */ }
-}
+import { useState, useMemo } from "react";
+import { useChatMembers } from "@/hooks/useChatMembers";
 
 /**
  * Shows all members enrolled in a course with online status indicators.
- * Uses sessionStorage cache for instant rendering on chat switch.
- * Sorts online members first, includes the current user.
+ * Sorts online members to the top, then alphabetically within each group.
+ * Computes per-chat online count (intersection of global online IDs and chat members).
  *
  * @param courseId - The course UUID to fetch members for
- * @param onlineUserIds - Set of user IDs currently online (from Presence)
+ * @param onlineUserIds - Set of user IDs currently online (from global Presence)
+ * @param avatarSize - "default" (36px) or "lg" (56px) avatar rendering
+ * @param onMemberClick - Callback when a member row is clicked (passes user ID)
  */
 interface MemberListProps {
   courseId: string;
@@ -56,57 +22,31 @@ interface MemberListProps {
   onMemberClick?: (userId: string) => void;
 }
 
-export default function MemberList({ courseId, onlineUserIds, avatarSize = "default", onMemberClick }: MemberListProps) {
+export default function MemberList({
+  courseId,
+  onlineUserIds,
+  avatarSize = "default",
+  onMemberClick,
+}: MemberListProps) {
   const isLg = avatarSize === "lg";
-  const [members, setMembers] = useState<CourseMemberProfile[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { members, loading } = useChatMembers(courseId);
   const [expanded, setExpanded] = useState(false);
-  const prevCourseIdRef = useRef(courseId);
 
-  // Synchronously update state when courseId changes (no flash frame)
-  if (prevCourseIdRef.current !== courseId) {
-    prevCourseIdRef.current = courseId;
-    const cached = readCache(courseId);
-    if (cached) {
-      setMembers(cached);
-      setLoading(false);
-    } else {
-      setMembers([]);
-      setLoading(true);
-    }
-    setExpanded(false);
-  }
-
-  useEffect(() => {
-    // Stale-while-revalidate: show cached data immediately, then refresh
-    const cached = readCache(courseId);
-    if (cached) {
-      setMembers(cached);
-      setLoading(false);
-    }
-
-    // Always fetch fresh data from API (background revalidation)
-    let cancelled = false;
-    fetch(`/api/discussions/members?courseId=${encodeURIComponent(courseId)}`)
-      .then((res) => res.ok ? res.json() : [])
-      .then((data: CourseMemberProfile[]) => {
-        if (cancelled) return;
-        setMembers(data);
-        writeCache(courseId, data);
-      })
-      .catch(() => {})
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, [courseId]);
-
-  // Alphabetical sort only — no reordering on presence changes
+  // Sort: online members first, then alphabetical within each group
   const sortedMembers = useMemo(() => {
-    return [...members].sort((a, b) =>
-      (a.user_name ?? "").localeCompare(b.user_name ?? "")
-    );
-  }, [members]);
+    return [...members].sort((a, b) => {
+      const aOnline = onlineUserIds?.has(a.user_id) ? 0 : 1;
+      const bOnline = onlineUserIds?.has(b.user_id) ? 0 : 1;
+      if (aOnline !== bOnline) return aOnline - bOnline;
+      return (a.user_name ?? "").localeCompare(b.user_name ?? "");
+    });
+  }, [members, onlineUserIds]);
 
-  const onlineCount = onlineUserIds?.size ?? 0;
+  // Per-chat online count: only count members of THIS chat who are online
+  const onlineCount = useMemo(() => {
+    if (!onlineUserIds || onlineUserIds.size === 0) return 0;
+    return members.filter((m) => onlineUserIds.has(m.user_id)).length;
+  }, [members, onlineUserIds]);
 
   if (loading && members.length === 0) {
     return (
@@ -136,10 +76,11 @@ export default function MemberList({ courseId, onlineUserIds, avatarSize = "defa
           {members.length} members
         </span>
         <span className="text-[12px] font-medium">
-          {onlineCount > 0
-            ? <span className="text-green-500">{onlineCount} online</span>
-            : <span className="text-muted-foreground/40">– online</span>
-          }
+          {onlineCount > 0 ? (
+            <span className="text-green-500">{onlineCount} online</span>
+          ) : (
+            <span className="text-muted-foreground/40">0 online</span>
+          )}
         </span>
       </div>
 
@@ -159,26 +100,40 @@ export default function MemberList({ courseId, onlineUserIds, avatarSize = "defa
                     src={member.user_avatar}
                     alt=""
                     referrerPolicy="no-referrer"
-                    className={isLg ? "w-14 h-14 rounded-full object-cover" : "w-9 h-9 rounded-full object-cover"}
+                    className={
+                      isLg
+                        ? "w-14 h-14 rounded-full object-cover"
+                        : "w-9 h-9 rounded-full object-cover"
+                    }
                   />
                 ) : (
-                  <div className={
-                    isLg
-                      ? "w-14 h-14 rounded-full bg-muted flex items-center justify-center text-lg font-medium text-muted-foreground"
-                      : "w-9 h-9 rounded-full bg-muted flex items-center justify-center text-sm font-medium text-muted-foreground"
-                  }>
+                  <div
+                    className={
+                      isLg
+                        ? "w-14 h-14 rounded-full bg-muted flex items-center justify-center text-lg font-medium text-muted-foreground"
+                        : "w-9 h-9 rounded-full bg-muted flex items-center justify-center text-sm font-medium text-muted-foreground"
+                    }
+                  >
                     {(member.user_name ?? "?")[0]?.toUpperCase()}
                   </div>
                 )}
                 {isOnline && (
-                  <span className={
-                    isLg
-                      ? "absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-green-500 border-[2.5px] border-white dark:border-zinc-900"
-                      : "absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-green-500 border-2 border-white dark:border-zinc-900"
-                  } />
+                  <span
+                    className={
+                      isLg
+                        ? "absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-green-500 border-[2.5px] border-white dark:border-zinc-900"
+                        : "absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-green-500 border-2 border-white dark:border-zinc-900"
+                    }
+                  />
                 )}
               </div>
-              <span className={isLg ? "text-[15px] text-foreground truncate" : "text-[14px] text-foreground truncate"}>
+              <span
+                className={
+                  isLg
+                    ? "text-[15px] text-foreground truncate"
+                    : "text-[14px] text-foreground truncate"
+                }
+              >
                 {member.user_name ?? "Unknown"}
               </span>
             </div>
