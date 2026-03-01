@@ -241,6 +241,10 @@ export default function ChatSidebar({
     } catch {
       /* ignore */
     }
+    // Notify sidebar badge to recheck unread count
+    window.dispatchEvent(
+      new CustomEvent("calchat-read-update", { detail: { courseId: activeCourseId } })
+    );
   }, [activeCourseId]);
 
   /**
