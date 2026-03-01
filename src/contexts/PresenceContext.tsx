@@ -37,22 +37,7 @@ export function PresenceProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const mounted = { current: true };
-
-    const channel = supabase.channel("presence:global", {
-      config: { presence: { key: "user_id" } },
-    });
-
-    channel.on("presence", { event: "sync" }, () => {
-      const state = channel.presenceState<ChatPresence>();
-      const users: ChatPresence[] = [];
-      for (const key of Object.keys(state)) {
-        const presences = state[key];
-        if (presences && presences.length > 0) {
-          users.push(presences[0]);
-        }
-      }
-      setOnlineUsers(users);
-    });
+    let channel: RealtimeChannel | null = null;
 
     async function joinPresence() {
       await ensureRealtimeAuth(supabase);
@@ -61,29 +46,50 @@ export function PresenceProvider({ children }: { children: ReactNode }) {
       const {
         data: { user },
       } = await supabase.auth.getUser();
+      if (!user || !mounted.current) return;
+
+      // Use the actual user ID as presence key so each user gets a unique slot
+      channel = supabase.channel("presence:global", {
+        config: { presence: { key: user.id } },
+      });
+
+      channel.on("presence", { event: "sync" }, () => {
+        if (!channel) return;
+        const state = channel.presenceState<ChatPresence>();
+        const users: ChatPresence[] = [];
+        for (const key of Object.keys(state)) {
+          const presences = state[key];
+          if (presences && presences.length > 0) {
+            users.push(presences[0]);
+          }
+        }
+        setOnlineUsers(users);
+      });
 
       channel.subscribe(async (status) => {
         if (status !== "SUBSCRIBED" || !mounted.current) return;
-        if (!user) return;
-        await channel.track({
+        await channel!.track({
           user_id: user.id,
           user_name: user.user_metadata?.full_name ?? null,
           user_avatar: user.user_metadata?.avatar_url ?? null,
           online_at: new Date().toISOString(),
         });
       });
+
+      channelRef.current = channel;
     }
 
     joinPresence();
-    channelRef.current = channel;
 
     return () => {
       mounted.current = false;
-      // Only untrack if the channel has finished subscribing
-      if (channel.state === "joined") {
-        channel.untrack();
+      if (channel) {
+        // Only untrack if the channel has finished subscribing
+        if (channel.state === "joined") {
+          channel.untrack();
+        }
+        channel.unsubscribe();
       }
-      channel.unsubscribe();
       channelRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

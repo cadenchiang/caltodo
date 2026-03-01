@@ -186,7 +186,7 @@ export default function InboxPage() {
   const inboxRouter = useRouter();
   const searchParams = useSearchParams();
   const { setPendingInviteCount } = useNotifications();
-  const { hasCompletedOnboarding } = useOnboardingStatus();
+  const { hasCompletedOnboarding } = useOnboardingStatus({ skipCache: true });
   const [syncBadgeDismissed, setSyncBadgeDismissed] = useState(true);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [listPreviewTask, setListPreviewTask] = useState<Task | null>(null);
