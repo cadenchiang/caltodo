@@ -46,6 +46,9 @@ export default function AdvancedSection() {
       localStorage.removeItem("caltodo_tour_completed");
       localStorage.removeItem("caltodo_tour_pending");
       localStorage.removeItem("caltodo_welcome_resume_tour");
+      localStorage.removeItem("caltodo_getting_started_visible");
+      localStorage.removeItem("caltodo_getting_started_collapsed");
+      localStorage.removeItem("caltodo_integrations_welcome_seen");
       sessionStorage.removeItem("caltodo_onboarding_status");
     } catch { /* non-critical */ }
     // Set redo flag so SyncClassesModal shows without overriding onboarding status

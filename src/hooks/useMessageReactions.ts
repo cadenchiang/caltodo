@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { ensureRealtimeAuth } from "@/lib/supabase/realtime-auth";
 
 /**
  * A single emoji reaction with the list of users who reacted.
@@ -183,9 +184,15 @@ export function useMessageReactions(courseId: string) {
       }
     );
 
-    channel.subscribe();
+    let cancelled = false;
+    (async () => {
+      await ensureRealtimeAuth(supabase);
+      if (cancelled) return;
+      channel.subscribe();
+    })();
 
     return () => {
+      cancelled = true;
       channel.unsubscribe();
     };
   }, [courseId, fetchReactions]);

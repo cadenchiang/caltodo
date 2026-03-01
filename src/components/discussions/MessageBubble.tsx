@@ -5,6 +5,7 @@ import { EyeOff, MoreVertical, Undo2, Smile, CornerUpLeft, Flag } from "lucide-r
 import type { ChatMessage } from "@/lib/types";
 import type { ReactionGroup } from "@/hooks/useMessageReactions";
 import ImageLightbox from "./ImageLightbox";
+import SensitiveImageOverlay from "@/components/ui/SensitiveImageOverlay";
 
 /**
  * iMessage-style chat bubble with hover action toolbar and tapback reactions.
@@ -57,12 +58,14 @@ const TAPBACK_EMOJI = ["❤️", "👍", "👎", "😂", "‼️", "❓"];
 
 /**
  * Checks if a string is a URL pointing to an image file.
+ * Strips [sensitive] prefix before URL validation.
  *
  * @param text - A single line of message text
- * @returns true if the line is an image URL
+ * @returns true if the line is an image URL (with or without [sensitive] prefix)
  */
 function isImageUrl(text: string): boolean {
-  const trimmed = text.trim();
+  let trimmed = text.trim();
+  if (trimmed.startsWith("[sensitive]")) trimmed = trimmed.slice("[sensitive]".length);
   if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) return false;
   try {
     const url = new URL(trimmed);
@@ -70,6 +73,20 @@ function isImageUrl(text: string): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * Parses an image line, extracting the URL and sensitivity flag.
+ *
+ * @param line - A single line of message text (may have [sensitive] prefix)
+ * @returns Object with the clean URL and whether it's sensitive
+ */
+function parseImageLine(line: string): { url: string; isSensitive: boolean } {
+  const trimmed = line.trim();
+  if (trimmed.startsWith("[sensitive]")) {
+    return { url: trimmed.slice("[sensitive]".length), isSensitive: true };
+  }
+  return { url: trimmed, isSensitive: false };
 }
 
 /**
@@ -229,7 +246,8 @@ export default function MessageBubble({
             {(() => {
               const lines = message.body.split("\n");
               const textLines = lines.filter((l) => !isImageUrl(l));
-              const imageUrls = lines.filter((l) => isImageUrl(l)).map((l) => l.trim());
+              const imageEntries = lines.filter((l) => isImageUrl(l)).map((l) => parseImageLine(l));
+              const imageUrls = imageEntries.map((e) => e.url);
               const hasText = textLines.some((l) => l.trim().length > 0);
 
               return (
@@ -254,19 +272,33 @@ export default function MessageBubble({
                     </div>
                   )}
 
-                  {imageUrls.map((url, i) => (
-                    <img
-                      key={i}
-                      src={url}
-                      alt="Attachment"
-                      onClick={() => setLightboxSrc(url)}
-                      className={`max-w-[240px] max-h-[320px] object-cover rounded-2xl mt-1 cursor-zoom-in ${
-                        isLastInGroup && i === imageUrls.length - 1
-                          ? isOwn ? "rounded-br-[6px]" : "rounded-bl-[6px]"
-                          : ""
-                      }${isSending ? " opacity-70" : ""}`}
-                      loading="lazy"
-                    />
+                  {imageEntries.map((entry, i) => (
+                    entry.isSensitive ? (
+                      <SensitiveImageOverlay
+                        key={i}
+                        src={entry.url}
+                        alt="Attachment"
+                        onImageClick={() => setLightboxSrc(entry.url)}
+                        className={`mt-1 ${
+                          isLastInGroup && i === imageEntries.length - 1
+                            ? isOwn ? "rounded-br-[6px]" : "rounded-bl-[6px]"
+                            : ""
+                        }${isSending ? " opacity-70" : ""}`}
+                      />
+                    ) : (
+                      <img
+                        key={i}
+                        src={entry.url}
+                        alt="Attachment"
+                        onClick={() => setLightboxSrc(entry.url)}
+                        className={`max-w-[240px] max-h-[320px] object-cover rounded-2xl mt-1 cursor-zoom-in ${
+                          isLastInGroup && i === imageEntries.length - 1
+                            ? isOwn ? "rounded-br-[6px]" : "rounded-bl-[6px]"
+                            : ""
+                        }${isSending ? " opacity-70" : ""}`}
+                        loading="lazy"
+                      />
+                    )
                   ))}
 
                   {!hasText && imageUrls.length === 0 && (

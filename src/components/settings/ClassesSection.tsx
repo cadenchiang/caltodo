@@ -385,19 +385,19 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
         <button
           onClick={handleEdit}
           disabled={loading}
-          className="flex items-center gap-1.5 text-xs text-subtle-foreground hover:text-secondary-foreground transition-colors disabled:opacity-60"
+          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-60"
         >
-          {loading ? <Loader2 size={12} className="animate-spin" /> : <Pencil size={12} />}
+          {loading ? <Loader2 size={16} className="animate-spin" /> : <Pencil size={16} />}
           {loading ? "Loading..." : "Edit"}
         </button>
       </div>
 
       {totalSelected > 0 ? (
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-col gap-2">
           {canvasSelected.map((c) => (
             <span
               key={`canvas-${c.id}`}
-              className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
+              className="inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-200"
             >
               {c.name}
             </span>
@@ -405,7 +405,7 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
           {gsSelected.map((c) => (
             <span
               key={`gs-${c.id}`}
-              className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-300"
+              className="inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium bg-teal-50 dark:bg-teal-900/40 text-teal-700 dark:text-teal-200"
             >
               {c.name}
             </span>
@@ -413,7 +413,7 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
           {pensieveSelected.map((c) => (
             <span
               key={`pensieve-${c.id}`}
-              className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300"
+              className="inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium bg-purple-50 dark:bg-purple-900/40 text-purple-700 dark:text-purple-200"
             >
               {c.name}
             </span>

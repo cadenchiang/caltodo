@@ -61,10 +61,10 @@ export default function BentoFeatures() {
                 )}
               >
                 <Icon className="w-6 h-6 text-black/30 mb-8 sm:mb-12" strokeWidth={1.5} />
-                <h3 className="text-base sm:text-lg font-semibold text-black tracking-tight mb-1">
+                <h3 className="flex items-center gap-2 text-base sm:text-lg font-semibold text-black tracking-tight mb-1">
                   {feature.title}
                   {"badge" in feature && feature.badge && (
-                    <span className="ml-2 inline-flex px-2 py-0.5 rounded-full bg-[#007AFF] text-white text-[9px] font-bold tracking-wide align-middle">
+                    <span className="px-2 py-0.5 rounded-full bg-[#007AFF] text-white text-[9px] font-bold tracking-wide">
                       {feature.badge}
                     </span>
                   )}

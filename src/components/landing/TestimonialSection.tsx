@@ -75,7 +75,7 @@ export default function TestimonialSection() {
             {testimonials.map((t, index) => (
               <div
                 key={index}
-                className="bg-background ring-foreground/10 rounded-2xl border border-transparent p-4 ring-1"
+                className="bg-white ring-black/10 rounded-2xl border border-transparent p-4 ring-1"
               >
                 <div className="flex gap-0.5 mb-1" aria-label={`${t.stars} out of 5 stars`}>
                   {Array.from({ length: 5 }).map((_, i) => (
@@ -83,16 +83,16 @@ export default function TestimonialSection() {
                   ))}
                 </div>
 
-                <p className="text-foreground my-4">{t.content}</p>
+                <p className="text-black my-4">{t.content}</p>
 
                 <div className="flex items-center gap-2 min-w-0">
-                  <Avatar className="ring-foreground/10 size-7 border border-transparent shadow ring-1 shrink-0">
+                  <Avatar className="ring-black/10 size-7 border border-transparent shadow ring-1 shrink-0">
                     <AvatarImage src={t.avatar} alt={t.name} />
                     <AvatarFallback>{t.name.charAt(0)}</AvatarFallback>
                   </Avatar>
-                  <div className="text-foreground text-xs font-medium truncate">{t.name}</div>
-                  <span aria-hidden className="bg-foreground/25 size-1 rounded-full shrink-0" />
-                  <span className="text-muted-foreground text-xs truncate">{t.role}</span>
+                  <div className="text-black text-xs font-medium truncate">{t.name}</div>
+                  <span aria-hidden className="bg-black/25 size-1 rounded-full shrink-0" />
+                  <span className="text-black/50 text-xs truncate">{t.role}</span>
                 </div>
               </div>
             ))}

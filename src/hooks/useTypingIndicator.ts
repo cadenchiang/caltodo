@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { ensureRealtimeAuth } from "@/lib/supabase/realtime-auth";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
 /** Shape tracked in Supabase Presence for typing state. */
@@ -68,10 +69,16 @@ export function useTypingIndicator(
       setTypingUsers(users);
     });
 
-    channel.subscribe();
-    channelRef.current = channel;
+    let cancelled = false;
+    (async () => {
+      await ensureRealtimeAuth(supabase);
+      if (cancelled) return;
+      channel.subscribe();
+      channelRef.current = channel;
+    })();
 
     return () => {
+      cancelled = true;
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
       if (startDebounceRef.current) clearTimeout(startDebounceRef.current);
       channel.untrack();

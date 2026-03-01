@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import GoogleCalendarSettings from "@/components/settings/GoogleCalendarSettings";
 import IntegrationSettings, { useCredentials } from "@/components/settings/IntegrationSettings";
+import IntegrationsWelcomeModal from "@/components/settings/IntegrationsWelcomeModal";
 
 /**
  * Inline Google Calendar logo SVG for the add-integration dropdown.
@@ -95,6 +96,7 @@ export default function IntegrationsSection() {
 
   return (
     <section>
+      <IntegrationsWelcomeModal />
       <div className="flex items-center justify-between mb-1">
         <h2 className="text-lg font-semibold text-foreground">Integrations</h2>
         <div className="relative" ref={containerRef}>

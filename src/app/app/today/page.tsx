@@ -75,7 +75,6 @@ export default function TodayPage() {
               onDelete={deleteTask}
               onReorder={handleReorder}
               defaultDate={today}
-              placeholder='Add task for today. Press Enter to save.'
             />
           </div>
         </div>

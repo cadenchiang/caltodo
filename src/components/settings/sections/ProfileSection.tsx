@@ -7,6 +7,7 @@ import { useToast } from "@/contexts/ToastContext";
 import { useDebounce } from "@/hooks/useDebounce";
 import UserAvatar from "@/components/ui/UserAvatar";
 import EditProfileModal from "@/components/ui/EditProfileModal";
+import { classifyImage } from "@/lib/nsfw-check";
 
 /**
  * Friend/request entry returned by the friends API.
@@ -190,6 +191,14 @@ export default function ProfileSection() {
 
     if (file.size > 2 * 1024 * 1024) {
       showToast("File too large. Max 2 MB.");
+      return;
+    }
+
+    // Block NSFW images from being used as avatars
+    const nsfwResult = await classifyImage(file);
+    if (nsfwResult.isSensitive) {
+      showToast("This image cannot be used as a profile photo.");
+      if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
 

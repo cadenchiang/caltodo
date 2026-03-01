@@ -44,7 +44,26 @@ interface SpamEntry {
 /** In-memory store of spam tracking entries keyed by user ID. */
 const store = new Map<string, SpamEntry>();
 
-/** Periodically removes expired entries from the store. */
+/** Maximum identical messages allowed within the duplicate window before blocking. */
+const DUPLICATE_THRESHOLD = 3;
+
+/** Time window for duplicate detection in milliseconds (30 seconds). */
+const DUPLICATE_WINDOW_MS = 30_000;
+
+/** Maximum recent messages tracked per user for duplicate detection. */
+const DUPLICATE_HISTORY_SIZE = 10;
+
+interface DuplicateEntry {
+  /** Normalized message body. */
+  body: string;
+  /** Timestamp when the message was sent. */
+  sentAt: number;
+}
+
+/** In-memory store of recent message bodies keyed by user ID. */
+const duplicateStore = new Map<string, DuplicateEntry[]>();
+
+/** Periodically removes expired entries from both stores. */
 const cleanupInterval = setInterval(() => {
   const now = Date.now();
   for (const [key, entry] of store) {
@@ -54,6 +73,14 @@ const cleanupInterval = setInterval(() => {
     );
     if (!isTimedOut && !hasRecentTimestamps) {
       store.delete(key);
+    }
+  }
+  for (const [key, entries] of duplicateStore) {
+    const fresh = entries.filter((e) => now - e.sentAt < DUPLICATE_WINDOW_MS);
+    if (fresh.length === 0) {
+      duplicateStore.delete(key);
+    } else {
+      duplicateStore.set(key, fresh);
     }
   }
 }, CLEANUP_INTERVAL_MS);
@@ -131,6 +158,64 @@ export function checkSpam(userId: string): { allowed: boolean; retryAfter?: numb
 }
 
 /**
+ * Normalizes a message body for duplicate comparison.
+ * Lowercases and collapses consecutive whitespace into a single space.
+ *
+ * @param body - The raw message body
+ * @returns Normalized string for comparison
+ */
+function normalizeBody(body: string): string {
+  return body.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Checks whether a message is a duplicate of a recently sent message by the same user.
+ * Blocks the message if the same normalized text has been sent 3+ times within 30 seconds.
+ *
+ * @param userId - The unique identifier of the user sending the message
+ * @param body - The raw message body to check
+ * @returns Object with `allowed` boolean and optional `error` string
+ *
+ * @example
+ * ```ts
+ * const result = checkDuplicate("user-123", "Hello world");
+ * if (!result.allowed) {
+ *   return res.status(429).json({ error: result.error });
+ * }
+ * ```
+ */
+export function checkDuplicate(userId: string, body: string): { allowed: boolean; error?: string } {
+  const now = Date.now();
+  const normalized = normalizeBody(body);
+
+  let entries = duplicateStore.get(userId) ?? [];
+
+  // Prune entries outside the duplicate window
+  entries = entries.filter((e) => now - e.sentAt < DUPLICATE_WINDOW_MS);
+
+  // Count how many times this exact normalized body appears in the window
+  const dupeCount = entries.filter((e) => e.body === normalized).length;
+
+  if (dupeCount >= DUPLICATE_THRESHOLD) {
+    logger.warn("Duplicate detection: message blocked", {
+      userId,
+      duplicateCount: dupeCount,
+      windowSeconds: DUPLICATE_WINDOW_MS / 1000,
+    });
+    return { allowed: false, error: "Duplicate message — please don't repeat yourself" };
+  }
+
+  // Record this message and cap history size
+  entries.push({ body: normalized, sentAt: now });
+  if (entries.length > DUPLICATE_HISTORY_SIZE) {
+    entries = entries.slice(-DUPLICATE_HISTORY_SIZE);
+  }
+  duplicateStore.set(userId, entries);
+
+  return { allowed: true };
+}
+
+/**
  * Resets spam tracking state for a user. Primarily for testing.
  *
  * @param userId - The user ID to reset, or undefined to reset all entries
@@ -138,7 +223,9 @@ export function checkSpam(userId: string): { allowed: boolean; retryAfter?: numb
 export function resetSpamState(userId?: string): void {
   if (userId) {
     store.delete(userId);
+    duplicateStore.delete(userId);
   } else {
     store.clear();
+    duplicateStore.clear();
   }
 }

@@ -20,6 +20,7 @@ vi.mock("@/lib/rate-limit", () => ({
 
 vi.mock("@/lib/spam-detection", () => ({
   checkSpam: vi.fn().mockReturnValue({ allowed: true }),
+  checkDuplicate: vi.fn().mockReturnValue({ allowed: true }),
 }));
 
 import { GET, POST } from "@/app/api/discussions/messages/route";

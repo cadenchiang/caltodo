@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { Camera, Check, Loader2, X } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
+import { classifyImage } from "@/lib/nsfw-check";
 
 interface EditProfileModalProps {
   /** Whether the modal is open. */
@@ -122,6 +123,14 @@ export default function EditProfileModal({
 
     if (file.size > 2 * 1024 * 1024) {
       showToast("File too large. Max 2 MB.");
+      return;
+    }
+
+    // Block NSFW images from being used as avatars
+    const nsfwResult = await classifyImage(file);
+    if (nsfwResult.isSensitive) {
+      showToast("This image cannot be used as a profile photo.");
+      if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
 

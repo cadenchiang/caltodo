@@ -5,9 +5,7 @@ import { createPortal } from "react-dom";
 import { ChevronRight, MoreVertical, Eye, Check, Trash2 } from "lucide-react";
 import type { Task, TaskInsert, PendingInvite } from "@/lib/types";
 import { useTaskContext } from "@/contexts/TaskContext";
-import { Plus } from "lucide-react";
 import TaskItem from "./TaskItem";
-import TaskCreateModal from "./TaskCreateModal";
 import ClassGroupHeader from "./ClassGroupHeader";
 import UserAvatar from "@/components/ui/UserAvatar";
 import { pendingInviteToPseudoTask } from "@/lib/pending-invite-helpers";
@@ -123,7 +121,6 @@ interface TaskListProps {
   onSelect: (task: Task, anchorRect?: DOMRect) => void;
   onDelete: (id: string) => void;
   defaultDate?: string | null;
-  placeholder?: string;
   /** When "class", active tasks are grouped under collapsible course headers. */
   sortMode?: "date" | "class";
   /** Called after a drag-and-drop reorder with the new ordered list of task IDs. Only active in "date" sortMode. */
@@ -202,7 +199,6 @@ function sortByDueDate(tasks: Task[]): Task[] {
  * @param onSelect - Callback for selecting a task (opens detail panel)
  * @param onDelete - Callback for deleting a task
  * @param defaultDate - Optional default date for new tasks
- * @param placeholder - Optional placeholder text for the add input
  * @param sortMode - "date" for flat list, "class" for grouped by course
  */
 export default function TaskList({
@@ -215,7 +211,6 @@ export default function TaskList({
   onSelect,
   onDelete,
   defaultDate,
-  placeholder,
   sortMode = "date",
   onReorder,
   onColorChange,
@@ -238,7 +233,6 @@ export default function TaskList({
   const [aliases, setAliases] = useState<Map<string, string>>(() => loadColumnAliases());
   const [hideHours, setHideHours] = useState<number>(() => loadHideHours());
   const [completedMenuOpen, setCompletedMenuOpen] = useState(false);
-  const [showCreateModal, setShowCreateModal] = useState(false);
   const completedMenuBtnRef = useRef<HTMLButtonElement>(null);
   const completedMenuRef = useRef<HTMLDivElement>(null);
 
@@ -435,22 +429,6 @@ export default function TaskList({
 
   return (
     <div className="flex flex-col">
-      <button
-        id="tour-add-task"
-        onClick={() => setShowCreateModal(true)}
-        className="flex items-center gap-2 mx-2 mb-1 px-3 py-2.5 rounded-xl border border-border text-sm text-muted-foreground hover:text-foreground hover:border-foreground/30 hover:bg-accent transition-colors cursor-pointer"
-      >
-        <Plus size={16} />
-        {placeholder || "Add task"}
-      </button>
-      <TaskCreateModal
-        open={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        onAdd={(task) => { onAdd(task); setShowCreateModal(false); }}
-        defaultDate={defaultDate}
-      />
-
-      <div id="tour-task-list">
       {/* Requests section (pending invites) — shown above active tasks */}
       {pendingInvites.length > 0 && (
         <div className="mt-1">
@@ -784,7 +762,6 @@ export default function TaskList({
           )}
         </div>
       )}
-      </div>
     </div>
   );
 }

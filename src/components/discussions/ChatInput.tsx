@@ -4,14 +4,21 @@ import { useState, useRef, useCallback, useEffect, type KeyboardEvent, type Chan
 import { EyeOff, Plus, Smile, X } from "lucide-react";
 import data from "@emoji-mart/data";
 import Picker from "@emoji-mart/react";
+import { classifyImage } from "@/lib/nsfw-check";
 
 /**
  * A single pending attachment with preview info.
+ *
+ * @property file - The raw File object
+ * @property previewUrl - Blob URL for image preview (empty string for non-images)
+ * @property isImage - Whether the file is an image type
+ * @property isSensitive - Whether the image was flagged as NSFW by classification
  */
 export interface PendingAttachment {
   file: File;
   previewUrl: string;
   isImage: boolean;
+  isSensitive?: boolean;
 }
 
 /**
@@ -114,6 +121,19 @@ export default function ChatInput({ onSend, disabled, error, onTyping }: ChatInp
       const isImage = file.type.startsWith("image/");
       const previewUrl = isImage ? URL.createObjectURL(file) : "";
       newAttachments.push({ file, previewUrl, isImage });
+
+      // Run NSFW classification in background for image files
+      if (isImage) {
+        classifyImage(file).then((result) => {
+          setAttachments((prev) =>
+            prev.map((att) =>
+              att.file === file ? { ...att, isSensitive: result.isSensitive } : att
+            )
+          );
+        }).catch(() => {
+          // Fail-open: classification error does not block attachment
+        });
+      }
     }
 
     setAttachments((prev) => [...prev, ...newAttachments]);
@@ -204,12 +224,17 @@ export default function ChatInput({ onSend, disabled, error, onTyping }: ChatInp
           {attachments.map((att, i) => (
             <div key={i} className="relative">
               {att.isImage ? (
-                <div className="rounded-2xl overflow-hidden border border-black/10 dark:border-white/10 shadow-sm">
+                <div className="rounded-2xl overflow-hidden border border-black/10 dark:border-white/10 shadow-sm relative">
                   <img
                     src={att.previewUrl}
                     alt={att.file.name}
-                    className="max-w-[200px] max-h-[160px] object-cover"
+                    className={`max-w-[200px] max-h-[160px] object-cover ${att.isSensitive ? "blur-lg" : ""}`}
                   />
+                  {att.isSensitive && (
+                    <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-md bg-red-500/80 text-white text-[9px] font-medium">
+                      Sensitive
+                    </div>
+                  )}
                   <div className="px-2.5 py-1.5 bg-white dark:bg-zinc-800 text-[10px] text-muted-foreground truncate">
                     {att.file.name}
                   </div>

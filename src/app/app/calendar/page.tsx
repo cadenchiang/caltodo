@@ -9,6 +9,8 @@ import {
   addDays,
   subDays,
   format,
+  startOfMonth,
+  endOfMonth,
   startOfWeek,
   endOfWeek,
 } from "date-fns";
@@ -76,13 +78,11 @@ export default function CalendarPage() {
   // Filter tasks for the active view's date range
   const visibleTasks = useMemo(() => {
     if (viewMode === "month") {
-      const month = currentDate.getMonth();
-      const year = currentDate.getFullYear();
-      return tasks.filter((t) => {
-        if (!t.due_date) return false;
-        const d = new Date(t.due_date + "T00:00:00");
-        return d.getMonth() === month && d.getFullYear() === year;
-      });
+      const monthStart = startOfMonth(currentDate);
+      const monthEnd = endOfMonth(currentDate);
+      const calStart = format(startOfWeek(monthStart, { weekStartsOn: 1 }), "yyyy-MM-dd");
+      const calEnd = format(endOfWeek(monthEnd, { weekStartsOn: 1 }), "yyyy-MM-dd");
+      return tasks.filter((t) => t.due_date && t.due_date >= calStart && t.due_date <= calEnd);
     }
     if (viewMode === "week") {
       const ws = format(startOfWeek(currentDate, { weekStartsOn: 1 }), "yyyy-MM-dd");

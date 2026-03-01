@@ -164,7 +164,7 @@ export default function Hero() {
           <h2 className="text-[36px] sm:text-[64px] leading-[0.95] sm:leading-[0.95] tracking-tight text-center text-black" style={{ fontFamily: '-apple-system, "SF Pro Display", BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' }}>
             <span className="font-medium">Sync deadlines.</span>
             <br />
-            <span className="font-medium italic">Message </span><span className="font-medium">classmates.</span>
+            <span className="font-medium italic">Join </span><span className="font-medium">class groupchats.</span>
           </h2>
 
           {/* Subtitle */}

@@ -180,7 +180,7 @@ function getInitialPreference(): ThemePreference {
   } catch {
     // localStorage unavailable
   }
-  return "auto";
+  return "light";
 }
 
 /** Cycle order for toggleTheme: light → dark → auto → light. */

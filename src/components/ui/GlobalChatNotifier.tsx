@@ -3,6 +3,7 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { ensureRealtimeAuth } from "@/lib/supabase/realtime-auth";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { playMessageReceived } from "@/lib/sounds";
 import { MessageCircle, X } from "lucide-react";
@@ -136,7 +137,11 @@ export default function GlobalChatNotifier() {
    * @param supabase - Supabase client instance
    */
   const subscribeToBoards = useCallback(
-    (boards: CachedBoard[], supabase: ReturnType<typeof createClient>) => {
+    async (boards: CachedBoard[], supabase: ReturnType<typeof createClient>) => {
+      // Ensure Realtime carries the user's JWT before subscribing,
+      // otherwise RLS blocks all postgres_changes events.
+      await ensureRealtimeAuth(supabase);
+
       for (const board of boards) {
         const courseId = board.course.id;
         if (subscribedIdsRef.current.has(courseId)) continue;

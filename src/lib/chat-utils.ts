@@ -37,7 +37,9 @@ export function summarizeBody(body: string): string {
   const textLines: string[] = [];
   let imageCount = 0;
   for (const line of lines) {
-    const t = line.trim();
+    // Strip [sensitive] prefix before URL detection
+    const raw = line.trim();
+    const t = raw.startsWith("[sensitive]") ? raw.slice("[sensitive]".length) : raw;
     if (
       (t.startsWith("http://") || t.startsWith("https://")) &&
       (() => {

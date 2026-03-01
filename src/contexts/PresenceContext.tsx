@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { ensureRealtimeAuth } from "@/lib/supabase/realtime-auth";
 import type { ChatPresence } from "@/lib/types";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
@@ -54,6 +55,9 @@ export function PresenceProvider({ children }: { children: ReactNode }) {
     });
 
     async function joinPresence() {
+      await ensureRealtimeAuth(supabase);
+      if (!mounted.current) return;
+
       const {
         data: { user },
       } = await supabase.auth.getUser();

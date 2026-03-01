@@ -9,7 +9,7 @@ import { createClient } from "@/lib/supabase/server";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
 import { containsBlockedContent } from "@/lib/content-moderation";
-import { checkSpam } from "@/lib/spam-detection";
+import { checkSpam, checkDuplicate } from "@/lib/spam-detection";
 import { isAdmin } from "@/lib/admin";
 import { obfuscateAuthorId } from "@/lib/author-obfuscate";
 
@@ -166,6 +166,15 @@ export async function POST(request: Request) {
       courseId,
     });
     return NextResponse.json({ error: "Message contains inappropriate content" }, { status: 422 });
+  }
+
+  // Duplicate message detection
+  const dupe = checkDuplicate(user.id, body);
+  if (!dupe.allowed) {
+    return NextResponse.json(
+      { error: dupe.error },
+      { status: 429 }
+    );
   }
 
   try {

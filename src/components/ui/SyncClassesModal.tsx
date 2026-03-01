@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
-import { BookOpen, Compass } from "lucide-react";
+import { BookOpen, Compass, MessageCircle, ArrowLeft } from "lucide-react";
 
 /** localStorage key to track dismissal of the welcome prompt. */
 const DISMISS_KEY = "caltodo_sync_dismissed";
@@ -36,6 +36,7 @@ let dismissedThisSession = false;
  */
 export default function SyncClassesModal() {
   const pathname = usePathname();
+  const router = useRouter();
   const { hasCompletedOnboarding, loading } = useOnboardingStatus();
   const [visible, setVisible] = useState(false);
   const [exiting, setExiting] = useState(false);
@@ -107,6 +108,28 @@ export default function SyncClassesModal() {
   }, []);
 
   /**
+   * Dismisses the modal, shows the widget, and navigates to integrations.
+   */
+  const handleSyncClick = useCallback(() => {
+    closeAndShowWidget();
+    setTimeout(() => router.push("/app/settings?section=integrations"), 150);
+  }, [closeAndShowWidget, router]);
+
+  /**
+   * Dismisses the modal, shows the widget, and starts the tour.
+   */
+  const handleTourClick = useCallback(() => {
+    closeAndShowWidget();
+    setTimeout(() => {
+      try {
+        localStorage.removeItem("caltodo_tour_completed");
+        localStorage.removeItem("caltodo_tour_pending");
+      } catch { /* non-critical */ }
+      window.dispatchEvent(new CustomEvent("caltodo-restart-tour"));
+    }, 150);
+  }, [closeAndShowWidget]);
+
+  /**
    * Closes the modal without showing the widget (backdrop click).
    */
   const closeModal = useCallback(() => {
@@ -140,18 +163,29 @@ export default function SyncClassesModal() {
       onClick={closeModal}
     >
       <div
-        className={`bg-popover rounded-2xl shadow-2xl w-full max-w-md mx-4 p-10 text-center ${cardClass}`}
+        className={`bg-popover rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden ${cardClass}`}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Key wrapper triggers re-mount animation on screen switch */}
-        <div key={screen}>
-          {screen === 1 ? (
-            <>
+        {/* Sliding container — 200% wide, each page is w-1/2 (= card width) */}
+        <div
+          className="flex transition-transform duration-400 ease-in-out"
+          style={{
+            width: "200%",
+            transform: screen === 1 ? "translateX(0)" : "translateX(-50%)",
+          }}
+        >
+          {/* Screen 1: Welcome — flex-col so it stretches to match screen 2 height */}
+          <div className="w-1/2 p-8 flex flex-col">
+            {/* Progress bar */}
+            <div className="flex items-center justify-center gap-2 mb-6">
+              <div className="h-1 w-12 rounded-full bg-foreground" />
+              <div className="h-1 w-12 rounded-full bg-muted-foreground/25" />
+            </div>
+
+            {/* Centered content fills remaining space */}
+            <div className="flex-1 flex flex-col items-center justify-center">
               {/* Logo */}
-              <div
-                className="flex justify-center mb-6 animate-drop-in"
-                style={{ animationDelay: "150ms" }}
-              >
+              <div className="mb-6">
                 <img
                   src="/logo.png"
                   alt="caltodo"
@@ -160,98 +194,112 @@ export default function SyncClassesModal() {
               </div>
 
               {/* Heading */}
-              <h3
-                className="text-xl font-semibold text-foreground mb-2 animate-drop-in"
-                style={{ animationDelay: "220ms" }}
-              >
+              <h3 className="text-xl font-semibold text-foreground mb-2 text-center">
                 welcome to caltodo
               </h3>
 
               {/* Tagline */}
-              <p
-                className="text-sm text-muted-foreground mb-10 leading-relaxed animate-drop-in"
-                style={{ animationDelay: "290ms" }}
-              >
-                your assignments, your schedule, one place.
+              <p className="text-sm text-muted-foreground mb-10 leading-relaxed text-center max-w-[260px]">
+                your assignments, your schedule, your classmates — one place.
               </p>
 
               {/* CTA */}
-              <div
-                className="animate-drop-in"
-                style={{ animationDelay: "360ms" }}
+              <button
+                onClick={() => setScreen(2)}
+                className="px-8 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-full text-sm font-medium hover:opacity-90 transition-opacity cursor-pointer active:scale-95"
               >
-                <button
-                  onClick={() => setScreen(2)}
-                  className="px-8 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-full text-sm font-medium hover:opacity-90 transition-opacity cursor-pointer active:scale-95"
-                >
-                  next &rarr;
-                </button>
+                next &rarr;
+              </button>
+            </div>
+          </div>
+
+          {/* Screen 2: Get started */}
+          <div className="w-1/2 p-8 flex flex-col">
+            {/* Top row: back arrow + progress bar */}
+            <div className="flex items-center mb-8">
+              <button
+                onClick={() => setScreen(1)}
+                className="p-1 -ml-1 text-muted-foreground hover:text-foreground transition-colors rounded-lg cursor-pointer"
+                aria-label="Back"
+              >
+                <ArrowLeft size={18} />
+              </button>
+              <div className="flex items-center justify-center gap-2 flex-1">
+                <div className="h-1 w-12 rounded-full bg-muted-foreground/25" />
+                <div className="h-1 w-12 rounded-full bg-foreground" />
               </div>
-            </>
-          ) : (
-            <>
-              {/* Heading */}
-              <h3
-                className="text-xl font-semibold text-foreground mb-2 animate-drop-in"
-                style={{ animationDelay: "150ms" }}
-              >
-                get started
-              </h3>
+              {/* Spacer to balance the back arrow */}
+              <div className="w-[26px]" />
+            </div>
 
-              {/* Subtitle */}
-              <p
-                className="text-sm text-muted-foreground mb-6 leading-relaxed animate-drop-in"
-                style={{ animationDelay: "220ms" }}
-              >
-                here&apos;s what you can do to make caltodo yours.
-              </p>
+            {/* Heading — left-aligned */}
+            <h3 className="text-xl font-semibold text-foreground mb-2">
+              get started
+            </h3>
 
-              {/* Preview items */}
-              <div
-                className="space-y-3 mb-8 text-left animate-drop-in"
-                style={{ animationDelay: "290ms" }}
+            {/* Subtitle — left-aligned */}
+            <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
+              here&apos;s what you can do to make caltodo yours.
+            </p>
+
+            {/* Preview items */}
+            <div className="mb-8">
+              {/* Item 1: Sync your classes */}
+              <button
+                type="button"
+                onClick={handleSyncClick}
+                className="w-full flex items-start gap-3.5 py-4 border-t border-border text-left hover:bg-accent -mx-2 px-2 rounded-lg transition-colors cursor-pointer"
               >
-                {/* Item 1: Sync your classes */}
-                <div className="flex items-start gap-3 rounded-xl border border-border p-3.5">
-                  <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0 mt-0.5">
-                    <BookOpen size={16} className="text-blue-500" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-foreground">sync your classes</p>
-                    <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                      connect bCourses, Gradescope, or Pensieve to import assignments
-                    </p>
-                  </div>
+                <BookOpen size={18} className="text-foreground shrink-0 mt-0.5" />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground">sync your classes</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                    connect bCourses, Gradescope, or Pensieve to import assignments
+                  </p>
                 </div>
+              </button>
 
-                {/* Item 2: Take a tour */}
-                <div className="flex items-start gap-3 rounded-xl border border-border p-3.5">
-                  <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0 mt-0.5">
-                    <Compass size={16} className="text-blue-500" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-foreground">take a tour</p>
-                    <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                      learn how to use your inbox, calendar, and more
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* CTA */}
-              <div
-                className="animate-drop-in"
-                style={{ animationDelay: "360ms" }}
+              {/* Item 2: Chat with classmates */}
+              <button
+                type="button"
+                onClick={closeAndShowWidget}
+                className="w-full flex items-start gap-3.5 py-4 border-t border-border text-left hover:bg-accent -mx-2 px-2 rounded-lg transition-colors cursor-pointer"
               >
-                <button
-                  onClick={closeAndShowWidget}
-                  className="px-8 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-full text-sm font-medium hover:opacity-90 transition-opacity cursor-pointer active:scale-95"
-                >
-                  start organizing &rarr;
-                </button>
-              </div>
-            </>
-          )}
+                <MessageCircle size={18} className="text-foreground shrink-0 mt-0.5" />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground">chat with classmates</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                    discuss assignments and share notes in class threads
+                  </p>
+                </div>
+              </button>
+
+              {/* Item 3: Take a tour */}
+              <button
+                type="button"
+                onClick={handleTourClick}
+                className="w-full flex items-start gap-3.5 py-4 border-t border-border text-left hover:bg-accent -mx-2 px-2 rounded-lg transition-colors cursor-pointer"
+              >
+                <Compass size={18} className="text-foreground shrink-0 mt-0.5" />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground">take a tour</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                    learn how to use your inbox, calendar, and more
+                  </p>
+                </div>
+              </button>
+            </div>
+
+            {/* CTA — right-aligned */}
+            <div className="flex justify-end">
+              <button
+                onClick={closeAndShowWidget}
+                className="px-8 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-full text-sm font-medium hover:opacity-90 transition-opacity cursor-pointer active:scale-95"
+              >
+                start organizing &rarr;
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

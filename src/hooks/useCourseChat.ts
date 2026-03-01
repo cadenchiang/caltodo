@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { ensureRealtimeAuth } from "@/lib/supabase/realtime-auth";
 import type { ChatMessage } from "@/lib/types";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { createSystemEvent, fetchUserName } from "./chatSystemEvents";
@@ -456,10 +457,6 @@ export function useCourseChat(courseId: string, options?: { isSystemCourse?: boo
       }
     );
 
-    // Subscribe to channel for message Realtime events
-    channel.subscribe();
-    channelRef.current = channel;
-
     // Subscribe to membership changes for join/leave system events
     const memberChannel = supabase.channel(`members:${courseId}`);
 
@@ -548,7 +545,15 @@ export function useCourseChat(courseId: string, options?: { isSystemCourse?: boo
       }
     );
 
-    memberChannel.subscribe();
+    // Set Realtime auth token BEFORE subscribing so RLS allows events
+    let cancelled = false;
+    (async () => {
+      await ensureRealtimeAuth(supabase);
+      if (cancelled) return;
+      channel.subscribe();
+      channelRef.current = channel;
+      memberChannel.subscribe();
+    })();
 
     // Listen for local group name change events
     function handleNameChange(e: Event) {
@@ -559,6 +564,7 @@ export function useCourseChat(courseId: string, options?: { isSystemCourse?: boo
     window.addEventListener("calchat-name-changed", handleNameChange);
 
     return () => {
+      cancelled = true;
       channel.unsubscribe();
       memberChannel.unsubscribe();
       window.removeEventListener("calchat-name-changed", handleNameChange);
