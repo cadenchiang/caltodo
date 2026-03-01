@@ -43,6 +43,9 @@ export function useCourseChat(courseId: string, options?: { isSystemCourse?: boo
   const joinTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   /** Maps temporary optimistic IDs to server-assigned IDs for deduplication. */
   const tempToServerIdRef = useRef<Map<string, string>>(new Map());
+  /** Always points to the current courseId so async callbacks can detect staleness. */
+  const activeCourseIdRef = useRef(courseId);
+  activeCourseIdRef.current = courseId;
   const supabase = createClient();
 
   // Synchronously reset state when courseId changes (prevents stale frame)
@@ -64,6 +67,7 @@ export function useCourseChat(courseId: string, options?: { isSystemCourse?: boo
   /**
    * Fetches initial message history from the API.
    * Shows cached data first (stale-while-revalidate).
+   * Guards against stale responses when courseId changes mid-flight.
    */
   const fetchMessages = useCallback(async () => {
     setError(null);
@@ -79,11 +83,17 @@ export function useCourseChat(courseId: string, options?: { isSystemCourse?: boo
       const res = await fetch(
         `/api/discussions/messages?courseId=${encodeURIComponent(courseId)}&limit=${PAGE_SIZE}`
       );
+      // Stale guard: discard response if user switched chats during fetch
+      if (activeCourseIdRef.current !== courseId) return;
+
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || `Failed to fetch messages (${res.status})`);
       }
       const data: ChatMessage[] = await res.json();
+      // Double-check after parsing JSON
+      if (activeCourseIdRef.current !== courseId) return;
+
       // API returns newest first; reverse for display (oldest at top)
       const sorted = [...data].reverse();
       // Merge: preserve any in-flight optimistic messages (temp-ID) so they
@@ -96,11 +106,14 @@ export function useCourseChat(courseId: string, options?: { isSystemCourse?: boo
       writeCache(courseId, sorted);
       setHasMore(data.length >= PAGE_SIZE);
     } catch (err) {
+      if (activeCourseIdRef.current !== courseId) return;
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg);
     } finally {
-      setLoading(false);
-      setInitialFetchDone(true);
+      if (activeCourseIdRef.current === courseId) {
+        setLoading(false);
+        setInitialFetchDone(true);
+      }
     }
   }, [courseId]);
 
@@ -116,8 +129,9 @@ export function useCourseChat(courseId: string, options?: { isSystemCourse?: boo
       const res = await fetch(
         `/api/discussions/messages?courseId=${encodeURIComponent(courseId)}&limit=${PAGE_SIZE}&before=${encodeURIComponent(oldest.created_at)}`
       );
-      if (!res.ok) return;
+      if (!res.ok || activeCourseIdRef.current !== courseId) return;
       const data: ChatMessage[] = await res.json();
+      if (activeCourseIdRef.current !== courseId) return;
       const sorted = [...data].reverse();
       setMessages((prev) => {
         const updated = [...sorted, ...prev];
