@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Settings, LogOut, MessageCircle, User } from "lucide-react";
 import ContactModal from "@/components/ui/ContactModal";
+import EditProfileModal from "@/components/ui/EditProfileModal";
 
 interface ProfilePopupProps {
   avatarUrl: string | null;
@@ -26,6 +27,7 @@ export default function ProfilePopup({ avatarUrl, fullName, email }: ProfilePopu
   const [confirmSignOut, setConfirmSignOut] = useState(false);
   const [imgError, setImgError] = useState(false);
   const [showContact, setShowContact] = useState(false);
+  const [showEditProfile, setShowEditProfile] = useState(false);
   const popupRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
@@ -106,6 +108,15 @@ export default function ProfilePopup({ avatarUrl, fullName, email }: ProfilePopu
         onClose={() => setShowContact(false)}
         userName={fullName}
         userEmail={email}
+      />
+
+      {/* Edit profile modal */}
+      <EditProfileModal
+        open={showEditProfile}
+        onClose={() => setShowEditProfile(false)}
+        avatarUrl={avatarUrl}
+        fullName={fullName}
+        email={email}
       />
 
       {/* Popup */}

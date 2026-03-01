@@ -239,6 +239,7 @@ export default function ProfileSection() {
         }
       } catch { /* ignore */ }
 
+      // Notify sidebar of avatar change
       window.dispatchEvent(new CustomEvent("profile-updated", { detail: { avatarUrl: avatar_url } }));
       showToast("Profile photo updated.");
     } catch {

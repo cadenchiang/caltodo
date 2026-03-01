@@ -138,6 +138,7 @@ let dialogShownThisSession = false;
  * Inner component that checks for tour pending flag and shows the start dialog.
  * Must be rendered inside TourProvider. Triggers on /app/home route.
  */
+
 function TourTrigger() {
   const { isCompleted, endTour } = useTour();
   const pathname = usePathname();

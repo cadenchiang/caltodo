@@ -183,6 +183,7 @@ export default function EditProfileModal({
       showToast("Failed to upload photo.");
     } finally {
       setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   }
 

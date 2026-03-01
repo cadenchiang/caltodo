@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { AlignLeft, Plus, CalendarDays, ChevronDown, Tag } from "lucide-react";
+import { AlignLeft, Plus, CalendarDays, ChevronDown, Tag, UserPlus } from "lucide-react";
 import { format } from "date-fns";
 import type { TaskInsert } from "@/lib/types";
 import { DEFAULT_TASK_COLOR } from "@/lib/constants";
@@ -46,6 +46,7 @@ export default function TaskAddForm({ onAdd, defaultDate, placeholder }: TaskAdd
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showTagPicker, setShowTagPicker] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [showGuestPicker, setShowGuestPicker] = useState(false);
   const [showDescription, setShowDescription] = useState(false);
   const [focused, setFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -103,6 +104,7 @@ export default function TaskAddForm({ onAdd, defaultDate, placeholder }: TaskAdd
     setShowColorPicker(false);
     setShowTagPicker(false);
     setShowMoreMenu(false);
+    setShowGuestPicker(false);
     setShowDescription(false);
     inputRef.current?.focus();
   }
@@ -115,6 +117,7 @@ export default function TaskAddForm({ onAdd, defaultDate, placeholder }: TaskAdd
       setShowColorPicker(false);
       setShowTagPicker(false);
       setShowMoreMenu(false);
+      setShowGuestPicker(false);
       setShowDescription(false);
     }
   }
@@ -386,6 +389,17 @@ export default function TaskAddForm({ onAdd, defaultDate, placeholder }: TaskAdd
           >
             <AlignLeft size={14} />
             {showDescription ? "Hide description" : "Add description"}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setShowMoreMenu(false);
+              setShowGuestPicker(!showGuestPicker);
+            }}
+            className="flex items-center gap-2.5 w-full text-left px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+          >
+            <UserPlus size={14} />
+            {showGuestPicker ? "Hide guests" : "Add guests"}
           </button>
         </div>
       </Popover>

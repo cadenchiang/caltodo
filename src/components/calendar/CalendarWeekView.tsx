@@ -168,7 +168,6 @@ function WeekDayColumn({
   onTaskClick: (task: Task, rect: DOMRect) => void;
 }) {
   const { colorTheme } = useTheme();
-  const isMiffyTheme = colorTheme === "miffy";
   const [hovered, setHovered] = useState(false);
   const maxDots = 4;
 
