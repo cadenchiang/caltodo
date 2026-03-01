@@ -12,6 +12,7 @@ import { containsBlockedContent } from "@/lib/content-moderation";
 import { checkSpam, checkDuplicate } from "@/lib/spam-detection";
 import { isAdmin } from "@/lib/admin";
 import { obfuscateAuthorId } from "@/lib/author-obfuscate";
+import { hasCompletedOnboarding } from "@/lib/check-onboarding";
 
 /**
  * GET /api/discussions/messages?courseId=<uuid>&limit=50&before=<iso>
@@ -27,6 +28,12 @@ export async function GET(request: Request) {
 
   if (authError || !user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Block access if user hasn't completed onboarding (synced at least one class)
+  const onboarded = await hasCompletedOnboarding(supabase, user.id);
+  if (!onboarded) {
+    return NextResponse.json({ error: "Complete onboarding to access CalChat" }, { status: 403 });
   }
 
   const { allowed } = rateLimit(`chat-messages:${user.id}`, 60, 60_000);
@@ -123,6 +130,12 @@ export async function POST(request: Request) {
 
   if (authError || !user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Block access if user hasn't completed onboarding
+  const onboarded = await hasCompletedOnboarding(supabase, user.id);
+  if (!onboarded) {
+    return NextResponse.json({ error: "Complete onboarding to access CalChat" }, { status: 403 });
   }
 
   // Burst spam detection (escalating timeouts for rapid-fire messages)

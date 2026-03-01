@@ -23,6 +23,10 @@ vi.mock("@/lib/spam-detection", () => ({
   checkDuplicate: vi.fn().mockReturnValue({ allowed: true }),
 }));
 
+vi.mock("@/lib/check-onboarding", () => ({
+  hasCompletedOnboarding: vi.fn().mockResolvedValue(true),
+}));
+
 import { GET, POST } from "@/app/api/discussions/messages/route";
 import { createClient } from "@/lib/supabase/server";
 

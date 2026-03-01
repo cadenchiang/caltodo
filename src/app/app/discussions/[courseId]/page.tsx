@@ -299,8 +299,17 @@ export default function CourseChatPage({ params }: PageProps) {
   const isLoading = !ready || (loading && messages.length === 0);
   const loadingDone = ready && !loading;
 
-  // Defense-in-depth: block access if onboarding not completed
-  if (!onboardingLoading && !hasCompletedOnboarding) {
+  // Block access while onboarding status is loading (prevents bypass via network throttle)
+  // and when onboarding is confirmed incomplete
+  if (onboardingLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="w-5 h-5 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!hasCompletedOnboarding) {
     return (
       <CalChatLockedModal open onClose={() => router.push("/app/inbox")} />
     );

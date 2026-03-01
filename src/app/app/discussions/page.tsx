@@ -78,9 +78,9 @@ export default function DiscussionsPage() {
   const { hasCompletedOnboarding, loading: onboardingLoading } = useOnboardingStatus({ skipCache: true });
   const [showLocked, setShowLocked] = useState(false);
 
-  // Redirect to first board's chat as soon as boards load
+  // Redirect to first board's chat only after confirming onboarding
   useEffect(() => {
-    if (loading || boards.length === 0) return;
+    if (loading || onboardingLoading || !hasCompletedOnboarding || boards.length === 0) return;
 
     // Prefetch all chats in background
     for (const board of boards) {
@@ -105,7 +105,7 @@ export default function DiscussionsPage() {
     router.replace(
       `/app/discussions/${target.course.id}?name=${encodeURIComponent(target.course.name)}`
     );
-  }, [boards, loading, router]);
+  }, [boards, loading, onboardingLoading, hasCompletedOnboarding, router]);
 
   // Show locked modal after a short delay so user sees loading first
   useEffect(() => {
