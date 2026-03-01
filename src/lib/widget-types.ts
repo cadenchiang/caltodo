@@ -138,17 +138,19 @@ export function getDefaultLayout(): {
   layouts: ResponsiveLayouts<string>;
 } {
   const widgets: WidgetInstance[] = [
-    { id: "default-clock", type: "clock", config: {} },
-    { id: "default-weather", type: "weather", config: {} },
     { id: "default-tasks", type: "tasks-today", config: {} },
+    { id: "default-weather", type: "weather", config: {} },
     { id: "default-notes", type: "notes", config: {} },
+    { id: "default-clock", type: "clock", config: {} },
+    { id: "default-progress", type: "class-progress", config: {} },
   ];
 
   const lg: LayoutItem[] = [
-    { i: "default-clock", x: 0, y: 0, w: 4, h: 1, minW: 1, minH: 1 },
-    { i: "default-weather", x: 4, y: 0, w: 4, h: 1, minW: 1, minH: 1 },
-    { i: "default-tasks", x: 0, y: 1, w: 4, h: 1, minW: 1, minH: 1 },
-    { i: "default-notes", x: 4, y: 1, w: 4, h: 1, minW: 1, minH: 1 },
+    { i: "default-tasks", x: 0, y: 0, w: 2, h: 2, minW: 1, minH: 1 },
+    { i: "default-weather", x: 2, y: 0, w: 2, h: 2, minW: 1, minH: 1 },
+    { i: "default-notes", x: 4, y: 0, w: 2, h: 2, minW: 1, minH: 1 },
+    { i: "default-clock", x: 6, y: 0, w: 2, h: 1, minW: 1, minH: 1 },
+    { i: "default-progress", x: 6, y: 1, w: 2, h: 1, minW: 1, minH: 1 },
   ];
 
   return { widgets, layouts: { lg } };
