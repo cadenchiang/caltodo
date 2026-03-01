@@ -24,16 +24,33 @@ import {
 } from "lucide-react";
 import { WIDGET_REGISTRY, type WidgetType } from "@/lib/widget-types";
 
-/** Google Calendar SVG icon rendered inline for brand accuracy. */
+/** Official Google Calendar logo rendered inline for brand accuracy. */
 function GoogleCalendarIcon({ size = 20 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <path d="M18 3H17V1H15V3H9V1H7V3H6C4.9 3 4 3.9 4 5V19C4 20.1 4.9 21 6 21H18C19.1 21 20 20.1 20 19V5C20 3.9 19.1 3 18 3Z" fill="#4285F4" />
-      <path d="M18 19H6V8H18V19Z" fill="white" />
-      <rect x="8" y="10" width="3" height="2" rx="0.5" fill="#4285F4" />
-      <rect x="8" y="14" width="3" height="2" rx="0.5" fill="#4285F4" />
-      <rect x="13" y="10" width="3" height="2" rx="0.5" fill="#4285F4" />
-      <rect x="13" y="14" width="3" height="2" rx="0.5" fill="#4285F4" />
+    <svg width={size} height={size} viewBox="0 0 200 200" fill="none">
+      {/* Calendar body (white center) */}
+      <rect x="40" y="40" width="120" height="120" rx="4" fill="white" />
+      {/* Top bar (blue) */}
+      <rect x="40" y="40" width="120" height="28" rx="4" fill="#4285F4" />
+      {/* Left edge (green) */}
+      <rect x="40" y="68" width="16" height="92" fill="#0B8043" />
+      {/* Bottom edge (yellow-green) */}
+      <rect x="40" y="144" width="120" height="16" fill="#F4B400" />
+      {/* Right edge (red) */}
+      <rect x="144" y="68" width="16" height="92" fill="#EA4335" />
+      {/* Corner squares for calendar hanger */}
+      <rect x="72" y="28" width="8" height="24" rx="4" fill="#616161" />
+      <rect x="120" y="28" width="8" height="24" rx="4" fill="#616161" />
+      {/* Calendar grid cells */}
+      <rect x="68" y="80" width="18" height="14" rx="2" fill="#4285F4" />
+      <rect x="92" y="80" width="18" height="14" rx="2" fill="#4285F4" />
+      <rect x="116" y="80" width="18" height="14" rx="2" fill="#4285F4" />
+      <rect x="68" y="102" width="18" height="14" rx="2" fill="#4285F4" />
+      <rect x="92" y="102" width="18" height="14" rx="2" fill="#EA4335" />
+      <rect x="116" y="102" width="18" height="14" rx="2" fill="#0B8043" />
+      <rect x="68" y="124" width="18" height="14" rx="2" fill="#F4B400" />
+      <rect x="92" y="124" width="18" height="14" rx="2" fill="#4285F4" />
+      <rect x="116" y="124" width="18" height="14" rx="2" fill="#4285F4" />
     </svg>
   );
 }
