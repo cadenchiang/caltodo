@@ -140,15 +140,13 @@ export function getDefaultLayout(): {
   const widgets: WidgetInstance[] = [
     { id: "default-tasks", type: "tasks-today", config: {} },
     { id: "default-weather", type: "weather", config: {} },
-    { id: "default-image", type: "image", config: { imageUrl: "https://images.unsplash.com/photo-1462275646964-a0e3c11f18a6?w=1600&h=350&fit=crop&crop=center&q=80" } },
     { id: "default-clock", type: "clock", config: {} },
   ];
 
   const lg: LayoutItem[] = [
     { i: "default-tasks", x: 0, y: 0, w: 3, h: 2, minW: 1, minH: 1 },
-    { i: "default-weather", x: 3, y: 0, w: 2, h: 2, minW: 1, minH: 1 },
-    { i: "default-image", x: 5, y: 0, w: 3, h: 2, minW: 1, minH: 1 },
-    { i: "default-clock", x: 3, y: 2, w: 2, h: 1, minW: 1, minH: 1 },
+    { i: "default-weather", x: 3, y: 0, w: 3, h: 2, minW: 1, minH: 1 },
+    { i: "default-clock", x: 6, y: 0, w: 2, h: 1, minW: 1, minH: 1 },
   ];
 
   return { widgets, layouts: { lg } };
