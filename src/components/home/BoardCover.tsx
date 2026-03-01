@@ -64,7 +64,9 @@ const GRADIENT_COVERS: { id: string; label: string; style: string }[] = [
  * Photo presets — wide landscape Unsplash images (free to use).
  * Using wider aspect ratio crops with gravity=center for panoramic banner feel.
  */
-const PHOTO_COVERS: { id: string; label: string; url: string }[] = [
+const PHOTO_COVERS: { id: string; label: string; url: string; bgColor?: string }[] = [
+  // Branded
+  { id: "cal", label: "Cal Berkeley", url: "/cal-logo.webp", bgColor: "#012677" },
   // Nature & Landscapes
   { id: "p1", label: "Mountain Lake", url: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1600&h=350&fit=crop&crop=bottom&q=80" },
   { id: "p2", label: "Ocean Horizon", url: "https://images.unsplash.com/photo-1518837695005-2083093ee35b?w=1600&h=350&fit=crop&crop=center&q=80" },
@@ -263,6 +265,22 @@ export default function BoardCover({
     if (hasPresetCover) {
       const preset = resolvePreset(coverImageUrl);
       if (preset.imageUrl) {
+        const presetId = coverImageUrl.replace("preset:", "");
+        const photoCover = PHOTO_COVERS.find((p) => p.id === presetId);
+        if (photoCover?.bgColor) {
+          return (
+            <div
+              className="w-full h-full"
+              style={{
+                backgroundColor: photoCover.bgColor,
+                backgroundImage: `url(${preset.imageUrl})`,
+                backgroundSize: "auto 80%",
+                backgroundPosition: "center",
+                backgroundRepeat: "no-repeat",
+              }}
+            />
+          );
+        }
         return <img src={preset.imageUrl} alt="Board cover" draggable={false} className="w-full h-full object-cover" style={imgPositionStyle} />;
       }
       return <div className="w-full h-full" style={{ background: preset.background }} />;

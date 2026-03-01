@@ -72,12 +72,12 @@ function readPersistedLayout(): PersistedLayout | null {
       parsed.version = 2;
       parsed.boardTitle = "My Board";
       parsed.coverImageUrl = "";
-      parsed.boardEmoji = "\u{1F338}";
+      parsed.boardEmoji = "\u{1F4D6}";
     }
 
     // Ensure fields exist for v2 layouts saved before they were added
     if (!parsed.boardDescription) parsed.boardDescription = "The secret of getting ahead is getting started.";
-    if (!parsed.boardEmoji) parsed.boardEmoji = "\u{1F338}";
+    if (!parsed.boardEmoji) parsed.boardEmoji = "\u{1F4D6}";
     if (!parsed.iconSize) parsed.iconSize = "md";
 
     // Sanitize corrupted boardEmoji — reset to default if it looks like
@@ -87,7 +87,7 @@ function readPersistedLayout(): PersistedLayout | null {
       !parsed.boardEmoji.startsWith("lucide:") &&
       /^[a-zA-Z0-9_-]+$/.test(parsed.boardEmoji)
     ) {
-      parsed.boardEmoji = "\u{1F338}";
+      parsed.boardEmoji = "\u{1F4D6}";
     }
 
     // Sanitize corrupted boardDescription — reset to default if it looks like a URL
@@ -203,8 +203,8 @@ export function useWidgetLayout() {
   const [layouts, setLayoutsState] = useState<ResponsiveLayouts<string>>(defaults.layouts);
   const [boardTitle, setBoardTitleState] = useState("My Board");
   const [boardDescription, setBoardDescriptionState] = useState("The secret of getting ahead is getting started.");
-  const [coverImageUrl, setCoverImageUrlState] = useState("preset:p5");
-  const [boardEmoji, setBoardEmojiState] = useState("\u{1F338}");
+  const [coverImageUrl, setCoverImageUrlState] = useState("preset:cal");
+  const [boardEmoji, setBoardEmojiState] = useState("\u{1F4D6}");
   const [iconSize, setIconSizeState] = useState("md");
   const [titleFontFamily, setTitleFontFamilyState] = useState("");
   const [titleTextColor, setTitleTextColorState] = useState("");
@@ -233,8 +233,8 @@ export function useWidgetLayout() {
       setLayoutsState(persisted.layouts);
       const title = persisted.boardTitle || "My Board";
       const desc = persisted.boardDescription || "";
-      const cover = persisted.coverImageUrl ?? "preset:p5";
-      const emoji = persisted.boardEmoji || "\u{1F338}";
+      const cover = persisted.coverImageUrl ?? "preset:cal";
+      const emoji = persisted.boardEmoji || "\u{1F4D6}";
       const iSize = persisted.iconSize || "md";
       setBoardTitleState(title);
       setBoardDescriptionState(desc);

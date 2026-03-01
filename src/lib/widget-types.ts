@@ -147,38 +147,42 @@ export function getDefaultLayout(): {
   layouts: ResponsiveLayouts<string>;
 } {
   const widgets: WidgetInstance[] = [
+    { id: "default-gcal", type: "google-calendar", config: { viewMode: "week" } },
     { id: "default-tasks", type: "tasks-today", config: {} },
-    { id: "default-notes", type: "notes", config: {} },
     { id: "default-clock", type: "clock", config: {} },
     { id: "default-weather", type: "weather", config: {} },
-    { id: "default-progress", type: "class-progress", config: {} },
+    { id: "default-image", type: "image", config: {} },
+    { id: "default-notes", type: "notes", config: {} },
   ];
 
-  /** lg: 8 columns — 2 filled rows. */
+  /** lg: 8 columns — Google Calendar tall left, 2x2 grid on right. */
   const lg: LayoutItem[] = [
-    { i: "default-tasks", x: 0, y: 0, w: 2, h: 2, minW: 1, minH: 1 },
-    { i: "default-notes", x: 2, y: 0, w: 2, h: 2, minW: 1, minH: 1 },
-    { i: "default-clock", x: 4, y: 0, w: 2, h: 1, minW: 1, minH: 1 },
-    { i: "default-weather", x: 6, y: 0, w: 2, h: 1, minW: 1, minH: 1 },
-    { i: "default-progress", x: 4, y: 1, w: 4, h: 1, minW: 2, minH: 1 },
+    { i: "default-gcal", x: 0, y: 0, w: 4, h: 4, minW: 2, minH: 2 },
+    { i: "default-tasks", x: 4, y: 0, w: 2, h: 2, minW: 1, minH: 1 },
+    { i: "default-clock", x: 6, y: 0, w: 2, h: 1, minW: 1, minH: 1 },
+    { i: "default-weather", x: 6, y: 1, w: 2, h: 1, minW: 1, minH: 1 },
+    { i: "default-image", x: 4, y: 2, w: 2, h: 2, minW: 1, minH: 1 },
+    { i: "default-notes", x: 6, y: 2, w: 2, h: 2, minW: 1, minH: 1 },
   ];
 
-  /** md: 4 columns — 3 filled rows. */
+  /** md: 4 columns — stacked layout. */
   const md: LayoutItem[] = [
-    { i: "default-tasks", x: 0, y: 0, w: 2, h: 2, minW: 1, minH: 1 },
-    { i: "default-weather", x: 2, y: 0, w: 2, h: 1, minW: 1, minH: 1 },
-    { i: "default-clock", x: 2, y: 1, w: 2, h: 1, minW: 1, minH: 1 },
-    { i: "default-notes", x: 0, y: 2, w: 2, h: 2, minW: 1, minH: 1 },
-    { i: "default-progress", x: 2, y: 2, w: 2, h: 1, minW: 1, minH: 1 },
+    { i: "default-gcal", x: 0, y: 0, w: 4, h: 3, minW: 2, minH: 2 },
+    { i: "default-tasks", x: 0, y: 3, w: 2, h: 2, minW: 1, minH: 1 },
+    { i: "default-clock", x: 2, y: 3, w: 2, h: 1, minW: 1, minH: 1 },
+    { i: "default-weather", x: 2, y: 4, w: 2, h: 1, minW: 1, minH: 1 },
+    { i: "default-image", x: 0, y: 5, w: 2, h: 2, minW: 1, minH: 1 },
+    { i: "default-notes", x: 2, y: 5, w: 2, h: 2, minW: 1, minH: 1 },
   ];
 
   /** sm: 2 columns — single-column stack. */
   const sm: LayoutItem[] = [
-    { i: "default-tasks", x: 0, y: 0, w: 2, h: 2, minW: 1, minH: 1 },
-    { i: "default-weather", x: 0, y: 2, w: 2, h: 1, minW: 1, minH: 1 },
-    { i: "default-clock", x: 0, y: 3, w: 2, h: 1, minW: 1, minH: 1 },
-    { i: "default-notes", x: 0, y: 4, w: 2, h: 2, minW: 1, minH: 1 },
-    { i: "default-progress", x: 0, y: 6, w: 2, h: 1, minW: 1, minH: 1 },
+    { i: "default-gcal", x: 0, y: 0, w: 2, h: 3, minW: 2, minH: 2 },
+    { i: "default-tasks", x: 0, y: 3, w: 2, h: 2, minW: 1, minH: 1 },
+    { i: "default-clock", x: 0, y: 5, w: 2, h: 1, minW: 1, minH: 1 },
+    { i: "default-weather", x: 0, y: 6, w: 2, h: 1, minW: 1, minH: 1 },
+    { i: "default-image", x: 0, y: 7, w: 2, h: 2, minW: 1, minH: 1 },
+    { i: "default-notes", x: 0, y: 9, w: 2, h: 2, minW: 1, minH: 1 },
   ];
 
   return { widgets, layouts: { lg, md, sm } };
