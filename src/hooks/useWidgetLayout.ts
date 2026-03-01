@@ -24,8 +24,8 @@ const SUPPORTED_TYPES = new Set<string>(Object.keys(WIDGET_REGISTRY));
 /** localStorage key for persisted widget layout. */
 const STORAGE_KEY = "home_widget_layout";
 
-/** Schema version for cache invalidation. */
-const SCHEMA_VERSION = 3;
+/** Schema version for cache invalidation. Bump to reset all users to new defaults. */
+const SCHEMA_VERSION = 4;
 
 /** Old lg column count (v2) and new lg column count (v3). */
 const OLD_LG_COLS = 6;
