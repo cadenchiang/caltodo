@@ -221,7 +221,6 @@ export function useCourseChat(courseId: string, options?: { isSystemCourse?: boo
       };
 
       setMessages((prev) => [...prev, optimisticMsg]);
-      playMessageSent();
 
       // Register pending sentinel so the Realtime handler can detect
       // that this tempId is awaiting a server ID, even if the INSERT
@@ -288,6 +287,7 @@ export function useCourseChat(courseId: string, options?: { isSystemCourse?: boo
             : m
         )
       );
+      playMessageSent();
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg);

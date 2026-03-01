@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { Inbox, CalendarDays, Settings, Sun, CalendarRange, MessageSquare } from "lucide-react";
+import { Home, Inbox, CalendarDays, Settings, Sun, CalendarRange, MessageSquare } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useCalChatUnread } from "@/hooks/useCalChatUnread";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
@@ -74,6 +74,12 @@ export default function MobileTabBar() {
     badge: boolean;
     badgeCount?: number;
   }> = [
+    {
+      label: "Home",
+      href: "/app/home",
+      icon: Home,
+      badge: false,
+    },
     {
       label: getInboxLabel(),
       href: "/app/inbox",

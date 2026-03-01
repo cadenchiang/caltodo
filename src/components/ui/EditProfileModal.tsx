@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { Camera, Check, Loader2, X } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 import { classifyImage } from "@/lib/nsfw-check";
+import ImageCropModal from "@/components/ui/ImageCropModal";
 
 interface EditProfileModalProps {
   /** Whether the modal is open. */
@@ -112,25 +113,38 @@ export default function EditProfileModal({
   }
 
   /**
-   * Handles avatar file selection. Uploads to /api/account/avatar,
-   * updates local state and localStorage cache on success.
+   * Opens the crop modal after file selection.
    *
    * @param e - File input change event
    */
-  async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
+
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    if (file.size > 2 * 1024 * 1024) {
-      showToast("File too large. Max 2 MB.");
+    if (file.size > 5 * 1024 * 1024) {
+      showToast("File too large. Max 5 MB.");
+      if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
+    setCropSrc(URL.createObjectURL(file));
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
 
-    // Block NSFW images from being used as avatars
+  /**
+   * Uploads a cropped avatar blob to /api/account/avatar.
+   * Runs NSFW check, uploads, and syncs state.
+   *
+   * @param blob - Cropped image blob from ImageCropModal
+   */
+  async function handleCroppedAvatar(blob: Blob) {
+    setCropSrc(null);
+
+    // NSFW check on the cropped blob
+    const file = new File([blob], "avatar.jpg", { type: blob.type });
     const nsfwResult = await classifyImage(file);
     if (nsfwResult.isSensitive) {
       showToast("This image cannot be used as a profile photo.");
-      if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
 
@@ -169,7 +183,6 @@ export default function EditProfileModal({
       showToast("Failed to upload photo.");
     } finally {
       setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   }
 
@@ -281,7 +294,7 @@ export default function EditProfileModal({
             ref={fileInputRef}
             type="file"
             accept="image/jpeg,image/png,image/webp"
-            onChange={handleAvatarUpload}
+            onChange={handleFileSelect}
             className="hidden"
           />
         </div>
@@ -331,6 +344,17 @@ export default function EditProfileModal({
           </button>
         </div>
       </div>
+      <ImageCropModal
+        open={!!cropSrc}
+        imageSrc={cropSrc || ""}
+        aspect={1}
+        cropShape="round"
+        onCrop={handleCroppedAvatar}
+        onClose={() => {
+          if (cropSrc) URL.revokeObjectURL(cropSrc);
+          setCropSrc(null);
+        }}
+      />
     </div>,
     document.body
   );

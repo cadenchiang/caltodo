@@ -4,7 +4,7 @@ import { NextResponse, type NextRequest } from "next/server";
 /**
  * Middleware for route protection and Supabase auth token refresh.
  * Redirects unauthenticated users from /app/* routes to /login.
- * Redirects authenticated users from /login to /app/inbox.
+ * Redirects authenticated users from /login to /app/home.
  *
  * @param request - The incoming Next.js request
  * @returns NextResponse with updated auth cookies
@@ -53,7 +53,7 @@ export async function middleware(request: NextRequest) {
   // Redirect authenticated users away from login page
   if (user && pathname === "/login") {
     const url = request.nextUrl.clone();
-    url.pathname = "/app/inbox";
+    url.pathname = "/app/home";
     return NextResponse.redirect(url);
   }
 

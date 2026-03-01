@@ -8,6 +8,7 @@ import { useDebounce } from "@/hooks/useDebounce";
 import UserAvatar from "@/components/ui/UserAvatar";
 import EditProfileModal from "@/components/ui/EditProfileModal";
 import { classifyImage } from "@/lib/nsfw-check";
+import ImageCropModal from "@/components/ui/ImageCropModal";
 
 /**
  * Friend/request entry returned by the friends API.
@@ -137,17 +138,11 @@ export default function ProfileSection() {
 
   // "People you may know" suggestions — initialise from localStorage for instant render
   // Cache format: { suggestions: SearchUser[], ts: number }
-  // Computed once via useState initializer to avoid re-reading localStorage on every render.
-  const [suggestionsInit] = useState(() => {
-    try {
-      const c = localStorage.getItem("caltodo_suggestions_cache");
-      return c ? JSON.parse(c) as { suggestions: SearchUser[]; ts: number } : null;
-    } catch { return null; }
-  });
-  const [peopleSuggestions, setPeopleSuggestions] = useState<SearchUser[]>(
-    suggestionsInit?.suggestions ?? []
-  );
-  const [loadingSuggestions, setLoadingSuggestions] = useState(!suggestionsInit);
+  // Start with empty state on both server and client to avoid hydration mismatch.
+  // localStorage cache is read in useEffect after mount.
+  const [peopleSuggestions, setPeopleSuggestions] = useState<SearchUser[]>([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(true);
+  const suggestionsInitRef = useRef<{ suggestions: SearchUser[]; ts: number } | null>(null);
   /** Ref tracks current suggestions for stale-closure-safe comparison in fetchSuggestions. */
   const suggestionsRef = useRef(peopleSuggestions);
 
@@ -185,20 +180,33 @@ export default function ProfileSection() {
    * Handles avatar file selection. Uploads to /api/account/avatar,
    * updates local state and localStorage cache on success.
    */
-  async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  const [avatarCropSrc, setAvatarCropSrc] = useState<string | null>(null);
+
+  /** Opens crop modal after file selection. */
+  function handleAvatarFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    if (file.size > 2 * 1024 * 1024) {
-      showToast("File too large. Max 2 MB.");
+    if (file.size > 5 * 1024 * 1024) {
+      showToast("File too large. Max 5 MB.");
+      if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
+    setAvatarCropSrc(URL.createObjectURL(file));
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
 
-    // Block NSFW images from being used as avatars
+  /**
+   * Uploads a cropped avatar blob.
+   *
+   * @param blob - Cropped image blob from ImageCropModal
+   */
+  async function handleCroppedAvatar(blob: Blob) {
+    setAvatarCropSrc(null);
+
+    const file = new File([blob], "avatar.jpg", { type: blob.type });
     const nsfwResult = await classifyImage(file);
     if (nsfwResult.isSensitive) {
       showToast("This image cannot be used as a profile photo.");
-      if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
 
@@ -231,15 +239,12 @@ export default function ProfileSection() {
         }
       } catch { /* ignore */ }
 
-      // Notify sidebar of avatar change
       window.dispatchEvent(new CustomEvent("profile-updated", { detail: { avatarUrl: avatar_url } }));
-
       showToast("Profile photo updated.");
     } catch {
       showToast("Failed to upload photo.");
     } finally {
       setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   }
 
@@ -344,12 +349,24 @@ export default function ProfileSection() {
     finally { setLoadingSuggestions(false); }
   }, []);
 
-  // Fetch suggestions once on mount if cache is stale (>5 min) or empty.
+  // Hydrate suggestions from localStorage after mount, then fetch if stale.
   useEffect(() => {
-    const fresh = suggestionsInit?.ts && Date.now() - suggestionsInit.ts < 5 * 60_000;
+    let cached: { suggestions: SearchUser[]; ts: number } | null = null;
+    try {
+      const c = localStorage.getItem("caltodo_suggestions_cache");
+      if (c) cached = JSON.parse(c);
+    } catch { /* ignore */ }
+    suggestionsInitRef.current = cached;
+
+    if (cached?.suggestions?.length) {
+      setPeopleSuggestions(cached.suggestions);
+      suggestionsRef.current = cached.suggestions;
+    }
+
+    const fresh = cached?.ts && Date.now() - cached.ts < 5 * 60_000;
     if (!fresh) fetchSuggestions();
     else setLoadingSuggestions(false);
-  }, [fetchSuggestions, suggestionsInit]);
+  }, [fetchSuggestions]);
 
   // Search users for friends
   useEffect(() => {
@@ -532,8 +549,19 @@ export default function ProfileSection() {
           ref={fileInputRef}
           type="file"
           accept="image/jpeg,image/png,image/webp"
-          onChange={handleAvatarUpload}
+          onChange={handleAvatarFileSelect}
           className="hidden"
+        />
+        <ImageCropModal
+          open={!!avatarCropSrc}
+          imageSrc={avatarCropSrc || ""}
+          aspect={1}
+          cropShape="round"
+          onCrop={handleCroppedAvatar}
+          onClose={() => {
+            if (avatarCropSrc) URL.revokeObjectURL(avatarCropSrc);
+            setAvatarCropSrc(null);
+          }}
         />
 
         {/* Name, full name, stats, email — stacked right */}

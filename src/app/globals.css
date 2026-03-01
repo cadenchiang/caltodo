@@ -949,20 +949,14 @@ body {
   100% { transform: translateX(300%); }
 }
 
-/* Page transition — snappy pop-in on tab switch */
+/* Page transition — subtle fade-in on tab switch */
 @keyframes pageIn {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .animate-page-in {
-  animation: pageIn 200ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: pageIn 250ms ease-out both;
 }
 
 /* Staggered section entrance — used inside pages */
@@ -1270,7 +1264,7 @@ textarea:-webkit-autofill {
 @keyframes announceCardIn {
   0% {
     opacity: 0;
-    transform: scale(0.9) translateY(12px);
+    transform: scale(0.97) translateY(4px);
   }
   100% {
     opacity: 1;
@@ -1520,4 +1514,69 @@ textarea:-webkit-autofill {
 
 .animate-chat-notif-in {
   animation: chatNotifIn 300ms ease-out;
+}
+
+/* ── Widget Dashboard: gentle iOS-style jiggle for edit mode ── */
+@keyframes widgetJiggle {
+  0% { transform: rotate(0deg); }
+  25% { transform: rotate(-0.5deg); }
+  50% { transform: rotate(0deg); }
+  75% { transform: rotate(0.5deg); }
+  100% { transform: rotate(0deg); }
+}
+
+.widget-jiggle {
+  animation: widgetJiggle 0.4s ease-in-out infinite;
+}
+
+/* Vary timing per item for natural, non-synchronized jiggle */
+.widget-jiggle:nth-child(2n) {
+  animation-duration: 0.45s;
+  animation-delay: 0.05s;
+}
+
+.widget-jiggle:nth-child(3n) {
+  animation-duration: 0.42s;
+  animation-delay: 0.1s;
+}
+
+.widget-jiggle:nth-child(5n) {
+  animation-duration: 0.48s;
+  animation-delay: 0.02s;
+}
+
+/* ── react-grid-layout overrides — remove all borders/outlines ── */
+.react-grid-item {
+  border: none !important;
+  outline: none !important;
+}
+
+/* On page load, fade widgets in without positional movement */
+.react-grid-item.cssTransforms {
+  animation: widgetFadeIn 350ms ease-out both;
+}
+
+@keyframes widgetFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.react-grid-placeholder {
+  background: var(--ring) !important;
+  opacity: 0.12 !important;
+  border-radius: 12px !important;
+  border: none !important;
+}
+
+.react-resizable-handle::after {
+  border-color: var(--muted-foreground) !important;
+}
+
+.react-grid-item > .react-resizable-handle::after {
+  width: 8px !important;
+  height: 8px !important;
+}
+
+.react-grid-item.react-grid-placeholder {
+  transition: all 100ms ease !important;
 }

@@ -1,10 +1,11 @@
-import { Inbox, CalendarDays, MessageSquare } from "lucide-react";
+import { Home, Inbox, CalendarDays, MessageSquare } from "lucide-react";
 
 /**
  * Navigation items for the sidebar.
  * Settings is accessed via the profile popup only.
  */
 export const NAV_ITEMS = [
+  { label: "Home", href: "/app/home", icon: Home },
   { label: "Inbox", href: "/app/inbox", icon: Inbox },
   { label: "Calendar", href: "/app/calendar", icon: CalendarDays },
   { label: "CalChat", href: "/app/discussions", icon: MessageSquare },

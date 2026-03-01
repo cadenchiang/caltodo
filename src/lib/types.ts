@@ -388,3 +388,26 @@ export interface CourseMemberProfile {
   user_avatar: string | null;
   joined_at: string;
 }
+
+/**
+ * A Google Calendar event as returned by the /api/gcal/events endpoint.
+ *
+ * @param id - Google Calendar event ID
+ * @param summary - Event title
+ * @param start - ISO start datetime (or date for all-day events)
+ * @param end - ISO end datetime (or date for all-day events)
+ * @param colorId - Google Calendar color ID (optional)
+ * @param location - Event location (optional)
+ * @param htmlLink - URL to view event in Google Calendar
+ * @param allDay - Whether this is an all-day event
+ */
+export interface GCalEvent {
+  id: string;
+  summary: string;
+  start: string;
+  end: string;
+  colorId: string | null;
+  location: string | null;
+  htmlLink: string;
+  allDay: boolean;
+}
