@@ -75,7 +75,7 @@ async function prefetchMembers(courseId: string): Promise<void> {
 export default function DiscussionsPage() {
   const router = useRouter();
   const { boards, loading } = useDiscussionBoards();
-  const { hasCompletedOnboarding, loading: onboardingLoading } = useOnboardingStatus();
+  const { hasCompletedOnboarding, loading: onboardingLoading } = useOnboardingStatus({ skipCache: true });
   const [showLocked, setShowLocked] = useState(false);
 
   // Redirect to first board's chat as soon as boards load

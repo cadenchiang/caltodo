@@ -51,14 +51,16 @@ function writeCache(completed: boolean): void {
  * Listens for `onboarding-status-change` custom event so status
  * updates instantly after onboarding completes.
  *
+ * @param options.skipCache - When true, always fetch fresh from API (use on CalChat pages)
  * @returns { hasCompletedOnboarding, loading, refresh }
  */
-export function useOnboardingStatus(): {
+export function useOnboardingStatus(options?: { skipCache?: boolean }): {
   hasCompletedOnboarding: boolean;
   loading: boolean;
   refresh: () => void;
 } {
-  const cached = readCache();
+  const skipCache = options?.skipCache ?? false;
+  const cached = skipCache ? null : readCache();
   const [completed, setCompleted] = useState<boolean>(cached ?? true);
   const [loading, setLoading] = useState(cached === null);
 
@@ -78,7 +80,7 @@ export function useOnboardingStatus(): {
       .finally(() => setLoading(false));
   }, []);
 
-  // Fetch on mount if no cache
+  // Fetch on mount if no cache (or skipCache forces fresh fetch)
   useEffect(() => {
     if (cached === null) {
       fetchStatus();

@@ -85,7 +85,7 @@ export default function CourseChatPage({ params }: PageProps) {
   const { courseId: initialCourseId } = use(params);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { hasCompletedOnboarding, loading: onboardingLoading } = useOnboardingStatus();
+  const { hasCompletedOnboarding, loading: onboardingLoading } = useOnboardingStatus({ skipCache: true });
   const initialName = searchParams.get("name") || "Chat";
 
   // Active chat managed as client state for instant switching
