@@ -69,9 +69,9 @@ export default function BoardTitle({
     setModalOpen(false);
   }
 
-  /** Default to Instrument Serif (Notion-like) when no font is configured. */
+  /** Use system font when no custom font is configured. */
   const titleStyle: React.CSSProperties = {
-    fontFamily: titleConfig?.fontFamily || "var(--font-instrument-serif), serif",
+    fontFamily: titleConfig?.fontFamily || undefined,
     color: titleConfig?.textColor || undefined,
   };
 
