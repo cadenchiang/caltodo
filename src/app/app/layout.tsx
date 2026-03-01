@@ -55,7 +55,7 @@ export default async function AppLayout({
           <TaskProvider>
             <InboxTour>
             <Sidebar avatarUrl={avatarUrl} fullName={fullName} email={email} />
-            <main suppressHydrationWarning className="flex-1 overflow-hidden p-4 md:p-10 pb-16 md:pb-10 dark:bg-black relative miffy-glow miffy-watermark">
+            <main suppressHydrationWarning className="flex-1 overflow-hidden p-4 md:p-10 pb-16 md:pb-10 bg-background relative miffy-glow miffy-watermark">
               {children}
             </main>
             <MobileTabBar />

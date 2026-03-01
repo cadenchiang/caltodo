@@ -2,7 +2,7 @@
 
 /**
  * Widget that displays a user-uploaded image.
- * Click to select a file, crop it, then upload to Supabase.
+ * Supports click-to-browse and drag-and-drop file selection, then crop + upload.
  *
  * @param config - Widget config containing optional imageUrl
  * @param widgetId - Unique widget instance ID for storage path
@@ -28,6 +28,7 @@ export default function ImageWidget({
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState(false);
 
   /**
    * Uploads a cropped Blob to Supabase and updates widget config.
@@ -76,6 +77,38 @@ export default function ImageWidget({
     e.target.value = "";
   }
 
+  /**
+   * Handles file drop on the widget. Accepts first image file and opens crop modal.
+   *
+   * @param e - React drag event containing dropped files
+   */
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(false);
+    if (!onUpdateConfig) return;
+    const file = Array.from(e.dataTransfer.files).find((f) =>
+      f.type.startsWith("image/")
+    );
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    setCropSrc(url);
+  }
+
+  /** Prevents default browser handling and sets drag-over visual state. */
+  function handleDragOver(e: React.DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(true);
+  }
+
+  /** Clears drag-over visual state when cursor leaves the drop zone. */
+  function handleDragLeave(e: React.DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(false);
+  }
+
   const fileInput = (
     <input
       ref={fileRef}
@@ -114,7 +147,7 @@ export default function ImageWidget({
         <ImageCropModal
           open={!!cropSrc}
           imageSrc={cropSrc || ""}
-          aspect={0}
+          aspect={4 / 3}
           onCrop={handleCroppedUpload}
           onClose={() => {
             if (cropSrc) URL.revokeObjectURL(cropSrc);
@@ -125,22 +158,31 @@ export default function ImageWidget({
     );
   }
 
-  // No image — show upload prompt
+  // No image — show drop zone + upload prompt
   return (
-    <div className="h-full w-full flex flex-col items-center justify-center p-4 rounded-xl">
+    <div
+      className={`h-full w-full flex flex-col items-center justify-center p-4 rounded-xl transition-colors ${
+        dragOver ? "border-2 border-dashed border-blue-400 bg-blue-50/30 dark:bg-blue-900/20" : ""
+      }`}
+      onDrop={handleDrop}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+    >
       {uploading ? (
         <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
       ) : (
         <>
           <ImageIcon size={24} className="text-muted-foreground mb-2" />
-          <p className="text-sm text-muted-foreground mb-2">No image</p>
-          {onUpdateConfig && (
+          <p className="text-sm text-muted-foreground mb-1">
+            {dragOver ? "Drop image here" : "No image"}
+          </p>
+          {!dragOver && onUpdateConfig && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 fileRef.current?.click();
               }}
-              className="no-drag flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border border-border text-foreground hover:bg-muted transition-colors"
+              className="no-drag flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border border-border text-foreground hover:bg-muted transition-colors mt-1"
             >
               <Camera size={14} />
               Select Image
@@ -152,7 +194,7 @@ export default function ImageWidget({
       <ImageCropModal
         open={!!cropSrc}
         imageSrc={cropSrc || ""}
-        aspect={0}
+        aspect={4 / 3}
         onCrop={handleCroppedUpload}
         onClose={() => {
           if (cropSrc) URL.revokeObjectURL(cropSrc);

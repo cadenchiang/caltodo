@@ -21,11 +21,12 @@ const GCAL_COLORS: Record<string, string> = {
 };
 
 /** View mode options for the calendar. */
-type ViewMode = "today" | "week";
+type ViewMode = "today" | "week" | "month";
 
 const VIEW_MODES: { key: ViewMode; label: string }[] = [
   { key: "today", label: "Today" },
   { key: "week", label: "Week" },
+  { key: "month", label: "Month" },
 ];
 
 /**
@@ -45,6 +46,9 @@ function getTimeRange(mode: ViewMode): { timeMin: string; timeMax: string } {
       break;
     case "week":
       end.setDate(end.getDate() + 7);
+      break;
+    case "month":
+      end.setDate(end.getDate() + 30);
       break;
   }
 
@@ -96,8 +100,8 @@ function EventsByDay({ events }: { events: GCalEvent[] }) {
         <div key={dateKey}>
           {/* Day divider */}
           <div className={`flex items-center gap-2 px-1 ${idx > 0 ? "mt-1" : ""}`}>
-            <span className={`text-[10px] font-semibold uppercase tracking-wider shrink-0 ${
-              dateKey === todayKey ? "text-blue-500" : "text-muted-foreground"
+            <span className={`text-[10px] font-semibold tracking-wider shrink-0 ${
+              dateKey === todayKey ? "text-blue-500" : "text-foreground"
             }`}>
               {dayLabel(dateKey)}
             </span>
@@ -131,7 +135,7 @@ function EventsByDay({ events }: { events: GCalEvent[] }) {
                     <p className="text-xs font-medium text-foreground truncate">
                       {event.summary}
                     </p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                    <p className="text-[10px] text-foreground/70 mt-0.5">
                       {timeStr}
                     </p>
                   </div>
@@ -211,37 +215,17 @@ export default function GoogleCalendarWidget({ config, editMode, onUpdateConfig 
 
   return (
     <div className="h-full w-full flex flex-col p-4 overflow-hidden">
-      {/* Header with view mode toggle */}
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <Calendar size={14} className="text-blue-500 shrink-0" />
-          <h3 className="text-sm font-semibold text-foreground">Google Calendar</h3>
-        </div>
-
-        {/* View mode pills — only interactive in edit mode */}
-        {editMode && (
-          <div className="no-drag flex items-center bg-muted rounded-full p-0.5">
-            {VIEW_MODES.map((m) => (
-              <button
-                key={m.key}
-                onClick={() => onUpdateConfig?.({ viewMode: m.key })}
-                className={`px-2 py-0.5 text-[10px] font-medium rounded-full transition-colors ${
-                  viewMode === m.key
-                    ? "bg-card text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {m.label}
-              </button>
-            ))}
-          </div>
-        )}
+      {/* Header */}
+      <div className="flex items-center gap-2 mb-3">
+        <Calendar size={14} className="text-blue-500 shrink-0" />
+        <h3 className="text-sm font-semibold text-foreground">Google Calendar</h3>
+        <span className="text-[10px] text-muted-foreground capitalize">{viewMode}</span>
       </div>
 
       {events.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center text-center">
-          <Calendar size={20} className="text-muted-foreground mb-2" />
-          <p className="text-sm text-muted-foreground">No events</p>
+          <Calendar size={20} className="text-foreground mb-2" />
+          <p className="text-sm text-foreground">No events</p>
         </div>
       ) : (
         <EventsByDay events={events.slice(0, 12)} />

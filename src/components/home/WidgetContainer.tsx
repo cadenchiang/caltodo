@@ -134,7 +134,7 @@ export default function WidgetContainer({
     <div
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
-      className={`h-full w-full rounded-xl overflow-hidden bg-card border border-foreground/15 ${
+      className={`h-full w-full rounded-md overflow-hidden bg-transparent border border-foreground/8 ${
         editMode ? "widget-jiggle cursor-pointer" : ""
       } ${isClickable ? "cursor-pointer" : ""}`}
       style={{

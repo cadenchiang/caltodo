@@ -41,34 +41,34 @@ export default function CalChatWidget({ config }: CalChatWidgetProps) {
   if (sortedBoards.length === 0) {
     return (
       <div className="h-full w-full flex flex-col items-center justify-center p-4 text-center">
-        <MessageSquare size={24} className="text-muted-foreground mb-2" />
-        <p className="text-sm text-muted-foreground">No new messages</p>
+        <MessageSquare size={24} className="text-foreground mb-2" />
+        <p className="text-sm text-foreground">No new messages</p>
       </div>
     );
   }
 
   return (
-    <div className="h-full w-full flex flex-col p-4 overflow-hidden">
-      <div className="flex items-center gap-2 mb-3">
+    <div className="h-full w-full flex flex-col p-3 overflow-hidden">
+      <div className="flex items-center gap-2 mb-2">
         <MessageSquare size={14} className="text-blue-500 shrink-0" />
         <h3 className="text-sm font-semibold text-foreground">Cal Chat</h3>
       </div>
 
-      <ul className="flex-1 space-y-2 overflow-y-auto">
-        {sortedBoards.slice(0, 5).map((board) => (
-          <li key={board.course.id} className="flex flex-col gap-0.5">
-            <div className="flex items-center justify-between">
+      <ul className="flex-1 space-y-1.5 overflow-y-auto">
+        {sortedBoards.slice(0, 8).map((board) => (
+          <li key={board.course.id} className="flex flex-col gap-0.5 min-w-0">
+            <div className="flex items-center justify-between gap-1">
               <span className="text-xs font-medium text-foreground truncate">
                 {board.course.name}
               </span>
               {board.last_message_at && (
-                <span className="text-[10px] text-subtle-foreground shrink-0 ml-2">
+                <span className="text-[10px] text-foreground/60 shrink-0">
                   {formatRelativeTime(board.last_message_at)}
                 </span>
               )}
             </div>
             {board.last_message_body && (
-              <p className="text-xs text-muted-foreground line-clamp-1">
+              <p className="text-[11px] text-foreground/70 line-clamp-1">
                 <span className="font-medium">{board.last_message_author}: </span>
                 {board.last_message_body}
               </p>

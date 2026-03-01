@@ -14,6 +14,7 @@
  */
 
 import { useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 import Cropper from "react-easy-crop";
 import type { Area } from "react-easy-crop";
 import { X } from "lucide-react";
@@ -101,9 +102,9 @@ export default function ImageCropModal({
     }
   }
 
-  if (!open) return null;
+  if (!open || typeof document === "undefined") return null;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-[60] flex items-center justify-center">
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/50 animate-announce-backdrop-in" onClick={onClose} />
@@ -122,17 +123,20 @@ export default function ImageCropModal({
           </button>
         </div>
 
-        {/* Crop area */}
-        <div className="relative w-full" style={{ height: 300 }}>
+        {/* Crop area — relative + overflow-hidden contain the absolute Cropper */}
+        <div className="relative w-full overflow-hidden bg-black" style={{ height: 300 }}>
           <Cropper
             image={imageSrc}
             crop={crop}
             zoom={zoom}
-            aspect={aspect}
+            aspect={aspect || 4 / 3}
             cropShape={cropShape}
             onCropChange={setCrop}
             onZoomChange={setZoom}
             onCropComplete={onCropComplete}
+            style={{
+              containerStyle: { width: "100%", height: "100%" },
+            }}
           />
         </div>
 
@@ -167,6 +171,7 @@ export default function ImageCropModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

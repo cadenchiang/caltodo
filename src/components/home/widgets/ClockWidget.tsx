@@ -54,7 +54,7 @@ export default function ClockWidget({ config }: ClockWidgetProps) {
         {timeStr}
       </span>
       <div className="w-8 h-px bg-border my-2" />
-      <span className="text-xs uppercase tracking-widest text-muted-foreground">
+      <span className="text-xs tracking-widest text-foreground">
         {dateStr}
       </span>
     </div>

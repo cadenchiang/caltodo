@@ -113,7 +113,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     label: "Cal Chat",
     description: "Recent messages from Cal Chat",
     iconName: "MessagesSquare",
-    minW: 2, minH: 2, maxW: 4, maxH: 4,
+    minW: 1, minH: 1, maxW: 4, maxH: 4,
     defaultW: 2, defaultH: 2,
   },
 };
@@ -144,9 +144,9 @@ export function getDefaultLayout(): {
   ];
 
   const lg: LayoutItem[] = [
-    { i: "default-tasks", x: 0, y: 0, w: 2, h: 2, minW: 1, minH: 1 },
-    { i: "default-clock", x: 2, y: 0, w: 1, h: 1, minW: 1, minH: 1 },
-    { i: "default-progress", x: 3, y: 0, w: 2, h: 2, minW: 2, minH: 1 },
+    { i: "default-tasks", x: 0, y: 0, w: 3, h: 2, minW: 1, minH: 1 },
+    { i: "default-clock", x: 3, y: 0, w: 2, h: 1, minW: 1, minH: 1 },
+    { i: "default-progress", x: 5, y: 0, w: 3, h: 2, minW: 2, minH: 1 },
   ];
 
   return { widgets, layouts: { lg } };

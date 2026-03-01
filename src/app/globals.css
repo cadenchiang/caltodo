@@ -34,8 +34,8 @@
 }
 
 .dark {
-  --background: #111111;
-  --card: #1a1a1a;
+  --background: #1c1c1e;
+  --card: #2c2c2e;
   --popover: #262626;
   --muted: #262626;
   --accent: rgba(255, 255, 255, 0.05);
@@ -1551,7 +1551,23 @@ textarea:-webkit-autofill {
   outline: none !important;
 }
 
-/* On page load, fade widgets in without positional movement */
+/*
+ * Disable react-grid-layout's built-in CSS transition on initial mount.
+ * Without this, items animate from (0,0) to their actual positions on load.
+ * The parent container adds .widget-grid-ready after the first render,
+ * which re-enables transitions for drag/resize interactions.
+ */
+.react-grid-item.cssTransforms {
+  transition: none !important;
+}
+
+.widget-grid-ready .react-grid-item.cssTransforms {
+  transition-property: transform, width, height;
+  transition-duration: 200ms;
+  transition-timing-function: ease;
+}
+
+/* On page load, fade widgets in (opacity only — no positional movement) */
 .react-grid-item.cssTransforms {
   animation: widgetFadeIn 350ms ease-out both;
 }

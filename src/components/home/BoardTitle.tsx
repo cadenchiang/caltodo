@@ -13,17 +13,29 @@
  */
 
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
 /** Available font families. */
 const FONT_OPTIONS: { label: string; value: string }[] = [
   { label: "System Default", value: "" },
   { label: "Inter", value: "'Inter', sans-serif" },
-  { label: "Georgia", value: "'Georgia', serif" },
-  { label: "Menlo", value: "'Menlo', monospace" },
+  { label: "DM Sans", value: "'DM Sans', sans-serif" },
+  { label: "Plus Jakarta Sans", value: "'Plus Jakarta Sans', sans-serif" },
+  { label: "Outfit", value: "'Outfit', sans-serif" },
+  { label: "Manrope", value: "'Manrope', sans-serif" },
+  { label: "Urbanist", value: "'Urbanist', sans-serif" },
+  { label: "Sora", value: "'Sora', sans-serif" },
   { label: "Helvetica Neue", value: "'Helvetica Neue', sans-serif" },
-  { label: "Times New Roman", value: "'Times New Roman', serif" },
+  { label: "Nunito", value: "'Nunito', sans-serif" },
+  { label: "Quicksand", value: "'Quicksand', sans-serif" },
+  { label: "Varela Round", value: "'Varela Round', sans-serif" },
+  { label: "DM Serif Display", value: "'DM Serif Display', serif" },
+  { label: "Playfair Display", value: "'Playfair Display', serif" },
+  { label: "Source Serif 4", value: "'Source Serif 4', serif" },
+  { label: "Georgia", value: "'Georgia', serif" },
   { label: "Palatino", value: "'Palatino Linotype', serif" },
+  { label: "Menlo", value: "'Menlo', monospace" },
 ];
 
 
@@ -86,8 +98,8 @@ export default function BoardTitle({
         {title}
       </h1>
 
-      {/* Title editing modal */}
-      {modalOpen && (
+      {/* Title editing modal — portaled to body to avoid clipping */}
+      {modalOpen && typeof document !== "undefined" && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/40 animate-announce-backdrop-in" onClick={() => setModalOpen(false)} />
           <div className="relative bg-card rounded-2xl shadow-xl w-full max-w-sm mx-4 animate-announce-card-in overflow-hidden">
@@ -183,7 +195,8 @@ export default function BoardTitle({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   );

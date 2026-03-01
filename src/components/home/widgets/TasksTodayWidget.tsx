@@ -112,7 +112,7 @@ export default function TasksTodayWidget({ config }: TasksTodayWidgetProps) {
       <div className="flex items-center justify-between mb-1 px-1">
         <h3 className="text-sm font-semibold text-foreground">{label}</h3>
         <div className="flex items-center gap-1">
-          <span className="text-xs text-muted-foreground">
+          <span className="text-xs text-foreground">
             {completedCount}/{totalCount}
           </span>
           <button
@@ -121,7 +121,7 @@ export default function TasksTodayWidget({ config }: TasksTodayWidgetProps) {
               setShowAdd((p) => !p);
               setTimeout(() => inputRef.current?.focus(), 50);
             }}
-            className="no-drag w-5 h-5 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            className="no-drag w-5 h-5 flex items-center justify-center rounded text-foreground hover:bg-muted transition-colors"
             aria-label="Add task"
           >
             <Plus size={14} />
@@ -160,8 +160,8 @@ export default function TasksTodayWidget({ config }: TasksTodayWidgetProps) {
       {/* Task list — inbox style */}
       {totalCount === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center">
-          <Inbox size={20} className="text-muted-foreground mb-2" />
-          <p className="text-sm text-muted-foreground">
+          <Inbox size={20} className="text-foreground mb-2" />
+          <p className="text-sm text-foreground">
             {viewMode === "today" ? "Nothing due today" : viewMode === "week" ? "Nothing this week" : "No tasks"}
           </p>
         </div>
@@ -216,7 +216,7 @@ export default function TasksTodayWidget({ config }: TasksTodayWidgetProps) {
               );
             })}
           {filteredTasks.filter((t) => !hideCompleted || !t.is_completed).length > 8 && (
-            <p className="text-xs text-muted-foreground pt-1 px-2">
+            <p className="text-xs text-foreground pt-1 px-2">
               +{filteredTasks.filter((t) => !hideCompleted || !t.is_completed).length - 8} more
             </p>
           )}

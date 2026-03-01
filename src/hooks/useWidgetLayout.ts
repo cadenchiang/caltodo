@@ -25,7 +25,11 @@ const SUPPORTED_TYPES = new Set<string>(Object.keys(WIDGET_REGISTRY));
 const STORAGE_KEY = "home_widget_layout";
 
 /** Schema version for cache invalidation. */
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
+
+/** Old lg column count (v2) and new lg column count (v3). */
+const OLD_LG_COLS = 6;
+const NEW_LG_COLS = 8;
 
 /** Persisted layout data shape. */
 interface PersistedLayout {
@@ -54,7 +58,7 @@ function readPersistedLayout(): PersistedLayout | null {
 
     // Migrate v1 → v2: add board metadata with defaults
     if (parsed.version === 1) {
-      parsed.version = SCHEMA_VERSION;
+      parsed.version = 2;
       parsed.boardTitle = "My Board";
       parsed.coverImageUrl = "";
       parsed.boardEmoji = "📋";
@@ -64,6 +68,24 @@ function readPersistedLayout(): PersistedLayout | null {
     if (!parsed.boardEmoji) parsed.boardEmoji = "📋";
     if (!parsed.titleFontFamily) parsed.titleFontFamily = "";
     if (!parsed.titleTextColor) parsed.titleTextColor = "";
+
+    // Migrate v2 → v3: scale lg layout positions from 6-col to 8-col grid
+    if (parsed.version === 2) {
+      parsed.version = 3;
+      const lgLayout = parsed.layouts.lg;
+      if (Array.isArray(lgLayout)) {
+        parsed.layouts.lg = lgLayout.map((item: LayoutItem) => {
+          const widgetDef = parsed.widgets.find((w: WidgetInstance) => w.id === item.i);
+          const reg = widgetDef ? WIDGET_REGISTRY[widgetDef.type as WidgetType] : null;
+          const minW = reg?.minW ?? 1;
+          const newW = Math.max(Math.ceil(item.w * NEW_LG_COLS / OLD_LG_COLS), minW);
+          const newX = Math.round(item.x * NEW_LG_COLS / OLD_LG_COLS);
+          // Clamp so widget doesn't overflow the grid
+          const clampedX = Math.min(newX, NEW_LG_COLS - newW);
+          return { ...item, x: Math.max(0, clampedX), w: newW };
+        });
+      }
+    }
 
     if (parsed.version !== SCHEMA_VERSION) return null;
 

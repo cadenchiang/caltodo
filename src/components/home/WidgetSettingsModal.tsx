@@ -22,13 +22,27 @@ import { useDiscussionBoards } from "@/hooks/useDiscussionBoards";
 /** Available font families for widget customization. */
 const FONT_OPTIONS: { label: string; value: string }[] = [
   { label: "System Default", value: "" },
+  // Sans-serif — clean, modern
   { label: "Inter", value: "'Inter', sans-serif" },
-  { label: "Georgia", value: "'Georgia', serif" },
-  { label: "Menlo", value: "'Menlo', monospace" },
+  { label: "DM Sans", value: "'DM Sans', sans-serif" },
+  { label: "Plus Jakarta Sans", value: "'Plus Jakarta Sans', sans-serif" },
+  { label: "Outfit", value: "'Outfit', sans-serif" },
+  { label: "Manrope", value: "'Manrope', sans-serif" },
+  { label: "Urbanist", value: "'Urbanist', sans-serif" },
+  { label: "Sora", value: "'Sora', sans-serif" },
   { label: "Helvetica Neue", value: "'Helvetica Neue', sans-serif" },
-  { label: "Times New Roman", value: "'Times New Roman', serif" },
-  { label: "Courier New", value: "'Courier New', monospace" },
+  // Rounded — friendly, iOS-inspired
+  { label: "Nunito", value: "'Nunito', sans-serif" },
+  { label: "Quicksand", value: "'Quicksand', sans-serif" },
+  { label: "Varela Round", value: "'Varela Round', sans-serif" },
+  // Serif — editorial, classic
+  { label: "DM Serif Display", value: "'DM Serif Display', serif" },
+  { label: "Playfair Display", value: "'Playfair Display', serif" },
+  { label: "Source Serif 4", value: "'Source Serif 4', serif" },
+  { label: "Georgia", value: "'Georgia', serif" },
   { label: "Palatino", value: "'Palatino Linotype', serif" },
+  // Monospace
+  { label: "Menlo", value: "'Menlo', monospace" },
 ];
 
 /** Available font weights for clock widget. */
@@ -363,6 +377,7 @@ export default function WidgetSettingsModal({
                 <select value={selectedViewMode} onChange={(e) => setSelectedViewMode(e.target.value)} className={SELECT_CLS}>
                   <option value="today">Today</option>
                   <option value="week">Week</option>
+                  <option value="month">Month</option>
                 </select>
               </div>
             </>

@@ -102,12 +102,12 @@ export default function HomePage() {
         {/* Header: Emoji + Title + Controls — px matches grid padding + grid margin */}
         <div className="px-10 md:px-[56px]">
           {/* Emoji icon — overlaps bottom of cover for Notion effect */}
-          <div className="relative -mt-5 mb-5">
+          <div className="relative -mt-7 mb-5">
             <button
               onClick={() => {
                 if (editMode) setEmojiPickerOpen((p) => !p);
               }}
-              className={`text-4xl leading-none ${
+              className={`text-5xl leading-none ${
                 editMode ? "cursor-pointer hover:opacity-80 transition-opacity" : "cursor-default"
               }`}
               aria-label="Board icon"

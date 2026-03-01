@@ -14,7 +14,7 @@
  * @param onUpdateWidgetConfig - Callback to update a widget's inline config
  */
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ResponsiveGridLayout,
   useContainerWidth,
@@ -61,6 +61,22 @@ export default function WidgetGrid({
     initialWidth: 1280,
   });
 
+  /**
+   * Track whether the initial grid render is complete.
+   * On mount, react-grid-layout positions items from (0,0) to their targets,
+   * causing a visible slide. We disable CSS transitions until a frame after
+   * mount, then add `widget-grid-ready` so drag/resize still animates smoothly.
+   */
+  const [gridReady, setGridReady] = useState(false);
+
+  useEffect(() => {
+    if (!mounted) return;
+    const rafId = requestAnimationFrame(() => {
+      setGridReady(true);
+    });
+    return () => cancelAnimationFrame(rafId);
+  }, [mounted]);
+
   /** Memoize widget grid items to prevent unnecessary re-renders. */
   const gridItems = useMemo(
     () =>
@@ -81,7 +97,7 @@ export default function WidgetGrid({
   return (
     <div
       ref={containerRef}
-      className="transition-all duration-300 px-6 md:px-10"
+      className={`transition-all duration-300 px-6 md:px-10${gridReady ? " widget-grid-ready" : ""}`}
     >
       {mounted && (
         <ResponsiveGridLayout
