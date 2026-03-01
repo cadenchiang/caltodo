@@ -207,7 +207,7 @@ export default function HomePage() {
         <div className="border-t border-foreground/8 mx-6 md:mx-10 mb-6" />
 
         {/* Widget Grid (full width) */}
-        <div id="widget-grid" className="flex-1 min-h-0 pb-20 md:pb-6">
+        <div id="widget-grid" className="flex-1 min-h-0 pb-20 md:pb-0">
           <WidgetGrid
             widgets={widgets}
             layouts={layouts}
