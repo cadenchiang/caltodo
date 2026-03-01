@@ -1,4 +1,7 @@
-import { Pencil, Trash2, X, ExternalLink } from "lucide-react";
+"use client";
+
+import { useState, useRef, useEffect } from "react";
+import { Pencil, X, MoreVertical, Trash2, ExternalLink } from "lucide-react";
 import Tooltip from "@/components/ui/Tooltip";
 
 /**
@@ -11,18 +14,18 @@ interface TaskActionBarProps {
   onDelete?: () => void;
   /** Called when the close (X) button is clicked. */
   onClose: () => void;
-  /** If provided, renders an external link button. */
+  /** If provided, shows "Open assignment" in the overflow menu. */
   sourceUrl?: string | null;
 }
 
 /**
  * Horizontal row of action buttons for task detail/preview headers.
- * Renders optional ExternalLink, Pencil (edit), Trash2 (delete), and X (close).
+ * Renders Pencil (edit), three-dot overflow menu (delete + open assignment), and X (close).
  *
  * @param onEdit - Edit button handler
- * @param onDelete - Delete button handler (omit to hide trash button)
+ * @param onDelete - Delete button handler (omit to hide in menu)
  * @param onClose - Close button handler
- * @param sourceUrl - URL for external link button (omit/null to hide)
+ * @param sourceUrl - URL for "Open assignment" menu item (omit/null to hide)
  */
 export default function TaskActionBar({
   onEdit,
@@ -30,20 +33,25 @@ export default function TaskActionBar({
   onClose,
   sourceUrl,
 }: TaskActionBarProps) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  /** Close menu on outside click. */
+  useEffect(() => {
+    if (!menuOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [menuOpen]);
+
+  const hasMenuItems = !!onDelete || !!sourceUrl;
+
   return (
     <div className="flex items-center justify-end gap-1 px-5 pt-4 pb-2">
-      {sourceUrl && (
-        <Tooltip label="Open in source">
-          <a
-            href={sourceUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="p-2 rounded-lg text-secondary-foreground hover:text-foreground hover:bg-accent transition-colors"
-          >
-            <ExternalLink size={18} />
-          </a>
-        </Tooltip>
-      )}
       <Tooltip label="Edit task">
         <button
           onClick={onEdit}
@@ -52,15 +60,45 @@ export default function TaskActionBar({
           <Pencil size={18} />
         </button>
       </Tooltip>
-      {onDelete && (
-        <Tooltip label="Delete task">
-          <button
-            onClick={onDelete}
-            className="p-2 rounded-lg text-secondary-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors"
-          >
-            <Trash2 size={18} />
-          </button>
-        </Tooltip>
+      {hasMenuItems && (
+        <div ref={menuRef} className="relative">
+          <Tooltip label="More options">
+            <button
+              onClick={() => setMenuOpen((p) => !p)}
+              className="p-2 rounded-lg text-secondary-foreground hover:text-foreground hover:bg-accent transition-colors"
+            >
+              <MoreVertical size={18} />
+            </button>
+          </Tooltip>
+          {menuOpen && (
+            <div className="absolute right-0 top-full mt-1 w-48 rounded-xl border border-border bg-popover shadow-lg py-1 z-10">
+              {sourceUrl && (
+                <a
+                  href={sourceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-accent transition-colors"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  <ExternalLink size={14} className="text-muted-foreground" />
+                  Open assignment
+                </a>
+              )}
+              {onDelete && (
+                <button
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onDelete();
+                  }}
+                  className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-500 hover:bg-red-500/10 transition-colors"
+                >
+                  <Trash2 size={14} />
+                  Delete task
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       )}
       <Tooltip label="Close">
         <button

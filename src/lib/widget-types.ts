@@ -17,7 +17,8 @@ export type WidgetType =
   | "google-calendar"
   | "notes"
   | "weather"
-  | "cal-chat";
+  | "cal-chat"
+  | "pomodoro";
 
 /** Configuration for a widget type: size constraints, display metadata. */
 export interface WidgetTypeConfig {
@@ -114,6 +115,14 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     description: "Recent messages from Cal Chat",
     iconName: "MessagesSquare",
     minW: 1, minH: 1, maxW: 4, maxH: 4,
+    defaultW: 2, defaultH: 2,
+  },
+  pomodoro: {
+    type: "pomodoro",
+    label: "Pomodoro",
+    description: "Focus timer with work and break intervals",
+    iconName: "Timer",
+    minW: 2, minH: 2, maxW: 3, maxH: 3,
     defaultW: 2, defaultH: 2,
   },
 };

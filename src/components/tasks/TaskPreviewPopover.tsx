@@ -165,6 +165,7 @@ export default function TaskPreviewPopover({
         onEdit={() => onEdit(task)}
         onDelete={() => onDelete(task.id)}
         onClose={onClose}
+        sourceUrl={task.source_url}
       />
 
       {/* Body */}

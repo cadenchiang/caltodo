@@ -1,15 +1,15 @@
 /**
  * Content moderation module for chat messages.
- * Blocks the n-word and common evasion variants (leet speak,
+ * Blocks slurs and common evasion variants (leet speak,
  * repeated characters, spaced-out letters, zero-width chars).
  *
  * @module content-moderation
  */
 
 /**
- * Blocked words. Only the n-word and its variants.
+ * Blocked slurs: n-word variants and "faggot".
  */
-const BLOCKED_WORDS: string[] = ["nigger", "nigga"];
+const BLOCKED_WORDS: string[] = ["nigger", "nigga", "faggot"];
 
 /**
  * Leet speak character class map for letters used in blocked words.
@@ -18,10 +18,13 @@ const BLOCKED_WORDS: string[] = ["nigger", "nigga"];
 const LEET_CLASSES: Record<string, string> = {
   a: "[a@4]",
   e: "[e3]",
+  f: "[f]",
   g: "[g9]",
   i: "[i1!]",
-  r: "[r]",
   n: "[n]",
+  o: "[o0]",
+  r: "[r]",
+  t: "[t7]",
 };
 
 /**

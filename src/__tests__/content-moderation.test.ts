@@ -1,7 +1,7 @@
 /**
  * Tests for the content moderation module.
- * Verifies n-word blocking with leet speak, spacing, and repetition evasion,
- * and absence of false positives on clean text including other profanity.
+ * Verifies slur blocking (n-word, "faggot") with leet speak, spacing,
+ * and repetition evasion, and absence of false positives on clean text.
  */
 
 import { describe, it, expect } from "vitest";
@@ -57,7 +57,32 @@ describe("containsBlockedContent", () => {
     expect(containsBlockedContent("niiiigger")).toBe(true);
   });
 
-  it("should allow other profanity (only n-word is blocked)", () => {
+  it("should block faggot", () => {
+    expect(containsBlockedContent("faggot")).toBe(true);
+    expect(containsBlockedContent("FAGGOT")).toBe(true);
+    expect(containsBlockedContent("you are a faggot")).toBe(true);
+  });
+
+  it("should block faggot leet speak variants", () => {
+    expect(containsBlockedContent("f@gg0t")).toBe(true);
+    expect(containsBlockedContent("f4gg07")).toBe(true);
+  });
+
+  it("should block faggot spaced-out evasion", () => {
+    expect(containsBlockedContent("f a g g o t")).toBe(true);
+    expect(containsBlockedContent("f.a.g.g.o.t")).toBe(true);
+  });
+
+  it("should block faggot repeated character evasion", () => {
+    expect(containsBlockedContent("fagggot")).toBe(true);
+    expect(containsBlockedContent("faaggot")).toBe(true);
+  });
+
+  it("should not false-positive on faggot substrings", () => {
+    expect(containsBlockedContent("fagotto")).toBe(false);
+  });
+
+  it("should allow other profanity (only slurs are blocked)", () => {
     expect(containsBlockedContent("fuck")).toBe(false);
     expect(containsBlockedContent("shit")).toBe(false);
     expect(containsBlockedContent("damn")).toBe(false);

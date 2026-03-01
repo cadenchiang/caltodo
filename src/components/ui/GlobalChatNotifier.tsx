@@ -163,6 +163,9 @@ export default function GlobalChatNotifier() {
               course_id: string;
             };
 
+            // Skip if user ID not yet resolved (defense-in-depth against race)
+            if (!userIdRef.current) return;
+
             // Skip own messages
             if (msg.author_id === userIdRef.current) return;
 
@@ -194,16 +197,16 @@ export default function GlobalChatNotifier() {
   useEffect(() => {
     const supabase = createClient();
 
-    // Get current user ID for filtering own messages
+    // Get current user ID before subscribing — prevents race condition where
+    // Realtime events arrive before userIdRef is set, causing own messages
+    // to trigger notification banners.
     supabase.auth.getUser().then(({ data }) => {
       userIdRef.current = data.user?.id ?? null;
+      const boards = getCourseIdsFromCache();
+      if (boards.length > 0) {
+        subscribeToBoards(boards, supabase);
+      }
     });
-
-    // Initial subscribe from cache
-    const boards = getCourseIdsFromCache();
-    if (boards.length > 0) {
-      subscribeToBoards(boards, supabase);
-    }
 
     // Re-check cache periodically for newly joined courses
     const interval = setInterval(() => {

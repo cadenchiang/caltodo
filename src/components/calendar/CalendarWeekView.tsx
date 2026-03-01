@@ -306,6 +306,11 @@ function WeekTaskCard({
           </svg>
         )}
         {task.title}
+        {task.repeat_interval && task.repeat_unit && (
+          <svg className="w-3 h-3 shrink-0 opacity-50" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M17 2l4 4-4 4" /><path d="M3 11v-1a4 4 0 014-4h14" /><path d="M7 22l-4-4 4-4" /><path d="M21 13v1a4 4 0 01-4 4H3" />
+          </svg>
+        )}
       </p>
       {task.due_time && (
         <p className="hidden md:flex text-xs mt-1 items-center gap-1" style={{ color: isPending ? hexToRgba(color, 0.6) : color, opacity: 0.7 }}>

@@ -111,12 +111,12 @@ export default function CalChatLockedModal({ open, onClose }: CalChatLockedModal
 
   return (
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-announce-backdrop-in"
+      className="fixed inset-0 z-[9999] flex items-center justify-center backdrop-blur-md animate-announce-backdrop-in"
       onClick={onClose}
     >
       <div
         id="tour-calchat-page"
-        className="bg-popover rounded-2xl border border-border shadow-2xl w-full max-w-sm mx-4 p-6 animate-announce-card-in"
+        className="bg-popover/80 rounded-2xl w-full max-w-sm mx-4 p-6 animate-announce-card-in"
         onClick={(e) => e.stopPropagation()}
       >
         {cardContent}

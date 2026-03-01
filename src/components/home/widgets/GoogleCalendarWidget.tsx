@@ -10,7 +10,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Calendar, ExternalLink } from "lucide-react";
+import { Calendar } from "lucide-react";
 import type { GCalEvent } from "@/lib/types";
 
 /** Google Calendar color IDs mapped to hex colors. */
@@ -203,11 +203,10 @@ export default function GoogleCalendarWidget({ config, editMode, onUpdateConfig 
           Connect to see your events
         </p>
         <a
-          href="/app/settings"
-          className="text-xs text-blue-500 hover:underline flex items-center gap-1"
+          href="/app/settings?section=integrations"
+          className="no-drag inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors"
         >
-          Go to Settings
-          <ExternalLink size={10} />
+          Sync Google Calendar
         </a>
       </div>
     );

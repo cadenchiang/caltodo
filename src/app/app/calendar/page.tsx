@@ -15,6 +15,7 @@ import {
   endOfWeek,
 } from "date-fns";
 import { useTaskContext } from "@/contexts/TaskContext";
+import { expandRepeatingTasks, getRealTaskId, isVirtualRepeatInstance } from "@/lib/expand-repeating-tasks";
 import CalendarHeader, { type CalendarViewMode } from "@/components/calendar/CalendarHeader";
 import CalendarGrid from "@/components/calendar/CalendarGrid";
 import CalendarWeekView from "@/components/calendar/CalendarWeekView";
@@ -43,9 +44,10 @@ export default function CalendarPage() {
   const { tasks, loading, error, addTask, updateTask, deleteTask, toggleComplete } = useTaskContext();
   const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
 
-  /** Derive fresh task data from context so toggles reflect immediately. */
+  /** Derive fresh task data from context so toggles reflect immediately.
+   *  For virtual repeat instances, look up by the real (base) task ID. */
   const currentPreviewTask = previewTask
-    ? tasks.find((t) => t.id === previewTask.id) ?? null
+    ? tasks.find((t) => t.id === getRealTaskId(previewTask.id)) ?? null
     : null;
 
   // Fetch pending invites on mount
@@ -75,23 +77,26 @@ export default function CalendarPage() {
     try { localStorage.setItem(VIEW_MODE_KEY, mode); } catch { /* ignore */ }
   }
 
-  // Filter tasks for the active view's date range
+  // Filter tasks for the active view's date range, expanding repeating tasks
   const visibleTasks = useMemo(() => {
+    let rangeStart: string;
+    let rangeEnd: string;
+
     if (viewMode === "month") {
       const monthStart = startOfMonth(currentDate);
       const monthEnd = endOfMonth(currentDate);
-      const calStart = format(startOfWeek(monthStart, { weekStartsOn: 1 }), "yyyy-MM-dd");
-      const calEnd = format(endOfWeek(monthEnd, { weekStartsOn: 1 }), "yyyy-MM-dd");
-      return tasks.filter((t) => t.due_date && t.due_date >= calStart && t.due_date <= calEnd);
+      rangeStart = format(startOfWeek(monthStart, { weekStartsOn: 1 }), "yyyy-MM-dd");
+      rangeEnd = format(endOfWeek(monthEnd, { weekStartsOn: 1 }), "yyyy-MM-dd");
+    } else if (viewMode === "week") {
+      rangeStart = format(startOfWeek(currentDate, { weekStartsOn: 1 }), "yyyy-MM-dd");
+      rangeEnd = format(endOfWeek(currentDate, { weekStartsOn: 1 }), "yyyy-MM-dd");
+    } else {
+      rangeStart = format(currentDate, "yyyy-MM-dd");
+      rangeEnd = rangeStart;
     }
-    if (viewMode === "week") {
-      const ws = format(startOfWeek(currentDate, { weekStartsOn: 1 }), "yyyy-MM-dd");
-      const we = format(endOfWeek(currentDate, { weekStartsOn: 1 }), "yyyy-MM-dd");
-      return tasks.filter((t) => t.due_date && t.due_date >= ws && t.due_date <= we);
-    }
-    // day
-    const ds = format(currentDate, "yyyy-MM-dd");
-    return tasks.filter((t) => t.due_date === ds);
+
+    const expanded = expandRepeatingTasks(tasks, rangeStart, rangeEnd);
+    return expanded.filter((t) => t.due_date && t.due_date >= rangeStart && t.due_date <= rangeEnd);
   }, [tasks, currentDate, viewMode]);
 
   // Navigation handlers per view mode
@@ -250,6 +255,10 @@ export default function CalendarPage() {
           onDelete={async (id) => {
             await deleteTask(id);
             closeEditModal();
+          }}
+          onSaveColorForClass={async (courseName, color) => {
+            const matching = tasks.filter(t => (t.course_name || "General") === courseName);
+            for (const t of matching) await updateTask(t.id, { color });
           }}
         />
       </div>

@@ -113,6 +113,11 @@ export default function CalendarTaskBar({ task, onClick, isPending }: CalendarTa
       >
         {truncateTitle(task.title, MAX_TITLE_CHARS)}
       </span>
+      {task.repeat_interval && task.repeat_unit && (
+        <svg className="w-2.5 h-2.5 shrink-0 opacity-40" style={{ color }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M17 2l4 4-4 4" /><path d="M3 11v-1a4 4 0 014-4h14" /><path d="M7 22l-4-4 4-4" /><path d="M21 13v1a4 4 0 01-4 4H3" />
+        </svg>
+      )}
     </button>
   );
 }

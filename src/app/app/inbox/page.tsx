@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Inbox, ChevronDown, X, Sun, CalendarRange, CalendarDays, GraduationCap, MoreVertical, List, LayoutGrid, ArrowUpDown, RefreshCw, Plus } from "lucide-react";
 import { useTaskContext } from "@/contexts/TaskContext";
+import { expandRepeatingTasks, getRealTaskId } from "@/lib/expand-repeating-tasks";
 import TaskList from "@/components/tasks/TaskList";
 import TaskBoardView from "@/components/tasks/TaskBoardView";
 import TaskDetailPanel from "@/components/tasks/TaskDetailPanel";
@@ -29,63 +30,66 @@ const FILTER_OPTIONS: { key: InboxFilter; label: string; icon: React.ComponentTy
 ];
 
 /**
- * Checks if a repeating task should be hidden because its due date is in the future.
- * Repeat-spawned tasks are hidden until their due date arrives, matching standard
- * todo app behavior (e.g. Todoist). Non-repeating or completed tasks are never hidden.
+ * Formats a Date as "YYYY-MM-DD".
  *
- * @param task - The task to check
- * @param todayStr - Today's date as "YYYY-MM-DD" for comparison
- * @returns true if the task should be hidden
+ * @param date - Date to format
+ * @returns ISO date string
  */
-function isFutureRepeatTask(task: Task, todayStr: string): boolean {
-  return (
-    !task.is_completed &&
-    !!task.repeat_interval &&
-    !!task.due_date &&
-    task.due_date > todayStr
-  );
+function toDateStr(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 /**
  * Filters tasks by due date relative to today.
- * Repeating tasks with future due dates are always hidden until their due date,
- * regardless of the active filter.
+ * Expands repeating tasks into virtual instances so they appear
+ * on the appropriate dates in the inbox.
  *
  * @param tasks - Array of tasks to filter
  * @param filter - Time window filter ("all" = no filter, "today" = due today or earlier + undated, "7days" = next 7 days)
- * @returns Filtered tasks
+ * @returns Filtered tasks including virtual repeat instances
  */
 function filterTasksByDate(tasks: Task[], filter: InboxFilter): Task[] {
   const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, "0");
-  const d = String(now.getDate()).padStart(2, "0");
-  const todayStr = `${y}-${m}-${d}`;
+  now.setHours(0, 0, 0, 0);
+  const todayStr = toDateStr(now);
 
-  if (filter === "all") {
-    return tasks.filter((t) => !isFutureRepeatTask(t, todayStr));
+  // Determine expansion range based on filter
+  let rangeEnd: Date;
+  if (filter === "today") {
+    rangeEnd = new Date(now);
+  } else if (filter === "7days") {
+    rangeEnd = new Date(now);
+    rangeEnd.setDate(rangeEnd.getDate() + 7);
+  } else {
+    // "all" — expand 30 days ahead for upcoming repeat instances
+    rangeEnd = new Date(now);
+    rangeEnd.setDate(rangeEnd.getDate() + 30);
   }
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const rangeEndStr = toDateStr(rangeEnd);
+  const expanded = expandRepeatingTasks(tasks, todayStr, rangeEndStr);
+
+  if (filter === "all") {
+    return expanded.filter((t) => {
+      if (!t.due_date) return true;
+      return t.due_date <= rangeEndStr;
+    });
+  }
 
   if (filter === "today") {
-    const endOfToday = new Date(today);
-    endOfToday.setHours(23, 59, 59, 999);
-    return tasks.filter((t) => {
-      if (!t.due_date) return true; // keep undated tasks
-      const due = new Date(t.due_date + "T23:59:59");
-      return due <= endOfToday;
+    return expanded.filter((t) => {
+      if (!t.due_date) return true;
+      return t.due_date <= todayStr;
     });
   }
 
   // "7days"
-  const cutoff = new Date(today);
-  cutoff.setDate(cutoff.getDate() + 7);
-  return tasks.filter((t) => {
+  return expanded.filter((t) => {
     if (!t.due_date) return true;
-    const due = new Date(t.due_date + "T23:59:59");
-    return due <= cutoff;
+    return t.due_date <= rangeEndStr;
   });
 }
 
@@ -180,9 +184,20 @@ function saveSelections(courses: SelectedCourse[]): void {
  */
 export default function InboxPage() {
   const {
-    tasks, loading, error, addTask, toggleComplete, deleteTask, updateTask,
+    tasks, loading, error, addTask, toggleComplete: rawToggle, deleteTask: rawDelete, updateTask: rawUpdate,
     syncing, triggerSync, reorderTasks, fetchTasks,
   } = useTaskContext();
+
+  /** Wraps toggleComplete to resolve virtual repeat instance IDs to real task IDs. */
+  const toggleComplete = useCallback((id: string) => rawToggle(getRealTaskId(id)), [rawToggle]);
+  /** Wraps deleteTask to resolve virtual repeat instance IDs to real task IDs. */
+  const deleteTask = useCallback((id: string) => rawDelete(getRealTaskId(id)), [rawDelete]);
+  /** Wraps updateTask to resolve virtual repeat instance IDs to real task IDs. */
+  const updateTask = useCallback(
+    (id: string, updates: Parameters<typeof rawUpdate>[1]) => rawUpdate(getRealTaskId(id), updates),
+    [rawUpdate],
+  );
+
   const inboxRouter = useRouter();
   const searchParams = useSearchParams();
   const { setPendingInviteCount } = useNotifications();

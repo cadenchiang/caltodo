@@ -19,6 +19,11 @@ import { X } from "lucide-react";
 import type { WidgetInstance } from "@/lib/widget-types";
 import { useDiscussionBoards } from "@/hooks/useDiscussionBoards";
 import FontPicker from "@/components/ui/FontPicker";
+import {
+  IMAGE_WIDGET_PRESETS,
+  isImageWidgetPreset,
+  resolveImagePreset,
+} from "@/lib/image-widget-presets";
 
 /** Available font weights for clock widget. */
 const WEIGHT_OPTIONS: { label: string; value: string }[] = [
@@ -93,6 +98,7 @@ export default function WidgetSettingsModal({
   const [taskViewMode, setTaskViewMode] = useState("today");
   const [progressSort, setProgressSort] = useState("count");
   const [removeImage, setRemoveImage] = useState(false);
+  const [selectedPresetId, setSelectedPresetId] = useState("");
   const [weatherView, setWeatherView] = useState("today");
   const [tempUnit, setTempUnit] = useState("F");
 
@@ -120,6 +126,11 @@ export default function WidgetSettingsModal({
       setTaskViewMode(widget.config.viewMode || "today");
       setProgressSort(widget.config.progressSort || "count");
       setRemoveImage(false);
+      setSelectedPresetId(
+        widget.config.imageUrl && isImageWidgetPreset(widget.config.imageUrl)
+          ? widget.config.imageUrl.replace("preset:", "")
+          : ""
+      );
       setWeatherView(widget.config.weatherView || "today");
       setTempUnit(widget.config.tempUnit || "F");
       // Universal style
@@ -167,7 +178,11 @@ export default function WidgetSettingsModal({
         config.viewMode = selectedViewMode;
         break;
       case "image":
-        if (removeImage) config.imageUrl = "";
+        if (removeImage) {
+          config.imageUrl = "";
+        } else if (selectedPresetId) {
+          config.imageUrl = `preset:${selectedPresetId}`;
+        }
         break;
       case "weather":
         config.weatherView = weatherView;
@@ -373,20 +388,52 @@ export default function WidgetSettingsModal({
 
           {/* ── Image settings ── */}
           {widget.type === "image" && (
-            <div>
-              {widget.config.imageUrl ? (
-                <div className="space-y-3">
+            <div className="space-y-3">
+              {widget.config.imageUrl && (
+                <>
                   <div className="w-full h-32 rounded-lg overflow-hidden bg-muted">
-                    <img src={widget.config.imageUrl} alt="Current image" className="w-full h-full object-cover" />
+                    <img
+                      src={
+                        isImageWidgetPreset(widget.config.imageUrl)
+                          ? resolveImagePreset(widget.config.imageUrl)
+                          : widget.config.imageUrl
+                      }
+                      alt="Current image"
+                      className="w-full h-full object-cover"
+                    />
                   </div>
                   <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
                     <input type="checkbox" checked={removeImage} onChange={(e) => setRemoveImage(e.target.checked)} className="rounded" />
                     Remove image
                   </label>
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">No image set. Drag an image onto the widget.</p>
+                </>
               )}
+              <label className="block text-sm font-medium text-foreground">Preset Images</label>
+              <div className="grid grid-cols-4 gap-1.5 max-h-40 overflow-y-auto">
+                {IMAGE_WIDGET_PRESETS.map((preset) => (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedPresetId(preset.id);
+                      setRemoveImage(false);
+                    }}
+                    className={`rounded-md overflow-hidden aspect-[4/3] transition-all ${
+                      selectedPresetId === preset.id
+                        ? "ring-2 ring-blue-500"
+                        : "hover:ring-2 hover:ring-blue-400"
+                    }`}
+                    title={preset.label}
+                  >
+                    <img
+                      src={preset.url}
+                      alt={preset.label}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 

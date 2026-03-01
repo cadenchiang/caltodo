@@ -11,7 +11,7 @@ export const metadata: Metadata = {
  */
 export default function MobilePage() {
   return (
-    <div className="h-dvh flex flex-col items-center justify-start pt-[40vh] px-6 bg-white text-center">
+    <div className="h-dvh flex flex-col items-center justify-center px-6 bg-white text-center">
       <img src="/logo.png" alt="caltodo" className="h-12 mb-6" />
       <h1 className="text-2xl font-bold text-gray-900 mb-2">
         Only available on desktop

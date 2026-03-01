@@ -20,6 +20,7 @@ import {
   FileText,
   CloudSun,
   MessagesSquare,
+  Timer,
 } from "lucide-react";
 import { WIDGET_REGISTRY, type WidgetType } from "@/lib/widget-types";
 
@@ -100,6 +101,12 @@ const WIDGET_STYLE: Record<
     color: "text-indigo-500",
     bgColor: "bg-indigo-500/10",
     hoverBg: "group-hover:bg-indigo-500/20",
+  },
+  pomodoro: {
+    icon: Timer,
+    color: "text-orange-500",
+    bgColor: "bg-orange-500/10",
+    hoverBg: "group-hover:bg-orange-500/20",
   },
 };
 

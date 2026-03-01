@@ -11,7 +11,7 @@ import {
 } from "@/lib/widget-types";
 
 describe("WIDGET_REGISTRY", () => {
-  it("should contain all 9 widget types", () => {
+  it("should contain all 10 widget types", () => {
     const expectedTypes: WidgetType[] = [
       "recent-chat",
       "tasks-today",
@@ -22,6 +22,7 @@ describe("WIDGET_REGISTRY", () => {
       "notes",
       "weather",
       "cal-chat",
+      "pomodoro",
     ];
     expect(Object.keys(WIDGET_REGISTRY).sort()).toEqual(expectedTypes.sort());
   });

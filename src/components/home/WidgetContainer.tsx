@@ -24,6 +24,7 @@ import ClassProgressWidget from "@/components/home/widgets/ClassProgressWidget";
 import NotesWidget from "@/components/home/widgets/NotesWidget";
 import WeatherWidget from "@/components/home/widgets/WeatherWidget";
 import CalChatWidget from "@/components/home/widgets/CalChatWidget";
+import PomodoroWidget from "@/components/home/widgets/PomodoroWidget";
 
 /** Drag threshold in pixels — mouse must stay within this to count as a click. */
 const DRAG_THRESHOLD = 5;
@@ -73,6 +74,8 @@ function RenderWidget({
       return <WeatherWidget config={widget.config} editMode={editMode} />;
     case "cal-chat":
       return <CalChatWidget config={widget.config} />;
+    case "pomodoro":
+      return <PomodoroWidget config={widget.config} onUpdateConfig={onUpdateConfig} editMode={editMode} />;
     default:
       return null;
   }
