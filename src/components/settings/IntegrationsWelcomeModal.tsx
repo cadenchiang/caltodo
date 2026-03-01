@@ -73,8 +73,9 @@ export default function IntegrationsWelcomeModal() {
 
   useEffect(() => {
     if (isAlreadySeen()) return;
+    // Mark immediately to prevent duplicate mounts from showing twice
+    seenThisSession = true;
     const timer = setTimeout(() => {
-      seenThisSession = true;
       setVisible(true);
     }, 300);
     return () => clearTimeout(timer);

@@ -65,10 +65,11 @@ const GRADIENT_COVERS: { id: string; label: string; style: string }[] = [
  * Using wider aspect ratio crops with gravity=center for panoramic banner feel.
  */
 const PHOTO_COVERS: { id: string; label: string; url: string }[] = [
+  // Nature & Landscapes
   { id: "p1", label: "Mountain Lake", url: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1600&h=350&fit=crop&crop=bottom&q=80" },
   { id: "p2", label: "Ocean Horizon", url: "https://images.unsplash.com/photo-1518837695005-2083093ee35b?w=1600&h=350&fit=crop&crop=center&q=80" },
   { id: "p3", label: "Forest Canopy", url: "https://images.unsplash.com/photo-1448375240586-882707db888b?w=1600&h=350&fit=crop&crop=center&q=80" },
-  { id: "p4", label: "Desert Landscape", url: "https://images.unsplash.com/photo-1473580044384-7ba9967e16a0?w=1600&h=350&fit=crop&crop=center&q=80" },
+  { id: "p4", label: "Desert Dunes", url: "https://images.unsplash.com/photo-1473580044384-7ba9967e16a0?w=1600&h=350&fit=crop&crop=center&q=80" },
   { id: "p5", label: "Cherry Blossoms", url: "https://images.unsplash.com/photo-1522383225653-ed111181a951?w=1600&h=350&fit=crop&crop=center&q=80" },
   { id: "p6", label: "Northern Lights", url: "https://images.unsplash.com/photo-1531366936337-7c912a4589a7?w=1600&h=350&fit=crop&crop=top&q=80" },
   { id: "p7", label: "Autumn Road", url: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=1600&h=350&fit=crop&crop=center&q=80" },
@@ -80,6 +81,44 @@ const PHOTO_COVERS: { id: string; label: string; url: string }[] = [
   { id: "p13", label: "Starry Sky", url: "https://images.unsplash.com/photo-1519681393784-d120267933ba?w=1600&h=350&fit=crop&crop=center&q=80" },
   { id: "p14", label: "Coastline", url: "https://images.unsplash.com/photo-1476673160081-cf065607f449?w=1600&h=350&fit=crop&crop=center&q=80" },
   { id: "p15", label: "Meadow Sunrise", url: "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?w=1600&h=350&fit=crop&crop=center&q=80" },
+  // Skies & Sunsets
+  { id: "p16", label: "Pink Clouds", url: "https://images.unsplash.com/photo-1525920980995-f8a382bf42c5?w=1600&h=350&fit=crop&crop=center&q=80" },
+  { id: "p17", label: "Sunset Beach", url: "https://images.unsplash.com/photo-1508739773434-c26b3d09e071?w=1600&h=350&fit=crop&crop=center&q=80" },
+  { id: "p18", label: "Golden Hour", url: "https://images.unsplash.com/photo-1502481851512-e9e2529b8c7a?w=1600&h=350&fit=crop&crop=center&q=80" },
+  { id: "p19", label: "Sunset Lake", url: "https://images.unsplash.com/photo-1540206395-68808572332f?w=1600&h=350&fit=crop&crop=center&q=80" },
+  { id: "p20", label: "Sunset Hills", url: "https://images.unsplash.com/photo-1505765050516-f72dcac9c60e?w=1600&h=350&fit=crop&crop=center&q=80" },
+  // Mountains & Valleys
+  { id: "p21", label: "Mountain Road", url: "https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=1600&h=350&fit=crop&crop=center&q=80" },
+  { id: "p22", label: "Misty Mountains", url: "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1600&h=350&fit=crop&crop=center&q=80" },
+  { id: "p23", label: "Snow Peaks", url: "https://images.unsplash.com/photo-1504567961542-e24d9439a724?w=1600&h=350&fit=crop&crop=center&q=80" },
+  { id: "p24", label: "Green Valley", url: "https://images.unsplash.com/photo-1472214103451-9374bd1c798e?w=1600&h=350&fit=crop&crop=center&q=80" },
+  { id: "p25", label: "Patagonia", url: "https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=1600&h=350&fit=crop&crop=center&q=80" },
+  // Water & Oceans
+  { id: "p26", label: "Ocean Wave", url: "https://images.unsplash.com/photo-1488330890490-c291ecf62571?w=1600&h=350&fit=crop&crop=center&q=80" },
+  { id: "p27", label: "Waterfall", url: "https://images.unsplash.com/photo-1433086966358-54859d0ed716?w=1600&h=350&fit=crop&crop=center&q=80" },
+  { id: "p28", label: "Coral Reef", url: "https://images.unsplash.com/photo-1510414842594-a61c69b5ae57?w=1600&h=350&fit=crop&crop=center&q=80" },
+  { id: "p29", label: "Starry Lake", url: "https://images.unsplash.com/photo-1494500764479-0c8f2919a3d8?w=1600&h=350&fit=crop&crop=center&q=80" },
+  // Flora & Gardens
+  { id: "p30", label: "Wildflowers", url: "https://images.unsplash.com/photo-1465146344425-f00d5f5c8f07?w=1600&h=350&fit=crop&crop=center&q=80" },
+  { id: "p31", label: "Tulip Field", url: "https://images.unsplash.com/photo-1490750967868-88aa4f44baee?w=1600&h=350&fit=crop&crop=center&q=80" },
+  { id: "p32", label: "Bamboo Forest", url: "https://images.unsplash.com/photo-1497436072909-60f360e1d4b1?w=1600&h=350&fit=crop&crop=center&q=80" },
+  { id: "p33", label: "Fall Leaves", url: "https://images.unsplash.com/photo-1536514498073-50e69d39c6cf?w=1600&h=350&fit=crop&crop=center&q=80" },
+  { id: "p34", label: "Rainforest", url: "https://images.unsplash.com/photo-1493246507139-91e8fad9978e?w=1600&h=350&fit=crop&crop=center&q=80" },
+  { id: "p35", label: "Green Hills", url: "https://images.unsplash.com/photo-1477346611705-65d1883cee1e?w=1600&h=350&fit=crop&crop=center&q=80" },
+  // City & Architecture
+  { id: "p36", label: "City Night", url: "https://images.unsplash.com/photo-1520962922320-2038eebab146?w=1600&h=350&fit=crop&crop=center&q=80" },
+  { id: "p37", label: "Manhattan", url: "https://images.unsplash.com/photo-1544511916-0148ccdeb877?w=1600&h=350&fit=crop&crop=center&q=80" },
+  { id: "p38", label: "Golden Gate", url: "https://images.unsplash.com/photo-1484291150161-e0c7087e8d30?w=1600&h=350&fit=crop&crop=center&q=80" },
+  { id: "p39", label: "Japanese Garden", url: "https://images.unsplash.com/photo-1532274402911-5a369e4c4bb5?w=1600&h=350&fit=crop&crop=center&q=80" },
+  // Space & Night
+  { id: "p40", label: "Milky Way", url: "https://images.unsplash.com/photo-1483728642387-6c3bdd6c93e5?w=1600&h=350&fit=crop&crop=center&q=80" },
+  // Travel & Adventure
+  { id: "p41", label: "Hot Air Balloons", url: "https://images.unsplash.com/photo-1486870591958-9b9d0d1dda99?w=1600&h=350&fit=crop&crop=center&q=80" },
+  { id: "p42", label: "Road Journey", url: "https://images.unsplash.com/photo-1501594907352-04cda38ebc29?w=1600&h=350&fit=crop&crop=center&q=80" },
+  { id: "p43", label: "Palm Trees", url: "https://images.unsplash.com/photo-1517483000871-1dbf64a6e1c6?w=1600&h=350&fit=crop&crop=center&q=80" },
+  // Abstract & Texture
+  { id: "p44", label: "Abstract Blue", url: "https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?w=1600&h=350&fit=crop&crop=center&q=80" },
+  { id: "p45", label: "Neon Lights", url: "https://images.unsplash.com/photo-1504198453319-5ce911bafcde?w=1600&h=350&fit=crop&crop=center&q=80" },
 ];
 
 interface BoardCoverProps {
