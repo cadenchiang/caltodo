@@ -217,7 +217,6 @@ export default function GoogleCalendarWidget({ config, editMode, onUpdateConfig 
     <div className="h-full w-full flex flex-col p-4 overflow-hidden">
       {/* Header */}
       <div className="flex items-center gap-2 mb-3">
-        <Calendar size={14} className="text-blue-500 shrink-0" />
         <h3 className="text-sm font-semibold text-foreground">Google Calendar</h3>
         <span className="text-[10px] text-muted-foreground capitalize">{viewMode}</span>
       </div>

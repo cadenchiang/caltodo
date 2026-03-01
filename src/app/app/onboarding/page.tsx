@@ -443,7 +443,7 @@ export default function OnboardingPage() {
     // Fire sync in background — it runs in TaskContext and survives navigation
     triggerSync().catch(() => {});
     // Navigate after fade-out animation completes
-    setTimeout(() => router.push("/app/inbox"), 500);
+    setTimeout(() => router.push("/app/home"), 500);
   }
 
   return (

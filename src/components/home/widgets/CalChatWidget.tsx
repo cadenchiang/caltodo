@@ -49,8 +49,7 @@ export default function CalChatWidget({ config }: CalChatWidgetProps) {
 
   return (
     <div className="h-full w-full flex flex-col p-3 overflow-hidden">
-      <div className="flex items-center gap-2 mb-2">
-        <MessageSquare size={14} className="text-blue-500 shrink-0" />
+      <div className="mb-2">
         <h3 className="text-sm font-semibold text-foreground">Cal Chat</h3>
       </div>
 

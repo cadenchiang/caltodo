@@ -9,7 +9,7 @@
  * @param config - Widget configuration (viewMode, showCompleted)
  */
 
-import { useMemo, useState, useRef } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Inbox, Plus, Repeat } from "lucide-react";
 import { useTaskContext } from "@/contexts/TaskContext";
@@ -17,6 +17,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { getThemeColor } from "@/lib/constants";
 import { getDueDateInfo } from "@/lib/task-utils";
 import TaskCheckbox from "@/components/tasks/shared/TaskCheckbox";
+import TaskCreateModal from "@/components/tasks/TaskCreateModal";
 
 /** View mode labels for the header. */
 const VIEW_LABELS: Record<string, string> = {
@@ -46,9 +47,7 @@ export default function TasksTodayWidget({ config }: TasksTodayWidgetProps) {
   const hideCompleted = config?.showCompleted === "false";
   const viewMode = config?.viewMode || "today";
 
-  const [showAdd, setShowAdd] = useState(false);
-  const [newTitle, setNewTitle] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
 
   const todayStr = useMemo(() => toDateStr(new Date()), []);
   const weekEndStr = useMemo(() => {
@@ -80,19 +79,6 @@ export default function TasksTodayWidget({ config }: TasksTodayWidgetProps) {
   const progressPct = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
   const label = VIEW_LABELS[viewMode] || "Today";
 
-  /** Handles inline task submission. */
-  function handleAddTask(e: React.FormEvent) {
-    e.preventDefault();
-    const trimmed = newTitle.trim();
-    if (!trimmed) return;
-    addTask({
-      title: trimmed,
-      due_date: viewMode === "today" ? todayStr : null,
-    });
-    setNewTitle("");
-    setShowAdd(false);
-  }
-
   /**
    * Navigates to inbox with the specific task opened.
    *
@@ -118,8 +104,7 @@ export default function TasksTodayWidget({ config }: TasksTodayWidgetProps) {
           <button
             onClick={(e) => {
               e.stopPropagation();
-              setShowAdd((p) => !p);
-              setTimeout(() => inputRef.current?.focus(), 50);
+              setShowAddModal(true);
             }}
             className="no-drag w-5 h-5 flex items-center justify-center rounded text-foreground hover:bg-muted transition-colors"
             aria-label="Add task"
@@ -136,26 +121,6 @@ export default function TasksTodayWidget({ config }: TasksTodayWidgetProps) {
           style={{ width: `${progressPct}%` }}
         />
       </div>
-
-      {/* Inline add form */}
-      {showAdd && (
-        <form onSubmit={handleAddTask} className="no-drag flex items-center gap-1.5 mb-2 px-1">
-          <input
-            ref={inputRef}
-            type="text"
-            value={newTitle}
-            onChange={(e) => setNewTitle(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") setShowAdd(false);
-            }}
-            placeholder="Task name..."
-            className="flex-1 text-sm bg-muted rounded-lg px-2 py-1 text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-blue-400 min-w-0"
-          />
-          <button type="submit" className="text-xs px-2 py-1 rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors shrink-0">
-            Add
-          </button>
-        </form>
-      )}
 
       {/* Task list — inbox style */}
       {totalCount === 0 ? (
@@ -222,6 +187,17 @@ export default function TasksTodayWidget({ config }: TasksTodayWidgetProps) {
           )}
         </div>
       )}
+
+      {/* Add task modal — same as inbox/calendar */}
+      <TaskCreateModal
+        open={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onAdd={(task) => {
+          addTask(task);
+          setShowAddModal(false);
+        }}
+        defaultDate={viewMode === "today" ? todayStr : null}
+      />
     </div>
   );
 }

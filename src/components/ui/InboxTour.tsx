@@ -1,14 +1,19 @@
 "use client";
 
+/**
+ * App-wide tour with home dashboard steps first, then inbox/calendar/calchat.
+ * Starts on /app/home, navigates to /app/inbox after home steps.
+ *
+ * @param children - App content to render inside the tour provider
+ */
+
 import { useState, useEffect, useRef, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { ClipboardList, PlusCircle, Search, LayoutGrid, CalendarDays, MessageSquare } from "lucide-react";
+import { Home, Pencil, Plus, ClipboardList, PlusCircle, Search, LayoutGrid, CalendarDays, MessageSquare } from "lucide-react";
 import { TourProvider, TourStartDialog, useTour, type TourStep } from "./AppTour";
 
 /** localStorage key set by onboarding to trigger the tour. */
 const TOUR_PENDING_KEY = "caltodo_tour_pending";
-/** localStorage key to track if tour has been completed. */
-const TOUR_COMPLETED_KEY = "caltodo_tour_completed";
 
 /**
  * Dispatches a custom event to switch the inbox view mode.
@@ -21,12 +26,52 @@ function setTourViewMode(mode: "list" | "board") {
 }
 
 /**
- * Tour step definitions for the full app tour.
- * Steps include cross-page navigation (inbox + calendar) and interactive demos.
+ * Dispatches a custom event to toggle edit mode on the home dashboard.
+ * Listened for by HomePage to show/hide widget jiggle and edit controls.
+ *
+ * @param enabled - Whether edit mode should be active
  */
+function setTourEditMode(enabled: boolean) {
+  window.dispatchEvent(new CustomEvent("tour-set-edit-mode", { detail: enabled }));
+}
+
 const ICON_SIZE = 16;
 
+/**
+ * Tour step definitions — 3 home dashboard steps, then 6 inbox/calendar/calchat steps.
+ * Cross-page navigation handled via the `route` property on each step.
+ */
 const TOUR_STEPS: TourStep[] = [
+  // ── Home Dashboard Steps (1-3) ──
+  {
+    targetId: "widget-grid",
+    title: "Home Dashboard",
+    icon: <Home size={ICON_SIZE} />,
+    description: "This is your home dashboard! Customize it with widgets.",
+    position: "top",
+    route: "/app/home",
+  },
+  {
+    targetId: "widget-grid",
+    title: "Edit Mode",
+    icon: <Pencil size={ICON_SIZE} />,
+    description: "Click Edit to rearrange, resize, or remove widgets.",
+    position: "top",
+    route: "/app/home",
+    clickSequence: [
+      { targetId: "edit-toggle-btn", action: () => setTourEditMode(true) },
+    ],
+  },
+  {
+    targetId: "add-widget-btn",
+    title: "Add Widgets",
+    icon: <Plus size={ICON_SIZE} />,
+    description: "Add new widgets from the gallery.",
+    position: "bottom",
+    route: "/app/home",
+    onExit: () => setTourEditMode(false),
+  },
+  // ── Inbox Steps (4-7) ──
   {
     targetId: "tour-task-list",
     title: "Your Tasks",
@@ -34,6 +79,7 @@ const TOUR_STEPS: TourStep[] = [
     description: "All your synced assignments and to-dos, sorted by due date.",
     position: "right",
     route: "/app/inbox",
+    clickTargetId: "tour-nav-inbox",
   },
   {
     targetId: "tour-add-task",
@@ -61,6 +107,7 @@ const TOUR_STEPS: TourStep[] = [
     onEnter: () => setTourViewMode("board"),
     onExit: () => setTourViewMode("list"),
   },
+  // ── Calendar & CalChat Steps (8-9) ──
   {
     targetId: "tour-calendar-grid",
     title: "Calendar",
@@ -82,28 +129,26 @@ const TOUR_STEPS: TourStep[] = [
 ];
 
 /**
- * Inner component that checks for tour pending flag and shows the start dialog.
- * Must be rendered inside TourProvider. Shows a "Start tour?" dialog with
- * skip option rather than auto-starting.
- */
-/**
  * Module-level flag to prevent re-triggering the tour dialog within the same
  * page session. Survives React re-mounts (e.g. navigating between pages).
  */
 let dialogShownThisSession = false;
 
+/**
+ * Inner component that checks for tour pending flag and shows the start dialog.
+ * Must be rendered inside TourProvider. Triggers on /app/home route.
+ */
 function TourTrigger() {
   const { isCompleted, endTour } = useTour();
   const pathname = usePathname();
   const [showDialog, setShowDialog] = useState(false);
   const hasTriggeredRef = useRef(false);
 
-  // Show dialog after onboarding — re-check when route changes.
-  // Only trigger on inbox route so the tour doesn't fire while on settings.
+  // Show dialog after onboarding — trigger on home route.
   // Tour is desktop-only: the steps reference sidebar and split-screen layout.
   useEffect(() => {
     if (isCompleted || hasTriggeredRef.current || dialogShownThisSession) return;
-    if (!pathname?.startsWith("/app/inbox")) return;
+    if (!pathname?.startsWith("/app/home")) return;
     if (typeof window !== "undefined" && window.innerWidth < 768) return;
     try {
       const pending = localStorage.getItem(TOUR_PENDING_KEY);
@@ -119,12 +164,10 @@ function TourTrigger() {
     }
   }, [isCompleted, pathname]);
 
-  // Poll for the pending flag, but only when on inbox route.
-  // Keeps running until user makes a choice (Start Tour or Skip).
-  // Tour is desktop-only.
+  // Poll for the pending flag on home route.
   useEffect(() => {
     if (isCompleted || hasTriggeredRef.current || dialogShownThisSession) return;
-    if (!pathname?.startsWith("/app/inbox")) return;
+    if (!pathname?.startsWith("/app/home")) return;
     if (typeof window !== "undefined" && window.innerWidth < 768) return;
     const pollTimer = setInterval(() => {
       try {
@@ -167,7 +210,6 @@ function TourTrigger() {
    */
   const handleDialogClose = useCallback(() => {
     setShowDialog(false);
-    // If user skips, persist completion so it never re-triggers
     if (!isCompleted) {
       endTour();
     }
@@ -178,14 +220,15 @@ function TourTrigger() {
 
 /**
  * Wraps children in a TourProvider with app-wide tour steps.
- * Automatically shows the tour start dialog if the onboarding just completed.
- * Steps include cross-page navigation (inbox + calendar).
+ * Tour starts at /app/home with dashboard steps, then navigates through
+ * inbox, calendar, and calchat via route-based step transitions.
  *
  * @param children - App content to render inside the tour provider
  */
 export default function InboxTour({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
+  /** Called when tour completes — return to inbox in list view. */
   function handleTourComplete() {
     setTourViewMode("list");
     router.push("/app/inbox");

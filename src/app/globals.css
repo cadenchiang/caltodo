@@ -218,18 +218,18 @@
   --color-border-subtle: var(--border-subtle);
   --color-ring: var(--ring);
 
-  /* Slightly darker blues for a richer accent tone */
-  --color-blue-50: #e8f0fe;
-  --color-blue-100: #d0e0fc;
-  --color-blue-200: #a3c4f7;
-  --color-blue-300: #6da1ef;
-  --color-blue-400: #4280e0;
-  --color-blue-500: #2e6ad4;
-  --color-blue-600: #2557b3;
-  --color-blue-700: #1d4491;
-  --color-blue-800: #163370;
-  --color-blue-900: #0f234f;
-  --color-blue-950: #091530;
+  /* Standard Tailwind blue scale — consistent across all pages */
+  --color-blue-50: #eff6ff;
+  --color-blue-100: #dbeafe;
+  --color-blue-200: #bfdbfe;
+  --color-blue-300: #93c5fd;
+  --color-blue-400: #60a5fa;
+  --color-blue-500: #3b82f6;
+  --color-blue-600: #2563eb;
+  --color-blue-700: #1d4ed8;
+  --color-blue-800: #1e40af;
+  --color-blue-900: #1e3a8a;
+  --color-blue-950: #172554;
 
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
@@ -1516,33 +1516,58 @@ textarea:-webkit-autofill {
   animation: chatNotifIn 300ms ease-out;
 }
 
-/* ── Widget Dashboard: gentle iOS-style jiggle for edit mode ── */
+/* ── Widget Dashboard: subtle, smooth iOS-style jiggle for edit mode ── */
 @keyframes widgetJiggle {
   0% { transform: rotate(0deg); }
-  25% { transform: rotate(-0.5deg); }
+  25% { transform: rotate(-0.15deg); }
   50% { transform: rotate(0deg); }
-  75% { transform: rotate(0.5deg); }
+  75% { transform: rotate(0.15deg); }
   100% { transform: rotate(0deg); }
 }
 
 .widget-jiggle {
-  animation: widgetJiggle 0.4s ease-in-out infinite;
+  animation: widgetJiggle 1.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  user-select: none;
+  box-shadow: 0 0 0 1px rgba(59,130,246,0.15);
+  position: relative;
+}
+
+/* Force custom text color on all descendants when palette color is applied */
+.widget-custom-text,
+.widget-custom-text * {
+  color: var(--widget-text-color) !important;
+}
+
+/* Dark overlay on hover in edit mode */
+.widget-jiggle::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0);
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 5;
+  transition: background 0.15s ease;
+}
+
+.widget-jiggle:hover::after {
+  background: rgba(0, 0, 0, 0.06);
 }
 
 /* Vary timing per item for natural, non-synchronized jiggle */
 .widget-jiggle:nth-child(2n) {
-  animation-duration: 0.45s;
-  animation-delay: 0.05s;
+  animation-duration: 1.35s;
+  animation-delay: 0.08s;
 }
 
 .widget-jiggle:nth-child(3n) {
-  animation-duration: 0.42s;
-  animation-delay: 0.1s;
+  animation-duration: 1.15s;
+  animation-delay: 0.15s;
 }
 
 .widget-jiggle:nth-child(5n) {
-  animation-duration: 0.48s;
-  animation-delay: 0.02s;
+  animation-duration: 1.45s;
+  animation-delay: 0.04s;
 }
 
 /* ── react-grid-layout overrides — remove all borders/outlines ── */
@@ -1555,20 +1580,19 @@ textarea:-webkit-autofill {
  * Disable react-grid-layout's built-in CSS transition on initial mount.
  * Without this, items animate from (0,0) to their actual positions on load.
  * The parent container adds .widget-grid-ready after the first render,
- * which re-enables transitions for drag/resize interactions.
+ * which re-enables smooth transitions for drag/resize/swap interactions.
  */
-.react-grid-item.cssTransforms {
+.react-grid-item.cssTransforms:not(.widget-grid-ready .react-grid-item) {
   transition: none !important;
 }
 
 .widget-grid-ready .react-grid-item.cssTransforms {
-  transition-property: transform, width, height;
-  transition-duration: 200ms;
-  transition-timing-function: ease;
+  transition: transform 200ms cubic-bezier(0.25, 0.1, 0.25, 1), width 200ms cubic-bezier(0.25, 0.1, 0.25, 1), height 200ms cubic-bezier(0.25, 0.1, 0.25, 1) !important;
+  will-change: transform;
 }
 
 /* On page load, fade widgets in (opacity only — no positional movement) */
-.react-grid-item.cssTransforms {
+.react-grid-item {
   animation: widgetFadeIn 350ms ease-out both;
 }
 
@@ -1584,15 +1608,79 @@ textarea:-webkit-autofill {
   border: none !important;
 }
 
+/* Hide RGL default ::after completely */
 .react-resizable-handle::after {
-  border-color: var(--muted-foreground) !important;
+  display: none !important;
 }
 
-.react-grid-item > .react-resizable-handle::after {
-  width: 8px !important;
-  height: 8px !important;
+/* Subtle corner-arrow resize handles */
+.react-grid-item > .react-resizable-handle {
+  width: 16px !important;
+  height: 16px !important;
+  background: transparent !important;
+  z-index: 10;
 }
+
+/* Corner L-bracket resize handles — ::before pseudo-elements pointing outward */
+.react-grid-item > .react-resizable-handle-se,
+.react-grid-item > .react-resizable-handle-sw,
+.react-grid-item > .react-resizable-handle-ne,
+.react-grid-item > .react-resizable-handle-nw {
+  border: none !important;
+  border-radius: 0 !important;
+}
+
+.react-grid-item > .react-resizable-handle-se::before,
+.react-grid-item > .react-resizable-handle-sw::before,
+.react-grid-item > .react-resizable-handle-ne::before,
+.react-grid-item > .react-resizable-handle-nw::before {
+  content: "";
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-color: var(--muted-foreground);
+  border-style: solid;
+  border-width: 0;
+  opacity: 0.4;
+  transition: opacity 0.2s ease;
+}
+
+.react-grid-item > .react-resizable-handle-se::before {
+  bottom: 3px;
+  right: 3px;
+  border-right-width: 2px;
+  border-bottom-width: 2px;
+}
+
+.react-grid-item > .react-resizable-handle-sw::before {
+  bottom: 3px;
+  left: 3px;
+  border-left-width: 2px;
+  border-bottom-width: 2px;
+}
+
+.react-grid-item > .react-resizable-handle-ne::before {
+  top: 3px;
+  right: 3px;
+  border-right-width: 2px;
+  border-top-width: 2px;
+}
+
+.react-grid-item > .react-resizable-handle-nw::before {
+  top: 3px;
+  left: 3px;
+  border-left-width: 2px;
+  border-top-width: 2px;
+}
+
+.react-grid-item > .react-resizable-handle:hover::before {
+  opacity: 0.6;
+}
+
+/* Hide scrollbar for hourly weather strip */
+.scrollbar-none { scrollbar-width: none; }
+.scrollbar-none::-webkit-scrollbar { display: none; }
 
 .react-grid-item.react-grid-placeholder {
-  transition: all 100ms ease !important;
+  transition: transform 250ms cubic-bezier(0.2, 0, 0, 1), width 250ms ease, height 250ms ease !important;
 }

@@ -30,10 +30,12 @@ interface ImageCropModalProps {
 
 /**
  * Creates a cropped image Blob from the source image and crop area.
+ * Outputs at native resolution (no upscaling) to preserve sharpness.
+ * Uses high-quality JPEG at 0.92 to balance quality and file size.
  *
  * @param imageSrc - Source image URL
  * @param pixelCrop - Pixel coordinates of the crop area from react-easy-crop
- * @returns Promise resolving to a JPEG Blob
+ * @returns Promise resolving to a high-quality JPEG Blob
  */
 async function getCroppedBlob(imageSrc: string, pixelCrop: Area): Promise<Blob> {
   const image = new Image();
@@ -44,11 +46,18 @@ async function getCroppedBlob(imageSrc: string, pixelCrop: Area): Promise<Blob> 
     image.src = imageSrc;
   });
 
+  // Output at 1:1 pixel ratio — no upscaling, preserves source sharpness
+  const outW = pixelCrop.width;
+  const outH = pixelCrop.height;
+
   const canvas = document.createElement("canvas");
-  canvas.width = pixelCrop.width;
-  canvas.height = pixelCrop.height;
+  canvas.width = outW;
+  canvas.height = outH;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Canvas context unavailable");
+
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
 
   ctx.drawImage(
     image,
@@ -58,15 +67,15 @@ async function getCroppedBlob(imageSrc: string, pixelCrop: Area): Promise<Blob> 
     pixelCrop.height,
     0,
     0,
-    pixelCrop.width,
-    pixelCrop.height,
+    outW,
+    outH,
   );
 
   return new Promise((resolve, reject) => {
     canvas.toBlob(
       (blob) => (blob ? resolve(blob) : reject(new Error("Blob creation failed"))),
       "image/jpeg",
-      0.9,
+      0.92,
     );
   });
 }

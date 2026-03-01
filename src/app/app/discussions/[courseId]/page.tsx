@@ -174,28 +174,47 @@ export default function CourseChatPage({ params }: PageProps) {
   }, []);
 
   // Desktop notifications for new messages from others (suppressed when muted).
-  // Uses a baseline ref to avoid false notifications on initial load.
+  // Gated on initialFetchDone so pre-existing messages never trigger notifications.
+  /** Tracks whether notification baseline has been initialized after initial fetch. */
+  const notifInitializedRef = useRef(false);
+
+  // Reset notification baseline when switching chats
   useEffect(() => {
-    // Establish baseline on first render — don't notify for pre-existing messages
-    if (notifBaselineRef.current === null) {
+    notifBaselineRef.current = null;
+    notifInitializedRef.current = false;
+  }, [activeCourseId]);
+
+  useEffect(() => {
+    // Wait for initial fetch to complete before monitoring
+    if (!initialFetchDone || messages.length === 0) return;
+
+    // First run after fetch: snapshot baseline without notifying
+    if (!notifInitializedRef.current) {
+      notifInitializedRef.current = true;
       notifBaselineRef.current = messages.length;
       return;
     }
 
     // Only notify when messages actually increased beyond baseline
     if (
-      messages.length <= notifBaselineRef.current ||
-      isMuted ||
-      !currentUserId ||
-      !("Notification" in window) ||
-      Notification.permission !== "granted" ||
-      !document.hidden
+      notifBaselineRef.current !== null &&
+      messages.length <= notifBaselineRef.current
     ) {
       notifBaselineRef.current = messages.length;
       return;
     }
 
     notifBaselineRef.current = messages.length;
+
+    if (
+      isMuted ||
+      !currentUserId ||
+      !("Notification" in window) ||
+      Notification.permission !== "granted" ||
+      !document.hidden
+    ) {
+      return;
+    }
 
     const lastMsg = messages[messages.length - 1];
     if (lastMsg.author_id === currentUserId || lastMsg._systemText) return;
@@ -226,27 +245,47 @@ export default function CourseChatPage({ params }: PageProps) {
       tag: `caltodo-chat-${activeCourseId}`,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages.length]);
+  }, [messages.length, initialFetchDone]);
 
-  // Play receive sound when a new message from another user arrives.
-  // Uses a separate baseline to track genuinely new messages.
-  const soundBaselineRef = useRef<number | null>(null);
+  // Play receive sound ONLY for genuinely new real-time messages.
+  // Tracks last message ID (not count) to avoid false triggers from
+  // initial load, cache hydration, chat switching, or loadMore.
+  /** ID of the newest message when baseline was established. */
+  const soundLastIdRef = useRef<string | null>(null);
+  /** Whether the sound baseline has been initialized after initial fetch. */
+  const soundInitializedRef = useRef(false);
+
+  // Reset sound tracking when switching chats
   useEffect(() => {
-    if (soundBaselineRef.current === null) {
-      soundBaselineRef.current = messages.length;
-      return;
-    }
-    if (messages.length <= soundBaselineRef.current || isMuted || !currentUserId) {
-      soundBaselineRef.current = messages.length;
-      return;
-    }
-    soundBaselineRef.current = messages.length;
+    soundLastIdRef.current = null;
+    soundInitializedRef.current = false;
+  }, [activeCourseId]);
+
+  useEffect(() => {
+    // Wait for initial fetch to complete before monitoring
+    if (!initialFetchDone || messages.length === 0) return;
 
     const lastMsg = messages[messages.length - 1];
+
+    // First run after fetch: snapshot baseline ID without playing
+    if (!soundInitializedRef.current) {
+      soundInitializedRef.current = true;
+      soundLastIdRef.current = lastMsg.id;
+      return;
+    }
+
+    // Last message unchanged — no new message appended (e.g. loadMore prepends)
+    if (lastMsg.id === soundLastIdRef.current) return;
+
+    soundLastIdRef.current = lastMsg.id;
+
+    // Guard: muted, no user, own message, or system event
+    if (isMuted || !currentUserId) return;
     if (lastMsg.author_id === currentUserId || lastMsg._systemText) return;
+
     playMessageReceived();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages.length]);
+  }, [messages.length, initialFetchDone]);
 
   // Show loading bar while chat data or user ID is loading
   const isLoading = !ready || (loading && messages.length === 0);

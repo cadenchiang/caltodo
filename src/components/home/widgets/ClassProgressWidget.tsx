@@ -72,8 +72,7 @@ export default function ClassProgressWidget({ config }: ClassProgressWidgetProps
 
   return (
     <div className="h-full w-full flex flex-col p-4 overflow-hidden">
-      <div className="flex items-center gap-2 mb-3">
-        <GraduationCap size={14} className="text-blue-500 shrink-0" />
+      <div className="mb-3">
         <h3 className="text-sm font-semibold text-foreground">Class Progress</h3>
       </div>
 

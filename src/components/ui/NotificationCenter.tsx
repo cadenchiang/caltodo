@@ -7,7 +7,17 @@ import { useNotifications } from "@/contexts/NotificationContext";
 import { formatShortDate } from "@/lib/notification-helpers";
 import { trackEvent } from "@/lib/analytics";
 import { GETTING_STARTED_COMPLETE_EVENT } from "./GettingStartedWidget";
-import type { AppNotification } from "@/lib/types";
+import type { AppNotification, NotificationType } from "@/lib/types";
+
+/** Maps notification type to a Tailwind bg-color class for the status dot. */
+const NOTIFICATION_DOT_COLOR: Record<NotificationType, string> = {
+  new_assignment: "bg-blue-500",
+  assignment_updated: "bg-amber-500",
+  auto_completed: "bg-green-500",
+  repeat_spawned: "bg-violet-500",
+  sync_error: "bg-red-500",
+  task_invite: "bg-blue-500",
+};
 
 /** localStorage key used by GettingStartedWidget to track visibility. */
 const GETTING_STARTED_VISIBLE_KEY = "caltodo_getting_started_visible";
@@ -38,9 +48,12 @@ function NotificationRow({
           onNavigate(notification.taskId);
         }
       }}
-      className="w-full text-left px-4 py-3 flex items-center justify-between transition-colors hover:bg-muted/50"
+      className="w-full text-left px-4 py-3 flex items-center gap-2.5 transition-colors hover:bg-muted/50"
     >
-      <p className="text-sm text-foreground truncate flex-1 min-w-0 mr-3">
+      <span
+        className={`w-2 h-2 rounded-full shrink-0 ${NOTIFICATION_DOT_COLOR[notification.type] || "bg-gray-400"}`}
+      />
+      <p className="text-sm text-foreground truncate flex-1 min-w-0">
         {notification.title}
       </p>
       <span className="text-[11px] text-muted-foreground shrink-0">

@@ -70,7 +70,7 @@ function RenderWidget({
     case "notes":
       return <NotesWidget config={widget.config} onUpdateConfig={onUpdateConfig} />;
     case "weather":
-      return <WeatherWidget config={widget.config} />;
+      return <WeatherWidget config={widget.config} editMode={editMode} />;
     case "cal-chat":
       return <CalChatWidget config={widget.config} />;
     default:
@@ -136,15 +136,15 @@ export default function WidgetContainer({
       onMouseUp={handleMouseUp}
       className={`h-full w-full rounded-md overflow-hidden bg-transparent border border-foreground/8 ${
         editMode ? "widget-jiggle cursor-pointer" : ""
-      } ${isClickable ? "cursor-pointer" : ""}`}
+      } ${isClickable ? "cursor-pointer" : ""} ${textColor ? "widget-custom-text" : ""}`}
       style={{
         backgroundColor: bgColor,
-        color: textColor,
+        ...(textColor ? { "--widget-text-color": textColor } as React.CSSProperties : {}),
         fontFamily,
       }}
     >
-      {/* Widget content */}
-      <div className="h-full w-full overflow-hidden">
+      {/* Widget content — disable interactions in edit mode */}
+      <div className={`h-full w-full overflow-hidden ${editMode ? "pointer-events-none" : ""}`}>
         <RenderWidget
           widget={widget}
           editMode={editMode}

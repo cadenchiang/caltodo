@@ -37,11 +37,22 @@ interface PersistedLayout {
   widgets: WidgetInstance[];
   layouts: ResponsiveLayouts<string>;
   boardTitle: string;
+  boardDescription: string;
   coverImageUrl: string;
   boardEmoji: string;
+  iconSize: string;
   titleFontFamily: string;
   titleTextColor: string;
+  titleFontSize: string;
+  coverHeight: number;
+  coverPositionY: number;
 }
+
+/** Default banner height in pixels. */
+const DEFAULT_COVER_HEIGHT = 220;
+
+/** Default vertical image position (percentage, 0=top, 100=bottom). */
+const DEFAULT_COVER_POSITION_Y = 50;
 
 /**
  * Reads persisted layout from localStorage.
@@ -61,13 +72,37 @@ function readPersistedLayout(): PersistedLayout | null {
       parsed.version = 2;
       parsed.boardTitle = "My Board";
       parsed.coverImageUrl = "";
-      parsed.boardEmoji = "📋";
+      parsed.boardEmoji = "\u{1F338}";
     }
 
     // Ensure fields exist for v2 layouts saved before they were added
-    if (!parsed.boardEmoji) parsed.boardEmoji = "📋";
+    if (!parsed.boardDescription) parsed.boardDescription = "The secret of getting ahead is getting started.";
+    if (!parsed.boardEmoji) parsed.boardEmoji = "\u{1F338}";
+    if (!parsed.iconSize) parsed.iconSize = "md";
+
+    // Sanitize corrupted boardEmoji — reset to default if it looks like
+    // a size label (e.g. "xl", "sm") or other plain ASCII text.
+    if (
+      parsed.boardEmoji &&
+      !parsed.boardEmoji.startsWith("lucide:") &&
+      /^[a-zA-Z0-9_-]+$/.test(parsed.boardEmoji)
+    ) {
+      parsed.boardEmoji = "\u{1F338}";
+    }
+
+    // Sanitize corrupted boardDescription — reset to default if it looks like a URL
+    if (
+      typeof parsed.boardDescription === "string" &&
+      (parsed.boardDescription.startsWith("http://") ||
+        parsed.boardDescription.startsWith("https://"))
+    ) {
+      parsed.boardDescription = "The secret of getting ahead is getting started.";
+    }
     if (!parsed.titleFontFamily) parsed.titleFontFamily = "";
     if (!parsed.titleTextColor) parsed.titleTextColor = "";
+    if (!parsed.titleFontSize) parsed.titleFontSize = "lg";
+    if (parsed.coverHeight == null) parsed.coverHeight = DEFAULT_COVER_HEIGHT;
+    if (parsed.coverPositionY == null) parsed.coverPositionY = DEFAULT_COVER_POSITION_Y;
 
     // Migrate v2 → v3: scale lg layout positions from 6-col to 8-col grid
     if (parsed.version === 2) {
@@ -123,10 +158,15 @@ function writePersistedLayout(
   widgets: WidgetInstance[],
   layouts: ResponsiveLayouts<string>,
   boardTitle: string,
+  boardDescription: string,
   coverImageUrl: string,
   boardEmoji: string,
+  iconSize: string = "md",
   titleFontFamily: string = "",
-  titleTextColor: string = ""
+  titleTextColor: string = "",
+  titleFontSize: string = "lg",
+  coverHeight: number = DEFAULT_COVER_HEIGHT,
+  coverPositionY: number = DEFAULT_COVER_POSITION_Y
 ): void {
   if (typeof window === "undefined") return;
   try {
@@ -135,10 +175,15 @@ function writePersistedLayout(
       widgets,
       layouts,
       boardTitle,
+      boardDescription,
       coverImageUrl,
       boardEmoji,
+      iconSize,
       titleFontFamily,
       titleTextColor,
+      titleFontSize,
+      coverHeight,
+      coverPositionY,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   } catch {
@@ -157,18 +202,28 @@ export function useWidgetLayout() {
   const [widgets, setWidgets] = useState<WidgetInstance[]>(defaults.widgets);
   const [layouts, setLayoutsState] = useState<ResponsiveLayouts<string>>(defaults.layouts);
   const [boardTitle, setBoardTitleState] = useState("My Board");
-  const [coverImageUrl, setCoverImageUrlState] = useState("");
-  const [boardEmoji, setBoardEmojiState] = useState("📋");
+  const [boardDescription, setBoardDescriptionState] = useState("The secret of getting ahead is getting started.");
+  const [coverImageUrl, setCoverImageUrlState] = useState("preset:p5");
+  const [boardEmoji, setBoardEmojiState] = useState("\u{1F338}");
+  const [iconSize, setIconSizeState] = useState("md");
   const [titleFontFamily, setTitleFontFamilyState] = useState("");
   const [titleTextColor, setTitleTextColorState] = useState("");
+  const [titleFontSize, setTitleFontSizeState] = useState("lg");
+  const [coverHeight, setCoverHeightState] = useState(DEFAULT_COVER_HEIGHT);
+  const [coverPositionY, setCoverPositionYState] = useState(DEFAULT_COVER_POSITION_Y);
   const [hydrated, setHydrated] = useState(false);
 
   // Refs for board metadata so callbacks can read current values without re-creating
   const boardTitleRef = useRef(boardTitle);
+  const boardDescriptionRef = useRef(boardDescription);
   const coverImageUrlRef = useRef(coverImageUrl);
   const boardEmojiRef = useRef(boardEmoji);
+  const iconSizeRef = useRef(iconSize);
   const titleFontFamilyRef = useRef(titleFontFamily);
   const titleTextColorRef = useRef(titleTextColor);
+  const titleFontSizeRef = useRef(titleFontSize);
+  const coverHeightRef = useRef(coverHeight);
+  const coverPositionYRef = useRef(coverPositionY);
 
   // Hydrate from localStorage after mount (avoids SSR mismatch)
   useEffect(() => {
@@ -177,20 +232,35 @@ export function useWidgetLayout() {
       setWidgets(persisted.widgets);
       setLayoutsState(persisted.layouts);
       const title = persisted.boardTitle || "My Board";
-      const cover = persisted.coverImageUrl || "";
-      const emoji = persisted.boardEmoji || "📋";
+      const desc = persisted.boardDescription || "";
+      const cover = persisted.coverImageUrl ?? "preset:p5";
+      const emoji = persisted.boardEmoji || "\u{1F338}";
+      const iSize = persisted.iconSize || "md";
       setBoardTitleState(title);
+      setBoardDescriptionState(desc);
       setCoverImageUrlState(cover);
       setBoardEmojiState(emoji);
+      setIconSizeState(iSize);
       const tFont = persisted.titleFontFamily || "";
       const tColor = persisted.titleTextColor || "";
+      const tSize = persisted.titleFontSize || "lg";
+      const cHeight = persisted.coverHeight ?? DEFAULT_COVER_HEIGHT;
+      const cPosY = persisted.coverPositionY ?? DEFAULT_COVER_POSITION_Y;
       setTitleFontFamilyState(tFont);
       setTitleTextColorState(tColor);
+      setTitleFontSizeState(tSize);
+      setCoverHeightState(cHeight);
+      setCoverPositionYState(cPosY);
       boardTitleRef.current = title;
+      boardDescriptionRef.current = desc;
       coverImageUrlRef.current = cover;
       boardEmojiRef.current = emoji;
+      iconSizeRef.current = iSize;
       titleFontFamilyRef.current = tFont;
       titleTextColorRef.current = tColor;
+      titleFontSizeRef.current = tSize;
+      coverHeightRef.current = cHeight;
+      coverPositionYRef.current = cPosY;
     }
     setHydrated(true);
   }, []);
@@ -204,10 +274,15 @@ export function useWidgetLayout() {
    */
   const setLayouts = useCallback(
     (_currentLayout: Layout, allLayouts: ResponsiveLayouts<string>) => {
-      setLayoutsState(allLayouts);
-      setWidgets((prev) => {
-        writePersistedLayout(prev, allLayouts, boardTitleRef.current, coverImageUrlRef.current, boardEmojiRef.current);
-        return prev;
+      setLayoutsState((prev) => {
+        // Bail out if layouts haven't changed — prevents infinite re-render loop
+        // where onLayoutChange fires on every render with a new object reference
+        if (JSON.stringify(prev) === JSON.stringify(allLayouts)) return prev;
+        setWidgets((prevWidgets) => {
+          writePersistedLayout(prevWidgets, allLayouts, boardTitleRef.current, boardDescriptionRef.current, coverImageUrlRef.current, boardEmojiRef.current, iconSizeRef.current, titleFontFamilyRef.current, titleTextColorRef.current, titleFontSizeRef.current, coverHeightRef.current, coverPositionYRef.current);
+          return prevWidgets;
+        });
+        return allLayouts;
       });
     },
     []
@@ -248,7 +323,7 @@ export function useWidgetLayout() {
           if (Object.keys(updatedLayouts).length === 0) {
             updatedLayouts.lg = [newLayoutItem];
           }
-          writePersistedLayout(updated, updatedLayouts, boardTitleRef.current, coverImageUrlRef.current, boardEmojiRef.current);
+          writePersistedLayout(updated, updatedLayouts, boardTitleRef.current, boardDescriptionRef.current, coverImageUrlRef.current, boardEmojiRef.current, iconSizeRef.current, titleFontFamilyRef.current, titleTextColorRef.current, titleFontSizeRef.current, coverHeightRef.current, coverPositionYRef.current);
           return updatedLayouts;
         });
         return updated;
@@ -273,7 +348,7 @@ export function useWidgetLayout() {
           const existing = prevLayouts[bp] || [];
           updatedLayouts[bp] = existing.filter((l: LayoutItem) => l.i !== id);
         }
-        writePersistedLayout(updated, updatedLayouts, boardTitleRef.current, coverImageUrlRef.current, boardEmojiRef.current);
+        writePersistedLayout(updated, updatedLayouts, boardTitleRef.current, boardDescriptionRef.current, coverImageUrlRef.current, boardEmojiRef.current, iconSizeRef.current, titleFontFamilyRef.current, titleTextColorRef.current, titleFontSizeRef.current, coverHeightRef.current, coverPositionYRef.current);
         return updatedLayouts;
       });
       return updated;
@@ -293,7 +368,7 @@ export function useWidgetLayout() {
           w.id === id ? { ...w, config: { ...w.config, ...config } } : w
         );
         setLayoutsState((prevLayouts) => {
-          writePersistedLayout(updated, prevLayouts, boardTitleRef.current, coverImageUrlRef.current, boardEmojiRef.current);
+          writePersistedLayout(updated, prevLayouts, boardTitleRef.current, boardDescriptionRef.current, coverImageUrlRef.current, boardEmojiRef.current, iconSizeRef.current, titleFontFamilyRef.current, titleTextColorRef.current, titleFontSizeRef.current, coverHeightRef.current, coverPositionYRef.current);
           return prevLayouts;
         });
         return updated;
@@ -315,7 +390,7 @@ export function useWidgetLayout() {
           config: { ...w.config, ...config },
         }));
         setLayoutsState((prevLayouts) => {
-          writePersistedLayout(updated, prevLayouts, boardTitleRef.current, coverImageUrlRef.current, boardEmojiRef.current);
+          writePersistedLayout(updated, prevLayouts, boardTitleRef.current, boardDescriptionRef.current, coverImageUrlRef.current, boardEmojiRef.current, iconSizeRef.current, titleFontFamilyRef.current, titleTextColorRef.current, titleFontSizeRef.current, coverHeightRef.current, coverPositionYRef.current);
           return prevLayouts;
         });
         return updated;
@@ -335,7 +410,25 @@ export function useWidgetLayout() {
     boardTitleRef.current = trimmed;
     setWidgets((prev) => {
       setLayoutsState((prevLayouts) => {
-        writePersistedLayout(prev, prevLayouts, trimmed, coverImageUrlRef.current, boardEmojiRef.current);
+        writePersistedLayout(prev, prevLayouts, trimmed, boardDescriptionRef.current, coverImageUrlRef.current, boardEmojiRef.current, iconSizeRef.current, titleFontFamilyRef.current, titleTextColorRef.current, titleFontSizeRef.current, coverHeightRef.current, coverPositionYRef.current);
+        return prevLayouts;
+      });
+      return prev;
+    });
+  }, []);
+
+  /**
+   * Sets the board description and persists to localStorage.
+   *
+   * @param desc - Board description string (max 200 chars)
+   */
+  const setBoardDescription = useCallback((desc: string) => {
+    const trimmed = desc.slice(0, 200);
+    setBoardDescriptionState(trimmed);
+    boardDescriptionRef.current = trimmed;
+    setWidgets((prev) => {
+      setLayoutsState((prevLayouts) => {
+        writePersistedLayout(prev, prevLayouts, boardTitleRef.current, trimmed, coverImageUrlRef.current, boardEmojiRef.current, iconSizeRef.current, titleFontFamilyRef.current, titleTextColorRef.current, titleFontSizeRef.current, coverHeightRef.current, coverPositionYRef.current);
         return prevLayouts;
       });
       return prev;
@@ -352,7 +445,7 @@ export function useWidgetLayout() {
     coverImageUrlRef.current = url;
     setWidgets((prev) => {
       setLayoutsState((prevLayouts) => {
-        writePersistedLayout(prev, prevLayouts, boardTitleRef.current, url, boardEmojiRef.current);
+        writePersistedLayout(prev, prevLayouts, boardTitleRef.current, boardDescriptionRef.current, url, boardEmojiRef.current, iconSizeRef.current, titleFontFamilyRef.current, titleTextColorRef.current, titleFontSizeRef.current, coverHeightRef.current, coverPositionYRef.current);
         return prevLayouts;
       });
       return prev;
@@ -369,7 +462,24 @@ export function useWidgetLayout() {
     boardEmojiRef.current = emoji;
     setWidgets((prev) => {
       setLayoutsState((prevLayouts) => {
-        writePersistedLayout(prev, prevLayouts, boardTitleRef.current, coverImageUrlRef.current, emoji);
+        writePersistedLayout(prev, prevLayouts, boardTitleRef.current, boardDescriptionRef.current, coverImageUrlRef.current, emoji, iconSizeRef.current, titleFontFamilyRef.current, titleTextColorRef.current, titleFontSizeRef.current, coverHeightRef.current, coverPositionYRef.current);
+        return prevLayouts;
+      });
+      return prev;
+    });
+  }, []);
+
+  /**
+   * Sets the board icon size and persists to localStorage.
+   *
+   * @param size - Icon size value ("sm" | "md" | "lg" | "xl")
+   */
+  const setIconSize = useCallback((size: string) => {
+    setIconSizeState(size);
+    iconSizeRef.current = size;
+    setWidgets((prev) => {
+      setLayoutsState((prevLayouts) => {
+        writePersistedLayout(prev, prevLayouts, boardTitleRef.current, boardDescriptionRef.current, coverImageUrlRef.current, boardEmojiRef.current, size, titleFontFamilyRef.current, titleTextColorRef.current, titleFontSizeRef.current, coverHeightRef.current, coverPositionYRef.current);
         return prevLayouts;
       });
       return prev;
@@ -382,14 +492,36 @@ export function useWidgetLayout() {
    * @param fontFamily - CSS font-family string
    * @param textColor - CSS color string
    */
-  const setTitleConfig = useCallback((fontFamily: string, textColor: string) => {
-    setTitleFontFamilyState(fontFamily);
-    setTitleTextColorState(textColor);
-    titleFontFamilyRef.current = fontFamily;
-    titleTextColorRef.current = textColor;
+  /**
+   * Sets the cover height and vertical position, then persists.
+   *
+   * @param height - Banner height in px (80–350)
+   * @param positionY - Vertical image position percentage (0–100)
+   */
+  const setCoverConfig = useCallback((height: number, positionY: number) => {
+    setCoverHeightState(height);
+    setCoverPositionYState(positionY);
+    coverHeightRef.current = height;
+    coverPositionYRef.current = positionY;
     setWidgets((prev) => {
       setLayoutsState((prevLayouts) => {
-        writePersistedLayout(prev, prevLayouts, boardTitleRef.current, coverImageUrlRef.current, boardEmojiRef.current, fontFamily, textColor);
+        writePersistedLayout(prev, prevLayouts, boardTitleRef.current, boardDescriptionRef.current, coverImageUrlRef.current, boardEmojiRef.current, iconSizeRef.current, titleFontFamilyRef.current, titleTextColorRef.current, titleFontSizeRef.current, height, positionY);
+        return prevLayouts;
+      });
+      return prev;
+    });
+  }, []);
+
+  const setTitleConfig = useCallback((fontFamily: string, textColor: string, fontSize: string = "lg") => {
+    setTitleFontFamilyState(fontFamily);
+    setTitleTextColorState(textColor);
+    setTitleFontSizeState(fontSize);
+    titleFontFamilyRef.current = fontFamily;
+    titleTextColorRef.current = textColor;
+    titleFontSizeRef.current = fontSize;
+    setWidgets((prev) => {
+      setLayoutsState((prevLayouts) => {
+        writePersistedLayout(prev, prevLayouts, boardTitleRef.current, boardDescriptionRef.current, coverImageUrlRef.current, boardEmojiRef.current, iconSizeRef.current, fontFamily, textColor, fontSize, coverHeightRef.current, coverPositionYRef.current);
         return prevLayouts;
       });
       return prev;
@@ -401,18 +533,26 @@ export function useWidgetLayout() {
     layouts,
     hydrated,
     boardTitle,
+    boardDescription,
     coverImageUrl,
     boardEmoji,
+    iconSize,
     titleFontFamily,
     titleTextColor,
+    titleFontSize,
+    coverHeight,
+    coverPositionY,
     setLayouts,
     addWidget,
     removeWidget,
     updateWidgetConfig,
     updateAllWidgetConfigs,
     setBoardTitle,
+    setBoardDescription,
     setCoverImageUrl,
     setBoardEmoji,
+    setIconSize,
     setTitleConfig,
+    setCoverConfig,
   };
 }

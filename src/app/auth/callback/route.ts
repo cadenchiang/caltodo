@@ -45,9 +45,9 @@ export async function GET(request: NextRequest) {
             .upsert({ user_id: user.id }, { onConflict: "user_id" });
           redirectTo.searchParams.set("welcome", "1");
         }
-        redirectTo.pathname = "/app/inbox";
+        redirectTo.pathname = "/app/home";
       } else {
-        redirectTo.pathname = "/app/inbox";
+        redirectTo.pathname = "/app/home";
       }
 
       return NextResponse.redirect(redirectTo);

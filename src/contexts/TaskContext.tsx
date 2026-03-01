@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef, type ReactNode } from "react";
-import { Undo2, RefreshCw } from "lucide-react";
+import { Undo2, Eye } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/contexts/ToastContext";
 import { useNotifications } from "@/contexts/NotificationContext";
@@ -9,6 +9,7 @@ import type { Task, TaskInsert, TaskUpdate, SyncResult } from "@/lib/types";
 import { trackEvent } from "@/lib/analytics";
 import { computeNextDueDate, shouldSpawnNext } from "@/lib/repeat";
 import { createTaskSnapshot, detectSyncChanges } from "@/lib/notification-helpers";
+import { showNewAssignmentsModal } from "@/components/ui/NewAssignmentsModal";
 
 /** localStorage key and version for stale-while-revalidate task caching. */
 const CACHE_KEY = "caltodo_tasks_cache";
@@ -256,14 +257,15 @@ export function TaskProvider({ children }: { children: ReactNode }) {
             // Show a toast popup when new assignments are discovered
             const newAssignments = changes.filter((c) => c.type === "new_assignment");
             if (newAssignments.length > 0) {
+              const ids = newAssignments.map((c) => c.taskId);
               const msg = newAssignments.length === 1
                 ? "1 new assignment found"
                 : `${newAssignments.length} new assignments found`;
               showToast(msg, {
                 action: {
-                  label: "Sync now",
-                  icon: <RefreshCw size={14} />,
-                  onClick: () => triggerSync(),
+                  label: "View now",
+                  icon: <Eye size={14} />,
+                  onClick: () => showNewAssignmentsModal(ids),
                 },
               });
             }

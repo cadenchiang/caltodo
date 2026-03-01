@@ -18,32 +18,7 @@ import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import type { WidgetInstance } from "@/lib/widget-types";
 import { useDiscussionBoards } from "@/hooks/useDiscussionBoards";
-
-/** Available font families for widget customization. */
-const FONT_OPTIONS: { label: string; value: string }[] = [
-  { label: "System Default", value: "" },
-  // Sans-serif — clean, modern
-  { label: "Inter", value: "'Inter', sans-serif" },
-  { label: "DM Sans", value: "'DM Sans', sans-serif" },
-  { label: "Plus Jakarta Sans", value: "'Plus Jakarta Sans', sans-serif" },
-  { label: "Outfit", value: "'Outfit', sans-serif" },
-  { label: "Manrope", value: "'Manrope', sans-serif" },
-  { label: "Urbanist", value: "'Urbanist', sans-serif" },
-  { label: "Sora", value: "'Sora', sans-serif" },
-  { label: "Helvetica Neue", value: "'Helvetica Neue', sans-serif" },
-  // Rounded — friendly, iOS-inspired
-  { label: "Nunito", value: "'Nunito', sans-serif" },
-  { label: "Quicksand", value: "'Quicksand', sans-serif" },
-  { label: "Varela Round", value: "'Varela Round', sans-serif" },
-  // Serif — editorial, classic
-  { label: "DM Serif Display", value: "'DM Serif Display', serif" },
-  { label: "Playfair Display", value: "'Playfair Display', serif" },
-  { label: "Source Serif 4", value: "'Source Serif 4', serif" },
-  { label: "Georgia", value: "'Georgia', serif" },
-  { label: "Palatino", value: "'Palatino Linotype', serif" },
-  // Monospace
-  { label: "Menlo", value: "'Menlo', monospace" },
-];
+import FontPicker from "@/components/ui/FontPicker";
 
 /** Available font weights for clock widget. */
 const WEIGHT_OPTIONS: { label: string; value: string }[] = [
@@ -77,6 +52,7 @@ interface WidgetSettingsModalProps {
   onSave: (id: string, config: Record<string, string>) => void;
   onRemove?: (id: string) => void;
   onApplyFontToAll?: (font: string) => void;
+  onApplyBgResetToAll?: () => void;
 }
 
 /** Human-readable labels per widget type. */
@@ -102,6 +78,7 @@ export default function WidgetSettingsModal({
   onSave,
   onRemove,
   onApplyFontToAll,
+  onApplyBgResetToAll,
 }: WidgetSettingsModalProps) {
   const { boards } = useDiscussionBoards();
 
@@ -124,9 +101,11 @@ export default function WidgetSettingsModal({
   const [bgColor, setBgColor] = useState("");
   const [fontFamily, setFontFamily] = useState("");
 
-  // Apply-to-all confirmation
+  // Apply-to-all confirmations
   const [showFontConfirm, setShowFontConfirm] = useState(false);
   const [pendingFont, setPendingFont] = useState("");
+  const [showBgResetConfirm, setShowBgResetConfirm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Initialize from widget config when modal opens
   useEffect(() => {
@@ -148,6 +127,8 @@ export default function WidgetSettingsModal({
       setBgColor(widget.config.bgColor || "");
       setFontFamily(widget.config.fontFamily || "");
       setShowFontConfirm(false);
+      setShowBgResetConfirm(false);
+      setShowDeleteConfirm(false);
     }
   }, [widget]);
 
@@ -195,6 +176,13 @@ export default function WidgetSettingsModal({
     }
 
     onSave(widget!.id, config);
+
+    // Check if background was reset — offer to reset all
+    const hadBg = !!(widget!.config.bgColor);
+    if (hadBg && !bgColor && onApplyBgResetToAll) {
+      setShowBgResetConfirm(true);
+      return;
+    }
 
     // Check if font changed — offer to apply to all
     if (fontFamily && fontFamily !== (widget!.config.fontFamily || "") && onApplyFontToAll) {
@@ -256,12 +244,12 @@ export default function WidgetSettingsModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/40 animate-announce-backdrop-in"
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-announce-backdrop-in"
         onClick={onClose}
       />
 
       {/* Card */}
-      <div className="relative bg-card rounded-2xl shadow-xl w-full max-w-sm mx-4 animate-announce-card-in overflow-hidden max-h-[85vh] flex flex-col">
+      <div className="relative bg-popover rounded-2xl shadow-2xl border border-border w-full max-w-md mx-4 animate-announce-card-in overflow-hidden max-h-[85vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
           <h2 className="text-base font-semibold text-foreground">
@@ -433,11 +421,7 @@ export default function WidgetSettingsModal({
 
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">Font</label>
-            <select value={fontFamily} onChange={(e) => setFontFamily(e.target.value)} className={SELECT_CLS}>
-              {FONT_OPTIONS.map((f) => (
-                <option key={f.value} value={f.value}>{f.label}</option>
-              ))}
-            </select>
+            <FontPicker value={fontFamily} onChange={setFontFamily} />
           </div>
         </div>
 
@@ -445,11 +429,8 @@ export default function WidgetSettingsModal({
         <div className="flex items-center justify-between p-4 border-t border-border shrink-0">
           {onRemove ? (
             <button
-              onClick={() => {
-                onRemove(widget!.id);
-                onClose();
-              }}
-              className="px-3 py-2 text-sm rounded-lg text-red-500 hover:bg-red-500/10 transition-colors"
+              onClick={() => setShowDeleteConfirm(true)}
+              className="px-3 py-2 text-sm rounded-xl text-red-500 hover:bg-red-500/10 transition-colors"
             >
               Remove Widget
             </button>
@@ -459,13 +440,13 @@ export default function WidgetSettingsModal({
           <div className="flex gap-2">
             <button
               onClick={onClose}
-              className="px-4 py-2 text-sm rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              className="px-4 py-2 text-sm rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             >
               Cancel
             </button>
             <button
               onClick={handleSave}
-              className="px-4 py-2 text-sm rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors"
+              className="px-4 py-2 text-sm rounded-xl bg-blue-500 text-white hover:bg-blue-600 transition-colors"
             >
               Save
             </button>
@@ -484,7 +465,7 @@ export default function WidgetSettingsModal({
                   setShowFontConfirm(false);
                   onClose();
                 }}
-                className="px-4 py-2 text-sm rounded-lg text-muted-foreground hover:bg-muted transition-colors"
+                className="px-4 py-2 text-sm rounded-xl text-muted-foreground hover:bg-muted transition-colors"
               >
                 Just this one
               </button>
@@ -494,9 +475,69 @@ export default function WidgetSettingsModal({
                   setShowFontConfirm(false);
                   onClose();
                 }}
-                className="px-4 py-2 text-sm rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors"
+                className="px-4 py-2 text-sm rounded-xl bg-blue-500 text-white hover:bg-blue-600 transition-colors"
               >
                 Apply to all
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Reset background for all confirmation */}
+        {showBgResetConfirm && (
+          <div className="absolute inset-0 z-10 bg-card/95 flex flex-col items-center justify-center p-6 text-center">
+            <p className="text-sm font-medium text-foreground mb-4">
+              Reset background on all widgets?
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  setShowBgResetConfirm(false);
+                  onClose();
+                }}
+                className="px-4 py-2 text-sm rounded-xl text-muted-foreground hover:bg-muted transition-colors"
+              >
+                Just this one
+              </button>
+              <button
+                onClick={() => {
+                  onApplyBgResetToAll?.();
+                  setShowBgResetConfirm(false);
+                  onClose();
+                }}
+                className="px-4 py-2 text-sm rounded-xl bg-blue-500 text-white hover:bg-blue-600 transition-colors"
+              >
+                Reset all
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Confirm delete widget */}
+        {showDeleteConfirm && (
+          <div className="absolute inset-0 z-10 bg-card/95 flex flex-col items-center justify-center p-6 text-center">
+            <p className="text-sm font-medium text-foreground mb-1">
+              Remove this widget?
+            </p>
+            <p className="text-xs text-muted-foreground mb-4">
+              This action cannot be undone.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="px-4 py-2 text-sm rounded-xl text-muted-foreground hover:bg-muted transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  onRemove?.(widget!.id);
+                  setShowDeleteConfirm(false);
+                  onClose();
+                }}
+                className="px-4 py-2 text-sm rounded-xl bg-red-500 text-white hover:bg-red-600 transition-colors"
+              >
+                Remove
               </button>
             </div>
           </div>

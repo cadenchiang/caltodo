@@ -9,7 +9,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { FileText } from "lucide-react";
+
 
 interface NotesWidgetProps {
   config?: Record<string, string>;
@@ -48,8 +48,7 @@ export default function NotesWidget({ config, onUpdateConfig }: NotesWidgetProps
     // View mode — render notes as plain text
     return (
       <div className="h-full w-full flex flex-col p-4 overflow-hidden">
-        <div className="flex items-center gap-2 mb-2">
-          <FileText size={14} className="text-blue-500 shrink-0" />
+        <div className="mb-2">
           <h3 className="text-sm font-semibold text-foreground">Notes</h3>
         </div>
         <div className="flex-1 overflow-y-auto">
@@ -69,8 +68,7 @@ export default function NotesWidget({ config, onUpdateConfig }: NotesWidgetProps
 
   return (
     <div className="h-full w-full flex flex-col p-4 overflow-hidden">
-      <div className="flex items-center gap-2 mb-2">
-        <FileText size={14} className="text-blue-500 shrink-0" />
+      <div className="mb-2">
         <h3 className="text-sm font-semibold text-foreground">Notes</h3>
       </div>
       <textarea

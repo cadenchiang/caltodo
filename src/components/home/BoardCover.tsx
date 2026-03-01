@@ -15,6 +15,7 @@ import { createPortal } from "react-dom";
 import { Camera, X, Image as ImageIcon, Pencil } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { compressImage } from "@/lib/compress-image";
+import { extractPalette } from "@/lib/extract-palette";
 import ImageCropModal from "@/components/ui/ImageCropModal";
 
 /** Solid color presets. */
@@ -81,13 +82,15 @@ const PHOTO_COVERS: { id: string; label: string; url: string }[] = [
   { id: "p15", label: "Meadow Sunrise", url: "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?w=1600&h=350&fit=crop&crop=center&q=80" },
 ];
 
-/** Consistent banner height regardless of cover state. */
-const BANNER_HEIGHT = 180;
-
 interface BoardCoverProps {
   coverImageUrl: string;
   editMode: boolean;
   onChangeCover: (url: string) => void;
+  coverHeight: number;
+  coverPositionY: number;
+  onChangeCoverConfig: (height: number, positionY: number) => void;
+  /** Called with extracted dominant colors after a photo cover is set. */
+  onPaletteExtracted?: (colors: string[]) => void;
 }
 
 /**
@@ -122,6 +125,10 @@ export default function BoardCover({
   coverImageUrl,
   editMode,
   onChangeCover,
+  coverHeight,
+  coverPositionY,
+  onChangeCoverConfig,
+  onPaletteExtracted,
 }: BoardCoverProps) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -135,6 +142,9 @@ export default function BoardCover({
   const hasCustomImage = coverImageUrl && !isPreset(coverImageUrl) && !imgError;
   const hasPresetCover = isPreset(coverImageUrl);
   const hasCover = !!coverImageUrl;
+
+  /** Whether the current cover is a photo (custom upload or photo preset) — needs position control. */
+  const isImageCover = hasCustomImage || (hasPresetCover && coverImageUrl.startsWith("preset:p"));
 
   /** Opens file picker, then shows crop modal with selected image. */
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
@@ -172,15 +182,23 @@ export default function BoardCover({
         }
 
         const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
-        onChangeCover(`${urlData.publicUrl}?t=${Date.now()}`);
+        const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+        onChangeCover(publicUrl);
         setModalOpen(false);
+
+        // Extract palette from uploaded image
+        if (onPaletteExtracted) {
+          extractPalette(publicUrl).then((colors) => {
+            if (colors.length > 0) onPaletteExtracted(colors);
+          });
+        }
       } catch (err) {
         console.error("Cover upload error:", err);
       } finally {
         setUploading(false);
       }
     },
-    [onChangeCover],
+    [onChangeCover, onPaletteExtracted],
   );
 
   /** Default gradient shown when no cover or image fails to load. */
@@ -190,6 +208,7 @@ export default function BoardCover({
 
   /** Renders the cover visual (uploaded image, preset, or default gradient). */
   function renderCoverContent() {
+    const imgPositionStyle = { objectPosition: `center ${coverPositionY}%` };
     if (hasCustomImage) {
       return (
         <img
@@ -197,6 +216,7 @@ export default function BoardCover({
           alt="Board cover"
           draggable={false}
           className="w-full h-full object-cover"
+          style={imgPositionStyle}
           onError={() => setImgError(true)}
         />
       );
@@ -204,7 +224,7 @@ export default function BoardCover({
     if (hasPresetCover) {
       const preset = resolvePreset(coverImageUrl);
       if (preset.imageUrl) {
-        return <img src={preset.imageUrl} alt="Board cover" draggable={false} className="w-full h-full object-cover" />;
+        return <img src={preset.imageUrl} alt="Board cover" draggable={false} className="w-full h-full object-cover" style={imgPositionStyle} />;
       }
       return <div className="w-full h-full" style={{ background: preset.background }} />;
     }
@@ -216,27 +236,27 @@ export default function BoardCover({
       {/* Banner — consistent height */}
       <div
         className="relative w-full overflow-hidden"
-        style={{ height: BANNER_HEIGHT }}
+        style={{ height: coverHeight }}
       >
         {renderCoverContent()}
 
-        {/* Small edit button in corner */}
-        {editMode && (
-          <button
-            onClick={() => setModalOpen(true)}
-            className="absolute bottom-3 right-3 flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-lg bg-white/80 dark:bg-black/50 text-gray-900 dark:text-white hover:bg-white dark:hover:bg-black/70 transition-colors"
-          >
-            <Pencil size={12} />
-            Edit Cover
-          </button>
-        )}
+        {/* Edit button — always rendered, visibility toggled via CSS for instant response */}
+        <button
+          onClick={() => setModalOpen(true)}
+          className={`absolute bottom-3 right-3 z-10 w-8 h-8 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center hover:bg-black/60 transition-all duration-200 ${
+            editMode ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+          }`}
+          aria-label="Edit Cover"
+        >
+          <Pencil size={14} className="text-white" />
+        </button>
       </div>
 
       {/* Cover editing modal — portaled to body */}
       {modalOpen && typeof document !== "undefined" && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40 animate-announce-backdrop-in" onClick={() => setModalOpen(false)} />
-          <div className="relative bg-card rounded-2xl shadow-xl w-full max-w-md mx-4 animate-announce-card-in overflow-hidden">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-announce-backdrop-in" onClick={() => setModalOpen(false)} />
+          <div className="relative bg-popover rounded-2xl shadow-2xl border border-border w-full max-w-md mx-4 animate-announce-card-in overflow-hidden">
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-border">
               <h2 className="text-base font-semibold text-foreground">Edit Cover</h2>
@@ -254,6 +274,42 @@ export default function BoardCover({
               {renderCoverContent()}
             </div>
 
+            {/* Height & Position sliders */}
+            <div className="px-4 pt-4 space-y-3">
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Banner Height</label>
+                  <span className="text-[10px] tabular-nums text-muted-foreground">{coverHeight}px</span>
+                </div>
+                <input
+                  type="range"
+                  min={80}
+                  max={350}
+                  step={10}
+                  value={coverHeight}
+                  onChange={(e) => onChangeCoverConfig(Number(e.target.value), coverPositionY)}
+                  className="w-full h-1.5 rounded-full appearance-none bg-muted accent-blue-500 cursor-pointer"
+                />
+              </div>
+              {isImageCover && (
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Image Position</label>
+                    <span className="text-[10px] tabular-nums text-muted-foreground">{coverPositionY}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={coverPositionY}
+                    onChange={(e) => onChangeCoverConfig(coverHeight, Number(e.target.value))}
+                    className="w-full h-1.5 rounded-full appearance-none bg-muted accent-blue-500 cursor-pointer"
+                  />
+                </div>
+              )}
+            </div>
+
             {/* Preset sections — scrollable */}
             <div className="p-4 space-y-4 max-h-[50vh] overflow-y-auto">
               {/* Photos */}
@@ -266,6 +322,12 @@ export default function BoardCover({
                       onClick={() => {
                         onChangeCover(`preset:${p.id}`);
                         setModalOpen(false);
+                        // Extract palette from photo preset
+                        if (onPaletteExtracted) {
+                          extractPalette(p.url).then((colors) => {
+                            if (colors.length > 0) onPaletteExtracted(colors);
+                          });
+                        }
                       }}
                       className="w-full aspect-[3/1] rounded-lg overflow-hidden ring-1 ring-border hover:ring-2 hover:ring-blue-500 transition-all"
                       title={p.label}
@@ -322,7 +384,7 @@ export default function BoardCover({
               <button
                 onClick={() => fileRef.current?.click()}
                 disabled={uploading}
-                className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border border-border text-foreground hover:bg-muted transition-colors"
+                className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-xl border border-border text-foreground hover:bg-muted transition-colors"
               >
                 {uploading ? (
                   <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
@@ -337,7 +399,7 @@ export default function BoardCover({
                     onChangeCover("");
                     setModalOpen(false);
                   }}
-                  className="px-3 py-2 text-sm rounded-lg text-red-500 hover:bg-red-500/10 transition-colors"
+                  className="px-3 py-2 text-sm rounded-xl text-red-500 hover:bg-red-500/10 transition-colors"
                 >
                   Remove
                 </button>
@@ -345,7 +407,7 @@ export default function BoardCover({
               <div className="flex-1" />
               <button
                 onClick={() => setModalOpen(false)}
-                className="px-4 py-2 text-sm rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                className="px-4 py-2 text-sm rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               >
                 Done
               </button>

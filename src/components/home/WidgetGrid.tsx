@@ -45,6 +45,10 @@ interface WidgetGridProps {
   onRemoveWidget: (id: string) => void;
   onWidgetSettings: (id: string) => void;
   onUpdateWidgetConfig?: (id: string, config: Record<string, string>) => void;
+  /** Called when a widget drag starts (to disable parent scroll). */
+  onDragStart?: () => void;
+  /** Called when a widget drag ends (to re-enable parent scroll). */
+  onDragStop?: () => void;
 }
 
 export default function WidgetGrid({
@@ -55,6 +59,8 @@ export default function WidgetGrid({
   onRemoveWidget,
   onWidgetSettings,
   onUpdateWidgetConfig,
+  onDragStart,
+  onDragStop,
 }: WidgetGridProps) {
   const { width, containerRef, mounted } = useContainerWidth({
     measureBeforeMount: false,
@@ -108,10 +114,13 @@ export default function WidgetGrid({
           cols={COLS}
           rowHeight={ROW_HEIGHT}
           margin={MARGIN}
+          containerPadding={[0, 0]}
           dragConfig={{ enabled: editMode, cancel: ".no-drag" }}
           resizeConfig={{ enabled: editMode, handles: ["se", "sw", "ne", "nw"] }}
           compactor={verticalCompactor}
           onLayoutChange={onLayoutChange}
+          onDragStart={onDragStart}
+          onDragStop={onDragStop}
         >
           {gridItems}
         </ResponsiveGridLayout>

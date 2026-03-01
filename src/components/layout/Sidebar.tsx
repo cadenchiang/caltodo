@@ -87,6 +87,22 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
     }
   }, [pathname, calchatClicked]);
 
+  // Track whether user has visited Home to dismiss "NEW" badge
+  const [homeBadgeDismissed, setHomeBadgeDismissed] = useState(true); // default true to avoid flash
+  useEffect(() => {
+    try {
+      setHomeBadgeDismissed(localStorage.getItem("home-badge-dismissed") === "true");
+    } catch { /* ignore */ }
+  }, []);
+
+  // Dismiss Home "NEW" badge on first visit to /app/home
+  useEffect(() => {
+    if (pathname.startsWith("/app/home") && !homeBadgeDismissed) {
+      setHomeBadgeDismissed(true);
+      try { localStorage.setItem("home-badge-dismissed", "true"); } catch { /* ignore */ }
+    }
+  }, [pathname, homeBadgeDismissed]);
+
   // Derive active settings section directly from URL search params (single source of truth)
   const sectionParam = searchParams.get("section");
   const activeSettingsSection: SettingsSectionId =
@@ -179,6 +195,7 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
               const isInbox = item.href === "/app/inbox";
               const isCalendar = item.href === "/app/calendar";
               const isChat = item.href === "/app/discussions";
+              const isHome = item.href === "/app/home";
               return (
                 <SidebarNavItem
                   key={item.href}
@@ -193,7 +210,13 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
                         ? pendingInviteCount
                         : undefined
                   }
-                  badgeText={isChat && hasCalChatUnread === 0 && !calchatClicked ? "NEW" : undefined}
+                  badgeText={
+                    isChat && hasCalChatUnread === 0 && !calchatClicked
+                      ? "NEW"
+                      : isHome && !homeBadgeDismissed
+                        ? "NEW"
+                        : undefined
+                  }
                   id={`tour-nav-${item.label.toLowerCase()}`}
                   imageSrc={undefined}
                   imageClassName={undefined}

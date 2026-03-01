@@ -15,33 +15,21 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
+import FontPicker from "@/components/ui/FontPicker";
 
-/** Available font families. */
-const FONT_OPTIONS: { label: string; value: string }[] = [
-  { label: "System Default", value: "" },
-  { label: "Inter", value: "'Inter', sans-serif" },
-  { label: "DM Sans", value: "'DM Sans', sans-serif" },
-  { label: "Plus Jakarta Sans", value: "'Plus Jakarta Sans', sans-serif" },
-  { label: "Outfit", value: "'Outfit', sans-serif" },
-  { label: "Manrope", value: "'Manrope', sans-serif" },
-  { label: "Urbanist", value: "'Urbanist', sans-serif" },
-  { label: "Sora", value: "'Sora', sans-serif" },
-  { label: "Helvetica Neue", value: "'Helvetica Neue', sans-serif" },
-  { label: "Nunito", value: "'Nunito', sans-serif" },
-  { label: "Quicksand", value: "'Quicksand', sans-serif" },
-  { label: "Varela Round", value: "'Varela Round', sans-serif" },
-  { label: "DM Serif Display", value: "'DM Serif Display', serif" },
-  { label: "Playfair Display", value: "'Playfair Display', serif" },
-  { label: "Source Serif 4", value: "'Source Serif 4', serif" },
-  { label: "Georgia", value: "'Georgia', serif" },
-  { label: "Palatino", value: "'Palatino Linotype', serif" },
-  { label: "Menlo", value: "'Menlo', monospace" },
+
+/** Title size options with display labels and Tailwind classes. */
+const TITLE_SIZES: { label: string; value: string; className: string }[] = [
+  { label: "S", value: "sm", className: "text-xl md:text-2xl" },
+  { label: "M", value: "md", className: "text-2xl md:text-3xl" },
+  { label: "L", value: "lg", className: "text-3xl md:text-4xl" },
+  { label: "XL", value: "xl", className: "text-4xl md:text-5xl" },
 ];
-
 
 interface TitleConfig {
   fontFamily?: string;
   textColor?: string;
+  fontSize?: string;
 }
 
 interface BoardTitleProps {
@@ -63,31 +51,36 @@ export default function BoardTitle({
   const [localTitle, setLocalTitle] = useState(title);
   const [localFont, setLocalFont] = useState(titleConfig?.fontFamily || "");
   const [localColor, setLocalColor] = useState(titleConfig?.textColor || "");
+  const [localSize, setLocalSize] = useState(titleConfig?.fontSize || "lg");
 
   // Sync from props
   useEffect(() => {
     setLocalTitle(title);
     setLocalFont(titleConfig?.fontFamily || "");
     setLocalColor(titleConfig?.textColor || "");
+    setLocalSize(titleConfig?.fontSize || "lg");
   }, [title, titleConfig]);
 
   /** Saves all changes and closes modal. */
   function handleSave() {
     const trimmed = localTitle.trim() || "My Board";
     onTitleChange(trimmed);
-    onTitleConfigChange?.({ fontFamily: localFont, textColor: localColor });
+    onTitleConfigChange?.({ fontFamily: localFont, textColor: localColor, fontSize: localSize });
     setModalOpen(false);
   }
 
+  /** Default to Instrument Serif (Notion-like) when no font is configured. */
   const titleStyle: React.CSSProperties = {
-    fontFamily: titleConfig?.fontFamily || undefined,
+    fontFamily: titleConfig?.fontFamily || "var(--font-instrument-serif), serif",
     color: titleConfig?.textColor || undefined,
   };
+
+  const sizeClass = TITLE_SIZES.find((s) => s.value === (titleConfig?.fontSize || "lg"))?.className ?? "text-3xl md:text-4xl";
 
   return (
     <>
       <h1
-        className={`text-3xl md:text-4xl font-bold text-foreground ${
+        className={`${sizeClass} font-bold text-foreground ${
           editMode ? "cursor-pointer hover:opacity-70 transition-opacity" : ""
         }`}
         style={titleStyle}
@@ -101,8 +94,8 @@ export default function BoardTitle({
       {/* Title editing modal — portaled to body to avoid clipping */}
       {modalOpen && typeof document !== "undefined" && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40 animate-announce-backdrop-in" onClick={() => setModalOpen(false)} />
-          <div className="relative bg-card rounded-2xl shadow-xl w-full max-w-sm mx-4 animate-announce-card-in overflow-hidden">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-announce-backdrop-in" onClick={() => setModalOpen(false)} />
+          <div className="relative bg-popover rounded-2xl shadow-2xl border border-border w-full max-w-md mx-4 animate-announce-card-in overflow-hidden">
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-border">
               <h2 className="text-base font-semibold text-foreground">Edit Title</h2>
@@ -131,15 +124,28 @@ export default function BoardTitle({
               {/* Font */}
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">Font</label>
-                <select
-                  value={localFont}
-                  onChange={(e) => setLocalFont(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-input-border bg-card text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                >
-                  {FONT_OPTIONS.map((f) => (
-                    <option key={f.value} value={f.value}>{f.label}</option>
+                <FontPicker value={localFont} onChange={setLocalFont} />
+              </div>
+
+              {/* Size */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">Size</label>
+                <div className="flex gap-1.5">
+                  {TITLE_SIZES.map((s) => (
+                    <button
+                      key={s.value}
+                      type="button"
+                      onClick={() => setLocalSize(s.value)}
+                      className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
+                        localSize === s.value
+                          ? "bg-blue-500 text-white"
+                          : "bg-muted text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {s.label}
+                    </button>
                   ))}
-                </select>
+                </div>
               </div>
 
               {/* Color — color wheel + hex input */}
@@ -172,9 +178,9 @@ export default function BoardTitle({
               </div>
 
               {/* Preview */}
-              <div className="p-3 rounded-lg bg-muted">
+              <div className="p-3 rounded-lg bg-muted overflow-hidden">
                 <span
-                  className="text-xl font-bold"
+                  className={`${TITLE_SIZES.find((s) => s.value === localSize)?.className ?? "text-3xl"} font-bold block truncate`}
                   style={{
                     fontFamily: localFont || undefined,
                     color: localColor || undefined,
@@ -187,10 +193,10 @@ export default function BoardTitle({
 
             {/* Footer */}
             <div className="flex justify-end gap-2 p-4 border-t border-border">
-              <button onClick={() => setModalOpen(false)} className="px-4 py-2 text-sm rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+              <button onClick={() => setModalOpen(false)} className="px-4 py-2 text-sm rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
                 Cancel
               </button>
-              <button onClick={handleSave} className="px-4 py-2 text-sm rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors">
+              <button onClick={handleSave} className="px-4 py-2 text-sm rounded-xl bg-blue-500 text-white hover:bg-blue-600 transition-colors">
                 Save
               </button>
             </div>

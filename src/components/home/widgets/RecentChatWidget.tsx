@@ -47,8 +47,7 @@ export default function RecentChatWidget({ config }: RecentChatWidgetProps) {
 
   return (
     <div className="h-full w-full flex flex-col p-4 overflow-hidden">
-      <div className="flex items-center gap-2 mb-3">
-        <MessageSquare size={14} className="text-blue-500 shrink-0" />
+      <div className="mb-3">
         <h3 className="text-sm font-semibold text-foreground truncate">
           {board.course.name}
         </h3>
