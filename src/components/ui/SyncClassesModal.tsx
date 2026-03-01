@@ -56,15 +56,15 @@ export default function SyncClassesModal() {
   // Dedicated redo path — bypasses all other checks for reliability
   useEffect(() => {
     if (!redoActive) return;
-    if (!pathname?.startsWith("/app/inbox")) return;
+    if (!pathname?.startsWith("/app/inbox") && !pathname?.startsWith("/app/home")) return;
     const timer = setTimeout(() => setVisible(true), 400);
     return () => clearTimeout(timer);
   }, [redoActive, pathname]);
 
-  // Standard show logic for first-time users
+  // Standard show logic for first-time users (shows on /app/home or /app/inbox)
   useEffect(() => {
     if (redoActive) return; // redo has its own path
-    if (!pathname?.startsWith("/app/inbox")) return;
+    if (!pathname?.startsWith("/app/inbox") && !pathname?.startsWith("/app/home")) return;
     if (loading) return;
     if (dismissedThisSession) return;
     if (hasCompletedOnboarding) return;

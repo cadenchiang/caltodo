@@ -79,7 +79,7 @@ export function useGoogleSignIn() {
                 data: { session },
               } = await supabase.auth.getSession();
               if (session) {
-                window.location.href = "/app/inbox";
+                window.location.href = "/app/home";
               }
               return;
             }
@@ -90,7 +90,7 @@ export function useGoogleSignIn() {
               clearInterval(pollId);
               const destination = popupUrl.includes("/app/onboarding")
                 ? "/app/onboarding"
-                : "/app/inbox";
+                : "/app/home";
               popup.close();
               window.location.href = destination;
             }

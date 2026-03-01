@@ -28,8 +28,8 @@ import WidgetContainer from "@/components/home/WidgetContainer";
 /** Breakpoint column mapping: lg=8, md=4, sm=2. */
 const COLS = { lg: 8, md: 4, sm: 2 };
 
-/** Breakpoint pixel thresholds. */
-const BREAKPOINTS = { lg: 1200, md: 768, sm: 0 };
+/** Breakpoint pixel thresholds (lg lowered so laptops with sidebar still get 8 cols). */
+const BREAKPOINTS = { lg: 996, md: 768, sm: 0 };
 
 /** Row height in pixels. */
 const ROW_HEIGHT = 120;

@@ -139,19 +139,38 @@ export function getDefaultLayout(): {
 } {
   const widgets: WidgetInstance[] = [
     { id: "default-tasks", type: "tasks-today", config: {} },
-    { id: "default-weather", type: "weather", config: {} },
     { id: "default-notes", type: "notes", config: {} },
     { id: "default-clock", type: "clock", config: {} },
+    { id: "default-weather", type: "weather", config: {} },
     { id: "default-progress", type: "class-progress", config: {} },
   ];
 
+  /** lg: 8 columns — 2 filled rows. */
   const lg: LayoutItem[] = [
     { i: "default-tasks", x: 0, y: 0, w: 2, h: 2, minW: 1, minH: 1 },
-    { i: "default-weather", x: 2, y: 0, w: 2, h: 2, minW: 1, minH: 1 },
-    { i: "default-notes", x: 4, y: 0, w: 2, h: 2, minW: 1, minH: 1 },
-    { i: "default-clock", x: 6, y: 0, w: 2, h: 1, minW: 1, minH: 1 },
-    { i: "default-progress", x: 6, y: 1, w: 2, h: 1, minW: 1, minH: 1 },
+    { i: "default-notes", x: 2, y: 0, w: 2, h: 2, minW: 1, minH: 1 },
+    { i: "default-clock", x: 4, y: 0, w: 2, h: 1, minW: 1, minH: 1 },
+    { i: "default-weather", x: 6, y: 0, w: 2, h: 1, minW: 1, minH: 1 },
+    { i: "default-progress", x: 4, y: 1, w: 4, h: 1, minW: 2, minH: 1 },
   ];
 
-  return { widgets, layouts: { lg } };
+  /** md: 4 columns — 3 filled rows. */
+  const md: LayoutItem[] = [
+    { i: "default-tasks", x: 0, y: 0, w: 2, h: 2, minW: 1, minH: 1 },
+    { i: "default-weather", x: 2, y: 0, w: 2, h: 1, minW: 1, minH: 1 },
+    { i: "default-clock", x: 2, y: 1, w: 2, h: 1, minW: 1, minH: 1 },
+    { i: "default-notes", x: 0, y: 2, w: 2, h: 2, minW: 1, minH: 1 },
+    { i: "default-progress", x: 2, y: 2, w: 2, h: 1, minW: 1, minH: 1 },
+  ];
+
+  /** sm: 2 columns — single-column stack. */
+  const sm: LayoutItem[] = [
+    { i: "default-tasks", x: 0, y: 0, w: 2, h: 2, minW: 1, minH: 1 },
+    { i: "default-weather", x: 0, y: 2, w: 2, h: 1, minW: 1, minH: 1 },
+    { i: "default-clock", x: 0, y: 3, w: 2, h: 1, minW: 1, minH: 1 },
+    { i: "default-notes", x: 0, y: 4, w: 2, h: 2, minW: 1, minH: 1 },
+    { i: "default-progress", x: 0, y: 6, w: 2, h: 1, minW: 1, minH: 1 },
+  ];
+
+  return { widgets, layouts: { lg, md, sm } };
 }

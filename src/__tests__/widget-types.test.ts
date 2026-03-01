@@ -66,7 +66,7 @@ describe("getDefaultLayout", () => {
     expect(widgets).toHaveLength(5);
   });
 
-  it("should include tasks-today, weather, notes, clock, and class-progress", () => {
+  it("should include tasks-today, notes, clock, weather, and class-progress", () => {
     const { widgets } = getDefaultLayout();
     const types = widgets.map((w) => w.type).sort();
     expect(types).toEqual(["class-progress", "clock", "notes", "tasks-today", "weather"]);
