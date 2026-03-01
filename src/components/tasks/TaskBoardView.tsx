@@ -392,7 +392,7 @@ export default function TaskBoardView({
               draggable={false}
             />
           )}
-          No tasks yet. Type above and press Enter!
+          No tasks yet. Press + to add one.
         </div>
       </div>
     );

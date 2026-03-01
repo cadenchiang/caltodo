@@ -69,7 +69,7 @@ const PHOTO_COVERS: { id: string; label: string; url: string }[] = [
   { id: "p2", label: "Ocean Horizon", url: "https://images.unsplash.com/photo-1518837695005-2083093ee35b?w=1600&h=350&fit=crop&crop=center&q=80" },
   { id: "p3", label: "Forest Canopy", url: "https://images.unsplash.com/photo-1448375240586-882707db888b?w=1600&h=350&fit=crop&crop=center&q=80" },
   { id: "p4", label: "Desert Landscape", url: "https://images.unsplash.com/photo-1473580044384-7ba9967e16a0?w=1600&h=350&fit=crop&crop=center&q=80" },
-  { id: "p5", label: "Cherry Blossoms", url: "https://images.unsplash.com/photo-1462275646964-a0e3c11f18a6?w=1600&h=350&fit=crop&crop=center&q=80" },
+  { id: "p5", label: "Cherry Blossoms", url: "https://images.unsplash.com/photo-1522383225653-ed111181a951?w=1600&h=350&fit=crop&crop=center&q=80" },
   { id: "p6", label: "Northern Lights", url: "https://images.unsplash.com/photo-1531366936337-7c912a4589a7?w=1600&h=350&fit=crop&crop=top&q=80" },
   { id: "p7", label: "Autumn Road", url: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=1600&h=350&fit=crop&crop=center&q=80" },
   { id: "p8", label: "Tropical Beach", url: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1600&h=350&fit=crop&crop=center&q=80" },

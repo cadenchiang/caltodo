@@ -203,7 +203,7 @@ export function useWidgetLayout() {
   const [layouts, setLayoutsState] = useState<ResponsiveLayouts<string>>(defaults.layouts);
   const [boardTitle, setBoardTitleState] = useState("My Board");
   const [boardDescription, setBoardDescriptionState] = useState("The secret of getting ahead is getting started.");
-  const [coverImageUrl, setCoverImageUrlState] = useState("preset:g4");
+  const [coverImageUrl, setCoverImageUrlState] = useState("preset:p5");
   const [boardEmoji, setBoardEmojiState] = useState("\u{1F338}");
   const [iconSize, setIconSizeState] = useState("md");
   const [titleFontFamily, setTitleFontFamilyState] = useState("");
@@ -233,7 +233,7 @@ export function useWidgetLayout() {
       setLayoutsState(persisted.layouts);
       const title = persisted.boardTitle || "My Board";
       const desc = persisted.boardDescription || "";
-      const cover = persisted.coverImageUrl ?? "preset:g4";
+      const cover = persisted.coverImageUrl ?? "preset:p5";
       const emoji = persisted.boardEmoji || "\u{1F338}";
       const iSize = persisted.iconSize || "md";
       setBoardTitleState(title);

@@ -127,7 +127,7 @@ export default function TasksTodayWidget({ config }: TasksTodayWidgetProps) {
         <div className="flex-1 flex flex-col items-center justify-center">
           <Inbox size={20} className="text-foreground mb-2" />
           <p className="text-sm text-foreground">
-            {viewMode === "today" ? "Nothing due today" : viewMode === "week" ? "Nothing this week" : "No tasks"}
+            {viewMode === "today" ? "Nothing due today" : viewMode === "week" ? "Nothing this week" : "No tasks yet"}
           </p>
         </div>
       ) : (
