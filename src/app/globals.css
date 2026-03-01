@@ -1622,12 +1622,14 @@ textarea:-webkit-autofill {
 }
 
 /* Corner L-bracket resize handles — ::before pseudo-elements pointing outward */
+/* Override library's rotate transforms that conflict with explicit border positioning */
 .react-grid-item > .react-resizable-handle-se,
 .react-grid-item > .react-resizable-handle-sw,
 .react-grid-item > .react-resizable-handle-ne,
 .react-grid-item > .react-resizable-handle-nw {
   border: none !important;
   border-radius: 0 !important;
+  transform: none !important;
 }
 
 .react-grid-item > .react-resizable-handle-se::before,
