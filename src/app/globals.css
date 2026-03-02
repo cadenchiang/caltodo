@@ -1519,9 +1519,9 @@ textarea:-webkit-autofill {
 /* ── Widget Dashboard: subtle, smooth iOS-style jiggle for edit mode ── */
 @keyframes widgetJiggle {
   0% { transform: rotate(0deg); }
-  25% { transform: rotate(-0.15deg); }
+  25% { transform: rotate(-0.6deg); }
   50% { transform: rotate(0deg); }
-  75% { transform: rotate(0.15deg); }
+  75% { transform: rotate(0.6deg); }
   100% { transform: rotate(0deg); }
 }
 

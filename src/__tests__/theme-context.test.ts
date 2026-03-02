@@ -2,7 +2,13 @@
  * Tests for solar-based theme resolution.
  * Verifies sunrise/sunset calculation, isDarkBySun, geolocation caching,
  * and resolveTheme integration with solar logic.
+ *
+ * Pinned to America/Los_Angeles so sun times match Berkeley expectations
+ * regardless of the CI server's timezone.
  */
+
+// Must be set before any Date usage so Node picks up the timezone
+process.env.TZ = "America/Los_Angeles";
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { getSunTimes, isDarkBySun } from "@/lib/solar";
