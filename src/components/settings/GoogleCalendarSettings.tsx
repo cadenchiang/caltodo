@@ -7,7 +7,7 @@
 
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { ExternalLink } from "lucide-react";
@@ -68,6 +68,7 @@ export default function GoogleCalendarSettings() {
   const [syncProgress, setSyncProgress] = useState<{ synced: number; total: number } | null>(null);
   // Local override for connected state during OAuth flow (before context refreshes)
   const [oauthConnecting, setOauthConnecting] = useState(false);
+  const [unsyncedCount, setUnsyncedCount] = useState(0);
   const mountedRef = useRef(true);
 
   globalShowToast = showToast;
@@ -99,6 +100,125 @@ export default function GoogleCalendarSettings() {
 
   function ifMounted<T>(setter: React.Dispatch<React.SetStateAction<T>>, value: NoInfer<T>) {
     if (mountedRef.current) setter(value);
+  }
+
+  /**
+   * Reads an NDJSON stream from the initial-sync endpoint, firing callbacks
+   * for progress and completion events.
+   *
+   * @param response - The fetch Response with an NDJSON body
+   * @param callbacks - Progress and done handlers
+   * @returns The final "done" event payload, or null if stream ended without one
+   */
+  async function readSyncStream(
+    response: Response,
+    callbacks: {
+      onProgress: (synced: number, total: number) => void;
+      onDone: () => void;
+    },
+  ): Promise<{ synced: number; total: number; errors: string[] } | null> {
+    const reader = response.body?.getReader();
+    if (!reader) return null;
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let finalResult: { synced: number; total: number; errors: string[] } | null = null;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) { buffer += decoder.decode(); break; }
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        try {
+          const event = JSON.parse(line);
+          if (event.type === "start" || event.type === "progress") {
+            callbacks.onProgress(event.synced ?? 0, event.total);
+          } else if (event.type === "done") {
+            finalResult = event;
+            callbacks.onDone();
+          }
+        } catch { /* skip malformed lines */ }
+      }
+    }
+    if (buffer.trim()) {
+      try {
+        const event = JSON.parse(buffer);
+        if (event.type === "done") { finalResult = event; callbacks.onDone(); }
+      } catch { /* skip */ }
+    }
+    return finalResult;
+  }
+
+  /**
+   * Fetches the count of tasks with due dates that haven't synced to GCal.
+   * Only called when connected and not currently syncing.
+   */
+  const fetchUnsyncedCount = useCallback(async () => {
+    try {
+      const res = await fetch("/api/gcal/unsynced-count");
+      if (!res.ok) return;
+      const data = await res.json();
+      if (mountedRef.current) setUnsyncedCount(data.count ?? 0);
+    } catch { /* network error — ignore silently */ }
+  }, []);
+
+  // Fetch unsynced count when connected and idle
+  useEffect(() => {
+    if (connected && !syncing) {
+      fetchUnsyncedCount();
+    }
+  }, [connected, syncing, fetchUnsyncedCount]);
+
+  /**
+   * Retries syncing unsynced tasks by calling the existing initial-sync endpoint.
+   * Reuses the same NDJSON stream reading logic as autoSetupCalendar.
+   */
+  async function handleRetrySync() {
+    setSyncing(true);
+    ifMounted(setSyncProgress, { synced: 0, total: 0 });
+    toast("Syncing missed tasks to Google Calendar...", { progress: 0 });
+    try {
+      const syncRes = await fetch("/api/gcal/initial-sync", { method: "POST" });
+      const contentType = syncRes.headers.get("Content-Type") ?? "";
+      if (contentType.includes("application/json")) {
+        const result = await syncRes.json();
+        if (syncRes.ok && result.synced === 0 && result.total === 0) {
+          toast("All tasks are already synced.");
+        } else if (!syncRes.ok) {
+          toast(`Sync failed: ${result.error || syncRes.status}`);
+        }
+        return;
+      }
+      const finalResult = await readSyncStream(syncRes, {
+        onProgress: (synced, total) => {
+          ifMounted(setSyncProgress, { synced, total });
+          if (total > 0) toastProgress(Math.round((synced / total) * 100));
+        },
+        onDone: () => ifMounted(setSyncProgress, null),
+      });
+      if (!finalResult) {
+        toast("Sync failed: no response stream.");
+        return;
+      }
+      if (finalResult.synced > 0) {
+        const msg = finalResult.synced === finalResult.total
+          ? `Synced ${finalResult.synced} task${finalResult.synced === 1 ? "" : "s"} to Google Calendar.`
+          : `Synced ${finalResult.synced} of ${finalResult.total} tasks to Google Calendar.`;
+        toast(msg);
+      } else if (finalResult.total > 0) {
+        toast(`Sync failed for all ${finalResult.total} tasks. Check your Google Calendar permissions.`);
+      } else {
+        toast("All tasks are already synced.");
+      }
+    } catch (err) {
+      console.error("Retry sync error:", err);
+      toast("Failed to sync tasks. Please try again.");
+    } finally {
+      ifMounted(setSyncing, false);
+      ifMounted(setSyncProgress, null);
+      fetchUnsyncedCount();
+    }
   }
 
   async function autoSetupCalendar() {
@@ -143,40 +263,14 @@ export default function GoogleCalendarSettings() {
           /* sync complete */
           return;
         }
-        const reader = syncRes.body?.getReader();
-        if (!reader) { toast("Sync failed: no response stream."); return; }
-        const decoder = new TextDecoder();
-        let buffer = "";
-        let finalResult: { synced: number; total: number; errors: string[] } | null = null;
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) { buffer += decoder.decode(); break; }
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() ?? "";
-          for (const line of lines) {
-            if (!line.trim()) continue;
-            try {
-              const event = JSON.parse(line);
-              if (event.type === "start" || event.type === "progress") {
-                ifMounted(setSyncProgress, { synced: event.synced ?? 0, total: event.total });
-                if (event.total > 0) {
-                  const pct = Math.round(((event.synced ?? 0) / event.total) * 100);
-                  toastProgress(pct);
-                }
-              } else if (event.type === "done") {
-                finalResult = event;
-                ifMounted(setSyncProgress, null);
-              }
-            } catch { /* skip */ }
-          }
-        }
-        if (buffer.trim()) {
-          try {
-            const event = JSON.parse(buffer);
-            if (event.type === "done") { finalResult = event; ifMounted(setSyncProgress, null); }
-          } catch { /* skip */ }
-        }
+        const finalResult = await readSyncStream(syncRes, {
+          onProgress: (synced, total) => {
+            ifMounted(setSyncProgress, { synced, total });
+            if (total > 0) toastProgress(Math.round((synced / total) * 100));
+          },
+          onDone: () => ifMounted(setSyncProgress, null),
+        });
+        if (!finalResult) { toast("Sync failed: no response stream."); return; }
         if (finalResult && finalResult.synced > 0) {
           const msg = finalResult.synced === finalResult.total
             ? `Synced ${finalResult.synced} task${finalResult.synced === 1 ? "" : "s"} to Google Calendar. New tasks will sync automatically.`
@@ -378,6 +472,21 @@ export default function GoogleCalendarSettings() {
             </button>
           )}
         </div>
+
+        {/* Unsynced tasks banner */}
+        {unsyncedCount > 0 && !syncing && (
+          <div className="flex items-center justify-between px-4 py-2 border-t border-border bg-amber-50/50 dark:bg-amber-500/5">
+            <p className="text-xs text-amber-700 dark:text-amber-400">
+              {unsyncedCount} task{unsyncedCount === 1 ? "" : "s"} haven&apos;t synced to Google Calendar
+            </p>
+            <button
+              onClick={handleRetrySync}
+              className="text-xs font-medium text-blue-500 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer shrink-0 ml-3"
+            >
+              Sync Now
+            </button>
+          </div>
+        )}
 
         {/* Sync progress bar at bottom of card */}
         {syncing && (
