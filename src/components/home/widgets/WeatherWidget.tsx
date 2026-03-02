@@ -87,6 +87,7 @@ export default function WeatherWidget({ config, editMode }: WeatherWidgetProps) 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [detailOpen, setDetailOpen] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const [compact, setCompact] = useState(false);
 
@@ -173,7 +174,7 @@ export default function WeatherWidget({ config, editMode }: WeatherWidgetProps) 
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [retryCount]);
 
   /** Formats temperature based on unit preference. */
   function formatTemp(celsius: number): string {
@@ -194,7 +195,13 @@ export default function WeatherWidget({ config, editMode }: WeatherWidgetProps) 
         <div className="text-muted-foreground mb-2">
           {getWeatherIcon(3, 24)}
         </div>
-        <p className="text-sm text-muted-foreground">{error}</p>
+        <button
+          type="button"
+          onClick={() => setRetryCount((c) => c + 1)}
+          className="text-sm text-blue-500 hover:text-blue-600 transition-colors cursor-pointer"
+        >
+          {error}
+        </button>
       </div>
     );
   }

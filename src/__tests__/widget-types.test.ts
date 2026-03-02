@@ -62,15 +62,15 @@ describe("generateWidgetId", () => {
 });
 
 describe("getDefaultLayout", () => {
-  it("should return 5 default widgets", () => {
+  it("should return 6 default widgets", () => {
     const { widgets } = getDefaultLayout();
-    expect(widgets).toHaveLength(5);
+    expect(widgets).toHaveLength(6);
   });
 
-  it("should include tasks-today, notes, clock, weather, and class-progress", () => {
+  it("should include google-calendar, tasks-today, clock, weather, image, and notes", () => {
     const { widgets } = getDefaultLayout();
     const types = widgets.map((w) => w.type).sort();
-    expect(types).toEqual(["class-progress", "clock", "notes", "tasks-today", "weather"]);
+    expect(types).toEqual(["clock", "google-calendar", "image", "notes", "tasks-today", "weather"]);
   });
 
   it("should have a layout entry for every widget", () => {
