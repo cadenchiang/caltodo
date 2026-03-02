@@ -98,6 +98,7 @@ npx vitest run src/__tests__/gradescope-client.test.ts  # Run specific test
 - Dropdowns/popovers use `bg-popover` (solid, never transparent)
 - API routes include structured logging via `logger` from `@/lib/logger`
 - Optimistic UI updates with rollback on error (see TaskContext patterns)
+- **UI consistency**: See `UI_STYLE_GUIDE.md` for complete patterns (modals, buttons, colors, typography, animations). Never use gray all-caps text for labels, hardcoded colors, or transparent popover backgrounds.
 
 ### Git Workflow
 

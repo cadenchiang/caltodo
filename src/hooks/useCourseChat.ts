@@ -11,6 +11,7 @@ import { obfuscateAuthorId } from "@/lib/author-obfuscate";
 import { compressImage } from "@/lib/compress-image";
 import { classifyImage } from "@/lib/nsfw-check";
 import { playMessageSent } from "@/lib/sounds";
+import { READ_AT_PREFIX } from "@/lib/chat-actions";
 
 const PAGE_SIZE = 50;
 
@@ -302,6 +303,12 @@ export function useCourseChat(courseId: string, options?: { isSystemCourse?: boo
         )
       );
       playMessageSent();
+
+      // Update read_at so the user's own message doesn't trigger an unread badge
+      try {
+        localStorage.setItem(READ_AT_PREFIX + courseId, new Date().toISOString());
+      } catch { /* non-critical */ }
+      window.dispatchEvent(new CustomEvent("calchat-read-update", { detail: { courseId } }));
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg);

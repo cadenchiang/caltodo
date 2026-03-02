@@ -17,6 +17,7 @@ import {
   generateWidgetId,
   getDefaultLayout,
 } from "@/lib/widget-types";
+import { fetchServerLayout, debouncedServerSave } from "@/lib/board-layout-sync";
 
 /** Set of currently supported widget type strings. */
 const SUPPORTED_TYPES = new Set<string>(Object.keys(WIDGET_REGISTRY));
@@ -46,6 +47,8 @@ interface PersistedLayout {
   titleFontSize: string;
   coverHeight: number;
   coverPositionY: number;
+  /** Epoch ms timestamp for comparing localStorage vs server freshness. */
+  updatedAt: number;
 }
 
 /** Default banner height in pixels. */
@@ -149,7 +152,8 @@ function readPersistedLayout(): PersistedLayout | null {
 }
 
 /**
- * Writes layout to localStorage. Silently fails if unavailable.
+ * Writes layout to localStorage and triggers a debounced server save.
+ * Silently fails if localStorage is unavailable.
  *
  * @param widgets - Current widget instances
  * @param layouts - Current grid layouts per breakpoint
@@ -169,26 +173,29 @@ function writePersistedLayout(
   coverPositionY: number = DEFAULT_COVER_POSITION_Y
 ): void {
   if (typeof window === "undefined") return;
+  const data: PersistedLayout = {
+    version: SCHEMA_VERSION,
+    widgets,
+    layouts,
+    boardTitle,
+    boardDescription,
+    coverImageUrl,
+    boardEmoji,
+    iconSize,
+    titleFontFamily,
+    titleTextColor,
+    titleFontSize,
+    coverHeight,
+    coverPositionY,
+    updatedAt: Date.now(),
+  };
   try {
-    const data: PersistedLayout = {
-      version: SCHEMA_VERSION,
-      widgets,
-      layouts,
-      boardTitle,
-      boardDescription,
-      coverImageUrl,
-      boardEmoji,
-      iconSize,
-      titleFontFamily,
-      titleTextColor,
-      titleFontSize,
-      coverHeight,
-      coverPositionY,
-    };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   } catch {
     // localStorage full or unavailable — non-critical
   }
+  // Fire debounced write to server (500ms batching for rapid changes like dragging)
+  debouncedServerSave(data);
 }
 
 /**
@@ -225,44 +232,78 @@ export function useWidgetLayout() {
   const coverHeightRef = useRef(coverHeight);
   const coverPositionYRef = useRef(coverPositionY);
 
-  // Hydrate from localStorage after mount (avoids SSR mismatch)
+  /**
+   * Applies a PersistedLayout to all state + refs.
+   * Extracted to avoid duplication between localStorage and server hydration.
+   */
+  const applyLayout = useCallback((p: PersistedLayout) => {
+    setWidgets(p.widgets);
+    setLayoutsState(p.layouts);
+    const title = p.boardTitle || "My Board";
+    const desc = p.boardDescription || "";
+    const cover = p.coverImageUrl ?? "preset:cal";
+    const emoji = p.boardEmoji || "\u{1F4D6}";
+    const iSize = p.iconSize || "md";
+    setBoardTitleState(title);
+    setBoardDescriptionState(desc);
+    setCoverImageUrlState(cover);
+    setBoardEmojiState(emoji);
+    setIconSizeState(iSize);
+    const tFont = p.titleFontFamily || "";
+    const tColor = p.titleTextColor || "";
+    const tSize = p.titleFontSize || "lg";
+    const cHeight = p.coverHeight ?? DEFAULT_COVER_HEIGHT;
+    const cPosY = p.coverPositionY ?? DEFAULT_COVER_POSITION_Y;
+    setTitleFontFamilyState(tFont);
+    setTitleTextColorState(tColor);
+    setTitleFontSizeState(tSize);
+    setCoverHeightState(cHeight);
+    setCoverPositionYState(cPosY);
+    boardTitleRef.current = title;
+    boardDescriptionRef.current = desc;
+    coverImageUrlRef.current = cover;
+    boardEmojiRef.current = emoji;
+    iconSizeRef.current = iSize;
+    titleFontFamilyRef.current = tFont;
+    titleTextColorRef.current = tColor;
+    titleFontSizeRef.current = tSize;
+    coverHeightRef.current = cHeight;
+    coverPositionYRef.current = cPosY;
+  }, []);
+
+  // Hydrate from localStorage first (instant), then fetch server layout in background
   useEffect(() => {
-    const persisted = readPersistedLayout();
-    if (persisted) {
-      setWidgets(persisted.widgets);
-      setLayoutsState(persisted.layouts);
-      const title = persisted.boardTitle || "My Board";
-      const desc = persisted.boardDescription || "";
-      const cover = persisted.coverImageUrl ?? "preset:cal";
-      const emoji = persisted.boardEmoji || "\u{1F4D6}";
-      const iSize = persisted.iconSize || "md";
-      setBoardTitleState(title);
-      setBoardDescriptionState(desc);
-      setCoverImageUrlState(cover);
-      setBoardEmojiState(emoji);
-      setIconSizeState(iSize);
-      const tFont = persisted.titleFontFamily || "";
-      const tColor = persisted.titleTextColor || "";
-      const tSize = persisted.titleFontSize || "lg";
-      const cHeight = persisted.coverHeight ?? DEFAULT_COVER_HEIGHT;
-      const cPosY = persisted.coverPositionY ?? DEFAULT_COVER_POSITION_Y;
-      setTitleFontFamilyState(tFont);
-      setTitleTextColorState(tColor);
-      setTitleFontSizeState(tSize);
-      setCoverHeightState(cHeight);
-      setCoverPositionYState(cPosY);
-      boardTitleRef.current = title;
-      boardDescriptionRef.current = desc;
-      coverImageUrlRef.current = cover;
-      boardEmojiRef.current = emoji;
-      iconSizeRef.current = iSize;
-      titleFontFamilyRef.current = tFont;
-      titleTextColorRef.current = tColor;
-      titleFontSizeRef.current = tSize;
-      coverHeightRef.current = cHeight;
-      coverPositionYRef.current = cPosY;
+    const localLayout = readPersistedLayout();
+    if (localLayout) {
+      applyLayout(localLayout);
     }
     setHydrated(true);
+
+    // Background fetch from server — stale-while-revalidate pattern
+    fetchServerLayout().then(({ layout: serverData, updatedAt: serverUpdatedAt }) => {
+      if (serverData && serverUpdatedAt) {
+        const serverTs = new Date(serverUpdatedAt).getTime();
+        const localTs = localLayout?.updatedAt ?? 0;
+
+        // Server is newer — update state + localStorage
+        if (serverTs > localTs) {
+          const serverLayout = serverData as unknown as PersistedLayout;
+          // Preserve current schema version and apply same read validations
+          serverLayout.version = SCHEMA_VERSION;
+          serverLayout.updatedAt = serverTs;
+          applyLayout(serverLayout);
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(serverLayout));
+          } catch {
+            // non-critical
+          }
+        }
+      } else if (!serverData && localLayout) {
+        // No server data but localStorage exists — first-time migration to server
+        debouncedServerSave(localLayout);
+      }
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /**

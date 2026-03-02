@@ -58,6 +58,7 @@ interface WidgetSettingsModalProps {
   onRemove?: (id: string) => void;
   onApplyFontToAll?: (font: string) => void;
   onApplyBgResetToAll?: () => void;
+  onApplyTextColorToAll?: (color: string) => void;
 }
 
 /** Human-readable labels per widget type. */
@@ -84,6 +85,7 @@ export default function WidgetSettingsModal({
   onRemove,
   onApplyFontToAll,
   onApplyBgResetToAll,
+  onApplyTextColorToAll,
 }: WidgetSettingsModalProps) {
   const { boards } = useDiscussionBoards();
 
@@ -111,6 +113,8 @@ export default function WidgetSettingsModal({
   const [showFontConfirm, setShowFontConfirm] = useState(false);
   const [pendingFont, setPendingFont] = useState("");
   const [showBgResetConfirm, setShowBgResetConfirm] = useState(false);
+  const [showTextColorConfirm, setShowTextColorConfirm] = useState(false);
+  const [pendingTextColor, setPendingTextColor] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Initialize from widget config when modal opens
@@ -139,6 +143,7 @@ export default function WidgetSettingsModal({
       setFontFamily(widget.config.fontFamily || "");
       setShowFontConfirm(false);
       setShowBgResetConfirm(false);
+      setShowTextColorConfirm(false);
       setShowDeleteConfirm(false);
     }
   }, [widget]);
@@ -196,6 +201,13 @@ export default function WidgetSettingsModal({
     const hadBg = !!(widget!.config.bgColor);
     if (hadBg && !bgColor && onApplyBgResetToAll) {
       setShowBgResetConfirm(true);
+      return;
+    }
+
+    // Check if text color changed — offer to apply to all
+    if (textColor !== (widget!.config.textColor || "") && onApplyTextColorToAll) {
+      setPendingTextColor(textColor);
+      setShowTextColorConfirm(true);
       return;
     }
 
@@ -555,6 +567,36 @@ export default function WidgetSettingsModal({
                 className="px-4 py-2 text-sm rounded-xl bg-blue-500 text-white hover:bg-blue-600 transition-colors"
               >
                 Reset all
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Apply text color to all confirmation */}
+        {showTextColorConfirm && (
+          <div className="absolute inset-0 z-10 bg-card/95 flex flex-col items-center justify-center p-6 text-center">
+            <p className="text-sm font-medium text-foreground mb-4">
+              Apply this text color to all widgets?
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  setShowTextColorConfirm(false);
+                  onClose();
+                }}
+                className="px-4 py-2 text-sm rounded-xl text-muted-foreground hover:bg-muted transition-colors"
+              >
+                Just this one
+              </button>
+              <button
+                onClick={() => {
+                  onApplyTextColorToAll?.(pendingTextColor);
+                  setShowTextColorConfirm(false);
+                  onClose();
+                }}
+                className="px-4 py-2 text-sm rounded-xl bg-blue-500 text-white hover:bg-blue-600 transition-colors"
+              >
+                Apply to all
               </button>
             </div>
           </div>

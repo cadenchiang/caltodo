@@ -63,6 +63,7 @@ const GRADIENT_COVERS: { id: string; label: string; style: string }[] = [
 const PHOTO_COVERS: { id: string; label: string; url: string; bgColor?: string }[] = [
   // Branded
   { id: "cal", label: "Cal Berkeley", url: "/cal-logo.webp", bgColor: "#012677" },
+  { id: "campanile", label: "Campanile Panorama", url: "/campanile-panorama.jpg" },
   // Nature Panoramas
   { id: "p1", label: "Mountains at Sunset", url: "https://images.unsplash.com/photo-1486520299386-6d106b22014b?w=1600&h=350&fit=crop&crop=center&q=80" },
   { id: "p2", label: "Mountain Landscape", url: "https://images.unsplash.com/photo-1500964757637-c85e8a162699?w=1600&h=350&fit=crop&crop=center&q=80" },

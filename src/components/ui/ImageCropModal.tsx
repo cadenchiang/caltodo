@@ -37,6 +37,9 @@ interface ImageCropModalProps {
  * @param pixelCrop - Pixel coordinates of the crop area from react-easy-crop
  * @returns Promise resolving to a high-quality JPEG Blob
  */
+/** Minimum output width for banner crops — matches preset image quality. */
+const MIN_BANNER_WIDTH = 1600;
+
 async function getCroppedBlob(imageSrc: string, pixelCrop: Area): Promise<Blob> {
   const image = new Image();
   image.crossOrigin = "anonymous";
@@ -46,9 +49,15 @@ async function getCroppedBlob(imageSrc: string, pixelCrop: Area): Promise<Blob> 
     image.src = imageSrc;
   });
 
-  // Output at 1:1 pixel ratio — no upscaling, preserves source sharpness
-  const outW = pixelCrop.width;
-  const outH = pixelCrop.height;
+  // Ensure minimum output width so banners stay sharp at full container width.
+  // If the crop area is smaller than MIN_BANNER_WIDTH, scale up proportionally.
+  let outW = pixelCrop.width;
+  let outH = pixelCrop.height;
+  if (outW < MIN_BANNER_WIDTH) {
+    const scale = MIN_BANNER_WIDTH / outW;
+    outW = MIN_BANNER_WIDTH;
+    outH = Math.round(pixelCrop.height * scale);
+  }
 
   const canvas = document.createElement("canvas");
   canvas.width = outW;

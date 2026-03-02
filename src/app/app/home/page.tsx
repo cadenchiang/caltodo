@@ -18,7 +18,6 @@ import BoardTitle from "@/components/home/BoardTitle";
 import BoardDescription from "@/components/home/BoardDescription";
 import EmojiPicker, { LUCIDE_ICON_MAP, ICON_SIZES } from "@/components/home/EmojiPicker";
 import { useWidgetLayout } from "@/hooks/useWidgetLayout";
-import PaletteModal from "@/components/home/PaletteModal";
 import type { WidgetType, WidgetInstance } from "@/lib/widget-types";
 
 export default function HomePage() {
@@ -54,7 +53,6 @@ export default function HomePage() {
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [settingsWidget, setSettingsWidget] = useState<WidgetInstance | null>(null);
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
-  const [paletteColors, setPaletteColors] = useState<string[]>([]);
   const [isDragging, setIsDragging] = useState(false);
 
   // Listen for tour-controlled edit mode toggle (fired by AppTour click animations)
@@ -123,11 +121,6 @@ export default function HomePage() {
           coverHeight={coverHeight}
           coverPositionY={coverPositionY}
           onChangeCoverConfig={setCoverConfig}
-          onPaletteExtracted={(colors) => {
-            if (colors.length > 0) {
-              setPaletteColors(colors);
-            }
-          }}
         />
 
         {/* Header: Emoji + Title + Controls — matches grid container padding */}
@@ -159,7 +152,7 @@ export default function HomePage() {
               open={emojiPickerOpen}
               onSelect={setBoardEmoji}
               onClose={() => setEmojiPickerOpen(false)}
-              paletteColors={paletteColors}
+              paletteColors={[]}
               iconSize={iconSize}
               onSizeChange={setIconSize}
             />
@@ -256,18 +249,9 @@ export default function HomePage() {
           onRemove={removeWidget}
           onApplyFontToAll={handleApplyFontToAll}
           onApplyBgResetToAll={() => updateAllWidgetConfigs({ bgColor: "" })}
+          onApplyTextColorToAll={(color) => updateAllWidgetConfigs({ textColor: color })}
         />
 
-        {/* Palette Picker */}
-        <PaletteModal
-          open={paletteColors.length > 0}
-          colors={paletteColors}
-          onApply={(color) => {
-            updateAllWidgetConfigs({ textColor: color });
-            setPaletteColors([]);
-          }}
-          onSkip={() => setPaletteColors([])}
-        />
 
       </div>
     </PageTransition>

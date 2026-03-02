@@ -68,7 +68,8 @@ export async function GET() {
   const hasCompletedOnboarding = !!(
     data?.canvas_token ||
     data?.gradescope_password_encrypted ||
-    data?.pensieve_calendar_url
+    data?.pensieve_calendar_url ||
+    data?.last_synced_at
   );
 
   const credentials: IntegrationCredentials = {
@@ -241,7 +242,8 @@ export async function PUT(request: Request) {
   const putHasCompletedOnboarding = !!(
     updated?.canvas_token ||
     updated?.gradescope_password_encrypted ||
-    updated?.pensieve_calendar_url
+    updated?.pensieve_calendar_url ||
+    updated?.last_synced_at
   );
 
   const credentials: IntegrationCredentials = {
