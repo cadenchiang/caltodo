@@ -13,18 +13,28 @@ const jsonLd = {
     {
       "@type": "Organization",
       "@id": "https://caltodo.me/#organization",
-      name: "caltodo",
+      name: "CalTodo",
       url: "https://caltodo.me",
       logo: "https://caltodo.me/logo.png",
       description:
-        "Your assignments, synced and organized. Connect bCourses and Gradescope to automatically track every deadline in one place.",
+        "CalTodo syncs your bCourses, Gradescope, and Pensieve assignments into one dashboard. Free assignment tracker for UC Berkeley students.",
     },
     {
       "@type": "WebSite",
       "@id": "https://caltodo.me/#website",
       url: "https://caltodo.me",
-      name: "caltodo",
+      name: "CalTodo",
       publisher: { "@id": "https://caltodo.me/#organization" },
+    },
+    {
+      "@type": "SoftwareApplication",
+      name: "CalTodo",
+      url: "https://caltodo.me",
+      applicationCategory: "EducationalApplication",
+      operatingSystem: "Web",
+      offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+      description:
+        "Free assignment tracker for UC Berkeley students. Syncs bCourses, Gradescope, and Pensieve deadlines into one dashboard with Google Calendar integration.",
     },
   ],
 };

@@ -6,12 +6,17 @@ import { createClient } from "@/lib/supabase/client";
 import { ensureRealtimeAuth } from "@/lib/supabase/realtime-auth";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { playMessageReceived } from "@/lib/sounds";
+import { updateBoardCacheTimestamp } from "@/lib/calchat-cache";
 import { MessageCircle, X } from "lucide-react";
 
 /** SessionStorage key shared with useDiscussionBoards for board cache. */
 const CACHE_KEY = "discussion_boards_cache_v2";
 /** localStorage prefix for per-course mute state. */
 const MUTE_KEY_PREFIX = "calchat_muted_";
+/** localStorage prefix for last-sent timestamp (set by useCourseChat). */
+const SENT_KEY_PREFIX = "calchat_last_sent_";
+/** Window in ms to suppress notifications after the user sends a message. */
+const SELF_SEND_COOLDOWN_MS = 5000;
 /** How long the banner stays visible before auto-dismissing (ms). */
 const BANNER_DURATION = 4000;
 
@@ -169,6 +174,19 @@ export default function GlobalChatNotifier() {
             // Skip own messages
             if (msg.author_id === userIdRef.current) return;
 
+            // Secondary defense: skip if user recently sent a message to this
+            // course. Covers the edge case where the Realtime event arrives
+            // after a quick page navigation changes the pathname but before
+            // the author_id filter can catch it (e.g. latency / anonymous ID).
+            try {
+              const lastSent = parseInt(
+                localStorage.getItem(SENT_KEY_PREFIX + courseId) || "0",
+              );
+              if (Date.now() - lastSent < SELF_SEND_COOLDOWN_MS) return;
+            } catch {
+              /* localStorage unavailable */
+            }
+
             // Skip if currently viewing this specific chat
             if (pathnameRef.current.includes(courseId)) return;
 
@@ -176,6 +194,9 @@ export default function GlobalChatNotifier() {
             try {
               if (localStorage.getItem(MUTE_KEY_PREFIX + courseId) === "true") return;
             } catch { /* localStorage unavailable */ }
+
+            // Update board cache so unread badge increments immediately
+            updateBoardCacheTimestamp(courseId, CACHE_KEY);
 
             // Play receive sound
             playMessageReceived();

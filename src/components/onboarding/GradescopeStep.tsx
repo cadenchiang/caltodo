@@ -330,7 +330,7 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
                       </div>
                       {i === 0 && showWhy && (
                         <p className="text-xs text-foreground ml-12 mb-1 leading-relaxed">
-                          Your CalNet ID password doesn&apos;t work here — Gradescope needs its own separate password.
+                          Your CalNet ID password doesn&apos;t work here — Gradescope needs its own separate password. Your password is encrypted with AES-256 and stored securely. No one — not even us — can see your credentials.
                         </p>
                       )}
                     </div>

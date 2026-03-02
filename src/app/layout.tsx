@@ -25,29 +25,35 @@ const instrumentSerif = Instrument_Serif({
 });
 
 export const metadata: Metadata = {
-  title: "caltodo",
-  description: "Your assignments, synced and organized. Connect bCourses and Gradescope to automatically track every deadline in one place.",
+  title: {
+    default: "CalTodo — Assignment Tracker for UC Berkeley Students",
+    template: "%s | CalTodo",
+  },
+  description: "CalTodo syncs your bCourses, Gradescope, and Pensieve assignments into one dashboard. Free assignment tracker built for UC Berkeley students — never miss a deadline again.",
+  keywords: ["caltodo", "cal todo", "UC Berkeley", "assignment tracker", "bCourses", "Gradescope", "Pensieve", "deadline tracker", "student planner", "Berkeley"],
   metadataBase: new URL("https://caltodo.me"),
   alternates: { canonical: "/" },
+  applicationName: "CalTodo",
   openGraph: {
-    title: "caltodo",
-    description: "your assignments, synced and organized.",
+    title: "CalTodo — Assignment Tracker for UC Berkeley Students",
+    description: "Sync bCourses, Gradescope, and Pensieve assignments into one dashboard. Free for UC Berkeley students.",
     url: "https://caltodo.me",
-    siteName: "caltodo",
+    siteName: "CalTodo",
     type: "website",
+    locale: "en_US",
     images: [
       {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "caltodo — your assignments, synced and organized",
+        alt: "CalTodo — assignment tracker for UC Berkeley students",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "caltodo",
-    description: "your assignments, synced and organized.",
+    title: "CalTodo — Assignment Tracker for UC Berkeley",
+    description: "Sync bCourses, Gradescope, and Pensieve into one dashboard. Free for Cal students.",
     images: ["/og-image.png"],
   },
   icons: {

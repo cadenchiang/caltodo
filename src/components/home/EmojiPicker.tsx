@@ -63,6 +63,7 @@ import {
   Trophy,
   Medal,
   ChevronDown,
+  X,
   type LucideIcon,
 } from "lucide-react";
 
@@ -299,19 +300,51 @@ export default function EmojiPicker({
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/40 animate-announce-backdrop-in"
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-announce-backdrop-in"
         onClick={onClose}
       />
 
       {/* Card */}
-      <div className="relative bg-popover rounded-2xl shadow-xl border border-border w-full max-w-sm mx-4 animate-announce-card-in overflow-hidden max-h-[80vh] flex flex-col">
-        <div className="p-4 pb-2 shrink-0">
-          <h2 className="text-base font-semibold text-foreground mb-2">
-            Choose an icon
-          </h2>
+      <div className="relative bg-popover rounded-2xl shadow-xl border border-border w-full max-w-md mx-4 animate-announce-card-in overflow-hidden max-h-[80vh] flex flex-col">
+        <div className="p-4 pb-3 shrink-0 border-b border-border">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-base font-semibold text-foreground">
+              Choose an icon
+            </h2>
+            <div className="flex items-center gap-2">
+              {/* Size picker — inline with title */}
+              {onSizeChange && (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-muted-foreground">Size</span>
+                  <div className="flex gap-0.5 bg-muted rounded-lg p-0.5">
+                    {ICON_SIZES.map((s) => (
+                      <button
+                        key={s.value}
+                        onClick={() => onSizeChange(s.value)}
+                        className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
+                          iconSize === s.value
+                            ? "bg-blue-500 text-white shadow-sm"
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <button
+                onClick={onClose}
+                className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                aria-label="Close"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          </div>
 
           {/* Tab bar */}
-          <div className="flex gap-1 mb-2">
+          <div className="flex gap-1">
             <button onClick={() => setActiveTab("featured")} className={tabClass("featured")}>
               Featured
             </button>
@@ -322,48 +355,24 @@ export default function EmojiPicker({
               Icons
             </button>
           </div>
-
-          {/* Size picker */}
-          {onSizeChange && (
-            <div className="flex items-center gap-1.5 mt-1">
-              <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
-                Size
-              </span>
-              <div className="flex gap-1 ml-1">
-                {ICON_SIZES.map((s) => (
-                  <button
-                    key={s.value}
-                    onClick={() => onSizeChange(s.value)}
-                    className={`px-2 py-0.5 text-xs rounded-md transition-colors ${
-                      iconSize === s.value
-                        ? "bg-blue-500 text-white"
-                        : "bg-muted text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {s.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Tab content — scrollable */}
-        <div className="flex-1 overflow-y-auto px-4 pb-4">
+        <div className="flex-1 overflow-y-auto px-4 py-3">
           {/* Featured tab — curated Pinterest aesthetic emoji */}
           {activeTab === "featured" && (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {EMOJI_CATEGORIES.map((cat) => (
                 <div key={cat.label}>
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5 px-0.5">
+                  <p className="text-xs font-medium text-foreground mb-2 px-0.5">
                     {cat.label}
                   </p>
-                  <div className="grid grid-cols-8 gap-0.5">
+                  <div className="grid grid-cols-7 gap-1">
                     {cat.emojis.map((emoji, i) => (
                       <button
                         key={`${cat.label}-${i}`}
                         onClick={() => selectEmoji(emoji)}
-                        className="w-9 h-9 flex items-center justify-center rounded-lg text-lg hover:bg-muted transition-colors"
+                        className="w-10 h-10 flex items-center justify-center rounded-xl text-xl hover:bg-muted transition-colors"
                       >
                         {emoji}
                       </button>
@@ -392,21 +401,21 @@ export default function EmojiPicker({
 
           {/* Icons tab — Lucide icons with palette */}
           {activeTab === "icons" && (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {/* Palette suggestions */}
               {paletteColors.length > 0 && (
-                <div className="pb-1">
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-1.5 px-0.5">
+                <div>
+                  <p className="text-xs font-medium text-foreground mb-2 px-0.5">
                     Banner Colors
                   </p>
-                  <div className="flex gap-1.5">
+                  <div className="flex items-center gap-2">
                     {paletteColors.slice(0, 5).map((color) => (
                       <button
                         key={color}
                         onClick={() =>
                           setPreviewColor(previewColor === color ? null : color)
                         }
-                        className={`w-6 h-6 rounded-full border-2 transition-all ${
+                        className={`w-7 h-7 rounded-full border-2 transition-all ${
                           previewColor === color
                             ? "border-blue-500 scale-110"
                             : "border-transparent hover:scale-105"
@@ -418,7 +427,7 @@ export default function EmojiPicker({
                     {previewColor && (
                       <button
                         onClick={() => setPreviewColor(null)}
-                        className="text-[10px] text-muted-foreground hover:text-foreground ml-1"
+                        className="text-xs text-muted-foreground hover:text-foreground ml-1 transition-colors"
                       >
                         Reset
                       </button>
@@ -429,15 +438,15 @@ export default function EmojiPicker({
 
               {LUCIDE_CATEGORIES.map((cat) => (
                 <div key={cat.label}>
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5 px-0.5">
+                  <p className="text-xs font-medium text-foreground mb-2 px-0.5">
                     {cat.label}
                   </p>
-                  <div className="grid grid-cols-8 gap-0.5">
+                  <div className="grid grid-cols-7 gap-1">
                     {cat.icons.map(({ name, icon: Icon }) => (
                       <button
                         key={name}
                         onClick={() => selectLucide(name)}
-                        className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-muted transition-colors"
+                        className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-muted transition-colors"
                         title={name}
                       >
                         <Icon

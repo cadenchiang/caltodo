@@ -22,8 +22,7 @@ Use CSS custom properties (not hardcoded hex). All colors adapt to light/dark/pi
 ### Rules
 
 - **Never use hardcoded colors** like `text-gray-500` or `bg-white` for themed elements. Use the CSS variable tokens above.
-- **Never use gray uppercase text** for labels. Use `text-foreground text-sm font-medium` for labels.
-- **Section labels** (small caps): use `text-[10px] uppercase tracking-wider text-muted-foreground font-medium` only for section dividers, never for primary labels.
+- **NEVER use all-caps gray text for section labels or headings.** Do not use `uppercase tracking-wider text-muted-foreground` for labels. Instead use `text-xs font-medium text-foreground` (normal case, foreground color). This applies to ALL section headers, category labels, and divider text throughout the app.
 - **Dark mode shadows**: Add `box-shadow: none` in dark variants for elevated buttons to avoid double-border artifacts.
 
 ## Typography
@@ -32,10 +31,10 @@ Use CSS custom properties (not hardcoded hex). All colors adapt to light/dark/pi
 |---------|---------|
 | Page title | `text-base font-semibold text-foreground` |
 | Section header | `text-sm font-medium text-foreground` |
+| Section label (in cards/pickers) | `text-xs font-medium text-foreground` |
 | Body text | `text-sm text-foreground` |
 | Caption / secondary | `text-xs text-muted-foreground` |
 | Tiny label | `text-[10px] text-muted-foreground` |
-| Section divider label | `text-[10px] uppercase tracking-wider text-muted-foreground font-medium` |
 
 ### Font Stack
 
@@ -202,7 +201,7 @@ Available CSS animations (defined in globals.css):
 ## Anti-Patterns (Do NOT)
 
 - Do not use `text-gray-*` hardcoded colors — use `text-foreground` / `text-muted-foreground`
-- Do not use ALL CAPS for labels or buttons (exception: tiny section dividers at 10px)
+- Do not use ALL CAPS (`uppercase`) for ANY labels, section headers, or buttons — no exceptions. Use normal case with `text-foreground`
 - Do not use transparent/glass backgrounds on popovers or dropdowns
 - Do not use `bg-foreground text-background` for inverted buttons — use explicit `bg-gray-900 text-white dark:bg-white dark:text-gray-900`
 - Do not create shadows on dark mode elevated buttons

@@ -137,7 +137,7 @@ export default function FontPicker({ value, onChange }: FontPickerProps) {
               <div key={category}>
                 {/* Section header */}
                 <div className="px-3 pt-2 pb-1">
-                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+                  <span className="text-xs font-medium text-foreground">
                     {FONT_CATEGORY_LABELS[category]}
                   </span>
                 </div>

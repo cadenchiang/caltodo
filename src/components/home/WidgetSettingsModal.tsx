@@ -17,8 +17,11 @@
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import type { WidgetInstance } from "@/lib/widget-types";
+import type { GCalCalendarEntry } from "@/lib/types";
 import { useDiscussionBoards } from "@/hooks/useDiscussionBoards";
 import FontPicker from "@/components/ui/FontPicker";
+import CalendarPicker from "@/components/home/CalendarPicker";
+import ClockFacePicker from "@/components/home/ClockFacePicker";
 import {
   IMAGE_WIDGET_PRESETS,
   isImageWidgetPreset,
@@ -64,7 +67,7 @@ interface WidgetSettingsModalProps {
 /** Human-readable labels per widget type. */
 const WIDGET_LABELS: Record<string, string> = {
   clock: "Clock",
-  "tasks-today": "Tasks",
+  "tasks-today": "Tasks Widget",
   "class-progress": "Class Progress",
   "recent-chat": "Recent Chat",
   "google-calendar": "Google Calendar",
@@ -91,8 +94,11 @@ export default function WidgetSettingsModal({
 
   // Per-widget config state
   const [selectedCourseId, setSelectedCourseId] = useState("");
-  const [selectedCalendarId, setSelectedCalendarId] = useState("");
+  const [selectedCalendarIds, setSelectedCalendarIds] = useState<Set<string>>(new Set(["primary"]));
+  const [calendars, setCalendars] = useState<GCalCalendarEntry[]>([]);
+  const [calendarsLoading, setCalendarsLoading] = useState(false);
   const [selectedViewMode, setSelectedViewMode] = useState("week");
+  const [clockFace, setClockFace] = useState("digital");
   const [clockFormat, setClockFormat] = useState("12");
   const [clockTimezone, setClockTimezone] = useState("");
   const [clockFontWeight, setClockFontWeight] = useState("300");
@@ -121,8 +127,18 @@ export default function WidgetSettingsModal({
   useEffect(() => {
     if (widget) {
       setSelectedCourseId(widget.config.courseId || "");
-      setSelectedCalendarId(widget.config.calendarId || "");
+
+      // Parse multi-calendar config: calendarIds (JSON array) → calendarId (single) → ["primary"]
+      let initialIds: string[] = ["primary"];
+      if (widget.config.calendarIds) {
+        try { initialIds = JSON.parse(widget.config.calendarIds); } catch { /* fallback */ }
+      } else if (widget.config.calendarId) {
+        initialIds = [widget.config.calendarId];
+      }
+      setSelectedCalendarIds(new Set(initialIds));
+
       setSelectedViewMode(widget.config.viewMode || "week");
+      setClockFace(widget.config.clockFace || "digital");
       setClockFormat(widget.config.clockFormat || "12");
       setClockTimezone(widget.config.clockTimezone || "");
       setClockFontWeight(widget.config.clockFontWeight || "300");
@@ -148,6 +164,19 @@ export default function WidgetSettingsModal({
     }
   }, [widget]);
 
+  // Fetch all calendars when modal opens for google-calendar widget
+  useEffect(() => {
+    if (!widget || widget.type !== "google-calendar") return;
+    setCalendarsLoading(true);
+    fetch("/api/gcal/calendars?all=true")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.calendars) setCalendars(data.calendars);
+      })
+      .catch(() => { /* calendar fetch failed — picker will show empty state */ })
+      .finally(() => setCalendarsLoading(false));
+  }, [widget]);
+
   if (!open || !widget) return null;
 
   const label = WIDGET_LABELS[widget.type] || "Widget";
@@ -164,6 +193,7 @@ export default function WidgetSettingsModal({
     // Type-specific
     switch (widget!.type) {
       case "clock":
+        config.clockFace = clockFace;
         config.clockFormat = clockFormat;
         config.clockTimezone = clockTimezone;
         config.clockFontWeight = clockFontWeight;
@@ -178,10 +208,24 @@ export default function WidgetSettingsModal({
       case "recent-chat":
         if (selectedCourseId) config.courseId = selectedCourseId;
         break;
-      case "google-calendar":
-        if (selectedCalendarId) config.calendarId = selectedCalendarId;
+      case "google-calendar": {
+        const ids = [...selectedCalendarIds];
+        if (ids.length > 0) {
+          config.calendarIds = JSON.stringify(ids);
+        }
+        // Build color map from fetched calendars for fallback event colors
+        const colorMap: Record<string, string> = {};
+        for (const cal of calendars) {
+          if (selectedCalendarIds.has(cal.id)) {
+            colorMap[cal.id] = cal.backgroundColor;
+          }
+        }
+        if (Object.keys(colorMap).length > 0) {
+          config.calendarColors = JSON.stringify(colorMap);
+        }
         config.viewMode = selectedViewMode;
         break;
+      }
       case "image":
         if (removeImage) {
           config.imageUrl = "";
@@ -297,6 +341,7 @@ export default function WidgetSettingsModal({
           {/* ── Clock settings ── */}
           {widget.type === "clock" && (
             <>
+              <ClockFacePicker value={clockFace} onChange={setClockFace} />
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">Time Format</label>
                 <select value={clockFormat} onChange={(e) => setClockFormat(e.target.value)} className={SELECT_CLS}>
@@ -376,17 +421,21 @@ export default function WidgetSettingsModal({
           {/* ── Google Calendar settings ── */}
           {widget.type === "google-calendar" && (
             <>
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">Calendar ID</label>
-                <input
-                  type="text"
-                  value={selectedCalendarId}
-                  onChange={(e) => setSelectedCalendarId(e.target.value)}
-                  placeholder="primary"
-                  className={SELECT_CLS}
-                />
-                <p className="text-xs text-muted-foreground mt-1">Leave empty for primary calendar</p>
-              </div>
+              <CalendarPicker
+                calendars={calendars}
+                selectedIds={selectedCalendarIds}
+                onToggle={(id) => {
+                  setSelectedCalendarIds((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(id)) next.delete(id);
+                    else next.add(id);
+                    return next;
+                  });
+                }}
+                onSelectAll={() => setSelectedCalendarIds(new Set(calendars.map((c) => c.id)))}
+                onDeselectAll={() => setSelectedCalendarIds(new Set())}
+                loading={calendarsLoading}
+              />
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">Default View</label>
                 <select value={selectedViewMode} onChange={(e) => setSelectedViewMode(e.target.value)} className={SELECT_CLS}>
@@ -473,7 +522,7 @@ export default function WidgetSettingsModal({
           <div className="border-t border-border" />
 
           {/* ── Universal Style Settings ── */}
-          <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium">Style</p>
+          <p className="text-xs font-medium text-foreground">Style</p>
 
           <ColorInput labelText="Text Color" value={textColor} onChange={setTextColor} />
           <ColorInput labelText="Background" value={bgColor} onChange={setBgColor} />

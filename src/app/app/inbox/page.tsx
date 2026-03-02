@@ -1023,7 +1023,7 @@ export default function InboxPage() {
                 {canvasCourses.length > 0 && (
                   <div>
                     <div className="px-5 pt-4 pb-2 flex items-center justify-between">
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      <p className="text-xs font-semibold text-foreground">
                         bCourses
                       </p>
                       <button
@@ -1053,7 +1053,7 @@ export default function InboxPage() {
                 {gradescopeCourses.length > 0 && (
                   <div>
                     <div className="px-5 pt-4 pb-2 flex items-center justify-between">
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      <p className="text-xs font-semibold text-foreground">
                         Gradescope
                       </p>
                       <button

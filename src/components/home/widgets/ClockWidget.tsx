@@ -1,14 +1,14 @@
 "use client";
 
 /**
- * Live clock widget showing current time and date.
- * Supports configurable format, timezone, font weight, and color.
- * Updates every second via setInterval.
+ * Live clock widget — thin dispatcher that delegates to a clock face component.
+ * Manages the 1-second timer and resolves the active face from config.
  *
- * @param config - Widget configuration (clockFormat, clockTimezone, clockFontWeight, textColor)
+ * @param config - Widget configuration (clockFace, clockFormat, clockTimezone, clockFontWeight)
  */
 
 import { useState, useEffect } from "react";
+import { CLOCK_FACE_MAP, DigitalFace } from "./clock-faces";
 
 interface ClockWidgetProps {
   config?: Record<string, string>;
@@ -16,9 +16,6 @@ interface ClockWidgetProps {
 
 export default function ClockWidget({ config }: ClockWidgetProps) {
   const [now, setNow] = useState<Date | null>(null);
-  const is24h = config?.clockFormat === "24";
-  const timezone = config?.clockTimezone || undefined;
-  const fontWeight = config?.clockFontWeight || "300";
 
   useEffect(() => {
     setNow(new Date());
@@ -28,35 +25,15 @@ export default function ClockWidget({ config }: ClockWidgetProps) {
 
   if (!now) return null;
 
-  const timeOptions: Intl.DateTimeFormatOptions = {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: !is24h,
-    ...(timezone ? { timeZone: timezone } : {}),
-  };
-
-  const dateOptions: Intl.DateTimeFormatOptions = {
-    weekday: "long",
-    month: "short",
-    day: "numeric",
-    ...(timezone ? { timeZone: timezone } : {}),
-  };
-
-  const timeStr = now.toLocaleTimeString([], timeOptions);
-  const dateStr = now.toLocaleDateString([], dateOptions);
+  const faceId = config?.clockFace || "digital";
+  const Face = CLOCK_FACE_MAP[faceId] || DigitalFace;
 
   return (
-    <div className="h-full w-full flex flex-col items-center justify-center p-4">
-      <span
-        className="text-4xl tracking-tight text-foreground tabular-nums"
-        style={{ fontWeight: Number(fontWeight) }}
-      >
-        {timeStr}
-      </span>
-      <div className="w-8 h-px bg-border my-2" />
-      <span className="text-xs tracking-widest text-foreground">
-        {dateStr}
-      </span>
-    </div>
+    <Face
+      now={now}
+      is24h={config?.clockFormat === "24"}
+      timezone={config?.clockTimezone || undefined}
+      fontWeight={config?.clockFontWeight || "300"}
+    />
   );
 }

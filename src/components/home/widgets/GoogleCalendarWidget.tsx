@@ -59,8 +59,9 @@ function getTimeRange(mode: ViewMode): { timeMin: string; timeMax: string } {
  * Groups events by date key and renders with day dividers.
  *
  * @param events - Sorted array of GCalEvents to display
+ * @param calendarColors - Map of calendarId → hex color for fallback event colors
  */
-function EventsByDay({ events }: { events: GCalEvent[] }) {
+function EventsByDay({ events, calendarColors = {} }: { events: GCalEvent[]; calendarColors?: Record<string, string> }) {
   const today = new Date();
   const todayKey = today.toDateString();
   const tomorrow = new Date(today);
@@ -111,7 +112,9 @@ function EventsByDay({ events }: { events: GCalEvent[] }) {
           {/* Events for this day */}
           <div className="space-y-1 mt-1">
             {dayEvents.map((event) => {
-              const color = event.colorId ? GCAL_COLORS[event.colorId] : "#039BE5";
+              const color = event.colorId
+                ? GCAL_COLORS[event.colorId]
+                : (event.calendarId && calendarColors[event.calendarId]) || "#039BE5";
               const timeStr = event.allDay
                 ? "All day"
                 : new Date(event.start).toLocaleTimeString([], {
@@ -161,10 +164,33 @@ export default function GoogleCalendarWidget({ config, editMode, onUpdateConfig 
   const [connected, setConnected] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Parse multi-calendar config: calendarIds (JSON) → calendarId (single) → ["primary"]
+  const calendarIds: string[] = useMemo(() => {
+    if (config.calendarIds) {
+      try { return JSON.parse(config.calendarIds); } catch { /* fallback */ }
+    }
+    if (config.calendarId) return [config.calendarId];
+    return ["primary"];
+  }, [config.calendarIds, config.calendarId]);
+
+  // Parse calendar color map for fallback event colors
+  const calendarColors: Record<string, string> = useMemo(() => {
+    if (config.calendarColors) {
+      try { return JSON.parse(config.calendarColors); } catch { /* fallback */ }
+    }
+    return {};
+  }, [config.calendarColors]);
+
+  const calendarIdsKey = calendarIds.join(",");
+
   const fetchEvents = useCallback(async () => {
     try {
       const params = new URLSearchParams();
-      if (config.calendarId) params.set("calendarId", config.calendarId);
+      if (calendarIds.length === 1) {
+        params.set("calendarId", calendarIds[0]);
+      } else if (calendarIds.length > 1) {
+        params.set("calendarIds", calendarIds.join(","));
+      }
 
       const { timeMin, timeMax } = getTimeRange(viewMode);
       params.set("timeMin", timeMin);
@@ -180,7 +206,8 @@ export default function GoogleCalendarWidget({ config, editMode, onUpdateConfig 
     } finally {
       setLoading(false);
     }
-  }, [config.calendarId, viewMode]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [calendarIdsKey, viewMode]);
 
   useEffect(() => {
     fetchEvents();
@@ -226,7 +253,7 @@ export default function GoogleCalendarWidget({ config, editMode, onUpdateConfig 
           <p className="text-sm text-foreground">No events</p>
         </div>
       ) : (
-        <EventsByDay events={events.slice(0, 12)} />
+        <EventsByDay events={events.slice(0, 12)} calendarColors={calendarColors} />
       )}
     </div>
   );

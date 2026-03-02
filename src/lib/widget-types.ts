@@ -47,8 +47,8 @@ export interface WidgetInstance {
 export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
   "tasks-today": {
     type: "tasks-today",
-    label: "Tasks Today",
-    description: "Today's tasks with completion count",
+    label: "Tasks",
+    description: "Your tasks with completion count",
     iconName: "CheckSquare",
     minW: 1, minH: 1, maxW: 4, maxH: 4,
     defaultW: 2, defaultH: 2,

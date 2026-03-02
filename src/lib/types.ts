@@ -400,6 +400,7 @@ export interface CourseMemberProfile {
  * @param location - Event location (optional)
  * @param htmlLink - URL to view event in Google Calendar
  * @param allDay - Whether this is an all-day event
+ * @param calendarId - Source calendar ID (set when fetching from multiple calendars)
  */
 export interface GCalEvent {
   id: string;
@@ -410,4 +411,5 @@ export interface GCalEvent {
   location: string | null;
   htmlLink: string;
   allDay: boolean;
+  calendarId?: string;
 }

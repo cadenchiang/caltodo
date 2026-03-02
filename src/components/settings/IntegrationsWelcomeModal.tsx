@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { BookOpen } from "lucide-react";
+import { BookOpen, ShieldCheck } from "lucide-react";
 
 /**
  * Inline Google Calendar logo SVG.
@@ -158,6 +158,17 @@ export default function IntegrationsWelcomeModal() {
               <p className="text-sm font-medium text-foreground">live sync to Google Calendar</p>
               <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
                 your assignments automatically appear on your calendar
+              </p>
+            </div>
+          </div>
+
+          {/* Item 3: Data security */}
+          <div className="flex items-start gap-3.5 py-4 border-t border-border">
+            <ShieldCheck size={18} className="text-foreground shrink-0 mt-0.5" />
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-foreground">your data is safe and encrypted</p>
+              <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                all credentials are encrypted with AES-256. no one — not even us — can see your information.
               </p>
             </div>
           </div>

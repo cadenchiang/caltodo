@@ -250,7 +250,7 @@ export default function WeatherDetailModal({
               {/* Hourly forecast — horizontal scroll strip */}
               <div className="rounded-xl border border-border overflow-hidden">
                 <div className="px-3 pt-2.5 pb-1">
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+                  <p className="text-xs font-medium text-foreground">
                     Hourly Forecast
                   </p>
                 </div>
@@ -283,7 +283,7 @@ export default function WeatherDetailModal({
               {/* 7-day forecast */}
               <div className="rounded-xl border border-border overflow-hidden">
                 <div className="px-3 pt-2.5 pb-1">
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+                  <p className="text-xs font-medium text-foreground">
                     7-Day Forecast
                   </p>
                 </div>
@@ -427,7 +427,7 @@ function StatCard({
     <div className="rounded-xl border border-border p-3">
       <div className="flex items-center gap-1.5 text-muted-foreground mb-1.5">
         {icon}
-        <span className="text-[10px] uppercase tracking-wider font-medium">
+        <span className="text-[10px] font-medium text-muted-foreground">
           {label}
         </span>
       </div>

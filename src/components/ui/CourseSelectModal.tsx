@@ -227,7 +227,7 @@ export default function CourseSelectModal<T extends string | number>({
                         style={{ backgroundColor: group.color }}
                       />
                     )}
-                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    <span className="text-xs font-semibold text-foreground">
                       {group.label}
                     </span>
                     <span className="text-xs text-subtle-foreground">

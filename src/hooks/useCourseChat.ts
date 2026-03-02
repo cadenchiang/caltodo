@@ -304,6 +304,12 @@ export function useCourseChat(courseId: string, options?: { isSystemCourse?: boo
       );
       playMessageSent();
 
+      // Mark this course as recently sent — GlobalChatNotifier uses this as a
+      // secondary filter to suppress self-notifications on quick navigation.
+      try {
+        localStorage.setItem(`calchat_last_sent_${courseId}`, String(Date.now()));
+      } catch { /* non-critical */ }
+
       // Update read_at so the user's own message doesn't trigger an unread badge
       try {
         localStorage.setItem(READ_AT_PREFIX + courseId, new Date().toISOString());

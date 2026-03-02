@@ -637,9 +637,127 @@ describe("fetchGradescopeAssignments", () => {
 
     const result = await fetchGradescopeAssignments({} as any, "200", "CS 61A");
     expect(result).toHaveLength(1);
-    // The releaseDate element should be filtered out, leaving 1 element
-    // which is still not enough (need 2+ for fallback) → null
-    // Actually with filtering, only the second element remains (1 element) → null
     expect(result[0].due_date).toBeNull();
+  });
+});
+
+describe("fetchGradescopeAssignments — strategy selection", () => {
+  it("should use React props when AssignmentsTable data-react-props is present", async () => {
+    const tableData = [
+      {
+        id: 5001,
+        title: "Midterm",
+        url: "/courses/300/assignments/5001",
+        total_points: "200",
+        submission_window: {
+          due_date: "2026-04-01T23:59:00.000-07:00",
+          hard_due_date: null,
+        },
+      },
+      {
+        id: 5002,
+        title: "Final Project",
+        url: "/courses/300/assignments/5002",
+        total_points: "300",
+        submission_window: {
+          due_date: "2026-05-15T23:59:00.000-07:00",
+          hard_due_date: "2026-05-20T23:59:00.000-07:00",
+        },
+      },
+    ];
+    const propsJson = JSON.stringify({ table_data: tableData });
+
+    const html = `
+      <html><body>
+        <h1 class="courseHeader--title">CS 189: Machine Learning</h1>
+        <div data-react-class="AssignmentsTable"
+             data-react-props='${propsJson}'>
+        </div>
+        <table><tbody>
+          <tr><td><div class="table--primaryLink"><a href="/courses/300/assignments/9999">Should be ignored</a></div></td></tr>
+        </tbody></table>
+      </body></html>
+    `;
+
+    mockFetch.mockResolvedValueOnce({ ok: true, text: async () => html });
+
+    const result = await fetchGradescopeAssignments({} as any, "300", "CS 189");
+
+    // Should use React props, not HTML table
+    expect(result).toHaveLength(2);
+    expect(result[0].external_id).toBe("5001");
+    expect(result[0].title).toBe("Midterm");
+    expect(result[0].course_name).toBe("CS 189: Machine Learning");
+    expect(result[0].points_possible).toBe(200);
+    expect(result[0].due_date).toBeTruthy();
+    expect(result[0].late_due_date).toBeNull();
+
+    expect(result[1].external_id).toBe("5002");
+    expect(result[1].title).toBe("Final Project");
+    expect(result[1].late_due_date).toBeTruthy();
+  });
+
+  it("should fall back to HTML scraping when no React props found", async () => {
+    const html = `
+      <html><body>
+        <h1 class="courseHeader--title">CS 61B</h1>
+        <table><tbody>
+          <tr>
+            <td><div class="table--primaryLink"><a href="/courses/400/assignments/7001">HW 1</a></div></td>
+            <td><div class="submissionTimeChart--dueDate" datetime="2026-03-20T23:59:00Z">Mar 20</div></td>
+          </tr>
+        </tbody></table>
+      </body></html>
+    `;
+
+    mockFetch.mockResolvedValueOnce({ ok: true, text: async () => html });
+
+    const result = await fetchGradescopeAssignments({} as any, "400", "CS 61B");
+    expect(result).toHaveLength(1);
+    expect(result[0].title).toBe("HW 1");
+    expect(result[0].due_date).toBe("2026-03-20T23:59:00.000Z");
+  });
+
+  it("should fall back to HTML when React props JSON is malformed", async () => {
+    const html = `
+      <html><body>
+        <div data-react-class="AssignmentsTable"
+             data-react-props='{"broken json'>
+        </div>
+        <table><tbody>
+          <tr>
+            <td><div class="table--primaryLink"><a href="/courses/500/assignments/8001">Lab 1</a></div></td>
+          </tr>
+        </tbody></table>
+      </body></html>
+    `;
+
+    mockFetch.mockResolvedValueOnce({ ok: true, text: async () => html });
+
+    const result = await fetchGradescopeAssignments({} as any, "500", "CS 61C");
+    expect(result).toHaveLength(1);
+    expect(result[0].title).toBe("Lab 1");
+    expect(result[0].external_id).toBe("8001");
+  });
+
+  it("should fall back to HTML when React props has no table_data", async () => {
+    const html = `
+      <html><body>
+        <div data-react-class="AssignmentsTable"
+             data-react-props='{"other_field": true}'>
+        </div>
+        <table><tbody>
+          <tr>
+            <td><div class="table--primaryLink"><a href="/courses/600/assignments/9001">Proj 1</a></div></td>
+          </tr>
+        </tbody></table>
+      </body></html>
+    `;
+
+    mockFetch.mockResolvedValueOnce({ ok: true, text: async () => html });
+
+    const result = await fetchGradescopeAssignments({} as any, "600", "CS 170");
+    expect(result).toHaveLength(1);
+    expect(result[0].title).toBe("Proj 1");
   });
 });
