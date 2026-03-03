@@ -10,6 +10,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { Calendar } from "lucide-react";
 import type { GCalEvent } from "@/lib/types";
 
@@ -159,6 +160,7 @@ interface GoogleCalendarWidgetProps {
 }
 
 export default function GoogleCalendarWidget({ config, editMode, onUpdateConfig }: GoogleCalendarWidgetProps) {
+  const router = useRouter();
   const viewMode = (config.viewMode as ViewMode) || "week";
   const [events, setEvents] = useState<GCalEvent[]>([]);
   const [connected, setConnected] = useState<boolean | null>(null);
@@ -229,12 +231,13 @@ export default function GoogleCalendarWidget({ config, editMode, onUpdateConfig 
         <p className="text-xs text-muted-foreground mt-1 mb-3">
           Connect to see your events
         </p>
-        <a
-          href="/app/settings?section=integrations"
-          className="no-drag inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors"
+        <button
+          type="button"
+          onClick={() => router.push("/app/settings?section=integrations")}
+          className="no-drag inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg bg-blue-500 force-text-white hover:bg-blue-600 transition-colors cursor-pointer"
         >
           Sync Google Calendar
-        </a>
+        </button>
       </div>
     );
   }

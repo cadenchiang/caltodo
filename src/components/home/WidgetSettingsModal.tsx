@@ -20,6 +20,7 @@ import type { WidgetInstance } from "@/lib/widget-types";
 import type { GCalCalendarEntry } from "@/lib/types";
 import { useDiscussionBoards } from "@/hooks/useDiscussionBoards";
 import FontPicker from "@/components/ui/FontPicker";
+import ColorWheel from "@/components/ui/ColorWheel";
 import CalendarPicker from "@/components/home/CalendarPicker";
 import ClockFacePicker from "@/components/home/ClockFacePicker";
 import {
@@ -122,6 +123,7 @@ export default function WidgetSettingsModal({
   const [showTextColorConfirm, setShowTextColorConfirm] = useState(false);
   const [pendingTextColor, setPendingTextColor] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [expandedColorPicker, setExpandedColorPicker] = useState<"text" | "bg" | null>(null);
 
   // Initialize from widget config when modal opens
   useEffect(() => {
@@ -266,47 +268,58 @@ export default function WidgetSettingsModal({
   }
 
   /**
-   * Renders a compact color input with a native color wheel and reset button.
+   * Renders a color picker row: label + color circle that expands to a ColorWheel.
    *
    * @param value - Current hex color value (empty string = default)
    * @param onChange - Callback with new hex value
    * @param labelText - Label displayed beside the input
+   * @param expanded - Whether the ColorWheel is currently shown
+   * @param onToggle - Callback to toggle expanded state
    */
-  function ColorInput({
+  function ColorPickerRow({
     value,
     onChange,
     labelText,
+    expanded,
+    onToggle,
   }: {
     value: string;
     onChange: (v: string) => void;
     labelText: string;
+    expanded: boolean;
+    onToggle: () => void;
   }) {
     return (
-      <div className="flex items-center justify-between">
-        <label className="text-sm text-foreground">{labelText}</label>
-        <div className="flex items-center gap-2">
-          <div className="relative w-7 h-7 rounded-full overflow-hidden border border-border cursor-pointer">
-            <input
-              type="color"
-              value={value || "#000000"}
-              onChange={(e) => onChange(e.target.value)}
-              className="absolute inset-0 w-full h-full cursor-pointer opacity-0"
-            />
-            <div
-              className="w-full h-full"
-              style={{ backgroundColor: value || "var(--muted)" }}
-            />
-          </div>
-          {value && (
+      <div>
+        <div className="flex items-center justify-between">
+          <label className="text-sm text-foreground">{labelText}</label>
+          <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => onChange("")}
-              className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+              onClick={onToggle}
+              className="relative w-7 h-7 rounded-full overflow-hidden border border-border cursor-pointer"
             >
-              Reset
+              <div
+                className="w-full h-full"
+                style={{ backgroundColor: value || "var(--muted)" }}
+              />
             </button>
-          )}
+            {value && (
+              <button
+                type="button"
+                onClick={() => onChange("")}
+                className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Reset
+              </button>
+            )}
+          </div>
         </div>
+        {expanded && (
+          <div className="mt-2 flex justify-center">
+            <ColorWheel value={value || "#000000"} onChange={onChange} />
+          </div>
+        )}
       </div>
     );
   }
@@ -524,8 +537,20 @@ export default function WidgetSettingsModal({
           {/* ── Universal Style Settings ── */}
           <p className="text-xs font-medium text-foreground">Style</p>
 
-          <ColorInput labelText="Text Color" value={textColor} onChange={setTextColor} />
-          <ColorInput labelText="Background" value={bgColor} onChange={setBgColor} />
+          <ColorPickerRow
+            labelText="Text Color"
+            value={textColor}
+            onChange={setTextColor}
+            expanded={expandedColorPicker === "text"}
+            onToggle={() => setExpandedColorPicker(expandedColorPicker === "text" ? null : "text")}
+          />
+          <ColorPickerRow
+            labelText="Background"
+            value={bgColor}
+            onChange={setBgColor}
+            expanded={expandedColorPicker === "bg"}
+            onToggle={() => setExpandedColorPicker(expandedColorPicker === "bg" ? null : "bg")}
+          />
 
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">Font</label>

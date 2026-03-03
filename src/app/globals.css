@@ -1538,6 +1538,11 @@ textarea:-webkit-autofill {
   color: var(--widget-text-color) !important;
 }
 
+/* Allow specific elements to keep their own text color inside custom-text widgets */
+.widget-custom-text .force-text-white {
+  color: white !important;
+}
+
 /* Dark overlay on hover in edit mode */
 .widget-jiggle::after {
   content: "";
