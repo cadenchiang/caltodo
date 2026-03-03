@@ -82,7 +82,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     label: "Recent Chat",
     description: "Latest messages from a course",
     iconName: "MessageSquare",
-    minW: 2, minH: 2, maxW: 4, maxH: 4,
+    minW: 1, minH: 1, maxW: 4, maxH: 4,
     defaultW: 2, defaultH: 2,
   },
   "google-calendar": {
@@ -90,7 +90,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     label: "Google Calendar",
     description: "Upcoming events from Google Calendar",
     iconName: "Calendar",
-    minW: 2, minH: 2, maxW: 4, maxH: 4,
+    minW: 1, minH: 1, maxW: 4, maxH: 4,
     defaultW: 2, defaultH: 2,
   },
   notes: {
@@ -122,7 +122,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     label: "Pomodoro",
     description: "Focus timer with work and break intervals",
     iconName: "Timer",
-    minW: 2, minH: 2, maxW: 3, maxH: 3,
+    minW: 1, minH: 1, maxW: 3, maxH: 3,
     defaultW: 2, defaultH: 2,
   },
 };

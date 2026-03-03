@@ -132,6 +132,7 @@ export default function WidgetContainer({
   const bgColor = widget.config.bgColor || undefined;
   const textColor = widget.config.textColor || undefined;
   const fontFamily = widget.config.fontFamily || undefined;
+  const accentColor = widget.config.accentColor || undefined;
 
   return (
     <div
@@ -143,6 +144,7 @@ export default function WidgetContainer({
       style={{
         backgroundColor: bgColor,
         ...(textColor ? { "--widget-text-color": textColor } as React.CSSProperties : {}),
+        ...(accentColor ? { "--widget-accent-color": accentColor } as React.CSSProperties : {}),
         fontFamily,
       }}
     >

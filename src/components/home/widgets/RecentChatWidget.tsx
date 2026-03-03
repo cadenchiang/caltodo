@@ -9,6 +9,7 @@
 import { useMemo } from "react";
 import { MessageSquare } from "lucide-react";
 import { useDiscussionBoards } from "@/hooks/useDiscussionBoards";
+import { useCompactMode } from "@/hooks/useCompactMode";
 
 interface RecentChatWidgetProps {
   config: Record<string, string>;
@@ -16,6 +17,7 @@ interface RecentChatWidgetProps {
 
 export default function RecentChatWidget({ config }: RecentChatWidgetProps) {
   const { boards, loading } = useDiscussionBoards();
+  const { containerRef, compact } = useCompactMode(160);
 
   const board = useMemo(() => {
     if (!boards.length) return null;
@@ -45,15 +47,23 @@ export default function RecentChatWidget({ config }: RecentChatWidgetProps) {
     );
   }
 
+  const messageCount = board.member_count || 0;
+
   return (
-    <div className="h-full w-full flex flex-col p-4 overflow-hidden">
+    <div ref={containerRef} className="h-full w-full flex flex-col p-4 overflow-hidden">
       <div className="mb-3">
         <h3 className="text-sm font-semibold text-foreground truncate">
           {board.course.name}
         </h3>
       </div>
 
-      {board.last_message_body ? (
+      {compact ? (
+        <div className="flex-1 flex items-center">
+          <span className="text-xs text-muted-foreground">
+            {messageCount} members
+          </span>
+        </div>
+      ) : board.last_message_body ? (
         <div className="flex-1 flex flex-col justify-start overflow-hidden">
           <div className="flex items-center gap-1.5 mb-1">
             {/* Member avatars */}

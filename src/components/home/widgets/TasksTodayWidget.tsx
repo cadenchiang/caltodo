@@ -15,6 +15,7 @@ import { useTaskContext } from "@/contexts/TaskContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { getThemeColor } from "@/lib/constants";
 import { getDueDateInfo } from "@/lib/task-utils";
+import { useCompactMode } from "@/hooks/useCompactMode";
 import TaskCheckbox from "@/components/tasks/shared/TaskCheckbox";
 import TaskCreateModal from "@/components/tasks/TaskCreateModal";
 import TaskPreviewPopover from "@/components/tasks/TaskPreviewPopover";
@@ -46,6 +47,7 @@ export default function TasksTodayWidget({ config }: TasksTodayWidgetProps) {
   const { colorTheme } = useTheme();
   const hideCompleted = config?.showCompleted === "false";
   const viewMode = config?.viewMode || "today";
+  const { containerRef, compact } = useCompactMode(160);
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [previewTask, setPreviewTask] = useState<Task | null>(null);
@@ -117,7 +119,7 @@ export default function TasksTodayWidget({ config }: TasksTodayWidgetProps) {
   }
 
   return (
-    <div className="h-full w-full flex flex-col p-3 overflow-hidden">
+    <div ref={containerRef} className="h-full w-full flex flex-col p-3 overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between mb-1 px-1">
         <h3 className="text-sm font-semibold text-foreground">{label}</h3>
@@ -141,13 +143,16 @@ export default function TasksTodayWidget({ config }: TasksTodayWidgetProps) {
       {/* Progress bar */}
       <div className="w-full h-1 rounded-full bg-muted overflow-hidden mb-2 mx-1">
         <div
-          className="h-full rounded-full bg-blue-500 transition-all duration-500"
-          style={{ width: `${progressPct}%` }}
+          className="h-full rounded-full transition-all duration-500"
+          style={{
+            width: `${progressPct}%`,
+            backgroundColor: config?.accentColor || '#3b82f6',
+          }}
         />
       </div>
 
-      {/* Task list — inbox style */}
-      {totalCount === 0 ? (
+      {/* Compact mode — show only header + progress bar */}
+      {compact ? null : totalCount === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center">
           <Inbox size={20} className="text-foreground mb-2" />
           <p className="text-sm text-foreground">

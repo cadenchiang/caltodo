@@ -12,6 +12,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Calendar } from "lucide-react";
+import { useCompactMode } from "@/hooks/useCompactMode";
 import type { GCalEvent } from "@/lib/types";
 
 /** Google Calendar color IDs mapped to hex colors. */
@@ -62,7 +63,7 @@ function getTimeRange(mode: ViewMode): { timeMin: string; timeMax: string } {
  * @param events - Sorted array of GCalEvents to display
  * @param calendarColors - Map of calendarId → hex color for fallback event colors
  */
-function EventsByDay({ events, calendarColors = {} }: { events: GCalEvent[]; calendarColors?: Record<string, string> }) {
+function EventsByDay({ events, calendarColors = {}, fallbackColor = "#039BE5" }: { events: GCalEvent[]; calendarColors?: Record<string, string>; fallbackColor?: string }) {
   const today = new Date();
   const todayKey = today.toDateString();
   const tomorrow = new Date(today);
@@ -115,7 +116,7 @@ function EventsByDay({ events, calendarColors = {} }: { events: GCalEvent[]; cal
             {dayEvents.map((event) => {
               const color = event.colorId
                 ? GCAL_COLORS[event.colorId]
-                : (event.calendarId && calendarColors[event.calendarId]) || "#039BE5";
+                : (event.calendarId && calendarColors[event.calendarId]) || fallbackColor;
               const timeStr = event.allDay
                 ? "All day"
                 : new Date(event.start).toLocaleTimeString([], {
@@ -162,6 +163,7 @@ interface GoogleCalendarWidgetProps {
 export default function GoogleCalendarWidget({ config, editMode, onUpdateConfig }: GoogleCalendarWidgetProps) {
   const router = useRouter();
   const viewMode = (config.viewMode as ViewMode) || "week";
+  const { containerRef, compact } = useCompactMode(160);
   const [events, setEvents] = useState<GCalEvent[]>([]);
   const [connected, setConnected] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
@@ -255,8 +257,10 @@ export default function GoogleCalendarWidget({ config, editMode, onUpdateConfig 
     );
   }
 
+  const accentFallback = config.accentColor || "#039BE5";
+
   return (
-    <div className="h-full w-full flex flex-col p-4 overflow-hidden">
+    <div ref={containerRef} className="h-full w-full flex flex-col p-4 overflow-hidden">
       {/* Header */}
       <div className="flex items-center gap-2 mb-3">
         <h3 className="text-sm font-semibold text-foreground">Google Calendar</h3>
@@ -269,7 +273,11 @@ export default function GoogleCalendarWidget({ config, editMode, onUpdateConfig 
           <p className="text-sm text-foreground">No events</p>
         </div>
       ) : (
-        <EventsByDay events={events.slice(0, 12)} calendarColors={calendarColors} />
+        <EventsByDay
+          events={events.slice(0, compact ? 3 : 12)}
+          calendarColors={calendarColors}
+          fallbackColor={accentFallback}
+        />
       )}
     </div>
   );

@@ -11,6 +11,7 @@
 import { useMemo } from "react";
 import { GraduationCap } from "lucide-react";
 import { useTaskContext } from "@/contexts/TaskContext";
+import { useCompactMode } from "@/hooks/useCompactMode";
 
 /** A single course's progress data. */
 interface CourseProgress {
@@ -26,6 +27,7 @@ interface ClassProgressWidgetProps {
 export default function ClassProgressWidget({ config }: ClassProgressWidgetProps) {
   const { tasks } = useTaskContext();
   const sortMode = config?.progressSort || "count";
+  const { containerRef, compact } = useCompactMode(160);
 
   const courses = useMemo(() => {
     const activeTasks = tasks.filter((t) => !t.dismissed_at && !t.snoozed_until);
@@ -70,35 +72,57 @@ export default function ClassProgressWidget({ config }: ClassProgressWidgetProps
     );
   }
 
+  const totalTasks = courses.reduce((sum, c) => sum + c.total, 0);
+  const totalCompleted = courses.reduce((sum, c) => sum + c.completed, 0);
+  const overallPct = totalTasks > 0 ? (totalCompleted / totalTasks) * 100 : 0;
+
   return (
-    <div className="h-full w-full flex flex-col p-4 overflow-hidden">
-      <div className="mb-3">
+    <div ref={containerRef} className="h-full w-full flex flex-col p-4 overflow-hidden">
+      <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-semibold text-foreground">Class Progress</h3>
+        {compact && (
+          <span className="text-xs text-muted-foreground">{courses.length} courses</span>
+        )}
       </div>
 
-      <ul className="flex-1 space-y-0.5 overflow-y-auto">
-        {courses.map((c) => {
-          const pct = c.total > 0 ? (c.completed / c.total) * 100 : 0;
-          return (
-            <li key={c.name} className="py-2">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-medium text-foreground truncate mr-2">
-                  {c.name}
-                </span>
-                <span className="text-xs text-muted-foreground shrink-0">
-                  {c.completed}/{c.total}
-                </span>
-              </div>
-              <div className="w-full h-1 rounded-full bg-muted overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-blue-500 transition-all duration-300"
-                  style={{ width: `${pct}%` }}
-                />
-              </div>
-            </li>
-          );
-        })}
-      </ul>
+      {compact ? (
+        <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all duration-300"
+            style={{
+              width: `${overallPct}%`,
+              backgroundColor: config?.accentColor || '#3b82f6',
+            }}
+          />
+        </div>
+      ) : (
+        <ul className="flex-1 space-y-0.5 overflow-y-auto">
+          {courses.map((c) => {
+            const pct = c.total > 0 ? (c.completed / c.total) * 100 : 0;
+            return (
+              <li key={c.name} className="py-2">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-medium text-foreground truncate mr-2">
+                    {c.name}
+                  </span>
+                  <span className="text-xs text-muted-foreground shrink-0">
+                    {c.completed}/{c.total}
+                  </span>
+                </div>
+                <div className="w-full h-1 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all duration-300"
+                    style={{
+                      width: `${pct}%`,
+                      backgroundColor: config?.accentColor || '#3b82f6',
+                    }}
+                  />
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }

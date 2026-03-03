@@ -14,6 +14,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Play, Pause, RotateCcw, SkipForward } from "lucide-react";
+import { useCompactMode } from "@/hooks/useCompactMode";
 
 interface PomodoroWidgetProps {
   config?: Record<string, string>;
@@ -49,6 +50,7 @@ export default function PomodoroWidget({
 }: PomodoroWidgetProps) {
   const workMinutes = Number(config?.workMinutes) || 25;
   const breakMinutes = Number(config?.breakMinutes) || 5;
+  const { containerRef, compact } = useCompactMode(180);
 
   const [phase, setPhase] = useState<Phase>("work");
   const [secondsLeft, setSecondsLeft] = useState(workMinutes * 60);
@@ -139,15 +141,20 @@ export default function PomodoroWidget({
   const progress = 1 - secondsLeft / totalForPhase;
   const dashOffset = RING_CIRCUMFERENCE * (1 - progress);
 
-  /** Ring color based on current phase. */
-  const ringColor = phase === "work" ? "stroke-orange-500" : "stroke-green-500";
+  /** Ring color based on current phase and accent config. */
+  const workColor = config?.accentColor || '#f97316';
+  const breakColor = '#22c55e';
+  const ringStroke = phase === "work" ? workColor : breakColor;
   const labelText = phase === "work" ? "Focus" : "Break";
 
+  const ringSize = compact ? 80 : 130;
+  const timeTextClass = compact ? "text-xl" : "text-3xl";
+
   return (
-    <div className="h-full w-full flex flex-col items-center justify-center p-3 gap-1">
+    <div ref={containerRef} className="h-full w-full flex flex-col items-center justify-center p-3 gap-1">
       {/* SVG progress ring with time display */}
       <div className="relative flex items-center justify-center">
-        <svg width="130" height="130" viewBox="0 0 120 120" className="-rotate-90">
+        <svg width={ringSize} height={ringSize} viewBox="0 0 120 120" className="-rotate-90">
           {/* Background track */}
           <circle
             cx="60"
@@ -164,7 +171,7 @@ export default function PomodoroWidget({
             cy="60"
             r={RING_RADIUS}
             fill="none"
-            className={ringColor}
+            stroke={ringStroke}
             strokeWidth="6"
             strokeLinecap="round"
             strokeDasharray={RING_CIRCUMFERENCE}
@@ -175,30 +182,36 @@ export default function PomodoroWidget({
 
         {/* Centered time text */}
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-3xl font-light tracking-tight text-foreground tabular-nums">
+          <span className={`${timeTextClass} font-light tracking-tight text-foreground tabular-nums`}>
             {formatTime(secondsLeft)}
           </span>
         </div>
       </div>
 
-      {/* Phase label */}
-      <span className="text-xs font-medium text-muted-foreground tracking-wide uppercase">
-        {labelText}
-      </span>
+      {/* Phase label — hidden in compact mode */}
+      {!compact && (
+        <span className="text-xs font-medium text-muted-foreground tracking-wide uppercase">
+          {labelText}
+        </span>
+      )}
 
-      {/* Session dots */}
-      <div className="flex gap-1.5">
-        {Array.from({ length: TOTAL_SESSIONS }).map((_, i) => (
-          <div
-            key={i}
-            className={`w-1.5 h-1.5 rounded-full ${
-              i < completedSessions
-                ? "bg-orange-500"
-                : "bg-muted-foreground/20"
-            }`}
-          />
-        ))}
-      </div>
+      {/* Session dots — hidden in compact mode */}
+      {!compact && (
+        <div className="flex gap-1.5">
+          {Array.from({ length: TOTAL_SESSIONS }).map((_, i) => (
+            <div
+              key={i}
+              className="w-1.5 h-1.5 rounded-full"
+              style={{
+                backgroundColor: i < completedSessions
+                  ? workColor
+                  : 'var(--color-muted-foreground, #9ca3af)',
+                opacity: i < completedSessions ? 1 : 0.2,
+              }}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Controls */}
       <div className="flex items-center gap-2 mt-1 no-drag">
@@ -214,7 +227,8 @@ export default function PomodoroWidget({
         <button
           onClick={handlePlayPause}
           disabled={editMode}
-          className="w-10 h-10 rounded-full flex items-center justify-center bg-orange-500 text-white hover:bg-orange-600 transition-colors disabled:opacity-40 disabled:pointer-events-none"
+          className="w-10 h-10 rounded-full flex items-center justify-center text-white transition-colors disabled:opacity-40 disabled:pointer-events-none"
+          style={{ backgroundColor: workColor }}
           aria-label={running ? "Pause timer" : "Start timer"}
         >
           {running ? <Pause size={18} /> : <Play size={18} className="ml-0.5" />}

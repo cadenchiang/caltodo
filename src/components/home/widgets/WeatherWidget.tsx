@@ -10,9 +10,10 @@
  * @param config - Widget configuration (weatherView, tempUnit)
  */
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { MapPin } from "lucide-react";
 import { getWeatherIcon, getWeatherLabel } from "./weather-icons";
+import { useCompactMode } from "@/hooks/useCompactMode";
 import WeatherDetailModal from "./WeatherDetailModal";
 
 interface CurrentWeather {
@@ -89,21 +90,7 @@ export default function WeatherWidget({ config, editMode }: WeatherWidgetProps) 
   const [detailOpen, setDetailOpen] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const [permDenied, setPermDenied] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [compact, setCompact] = useState(false);
-
-  /** Observe container size to adapt layout. */
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const observer = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        setCompact(entry.contentRect.height < 160);
-      }
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
+  const { containerRef, compact } = useCompactMode(160);
 
   useEffect(() => {
     let cancelled = false;
@@ -396,10 +383,13 @@ export default function WeatherWidget({ config, editMode }: WeatherWidgetProps) 
                 </span>
                 <div className="flex-1 h-[3px] rounded-full bg-muted relative mx-1">
                   <div
-                    className="absolute h-full rounded-full bg-blue-400/50"
+                    className="absolute h-full rounded-full"
                     style={{
                       left: `${barLeft}%`,
                       width: `${Math.max(barWidth, 10)}%`,
+                      backgroundColor: config?.accentColor
+                        ? `${config.accentColor}80`
+                        : 'rgb(96 165 250 / 0.5)',
                     }}
                   />
                 </div>

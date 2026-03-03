@@ -123,7 +123,8 @@ export default function WidgetSettingsModal({
   const [showTextColorConfirm, setShowTextColorConfirm] = useState(false);
   const [pendingTextColor, setPendingTextColor] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [expandedColorPicker, setExpandedColorPicker] = useState<"text" | "bg" | null>(null);
+  const [accentColor, setAccentColor] = useState("");
+  const [expandedColorPicker, setExpandedColorPicker] = useState<"text" | "bg" | "accent" | null>(null);
 
   // Initialize from widget config when modal opens
   useEffect(() => {
@@ -158,6 +159,7 @@ export default function WidgetSettingsModal({
       // Universal style
       setTextColor(widget.config.textColor || "");
       setBgColor(widget.config.bgColor || "");
+      setAccentColor(widget.config.accentColor || "");
       setFontFamily(widget.config.fontFamily || "");
       setShowFontConfirm(false);
       setShowBgResetConfirm(false);
@@ -190,6 +192,7 @@ export default function WidgetSettingsModal({
     // Universal style
     config.textColor = textColor;
     config.bgColor = bgColor;
+    config.accentColor = accentColor;
     config.fontFamily = fontFamily;
 
     // Type-specific
@@ -550,6 +553,13 @@ export default function WidgetSettingsModal({
             onChange={setBgColor}
             expanded={expandedColorPicker === "bg"}
             onToggle={() => setExpandedColorPicker(expandedColorPicker === "bg" ? null : "bg")}
+          />
+          <ColorPickerRow
+            labelText="Accent Color"
+            value={accentColor}
+            onChange={setAccentColor}
+            expanded={expandedColorPicker === "accent"}
+            onToggle={() => setExpandedColorPicker(expandedColorPicker === "accent" ? null : "accent")}
           />
 
           <div>
