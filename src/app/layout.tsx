@@ -26,7 +26,7 @@ const instrumentSerif = Instrument_Serif({
 
 export const metadata: Metadata = {
   title: {
-    default: "CalTodo — Assignment Tracker for UC Berkeley Students",
+    default: "CalTodo",
     template: "%s | CalTodo",
   },
   description: "CalTodo syncs your bCourses, Gradescope, and Pensieve assignments into one dashboard. Free assignment tracker built for UC Berkeley students — never miss a deadline again.",
