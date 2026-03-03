@@ -88,6 +88,7 @@ export default function WeatherWidget({ config, editMode }: WeatherWidgetProps) 
   const [error, setError] = useState("");
   const [detailOpen, setDetailOpen] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
+  const [permDenied, setPermDenied] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const [compact, setCompact] = useState(false);
 
@@ -110,8 +111,31 @@ export default function WeatherWidget({ config, editMode }: WeatherWidgetProps) 
     async function fetchWeather() {
       setLoading(true);
       setError("");
+      setPermDenied(false);
 
       try {
+        // Check if geolocation permission is permanently denied
+        if (navigator.permissions) {
+          try {
+            const status = await navigator.permissions.query({
+              name: "geolocation",
+            });
+            if (status.state === "denied") {
+              setPermDenied(true);
+              throw new Error("PERMISSION_DENIED");
+            }
+          } catch (permErr) {
+            // Re-throw our own PERMISSION_DENIED error
+            if (
+              permErr instanceof Error &&
+              permErr.message === "PERMISSION_DENIED"
+            ) {
+              throw permErr;
+            }
+            // Otherwise permissions API unavailable, continue
+          }
+        }
+
         const pos = await new Promise<GeolocationPosition>(
           (resolve, reject) => {
             navigator.geolocation.getCurrentPosition(resolve, reject, {
@@ -159,11 +183,22 @@ export default function WeatherWidget({ config, editMode }: WeatherWidgetProps) 
         );
       } catch (err) {
         if (!cancelled) {
-          setError(
-            err instanceof GeolocationPositionError
-              ? "Enable location access"
-              : "Could not load weather"
-          );
+          const geoErr = err as { code?: number };
+          if (geoErr?.code === 1) {
+            // PERMISSION_DENIED from geolocation API
+            setPermDenied(true);
+            setError("Location blocked — enable in site settings");
+          } else if (geoErr?.code === 2 || geoErr?.code === 3) {
+            // POSITION_UNAVAILABLE or TIMEOUT
+            setError("Enable location access");
+          } else if (
+            err instanceof Error &&
+            err.message === "PERMISSION_DENIED"
+          ) {
+            setError("Location blocked — enable in site settings");
+          } else {
+            setError("Could not load weather");
+          }
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -195,13 +230,28 @@ export default function WeatherWidget({ config, editMode }: WeatherWidgetProps) 
         <div className="text-muted-foreground mb-2">
           {getWeatherIcon(3, 24)}
         </div>
-        <button
-          type="button"
-          onClick={() => setRetryCount((c) => c + 1)}
-          className="text-sm text-blue-500 hover:text-blue-600 transition-colors cursor-pointer"
-        >
-          {error}
-        </button>
+        {permDenied ? (
+          <>
+            <p className="text-xs text-muted-foreground mb-1">
+              Location blocked — click the lock icon in your address bar
+            </p>
+            <button
+              type="button"
+              onClick={() => setRetryCount((c) => c + 1)}
+              className="text-xs text-blue-500 hover:text-blue-600 transition-colors cursor-pointer"
+            >
+              Retry
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setRetryCount((c) => c + 1)}
+            className="text-sm text-blue-500 hover:text-blue-600 transition-colors cursor-pointer"
+          >
+            {error}
+          </button>
+        )}
       </div>
     );
   }
