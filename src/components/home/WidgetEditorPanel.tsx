@@ -326,7 +326,6 @@ export default function WidgetEditorPanel({
                         <div className="aspect-[4/3]">
                           <img src={p.url} alt={p.label} className="w-full h-full object-cover" loading="lazy" />
                         </div>
-                        <p className="text-[9px] text-muted-foreground truncate px-1 py-0.5">{p.label}</p>
                       </button>
                     ))}
                   </div>

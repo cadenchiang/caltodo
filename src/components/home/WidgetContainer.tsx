@@ -53,10 +53,12 @@ function RenderWidget({
   widget,
   editMode,
   onUpdateConfig,
+  onOpenSettings,
 }: {
   widget: WidgetInstance;
   editMode: boolean;
   onUpdateConfig?: (config: Record<string, string>) => void;
+  onOpenSettings?: () => void;
 }) {
   switch (widget.type) {
     case "clock":
@@ -70,7 +72,7 @@ function RenderWidget({
     case "google-calendar":
       return <GoogleCalendarWidget config={widget.config} editMode={editMode} onUpdateConfig={onUpdateConfig} />;
     case "image":
-      return <ImageWidget config={widget.config} widgetId={widget.id} onUpdateConfig={editMode ? onUpdateConfig : undefined} />;
+      return <ImageWidget config={widget.config} widgetId={widget.id} onUpdateConfig={editMode ? onUpdateConfig : undefined} onOpenSettings={onOpenSettings} />;
     case "notes":
       return <NotesWidget config={widget.config} onUpdateConfig={onUpdateConfig} />;
     case "weather":
@@ -171,6 +173,10 @@ export default function WidgetContainer({
           onUpdateConfig={
             onUpdateConfig ? (cfg) => onUpdateConfig(widget.id, cfg) : undefined
           }
+          onOpenSettings={() => {
+            const rect = containerRef.current?.getBoundingClientRect();
+            if (rect) onSettings(widget.id, rect);
+          }}
         />
       </div>
     </div>
