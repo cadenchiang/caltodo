@@ -342,12 +342,14 @@ export interface ChatMessage {
  * @param user_name - Display name
  * @param user_avatar - Avatar URL
  * @param online_at - ISO timestamp of when presence was established
+ * @param status - User-set status: "online", "idle", or "dnd". Defaults to "online" if absent.
  */
 export interface ChatPresence {
   user_id: string;
   user_name: string | null;
   user_avatar: string | null;
   online_at: string;
+  status?: "online" | "idle" | "dnd";
 }
 
 /**

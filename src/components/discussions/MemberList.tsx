@@ -2,9 +2,27 @@
 
 import { useState, useMemo } from "react";
 import { useChatMembers } from "@/hooks/useChatMembers";
+import { usePresence, type UserStatus } from "@/contexts/PresenceContext";
 
 /**
- * Shows all members enrolled in a course with online status indicators.
+ * Returns the Tailwind background class for a given user status.
+ *
+ * @param status - User status value
+ * @returns Tailwind bg class string
+ */
+function statusDotColor(status: UserStatus): string {
+  switch (status) {
+    case "idle":
+      return "bg-yellow-500";
+    case "dnd":
+      return "bg-red-500";
+    default:
+      return "bg-green-500";
+  }
+}
+
+/**
+ * Shows all members enrolled in a course with status-colored indicators.
  * Sorts online members to the top, then alphabetically within each group.
  * Computes per-chat online count (intersection of global online IDs and chat members).
  *
@@ -30,6 +48,7 @@ export default function MemberList({
 }: MemberListProps) {
   const isLg = avatarSize === "lg";
   const { members, loading } = useChatMembers(courseId);
+  const { userStatuses } = usePresence();
   const [expanded, setExpanded] = useState(false);
 
   // Sort: online members first, then alphabetical within each group
@@ -88,6 +107,8 @@ export default function MemberList({
       <div className="space-y-0.5">
         {visibleMembers.map((member) => {
           const isOnline = onlineUserIds?.has(member.user_id);
+          const status = userStatuses.get(member.user_id) ?? "online";
+          const dotColor = statusDotColor(status);
           return (
             <div
               key={member.user_id}
@@ -121,8 +142,8 @@ export default function MemberList({
                   <span
                     className={
                       isLg
-                        ? "absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-green-500 border-[2.5px] border-white dark:border-zinc-900"
-                        : "absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-green-500 border-2 border-white dark:border-zinc-900"
+                        ? `absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full ${dotColor} border-[2.5px] border-white dark:border-zinc-900`
+                        : `absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full ${dotColor} border-2 border-white dark:border-zinc-900`
                     }
                   />
                 )}

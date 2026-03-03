@@ -190,7 +190,7 @@ export default function WidgetEditorPanel({
     const init = initialConfigRef.current;
     if (localConfig.fontFamily && localConfig.fontFamily !== (init.fontFamily || "") && onApplyFontToAll) { setConfirmOverlay("font"); return; }
     if (init.bgColor && !localConfig.bgColor && onApplyBgResetToAll) { setConfirmOverlay("bgReset"); return; }
-    if (localConfig.textColor !== (init.textColor || "") && onApplyTextColorToAll) { setConfirmOverlay("textColor"); return; }
+    if ((localConfig.textColor || "") !== (init.textColor || "") && onApplyTextColorToAll) { setConfirmOverlay("textColor"); return; }
     triggerClose();
   }
 

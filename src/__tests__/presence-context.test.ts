@@ -65,7 +65,7 @@ describe("usePresence outside provider", () => {
 });
 
 describe("channel track payload contract", () => {
-  it("should produce correct track payload from authenticated user metadata", async () => {
+  it("should produce correct track payload with status from authenticated user metadata", async () => {
     const { data: { user } } = await mockGetUser();
 
     const payload = {
@@ -73,11 +73,13 @@ describe("channel track payload contract", () => {
       user_name: user.user_metadata?.full_name ?? null,
       user_avatar: user.user_metadata?.avatar_url ?? null,
       online_at: new Date().toISOString(),
+      status: "online" as const,
     };
 
     expect(payload.user_id).toBe("user-123");
     expect(payload.user_name).toBe("Test User");
     expect(payload.user_avatar).toBe("https://example.com/avatar.png");
+    expect(payload.status).toBe("online");
     expect(typeof payload.online_at).toBe("string");
     // Verify it's a valid ISO date
     expect(new Date(payload.online_at).toISOString()).toBe(payload.online_at);
@@ -182,6 +184,85 @@ describe("presence state parsing", () => {
       }
     }
     expect(users).toHaveLength(0);
+  });
+});
+
+describe("status tracking", () => {
+  it("should include status: 'online' in default track payload", async () => {
+    const { data: { user } } = await mockGetUser();
+
+    const payload = {
+      user_id: user.id,
+      user_name: user.user_metadata?.full_name ?? null,
+      user_avatar: user.user_metadata?.avatar_url ?? null,
+      online_at: new Date().toISOString(),
+      status: "online" as const,
+    };
+
+    await mockChannel.track(payload);
+    expect(mockTrack).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "online" }),
+    );
+  });
+
+  it("should re-track with updated status when setStatus is called", async () => {
+    const { data: { user } } = await mockGetUser();
+
+    // Initial track
+    await mockChannel.track({
+      user_id: user.id,
+      user_name: user.user_metadata?.full_name ?? null,
+      user_avatar: user.user_metadata?.avatar_url ?? null,
+      online_at: new Date().toISOString(),
+      status: "online" as const,
+    });
+
+    // Simulate setStatus("dnd") — re-tracks with new status
+    await mockChannel.track({
+      user_id: user.id,
+      user_name: user.user_metadata?.full_name ?? null,
+      user_avatar: user.user_metadata?.avatar_url ?? null,
+      online_at: new Date().toISOString(),
+      status: "dnd" as const,
+    });
+
+    expect(mockTrack).toHaveBeenCalledTimes(2);
+    expect(mockTrack).toHaveBeenLastCalledWith(
+      expect.objectContaining({ status: "dnd" }),
+    );
+  });
+
+  it("should build userStatuses map from onlineUsers with status field", () => {
+    const onlineUsers = [
+      { user_id: "user-1", user_name: "Alice", user_avatar: null, online_at: "2026-01-01T00:00:00Z", status: "online" as const },
+      { user_id: "user-2", user_name: "Bob", user_avatar: null, online_at: "2026-01-01T00:01:00Z", status: "dnd" as const },
+      { user_id: "user-3", user_name: "Charlie", user_avatar: null, online_at: "2026-01-01T00:02:00Z" },
+    ];
+
+    // Mirrors the useMemo in PresenceProvider
+    const userStatuses = new Map<string, "online" | "idle" | "dnd">();
+    for (const u of onlineUsers) {
+      userStatuses.set(u.user_id, u.status ?? "online");
+    }
+
+    expect(userStatuses.size).toBe(3);
+    expect(userStatuses.get("user-1")).toBe("online");
+    expect(userStatuses.get("user-2")).toBe("dnd");
+    expect(userStatuses.get("user-3")).toBe("online"); // defaults to "online" when absent
+  });
+
+  it("should accept all valid status values", () => {
+    const validStatuses: Array<"online" | "idle" | "dnd"> = ["online", "idle", "dnd"];
+    for (const status of validStatuses) {
+      const payload = {
+        user_id: "user-1",
+        user_name: "Test",
+        user_avatar: null,
+        online_at: new Date().toISOString(),
+        status,
+      };
+      expect(payload.status).toBe(status);
+    }
   });
 });
 

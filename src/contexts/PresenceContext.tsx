@@ -7,6 +7,7 @@ import {
   useEffect,
   useMemo,
   useRef,
+  useCallback,
   type ReactNode,
 } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -14,11 +15,20 @@ import { ensureRealtimeAuth } from "@/lib/supabase/realtime-auth";
 import type { ChatPresence } from "@/lib/types";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
+/** Valid user status values. */
+export type UserStatus = "online" | "idle" | "dnd";
+
 interface PresenceContextValue {
   /** All currently online users with their profile info. */
   onlineUsers: ChatPresence[];
   /** Set of user IDs currently online, for O(1) membership checks. */
   onlineUserIds: Set<string>;
+  /** Map of user IDs to their current status. */
+  userStatuses: Map<string, UserStatus>;
+  /** Sets the current user's status and re-tracks presence. */
+  setStatus: (status: UserStatus) => void;
+  /** The authenticated user's ID (null until auth resolves). */
+  currentUserId: string | null;
 }
 
 const PresenceContext = createContext<PresenceContextValue | null>(null);
@@ -32,7 +42,11 @@ const PresenceContext = createContext<PresenceContextValue | null>(null);
  */
 export function PresenceProvider({ children }: { children: ReactNode }) {
   const [onlineUsers, setOnlineUsers] = useState<ChatPresence[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentStatus, setCurrentStatus] = useState<UserStatus>("online");
   const channelRef = useRef<RealtimeChannel | null>(null);
+  /** Cached user metadata for re-tracking on status change. */
+  const userMetaRef = useRef<{ id: string; name: string | null; avatar: string | null } | null>(null);
   const supabase = createClient();
 
   useEffect(() => {
@@ -47,6 +61,13 @@ export function PresenceProvider({ children }: { children: ReactNode }) {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user || !mounted.current) return;
+
+      setCurrentUserId(user.id);
+      userMetaRef.current = {
+        id: user.id,
+        name: user.user_metadata?.full_name ?? null,
+        avatar: user.user_metadata?.avatar_url ?? null,
+      };
 
       // Use the actual user ID as presence key so each user gets a unique slot
       channel = supabase.channel("presence:global", {
@@ -73,6 +94,7 @@ export function PresenceProvider({ children }: { children: ReactNode }) {
           user_name: user.user_metadata?.full_name ?? null,
           user_avatar: user.user_metadata?.avatar_url ?? null,
           online_at: new Date().toISOString(),
+          status: "online",
         });
       });
 
@@ -100,8 +122,38 @@ export function PresenceProvider({ children }: { children: ReactNode }) {
     [onlineUsers],
   );
 
+  /** Derived map of user IDs to their status (defaults to "online" if absent). */
+  const userStatuses = useMemo(() => {
+    const map = new Map<string, UserStatus>();
+    for (const u of onlineUsers) {
+      map.set(u.user_id, u.status ?? "online");
+    }
+    return map;
+  }, [onlineUsers]);
+
+  /**
+   * Updates the current user's status and re-tracks presence.
+   *
+   * @param status - The new status to broadcast
+   */
+  const setStatus = useCallback((status: UserStatus) => {
+    setCurrentStatus(status);
+    const ch = channelRef.current;
+    const meta = userMetaRef.current;
+    if (!ch || !meta) return;
+    ch.track({
+      user_id: meta.id,
+      user_name: meta.name,
+      user_avatar: meta.avatar,
+      online_at: new Date().toISOString(),
+      status,
+    });
+  }, []);
+
   return (
-    <PresenceContext.Provider value={{ onlineUsers, onlineUserIds }}>
+    <PresenceContext.Provider
+      value={{ onlineUsers, onlineUserIds, userStatuses, setStatus, currentUserId }}
+    >
       {children}
     </PresenceContext.Provider>
   );
@@ -111,7 +163,7 @@ export function PresenceProvider({ children }: { children: ReactNode }) {
  * Hook to access global presence state.
  * Must be used within a PresenceProvider.
  *
- * @returns PresenceContextValue with onlineUsers list and onlineUserIds set
+ * @returns PresenceContextValue with onlineUsers, onlineUserIds, userStatuses, setStatus, currentUserId
  * @throws Error if used outside PresenceProvider
  */
 export function usePresence(): PresenceContextValue {

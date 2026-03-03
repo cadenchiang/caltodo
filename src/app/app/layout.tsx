@@ -49,7 +49,7 @@ export default async function AppLayout({
 
   return (
     <div className="flex flex-col md:flex-row h-dvh">
-      <PostHogIdentify userId={session.user.id} email={email} />
+      <PostHogIdentify userId={session.user.id} email={email} fullName={fullName} />
       <ToastProvider>
         <NotificationProvider>
           <PresenceProvider>

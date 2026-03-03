@@ -82,8 +82,7 @@ export default function SyncClassesModal() {
       return;
     }
 
-    const timer = setTimeout(() => setVisible(true), 600);
-    return () => clearTimeout(timer);
+    setVisible(true);
   }, [pathname, loading, hasCompletedOnboarding, redoActive]);
 
   /**

@@ -296,7 +296,7 @@ export default function GoogleCalendarWidget({ config, editMode, onUpdateConfig 
         <button
           type="button"
           onClick={() => router.push("/app/settings?section=integrations")}
-          className="no-drag inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg bg-blue-500 force-text-white hover:bg-blue-600 transition-colors cursor-pointer"
+          className="no-drag inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors cursor-pointer"
         >
           Sync Google Calendar
         </button>

@@ -233,7 +233,7 @@ export default function BoardCover({
                   step={10}
                   value={coverHeight}
                   onChange={(e) => onChangeCoverConfig(Number(e.target.value), coverPositionY)}
-                  className="w-full h-1.5 rounded-full appearance-none bg-muted accent-blue-500 cursor-pointer"
+                  className="w-full h-2 rounded-full appearance-none bg-border accent-blue-500 cursor-pointer"
                 />
               </div>
               {isImageCover && (
@@ -249,7 +249,7 @@ export default function BoardCover({
                     step={1}
                     value={coverPositionY}
                     onChange={(e) => onChangeCoverConfig(coverHeight, Number(e.target.value))}
-                    className="w-full h-1.5 rounded-full appearance-none bg-muted accent-blue-500 cursor-pointer"
+                    className="w-full h-2 rounded-full appearance-none bg-border accent-blue-500 cursor-pointer"
                   />
                 </div>
               )}
@@ -315,7 +315,6 @@ export default function BoardCover({
                             <div className="aspect-[3/1]">
                               <img src={p.url} alt={p.label} className="w-full h-full object-cover" loading="lazy" />
                             </div>
-                            <p className="text-[9px] text-muted-foreground truncate px-1 py-0.5">{p.label}</p>
                           </button>
                         ))}
                       </div>
@@ -361,7 +360,6 @@ export default function BoardCover({
                             title={p.label}
                           >
                             <div className="aspect-[2/1]" style={{ background: p.style }} />
-                            <p className="text-[9px] text-muted-foreground truncate px-1 py-0.5">{p.label}</p>
                           </button>
                         ))}
                       </div>
@@ -407,7 +405,6 @@ export default function BoardCover({
                             title={p.label}
                           >
                             <div className="aspect-[2/1]" style={{ backgroundColor: p.color }} />
-                            <p className="text-[9px] text-muted-foreground truncate px-1 py-0.5">{p.label}</p>
                           </button>
                         ))}
                       </div>
