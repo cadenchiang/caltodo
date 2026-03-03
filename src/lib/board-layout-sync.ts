@@ -1,7 +1,7 @@
 /**
  * Server sync helpers for board layout persistence.
  * Handles fetching and saving board layout to the Supabase API,
- * with debounced writes to batch rapid mutations.
+ * with debounced writes, retry logic, and error notification.
  * Includes beforeunload/visibilitychange flush to prevent data loss
  * when users close the tab before the debounce fires.
  *
@@ -13,6 +13,20 @@ interface ServerLayoutResponse {
   layout: Record<string, unknown> | null;
   updatedAt: string | null;
 }
+
+/**
+ * Result of a server save attempt.
+ *
+ * @property ok - Whether the save succeeded
+ * @property error - Human-readable error message on failure
+ */
+export interface SaveResult {
+  ok: boolean;
+  error?: string;
+}
+
+/** Delay in ms before retrying a failed save. */
+const RETRY_DELAY_MS = 2000;
 
 /**
  * Fetches the user's board layout from the server.
@@ -36,11 +50,12 @@ export async function fetchServerLayout(): Promise<ServerLayoutResponse> {
 
 /**
  * Saves the board layout to the server via PUT.
- * Fire-and-forget — errors are logged but not thrown.
+ * Returns a SaveResult indicating success or failure with error details.
  *
  * @param data - The full PersistedLayout object (with updatedAt)
+ * @returns SaveResult with ok=true on success, ok=false with error message on failure
  */
-export async function saveServerLayout(data: object): Promise<void> {
+export async function saveServerLayout(data: object): Promise<SaveResult> {
   try {
     const res = await fetch("/api/board-layout", {
       method: "PUT",
@@ -48,10 +63,52 @@ export async function saveServerLayout(data: object): Promise<void> {
       body: JSON.stringify(data),
     });
     if (!res.ok) {
-      console.warn("[board-layout-sync] saveServerLayout failed:", res.status);
+      const msg = `HTTP ${res.status}`;
+      console.warn("[board-layout-sync] saveServerLayout failed:", msg);
+      return { ok: false, error: msg };
     }
+    return { ok: true };
   } catch (err) {
-    console.warn("[board-layout-sync] saveServerLayout error:", err);
+    const msg = err instanceof Error ? err.message : "Network error";
+    console.warn("[board-layout-sync] saveServerLayout error:", msg);
+    return { ok: false, error: msg };
+  }
+}
+
+/**
+ * Module-level error callback for bridging save failures to React (toast).
+ * Registered by the hook on mount, cleared on unmount.
+ */
+let saveErrorHandler: ((error: string) => void) | null = null;
+
+/**
+ * Registers a callback to be invoked when a save fails after retry.
+ * Pass null to clear the handler (e.g. on hook unmount).
+ *
+ * @param cb - Error callback or null to clear
+ */
+export function registerSaveErrorHandler(cb: ((error: string) => void) | null): void {
+  saveErrorHandler = cb;
+}
+
+/**
+ * Attempts to save layout to server, retrying once after RETRY_DELAY_MS on failure.
+ * Invokes the registered error handler if both attempts fail.
+ *
+ * @param data - The full PersistedLayout object to persist
+ */
+export async function saveWithRetry(data: object): Promise<void> {
+  const first = await saveServerLayout(data);
+  if (first.ok) return;
+
+  // Wait and retry once
+  await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+  const second = await saveServerLayout(data);
+  if (second.ok) return;
+
+  // Both attempts failed — notify via registered handler
+  if (saveErrorHandler) {
+    saveErrorHandler(second.error ?? "Save failed");
   }
 }
 
@@ -64,6 +121,7 @@ let pendingData: object | null = null;
 /**
  * Immediately flushes any pending debounced save using sendBeacon (for tab close)
  * or a regular fetch (for visibility change). Called by beforeunload/visibilitychange.
+ * sendBeacon cannot retry — this is best-effort on tab close.
  */
 function flushPendingSync(): void {
   if (!pendingData) return;
@@ -100,7 +158,7 @@ function registerFlushListeners(): void {
 }
 
 /**
- * Debounced version of saveServerLayout.
+ * Debounced version of saveWithRetry.
  * Batches rapid mutations (e.g. widget dragging) into a single API call.
  * Uses a 500ms debounce window. Pending data is flushed on tab close
  * or visibility change to prevent data loss.
@@ -117,6 +175,6 @@ export function debouncedServerSave(data: object): void {
   debounceTimer = setTimeout(() => {
     debounceTimer = null;
     pendingData = null;
-    saveServerLayout(data);
+    saveWithRetry(data);
   }, 500);
 }

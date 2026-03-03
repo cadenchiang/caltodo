@@ -2,14 +2,16 @@
 
 /**
  * Hook for managing the Home dashboard widget layout.
- * Persists layout to localStorage with SSR-safe hydration.
- * Follows the same stale-while-revalidate pattern as TaskContext.
+ * Server-authoritative with optimistic UI: React state is updated
+ * immediately, localStorage serves as a passive cache, and the server
+ * is the source of truth with retry + error notification.
  *
  * @module useWidgetLayout
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import type { Layout, LayoutItem, ResponsiveLayouts } from "react-grid-layout";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import {
   type WidgetInstance,
   type WidgetType,
@@ -17,194 +19,26 @@ import {
   generateWidgetId,
   getDefaultLayout,
 } from "@/lib/widget-types";
-import { fetchServerLayout, debouncedServerSave } from "@/lib/board-layout-sync";
-
-/** Set of currently supported widget type strings. */
-const SUPPORTED_TYPES = new Set<string>(Object.keys(WIDGET_REGISTRY));
-
-/** localStorage key for persisted widget layout. */
-const STORAGE_KEY = "home_widget_layout";
-
-/** Schema version for cache invalidation. Bump to reset all users to new defaults. */
-const SCHEMA_VERSION = 10;
-
-/** Old lg column count (v2) and new lg column count (v3). */
-const OLD_LG_COLS = 6;
-const NEW_LG_COLS = 8;
-
-/** Persisted layout data shape. */
-interface PersistedLayout {
-  version: number;
-  widgets: WidgetInstance[];
-  layouts: ResponsiveLayouts<string>;
-  boardTitle: string;
-  boardDescription: string;
-  coverImageUrl: string;
-  boardEmoji: string;
-  iconSize: string;
-  titleFontFamily: string;
-  titleTextColor: string;
-  titleFontSize: string;
-  coverHeight: number;
-  coverPositionY: number;
-  /** User's saved image URLs for image widgets. */
-  savedImages?: string[];
-  /** Epoch ms timestamp for comparing localStorage vs server freshness. */
-  updatedAt: number;
-}
-
-/** Default banner height in pixels. */
-const DEFAULT_COVER_HEIGHT = 220;
-
-/** Default vertical image position (percentage, 0=top, 100=bottom). */
-const DEFAULT_COVER_POSITION_Y = 50;
-
-/**
- * Reads persisted layout from localStorage.
- * Returns null if missing, corrupt, or version-mismatched.
- */
-function readPersistedLayout(): PersistedLayout | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const parsed: any = JSON.parse(raw);
-    if (!Array.isArray(parsed.widgets) || !parsed.layouts) return null;
-
-    // Migrate v1 → v2: add board metadata with defaults
-    if (parsed.version === 1) {
-      parsed.version = 2;
-      parsed.boardTitle = "My Board";
-      parsed.coverImageUrl = "";
-      parsed.boardEmoji = "\u{1F4D6}";
-    }
-
-    // Ensure fields exist for v2 layouts saved before they were added
-    if (!parsed.boardDescription) parsed.boardDescription = "The secret of getting ahead is getting started.";
-    if (!parsed.boardEmoji) parsed.boardEmoji = "\u{1F4D6}";
-    if (!parsed.iconSize) parsed.iconSize = "md";
-
-    // Sanitize corrupted boardEmoji — reset to default if it looks like
-    // a size label (e.g. "xl", "sm") or other plain ASCII text.
-    if (
-      parsed.boardEmoji &&
-      !parsed.boardEmoji.startsWith("lucide:") &&
-      /^[a-zA-Z0-9_-]+$/.test(parsed.boardEmoji)
-    ) {
-      parsed.boardEmoji = "\u{1F4D6}";
-    }
-
-    // Sanitize corrupted boardDescription — reset to default if it looks like a URL
-    if (
-      typeof parsed.boardDescription === "string" &&
-      (parsed.boardDescription.startsWith("http://") ||
-        parsed.boardDescription.startsWith("https://"))
-    ) {
-      parsed.boardDescription = "The secret of getting ahead is getting started.";
-    }
-    if (!parsed.titleFontFamily) parsed.titleFontFamily = "";
-    if (!parsed.titleTextColor) parsed.titleTextColor = "";
-    if (!parsed.titleFontSize) parsed.titleFontSize = "lg";
-    if (parsed.coverHeight == null) parsed.coverHeight = DEFAULT_COVER_HEIGHT;
-    if (parsed.coverPositionY == null) parsed.coverPositionY = DEFAULT_COVER_POSITION_Y;
-
-    // Migrate v2 → v3: scale lg layout positions from 6-col to 8-col grid
-    if (parsed.version === 2) {
-      parsed.version = 3;
-      const lgLayout = parsed.layouts.lg;
-      if (Array.isArray(lgLayout)) {
-        parsed.layouts.lg = lgLayout.map((item: LayoutItem) => {
-          const widgetDef = parsed.widgets.find((w: WidgetInstance) => w.id === item.i);
-          const reg = widgetDef ? WIDGET_REGISTRY[widgetDef.type as WidgetType] : null;
-          const minW = reg?.minW ?? 1;
-          const newW = Math.max(Math.ceil(item.w * NEW_LG_COLS / OLD_LG_COLS), minW);
-          const newX = Math.round(item.x * NEW_LG_COLS / OLD_LG_COLS);
-          // Clamp so widget doesn't overflow the grid
-          const clampedX = Math.min(newX, NEW_LG_COLS - newW);
-          return { ...item, x: Math.max(0, clampedX), w: newW };
-        });
-      }
-    }
-
-    if (parsed.version !== SCHEMA_VERSION) return null;
-
-    // Filter out unsupported/legacy widget types (e.g. removed "calendar", "quick-stats")
-    const validWidgets = parsed.widgets.filter(
-      (w: WidgetInstance) => SUPPORTED_TYPES.has(w.type)
-    );
-    const removedIds = new Set(
-      parsed.widgets
-        .filter((w: WidgetInstance) => !SUPPORTED_TYPES.has(w.type))
-        .map((w: WidgetInstance) => w.id)
-    );
-    if (removedIds.size > 0) {
-      parsed.widgets = validWidgets;
-      for (const bp of Object.keys(parsed.layouts)) {
-        parsed.layouts[bp] = (parsed.layouts[bp] || []).filter(
-          (l: LayoutItem) => !removedIds.has(l.i)
-        );
-      }
-    }
-
-    return parsed as PersistedLayout;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Writes layout to localStorage and triggers a debounced server save.
- * Silently fails if localStorage is unavailable.
- *
- * @param widgets - Current widget instances
- * @param layouts - Current grid layouts per breakpoint
- */
-function writePersistedLayout(
-  widgets: WidgetInstance[],
-  layouts: ResponsiveLayouts<string>,
-  boardTitle: string,
-  boardDescription: string,
-  coverImageUrl: string,
-  boardEmoji: string,
-  iconSize: string = "md",
-  titleFontFamily: string = "",
-  titleTextColor: string = "",
-  titleFontSize: string = "lg",
-  coverHeight: number = DEFAULT_COVER_HEIGHT,
-  coverPositionY: number = DEFAULT_COVER_POSITION_Y,
-  savedImages: string[] = []
-): void {
-  if (typeof window === "undefined") return;
-  const data: PersistedLayout = {
-    version: SCHEMA_VERSION,
-    widgets,
-    layouts,
-    boardTitle,
-    boardDescription,
-    coverImageUrl,
-    boardEmoji,
-    iconSize,
-    titleFontFamily,
-    titleTextColor,
-    titleFontSize,
-    coverHeight,
-    coverPositionY,
-    savedImages,
-    updatedAt: Date.now(),
-  };
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  } catch {
-    // localStorage full or unavailable — non-critical
-  }
-  // Fire debounced write to server (500ms batching for rapid changes like dragging)
-  debouncedServerSave(data);
-}
+import {
+  fetchServerLayout,
+  debouncedServerSave,
+  registerSaveErrorHandler,
+} from "@/lib/board-layout-sync";
+import { readPersistedLayout, writeLayoutCache } from "@/lib/board-layout-cache";
+import {
+  SCHEMA_VERSION,
+  DEFAULT_COVER_HEIGHT,
+  DEFAULT_COVER_POSITION_Y,
+  type PersistedLayout,
+} from "@/lib/board-layout-types";
+import { createClient } from "@/lib/supabase/client";
+import { ensureRealtimeAuth } from "@/lib/supabase/realtime-auth";
+import { useToast } from "@/contexts/ToastContext";
 
 /**
  * Hook for the Home dashboard widget layout.
- * Hydrates from localStorage after mount to avoid SSR mismatch.
+ * Hydrates from localStorage after mount, then fetches server data.
+ * Server always wins on hydration (stale-while-revalidate pattern).
  *
  * @returns Layout state and mutation functions
  */
@@ -225,7 +59,7 @@ export function useWidgetLayout() {
   const [savedImages, setSavedImagesState] = useState<string[]>([]);
   const [hydrated, setHydrated] = useState(false);
 
-  // Refs for board metadata so callbacks can read current values without re-creating
+  // Refs for board metadata so callbacks read current values without re-creating
   const boardTitleRef = useRef(boardTitle);
   const boardDescriptionRef = useRef(boardDescription);
   const coverImageUrlRef = useRef(coverImageUrl);
@@ -237,6 +71,18 @@ export function useWidgetLayout() {
   const coverHeightRef = useRef(coverHeight);
   const coverPositionYRef = useRef(coverPositionY);
   const savedImagesRef = useRef(savedImages);
+
+  /** Instance-level gate: prevents server saves before initial fetch completes. */
+  const hydrationCompleteRef = useRef(false);
+
+  // Register toast error handler for save failures
+  const { showToast } = useToast();
+  useEffect(() => {
+    registerSaveErrorHandler(() => {
+      showToast("Board changes couldn't be saved. They're saved locally.");
+    });
+    return () => registerSaveErrorHandler(null);
+  }, [showToast]);
 
   /**
    * Applies a PersistedLayout to all state + refs.
@@ -280,88 +126,160 @@ export function useWidgetLayout() {
     savedImagesRef.current = sImages;
   }, []);
 
-  // Hydrate from localStorage first (instant), then fetch server layout in background
+  /**
+   * Builds a PersistedLayout from widgets + layouts + optional overrides,
+   * writes to localStorage cache, and triggers debounced server save.
+   * Overrides win over current ref values — callers pass only changed fields.
+   *
+   * @param w - Current widget instances
+   * @param l - Current grid layouts per breakpoint
+   * @param overrides - Partial fields to override (e.g. { boardTitle: "New" })
+   */
+  const persistLayout = useCallback(
+    (w: WidgetInstance[], l: ResponsiveLayouts<string>, overrides: Partial<PersistedLayout> = {}) => {
+      const data: PersistedLayout = {
+        version: SCHEMA_VERSION,
+        widgets: w,
+        layouts: l,
+        boardTitle: overrides.boardTitle ?? boardTitleRef.current,
+        boardDescription: overrides.boardDescription ?? boardDescriptionRef.current,
+        coverImageUrl: overrides.coverImageUrl ?? coverImageUrlRef.current,
+        boardEmoji: overrides.boardEmoji ?? boardEmojiRef.current,
+        iconSize: overrides.iconSize ?? iconSizeRef.current,
+        titleFontFamily: overrides.titleFontFamily ?? titleFontFamilyRef.current,
+        titleTextColor: overrides.titleTextColor ?? titleTextColorRef.current,
+        titleFontSize: overrides.titleFontSize ?? titleFontSizeRef.current,
+        coverHeight: overrides.coverHeight ?? coverHeightRef.current,
+        coverPositionY: overrides.coverPositionY ?? coverPositionYRef.current,
+        savedImages: overrides.savedImages ?? savedImagesRef.current,
+        updatedAt: Date.now(),
+      };
+      writeLayoutCache(data);
+      if (hydrationCompleteRef.current) {
+        debouncedServerSave(data);
+      }
+    },
+    []
+  );
+
+  // Server-authoritative hydration (stale-while-revalidate)
   useEffect(() => {
+    hydrationCompleteRef.current = false;
+
     const localLayout = readPersistedLayout();
     if (localLayout) {
       applyLayout(localLayout);
     }
     setHydrated(true);
 
-    // Background fetch from server — stale-while-revalidate pattern
     fetchServerLayout().then(({ layout: serverData, updatedAt: serverUpdatedAt }) => {
-      if (serverData && serverUpdatedAt) {
-        const serverTs = new Date(serverUpdatedAt).getTime();
+      if (serverData) {
+        const serverTs = serverUpdatedAt ? new Date(serverUpdatedAt).getTime() : 0;
         const localTs = localLayout?.updatedAt ?? 0;
 
-        if (serverTs > localTs) {
-          // Server is newer — update state + localStorage
+        if (localLayout && localTs > serverTs) {
+          // Pre-mount localStorage has unsaved edits — push to recover
+          debouncedServerSave(localLayout);
+        } else {
+          // Server is authoritative — apply server data
           const serverLayout = serverData as unknown as PersistedLayout;
-          // Preserve current schema version and apply same read validations
           serverLayout.version = SCHEMA_VERSION;
           serverLayout.updatedAt = serverTs;
           applyLayout(serverLayout);
-          try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(serverLayout));
-          } catch {
-            // non-critical
-          }
-        } else if (localLayout && localTs > serverTs) {
-          // Local is newer — push to server (covers failed/missed server saves)
-          debouncedServerSave(localLayout);
+          writeLayoutCache(serverLayout);
         }
       } else if (!serverData && localLayout) {
-        // No server data but localStorage exists — first-time migration to server
+        // No server data but localStorage exists — migrate to server
         debouncedServerSave(localLayout);
       }
+
+      hydrationCompleteRef.current = true;
+    }).catch(() => {
+      // Ungate even on failure so the user can still save edits
+      hydrationCompleteRef.current = true;
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /**
-   * Updates layouts from react-grid-layout onLayoutChange callback.
-   * Persists to localStorage.
-   *
-   * @param _currentLayout - Current breakpoint layout (unused)
-   * @param allLayouts - All breakpoint layouts
-   */
+  // Realtime subscription — sync layout changes from other devices
+  useEffect(() => {
+    const supabase = createClient();
+    let channel: RealtimeChannel | null = null;
+
+    async function subscribe() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      await ensureRealtimeAuth(supabase);
+
+      channel = supabase
+        .channel("board-layout-sync")
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "board_layouts",
+            filter: `user_id=eq.${user.id}`,
+          },
+          (payload) => {
+            if (!hydrationCompleteRef.current) return;
+
+            const incoming = payload.new as {
+              layout?: Record<string, unknown>;
+              updated_at?: string;
+            };
+            if (!incoming.layout) return;
+
+            const incomingLayout = incoming.layout as unknown as PersistedLayout;
+            const incomingTs = incomingLayout.updatedAt ?? 0;
+
+            // Echo suppression: skip if this is our own save echoing back
+            const currentLocal = readPersistedLayout();
+            const currentLocalTs = currentLocal?.updatedAt ?? 0;
+            if (incomingTs <= currentLocalTs) return;
+
+            // Incoming layout is newer (from another device) — apply it
+            incomingLayout.version = SCHEMA_VERSION;
+            applyLayout(incomingLayout);
+            writeLayoutCache(incomingLayout);
+          }
+        )
+        .subscribe();
+    }
+
+    subscribe();
+
+    return () => {
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const setLayouts = useCallback(
     (_currentLayout: Layout, allLayouts: ResponsiveLayouts<string>) => {
       setLayoutsState((prev) => {
-        // Bail out if layouts haven't changed — prevents infinite re-render loop
-        // where onLayoutChange fires on every render with a new object reference
         if (JSON.stringify(prev) === JSON.stringify(allLayouts)) return prev;
         setWidgets((prevWidgets) => {
-          writePersistedLayout(prevWidgets, allLayouts, boardTitleRef.current, boardDescriptionRef.current, coverImageUrlRef.current, boardEmojiRef.current, iconSizeRef.current, titleFontFamilyRef.current, titleTextColorRef.current, titleFontSizeRef.current, coverHeightRef.current, coverPositionYRef.current, savedImagesRef.current);
+          persistLayout(prevWidgets, allLayouts);
           return prevWidgets;
         });
         return allLayouts;
       });
     },
-    []
+    [persistLayout]
   );
 
-  /**
-   * Adds a new widget to the dashboard.
-   * Places it at position (0, Infinity) so react-grid-layout auto-places it.
-   *
-   * @param type - Widget type to add
-   * @param config - Optional per-widget configuration
-   * @returns The ID of the new widget instance
-   */
   const addWidget = useCallback(
     (type: WidgetType, config: Record<string, string> = {}): string => {
       const id = generateWidgetId();
       const reg = WIDGET_REGISTRY[type];
       const newWidget: WidgetInstance = { id, type, config };
       const newLayoutItem: LayoutItem = {
-        i: id,
-        x: 0,
-        y: Infinity,
-        w: reg.defaultW,
-        h: reg.defaultH,
-        minW: reg.minW,
-        minH: reg.minH,
+        i: id, x: 0, y: Infinity,
+        w: reg.defaultW, h: reg.defaultH, minW: reg.minW, minH: reg.minH,
       };
 
       setWidgets((prev) => {
@@ -369,14 +287,12 @@ export function useWidgetLayout() {
         setLayoutsState((prevLayouts) => {
           const updatedLayouts: ResponsiveLayouts<string> = {};
           for (const bp of Object.keys(prevLayouts)) {
-            const existing = prevLayouts[bp] || [];
-            updatedLayouts[bp] = [...existing, newLayoutItem];
+            updatedLayouts[bp] = [...(prevLayouts[bp] || []), newLayoutItem];
           }
-          // If no breakpoints exist yet, add to "lg"
           if (Object.keys(updatedLayouts).length === 0) {
             updatedLayouts.lg = [newLayoutItem];
           }
-          writePersistedLayout(updated, updatedLayouts, boardTitleRef.current, boardDescriptionRef.current, coverImageUrlRef.current, boardEmojiRef.current, iconSizeRef.current, titleFontFamilyRef.current, titleTextColorRef.current, titleFontSizeRef.current, coverHeightRef.current, coverPositionYRef.current, savedImagesRef.current);
+          persistLayout(updated, updatedLayouts);
           return updatedLayouts;
         });
         return updated;
@@ -384,36 +300,24 @@ export function useWidgetLayout() {
 
       return id;
     },
-    []
+    [persistLayout]
   );
 
-  /**
-   * Removes a widget from the dashboard.
-   *
-   * @param id - Widget instance ID to remove
-   */
   const removeWidget = useCallback((id: string) => {
     setWidgets((prev) => {
       const updated = prev.filter((w) => w.id !== id);
       setLayoutsState((prevLayouts) => {
         const updatedLayouts: ResponsiveLayouts<string> = {};
         for (const bp of Object.keys(prevLayouts)) {
-          const existing = prevLayouts[bp] || [];
-          updatedLayouts[bp] = existing.filter((l: LayoutItem) => l.i !== id);
+          updatedLayouts[bp] = (prevLayouts[bp] || []).filter((l: LayoutItem) => l.i !== id);
         }
-        writePersistedLayout(updated, updatedLayouts, boardTitleRef.current, boardDescriptionRef.current, coverImageUrlRef.current, boardEmojiRef.current, iconSizeRef.current, titleFontFamilyRef.current, titleTextColorRef.current, titleFontSizeRef.current, coverHeightRef.current, coverPositionYRef.current, savedImagesRef.current);
+        persistLayout(updated, updatedLayouts);
         return updatedLayouts;
       });
       return updated;
     });
-  }, []);
+  }, [persistLayout]);
 
-  /**
-   * Updates configuration for a specific widget.
-   *
-   * @param id - Widget instance ID
-   * @param config - New configuration to merge
-   */
   const updateWidgetConfig = useCallback(
     (id: string, config: Record<string, string>) => {
       setWidgets((prev) => {
@@ -421,136 +325,91 @@ export function useWidgetLayout() {
           w.id === id ? { ...w, config: { ...w.config, ...config } } : w
         );
         setLayoutsState((prevLayouts) => {
-          writePersistedLayout(updated, prevLayouts, boardTitleRef.current, boardDescriptionRef.current, coverImageUrlRef.current, boardEmojiRef.current, iconSizeRef.current, titleFontFamilyRef.current, titleTextColorRef.current, titleFontSizeRef.current, coverHeightRef.current, coverPositionYRef.current, savedImagesRef.current);
+          persistLayout(updated, prevLayouts);
           return prevLayouts;
         });
         return updated;
       });
     },
-    []
+    [persistLayout]
   );
 
-  /**
-   * Merges config into ALL widgets (for "apply font to all" feature).
-   *
-   * @param config - Config keys to merge into every widget
-   */
   const updateAllWidgetConfigs = useCallback(
     (config: Record<string, string>) => {
       setWidgets((prev) => {
-        const updated = prev.map((w) => ({
-          ...w,
-          config: { ...w.config, ...config },
-        }));
+        const updated = prev.map((w) => ({ ...w, config: { ...w.config, ...config } }));
         setLayoutsState((prevLayouts) => {
-          writePersistedLayout(updated, prevLayouts, boardTitleRef.current, boardDescriptionRef.current, coverImageUrlRef.current, boardEmojiRef.current, iconSizeRef.current, titleFontFamilyRef.current, titleTextColorRef.current, titleFontSizeRef.current, coverHeightRef.current, coverPositionYRef.current, savedImagesRef.current);
+          persistLayout(updated, prevLayouts);
           return prevLayouts;
         });
         return updated;
       });
     },
-    []
+    [persistLayout]
   );
 
-  /**
-   * Sets the board title and persists to localStorage.
-   *
-   * @param title - New board title (max 50 chars)
-   */
   const setBoardTitle = useCallback((title: string) => {
     const trimmed = title.slice(0, 50);
     setBoardTitleState(trimmed);
     boardTitleRef.current = trimmed;
     setWidgets((prev) => {
       setLayoutsState((prevLayouts) => {
-        writePersistedLayout(prev, prevLayouts, trimmed, boardDescriptionRef.current, coverImageUrlRef.current, boardEmojiRef.current, iconSizeRef.current, titleFontFamilyRef.current, titleTextColorRef.current, titleFontSizeRef.current, coverHeightRef.current, coverPositionYRef.current, savedImagesRef.current);
+        persistLayout(prev, prevLayouts, { boardTitle: trimmed });
         return prevLayouts;
       });
       return prev;
     });
-  }, []);
+  }, [persistLayout]);
 
-  /**
-   * Sets the board description and persists to localStorage.
-   *
-   * @param desc - Board description string (max 200 chars)
-   */
   const setBoardDescription = useCallback((desc: string) => {
     const trimmed = desc.slice(0, 200);
     setBoardDescriptionState(trimmed);
     boardDescriptionRef.current = trimmed;
     setWidgets((prev) => {
       setLayoutsState((prevLayouts) => {
-        writePersistedLayout(prev, prevLayouts, boardTitleRef.current, trimmed, coverImageUrlRef.current, boardEmojiRef.current, iconSizeRef.current, titleFontFamilyRef.current, titleTextColorRef.current, titleFontSizeRef.current, coverHeightRef.current, coverPositionYRef.current, savedImagesRef.current);
+        persistLayout(prev, prevLayouts, { boardDescription: trimmed });
         return prevLayouts;
       });
       return prev;
     });
-  }, []);
+  }, [persistLayout]);
 
-  /**
-   * Sets the cover image URL and persists to localStorage.
-   *
-   * @param url - Public URL of the cover image, or "" to remove
-   */
   const setCoverImageUrl = useCallback((url: string) => {
     setCoverImageUrlState(url);
     coverImageUrlRef.current = url;
     setWidgets((prev) => {
       setLayoutsState((prevLayouts) => {
-        writePersistedLayout(prev, prevLayouts, boardTitleRef.current, boardDescriptionRef.current, url, boardEmojiRef.current, iconSizeRef.current, titleFontFamilyRef.current, titleTextColorRef.current, titleFontSizeRef.current, coverHeightRef.current, coverPositionYRef.current, savedImagesRef.current);
+        persistLayout(prev, prevLayouts, { coverImageUrl: url });
         return prevLayouts;
       });
       return prev;
     });
-  }, []);
+  }, [persistLayout]);
 
-  /**
-   * Sets the board emoji icon and persists to localStorage.
-   *
-   * @param emoji - Single emoji character
-   */
   const setBoardEmoji = useCallback((emoji: string) => {
     setBoardEmojiState(emoji);
     boardEmojiRef.current = emoji;
     setWidgets((prev) => {
       setLayoutsState((prevLayouts) => {
-        writePersistedLayout(prev, prevLayouts, boardTitleRef.current, boardDescriptionRef.current, coverImageUrlRef.current, emoji, iconSizeRef.current, titleFontFamilyRef.current, titleTextColorRef.current, titleFontSizeRef.current, coverHeightRef.current, coverPositionYRef.current, savedImagesRef.current);
+        persistLayout(prev, prevLayouts, { boardEmoji: emoji });
         return prevLayouts;
       });
       return prev;
     });
-  }, []);
+  }, [persistLayout]);
 
-  /**
-   * Sets the board icon size and persists to localStorage.
-   *
-   * @param size - Icon size value ("sm" | "md" | "lg" | "xl")
-   */
   const setIconSize = useCallback((size: string) => {
     setIconSizeState(size);
     iconSizeRef.current = size;
     setWidgets((prev) => {
       setLayoutsState((prevLayouts) => {
-        writePersistedLayout(prev, prevLayouts, boardTitleRef.current, boardDescriptionRef.current, coverImageUrlRef.current, boardEmojiRef.current, size, titleFontFamilyRef.current, titleTextColorRef.current, titleFontSizeRef.current, coverHeightRef.current, coverPositionYRef.current, savedImagesRef.current);
+        persistLayout(prev, prevLayouts, { iconSize: size });
         return prevLayouts;
       });
       return prev;
     });
-  }, []);
+  }, [persistLayout]);
 
-  /**
-   * Sets the title font and color, then persists.
-   *
-   * @param fontFamily - CSS font-family string
-   * @param textColor - CSS color string
-   */
-  /**
-   * Sets the cover height and vertical position, then persists.
-   *
-   * @param height - Banner height in px (80–350)
-   * @param positionY - Vertical image position percentage (0–100)
-   */
   const setCoverConfig = useCallback((height: number, positionY: number) => {
     setCoverHeightState(height);
     setCoverPositionYState(positionY);
@@ -558,12 +417,12 @@ export function useWidgetLayout() {
     coverPositionYRef.current = positionY;
     setWidgets((prev) => {
       setLayoutsState((prevLayouts) => {
-        writePersistedLayout(prev, prevLayouts, boardTitleRef.current, boardDescriptionRef.current, coverImageUrlRef.current, boardEmojiRef.current, iconSizeRef.current, titleFontFamilyRef.current, titleTextColorRef.current, titleFontSizeRef.current, height, positionY, savedImagesRef.current);
+        persistLayout(prev, prevLayouts, { coverHeight: height, coverPositionY: positionY });
         return prevLayouts;
       });
       return prev;
     });
-  }, []);
+  }, [persistLayout]);
 
   const setTitleConfig = useCallback((fontFamily: string, textColor: string, fontSize: string = "lg") => {
     setTitleFontFamilyState(fontFamily);
@@ -574,63 +433,38 @@ export function useWidgetLayout() {
     titleFontSizeRef.current = fontSize;
     setWidgets((prev) => {
       setLayoutsState((prevLayouts) => {
-        writePersistedLayout(prev, prevLayouts, boardTitleRef.current, boardDescriptionRef.current, coverImageUrlRef.current, boardEmojiRef.current, iconSizeRef.current, fontFamily, textColor, fontSize, coverHeightRef.current, coverPositionYRef.current, savedImagesRef.current);
+        persistLayout(prev, prevLayouts, { titleFontFamily: fontFamily, titleTextColor: textColor, titleFontSize: fontSize });
         return prevLayouts;
       });
       return prev;
     });
-  }, []);
+  }, [persistLayout]);
 
-  /**
-   * Adds an image URL to the user's saved images list.
-   * Prepends to front, deduplicates, and caps at 20 entries.
-   *
-   * @param url - Public URL of the uploaded image
-   */
   const addSavedImage = useCallback((url: string) => {
     setSavedImagesState((prev) => {
       const deduped = prev.filter((u) => u !== url);
       const updated = [url, ...deduped].slice(0, 20);
       savedImagesRef.current = updated;
-      // Persist immediately
       setWidgets((prevWidgets) => {
         setLayoutsState((prevLayouts) => {
-          writePersistedLayout(prevWidgets, prevLayouts, boardTitleRef.current, boardDescriptionRef.current, coverImageUrlRef.current, boardEmojiRef.current, iconSizeRef.current, titleFontFamilyRef.current, titleTextColorRef.current, titleFontSizeRef.current, coverHeightRef.current, coverPositionYRef.current, updated);
+          persistLayout(prevWidgets, prevLayouts, { savedImages: updated });
           return prevLayouts;
         });
         return prevWidgets;
       });
       return updated;
     });
-  }, []);
+  }, [persistLayout]);
 
   return {
-    widgets,
-    layouts,
-    hydrated,
-    boardTitle,
-    boardDescription,
-    coverImageUrl,
-    boardEmoji,
-    iconSize,
-    titleFontFamily,
-    titleTextColor,
-    titleFontSize,
-    coverHeight,
-    coverPositionY,
-    setLayouts,
-    addWidget,
-    removeWidget,
-    updateWidgetConfig,
-    updateAllWidgetConfigs,
-    setBoardTitle,
-    setBoardDescription,
-    setCoverImageUrl,
-    setBoardEmoji,
-    setIconSize,
-    setTitleConfig,
-    setCoverConfig,
-    savedImages,
-    addSavedImage,
+    widgets, layouts, hydrated,
+    boardTitle, boardDescription, coverImageUrl, boardEmoji, iconSize,
+    titleFontFamily, titleTextColor, titleFontSize,
+    coverHeight, coverPositionY,
+    setLayouts, addWidget, removeWidget,
+    updateWidgetConfig, updateAllWidgetConfigs,
+    setBoardTitle, setBoardDescription, setCoverImageUrl,
+    setBoardEmoji, setIconSize, setTitleConfig, setCoverConfig,
+    savedImages, addSavedImage,
   };
 }
