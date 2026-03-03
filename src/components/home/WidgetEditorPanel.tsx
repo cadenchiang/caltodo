@@ -7,7 +7,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { X, Camera } from "lucide-react";
+import { X, Camera, Trash2 } from "lucide-react";
 import type { WidgetInstance } from "@/lib/widget-types";
 import type { GCalCalendarEntry } from "@/lib/types";
 import { useDiscussionBoards } from "@/hooks/useDiscussionBoards";
@@ -353,12 +353,17 @@ export default function WidgetEditorPanel({
         </div>
         <div><label className="block text-sm text-foreground mb-1">Font</label><FontPicker value={localConfig.fontFamily || ""} onChange={(v) => updateField("fontFamily", v)} /></div>
 
-        {/* Remove widget */}
-        <button onClick={() => setConfirmOverlay("delete")} className="w-full px-3 py-2 text-sm rounded-xl text-red-500 hover:bg-red-500/10 transition-colors">Remove Widget</button>
       </div>
 
-      {/* Footer — Save & Close */}
-      <div className="flex items-center justify-end gap-2 p-3 border-t border-border shrink-0">
+      {/* Footer — Delete (left) & Done (right) */}
+      <div className="flex items-center justify-between p-3 border-t border-border shrink-0">
+        <button
+          onClick={() => setConfirmOverlay("delete")}
+          className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors"
+          aria-label="Remove Widget"
+        >
+          <Trash2 size={15} />
+        </button>
         <button
           onClick={handleDone}
           className="px-4 py-2 text-sm rounded-xl bg-blue-500 text-white hover:bg-blue-600 transition-colors"
