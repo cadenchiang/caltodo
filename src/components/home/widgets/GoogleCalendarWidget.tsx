@@ -99,17 +99,51 @@ export function getTimeRange(mode: ViewMode, customDays?: number): { timeMin: st
 }
 
 /**
- * Groups events by date key and renders with day dividers.
+ * Formats a relative time string for the next upcoming event.
  *
- * @param events - Sorted array of GCalEvents to display
- * @param calendarColors - Map of calendarId → hex color for fallback event colors
+ * @param diffMs - Milliseconds until event starts (positive = future)
+ * @returns Human-readable relative time like "in 5 min", "in 2 hr", or "now"
  */
+function formatCountdown(diffMs: number): string {
+  if (diffMs <= 0) return "now";
+  const mins = Math.round(diffMs / 60000);
+  if (mins < 1) return "in <1 min";
+  if (mins < 60) return `in ${mins} min`;
+  const hrs = Math.floor(mins / 60);
+  const remainMins = mins % 60;
+  if (hrs < 24 && remainMins === 0) return `in ${hrs} hr`;
+  if (hrs < 24) return `in ${hrs} hr ${remainMins} min`;
+  return "";
+}
+
 function EventsByDay({ events, calendarColors = {}, fallbackColor = "#039BE5" }: { events: GCalEvent[]; calendarColors?: Record<string, string>; fallbackColor?: string }) {
+  // Tick state: re-render every 60s to keep countdown fresh
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 60000);
+    return () => clearInterval(id);
+  }, []);
+
+  const now = new Date();
   const today = new Date();
   const todayKey = today.toDateString();
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
   const tomorrowKey = tomorrow.toDateString();
+
+  // Find the next upcoming event (first non-all-day event starting in the future, or currently ongoing)
+  const nextEventId = useMemo(() => {
+    for (const event of events) {
+      if (event.allDay) continue;
+      const start = new Date(event.start);
+      const end = parseEventDate(event.end);
+      // Currently ongoing or starts in the future
+      if (end > now) return event.id;
+      // Skip past events
+    }
+    return null;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [events, Math.floor(now.getTime() / 60000)]);
 
   /**
    * Groups events by their date string key.
@@ -170,25 +204,49 @@ function EventsByDay({ events, calendarColors = {}, fallbackColor = "#039BE5" }:
                     minute: "2-digit",
                   });
 
+              // Detect past events: compare event end time to now
+              const eventEnd = parseEventDate(event.end);
+              const isPast = eventEnd < now;
+
+              // Countdown for the next upcoming event
+              const isNext = event.id === nextEventId;
+              const eventStart = new Date(event.start);
+              const countdown = isNext && !event.allDay
+                ? formatCountdown(eventStart.getTime() - now.getTime())
+                : "";
+
               return (
                 <a
                   key={event.id}
                   href={event.htmlLink}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="no-drag flex items-start gap-2 bg-muted/50 rounded-lg p-2 hover:bg-black/10 dark:hover:bg-white/15 transition-colors"
+                  className={`no-drag flex items-center gap-2 bg-muted/50 rounded-lg p-2 hover:bg-black/10 dark:hover:bg-white/15 transition-colors ${
+                    isPast ? "opacity-40" : ""
+                  }`}
                 >
                   <div
-                    className="w-[3px] min-h-[28px] rounded-full shrink-0"
+                    className="w-[3px] self-stretch rounded-full shrink-0"
                     style={{ backgroundColor: color }}
                   />
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-medium text-foreground truncate">
+                    <p className={`text-xs font-medium truncate ${
+                      isPast ? "text-muted-foreground line-through" : "text-foreground"
+                    }`}>
                       {event.summary}
                     </p>
-                    <p className="text-[10px] text-foreground/70 mt-0.5">
-                      {timeStr}
-                    </p>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <p className={`text-[10px] ${
+                        isPast ? "text-muted-foreground" : "text-foreground/80"
+                      }`}>
+                        {timeStr}
+                      </p>
+                      {countdown && (
+                        <span className="text-[9px] font-medium text-blue-500">
+                          {countdown}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </a>
               );
@@ -325,7 +383,7 @@ export default function GoogleCalendarWidget({ config, editMode, onUpdateConfig 
         </div>
       ) : (
         <EventsByDay
-          events={events.slice(0, compact ? 3 : 12)}
+          events={events.slice(0, compact ? 3 : 50)}
           calendarColors={calendarColors}
           fallbackColor={accentFallback}
         />

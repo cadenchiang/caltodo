@@ -16,6 +16,8 @@ import SegmentedControl from "@/components/ui/SegmentedControl";
 import ColorPickerPopover from "@/components/ui/ColorPickerPopover";
 import CalendarPicker from "@/components/home/CalendarPicker";
 import ClockFacePicker from "@/components/home/ClockFacePicker";
+import WeatherDisplayPicker from "@/components/home/WeatherDisplayPicker";
+import NotesStylePicker from "@/components/home/NotesStylePicker";
 import { IMAGE_WIDGET_PRESETS, IMAGE_WIDGET_PRESET_CATEGORIES } from "@/lib/image-widget-presets";
 import ImageCropModal from "@/components/ui/ImageCropModal";
 import { createClient } from "@/lib/supabase/client";
@@ -338,8 +340,14 @@ export default function WidgetEditorPanel({
 
         {/* Weather */}
         {widget.type === "weather" && <>
+          <WeatherDisplayPicker value={localConfig.weatherDisplay || "standard"} onChange={(v) => updateField("weatherDisplay", v)} />
           <div><label className="block text-sm text-foreground mb-1">View</label><SegmentedControl options={[{ value: "today", label: "Today" }, { value: "week", label: "7-Day" }]} value={localConfig.weatherView || "today"} onChange={(v) => updateField("weatherView", v)} /></div>
           <div><label className="block text-sm text-foreground mb-1">Temperature</label><SegmentedControl options={[{ value: "F", label: "\u00b0F" }, { value: "C", label: "\u00b0C" }]} value={localConfig.tempUnit || "F"} onChange={(v) => updateField("tempUnit", v)} /></div>
+        </>}
+
+        {/* Notes */}
+        {widget.type === "notes" && <>
+          <NotesStylePicker value={localConfig.notesStyle || "blank"} onChange={(v) => updateField("notesStyle", v)} />
         </>}
 
         {/* Divider + Appearance */}
