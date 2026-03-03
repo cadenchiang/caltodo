@@ -65,6 +65,8 @@ interface ColorPickerPopoverProps {
   value: string;
   onChange: (color: string) => void;
   layout?: "horizontal" | "compact";
+  /** Shown in the circle when value is empty. Falls back to var(--muted). */
+  defaultValue?: string;
 }
 
 export default function ColorPickerPopover({
@@ -72,6 +74,7 @@ export default function ColorPickerPopover({
   value,
   onChange,
   layout = "horizontal",
+  defaultValue,
 }: ColorPickerPopoverProps) {
   const [open, setOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
@@ -171,7 +174,7 @@ export default function ColorPickerPopover({
     >
       <div
         className="w-full h-full"
-        style={{ backgroundColor: value || "var(--muted)" }}
+        style={{ backgroundColor: value || defaultValue || "var(--muted)" }}
       />
     </button>
   );
@@ -200,7 +203,7 @@ export default function ColorPickerPopover({
             </button>
           )}
         </div>
-        <ColorPickerPanel value={value || "#000000"} onChange={onChange} />
+        <ColorPickerPanel value={value || defaultValue || "#000000"} onChange={onChange} />
       </div>,
       document.body
     );

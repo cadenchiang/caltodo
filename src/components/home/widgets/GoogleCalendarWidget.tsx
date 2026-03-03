@@ -13,7 +13,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { Calendar, MapPin, ExternalLink, X, Clock } from "lucide-react";
+import { Calendar, MapPin, ExternalLink, X, Clock, FileText } from "lucide-react";
 import { useCompactMode } from "@/hooks/useCompactMode";
 import type { GCalEvent } from "@/lib/types";
 
@@ -149,7 +149,11 @@ function stripHtml(html: string): string {
 }
 
 /**
- * Popover showing event details. Rendered via portal to document body.
+ * Detail popover matching Google Calendar's event card design.
+ * Renders via portal to document body with backdrop.
+ *
+ * Layout: close button top-right, colored dot + title + time header,
+ * then icon-row details (location, description, calendar link).
  *
  * @param event - The GCalEvent to display
  * @param color - Accent color for the event
@@ -158,7 +162,6 @@ function stripHtml(html: string): string {
 function EventDetailPopover({ event, color, onClose }: { event: GCalEvent; color: string; onClose: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
 
-  // Close on outside click
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) onClose();
@@ -167,7 +170,6 @@ function EventDetailPopover({ event, color, onClose }: { event: GCalEvent; color
     return () => document.removeEventListener("mousedown", handleClick);
   }, [onClose]);
 
-  // Close on Escape
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
@@ -180,62 +182,77 @@ function EventDetailPopover({ event, color, onClose }: { event: GCalEvent; color
 
   return createPortal(
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/20" onClick={onClose} />
 
-      {/* Card */}
       <div
         ref={ref}
-        className="relative bg-popover border border-border rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-in"
+        className="relative bg-white dark:bg-[#2d2e30] rounded-lg shadow-[0_24px_38px_3px_rgba(0,0,0,0.14),0_9px_46px_8px_rgba(0,0,0,0.12),0_11px_15px_-7px_rgba(0,0,0,0.2)] w-full max-w-[448px] overflow-hidden animate-in"
       >
-        {/* Color bar top */}
-        <div className="h-1.5 w-full" style={{ backgroundColor: color }} />
+        {/* Top action bar — close button */}
+        <div className="flex items-center justify-end gap-1 px-2 pt-2">
+          <a
+            href={event.htmlLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-9 h-9 rounded-full flex items-center justify-center text-[#5f6368] dark:text-[#9aa0a6] hover:bg-[#f1f3f4] dark:hover:bg-[#3c4043] transition-colors"
+            aria-label="Open in Google Calendar"
+          >
+            <ExternalLink size={18} />
+          </a>
+          <button
+            onClick={onClose}
+            className="w-9 h-9 rounded-full flex items-center justify-center text-[#5f6368] dark:text-[#9aa0a6] hover:bg-[#f1f3f4] dark:hover:bg-[#3c4043] transition-colors"
+            aria-label="Close"
+          >
+            <X size={18} />
+          </button>
+        </div>
 
-        <div className="p-4 space-y-3">
-          {/* Header */}
-          <div className="flex items-start justify-between gap-2">
-            <h3 className="text-sm font-semibold text-foreground leading-snug">
+        {/* Title section — colored dot + title + time */}
+        <div className="flex items-start gap-4 px-6 pb-4 pt-1">
+          <div
+            className="w-4 h-4 rounded shrink-0 mt-1"
+            style={{ backgroundColor: color }}
+          />
+          <div className="min-w-0 flex-1">
+            <h3 className="text-[22px] font-normal text-[#3c4043] dark:text-[#e8eaed] leading-7">
               {event.summary}
             </h3>
-            <button
-              onClick={onClose}
-              className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-            >
-              <X size={12} />
-            </button>
+            <p className="text-sm text-[#5f6368] dark:text-[#9aa0a6] mt-0.5">
+              {formatTimeRange(event.start, event.end, event.allDay)}
+            </p>
           </div>
+        </div>
 
-          {/* Time */}
-          <div className="flex items-center gap-2 text-xs text-foreground/80">
-            <Clock size={12} className="shrink-0 text-muted-foreground" />
-            <span>{formatTimeRange(event.start, event.end, event.allDay)}</span>
-          </div>
-
+        {/* Detail rows */}
+        <div className="pb-4">
           {/* Location */}
           {event.location && (
-            <div className="flex items-start gap-2 text-xs text-foreground/80">
-              <MapPin size={12} className="shrink-0 mt-0.5 text-muted-foreground" />
-              <span className="break-words">{event.location}</span>
+            <div className="flex items-center gap-4 px-6 py-2.5">
+              <MapPin size={20} className="shrink-0 text-[#5f6368] dark:text-[#9aa0a6]" />
+              <span className="text-sm font-medium text-[#3c4043] dark:text-[#e8eaed]">
+                {event.location}
+              </span>
             </div>
           )}
 
           {/* Description */}
           {description && (
-            <p className="text-xs text-foreground/70 whitespace-pre-wrap line-clamp-6 border-t border-border pt-2">
-              {description}
-            </p>
+            <div className="flex items-start gap-4 px-6 py-2.5">
+              <FileText size={20} className="shrink-0 mt-0.5 text-[#5f6368] dark:text-[#9aa0a6]" />
+              <p className="text-sm text-[#3c4043] dark:text-[#e8eaed] whitespace-pre-wrap line-clamp-6">
+                {description}
+              </p>
+            </div>
           )}
 
-          {/* Open in Google Calendar */}
-          <a
-            href={event.htmlLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="no-drag flex items-center justify-center gap-1.5 w-full px-3 py-2 text-xs font-medium text-blue-500 hover:bg-blue-500/10 rounded-lg transition-colors"
-          >
-            <ExternalLink size={12} />
-            Open in Google Calendar
-          </a>
+          {/* Calendar name */}
+          <div className="flex items-center gap-4 px-6 py-2.5">
+            <Calendar size={20} className="shrink-0 text-[#5f6368] dark:text-[#9aa0a6]" />
+            <span className="text-sm text-[#3c4043] dark:text-[#e8eaed]">
+              {event.calendarId || "Google Calendar"}
+            </span>
+          </div>
         </div>
       </div>
     </div>,

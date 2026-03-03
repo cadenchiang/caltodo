@@ -63,6 +63,17 @@ export function computePanelPosition(
   return { side, top, left };
 }
 
+/**
+ * Default accent colors per widget type. Matches the fallback each widget
+ * uses internally when no custom accentColor is set.
+ */
+const WIDGET_ACCENT_DEFAULTS: Record<string, string> = {
+  "tasks-today": "#3b82f6",
+  "class-progress": "#3b82f6",
+  "google-calendar": "#039BE5",
+  pomodoro: "#f97316",
+};
+
 const WIDGET_LABELS: Record<string, string> = {
   clock: "Clock", "tasks-today": "Tasks Widget", "class-progress": "Class Progress",
   "recent-chat": "Recent Chat", "google-calendar": "Google Calendar", image: "Image",
@@ -354,9 +365,9 @@ export default function WidgetEditorPanel({
         <div className="border-t border-border" />
         <p className="text-xs font-medium text-foreground">Appearance</p>
         <div className="flex items-end justify-center gap-5">
-          <ColorPickerPopover label="Text" value={localConfig.textColor || ""} onChange={(v) => updateField("textColor", v)} layout="compact" />
+          <ColorPickerPopover label="Text" value={localConfig.textColor || ""} onChange={(v) => updateField("textColor", v)} layout="compact" defaultValue="var(--foreground)" />
           <ColorPickerPopover label="Background" value={localConfig.bgColor || ""} onChange={(v) => updateField("bgColor", v)} layout="compact" />
-          <ColorPickerPopover label="Accent" value={localConfig.accentColor || ""} onChange={(v) => updateField("accentColor", v)} layout="compact" />
+          <ColorPickerPopover label="Accent" value={localConfig.accentColor || ""} onChange={(v) => updateField("accentColor", v)} layout="compact" defaultValue={WIDGET_ACCENT_DEFAULTS[widget.type]} />
         </div>
         <div><label className="block text-sm text-foreground mb-1">Font</label><FontPicker value={localConfig.fontFamily || ""} onChange={(v) => updateField("fontFamily", v)} /></div>
 
