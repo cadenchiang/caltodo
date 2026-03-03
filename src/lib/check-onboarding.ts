@@ -21,7 +21,7 @@ export async function hasCompletedOnboarding(
 ): Promise<boolean> {
   const { data } = await supabase
     .from("integration_credentials")
-    .select("canvas_token, gradescope_password_encrypted, pensieve_calendar_url")
+    .select("canvas_token, gradescope_password_encrypted, pensieve_calendar_url, last_synced_at, google_access_token_encrypted")
     .eq("user_id", userId)
     .single();
 
@@ -30,6 +30,8 @@ export async function hasCompletedOnboarding(
   return !!(
     data.canvas_token ||
     data.gradescope_password_encrypted ||
-    data.pensieve_calendar_url
+    data.pensieve_calendar_url ||
+    data.last_synced_at ||
+    data.google_access_token_encrypted
   );
 }
