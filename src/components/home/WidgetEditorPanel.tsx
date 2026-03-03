@@ -288,21 +288,21 @@ export default function WidgetEditorPanel({
         </>}
 
         {/* Image */}
-        {widget.type === "image" && <div className="space-y-2">
+        {widget.type === "image" && <div className="space-y-6">
           <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileSelect} className="hidden" />
-          <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading} className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-dashed border-border text-sm text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"><Camera size={14} />{uploading ? "Uploading\u2026" : "Upload Image"}</button>
+          <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading} className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-dashed border-border text-sm text-foreground hover:border-foreground/30 transition-colors"><Camera size={14} />{uploading ? "Uploading\u2026" : "Upload Image"}</button>
           {savedImages.length > 0 && <>
-            <label className="block text-xs font-medium text-muted-foreground">Your Images</label>
+            <label className="block text-xs font-medium text-foreground">Your Images</label>
             <div className="grid grid-cols-4 gap-1.5 max-h-28 overflow-y-auto">{savedImages.map((url) => <button key={url} type="button" onClick={() => updateField("imageUrl", url)} className={`rounded-md overflow-hidden aspect-[4/3] transition-all ${localConfig.imageUrl === url ? "ring-2 ring-blue-500" : "hover:ring-2 hover:ring-blue-400"}`}><img src={url} alt="" className="w-full h-full object-cover" loading="lazy" /></button>)}</div>
           </>}
-          <label className="block text-xs font-medium text-muted-foreground">Preset Images</label>
+          <label className="block text-xs font-medium text-foreground">Preset Images</label>
           {IMAGE_WIDGET_PRESET_CATEGORIES.map((cat) => {
             const catKey = `iwc-${cat.label}`;
             const isExpanded = expandedPresetCats.has(catKey);
             return (
               <div key={cat.label} className="space-y-1">
                 <div className="flex items-center justify-between">
-                  <p className="text-[10px] font-medium text-muted-foreground">{cat.label}</p>
+                  <p className="text-[10px] font-medium text-foreground">{cat.label}</p>
                   {cat.presets.length > 4 && (
                     <button
                       type="button"
@@ -352,7 +352,7 @@ export default function WidgetEditorPanel({
 
         {/* Divider + Appearance */}
         <div className="border-t border-border" />
-        <p className="text-xs font-medium text-muted-foreground">Appearance</p>
+        <p className="text-xs font-medium text-foreground">Appearance</p>
         <div className="flex items-end justify-center gap-5">
           <ColorPickerPopover label="Text" value={localConfig.textColor || ""} onChange={(v) => updateField("textColor", v)} layout="compact" />
           <ColorPickerPopover label="Background" value={localConfig.bgColor || ""} onChange={(v) => updateField("bgColor", v)} layout="compact" />
