@@ -84,9 +84,9 @@ describe("IMAGE_WIDGET_PRESETS", () => {
     }
   });
 
-  it("all URLs use 800x600 crop parameters", () => {
+  it("all URLs use 1600x1200 crop parameters", () => {
     for (const preset of IMAGE_WIDGET_PRESETS) {
-      expect(preset.url).toContain("w=800&h=600&fit=crop");
+      expect(preset.url).toContain("w=1600&h=1200&fit=crop");
     }
   });
 });
