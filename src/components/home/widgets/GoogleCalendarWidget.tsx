@@ -235,19 +235,17 @@ function EventsByDay({ events, calendarColors = {}, fallbackColor = "#039BE5" }:
                     }`}>
                       {event.summary}
                     </p>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <p className={`text-[10px] ${
-                        isPast ? "text-muted-foreground" : "text-foreground/80"
-                      }`}>
-                        {timeStr}
-                      </p>
-                      {countdown && (
-                        <span className="text-[9px] font-medium text-blue-500">
-                          {countdown}
-                        </span>
-                      )}
-                    </div>
+                    <p className={`text-[10px] mt-0.5 ${
+                      isPast ? "text-muted-foreground" : "text-foreground/80"
+                    }`}>
+                      {timeStr}
+                    </p>
                   </div>
+                  {countdown && (
+                    <span className="text-[9px] font-medium text-blue-500 shrink-0">
+                      {countdown}
+                    </span>
+                  )}
                 </a>
               );
             })}
