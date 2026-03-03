@@ -61,7 +61,7 @@ export function useOnboardingStatus(options?: { skipCache?: boolean }): {
 } {
   const skipCache = options?.skipCache ?? false;
   const cached = skipCache ? null : readCache();
-  const [completed, setCompleted] = useState<boolean>(cached ?? true);
+  const [completed, setCompleted] = useState<boolean>(cached ?? false);
   const [loading, setLoading] = useState(cached === null);
 
   const fetchStatus = useCallback(() => {

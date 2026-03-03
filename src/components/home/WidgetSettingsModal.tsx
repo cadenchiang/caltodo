@@ -20,7 +20,7 @@ import type { WidgetInstance } from "@/lib/widget-types";
 import type { GCalCalendarEntry } from "@/lib/types";
 import { useDiscussionBoards } from "@/hooks/useDiscussionBoards";
 import FontPicker from "@/components/ui/FontPicker";
-import ColorWheel from "@/components/ui/ColorWheel";
+import ColorPickerPanel from "@/components/ui/ColorPickerPanel";
 import CalendarPicker from "@/components/home/CalendarPicker";
 import ClockFacePicker from "@/components/home/ClockFacePicker";
 import {
@@ -316,8 +316,8 @@ export default function WidgetSettingsModal({
           </div>
         </div>
         {expanded && (
-          <div className="mt-2 flex justify-center">
-            <ColorWheel value={value || "#000000"} onChange={onChange} />
+          <div className="mt-3">
+            <ColorPickerPanel value={value || "#000000"} onChange={onChange} />
           </div>
         )}
       </div>
@@ -349,21 +349,21 @@ export default function WidgetSettingsModal({
         </div>
 
         {/* Settings content — scrollable */}
-        <div className="p-4 space-y-5 overflow-y-auto flex-1">
+        <div className="p-4 space-y-4 overflow-y-auto flex-1">
 
           {/* ── Clock settings ── */}
           {widget.type === "clock" && (
             <>
               <ClockFacePicker value={clockFace} onChange={setClockFace} />
               <div>
-                <label className="block text-sm font-medium text-foreground mb-2">Time Format</label>
+                <label className="block text-sm text-foreground mb-1.5">Time Format</label>
                 <select value={clockFormat} onChange={(e) => setClockFormat(e.target.value)} className={SELECT_CLS}>
                   <option value="12">12-hour (2:30 PM)</option>
                   <option value="24">24-hour (14:30)</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-foreground mb-2">Timezone</label>
+                <label className="block text-sm text-foreground mb-1.5">Timezone</label>
                 <select value={clockTimezone} onChange={(e) => setClockTimezone(e.target.value)} className={SELECT_CLS}>
                   {TIMEZONE_OPTIONS.map((tz) => (
                     <option key={tz.value} value={tz.value}>{tz.label}</option>
@@ -371,7 +371,7 @@ export default function WidgetSettingsModal({
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-foreground mb-2">Font Weight</label>
+                <label className="block text-sm text-foreground mb-1.5">Font Weight</label>
                 <select value={clockFontWeight} onChange={(e) => setClockFontWeight(e.target.value)} className={SELECT_CLS}>
                   {WEIGHT_OPTIONS.map((w) => (
                     <option key={w.value} value={w.value}>{w.label}</option>
@@ -385,7 +385,7 @@ export default function WidgetSettingsModal({
           {widget.type === "tasks-today" && (
             <>
               <div>
-                <label className="block text-sm font-medium text-foreground mb-2">View Mode</label>
+                <label className="block text-sm text-foreground mb-1.5">View Mode</label>
                 <select value={taskViewMode} onChange={(e) => setTaskViewMode(e.target.value)} className={SELECT_CLS}>
                   <option value="today">Today</option>
                   <option value="week">This Week</option>
@@ -393,7 +393,7 @@ export default function WidgetSettingsModal({
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-foreground mb-2">Show Completed Tasks</label>
+                <label className="block text-sm text-foreground mb-1.5">Show Completed Tasks</label>
                 <select value={showCompleted} onChange={(e) => setShowCompleted(e.target.value)} className={SELECT_CLS}>
                   <option value="true">Show completed</option>
                   <option value="false">Hide completed</option>
@@ -405,7 +405,7 @@ export default function WidgetSettingsModal({
           {/* ── Class Progress settings ── */}
           {widget.type === "class-progress" && (
             <div>
-              <label className="block text-sm font-medium text-foreground mb-2">Sort Courses By</label>
+              <label className="block text-sm text-foreground mb-1.5">Sort Courses By</label>
               <select value={progressSort} onChange={(e) => setProgressSort(e.target.value)} className={SELECT_CLS}>
                 <option value="count">Most tasks first</option>
                 <option value="alpha">Alphabetical</option>
@@ -417,7 +417,7 @@ export default function WidgetSettingsModal({
           {/* ── Recent Chat settings ── */}
           {widget.type === "recent-chat" && (
             <div>
-              <label className="block text-sm font-medium text-foreground mb-2">Course</label>
+              <label className="block text-sm text-foreground mb-1.5">Course</label>
               {boards.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No courses available</p>
               ) : (
@@ -450,7 +450,7 @@ export default function WidgetSettingsModal({
                 loading={calendarsLoading}
               />
               <div>
-                <label className="block text-sm font-medium text-foreground mb-2">Default View</label>
+                <label className="block text-sm text-foreground mb-1.5">Default View</label>
                 <select value={selectedViewMode} onChange={(e) => setSelectedViewMode(e.target.value)} className={SELECT_CLS}>
                   <option value="today">Today</option>
                   <option value="week">Week</option>
@@ -515,14 +515,14 @@ export default function WidgetSettingsModal({
           {widget.type === "weather" && (
             <>
               <div>
-                <label className="block text-sm font-medium text-foreground mb-2">View</label>
+                <label className="block text-sm text-foreground mb-1.5">View</label>
                 <select value={weatherView} onChange={(e) => setWeatherView(e.target.value)} className={SELECT_CLS}>
                   <option value="today">Today</option>
                   <option value="week">7-Day Forecast</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-foreground mb-2">Temperature Unit</label>
+                <label className="block text-sm text-foreground mb-1.5">Temperature Unit</label>
                 <select value={tempUnit} onChange={(e) => setTempUnit(e.target.value)} className={SELECT_CLS}>
                   <option value="F">Fahrenheit (°F)</option>
                   <option value="C">Celsius (°C)</option>
@@ -535,7 +535,7 @@ export default function WidgetSettingsModal({
           <div className="border-t border-border" />
 
           {/* ── Universal Style Settings ── */}
-          <p className="text-xs font-medium text-foreground">Style</p>
+          <p className="text-xs font-medium text-muted-foreground">Style</p>
 
           <ColorPickerRow
             labelText="Text Color"
@@ -553,7 +553,7 @@ export default function WidgetSettingsModal({
           />
 
           <div>
-            <label className="block text-sm font-medium text-foreground mb-2">Font</label>
+            <label className="block text-sm text-foreground mb-1.5">Font</label>
             <FontPicker value={fontFamily} onChange={setFontFamily} />
           </div>
         </div>

@@ -18,6 +18,7 @@ import BoardTitle from "@/components/home/BoardTitle";
 import BoardDescription from "@/components/home/BoardDescription";
 import EmojiPicker, { LUCIDE_ICON_MAP, ICON_SIZES } from "@/components/home/EmojiPicker";
 import { useWidgetLayout } from "@/hooks/useWidgetLayout";
+import { useToast } from "@/contexts/ToastContext";
 import type { WidgetType, WidgetInstance } from "@/lib/widget-types";
 
 export default function HomePage() {
@@ -49,6 +50,7 @@ export default function HomePage() {
     setCoverConfig,
   } = useWidgetLayout();
 
+  const { showToast } = useToast();
   const [editMode, setEditMode] = useState(false);
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [settingsWidget, setSettingsWidget] = useState<WidgetInstance | null>(null);
@@ -69,8 +71,9 @@ export default function HomePage() {
   const handleAddWidget = useCallback(
     (type: WidgetType) => {
       addWidget(type);
+      showToast("Widget added");
     },
-    [addWidget]
+    [addWidget, showToast]
   );
 
   /** Opens settings modal for a specific widget. */
@@ -86,8 +89,9 @@ export default function HomePage() {
   const handleSaveSettings = useCallback(
     (id: string, config: Record<string, string>) => {
       updateWidgetConfig(id, config);
+      showToast("Widget updated");
     },
-    [updateWidgetConfig]
+    [updateWidgetConfig, showToast]
   );
 
   /** Applies a font to all widgets and the board title. */
@@ -95,8 +99,9 @@ export default function HomePage() {
     (font: string) => {
       updateAllWidgetConfigs({ fontFamily: font });
       setTitleConfig(font, titleTextColor, titleFontSize);
+      showToast("Font applied to all widgets");
     },
-    [updateAllWidgetConfigs, setTitleConfig, titleTextColor, titleFontSize]
+    [updateAllWidgetConfigs, setTitleConfig, titleTextColor, titleFontSize, showToast]
   );
 
   // Don't render grid until localStorage is hydrated (avoids layout flash)
@@ -117,7 +122,7 @@ export default function HomePage() {
         <BoardCover
           coverImageUrl={coverImageUrl}
           editMode={editMode}
-          onChangeCover={setCoverImageUrl}
+          onChangeCover={(url) => { setCoverImageUrl(url); showToast(url ? "Banner updated" : "Banner removed"); }}
           coverHeight={coverHeight}
           coverPositionY={coverPositionY}
           onChangeCoverConfig={setCoverConfig}
@@ -246,10 +251,10 @@ export default function HomePage() {
           widget={settingsWidget}
           onClose={() => setSettingsWidget(null)}
           onSave={handleSaveSettings}
-          onRemove={removeWidget}
+          onRemove={(id) => { removeWidget(id); showToast("Widget removed"); }}
           onApplyFontToAll={handleApplyFontToAll}
-          onApplyBgResetToAll={() => updateAllWidgetConfigs({ bgColor: "" })}
-          onApplyTextColorToAll={(color) => updateAllWidgetConfigs({ textColor: color })}
+          onApplyBgResetToAll={() => { updateAllWidgetConfigs({ bgColor: "" }); showToast("Background reset on all widgets"); }}
+          onApplyTextColorToAll={(color) => { updateAllWidgetConfigs({ textColor: color }); showToast("Text color applied to all widgets"); }}
         />
 
 

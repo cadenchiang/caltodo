@@ -217,8 +217,21 @@ export default function GoogleCalendarWidget({ config, editMode, onUpdateConfig 
 
   if (loading) {
     return (
-      <div className="h-full w-full flex items-center justify-center p-4">
-        <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+      <div className="h-full w-full flex flex-col p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <div className="h-4 w-28 rounded bg-muted animate-pulse" />
+        </div>
+        <div className="space-y-2.5 flex-1">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="flex items-center gap-2">
+              <div className="w-1 h-8 rounded bg-muted animate-pulse" />
+              <div className="flex-1 space-y-1.5">
+                <div className="h-3 w-3/4 rounded bg-muted animate-pulse" />
+                <div className="h-2.5 w-1/2 rounded bg-muted animate-pulse" />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }

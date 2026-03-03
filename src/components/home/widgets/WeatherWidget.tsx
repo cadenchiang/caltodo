@@ -218,8 +218,20 @@ export default function WeatherWidget({ config, editMode }: WeatherWidgetProps) 
 
   if (loading) {
     return (
-      <div className="h-full w-full flex items-center justify-center p-4">
-        <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+      <div className="h-full w-full flex flex-col justify-between p-4">
+        <div className="h-2.5 w-20 rounded bg-muted animate-pulse" />
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <div className="h-10 w-20 rounded bg-muted animate-pulse" />
+            <div className="h-3 w-16 rounded bg-muted animate-pulse" />
+          </div>
+          <div className="w-9 h-9 rounded-full bg-muted animate-pulse" />
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="h-2.5 w-12 rounded bg-muted animate-pulse" />
+          <div className="h-2.5 w-8 rounded bg-muted animate-pulse" />
+          <div className="h-2.5 w-14 rounded bg-muted animate-pulse" />
+        </div>
       </div>
     );
   }
