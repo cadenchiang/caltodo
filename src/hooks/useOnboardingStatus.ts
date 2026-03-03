@@ -33,7 +33,11 @@ function readCache(): boolean | null {
  * @param completed - Whether onboarding has been completed
  */
 function writeCache(completed: boolean): void {
-  moduleCached = completed;
+  // Only cache `true` at module level — caching `false` causes stale reads
+  // where non-skipCache consumers never re-fetch after onboarding completes.
+  if (completed) {
+    moduleCached = completed;
+  }
   try {
     sessionStorage.setItem(
       CACHE_KEY,

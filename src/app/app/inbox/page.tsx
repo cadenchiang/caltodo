@@ -185,7 +185,7 @@ function saveSelections(courses: SelectedCourse[]): void {
 export default function InboxPage() {
   const {
     tasks, loading, error, addTask, toggleComplete: rawToggle, deleteTask: rawDelete, updateTask: rawUpdate,
-    syncing, triggerSync, reorderTasks, fetchTasks,
+    syncing, triggerSync, reorderTasks, fetchTasks, lastSyncedAt,
   } = useTaskContext();
 
   /** Wraps toggleComplete to resolve virtual repeat instance IDs to real task IDs. */
@@ -201,7 +201,7 @@ export default function InboxPage() {
   const inboxRouter = useRouter();
   const searchParams = useSearchParams();
   const { setPendingInviteCount } = useNotifications();
-  const { hasCompletedOnboarding } = useOnboardingStatus({ skipCache: true });
+  const { hasCompletedOnboarding, loading: onboardingLoading } = useOnboardingStatus({ skipCache: true });
   const [syncBadgeDismissed, setSyncBadgeDismissed] = useState(true);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [listPreviewTask, setListPreviewTask] = useState<Task | null>(null);
@@ -655,7 +655,7 @@ export default function InboxPage() {
               </div>
 
               {/* "Sync Classes" badge for unonboarded users — hidden on mobile */}
-              {!hasCompletedOnboarding && !syncBadgeDismissed && (
+              {!hasCompletedOnboarding && !lastSyncedAt && !syncBadgeDismissed && !onboardingLoading && (
                 <div className="relative shrink-0 hidden md:flex items-center group/sync">
                   <a
                     href="/app/settings?section=integrations"
