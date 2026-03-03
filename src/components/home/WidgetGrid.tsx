@@ -10,8 +10,9 @@
  * @param editMode - Whether editing is active
  * @param onLayoutChange - Callback when layout changes
  * @param onRemoveWidget - Callback to remove a widget
- * @param onWidgetSettings - Callback to open widget settings
+ * @param onWidgetSettings - Callback to open widget settings (receives id + DOMRect)
  * @param onUpdateWidgetConfig - Callback to update a widget's inline config
+ * @param selectedWidgetId - ID of widget currently being edited (gets z-41)
  */
 
 import { useEffect, useMemo, useState } from "react";
@@ -43,12 +44,14 @@ interface WidgetGridProps {
   editMode: boolean;
   onLayoutChange: (currentLayout: Layout, allLayouts: ResponsiveLayouts<string>) => void;
   onRemoveWidget: (id: string) => void;
-  onWidgetSettings: (id: string) => void;
+  onWidgetSettings: (id: string, rect: DOMRect) => void;
   onUpdateWidgetConfig?: (id: string, config: Record<string, string>) => void;
   /** Called when a widget drag starts (to disable parent scroll). */
   onDragStart?: () => void;
   /** Called when a widget drag ends (to re-enable parent scroll). */
   onDragStop?: () => void;
+  /** ID of the widget currently open in the editor panel. */
+  selectedWidgetId?: string | null;
 }
 
 export default function WidgetGrid({
@@ -61,6 +64,7 @@ export default function WidgetGrid({
   onUpdateWidgetConfig,
   onDragStart,
   onDragStop,
+  selectedWidgetId,
 }: WidgetGridProps) {
   const { width, containerRef, mounted } = useContainerWidth({
     measureBeforeMount: false,
@@ -87,17 +91,21 @@ export default function WidgetGrid({
   const gridItems = useMemo(
     () =>
       widgets.map((widget) => (
-        <div key={widget.id} className="relative">
+        <div
+          key={widget.id}
+          className={`relative ${widget.id === selectedWidgetId ? "z-[41]" : ""}`}
+        >
           <WidgetContainer
             widget={widget}
             editMode={editMode}
             onRemove={onRemoveWidget}
             onSettings={onWidgetSettings}
             onUpdateConfig={onUpdateWidgetConfig}
+            isSelected={widget.id === selectedWidgetId}
           />
         </div>
       )),
-    [widgets, editMode, onRemoveWidget, onWidgetSettings, onUpdateWidgetConfig]
+    [widgets, editMode, onRemoveWidget, onWidgetSettings, onUpdateWidgetConfig, selectedWidgetId]
   );
 
   return (

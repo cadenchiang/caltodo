@@ -29,33 +29,43 @@ export default function ColorPickerPopover({
   layout = "horizontal",
 }: ColorPickerPopoverProps) {
   const [open, setOpen] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ top: 0, left: 0 });
 
-  /** Compute dropdown position from trigger bounding rect. Centers horizontally, flips above if needed. */
+  /**
+   * Compute dropdown position from trigger bounding rect.
+   * Aligns left edge to trigger's left, flips above if not enough space below.
+   */
   const updatePosition = useCallback(() => {
     if (!triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
     const dropdownW = 288; // w-72 = 18rem = 288px
-    const dropdownH = 380; // approximate max height with color wheel open
     const viewW = window.innerWidth;
     const viewH = window.innerHeight;
     const pad = 8;
+    const gap = 8;
 
-    // Horizontal: center on trigger, clamp to viewport
-    let left = rect.left + rect.width / 2 - dropdownW / 2;
+    // Horizontal: align left edge to trigger's left, clamp to viewport
+    let left = rect.left;
     left = Math.max(pad, Math.min(left, viewW - dropdownW - pad));
 
-    // Vertical: prefer below trigger, flip above if not enough space below
+    // Measure actual dropdown height if rendered, else estimate
+    const actualH = dropdownRef.current?.offsetHeight ?? 380;
+
+    // Vertical: prefer below trigger, flip above if truly no space
+    const spaceBelow = viewH - rect.bottom - gap;
+    const spaceAbove = rect.top - gap;
+
     let top: number;
-    if (rect.bottom + 6 + dropdownH > viewH - pad) {
-      // Not enough room below — open above
-      top = rect.top - dropdownH - 6;
-      // If above also clips, just pin to top
-      if (top < pad) top = pad;
+    if (spaceBelow >= actualH || spaceBelow >= spaceAbove) {
+      // Place below
+      top = rect.bottom + gap;
     } else {
-      top = rect.bottom + 6;
+      // Place above
+      top = rect.top - actualH - gap;
+      if (top < pad) top = pad;
     }
 
     setPos({ top, left });
@@ -63,8 +73,28 @@ export default function ColorPickerPopover({
 
   /** Toggle dropdown open/close. */
   function handleToggle() {
-    if (!open) updatePosition();
-    setOpen((prev) => !prev);
+    if (open || isClosing) {
+      handleClose();
+    } else {
+      updatePosition();
+      setOpen(true);
+      // Re-measure after render to use actual dropdown height
+      requestAnimationFrame(() => updatePosition());
+    }
+  }
+
+  /** Animate close then unmount. */
+  function handleClose() {
+    if (!open || isClosing) return;
+    setIsClosing(true);
+  }
+
+  /** Handle exit animation end — unmount dropdown. */
+  function handleAnimationEnd() {
+    if (isClosing) {
+      setOpen(false);
+      setIsClosing(false);
+    }
   }
 
   /** Close dropdown when clicking outside trigger or dropdown. */
@@ -78,21 +108,23 @@ export default function ColorPickerPopover({
       ) {
         return;
       }
-      setOpen(false);
+      handleClose();
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
-  }, [open]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, isClosing]);
 
   /** Close on Escape key. */
   useEffect(() => {
     if (!open) return;
     function handleKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") handleClose();
     }
     document.addEventListener("keydown", handleKey);
     return () => document.removeEventListener("keydown", handleKey);
-  }, [open]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, isClosing]);
 
   /** Reposition on scroll/resize while open. */
   useEffect(() => {
@@ -126,8 +158,11 @@ export default function ColorPickerPopover({
     createPortal(
       <div
         ref={dropdownRef}
-        className="fixed z-[100] w-72 max-h-[80vh] overflow-y-auto rounded-xl border border-border bg-popover shadow-lg p-3"
+        className={`fixed z-[100] w-72 max-h-[80vh] overflow-y-auto rounded-xl border border-border bg-popover shadow-lg p-3 ${
+          isClosing ? "animate-popover-out" : "animate-popover-in"
+        }`}
         style={{ top: pos.top, left: pos.left }}
+        onAnimationEnd={handleAnimationEnd}
       >
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs font-medium text-foreground">{label}</span>

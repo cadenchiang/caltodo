@@ -8,8 +8,9 @@
  * @param widget - The widget instance to render
  * @param editMode - Whether the dashboard is in edit mode
  * @param onRemove - Callback to remove this widget
- * @param onSettings - Callback to open settings modal for this widget
+ * @param onSettings - Callback to open settings for this widget (receives id + bounding rect)
  * @param onUpdateConfig - Callback to update widget config (for inline controls)
+ * @param isSelected - Whether this widget is currently selected for editing
  */
 
 import { useRef } from "react";
@@ -33,8 +34,9 @@ interface WidgetContainerProps {
   widget: WidgetInstance;
   editMode: boolean;
   onRemove: (id: string) => void;
-  onSettings: (id: string) => void;
+  onSettings: (id: string, rect: DOMRect) => void;
   onUpdateConfig?: (id: string, config: Record<string, string>) => void;
+  isSelected?: boolean;
 }
 
 /** Navigation targets for widget click-through in view mode. */
@@ -87,8 +89,10 @@ export default function WidgetContainer({
   onRemove,
   onSettings,
   onUpdateConfig,
+  isSelected,
 }: WidgetContainerProps) {
   const router = useRouter();
+  const containerRef = useRef<HTMLDivElement>(null);
   const clickTarget = CLICK_TARGETS[widget.type];
   const isClickable = !editMode && !!clickTarget;
 
@@ -119,7 +123,10 @@ export default function WidgetContainer({
     if (target.closest("button, a, input, select, textarea, .no-drag")) return;
 
     if (editMode) {
-      onSettings(widget.id);
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (rect) {
+        onSettings(widget.id, rect);
+      }
       return;
     }
 
@@ -134,13 +141,20 @@ export default function WidgetContainer({
   const fontFamily = widget.config.fontFamily || undefined;
   const accentColor = widget.config.accentColor || undefined;
 
+  // Determine CSS class: selected stops jiggle + shows blue ring, else jiggle in edit mode
+  const editClass = isSelected
+    ? "widget-selected cursor-pointer"
+    : editMode
+      ? "widget-jiggle cursor-pointer"
+      : "";
+
   return (
     <div
+      ref={containerRef}
+      data-widget-id={widget.id}
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
-      className={`h-full w-full rounded-md overflow-hidden bg-transparent border border-foreground/8 ${
-        editMode ? "widget-jiggle cursor-pointer" : ""
-      } ${isClickable ? "cursor-pointer" : ""} ${textColor ? "widget-custom-text" : ""}`}
+      className={`h-full w-full rounded-md overflow-hidden bg-transparent border border-foreground/8 ${editClass} ${isClickable ? "cursor-pointer" : ""} ${textColor ? "widget-custom-text" : ""}`}
       style={{
         backgroundColor: bgColor,
         ...(textColor ? { "--widget-text-color": textColor } as React.CSSProperties : {}),

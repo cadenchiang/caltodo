@@ -12,7 +12,7 @@ import PageTransition from "@/components/ui/PageTransition";
 import EditToggleButton from "@/components/ui/EditToggleButton";
 import WidgetGrid from "@/components/home/WidgetGrid";
 import WidgetGalleryModal from "@/components/home/WidgetGalleryModal";
-import WidgetSettingsModal from "@/components/home/WidgetSettingsModal";
+import WidgetEditorPanel from "@/components/home/WidgetEditorPanel";
 import BoardCover from "@/components/home/BoardCover";
 import BoardTitle from "@/components/home/BoardTitle";
 import BoardDescription from "@/components/home/BoardDescription";
@@ -48,12 +48,15 @@ export default function HomePage() {
     coverPositionY,
     setTitleConfig,
     setCoverConfig,
+    savedImages,
+    addSavedImage,
   } = useWidgetLayout();
 
   const { showToast } = useToast();
   const [editMode, setEditMode] = useState(false);
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [settingsWidget, setSettingsWidget] = useState<WidgetInstance | null>(null);
+  const [settingsWidgetRect, setSettingsWidgetRect] = useState<DOMRect | null>(null);
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -76,22 +79,14 @@ export default function HomePage() {
     [addWidget, showToast]
   );
 
-  /** Opens settings modal for a specific widget. */
+  /** Opens editor panel for a specific widget with its bounding rect. */
   const handleWidgetSettings = useCallback(
-    (id: string) => {
+    (id: string, rect: DOMRect) => {
       const widget = widgets.find((w) => w.id === id) || null;
       setSettingsWidget(widget);
+      setSettingsWidgetRect(rect);
     },
     [widgets]
-  );
-
-  /** Saves widget config from settings modal. */
-  const handleSaveSettings = useCallback(
-    (id: string, config: Record<string, string>) => {
-      updateWidgetConfig(id, config);
-      showToast("Widget updated");
-    },
-    [updateWidgetConfig, showToast]
   );
 
   /** Applies a font to all widgets and the board title. */
@@ -216,6 +211,7 @@ export default function HomePage() {
             onUpdateWidgetConfig={updateWidgetConfig}
             onDragStart={() => setIsDragging(true)}
             onDragStop={() => setIsDragging(false)}
+            selectedWidgetId={settingsWidget?.id}
           />
         </div>
 
@@ -245,18 +241,29 @@ export default function HomePage() {
           onAdd={handleAddWidget}
         />
 
-        {/* Settings Modal */}
-        <WidgetSettingsModal
-          open={!!settingsWidget}
-          widget={settingsWidget}
-          onClose={() => setSettingsWidget(null)}
-          onSave={handleSaveSettings}
-          onRemove={(id) => { removeWidget(id); showToast("Widget removed"); }}
-          onApplyFontToAll={handleApplyFontToAll}
-          onApplyBgResetToAll={() => { updateAllWidgetConfigs({ bgColor: "" }); showToast("Background reset on all widgets"); }}
-          onApplyTextColorToAll={(color) => { updateAllWidgetConfigs({ textColor: color }); showToast("Text color applied to all widgets"); }}
-        />
+        {/* Dark backdrop when editor is open */}
+        {settingsWidget && (
+          <div
+            className="fixed inset-0 z-40 bg-black/40 animate-announce-backdrop-in"
+            onClick={() => setSettingsWidget(null)}
+          />
+        )}
 
+        {/* Inline Editor Panel */}
+        {settingsWidget && settingsWidgetRect && (
+          <WidgetEditorPanel
+            widget={settingsWidget}
+            widgetRect={settingsWidgetRect}
+            onClose={() => setSettingsWidget(null)}
+            onUpdateConfig={updateWidgetConfig}
+            onRemove={(id) => { removeWidget(id); showToast("Widget removed"); }}
+            onApplyFontToAll={handleApplyFontToAll}
+            onApplyBgResetToAll={() => { updateAllWidgetConfigs({ bgColor: "" }); showToast("Background reset on all widgets"); }}
+            onApplyTextColorToAll={(color) => { updateAllWidgetConfigs({ textColor: color }); showToast("Text color applied to all widgets"); }}
+            savedImages={savedImages}
+            onAddSavedImage={addSavedImage}
+          />
+        )}
 
       </div>
     </PageTransition>
