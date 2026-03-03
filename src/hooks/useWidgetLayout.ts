@@ -285,8 +285,8 @@ export function useWidgetLayout() {
         const serverTs = new Date(serverUpdatedAt).getTime();
         const localTs = localLayout?.updatedAt ?? 0;
 
-        // Server is newer — update state + localStorage
         if (serverTs > localTs) {
+          // Server is newer — update state + localStorage
           const serverLayout = serverData as unknown as PersistedLayout;
           // Preserve current schema version and apply same read validations
           serverLayout.version = SCHEMA_VERSION;
@@ -297,6 +297,9 @@ export function useWidgetLayout() {
           } catch {
             // non-critical
           }
+        } else if (localLayout && localTs > serverTs) {
+          // Local is newer — push to server (covers failed/missed server saves)
+          debouncedServerSave(localLayout);
         }
       } else if (!serverData && localLayout) {
         // No server data but localStorage exists — first-time migration to server
