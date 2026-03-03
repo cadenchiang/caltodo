@@ -22,7 +22,7 @@ export const IMAGE_WIDGET_PRESETS: ImageWidgetPreset[] = [
   { id: "iw4", label: "Desert Dunes", url: "https://images.unsplash.com/photo-1473580044384-7ba9967e16a0?w=800&h=600&fit=crop&q=80" },
   { id: "iw5", label: "Cherry Blossoms", url: "https://images.unsplash.com/photo-1522383225653-ed111181a951?w=800&h=600&fit=crop&q=80" },
   { id: "iw6", label: "Northern Lights", url: "https://images.unsplash.com/photo-1531366936337-7c912a4589a7?w=800&h=600&fit=crop&q=80" },
-  { id: "iw7", label: "Autumn Road", url: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&h=600&fit=crop&q=80" },
+  { id: "iw7", label: "Autumn Road", url: "https://images.unsplash.com/photo-1508193638397-1c4234db14d9?w=800&h=600&fit=crop&q=80" },
   { id: "iw8", label: "Tropical Beach", url: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&h=600&fit=crop&q=80" },
   // Skies & Sunsets
   { id: "iw9", label: "Pink Clouds", url: "https://images.unsplash.com/photo-1525920980995-f8a382bf42c5?w=800&h=600&fit=crop&q=80" },

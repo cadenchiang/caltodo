@@ -23,10 +23,11 @@ describe("getTimeRange", () => {
    * Helper to compute expected day offset from start of local day.
    *
    * @param mode - ViewMode to test
+   * @param customDays - Optional custom day count for "custom" mode
    * @returns Expected number of days between timeMin and timeMax
    */
-  function getDayOffset(mode: ViewMode): number {
-    const { timeMin, timeMax } = getTimeRange(mode);
+  function getDayOffset(mode: ViewMode, customDays?: number): number {
+    const { timeMin, timeMax } = getTimeRange(mode, customDays);
     const start = new Date(timeMin);
     const end = new Date(timeMax);
     return Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
@@ -68,8 +69,27 @@ describe("getTimeRange", () => {
     expect(start.getSeconds()).toBe(0);
   });
 
+  it("custom mode defaults to 7 days without customDays", () => {
+    expect(getDayOffset("custom")).toBe(7);
+  });
+
+  it("custom mode spans the specified number of days", () => {
+    expect(getDayOffset("custom", 14)).toBe(14);
+    expect(getDayOffset("custom", 1)).toBe(1);
+    expect(getDayOffset("custom", 30)).toBe(30);
+  });
+
+  it("custom mode clamps to 90 days maximum", () => {
+    expect(getDayOffset("custom", 120)).toBe(90);
+  });
+
+  it("custom mode falls back to 7 for invalid values", () => {
+    expect(getDayOffset("custom", 0)).toBe(7);
+    expect(getDayOffset("custom", -5)).toBe(7);
+  });
+
   it("returns valid ISO strings", () => {
-    const modes: ViewMode[] = ["today", "2day", "3day", "4day", "5day", "week", "month"];
+    const modes: ViewMode[] = ["today", "2day", "3day", "4day", "5day", "week", "month", "custom"];
     for (const mode of modes) {
       const { timeMin, timeMax } = getTimeRange(mode);
       expect(new Date(timeMin).toISOString()).toBe(timeMin);

@@ -22,8 +22,26 @@ const GCAL_COLORS: Record<string, string> = {
   "9": "#3F51B5", "10": "#0B8043", "11": "#D50000",
 };
 
+/**
+ * Parses an event start/end string into a local Date.
+ * All-day events use "YYYY-MM-DD" which new Date() parses as UTC midnight,
+ * shifting back a day in western timezones. This function detects date-only
+ * strings and constructs local midnight instead.
+ *
+ * @param dateStr - ISO datetime string or YYYY-MM-DD date string
+ * @returns Date object in local timezone
+ */
+function parseEventDate(dateStr: string): Date {
+  // Date-only format: "2026-03-03" (no "T" character)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    const [y, m, d] = dateStr.split("-").map(Number);
+    return new Date(y, m - 1, d); // local midnight
+  }
+  return new Date(dateStr);
+}
+
 /** View mode options for the calendar. */
-export type ViewMode = "today" | "2day" | "3day" | "4day" | "5day" | "week" | "month";
+export type ViewMode = "today" | "2day" | "3day" | "4day" | "5day" | "week" | "month" | "custom";
 
 const VIEW_MODES: { key: ViewMode; label: string }[] = [
   { key: "today", label: "Today" },
@@ -33,15 +51,17 @@ const VIEW_MODES: { key: ViewMode; label: string }[] = [
   { key: "5day", label: "5 Days" },
   { key: "week", label: "Week" },
   { key: "month", label: "Month" },
+  { key: "custom", label: "Custom" },
 ];
 
 /**
  * Computes timeMin/timeMax ISO strings for the given view mode.
  *
  * @param mode - View mode to compute range for
+ * @param customDays - Number of days for "custom" mode (default 7)
  * @returns Object with timeMin and timeMax ISO strings
  */
-export function getTimeRange(mode: ViewMode): { timeMin: string; timeMax: string } {
+export function getTimeRange(mode: ViewMode, customDays?: number): { timeMin: string; timeMax: string } {
   const now = new Date();
   const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const end = new Date(start);
@@ -68,6 +88,11 @@ export function getTimeRange(mode: ViewMode): { timeMin: string; timeMax: string
     case "month":
       end.setDate(end.getDate() + 30);
       break;
+    case "custom": {
+      const days = customDays && customDays >= 1 ? Math.min(customDays, 90) : 7;
+      end.setDate(end.getDate() + days);
+      break;
+    }
   }
 
   return { timeMin: start.toISOString(), timeMax: end.toISOString() };
@@ -86,11 +111,16 @@ function EventsByDay({ events, calendarColors = {}, fallbackColor = "#039BE5" }:
   tomorrow.setDate(tomorrow.getDate() + 1);
   const tomorrowKey = tomorrow.toDateString();
 
-  /** Groups events by their date string key. */
+  /**
+   * Groups events by their date string key.
+   * All-day events use YYYY-MM-DD format which new Date() parses as UTC,
+   * causing a day shift in western timezones. We detect date-only strings
+   * and parse them as local midnight instead.
+   */
   const grouped = useMemo(() => {
     const map = new Map<string, GCalEvent[]>();
     for (const event of events) {
-      const key = new Date(event.start).toDateString();
+      const key = parseEventDate(event.start).toDateString();
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(event);
     }
@@ -212,7 +242,8 @@ export default function GoogleCalendarWidget({ config, editMode, onUpdateConfig 
         params.set("calendarIds", calendarIds.join(","));
       }
 
-      const { timeMin, timeMax } = getTimeRange(viewMode);
+      const customDays = viewMode === "custom" ? parseInt(config.customDays || "7", 10) : undefined;
+      const { timeMin, timeMax } = getTimeRange(viewMode, customDays);
       params.set("timeMin", timeMin);
       params.set("timeMax", timeMax);
 
@@ -227,7 +258,7 @@ export default function GoogleCalendarWidget({ config, editMode, onUpdateConfig 
       setLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [calendarIdsKey, viewMode]);
+  }, [calendarIdsKey, viewMode, config.customDays]);
 
   useEffect(() => {
     fetchEvents();
@@ -280,7 +311,11 @@ export default function GoogleCalendarWidget({ config, editMode, onUpdateConfig 
       {/* Header */}
       <div className="flex items-center gap-2 mb-3">
         <h3 className="text-sm font-semibold text-foreground">Google Calendar</h3>
-        <span className="text-[10px] text-muted-foreground">{VIEW_MODES.find((m) => m.key === viewMode)?.label ?? viewMode}</span>
+        <span className="text-[10px] text-muted-foreground">
+          {viewMode === "custom"
+            ? `${config.customDays || "7"} Days`
+            : VIEW_MODES.find((m) => m.key === viewMode)?.label ?? viewMode}
+        </span>
       </div>
 
       {events.length === 0 ? (
