@@ -23,12 +23,14 @@ interface ImageWidgetProps {
   config: Record<string, string>;
   widgetId: string;
   onUpdateConfig?: (config: Record<string, string>) => void;
+  onOpenSettings?: () => void;
 }
 
 export default function ImageWidget({
   config,
   widgetId,
   onUpdateConfig,
+  onOpenSettings,
 }: ImageWidgetProps) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -187,40 +189,16 @@ export default function ImageWidget({
             {dragOver ? "Drop image here" : "No image"}
           </p>
           {!dragOver && onUpdateConfig && (
-            <>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  fileRef.current?.click();
+                  onOpenSettings?.();
                 }}
                 className="no-drag flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border border-border text-foreground hover:bg-muted transition-colors mt-1"
               >
                 <Camera size={14} />
                 Select Image
               </button>
-              <div className="no-drag grid grid-cols-4 gap-1.5 mt-3 max-h-40 overflow-y-auto w-full">
-                {IMAGE_WIDGET_PRESETS.map((preset) => (
-                  <button
-                    key={preset.id}
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onUpdateConfig({ imageUrl: `preset:${preset.id}` });
-                    }}
-                    className="rounded-md overflow-hidden aspect-[4/3] hover:ring-2 hover:ring-blue-400 transition-all"
-                    title={preset.label}
-                  >
-                    <img
-                      src={preset.url}
-                      alt={preset.label}
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                      draggable={false}
-                    />
-                  </button>
-                ))}
-              </div>
-            </>
           )}
         </>
       )}
