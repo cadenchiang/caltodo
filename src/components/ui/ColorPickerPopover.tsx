@@ -15,6 +15,51 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import ColorPickerPanel from "@/components/ui/ColorPickerPanel";
 
+/** Dropdown width in pixels (w-72 = 18rem = 288px). */
+export const DROPDOWN_WIDTH = 288;
+
+/** Minimum distance from any viewport edge. */
+export const PICKER_PAD = 8;
+
+/** Gap between trigger and dropdown. */
+export const PICKER_GAP = 8;
+
+/**
+ * Computes fixed position for the color picker dropdown.
+ * Aligns left edge to trigger, clamps to viewport edges,
+ * and flips above the trigger when there is more space above.
+ *
+ * @param triggerRect - Bounding rect of the trigger button
+ * @param dropdownH - Measured or estimated dropdown height
+ * @param viewportW - Viewport width
+ * @param viewportH - Viewport height
+ * @returns { top, left } for the dropdown
+ */
+export function computePickerPosition(
+  triggerRect: { top: number; left: number; right: number; bottom: number },
+  dropdownH: number,
+  viewportW: number,
+  viewportH: number
+): { top: number; left: number } {
+  // Horizontal: align left edge to trigger, clamp to viewport
+  let left = triggerRect.left;
+  left = Math.max(PICKER_PAD, Math.min(left, viewportW - DROPDOWN_WIDTH - PICKER_PAD));
+
+  // Vertical: prefer below, flip above if more room
+  const spaceBelow = viewportH - triggerRect.bottom - PICKER_GAP;
+  const spaceAbove = triggerRect.top - PICKER_GAP;
+
+  let top: number;
+  if (spaceBelow >= dropdownH || spaceBelow >= spaceAbove) {
+    top = triggerRect.bottom + PICKER_GAP;
+  } else {
+    top = triggerRect.top - dropdownH - PICKER_GAP;
+    if (top < PICKER_PAD) top = PICKER_PAD;
+  }
+
+  return { top, left };
+}
+
 interface ColorPickerPopoverProps {
   label: string;
   value: string;
@@ -34,41 +79,12 @@ export default function ColorPickerPopover({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ top: 0, left: 0 });
 
-  /**
-   * Compute dropdown position from trigger bounding rect.
-   * Aligns left edge to trigger's left, flips above if not enough space below.
-   */
+  /** Delegates to pure computePickerPosition(). */
   const updatePosition = useCallback(() => {
     if (!triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
-    const dropdownW = 288; // w-72 = 18rem = 288px
-    const viewW = window.innerWidth;
-    const viewH = window.innerHeight;
-    const pad = 8;
-    const gap = 8;
-
-    // Horizontal: align left edge to trigger's left, clamp to viewport
-    let left = rect.left;
-    left = Math.max(pad, Math.min(left, viewW - dropdownW - pad));
-
-    // Measure actual dropdown height if rendered, else estimate
     const actualH = dropdownRef.current?.offsetHeight ?? 380;
-
-    // Vertical: prefer below trigger, flip above if truly no space
-    const spaceBelow = viewH - rect.bottom - gap;
-    const spaceAbove = rect.top - gap;
-
-    let top: number;
-    if (spaceBelow >= actualH || spaceBelow >= spaceAbove) {
-      // Place below
-      top = rect.bottom + gap;
-    } else {
-      // Place above
-      top = rect.top - actualH - gap;
-      if (top < pad) top = pad;
-    }
-
-    setPos({ top, left });
+    setPos(computePickerPosition(rect, actualH, window.innerWidth, window.innerHeight));
   }, []);
 
   /** Toggle dropdown open/close. */

@@ -20,8 +20,46 @@ import { IMAGE_WIDGET_PRESETS } from "@/lib/image-widget-presets";
 import ImageCropModal from "@/components/ui/ImageCropModal";
 import { createClient } from "@/lib/supabase/client";
 
-const PANEL_WIDTH = 340;
-const GAP = 16;
+export const PANEL_WIDTH = 340;
+export const GAP = 16;
+/** Minimum distance from any viewport edge. */
+export const EDGE_PAD = 8;
+
+/**
+ * Computes the fixed position for the editor panel relative to a widget rect.
+ * Ensures the panel never overflows any viewport edge.
+ *
+ * @param widgetRect - Bounding rect of the selected widget
+ * @param viewportW - Viewport width (window.innerWidth)
+ * @param viewportH - Viewport height (window.innerHeight)
+ * @param panelH - Measured or estimated panel height
+ * @returns { side, top, left } for the panel
+ */
+export function computePanelPosition(
+  widgetRect: { top: number; left: number; right: number; bottom: number },
+  viewportW: number,
+  viewportH: number,
+  panelH: number
+): { side: "right" | "left"; top: number; left: number } {
+  // Decide which side to place the panel
+  const side: "right" | "left" =
+    widgetRect.right + GAP + PANEL_WIDTH < viewportW ? "right"
+    : widgetRect.left - GAP - PANEL_WIDTH > EDGE_PAD ? "left"
+    : "right";
+
+  // Horizontal position, clamped to viewport
+  let left = side === "right"
+    ? widgetRect.right + GAP
+    : widgetRect.left - GAP - PANEL_WIDTH;
+  left = Math.max(EDGE_PAD, Math.min(left, viewportW - PANEL_WIDTH - EDGE_PAD));
+
+  // Vertical position: align to widget top, clamp to viewport
+  let top = widgetRect.top;
+  if (top + panelH > viewportH - EDGE_PAD) top = viewportH - panelH - EDGE_PAD;
+  if (top < EDGE_PAD) top = EDGE_PAD;
+
+  return { side, top, left };
+}
 
 const WIDGET_LABELS: Record<string, string> = {
   clock: "Clock", "tasks-today": "Tasks Widget", "class-progress": "Class Progress",
@@ -114,24 +152,18 @@ export default function WidgetEditorPanel({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [localConfig]);
 
-  // Panel positioning
+  // Panel positioning — delegates to pure computePanelPosition()
   const updatePosition = useCallback(() => {
     const mobile = window.innerWidth < 768;
     setIsMobile(mobile);
     if (mobile) return;
     const el = document.querySelector(`[data-widget-id="${widget.id}"]`);
     const rect = el ? el.getBoundingClientRect() : widgetRect;
-    const vW = window.innerWidth;
-    const vH = window.innerHeight;
-    const placeSide = (rect.right + GAP + PANEL_WIDTH < vW) ? "right"
-      : (rect.left - GAP - PANEL_WIDTH > 8) ? "left" : "right";
-    setSide(placeSide);
-    let left = placeSide === "right" ? rect.right + GAP : rect.left - GAP - PANEL_WIDTH;
-    left = Math.max(8, Math.min(left, vW - PANEL_WIDTH - 8));
-    let top = rect.top;
     const pH = panelRef.current?.offsetHeight ?? 500;
-    if (top + pH > vH - 8) top = vH - pH - 8;
-    if (top < 8) top = 8;
+    const { side: placeSide, top, left } = computePanelPosition(
+      rect, window.innerWidth, window.innerHeight, pH
+    );
+    setSide(placeSide);
     setPanelPos({ top, left });
   }, [widget.id, widgetRect]);
 
