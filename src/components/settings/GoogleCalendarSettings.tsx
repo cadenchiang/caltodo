@@ -24,6 +24,121 @@ let globalShowToast: ((msg: string, opts?: Parameters<ReturnType<typeof useToast
 let globalUpdateProgress: ((progress: number) => void) | null = null;
 
 /**
+ * Reads an NDJSON stream from the initial-sync endpoint, firing callbacks
+ * for progress and completion events. Module-level so it can be shared by
+ * both the background sync and the auto-setup flow.
+ *
+ * @param response - The fetch Response with an NDJSON body
+ * @param callbacks - Progress and done handlers
+ * @returns The final "done" event payload, or null if stream ended without one
+ */
+async function readSyncStream(
+  response: Response,
+  callbacks: {
+    onProgress: (synced: number, total: number) => void;
+    onDone: () => void;
+  },
+): Promise<{ synced: number; total: number; errors: string[] } | null> {
+  const reader = response.body?.getReader();
+  if (!reader) return null;
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let finalResult: { synced: number; total: number; errors: string[] } | null = null;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) { buffer += decoder.decode(); break; }
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      try {
+        const event = JSON.parse(line);
+        if (event.type === "start" || event.type === "progress") {
+          callbacks.onProgress(event.synced ?? 0, event.total);
+        } else if (event.type === "done") {
+          finalResult = event;
+          callbacks.onDone();
+        }
+      } catch { /* skip malformed lines */ }
+    }
+  }
+  if (buffer.trim()) {
+    try {
+      const event = JSON.parse(buffer);
+      if (event.type === "done") { finalResult = event; callbacks.onDone(); }
+    } catch { /* skip */ }
+  }
+  return finalResult;
+}
+
+/** Whether a module-level background sync is currently in progress. */
+let moduleSyncInProgress = false;
+/** Callback to notify the mounted component of sync state changes. */
+let onModuleSyncStateChange: ((syncing: boolean, progress: { synced: number; total: number } | null) => void) | null = null;
+
+/**
+ * Runs the initial-sync in the background at module level.
+ * Survives component unmount so users can navigate away from the integrations tab.
+ * Uses globalShowToast/globalUpdateProgress for toast notifications.
+ */
+async function runBackgroundSync(): Promise<void> {
+  if (moduleSyncInProgress) return;
+  moduleSyncInProgress = true;
+  onModuleSyncStateChange?.(true, { synced: 0, total: 0 });
+
+  const toast = (msg: string, opts?: Record<string, unknown>) => globalShowToast?.(msg, opts as Parameters<NonNullable<typeof globalShowToast>>[1]);
+  const progress = (p: number) => globalUpdateProgress?.(p);
+
+  toast("Syncing missed tasks to Google Calendar...", { progress: 0 });
+
+  try {
+    const syncRes = await fetch("/api/gcal/initial-sync", { method: "POST" });
+    const contentType = syncRes.headers.get("Content-Type") ?? "";
+
+    if (contentType.includes("application/json")) {
+      const result = await syncRes.json();
+      if (syncRes.ok && result.synced === 0 && result.total === 0) {
+        toast("All tasks are already synced.");
+      } else if (!syncRes.ok) {
+        toast(`Sync failed: ${result.error || syncRes.status}`);
+      }
+      return;
+    }
+
+    const finalResult = await readSyncStream(syncRes, {
+      onProgress: (synced, total) => {
+        onModuleSyncStateChange?.(true, { synced, total });
+        if (total > 0) progress(Math.round((synced / total) * 100));
+      },
+      onDone: () => onModuleSyncStateChange?.(true, null),
+    });
+
+    if (!finalResult) {
+      toast("Sync failed: no response stream.");
+      return;
+    }
+
+    if (finalResult.synced > 0) {
+      const msg = finalResult.synced === finalResult.total
+        ? `Synced ${finalResult.synced} task${finalResult.synced === 1 ? "" : "s"} to Google Calendar.`
+        : `Synced ${finalResult.synced} of ${finalResult.total} tasks to Google Calendar.`;
+      toast(msg);
+    } else if (finalResult.total > 0) {
+      toast(`Sync failed for all ${finalResult.total} tasks. Check your Google Calendar permissions.`);
+    } else {
+      toast("All tasks are already synced.");
+    }
+  } catch (err) {
+    console.error("Background sync error:", err);
+    toast("Failed to sync tasks. Please try again.");
+  } finally {
+    moduleSyncInProgress = false;
+    onModuleSyncStateChange?.(false, null);
+  }
+}
+
+/**
  * Inline Google Calendar logo SVG for brand recognition.
  *
  * @param size - Icon dimensions in pixels (default 16)
@@ -103,54 +218,6 @@ export default function GoogleCalendarSettings() {
   }
 
   /**
-   * Reads an NDJSON stream from the initial-sync endpoint, firing callbacks
-   * for progress and completion events.
-   *
-   * @param response - The fetch Response with an NDJSON body
-   * @param callbacks - Progress and done handlers
-   * @returns The final "done" event payload, or null if stream ended without one
-   */
-  async function readSyncStream(
-    response: Response,
-    callbacks: {
-      onProgress: (synced: number, total: number) => void;
-      onDone: () => void;
-    },
-  ): Promise<{ synced: number; total: number; errors: string[] } | null> {
-    const reader = response.body?.getReader();
-    if (!reader) return null;
-    const decoder = new TextDecoder();
-    let buffer = "";
-    let finalResult: { synced: number; total: number; errors: string[] } | null = null;
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) { buffer += decoder.decode(); break; }
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() ?? "";
-      for (const line of lines) {
-        if (!line.trim()) continue;
-        try {
-          const event = JSON.parse(line);
-          if (event.type === "start" || event.type === "progress") {
-            callbacks.onProgress(event.synced ?? 0, event.total);
-          } else if (event.type === "done") {
-            finalResult = event;
-            callbacks.onDone();
-          }
-        } catch { /* skip malformed lines */ }
-      }
-    }
-    if (buffer.trim()) {
-      try {
-        const event = JSON.parse(buffer);
-        if (event.type === "done") { finalResult = event; callbacks.onDone(); }
-      } catch { /* skip */ }
-    }
-    return finalResult;
-  }
-
-  /**
    * Fetches the count of tasks with due dates that haven't synced to GCal.
    * Only called when connected and not currently syncing.
    */
@@ -163,62 +230,37 @@ export default function GoogleCalendarSettings() {
     } catch { /* network error — ignore silently */ }
   }, []);
 
-  // Fetch unsynced count when connected and idle
+  // Poll unsynced count every 10s when connected and idle for live updates
   useEffect(() => {
-    if (connected && !syncing) {
-      fetchUnsyncedCount();
-    }
+    if (!connected || syncing) return;
+    fetchUnsyncedCount();
+    const interval = setInterval(fetchUnsyncedCount, 10_000);
+    return () => clearInterval(interval);
   }, [connected, syncing, fetchUnsyncedCount]);
 
-  /**
-   * Retries syncing unsynced tasks by calling the existing initial-sync endpoint.
-   * Reuses the same NDJSON stream reading logic as autoSetupCalendar.
-   */
-  async function handleRetrySync() {
-    setSyncing(true);
-    ifMounted(setSyncProgress, { synced: 0, total: 0 });
-    toast("Syncing missed tasks to Google Calendar...", { progress: 0 });
-    try {
-      const syncRes = await fetch("/api/gcal/initial-sync", { method: "POST" });
-      const contentType = syncRes.headers.get("Content-Type") ?? "";
-      if (contentType.includes("application/json")) {
-        const result = await syncRes.json();
-        if (syncRes.ok && result.synced === 0 && result.total === 0) {
-          toast("All tasks are already synced.");
-        } else if (!syncRes.ok) {
-          toast(`Sync failed: ${result.error || syncRes.status}`);
-        }
-        return;
-      }
-      const finalResult = await readSyncStream(syncRes, {
-        onProgress: (synced, total) => {
-          ifMounted(setSyncProgress, { synced, total });
-          if (total > 0) toastProgress(Math.round((synced / total) * 100));
-        },
-        onDone: () => ifMounted(setSyncProgress, null),
-      });
-      if (!finalResult) {
-        toast("Sync failed: no response stream.");
-        return;
-      }
-      if (finalResult.synced > 0) {
-        const msg = finalResult.synced === finalResult.total
-          ? `Synced ${finalResult.synced} task${finalResult.synced === 1 ? "" : "s"} to Google Calendar.`
-          : `Synced ${finalResult.synced} of ${finalResult.total} tasks to Google Calendar.`;
-        toast(msg);
-      } else if (finalResult.total > 0) {
-        toast(`Sync failed for all ${finalResult.total} tasks. Check your Google Calendar permissions.`);
-      } else {
-        toast("All tasks are already synced.");
-      }
-    } catch (err) {
-      console.error("Retry sync error:", err);
-      toast("Failed to sync tasks. Please try again.");
-    } finally {
-      ifMounted(setSyncing, false);
-      ifMounted(setSyncProgress, null);
-      fetchUnsyncedCount();
+  // Register module-level sync callback so sync survives navigation away
+  useEffect(() => {
+    if (moduleSyncInProgress) {
+      setSyncing(true);
     }
+    onModuleSyncStateChange = (isSyncing, progress) => {
+      if (mountedRef.current) {
+        setSyncing(isSyncing);
+        setSyncProgress(progress);
+        if (!isSyncing) fetchUnsyncedCount();
+      }
+    };
+    return () => { onModuleSyncStateChange = null; };
+  }, [fetchUnsyncedCount]);
+
+  /**
+   * Triggers background sync for unsynced tasks.
+   * Runs at module level so navigation away doesn't interrupt the sync.
+   */
+  function handleRetrySync() {
+    setSyncing(true);
+    setSyncProgress({ synced: 0, total: 0 });
+    runBackgroundSync();
   }
 
   async function autoSetupCalendar() {
