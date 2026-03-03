@@ -233,7 +233,8 @@ export default function BoardCover({
                   step={10}
                   value={coverHeight}
                   onChange={(e) => onChangeCoverConfig(Number(e.target.value), coverPositionY)}
-                  className="w-full h-2 rounded-full appearance-none bg-border accent-blue-500 cursor-pointer"
+                  className="w-full slider-blue"
+                  style={{ background: `linear-gradient(to right, #3b82f6 ${((coverHeight - 80) / (350 - 80)) * 100}%, var(--border) ${((coverHeight - 80) / (350 - 80)) * 100}%)` }}
                 />
               </div>
               {isImageCover && (
@@ -249,7 +250,8 @@ export default function BoardCover({
                     step={1}
                     value={coverPositionY}
                     onChange={(e) => onChangeCoverConfig(coverHeight, Number(e.target.value))}
-                    className="w-full h-2 rounded-full appearance-none bg-border accent-blue-500 cursor-pointer"
+                    className="w-full slider-blue"
+                    style={{ background: `linear-gradient(to right, #3b82f6 ${coverPositionY}%, var(--border) ${coverPositionY}%)` }}
                   />
                 </div>
               )}

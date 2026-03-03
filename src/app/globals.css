@@ -1786,3 +1786,60 @@ textarea:-webkit-autofill {
 .react-grid-item.react-grid-placeholder {
   transition: transform 250ms cubic-bezier(0.2, 0, 0, 1), width 250ms ease, height 250ms ease !important;
 }
+
+/* ── Custom range slider with blue fill ── */
+input[type="range"].slider-blue {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 9999px;
+  background: var(--border);
+  cursor: pointer;
+}
+
+input[type="range"].slider-blue::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #3b82f6;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+}
+
+input[type="range"].slider-blue::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #3b82f6;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+}
+
+input[type="range"].slider-blue::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 9999px;
+}
+
+input[type="range"].slider-blue::-moz-range-progress {
+  background: #3b82f6;
+  height: 4px;
+  border-radius: 9999px;
+}
+
+input[type="range"].slider-blue::-moz-range-track {
+  background: var(--border);
+  height: 4px;
+  border-radius: 9999px;
+}
+
+.dark input[type="range"].slider-blue::-webkit-slider-thumb {
+  border-color: #1c1c1e;
+}
+
+.dark input[type="range"].slider-blue::-moz-range-thumb {
+  border-color: #1c1c1e;
+}
