@@ -6,7 +6,7 @@
  * Edit mode toggle: pencil icon (view) / "Done" pill (edit).
  */
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { Plus } from "lucide-react";
 import PageTransition from "@/components/ui/PageTransition";
 import EditToggleButton from "@/components/ui/EditToggleButton";
@@ -59,6 +59,9 @@ export default function HomePage() {
   const [settingsWidgetRect, setSettingsWidgetRect] = useState<DOMRect | null>(null);
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  /** Live widget rect for the spotlight overlay (updates on scroll/resize). */
+  const [spotlightRect, setSpotlightRect] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
+  const spotlightRafRef = useRef(0);
 
   // Listen for tour-controlled edit mode toggle (fired by AppTour click animations)
   useEffect(() => {
@@ -69,6 +72,21 @@ export default function HomePage() {
     window.addEventListener("tour-set-edit-mode", handleTourEditMode);
     return () => window.removeEventListener("tour-set-edit-mode", handleTourEditMode);
   }, []);
+
+  // Track selected widget position for spotlight overlay
+  useEffect(() => {
+    if (!settingsWidget) { setSpotlightRect(null); return; }
+    function updateSpotlight() {
+      const el = document.querySelector(`[data-widget-id="${settingsWidget!.id}"]`);
+      if (el) {
+        const r = el.getBoundingClientRect();
+        setSpotlightRect({ top: r.top, left: r.left, width: r.width, height: r.height });
+      }
+      spotlightRafRef.current = requestAnimationFrame(updateSpotlight);
+    }
+    updateSpotlight();
+    return () => cancelAnimationFrame(spotlightRafRef.current);
+  }, [settingsWidget]);
 
   /** Handles adding a widget from the gallery. */
   const handleAddWidget = useCallback(
@@ -241,12 +259,29 @@ export default function HomePage() {
           onAdd={handleAddWidget}
         />
 
-        {/* Dark backdrop when editor is open */}
+        {/* Backdrop: click catcher (transparent) + spotlight over selected widget */}
         {settingsWidget && (
-          <div
-            className="fixed inset-0 z-40 bg-black/40 animate-announce-backdrop-in"
-            onClick={() => setSettingsWidget(null)}
-          />
+          <>
+            {/* Full-screen click catcher — closes editor on click outside */}
+            <div
+              className="fixed inset-0 z-[39]"
+              onClick={() => setSettingsWidget(null)}
+            />
+            {/* Spotlight: positioned over the selected widget with a massive box-shadow
+                that dims everything except the widget area */}
+            {spotlightRect && (
+              <div
+                className="fixed z-40 rounded-md pointer-events-none"
+                style={{
+                  top: spotlightRect.top,
+                  left: spotlightRect.left,
+                  width: spotlightRect.width,
+                  height: spotlightRect.height,
+                  boxShadow: "0 0 0 9999px rgba(0, 0, 0, 0.4)",
+                }}
+              />
+            )}
+          </>
         )}
 
         {/* Inline Editor Panel */}

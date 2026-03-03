@@ -308,6 +308,16 @@ export default function WidgetEditorPanel({
         <button onClick={() => setConfirmOverlay("delete")} className="w-full px-3 py-2 text-sm rounded-xl text-red-500 hover:bg-red-500/10 transition-colors">Remove Widget</button>
       </div>
 
+      {/* Footer — Save & Close */}
+      <div className="flex items-center justify-end gap-2 p-3 border-t border-border shrink-0">
+        <button
+          onClick={handleDone}
+          className="px-4 py-2 text-sm rounded-xl bg-blue-500 text-white hover:bg-blue-600 transition-colors"
+        >
+          Done
+        </button>
+      </div>
+
       {cropSrc && <ImageCropModal open imageSrc={cropSrc} aspect={4 / 3} onCrop={handleCroppedUpload} onClose={() => setCropSrc(null)} />}
 
       {/* Confirm overlays */}

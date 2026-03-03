@@ -87,6 +87,14 @@ export default function ColorPickerPopover({
     setPos(computePickerPosition(rect, actualH, window.innerWidth, window.innerHeight));
   }, []);
 
+  /** Reposition when dropdown content resizes (e.g. color wheel expands). */
+  useEffect(() => {
+    if (!open || !dropdownRef.current) return;
+    const observer = new ResizeObserver(() => updatePosition());
+    observer.observe(dropdownRef.current);
+    return () => observer.disconnect();
+  }, [open, updatePosition]);
+
   /** Toggle dropdown open/close. */
   function handleToggle() {
     if (open || isClosing) {
