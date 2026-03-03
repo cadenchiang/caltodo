@@ -256,7 +256,7 @@ export default function BoardCover({
             </div>
 
             {/* Preset sections — scrollable */}
-            <div className="p-4 space-y-4 max-h-[50vh] overflow-y-auto">
+            <div className="p-4 space-y-6 max-h-[50vh] overflow-y-auto">
               {/* Photos — grouped by category, horizontal scroll or expanded grid */}
               {PHOTO_COVER_CATEGORIES.map((cat) => {
                 const catKey = `photo-${cat.label}`;
