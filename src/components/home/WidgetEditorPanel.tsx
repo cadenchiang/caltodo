@@ -16,7 +16,7 @@ import SegmentedControl from "@/components/ui/SegmentedControl";
 import ColorPickerPopover from "@/components/ui/ColorPickerPopover";
 import CalendarPicker from "@/components/home/CalendarPicker";
 import ClockFacePicker from "@/components/home/ClockFacePicker";
-import { IMAGE_WIDGET_PRESETS } from "@/lib/image-widget-presets";
+import { IMAGE_WIDGET_PRESETS, IMAGE_WIDGET_PRESET_CATEGORIES } from "@/lib/image-widget-presets";
 import ImageCropModal from "@/components/ui/ImageCropModal";
 import { createClient } from "@/lib/supabase/client";
 
@@ -117,6 +117,16 @@ export default function WidgetEditorPanel({
   const [calendarsLoading, setCalendarsLoading] = useState(false);
   const [selectedCalendarIds, setSelectedCalendarIds] = useState<Set<string>>(new Set(["primary"]));
   const [confirmOverlay, setConfirmOverlay] = useState<"font" | "bgReset" | "textColor" | "delete" | null>(null);
+  const [expandedPresetCats, setExpandedPresetCats] = useState<Set<string>>(new Set());
+
+  /** Toggles a preset category between collapsed (horizontal scroll) and expanded (full grid). */
+  function togglePresetCat(key: string) {
+    setExpandedPresetCats((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }
 
   // Init calendar IDs from config
   useEffect(() => {
@@ -284,7 +294,46 @@ export default function WidgetEditorPanel({
             <div className="grid grid-cols-4 gap-1.5 max-h-28 overflow-y-auto">{savedImages.map((url) => <button key={url} type="button" onClick={() => updateField("imageUrl", url)} className={`rounded-md overflow-hidden aspect-[4/3] transition-all ${localConfig.imageUrl === url ? "ring-2 ring-blue-500" : "hover:ring-2 hover:ring-blue-400"}`}><img src={url} alt="" className="w-full h-full object-cover" loading="lazy" /></button>)}</div>
           </>}
           <label className="block text-xs font-medium text-muted-foreground">Preset Images</label>
-          <div className="grid grid-cols-4 gap-1.5 max-h-32 overflow-y-auto">{IMAGE_WIDGET_PRESETS.map((p) => <button key={p.id} type="button" onClick={() => updateField("imageUrl", `preset:${p.id}`)} className={`rounded-md overflow-hidden aspect-[4/3] transition-all ${localConfig.imageUrl === `preset:${p.id}` ? "ring-2 ring-blue-500" : "hover:ring-2 hover:ring-blue-400"}`} title={p.label}><img src={p.url} alt={p.label} className="w-full h-full object-cover" loading="lazy" /></button>)}</div>
+          {IMAGE_WIDGET_PRESET_CATEGORIES.map((cat) => {
+            const catKey = `iwc-${cat.label}`;
+            const isExpanded = expandedPresetCats.has(catKey);
+            return (
+              <div key={cat.label} className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] font-medium text-muted-foreground">{cat.label}</p>
+                  {cat.presets.length > 4 && (
+                    <button
+                      type="button"
+                      onClick={() => togglePresetCat(catKey)}
+                      className="text-[9px] text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {isExpanded ? "Show Less" : `Show All (${cat.presets.length})`}
+                    </button>
+                  )}
+                </div>
+                {isExpanded ? (
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {cat.presets.map((p) => (
+                      <button key={p.id} type="button" onClick={() => updateField("imageUrl", `preset:${p.id}`)} className={`rounded-md overflow-hidden aspect-[4/3] transition-all ${localConfig.imageUrl === `preset:${p.id}` ? "ring-2 ring-blue-500" : "hover:ring-2 hover:ring-blue-400"}`} title={p.label}>
+                        <img src={p.url} alt={p.label} className="w-full h-full object-cover" loading="lazy" />
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex overflow-x-auto gap-1.5 scrollbar-none">
+                    {cat.presets.map((p) => (
+                      <button key={p.id} type="button" onClick={() => updateField("imageUrl", `preset:${p.id}`)} className={`shrink-0 w-[72px] rounded-md overflow-hidden transition-all ${localConfig.imageUrl === `preset:${p.id}` ? "ring-2 ring-blue-500" : "hover:ring-2 hover:ring-blue-400"}`} title={p.label}>
+                        <div className="aspect-[4/3]">
+                          <img src={p.url} alt={p.label} className="w-full h-full object-cover" loading="lazy" />
+                        </div>
+                        <p className="text-[9px] text-muted-foreground truncate px-1 py-0.5">{p.label}</p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
           {localConfig.imageUrl && <button type="button" onClick={() => updateField("imageUrl", "")} className="text-xs text-red-500 hover:text-red-600 transition-colors">Remove image</button>}
         </div>}
 

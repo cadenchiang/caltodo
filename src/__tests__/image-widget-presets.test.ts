@@ -8,6 +8,7 @@ import {
   isImageWidgetPreset,
   resolveImagePreset,
   IMAGE_WIDGET_PRESETS,
+  IMAGE_WIDGET_PRESET_CATEGORIES,
 } from "@/lib/image-widget-presets";
 
 describe("isImageWidgetPreset", () => {
@@ -86,6 +87,32 @@ describe("IMAGE_WIDGET_PRESETS", () => {
   it("all URLs use 800x600 crop parameters", () => {
     for (const preset of IMAGE_WIDGET_PRESETS) {
       expect(preset.url).toContain("w=800&h=600&fit=crop");
+    }
+  });
+});
+
+describe("IMAGE_WIDGET_PRESET_CATEGORIES", () => {
+  it("covers all 30 presets in total", () => {
+    const total = IMAGE_WIDGET_PRESET_CATEGORIES.reduce(
+      (sum, cat) => sum + cat.presets.length,
+      0
+    );
+    expect(total).toBe(30);
+  });
+
+  it("has no duplicate IDs across categories", () => {
+    const ids = IMAGE_WIDGET_PRESET_CATEGORIES.flatMap((cat) =>
+      cat.presets.map((p) => p.id)
+    );
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it("references the same objects as the flat array (referential integrity)", () => {
+    const allFromCats = IMAGE_WIDGET_PRESET_CATEGORIES.flatMap(
+      (cat) => cat.presets
+    );
+    for (let i = 0; i < allFromCats.length; i++) {
+      expect(allFromCats[i]).toBe(IMAGE_WIDGET_PRESETS[i]);
     }
   });
 });

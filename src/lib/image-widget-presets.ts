@@ -55,6 +55,18 @@ export const IMAGE_WIDGET_PRESETS: ImageWidgetPreset[] = [
   { id: "iw30", label: "Neon Lights", url: "https://images.unsplash.com/photo-1504198453319-5ce911bafcde?w=800&h=600&fit=crop&q=80" },
 ];
 
+/** Categorized preset sections for the image widget picker. */
+export const IMAGE_WIDGET_PRESET_CATEGORIES: { label: string; presets: ImageWidgetPreset[] }[] = [
+  { label: "Nature & Landscapes", presets: IMAGE_WIDGET_PRESETS.slice(0, 8) },
+  { label: "Skies & Sunsets", presets: IMAGE_WIDGET_PRESETS.slice(8, 12) },
+  { label: "Mountains & Valleys", presets: IMAGE_WIDGET_PRESETS.slice(12, 16) },
+  { label: "Water & Oceans", presets: IMAGE_WIDGET_PRESETS.slice(16, 19) },
+  { label: "Flora & Gardens", presets: IMAGE_WIDGET_PRESETS.slice(19, 23) },
+  { label: "City & Architecture", presets: IMAGE_WIDGET_PRESETS.slice(23, 27) },
+  { label: "Space & Night", presets: IMAGE_WIDGET_PRESETS.slice(27, 29) },
+  { label: "Abstract", presets: IMAGE_WIDGET_PRESETS.slice(29, 30) },
+];
+
 /** Map from preset ID to preset object for O(1) lookups. */
 const PRESET_MAP = new Map(IMAGE_WIDGET_PRESETS.map((p) => [p.id, p]));
 
