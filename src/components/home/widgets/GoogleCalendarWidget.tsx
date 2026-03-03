@@ -23,10 +23,14 @@ const GCAL_COLORS: Record<string, string> = {
 };
 
 /** View mode options for the calendar. */
-type ViewMode = "today" | "week" | "month";
+export type ViewMode = "today" | "2day" | "3day" | "4day" | "5day" | "week" | "month";
 
 const VIEW_MODES: { key: ViewMode; label: string }[] = [
   { key: "today", label: "Today" },
+  { key: "2day", label: "2 Days" },
+  { key: "3day", label: "3 Days" },
+  { key: "4day", label: "4 Days" },
+  { key: "5day", label: "5 Days" },
   { key: "week", label: "Week" },
   { key: "month", label: "Month" },
 ];
@@ -37,7 +41,7 @@ const VIEW_MODES: { key: ViewMode; label: string }[] = [
  * @param mode - View mode to compute range for
  * @returns Object with timeMin and timeMax ISO strings
  */
-function getTimeRange(mode: ViewMode): { timeMin: string; timeMax: string } {
+export function getTimeRange(mode: ViewMode): { timeMin: string; timeMax: string } {
   const now = new Date();
   const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const end = new Date(start);
@@ -45,6 +49,18 @@ function getTimeRange(mode: ViewMode): { timeMin: string; timeMax: string } {
   switch (mode) {
     case "today":
       end.setDate(end.getDate() + 1);
+      break;
+    case "2day":
+      end.setDate(end.getDate() + 2);
+      break;
+    case "3day":
+      end.setDate(end.getDate() + 3);
+      break;
+    case "4day":
+      end.setDate(end.getDate() + 4);
+      break;
+    case "5day":
+      end.setDate(end.getDate() + 5);
       break;
     case "week":
       end.setDate(end.getDate() + 7);
@@ -264,7 +280,7 @@ export default function GoogleCalendarWidget({ config, editMode, onUpdateConfig 
       {/* Header */}
       <div className="flex items-center gap-2 mb-3">
         <h3 className="text-sm font-semibold text-foreground">Google Calendar</h3>
-        <span className="text-[10px] text-muted-foreground capitalize">{viewMode}</span>
+        <span className="text-[10px] text-muted-foreground">{VIEW_MODES.find((m) => m.key === viewMode)?.label ?? viewMode}</span>
       </div>
 
       {events.length === 0 ? (

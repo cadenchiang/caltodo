@@ -148,8 +148,8 @@ export default function WidgetContainer({
         fontFamily,
       }}
     >
-      {/* Widget content — disable interactions in edit mode */}
-      <div className={`h-full w-full overflow-hidden ${editMode ? "pointer-events-none" : ""}`}>
+      {/* Widget content — disable interactions in edit mode (except image widget which needs upload clicks) */}
+      <div className={`h-full w-full overflow-hidden ${editMode && widget.type !== "image" ? "pointer-events-none" : ""}`}>
         <RenderWidget
           widget={widget}
           editMode={editMode}

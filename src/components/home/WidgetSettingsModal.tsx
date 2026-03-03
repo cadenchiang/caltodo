@@ -20,7 +20,8 @@ import type { WidgetInstance } from "@/lib/widget-types";
 import type { GCalCalendarEntry } from "@/lib/types";
 import { useDiscussionBoards } from "@/hooks/useDiscussionBoards";
 import FontPicker from "@/components/ui/FontPicker";
-import ColorPickerPanel from "@/components/ui/ColorPickerPanel";
+import SegmentedControl from "@/components/ui/SegmentedControl";
+import ColorPickerPopover from "@/components/ui/ColorPickerPopover";
 import CalendarPicker from "@/components/home/CalendarPicker";
 import ClockFacePicker from "@/components/home/ClockFacePicker";
 import {
@@ -124,7 +125,6 @@ export default function WidgetSettingsModal({
   const [pendingTextColor, setPendingTextColor] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [accentColor, setAccentColor] = useState("");
-  const [expandedColorPicker, setExpandedColorPicker] = useState<"text" | "bg" | "accent" | null>(null);
 
   // Initialize from widget config when modal opens
   useEffect(() => {
@@ -270,63 +270,6 @@ export default function WidgetSettingsModal({
     onClose();
   }
 
-  /**
-   * Renders a color picker row: label + color circle that expands to a ColorWheel.
-   *
-   * @param value - Current hex color value (empty string = default)
-   * @param onChange - Callback with new hex value
-   * @param labelText - Label displayed beside the input
-   * @param expanded - Whether the ColorWheel is currently shown
-   * @param onToggle - Callback to toggle expanded state
-   */
-  function ColorPickerRow({
-    value,
-    onChange,
-    labelText,
-    expanded,
-    onToggle,
-  }: {
-    value: string;
-    onChange: (v: string) => void;
-    labelText: string;
-    expanded: boolean;
-    onToggle: () => void;
-  }) {
-    return (
-      <div>
-        <div className="flex items-center justify-between">
-          <label className="text-sm text-foreground">{labelText}</label>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={onToggle}
-              className="relative w-7 h-7 rounded-full overflow-hidden border border-border cursor-pointer"
-            >
-              <div
-                className="w-full h-full"
-                style={{ backgroundColor: value || "var(--muted)" }}
-              />
-            </button>
-            {value && (
-              <button
-                type="button"
-                onClick={() => onChange("")}
-                className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Reset
-              </button>
-            )}
-          </div>
-        </div>
-        {expanded && (
-          <div className="mt-3">
-            <ColorPickerPanel value={value || "#000000"} onChange={onChange} />
-          </div>
-        )}
-      </div>
-    );
-  }
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
@@ -360,10 +303,14 @@ export default function WidgetSettingsModal({
               <ClockFacePicker value={clockFace} onChange={setClockFace} />
               <div>
                 <label className="block text-sm text-foreground mb-1.5">Time Format</label>
-                <select value={clockFormat} onChange={(e) => setClockFormat(e.target.value)} className={SELECT_CLS}>
-                  <option value="12">12-hour (2:30 PM)</option>
-                  <option value="24">24-hour (14:30)</option>
-                </select>
+                <SegmentedControl
+                  options={[
+                    { value: "12", label: "12h" },
+                    { value: "24", label: "24h" },
+                  ]}
+                  value={clockFormat}
+                  onChange={setClockFormat}
+                />
               </div>
               <div>
                 <label className="block text-sm text-foreground mb-1.5">Timezone</label>
@@ -389,18 +336,26 @@ export default function WidgetSettingsModal({
             <>
               <div>
                 <label className="block text-sm text-foreground mb-1.5">View Mode</label>
-                <select value={taskViewMode} onChange={(e) => setTaskViewMode(e.target.value)} className={SELECT_CLS}>
-                  <option value="today">Today</option>
-                  <option value="week">This Week</option>
-                  <option value="inbox">All Inbox</option>
-                </select>
+                <SegmentedControl
+                  options={[
+                    { value: "today", label: "Today" },
+                    { value: "week", label: "Week" },
+                    { value: "inbox", label: "All" },
+                  ]}
+                  value={taskViewMode}
+                  onChange={setTaskViewMode}
+                />
               </div>
               <div>
-                <label className="block text-sm text-foreground mb-1.5">Show Completed Tasks</label>
-                <select value={showCompleted} onChange={(e) => setShowCompleted(e.target.value)} className={SELECT_CLS}>
-                  <option value="true">Show completed</option>
-                  <option value="false">Hide completed</option>
-                </select>
+                <label className="block text-sm text-foreground mb-1.5">Show Completed</label>
+                <SegmentedControl
+                  options={[
+                    { value: "true", label: "Show" },
+                    { value: "false", label: "Hide" },
+                  ]}
+                  value={showCompleted}
+                  onChange={setShowCompleted}
+                />
               </div>
             </>
           )}
@@ -456,6 +411,10 @@ export default function WidgetSettingsModal({
                 <label className="block text-sm text-foreground mb-1.5">Default View</label>
                 <select value={selectedViewMode} onChange={(e) => setSelectedViewMode(e.target.value)} className={SELECT_CLS}>
                   <option value="today">Today</option>
+                  <option value="2day">2 Days</option>
+                  <option value="3day">3 Days</option>
+                  <option value="4day">4 Days</option>
+                  <option value="5day">5 Days</option>
                   <option value="week">Week</option>
                   <option value="month">Month</option>
                 </select>
@@ -519,17 +478,25 @@ export default function WidgetSettingsModal({
             <>
               <div>
                 <label className="block text-sm text-foreground mb-1.5">View</label>
-                <select value={weatherView} onChange={(e) => setWeatherView(e.target.value)} className={SELECT_CLS}>
-                  <option value="today">Today</option>
-                  <option value="week">7-Day Forecast</option>
-                </select>
+                <SegmentedControl
+                  options={[
+                    { value: "today", label: "Today" },
+                    { value: "week", label: "7-Day" },
+                  ]}
+                  value={weatherView}
+                  onChange={setWeatherView}
+                />
               </div>
               <div>
-                <label className="block text-sm text-foreground mb-1.5">Temperature Unit</label>
-                <select value={tempUnit} onChange={(e) => setTempUnit(e.target.value)} className={SELECT_CLS}>
-                  <option value="F">Fahrenheit (°F)</option>
-                  <option value="C">Celsius (°C)</option>
-                </select>
+                <label className="block text-sm text-foreground mb-1.5">Temperature</label>
+                <SegmentedControl
+                  options={[
+                    { value: "F", label: "\u00b0F" },
+                    { value: "C", label: "\u00b0C" },
+                  ]}
+                  value={tempUnit}
+                  onChange={setTempUnit}
+                />
               </div>
             </>
           )}
@@ -537,30 +504,15 @@ export default function WidgetSettingsModal({
           {/* ── Divider ── */}
           <div className="border-t border-border" />
 
-          {/* ── Universal Style Settings ── */}
-          <p className="text-xs font-medium text-muted-foreground">Style</p>
+          {/* ── Appearance Settings ── */}
+          <p className="text-xs font-medium text-muted-foreground">Appearance</p>
 
-          <ColorPickerRow
-            labelText="Text Color"
-            value={textColor}
-            onChange={setTextColor}
-            expanded={expandedColorPicker === "text"}
-            onToggle={() => setExpandedColorPicker(expandedColorPicker === "text" ? null : "text")}
-          />
-          <ColorPickerRow
-            labelText="Background"
-            value={bgColor}
-            onChange={setBgColor}
-            expanded={expandedColorPicker === "bg"}
-            onToggle={() => setExpandedColorPicker(expandedColorPicker === "bg" ? null : "bg")}
-          />
-          <ColorPickerRow
-            labelText="Accent Color"
-            value={accentColor}
-            onChange={setAccentColor}
-            expanded={expandedColorPicker === "accent"}
-            onToggle={() => setExpandedColorPicker(expandedColorPicker === "accent" ? null : "accent")}
-          />
+          {/* Color pickers — compact row */}
+          <div className="flex items-end justify-center gap-6">
+            <ColorPickerPopover label="Text" value={textColor} onChange={setTextColor} layout="compact" />
+            <ColorPickerPopover label="Background" value={bgColor} onChange={setBgColor} layout="compact" />
+            <ColorPickerPopover label="Accent" value={accentColor} onChange={setAccentColor} layout="compact" />
+          </div>
 
           <div>
             <label className="block text-sm text-foreground mb-1.5">Font</label>

@@ -1,7 +1,8 @@
 /**
  * API route for reading and saving the user's board layout.
  * GET: Returns the persisted layout JSONB (or null for new users).
- * PUT: Upserts the full layout object.
+ * PUT/POST: Upserts the full layout object. POST is used by sendBeacon
+ * for reliable saves during page unload (sendBeacon only supports POST).
  *
  * @module api/board-layout
  */
@@ -62,7 +63,13 @@ export async function GET() {
  * @param request - Request with JSON body containing the layout object
  * @returns JSON with `success: true` on success
  */
-export async function PUT(request: Request) {
+/**
+ * Shared upsert handler for PUT and POST (sendBeacon uses POST).
+ *
+ * @param request - Request with JSON body containing the layout object
+ * @returns JSON response with success or error
+ */
+async function upsertLayout(request: Request) {
   const supabase = await createClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
 
@@ -110,4 +117,17 @@ export async function PUT(request: Request) {
     logger.error("PUT /api/board-layout unexpected error", { userId: user.id, error: message });
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
+}
+
+export async function PUT(request: Request) {
+  return upsertLayout(request);
+}
+
+/**
+ * POST /api/board-layout
+ * Alias for PUT — used by navigator.sendBeacon during page unload,
+ * which only supports POST requests.
+ */
+export async function POST(request: Request) {
+  return upsertLayout(request);
 }
