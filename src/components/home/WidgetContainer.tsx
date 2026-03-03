@@ -39,9 +39,10 @@ interface WidgetContainerProps {
   isSelected?: boolean;
 }
 
-/** Navigation targets for widget click-through in view mode. */
+/** Navigation targets for widget click-through in view mode.
+ * Note: "tasks-today" intentionally excluded — it has its own
+ * built-in TaskPreviewPopover for inline task viewing. */
 const CLICK_TARGETS: Partial<Record<string, string>> = {
-  "tasks-today": "/app/inbox",
   "google-calendar": "/app/calendar",
   "recent-chat": "/app/discussions",
   "cal-chat": "/app/discussions",

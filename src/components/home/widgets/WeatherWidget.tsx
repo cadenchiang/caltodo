@@ -296,7 +296,7 @@ export default function WeatherWidget({ config, editMode }: WeatherWidgetProps) 
           {/* Stats — hidden in compact mode */}
           {!compact && (
             <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
-              <span>Feels {formatTemp(current.feelsLike)}</span>
+              <span>{`Feels ${formatTemp(current.feelsLike)}`}</span>
               <span className="text-border">|</span>
               <span>{current.humidity}%</span>
               <span className="text-border">|</span>
