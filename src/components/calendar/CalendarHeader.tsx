@@ -64,7 +64,7 @@ export default function CalendarHeader({
   onToday,
 }: CalendarHeaderProps) {
   const { showToast } = useToast();
-  const { hasCompletedOnboarding } = useOnboardingStatus();
+  const { hasCompletedOnboarding, loading: onboardingLoading } = useOnboardingStatus();
   const [syncBadgeDismissed, setSyncBadgeDismissed] = useState(true);
   const [gcalConnected, setGcalConnected] = useState<boolean | null>(null);
   const [gcalEmail, setGcalEmail] = useState<string | null>(null);
@@ -188,7 +188,7 @@ export default function CalendarHeader({
         <h1 className="text-base md:text-xl font-bold text-foreground truncate ml-0.5 md:ml-1">{title}</h1>
 
         {/* "Sync classes" badge for unonboarded users — hidden on mobile */}
-        {!hasCompletedOnboarding && !syncBadgeDismissed && (
+        {!hasCompletedOnboarding && !syncBadgeDismissed && !onboardingLoading && (
           <div className="relative shrink-0 hidden md:flex items-center group/sync ml-2">
             <a
               href="/app/settings?section=integrations"
