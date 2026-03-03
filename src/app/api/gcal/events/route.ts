@@ -26,6 +26,7 @@ const MAX_CALENDARS = 10;
 interface GCalEventItem {
   id: string;
   summary?: string;
+  description?: string;
   start?: { dateTime?: string; date?: string };
   end?: { dateTime?: string; date?: string };
   colorId?: string;
@@ -78,6 +79,7 @@ async function fetchCalendarEvents(
   return items.map((item) => ({
     id: item.id,
     summary: item.summary || "(No title)",
+    description: item.description || null,
     start: item.start?.dateTime || item.start?.date || "",
     end: item.end?.dateTime || item.end?.date || "",
     colorId: item.colorId || null,

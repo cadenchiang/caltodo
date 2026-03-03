@@ -75,6 +75,7 @@ function mockEvent(
   return {
     id,
     summary: `Event ${id}`,
+    description: null,
     start,
     end: start,
     colorId: null,

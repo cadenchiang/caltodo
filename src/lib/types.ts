@@ -407,6 +407,7 @@ export interface CourseMemberProfile {
 export interface GCalEvent {
   id: string;
   summary: string;
+  description: string | null;
   start: string;
   end: string;
   colorId: string | null;

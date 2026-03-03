@@ -4,14 +4,16 @@
  * Widget showing upcoming Google Calendar events.
  * Supports Today/Week/Month view mode toggle.
  * Fetches from /api/gcal/events with timeMin/timeMax query params.
+ * Clicking an event opens an inline detail popover.
  *
  * @param config - Per-widget config (optional calendarId, viewMode)
  * @param onUpdateConfig - Callback to persist config changes
  */
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { Calendar } from "lucide-react";
+import { Calendar, MapPin, ExternalLink, X, Clock } from "lucide-react";
 import { useCompactMode } from "@/hooks/useCompactMode";
 import type { GCalEvent } from "@/lib/types";
 
@@ -32,10 +34,9 @@ const GCAL_COLORS: Record<string, string> = {
  * @returns Date object in local timezone
  */
 function parseEventDate(dateStr: string): Date {
-  // Date-only format: "2026-03-03" (no "T" character)
   if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
     const [y, m, d] = dateStr.split("-").map(Number);
-    return new Date(y, m - 1, d); // local midnight
+    return new Date(y, m - 1, d);
   }
   return new Date(dateStr);
 }
@@ -116,6 +117,132 @@ function formatCountdown(diffMs: number): string {
   return "";
 }
 
+/**
+ * Formats a time range string for an event.
+ *
+ * @param start - ISO start datetime or date string
+ * @param end - ISO end datetime or date string
+ * @param allDay - Whether this is an all-day event
+ * @returns Formatted string like "Mon, Mar 3 · 8:00 AM – 9:00 AM" or "All day"
+ */
+function formatTimeRange(start: string, end: string, allDay: boolean): string {
+  if (allDay) {
+    const s = parseEventDate(start);
+    return s.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" }) + " · All day";
+  }
+  const s = new Date(start);
+  const e = new Date(end);
+  const datePart = s.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
+  const startTime = s.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  const endTime = e.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  return `${datePart} · ${startTime} – ${endTime}`;
+}
+
+/**
+ * Strips HTML tags from a string for plain-text display.
+ *
+ * @param html - HTML string from Google Calendar description
+ * @returns Plain text string
+ */
+function stripHtml(html: string): string {
+  return html.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").trim();
+}
+
+/**
+ * Popover showing event details. Rendered via portal to document body.
+ *
+ * @param event - The GCalEvent to display
+ * @param color - Accent color for the event
+ * @param onClose - Callback to close the popover
+ */
+function EventDetailPopover({ event, color, onClose }: { event: GCalEvent; color: string; onClose: () => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Close on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [onClose]);
+
+  // Close on Escape
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [onClose]);
+
+  const description = event.description ? stripHtml(event.description) : null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
+
+      {/* Card */}
+      <div
+        ref={ref}
+        className="relative bg-popover border border-border rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-in"
+      >
+        {/* Color bar top */}
+        <div className="h-1.5 w-full" style={{ backgroundColor: color }} />
+
+        <div className="p-4 space-y-3">
+          {/* Header */}
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="text-sm font-semibold text-foreground leading-snug">
+              {event.summary}
+            </h3>
+            <button
+              onClick={onClose}
+              className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            >
+              <X size={12} />
+            </button>
+          </div>
+
+          {/* Time */}
+          <div className="flex items-center gap-2 text-xs text-foreground/80">
+            <Clock size={12} className="shrink-0 text-muted-foreground" />
+            <span>{formatTimeRange(event.start, event.end, event.allDay)}</span>
+          </div>
+
+          {/* Location */}
+          {event.location && (
+            <div className="flex items-start gap-2 text-xs text-foreground/80">
+              <MapPin size={12} className="shrink-0 mt-0.5 text-muted-foreground" />
+              <span className="break-words">{event.location}</span>
+            </div>
+          )}
+
+          {/* Description */}
+          {description && (
+            <p className="text-xs text-foreground/70 whitespace-pre-wrap line-clamp-6 border-t border-border pt-2">
+              {description}
+            </p>
+          )}
+
+          {/* Open in Google Calendar */}
+          <a
+            href={event.htmlLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="no-drag flex items-center justify-center gap-1.5 w-full px-3 py-2 text-xs font-medium text-blue-500 hover:bg-blue-500/10 rounded-lg transition-colors"
+          >
+            <ExternalLink size={12} />
+            Open in Google Calendar
+          </a>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 function EventsByDay({ events, calendarColors = {}, fallbackColor = "#039BE5" }: { events: GCalEvent[]; calendarColors?: Record<string, string>; fallbackColor?: string }) {
   // Tick state: re-render every 60s to keep countdown fresh
   const [, setTick] = useState(0);
@@ -123,6 +250,8 @@ function EventsByDay({ events, calendarColors = {}, fallbackColor = "#039BE5" }:
     const id = setInterval(() => setTick((t) => t + 1), 60000);
     return () => clearInterval(id);
   }, []);
+
+  const [selectedEvent, setSelectedEvent] = useState<{ event: GCalEvent; color: string } | null>(null);
 
   const now = new Date();
   const today = new Date();
@@ -135,11 +264,8 @@ function EventsByDay({ events, calendarColors = {}, fallbackColor = "#039BE5" }:
   const nextEventId = useMemo(() => {
     for (const event of events) {
       if (event.allDay) continue;
-      const start = new Date(event.start);
       const end = parseEventDate(event.end);
-      // Currently ongoing or starts in the future
       if (end > now) return event.id;
-      // Skip past events
     }
     return null;
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -147,9 +273,6 @@ function EventsByDay({ events, calendarColors = {}, fallbackColor = "#039BE5" }:
 
   /**
    * Groups events by their date string key.
-   * All-day events use YYYY-MM-DD format which new Date() parses as UTC,
-   * causing a day shift in western timezones. We detect date-only strings
-   * and parse them as local midnight instead.
    */
   const grouped = useMemo(() => {
     const map = new Map<string, GCalEvent[]>();
@@ -178,81 +301,90 @@ function EventsByDay({ events, calendarColors = {}, fallbackColor = "#039BE5" }:
   }
 
   return (
-    <div className="flex-1 overflow-y-auto space-y-2">
-      {Array.from(grouped.entries()).map(([dateKey, dayEvents], idx) => (
-        <div key={dateKey}>
-          {/* Day divider */}
-          <div className={`flex items-center gap-2 px-1 ${idx > 0 ? "mt-1" : ""}`}>
-            <span className={`text-[10px] font-semibold tracking-wider shrink-0 ${
-              dateKey === todayKey ? "text-blue-500" : "text-foreground"
-            }`}>
-              {dayLabel(dateKey)}
-            </span>
-            <div className="flex-1 h-px bg-border" />
+    <>
+      <div className="flex-1 overflow-y-auto space-y-2">
+        {Array.from(grouped.entries()).map(([dateKey, dayEvents], idx) => (
+          <div key={dateKey}>
+            {/* Day divider */}
+            <div className={`flex items-center gap-2 px-1 ${idx > 0 ? "mt-1" : ""}`}>
+              <span className={`text-[10px] font-semibold tracking-wider shrink-0 ${
+                dateKey === todayKey ? "text-blue-500" : "text-foreground"
+              }`}>
+                {dayLabel(dateKey)}
+              </span>
+              <div className="flex-1 h-px bg-border" />
+            </div>
+
+            {/* Events for this day */}
+            <div className="space-y-1 mt-1">
+              {dayEvents.map((event) => {
+                const color = event.colorId
+                  ? GCAL_COLORS[event.colorId]
+                  : (event.calendarId && calendarColors[event.calendarId]) || fallbackColor;
+                const timeStr = event.allDay
+                  ? "All day"
+                  : new Date(event.start).toLocaleTimeString([], {
+                      hour: "numeric",
+                      minute: "2-digit",
+                    });
+
+                // Detect past events: compare event end time to now
+                const eventEnd = parseEventDate(event.end);
+                const isPast = eventEnd < now;
+
+                // Countdown for the next upcoming event
+                const isNext = event.id === nextEventId;
+                const eventStart = new Date(event.start);
+                const countdown = isNext && !event.allDay
+                  ? formatCountdown(eventStart.getTime() - now.getTime())
+                  : "";
+
+                return (
+                  <button
+                    key={event.id}
+                    type="button"
+                    onClick={() => setSelectedEvent({ event, color })}
+                    className={`no-drag flex items-center gap-2 bg-muted/50 rounded-lg p-2 hover:bg-black/10 dark:hover:bg-white/15 transition-colors w-full text-left cursor-pointer ${
+                      isPast ? "opacity-40" : ""
+                    }`}
+                  >
+                    <div
+                      className="w-[3px] self-stretch rounded-full shrink-0"
+                      style={{ backgroundColor: color }}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className={`text-xs font-medium truncate ${
+                        isPast ? "text-muted-foreground line-through" : "text-foreground"
+                      }`}>
+                        {event.summary}
+                      </p>
+                      <p className={`text-[10px] mt-0.5 ${
+                        isPast ? "text-muted-foreground" : "text-foreground/80"
+                      }`}>
+                        {timeStr}
+                      </p>
+                    </div>
+                    {countdown && (
+                      <span className="text-[9px] font-medium text-blue-500 shrink-0">
+                        {countdown}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           </div>
+        ))}
+      </div>
 
-          {/* Events for this day */}
-          <div className="space-y-1 mt-1">
-            {dayEvents.map((event) => {
-              const color = event.colorId
-                ? GCAL_COLORS[event.colorId]
-                : (event.calendarId && calendarColors[event.calendarId]) || fallbackColor;
-              const timeStr = event.allDay
-                ? "All day"
-                : new Date(event.start).toLocaleTimeString([], {
-                    hour: "numeric",
-                    minute: "2-digit",
-                  });
-
-              // Detect past events: compare event end time to now
-              const eventEnd = parseEventDate(event.end);
-              const isPast = eventEnd < now;
-
-              // Countdown for the next upcoming event
-              const isNext = event.id === nextEventId;
-              const eventStart = new Date(event.start);
-              const countdown = isNext && !event.allDay
-                ? formatCountdown(eventStart.getTime() - now.getTime())
-                : "";
-
-              return (
-                <a
-                  key={event.id}
-                  href={event.htmlLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={`no-drag flex items-center gap-2 bg-muted/50 rounded-lg p-2 hover:bg-black/10 dark:hover:bg-white/15 transition-colors ${
-                    isPast ? "opacity-40" : ""
-                  }`}
-                >
-                  <div
-                    className="w-[3px] self-stretch rounded-full shrink-0"
-                    style={{ backgroundColor: color }}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className={`text-xs font-medium truncate ${
-                      isPast ? "text-muted-foreground line-through" : "text-foreground"
-                    }`}>
-                      {event.summary}
-                    </p>
-                    <p className={`text-[10px] mt-0.5 ${
-                      isPast ? "text-muted-foreground" : "text-foreground/80"
-                    }`}>
-                      {timeStr}
-                    </p>
-                  </div>
-                  {countdown && (
-                    <span className="text-[9px] font-medium text-blue-500 shrink-0">
-                      {countdown}
-                    </span>
-                  )}
-                </a>
-              );
-            })}
-          </div>
-        </div>
-      ))}
-    </div>
+      {selectedEvent && (
+        <EventDetailPopover
+          event={selectedEvent.event}
+          color={selectedEvent.color}
+          onClose={() => setSelectedEvent(null)}
+        />
+      )}
+    </>
   );
 }
 
