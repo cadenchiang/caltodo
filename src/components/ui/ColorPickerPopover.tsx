@@ -33,19 +33,32 @@ export default function ColorPickerPopover({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ top: 0, left: 0 });
 
-  /** Compute dropdown position from trigger bounding rect. Centers on trigger, clamps to viewport. */
+  /** Compute dropdown position from trigger bounding rect. Centers horizontally, flips above if needed. */
   const updatePosition = useCallback(() => {
     if (!triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
     const dropdownW = 288; // w-72 = 18rem = 288px
+    const dropdownH = 380; // approximate max height with color wheel open
     const viewW = window.innerWidth;
-    // Center dropdown on trigger, then clamp so it stays within viewport
+    const viewH = window.innerHeight;
+    const pad = 8;
+
+    // Horizontal: center on trigger, clamp to viewport
     let left = rect.left + rect.width / 2 - dropdownW / 2;
-    left = Math.max(8, Math.min(left, viewW - dropdownW - 8));
-    setPos({
-      top: rect.bottom + 6,
-      left,
-    });
+    left = Math.max(pad, Math.min(left, viewW - dropdownW - pad));
+
+    // Vertical: prefer below trigger, flip above if not enough space below
+    let top: number;
+    if (rect.bottom + 6 + dropdownH > viewH - pad) {
+      // Not enough room below — open above
+      top = rect.top - dropdownH - 6;
+      // If above also clips, just pin to top
+      if (top < pad) top = pad;
+    } else {
+      top = rect.bottom + 6;
+    }
+
+    setPos({ top, left });
   }, []);
 
   /** Toggle dropdown open/close. */
@@ -113,7 +126,7 @@ export default function ColorPickerPopover({
     createPortal(
       <div
         ref={dropdownRef}
-        className="fixed z-[100] w-72 rounded-xl border border-border bg-popover shadow-lg p-3"
+        className="fixed z-[100] w-72 max-h-[80vh] overflow-y-auto rounded-xl border border-border bg-popover shadow-lg p-3"
         style={{ top: pos.top, left: pos.left }}
       >
         <div className="flex items-center justify-between mb-2">
