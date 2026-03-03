@@ -162,14 +162,14 @@ export default function Hero() {
 
           {/* Heading */}
           <h2 className="text-[36px] sm:text-[64px] leading-[0.95] sm:leading-[0.95] tracking-tight text-center text-black" style={{ fontFamily: '-apple-system, "SF Pro Display", BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' }}>
-            <span className="font-medium">Sync deadlines.</span>
+            <span className="font-medium">Never miss a</span>
             <br />
-            <span className="font-medium italic">Join </span><span className="font-medium">class groupchats.</span>
+            <span className="font-medium">deadline </span><span className="font-medium italic">again.</span>
           </h2>
 
           {/* Subtitle */}
           <p className="text-sm sm:text-xl text-center font-sans font-light mt-3 sm:mt-6 mb-5 sm:mb-8 leading-relaxed text-black/45 max-w-[280px] sm:max-w-none">
-            View your assignments, chat with your class.
+            Stop juggling Canvas, Gradescope, and Pensive.
           </p>
 
           {/* CTA — simple pill on mobile, interactive hover button on desktop */}
