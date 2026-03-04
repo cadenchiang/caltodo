@@ -1,36 +1,21 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { Mockup, MockupFrame } from "@/components/ui/mockup";
-import { InteractiveHoverButton } from "@/components/ui/interactive-hover-button";
 import GoogleOneTap from "@/components/auth/GoogleOneTap";
 import BentoFeatures from "@/components/landing/BentoFeatures";
 import FadeIn from "@/components/landing/FadeIn";
 import FeatureHighlight from "@/components/landing/FeatureHighlight";
 import TestimonialSection from "@/components/landing/TestimonialSection";
 
-const HERO_IMAGES = [
-  { src: "/app-screenshot-board.png", alt: "caltodo board view with widgets and calendar" },
-  { src: "/app-screenshot-calendar.png", alt: "caltodo calendar view with synced assignments" },
-  { src: "/app-screenshot-inbox.png", alt: "caltodo inbox view with task list and detail panel" },
-];
 
 /**
  * Hero landing page for unauthenticated users.
  * Always white background with black text.
  */
 export default function Hero() {
-  const [activeImage, setActiveImage] = useState(0);
   const [userCount, setUserCount] = useState<number | null>(null);
   const [showSpotsModal, setShowSpotsModal] = useState(false);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setActiveImage((prev) => (prev + 1) % HERO_IMAGES.length);
-    }, 4000);
-    return () => clearInterval(interval);
-  }, []);
 
   // Fetch user count for the spots counter
   useEffect(() => {
@@ -197,40 +182,20 @@ export default function Hero() {
 
         </div>
 
-        {/* Mockup — scroll-driven scale animation */}
+        {/* Hero screenshot */}
         <div
           ref={mockupRef}
           className="mt-1 sm:mt-1.5 w-full sm:max-w-4xl mx-auto relative px-1 sm:px-0"
         >
           <div className="relative sm:max-h-[50vh] md:max-h-none rounded-2xl p-1.5 sm:p-2 bg-gray-100 border border-gray-200">
             <div className="relative w-full overflow-hidden rounded-xl">
-              {HERO_IMAGES.map((img, i) => (
-                <img
-                  key={img.src}
-                  src={img.src}
-                  alt={img.alt}
-                  className={`w-full transition-opacity duration-700 ease-in-out block ${
-                    i === 0 ? "relative" : "absolute inset-0"
-                  }`}
-                  style={{ opacity: activeImage === i ? 1 : 0 }}
-                />
-              ))}
-              {/* Bottom fade to hide hard crop line on height-clipped screens */}
+              <img
+                src="/app-screenshot-board.png"
+                alt="caltodo board view with widgets and calendar"
+                className="w-full block"
+              />
               <div className="absolute bottom-0 left-0 right-0 h-16 pointer-events-none sm:block md:hidden" style={{ background: "linear-gradient(to bottom, transparent, white)" }} />
             </div>
-          </div>
-          {/* Image indicator dots — outside clipped area */}
-          <div className="flex justify-center gap-2 mt-3 relative z-20">
-            {HERO_IMAGES.map((_, i) => (
-              <button
-                key={i}
-                onClick={() => setActiveImage(i)}
-                className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                  activeImage === i ? "bg-black w-6" : "bg-black/20"
-                }`}
-                aria-label={`Show screenshot ${i + 1}`}
-              />
-            ))}
           </div>
         </div>
 
@@ -292,10 +257,6 @@ export default function Hero() {
           </button>
 
           <div className="px-6 pt-6 pb-3 sm:px-8 sm:pt-8 sm:pb-4">
-            <div className="flex items-center gap-1.5 mb-4 sm:mb-5">
-              <img src="/cal-logo.png" alt="UC Berkeley" className="w-3.5 h-3.5 sm:w-4 sm:h-4 object-contain opacity-40" />
-              <p className="text-[11px] sm:text-xs text-black/40 tracking-wide">{500 - (userCount ?? 326)} spots remaining</p>
-            </div>
             <h3 className="text-xl sm:text-2xl font-semibold text-black leading-tight tracking-tight" style={{ fontFamily: '-apple-system, "SF Pro Display", BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' }}>
               free for life. seriously.
             </h3>
