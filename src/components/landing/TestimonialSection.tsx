@@ -33,7 +33,7 @@ const testimonials: Testimonial[] = [
     name: "Hugo Serrano",
     role: "UC Berkeley '28",
     stars: 5,
-    avatar: "https://avatars.githubusercontent.com/u/235951477?v=4",
+    avatar: "",
     content:
       "caltodo saved me this semester. All my bCourses and Gradescope deadlines in one place. I actually stopped missing assignments.",
   },
