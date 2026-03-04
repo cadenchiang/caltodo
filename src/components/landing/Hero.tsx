@@ -11,6 +11,7 @@ import FeatureHighlight from "@/components/landing/FeatureHighlight";
 import TestimonialSection from "@/components/landing/TestimonialSection";
 
 const HERO_IMAGES = [
+  { src: "/app-screenshot-board.png", alt: "caltodo board view with widgets and calendar" },
   { src: "/app-screenshot-calendar.png", alt: "caltodo calendar view with synced assignments" },
   { src: "/app-screenshot-inbox.png", alt: "caltodo inbox view with task list and detail panel" },
 ];
