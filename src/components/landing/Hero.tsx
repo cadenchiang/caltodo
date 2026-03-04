@@ -245,7 +245,7 @@ export default function Hero() {
       <FeatureHighlight />
 
       <div className="w-full bg-[#FCFCFD]">
-        <div className="flex flex-col items-center px-6 lg:px-10 py-10 sm:py-14">
+        <div className="flex flex-col items-center px-6 lg:px-10 py-4 sm:py-6">
           <FadeIn delay={100}>
             <BentoFeatures />
           </FadeIn>

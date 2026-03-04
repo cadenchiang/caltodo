@@ -53,7 +53,7 @@ export default function FeatureHighlight() {
   const goPrev = () => changeSlide(Math.max(active - 1, 0));
 
   return (
-    <section className="w-full bg-[#FCFCFD] py-10 sm:py-14">
+    <section className="w-full bg-[#FCFCFD] py-6 sm:py-8">
       <div className="max-w-4xl mx-auto px-6 lg:px-10">
         {/* Badge + Heading */}
         <FadeIn>

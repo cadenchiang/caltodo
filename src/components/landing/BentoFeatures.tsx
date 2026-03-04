@@ -49,7 +49,16 @@ const FEATURES = [
  */
 export default function BentoFeatures() {
   return (
-    <section className="w-full max-w-4xl mx-auto mt-2 sm:mt-4 mb-12 sm:mb-20 px-2 sm:px-0">
+    <section className="w-full max-w-4xl mx-auto mt-2 sm:mt-4 mb-4 sm:mb-6 px-2 sm:px-0">
+      <h2
+        className="text-[22px] sm:text-[32px] font-medium text-black leading-[1.05] tracking-tight"
+        style={{ fontFamily: '-apple-system, "SF Pro Display", BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' }}
+      >
+        Everything you need.
+      </h2>
+      <p className="text-sm sm:text-base text-black/45 mt-1 mb-5 sm:mb-6">
+        Built for students, by students.
+      </p>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
         {FEATURES.map((feature, i) => {
           const Icon = feature.icon;
