@@ -217,7 +217,7 @@ export default function Hero() {
             {([
               { step: "1", title: "Sync your classes", desc: "Connect bCourses, Gradescope, Pensieve, and Google Calendar in one click.", img: "/step-sync.png", icon: RefreshCw },
               { step: "2", title: "View your assignments", desc: "See every deadline on a single calendar — no more switching between tabs.", img: "/step-calendar.png", icon: CalendarDays },
-              { step: "3", title: "Personalize your board", desc: "Customize widgets, themes, and layouts to make it yours.", img: "/step-personalize.png", icon: LayoutGrid },
+              { step: "3", title: "Personalize your board", desc: "Build your perfect dashboard in under 5 minutes with drag-and-drop widgets and themes.", img: "/step-personalize.png", icon: LayoutGrid },
             ] as const).map((item, i) => {
               const Icon = item.icon;
               return (
