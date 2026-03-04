@@ -62,7 +62,7 @@ const testimonials: Testimonial[] = [
 export default function TestimonialSection() {
   return (
     <section className="w-full bg-[#FCFCFD] px-6 lg:px-10">
-      <div className="py-4 sm:py-6">
+      <div className="py-8 sm:py-14">
         <div className="max-w-4xl mx-auto">
           <h2
             className="text-[22px] sm:text-[32px] font-medium text-black leading-[1.05] tracking-tight mb-6"
@@ -98,6 +98,29 @@ export default function TestimonialSection() {
             ))}
           </div>
         </div>
+      </div>
+
+      {/* CTA module */}
+      <div className="py-14 sm:py-20 flex flex-col items-center text-center px-6">
+        <h2
+          className="text-[22px] sm:text-[32px] font-medium text-black leading-[1.05] tracking-tight"
+          style={{ fontFamily: '-apple-system, "SF Pro Display", BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' }}
+        >
+          Ready to stop missing deadlines?
+        </h2>
+        <p className="text-sm sm:text-base text-black/40 mt-2 sm:mt-3 max-w-md">
+          Join hundreds of Cal students already using caltodo to stay on top of their semester.
+        </p>
+        <a
+          href="/login?signup=true"
+          className="group flex items-center gap-2 px-8 py-2.5 mt-6 sm:mt-8 rounded-full bg-[#0071E3] text-white text-base font-medium hover:scale-[1.05] active:scale-[0.97] transition-transform duration-200"
+        >
+          Get caltodo free
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-transform duration-200 group-hover:translate-x-2">
+            <path d="M5 12h14" />
+            <path d="M12 5l7 7-7 7" />
+          </svg>
+        </a>
       </div>
     </section>
   );

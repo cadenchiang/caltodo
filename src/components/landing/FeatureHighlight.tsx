@@ -114,14 +114,14 @@ export default function FeatureHighlight() {
                         src={slide.src}
                         alt={slide.alt}
                         className={`absolute inset-0 w-full h-full object-cover object-top transition-all duration-300 block ${
-                          hoveredSlide === i && !transitioning ? "blur-[14px] scale-[0.99]" : ""
+                          ""
                         }`}
                         draggable={false}
                       />
-                      {/* Hover overlay — bottom right text, no darkening */}
+                      {/* Hover label — frosted glass pill */}
                       <div
-                        className={`absolute inset-0 flex flex-col items-end justify-end p-6 sm:p-8 transition-opacity duration-300 ${
-                          hoveredSlide === i && !transitioning ? "opacity-100" : "opacity-0"
+                        className={`absolute bottom-4 right-4 sm:bottom-6 sm:right-6 backdrop-blur-md bg-white/70 rounded-xl px-4 py-3 transition-opacity duration-200 pointer-events-none ${
+                          hoveredSlide === i ? "opacity-100" : "opacity-0"
                         }`}
                       >
                         <h3 className="flex items-center gap-2 text-black text-xl sm:text-2xl font-semibold tracking-tight">
