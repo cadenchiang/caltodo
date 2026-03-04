@@ -208,7 +208,7 @@ export default function Hero() {
           {/* Tagline below mockup */}
           <FadeIn className="max-w-4xl mt-12 sm:mt-20 mb-12 sm:mb-20">
             <p className="text-[22px] sm:text-[32px] font-medium text-black text-left leading-[1.05] tracking-tight" style={{ fontFamily: '-apple-system, "SF Pro Display", BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' }}>
-              The easiest way to sync your deadlines, track assignments, and stay connected with your class.
+              Sync your classes, manage every deadline, and personalize your workflow, all in one place.
             </p>
           </FadeIn>
 
@@ -216,7 +216,7 @@ export default function Hero() {
           <div className="w-full max-w-5xl mb-16 sm:mb-24 flex flex-col gap-8 sm:gap-10">
             {([
               { step: "1", title: "Sync your classes", desc: "Connect bCourses, Gradescope, Pensieve, and Google Calendar in one click.", img: "/step-sync.png", icon: RefreshCw },
-              { step: "2", title: "View your assignments", desc: "See every deadline on a single calendar — no more switching between tabs.", img: "/step-calendar.png", icon: CalendarDays },
+              { step: "2", title: "Manage your assignments", desc: "See every deadline on a single calendar — no more switching between tabs.", img: "/step-calendar.png", icon: CalendarDays },
               { step: "3", title: "Personalize your board", desc: "Build your perfect dashboard in under 5 minutes with drag-and-drop widgets and themes.", img: "/step-personalize.png", icon: LayoutGrid },
             ] as const).map((item, i) => {
               const Icon = item.icon;
