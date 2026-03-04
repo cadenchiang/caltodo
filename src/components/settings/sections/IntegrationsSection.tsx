@@ -2,12 +2,10 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, FileText } from "lucide-react";
+import { Plus } from "lucide-react";
 import GoogleCalendarSettings from "@/components/settings/GoogleCalendarSettings";
 import IntegrationSettings, { useCredentials } from "@/components/settings/IntegrationSettings";
 import IntegrationsWelcomeModal from "@/components/settings/IntegrationsWelcomeModal";
-import SyllabusSettings from "@/components/settings/SyllabusSettings";
-import { useTaskContext } from "@/contexts/TaskContext";
 
 /**
  * Inline Google Calendar logo SVG for the add-integration dropdown.
@@ -71,13 +69,6 @@ const ADD_OPTIONS: Array<{
     logo: <img src="/pensieve-logo.png" alt="" className="w-4 h-4" />,
     route: "/app/onboarding?setup=pensieve",
   },
-  {
-    id: "syllabus",
-    label: "Syllabus",
-    description: "Import assignments from a syllabus",
-    logo: <FileText size={15} className="text-purple-500" />,
-    route: "/app/onboarding?setup=syllabus",
-  },
 ];
 
 /**
@@ -90,8 +81,6 @@ export default function IntegrationsSection() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const { tasks } = useTaskContext();
-  const hasSyllabusTasks = tasks.some((t) => t.source === "syllabus");
 
   // Close on any click outside the container
   useEffect(() => {
@@ -149,7 +138,6 @@ export default function IntegrationsSection() {
       <div className="space-y-3">
         <GoogleCalendarSettings />
         <IntegrationSettings />
-        {hasSyllabusTasks && <SyllabusSettings />}
       </div>
     </section>
   );

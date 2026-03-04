@@ -9,7 +9,6 @@ import CanvasStep from "@/components/onboarding/CanvasStep";
 import GradescopeStep from "@/components/onboarding/GradescopeStep";
 import PensieveStep from "@/components/onboarding/PensieveStep";
 import AddCanvasStep from "@/components/onboarding/AddCanvasStep";
-import SyllabusStep from "@/components/onboarding/SyllabusStep";
 import type { IntegrationCredentials, AdditionalCanvasAccount } from "@/lib/types";
 
 type Step = "welcome" | "platforms" | "canvas" | "gradescope" | "pensieve" | "done";
@@ -33,7 +32,7 @@ const PLATFORM_OPTIONS: Array<{ id: Platform; label: string; description: string
 ];
 
 /** Valid platforms for standalone ?setup= mode. */
-const VALID_SETUP_PLATFORMS = new Set<string>(["canvas", "gradescope", "pensieve", "canvas-add", "syllabus"]);
+const VALID_SETUP_PLATFORMS = new Set<string>(["canvas", "gradescope", "pensieve", "canvas-add"]);
 
 /** Display labels for standalone setup mode header. */
 const SETUP_LABELS: Record<string, string> = {
@@ -41,7 +40,6 @@ const SETUP_LABELS: Record<string, string> = {
   gradescope: "Gradescope",
   pensieve: "Pensieve",
   "canvas-add": "Add Canvas Account",
-  syllabus: "Syllabus",
 };
 
 /**
@@ -227,11 +225,8 @@ export default function OnboardingPage() {
    */
   function handleStandaloneSuccess() {
     trackEvent("standalone_setup_completed", { platform: setupParam });
-    // Syllabus doesn't use the sync engine — skip triggerSync for it
-    if (setupParam !== "syllabus") {
-      const platform = setupParam === "canvas-add" ? "canvas" : setupParam as "canvas" | "gradescope" | "pensieve";
-      triggerSync(undefined, [platform]).catch(() => {});
-    }
+    const platform = setupParam === "canvas-add" ? "canvas" : setupParam as "canvas" | "gradescope" | "pensieve";
+    triggerSync(undefined, [platform]).catch(() => {});
     setStandaloneExiting(true);
     setTimeout(() => router.push("/app/settings?section=integrations"), 100);
   }
@@ -285,14 +280,6 @@ export default function OnboardingPage() {
     } finally {
       setSaving(false);
     }
-  }
-
-  /**
-   * Standalone Syllabus handler: no credentials to save, just navigate back.
-   */
-  async function handleStandaloneSyllabusNext(): Promise<boolean> {
-    handleStandaloneSuccess();
-    return true;
   }
 
   /**
@@ -406,16 +393,6 @@ export default function OnboardingPage() {
                 {setupParam === "canvas-add" && (
                   <AddCanvasStep
                     onNext={handleAddCanvasNext}
-                    onSkip={handleStandaloneSkip}
-                    saving={saving}
-                    error={error}
-                    setError={setError}
-                  />
-                )}
-
-                {setupParam === "syllabus" && (
-                  <SyllabusStep
-                    onNext={handleStandaloneSyllabusNext}
                     onSkip={handleStandaloneSkip}
                     saving={saving}
                     error={error}
