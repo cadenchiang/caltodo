@@ -47,8 +47,8 @@ export function useWidgetLayout() {
   const [widgets, setWidgets] = useState<WidgetInstance[]>(defaults.widgets);
   const [layouts, setLayoutsState] = useState<ResponsiveLayouts<string>>(defaults.layouts);
   const [boardTitle, setBoardTitleState] = useState("My Board");
-  const [boardDescription, setBoardDescriptionState] = useState("The secret of getting ahead is getting started.");
-  const [coverImageUrl, setCoverImageUrlState] = useState("preset:cal");
+  const [boardDescription, setBoardDescriptionState] = useState("Tap the edit button to start customizing your board.");
+  const [coverImageUrl, setCoverImageUrlState] = useState("");
   const [boardEmoji, setBoardEmojiState] = useState("\u{1F4D6}");
   const [iconSize, setIconSizeState] = useState("md");
   const [titleFontFamily, setTitleFontFamilyState] = useState("");
@@ -93,7 +93,7 @@ export function useWidgetLayout() {
     setLayoutsState(p.layouts);
     const title = p.boardTitle || "My Board";
     const desc = p.boardDescription || "";
-    const cover = p.coverImageUrl ?? "preset:cal";
+    const cover = p.coverImageUrl ?? "";
     const emoji = p.boardEmoji || "\u{1F4D6}";
     const iSize = p.iconSize || "md";
     setBoardTitleState(title);
