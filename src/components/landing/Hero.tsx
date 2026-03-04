@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { RefreshCw, CalendarDays, LayoutGrid } from "lucide-react";
 import GoogleOneTap from "@/components/auth/GoogleOneTap";
 import BentoFeatures from "@/components/landing/BentoFeatures";
 import FadeIn from "@/components/landing/FadeIn";
@@ -211,13 +212,45 @@ export default function Hero() {
             </p>
           </FadeIn>
 
+          {/* Three-step how it works */}
+          <div className="w-full max-w-5xl mb-16 sm:mb-24 flex flex-col gap-8 sm:gap-10">
+            {([
+              { step: "1", title: "Sync your classes", desc: "Connect bCourses, Gradescope, Pensieve, and Google Calendar in one click.", img: "/step-sync.png", icon: RefreshCw },
+              { step: "2", title: "View your assignments", desc: "See every deadline on a single calendar — no more switching between tabs.", img: "/step-calendar.png", icon: CalendarDays },
+              { step: "3", title: "Personalize your board", desc: "Customize widgets, themes, and layouts to make it yours.", img: "/step-personalize.png", icon: LayoutGrid },
+            ] as const).map((item, i) => {
+              const Icon = item.icon;
+              return (
+                <FadeIn key={item.step} delay={i * 100}>
+                  <div className={`flex flex-col sm:flex-row items-center gap-8 sm:gap-12 ${i % 2 === 1 ? "sm:flex-row-reverse" : ""}`}>
+                    <div className="sm:w-1/2 w-full">
+                      <img src={item.img} alt={item.title} className="w-full rounded-xl block shadow-lg" />
+                    </div>
+                    <div className="sm:w-1/2 text-center sm:text-left">
+                      <Icon className="w-6 h-6 text-black/25 mb-3 mx-auto sm:mx-0" strokeWidth={1.5} />
+                      <span className="text-xs font-semibold text-[#0071E3] tracking-wide">STEP {item.step}</span>
+                      <h3 className="text-2xl sm:text-[32px] font-medium text-black leading-tight tracking-tight mt-2" style={{ fontFamily: '-apple-system, "SF Pro Display", BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' }}>
+                        {item.title}
+                      </h3>
+                      <p className="text-sm sm:text-base text-black/40 mt-2 sm:mt-3 max-w-sm mx-auto sm:mx-0">{item.desc}</p>
+                    </div>
+                  </div>
+                </FadeIn>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      <FeatureHighlight />
+
+      <div className="w-full bg-[#FCFCFD]">
+        <div className="flex flex-col items-center px-6 lg:px-10 py-10 sm:py-14">
           <FadeIn delay={100}>
             <BentoFeatures />
           </FadeIn>
         </div>
       </div>
-
-      <FeatureHighlight />
 
       <TestimonialSection />
 
