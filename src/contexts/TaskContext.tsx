@@ -89,7 +89,16 @@ interface TaskContextValue {
   updateTask: (id: string, updates: TaskUpdate) => Promise<void>;
   toggleComplete: (id: string) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
-  deleteTasksBySource: (source: "canvas" | "gradescope" | "pensieve") => Promise<void>;
+  deleteTasksBySource: (source: "canvas" | "gradescope" | "pensieve" | "syllabus") => Promise<void>;
+  /** Bulk-imports syllabus-extracted assignments as tasks. */
+  importSyllabusTasks: (tasks: Array<{
+    title: string;
+    description?: string | null;
+    due_date?: string | null;
+    due_time?: string | null;
+    course_name?: string | null;
+    points_possible?: number | null;
+  }>) => Promise<void>;
   /** Deletes all Canvas tasks whose external_id starts with the given prefix. */
   deleteTasksByExternalIdPrefix: (prefix: string) => Promise<void>;
   /** Deletes all tasks matching any of the given course names. Returns count deleted. */
@@ -646,7 +655,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
    *
    * @param source - The integration source to delete tasks for ("canvas" | "gradescope" | "pensieve")
    */
-  async function deleteTasksBySource(source: "canvas" | "gradescope" | "pensieve") {
+  async function deleteTasksBySource(source: "canvas" | "gradescope" | "pensieve" | "syllabus") {
     if (!userId) {
       setError("Not authenticated. Please sign in again.");
       return;
@@ -769,6 +778,86 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     }
 
     return count;
+  }
+
+  /**
+   * Bulk-imports syllabus-extracted assignments as tasks.
+   * Generates external_id per task for dedup, upserts to Supabase with source="syllabus".
+   *
+   * @param syllabusTasks - Array of extracted assignment objects to import
+   */
+  async function importSyllabusTasks(syllabusTasks: Array<{
+    title: string;
+    description?: string | null;
+    due_date?: string | null;
+    due_time?: string | null;
+    course_name?: string | null;
+    points_possible?: number | null;
+  }>) {
+    if (!userId || syllabusTasks.length === 0) return;
+
+    const rows = syllabusTasks.map((t) => {
+      // Generate a deterministic external_id for dedup
+      const raw = `${t.title}|${t.due_date ?? ""}`;
+      let hash = 0;
+      for (let i = 0; i < raw.length; i++) {
+        hash = ((hash << 5) - hash + raw.charCodeAt(i)) | 0;
+      }
+      const externalId = `syllabus-${Math.abs(hash).toString(36)}`;
+
+      return {
+        user_id: userId,
+        title: t.title,
+        description: t.description ?? "",
+        due_date: t.due_date ?? null,
+        due_time: t.due_time ?? null,
+        source: "syllabus" as const,
+        external_id: externalId,
+        color: "#8B5CF6",
+        course_name: t.course_name ?? null,
+        points_possible: t.points_possible ?? null,
+        is_completed: false,
+        is_submitted: false,
+      };
+    });
+
+    // Optimistic: add to local state
+    const optimisticTasks: Task[] = rows.map((r) => ({
+      ...r,
+      id: `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      source_url: null,
+      google_event_id: null,
+      dismissed_at: null,
+      repeat_interval: null,
+      repeat_unit: null,
+      repeat_end_date: null,
+      repeat_end_count: null,
+      late_due_date: null,
+      completed_at: null,
+      tags: [],
+      snoozed_until: null,
+      sort_order: null,
+    }));
+
+    setTasks((prev) => {
+      const updated = [...optimisticTasks, ...prev];
+      setCachedTasks(updated);
+      return updated;
+    });
+
+    // Upsert to Supabase — conflict on (user_id, source, external_id)
+    const { error: upsertError } = await supabase
+      .from("tasks")
+      .upsert(rows, { onConflict: "user_id,source,external_id" });
+
+    if (upsertError) {
+      setError(upsertError.message);
+    }
+
+    // Reconcile from server to get real IDs
+    await fetchTasks();
   }
 
   /**
@@ -958,6 +1047,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
         toggleComplete,
         deleteTask,
         deleteTasksBySource,
+        importSyllabusTasks,
         deleteTasksByExternalIdPrefix,
         deleteTasksByCourseNames,
         deleteAllTasks,
