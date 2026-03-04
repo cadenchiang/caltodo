@@ -102,9 +102,6 @@ npx vitest run src/__tests__/gradescope-client.test.ts  # Run specific test
 
 ### Git Workflow
 
-- **Branch off `main`** for features/fixes (`feature/...`, `fix/...`)
-- **Open a PR** — CI runs typecheck + tests automatically
-- **Don't push directly to `main`** — branch protection is enabled
 - Commit messages: imperative mood, concise ("Add snooze presets" not "Added snooze presets")
 
 ### After Multi-File Changes

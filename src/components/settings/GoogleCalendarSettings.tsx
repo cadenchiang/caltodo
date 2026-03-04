@@ -76,6 +76,10 @@ async function readSyncStream(
 let moduleSyncInProgress = false;
 /** Callback to notify the mounted component of sync state changes. */
 let onModuleSyncStateChange: ((syncing: boolean, progress: { synced: number; total: number } | null) => void) | null = null;
+/** Timestamp of the last auto-sync attempt. Used to enforce a cooldown so we don't retry endlessly on persistent failures. */
+let lastAutoSyncAt = 0;
+/** Minimum interval (ms) between automatic sync attempts. */
+const AUTO_SYNC_COOLDOWN_MS = 5 * 60_000;
 
 /**
  * Runs the initial-sync in the background at module level.
@@ -219,14 +223,22 @@ export default function GoogleCalendarSettings() {
 
   /**
    * Fetches the count of tasks with due dates that haven't synced to GCal.
-   * Only called when connected and not currently syncing.
+   * Auto-triggers background sync when unsynced tasks are detected,
+   * with a 5-minute cooldown to avoid retrying on persistent failures.
    */
   const fetchUnsyncedCount = useCallback(async () => {
     try {
       const res = await fetch("/api/gcal/unsynced-count");
       if (!res.ok) return;
       const data = await res.json();
-      if (mountedRef.current) setUnsyncedCount(data.count ?? 0);
+      const count = data.count ?? 0;
+      if (mountedRef.current) setUnsyncedCount(count);
+
+      // Auto-sync if there are unsynced tasks and cooldown has elapsed
+      if (count > 0 && !moduleSyncInProgress && Date.now() - lastAutoSyncAt >= AUTO_SYNC_COOLDOWN_MS) {
+        lastAutoSyncAt = Date.now();
+        runBackgroundSync();
+      }
     } catch { /* network error — ignore silently */ }
   }, []);
 

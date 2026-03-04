@@ -129,7 +129,7 @@ export default function WidgetEditorPanel({
   const [calendars, setCalendars] = useState<GCalCalendarEntry[]>([]);
   const [calendarsLoading, setCalendarsLoading] = useState(false);
   const [selectedCalendarIds, setSelectedCalendarIds] = useState<Set<string>>(new Set(["primary"]));
-  const [confirmOverlay, setConfirmOverlay] = useState<"font" | "bgReset" | "textColor" | "delete" | null>(null);
+  const [confirmOverlay, setConfirmOverlay] = useState<"bgReset" | "textColor" | "delete" | null>(null);
   const [expandedPresetCats, setExpandedPresetCats] = useState<Set<string>>(new Set());
 
   /** Toggles a preset category between collapsed (horizontal scroll) and expanded (full grid). */
@@ -201,7 +201,6 @@ export default function WidgetEditorPanel({
 
   function handleDone() {
     const init = initialConfigRef.current;
-    if (localConfig.fontFamily && localConfig.fontFamily !== (init.fontFamily || "") && onApplyFontToAll) { setConfirmOverlay("font"); return; }
     if (init.bgColor && !localConfig.bgColor && onApplyBgResetToAll) { setConfirmOverlay("bgReset"); return; }
     if ((localConfig.textColor || "") !== (init.textColor || "") && onApplyTextColorToAll) { setConfirmOverlay("textColor"); return; }
     triggerClose();
@@ -264,8 +263,8 @@ export default function WidgetEditorPanel({
       {/* Header */}
       <div className="flex items-center justify-between p-3 border-b border-border shrink-0">
         <h2 className="text-sm font-semibold text-foreground">{label} Settings</h2>
-        <button onClick={handleDone} className="w-7 h-7 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors" aria-label="Close">
-          <X size={14} />
+        <button onClick={handleDone} className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors" aria-label="Close">
+          <X size={16} />
         </button>
       </div>
 
@@ -274,28 +273,28 @@ export default function WidgetEditorPanel({
         {/* Clock */}
         {widget.type === "clock" && <>
           <ClockFacePicker value={localConfig.clockFace || "digital"} onChange={(v) => updateField("clockFace", v)} />
-          <div><label className="block text-sm text-foreground mb-1">Time Format</label><SegmentedControl options={[{ value: "12", label: "12h" }, { value: "24", label: "24h" }]} value={localConfig.clockFormat || "12"} onChange={(v) => updateField("clockFormat", v)} /></div>
-          <div><label className="block text-sm text-foreground mb-1">Timezone</label><select value={localConfig.clockTimezone || ""} onChange={(e) => updateField("clockTimezone", e.target.value)} className={SEL}>{TIMEZONE_OPTIONS.map((tz) => <option key={tz.value} value={tz.value}>{tz.label}</option>)}</select></div>
-          <div><label className="block text-sm text-foreground mb-1">Font Weight</label><select value={localConfig.clockFontWeight || "300"} onChange={(e) => updateField("clockFontWeight", e.target.value)} className={SEL}>{WEIGHT_OPTIONS.map((w) => <option key={w.value} value={w.value}>{w.label}</option>)}</select></div>
+          <div><label className="block text-sm font-medium text-foreground mb-1.5">Time Format</label><SegmentedControl options={[{ value: "12", label: "12h" }, { value: "24", label: "24h" }]} value={localConfig.clockFormat || "12"} onChange={(v) => updateField("clockFormat", v)} /></div>
+          <div><label className="block text-sm font-medium text-foreground mb-1.5">Timezone</label><select value={localConfig.clockTimezone || ""} onChange={(e) => updateField("clockTimezone", e.target.value)} className={SEL}>{TIMEZONE_OPTIONS.map((tz) => <option key={tz.value} value={tz.value}>{tz.label}</option>)}</select></div>
+          <div><label className="block text-sm font-medium text-foreground mb-1.5">Font Weight</label><select value={localConfig.clockFontWeight || "300"} onChange={(e) => updateField("clockFontWeight", e.target.value)} className={SEL}>{WEIGHT_OPTIONS.map((w) => <option key={w.value} value={w.value}>{w.label}</option>)}</select></div>
         </>}
 
         {/* Tasks */}
         {widget.type === "tasks-today" && <>
-          <div><label className="block text-sm text-foreground mb-1">View Mode</label><SegmentedControl options={[{ value: "today", label: "Today" }, { value: "week", label: "Week" }, { value: "inbox", label: "All" }]} value={localConfig.viewMode || "today"} onChange={(v) => updateField("viewMode", v)} /></div>
-          <div><label className="block text-sm text-foreground mb-1">Show Completed</label><SegmentedControl options={[{ value: "true", label: "Show" }, { value: "false", label: "Hide" }]} value={localConfig.showCompleted ?? "true"} onChange={(v) => updateField("showCompleted", v)} /></div>
+          <div><label className="block text-sm font-medium text-foreground mb-1.5">View Mode</label><SegmentedControl options={[{ value: "today", label: "Today" }, { value: "week", label: "Week" }, { value: "inbox", label: "All" }]} value={localConfig.viewMode || "today"} onChange={(v) => updateField("viewMode", v)} /></div>
+          <div><label className="block text-sm font-medium text-foreground mb-1.5">Show Completed</label><SegmentedControl options={[{ value: "true", label: "Show" }, { value: "false", label: "Hide" }]} value={localConfig.showCompleted ?? "true"} onChange={(v) => updateField("showCompleted", v)} /></div>
         </>}
 
         {/* Class Progress */}
-        {widget.type === "class-progress" && <div><label className="block text-sm text-foreground mb-1">Sort Courses By</label><select value={localConfig.progressSort || "count"} onChange={(e) => updateField("progressSort", e.target.value)} className={SEL}><option value="count">Most tasks first</option><option value="alpha">Alphabetical</option><option value="completion">Completion % (highest first)</option></select></div>}
+        {widget.type === "class-progress" && <div><label className="block text-sm font-medium text-foreground mb-1.5">Sort Courses By</label><select value={localConfig.progressSort || "count"} onChange={(e) => updateField("progressSort", e.target.value)} className={SEL}><option value="count">Most tasks first</option><option value="alpha">Alphabetical</option><option value="completion">Completion % (highest first)</option></select></div>}
 
         {/* Recent Chat */}
-        {widget.type === "recent-chat" && <div><label className="block text-sm text-foreground mb-1">Course</label>{boards.length === 0 ? <p className="text-sm text-muted-foreground">No courses available</p> : <select value={localConfig.courseId || ""} onChange={(e) => updateField("courseId", e.target.value)} className={SEL}><option value="">Auto (first course)</option>{boards.map((b) => <option key={b.course.id} value={b.course.id}>{b.course.name}</option>)}</select>}</div>}
+        {widget.type === "recent-chat" && <div><label className="block text-sm font-medium text-foreground mb-1.5">Course</label>{boards.length === 0 ? <p className="text-sm text-muted-foreground">No courses available</p> : <select value={localConfig.courseId || ""} onChange={(e) => updateField("courseId", e.target.value)} className={SEL}><option value="">Auto (first course)</option>{boards.map((b) => <option key={b.course.id} value={b.course.id}>{b.course.name}</option>)}</select>}</div>}
 
         {/* Google Calendar */}
         {widget.type === "google-calendar" && <>
           <CalendarPicker calendars={calendars} selectedIds={selectedCalendarIds} onToggle={handleCalToggle} onSelectAll={() => { setSelectedCalendarIds(new Set(calendars.map((c) => c.id))); updateField("calendarIds", JSON.stringify(calendars.map((c) => c.id))); }} onDeselectAll={() => { setSelectedCalendarIds(new Set()); updateField("calendarIds", "[]"); }} loading={calendarsLoading} />
-          <div><label className="block text-sm text-foreground mb-1">Default View</label><select value={localConfig.viewMode || "week"} onChange={(e) => updateField("viewMode", e.target.value)} className={SEL}><option value="today">Today</option><option value="2day">2 Days</option><option value="3day">3 Days</option><option value="4day">4 Days</option><option value="5day">5 Days</option><option value="week">Week</option><option value="month">Month</option><option value="custom">Custom...</option></select></div>
-          {localConfig.viewMode === "custom" && <div><label className="block text-sm text-foreground mb-1">Number of Days</label><input type="number" min={1} max={90} value={localConfig.customDays || "7"} onChange={(e) => updateField("customDays", e.target.value)} className={SEL} /></div>}
+          <div><label className="block text-sm font-medium text-foreground mb-1.5">Default View</label><select value={localConfig.viewMode || "week"} onChange={(e) => updateField("viewMode", e.target.value)} className={SEL}><option value="today">Today</option><option value="2day">2 Days</option><option value="3day">3 Days</option><option value="4day">4 Days</option><option value="5day">5 Days</option><option value="week">Week</option><option value="month">Month</option><option value="custom">Custom...</option></select></div>
+          {localConfig.viewMode === "custom" && <div><label className="block text-sm font-medium text-foreground mb-1.5">Number of Days</label><input type="number" min={1} max={90} value={localConfig.customDays || "7"} onChange={(e) => updateField("customDays", e.target.value)} className={SEL} /></div>}
         </>}
 
         {/* Image */}
@@ -352,8 +351,8 @@ export default function WidgetEditorPanel({
         {/* Weather */}
         {widget.type === "weather" && <>
           <WeatherDisplayPicker value={localConfig.weatherDisplay || "standard"} onChange={(v) => updateField("weatherDisplay", v)} />
-          <div><label className="block text-sm text-foreground mb-1">View</label><SegmentedControl options={[{ value: "today", label: "Today" }, { value: "week", label: "7-Day" }]} value={localConfig.weatherView || "today"} onChange={(v) => updateField("weatherView", v)} /></div>
-          <div><label className="block text-sm text-foreground mb-1">Temperature</label><SegmentedControl options={[{ value: "F", label: "\u00b0F" }, { value: "C", label: "\u00b0C" }]} value={localConfig.tempUnit || "F"} onChange={(v) => updateField("tempUnit", v)} /></div>
+          <div><label className="block text-sm font-medium text-foreground mb-1.5">View</label><SegmentedControl options={[{ value: "today", label: "Today" }, { value: "week", label: "7-Day" }]} value={localConfig.weatherView || "today"} onChange={(v) => updateField("weatherView", v)} /></div>
+          <div><label className="block text-sm font-medium text-foreground mb-1.5">Temperature</label><SegmentedControl options={[{ value: "F", label: "\u00b0F" }, { value: "C", label: "\u00b0C" }]} value={localConfig.tempUnit || "F"} onChange={(v) => updateField("tempUnit", v)} /></div>
         </>}
 
         {/* Notes */}
@@ -369,7 +368,7 @@ export default function WidgetEditorPanel({
           <ColorPickerPopover label="Background" value={localConfig.bgColor || ""} onChange={(v) => updateField("bgColor", v)} layout="compact" />
           <ColorPickerPopover label="Accent" value={localConfig.accentColor || ""} onChange={(v) => updateField("accentColor", v)} layout="compact" defaultValue={WIDGET_ACCENT_DEFAULTS[widget.type]} />
         </div>
-        <div><label className="block text-sm text-foreground mb-1">Font</label><FontPicker value={localConfig.fontFamily || ""} onChange={(v) => updateField("fontFamily", v)} /></div>
+        <div><label className="block text-sm font-medium text-foreground mb-1.5">Font (all widgets)</label><FontPicker value={localConfig.fontFamily || ""} onChange={(v) => { updateField("fontFamily", v); onApplyFontToAll?.(v); }} /></div>
 
       </div>
 
@@ -384,7 +383,7 @@ export default function WidgetEditorPanel({
         </button>
         <button
           onClick={handleDone}
-          className="px-4 py-2 text-sm rounded-xl bg-blue-500 text-white hover:bg-blue-600 transition-colors"
+          className="px-5 py-2 text-sm font-semibold rounded-full bg-blue-500 text-white hover:bg-blue-600 shadow-sm active:scale-[0.97] transition-all duration-200"
         >
           Done
         </button>
@@ -393,7 +392,6 @@ export default function WidgetEditorPanel({
       {cropSrc && <ImageCropModal open imageSrc={cropSrc} aspect={4 / 3} onCrop={handleCroppedUpload} onClose={() => setCropSrc(null)} />}
 
       {/* Confirm overlays */}
-      {confirmOverlay === "font" && <ConfirmPanel message="Apply this font to all widgets?" onYes={() => { onApplyFontToAll?.(localConfig.fontFamily || ""); setConfirmOverlay(null); triggerClose(); }} onNo={() => { setConfirmOverlay(null); triggerClose(); }} yesLabel="Apply to all" noLabel="Just this one" />}
       {confirmOverlay === "bgReset" && <ConfirmPanel message="Reset background on all widgets?" onYes={() => { onApplyBgResetToAll?.(); setConfirmOverlay(null); triggerClose(); }} onNo={() => { setConfirmOverlay(null); triggerClose(); }} yesLabel="Reset all" noLabel="Just this one" />}
       {confirmOverlay === "textColor" && <ConfirmPanel message="Apply this text color to all widgets?" onYes={() => { onApplyTextColorToAll?.(localConfig.textColor || ""); setConfirmOverlay(null); triggerClose(); }} onNo={() => { setConfirmOverlay(null); triggerClose(); }} yesLabel="Apply to all" noLabel="Just this one" />}
       {confirmOverlay === "delete" && <ConfirmPanel message="Remove this widget?" subtitle="This action cannot be undone." onYes={() => { onRemove(widget.id); onClose(); }} onNo={() => setConfirmOverlay(null)} yesLabel="Remove" noLabel="Cancel" destructive />}

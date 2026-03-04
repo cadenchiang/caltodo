@@ -417,7 +417,8 @@ export default function GoogleCalendarWidget({ config, editMode, onUpdateConfig 
   const { containerRef, compact } = useCompactMode(160);
   const [events, setEvents] = useState<GCalEvent[]>([]);
   const [connected, setConnected] = useState<boolean | null>(null);
-  const [loading, setLoading] = useState(true);
+  /** True only on first mount before any data has loaded. */
+  const [initialLoading, setInitialLoading] = useState(true);
 
   // Parse multi-calendar config: calendarIds (JSON) → calendarId (single) → ["primary"]
   const calendarIds: string[] = useMemo(() => {
@@ -460,7 +461,7 @@ export default function GoogleCalendarWidget({ config, editMode, onUpdateConfig 
     } catch {
       setConnected(false);
     } finally {
-      setLoading(false);
+      setInitialLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [calendarIdsKey, viewMode, config.customDays]);
@@ -469,7 +470,7 @@ export default function GoogleCalendarWidget({ config, editMode, onUpdateConfig 
     fetchEvents();
   }, [fetchEvents]);
 
-  if (loading) {
+  if (initialLoading) {
     return (
       <div className="h-full w-full flex flex-col p-4">
         <div className="flex items-center gap-2 mb-3">
