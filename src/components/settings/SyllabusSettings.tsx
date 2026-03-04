@@ -48,29 +48,42 @@ export default function SyllabusSettings() {
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-foreground">Syllabus</p>
           <p className="text-xs text-muted-foreground truncate">
-            {syllabusTaskCount === 1
-              ? "1 assignment imported"
-              : `${syllabusTaskCount} assignments imported`}
+            {syllabusTaskCount === 0
+              ? "Import assignments from a syllabus PDF"
+              : syllabusTaskCount === 1
+                ? "1 assignment imported"
+                : `${syllabusTaskCount} assignments imported`}
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <button
-            onClick={() => router.push("/app/onboarding?setup=syllabus")}
-            className="text-xs font-medium text-purple-500 hover:text-purple-600 dark:hover:text-purple-400 px-3 py-1 rounded-lg border border-purple-200 dark:border-purple-500/30 hover:bg-purple-50 dark:hover:bg-purple-500/10 transition-colors cursor-pointer"
-          >
-            Upload Another
-          </button>
-          <button
-            onClick={() => setShowConfirm(true)}
-            disabled={disconnecting}
-            aria-label="Disconnect Syllabus"
-            className="group min-w-[84px] text-xs font-medium px-3 py-1 rounded-lg border transition-colors cursor-pointer disabled:opacity-60
-              text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30
-              hover:text-red-500 hover:border-red-300 hover:bg-red-50 dark:hover:text-red-400 dark:hover:border-red-500/30 dark:hover:bg-red-500/10"
-          >
-            <span className="group-hover:hidden">{disconnecting ? "..." : "Connected"}</span>
-            <span className="hidden group-hover:inline">Disconnect</span>
-          </button>
+          {syllabusTaskCount > 0 ? (
+            <>
+              <button
+                onClick={() => router.push("/app/onboarding?setup=syllabus")}
+                className="text-xs font-medium text-purple-500 hover:text-purple-600 dark:hover:text-purple-400 px-3 py-1 rounded-lg border border-purple-200 dark:border-purple-500/30 hover:bg-purple-50 dark:hover:bg-purple-500/10 transition-colors cursor-pointer"
+              >
+                Upload Another
+              </button>
+              <button
+                onClick={() => setShowConfirm(true)}
+                disabled={disconnecting}
+                aria-label="Disconnect Syllabus"
+                className="group min-w-[84px] text-xs font-medium px-3 py-1 rounded-lg border transition-colors cursor-pointer disabled:opacity-60
+                  text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30
+                  hover:text-red-500 hover:border-red-300 hover:bg-red-50 dark:hover:text-red-400 dark:hover:border-red-500/30 dark:hover:bg-red-500/10"
+              >
+                <span className="group-hover:hidden">{disconnecting ? "..." : "Connected"}</span>
+                <span className="hidden group-hover:inline">Disconnect</span>
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => router.push("/app/onboarding?setup=syllabus")}
+              className="text-xs font-medium text-purple-500 hover:text-purple-600 dark:hover:text-purple-400 px-3 py-1 rounded-lg border border-purple-200 dark:border-purple-500/30 hover:bg-purple-50 dark:hover:bg-purple-500/10 transition-colors cursor-pointer"
+            >
+              Upload
+            </button>
+          )}
         </div>
       </div>
 

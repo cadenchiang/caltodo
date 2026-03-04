@@ -48,12 +48,18 @@ export default function FontPicker({ value, onChange }: FontPickerProps) {
   const currentFont = FONT_OPTIONS.find((f) => f.value === normalizedValue);
   const displayLabel = currentFont?.label || "System Default";
 
-  /** Compute dropdown position from trigger bounding rect. */
+  /** Max dropdown height matches max-h-64 (256px). */
+  const DROPDOWN_MAX_H = 256;
+
+  /** Compute dropdown position from trigger bounding rect. Flips above if needed. */
   const updatePosition = useCallback(() => {
     if (!triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom - 8;
+    const flipAbove = spaceBelow < DROPDOWN_MAX_H && rect.top > spaceBelow;
+
     setPos({
-      top: rect.bottom + 4,
+      top: flipAbove ? rect.top - DROPDOWN_MAX_H - 4 : rect.bottom + 4,
       left: rect.left,
       width: rect.width,
     });
@@ -153,10 +159,10 @@ export default function FontPicker({ value, onChange }: FontPickerProps) {
                         onChange(font.value);
                         setOpen(false);
                       }}
-                      className={`w-full text-left px-3 py-1.5 text-sm transition-colors ${
+                      className={`w-full text-left px-3 py-1.5 text-sm transition-colors cursor-pointer ${
                         isSelected
-                          ? "bg-blue-500/10 text-blue-600 dark:text-blue-400"
-                          : "text-foreground hover:bg-muted"
+                          ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20"
+                          : "text-foreground hover:bg-accent"
                       }`}
                       style={{ fontFamily: font.value || undefined }}
                     >

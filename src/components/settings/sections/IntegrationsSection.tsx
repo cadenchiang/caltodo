@@ -7,7 +7,6 @@ import GoogleCalendarSettings from "@/components/settings/GoogleCalendarSettings
 import IntegrationSettings, { useCredentials } from "@/components/settings/IntegrationSettings";
 import IntegrationsWelcomeModal from "@/components/settings/IntegrationsWelcomeModal";
 import SyllabusSettings from "@/components/settings/SyllabusSettings";
-import { useTaskContext } from "@/contexts/TaskContext";
 
 /**
  * Inline Google Calendar logo SVG for the add-integration dropdown.
@@ -90,9 +89,6 @@ export default function IntegrationsSection() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const { tasks } = useTaskContext();
-  const hasSyllabusTasks = tasks.some((t) => t.source === "syllabus");
-
   // Close on any click outside the container
   useEffect(() => {
     if (!open) return;
@@ -149,7 +145,7 @@ export default function IntegrationsSection() {
       <div className="space-y-3">
         <GoogleCalendarSettings />
         <IntegrationSettings />
-        {hasSyllabusTasks && <SyllabusSettings />}
+        <SyllabusSettings />
       </div>
     </section>
   );

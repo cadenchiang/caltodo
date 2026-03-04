@@ -168,12 +168,12 @@ export function useWidgetLayout() {
   useEffect(() => {
     hydrationCompleteRef.current = false;
 
-    // Show cached layout instantly while we fetch from server
+    // Apply cached layout instantly for fast paint while server fetches
     const localLayout = readPersistedLayout();
     if (localLayout) {
       applyLayout(localLayout);
+      setHydrated(true);
     }
-    setHydrated(true);
 
     fetchServerLayout().then(({ layout: serverData, updatedAt: serverUpdatedAt }) => {
       if (serverData) {
@@ -189,9 +189,11 @@ export function useWidgetLayout() {
       // If server has no data, keep defaults in state but do NOT save
       // them to the server. Only explicit user actions trigger saves.
 
+      setHydrated(true);
       hydrationCompleteRef.current = true;
     }).catch(() => {
-      // Ungate so user can still save edits if fetch failed
+      // Show UI even on failure
+      setHydrated(true);
       hydrationCompleteRef.current = true;
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
