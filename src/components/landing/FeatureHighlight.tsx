@@ -64,10 +64,10 @@ export default function FeatureHighlight() {
                 '-apple-system, "SF Pro Display", BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
             }}
           >
-            See your classes from every angle.
+            See and manage all your assignments.
           </h2>
           <p className="text-base sm:text-xl text-black/50 mt-1 max-w-none leading-relaxed">
-            One place for everything you need to stay on top of your semester.
+            Every view you need to stay on top of your semester.
           </p>
         </FadeIn>
       </div>
@@ -97,24 +97,29 @@ export default function FeatureHighlight() {
                   onMouseEnter={() => setHoveredSlide(i)}
                   onMouseLeave={() => setHoveredSlide(null)}
                 >
+                  {/* Outer frame — padded card border */}
                   <div
-                    className={`relative rounded-2xl overflow-hidden bg-white border transition-all duration-500 ${
+                    className={`rounded-2xl p-1.5 sm:p-2 transition-all duration-500 ${
                       isActive
-                        ? "border-black/[0.08] shadow-xl"
-                        : "border-black/[0.04] shadow-sm cursor-pointer"
+                        ? "bg-gray-100 border border-gray-200 shadow-xl"
+                        : "bg-gray-100 border border-gray-200 shadow-sm cursor-pointer"
                     }`}
-                    style={{ aspectRatio: "2912 / 1732" }}
                   >
-                    <img
-                      src={slide.src}
-                      alt={slide.alt}
-                      className={`absolute inset-0 w-full h-full object-cover transition-all duration-300 ${
-                        hoveredSlide === i && !transitioning ? "blur-[14px] scale-[0.99]" : ""
-                      }`}
-                      draggable={false}
-                    />
-                    {/* Hover overlay — bottom right text, no darkening */}
+                    {/* Inner image container */}
                     <div
+                      className="relative rounded-xl overflow-hidden"
+                      style={{ aspectRatio: "2912 / 1732" }}
+                    >
+                      <img
+                        src={slide.src}
+                        alt={slide.alt}
+                        className={`absolute inset-0 w-full h-full object-cover object-top transition-all duration-300 block ${
+                          hoveredSlide === i && !transitioning ? "blur-[14px] scale-[0.99]" : ""
+                        }`}
+                        draggable={false}
+                      />
+                      {/* Hover overlay — bottom right text, no darkening */}
+                      <div
                         className={`absolute inset-0 flex flex-col items-end justify-end p-6 sm:p-8 transition-opacity duration-300 ${
                           hoveredSlide === i && !transitioning ? "opacity-100" : "opacity-0"
                         }`}
@@ -135,6 +140,7 @@ export default function FeatureHighlight() {
                           {slide.description}
                         </p>
                       </div>
+                    </div>
                   </div>
                 </div>
               );

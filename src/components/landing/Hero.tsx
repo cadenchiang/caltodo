@@ -200,21 +200,23 @@ export default function Hero() {
         {/* Mockup — scroll-driven scale animation */}
         <div
           ref={mockupRef}
-          className="-mt-4 sm:-mt-6 w-full sm:max-w-4xl mx-auto relative px-1 sm:px-0"
+          className="mt-1 sm:mt-1.5 w-full sm:max-w-4xl mx-auto relative px-1 sm:px-0"
         >
-          <div className="sm:max-h-[50vh] md:max-h-none overflow-hidden rounded-2xl pt-4 sm:pt-6">
-            <div className="relative w-full">
+          <div className="relative sm:max-h-[50vh] md:max-h-none rounded-2xl p-1.5 sm:p-2 bg-gray-100 border border-gray-200">
+            <div className="relative w-full overflow-hidden rounded-xl">
               {HERO_IMAGES.map((img, i) => (
                 <img
                   key={img.src}
                   src={img.src}
                   alt={img.alt}
-                  className={`w-full rounded-xl transition-opacity duration-700 ease-in-out ${
+                  className={`w-full transition-opacity duration-700 ease-in-out block ${
                     i === 0 ? "relative" : "absolute inset-0"
                   }`}
                   style={{ opacity: activeImage === i ? 1 : 0 }}
                 />
               ))}
+              {/* Bottom fade to hide hard crop line on height-clipped screens */}
+              <div className="absolute bottom-0 left-0 right-0 h-16 pointer-events-none sm:block md:hidden" style={{ background: "linear-gradient(to bottom, transparent, white)" }} />
             </div>
           </div>
           {/* Image indicator dots — outside clipped area */}
