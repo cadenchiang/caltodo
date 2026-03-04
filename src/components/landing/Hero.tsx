@@ -170,7 +170,7 @@ export default function Hero() {
 
           {/* Subtitle */}
           <p className="text-sm sm:text-xl text-center font-sans font-light mt-3 sm:mt-6 mb-5 sm:mb-8 leading-relaxed text-black/45 max-w-[280px] sm:max-w-none">
-            Stop juggling Canvas, Gradescope, and Pensive.
+            Sync and manage all your assignments in one place.
           </p>
 
           {/* CTA — simple pill on mobile, interactive hover button on desktop */}
