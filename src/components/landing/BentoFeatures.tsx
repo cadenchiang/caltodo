@@ -34,9 +34,10 @@ const FEATURES = [
   },
   {
     icon: LayoutGrid,
-    title: "Smart Organization",
-    description: "Board view, filters, and drag-and-drop to stay on top of it all.",
+    title: "Dashboard",
+    description: "Your personalized home screen to see every deadline, class, and task at a glance.",
     className: "md:col-span-1",
+    badge: "NEW" as string | undefined,
   },
 ];
 
@@ -64,7 +65,7 @@ export default function BentoFeatures() {
                 <h3 className="flex items-center gap-2 text-base sm:text-lg font-semibold text-black tracking-tight mb-1">
                   {feature.title}
                   {"badge" in feature && feature.badge && (
-                    <span className="px-2 py-0.5 rounded-full bg-[#007AFF] text-white text-[9px] font-bold tracking-wide">
+                    <span className="px-2.5 py-0.5 rounded-full bg-[#007AFF] text-white text-[9px] font-bold tracking-wider uppercase">
                       {feature.badge}
                     </span>
                   )}

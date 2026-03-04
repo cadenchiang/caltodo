@@ -88,7 +88,7 @@ export default function TestimonialSection() {
                 <div className="flex items-center gap-2 min-w-0">
                   <Avatar className="ring-black/10 size-7 border border-transparent shadow ring-1 shrink-0">
                     <AvatarImage src={t.avatar} alt={t.name} />
-                    <AvatarFallback>{t.name.charAt(0)}</AvatarFallback>
+                    <AvatarFallback className="bg-[#F5F5F7] text-black/60 text-xs font-medium">{t.name.charAt(0)}</AvatarFallback>
                   </Avatar>
                   <div className="text-black text-xs font-medium truncate">{t.name}</div>
                   <span aria-hidden className="bg-black/25 size-1 rounded-full shrink-0" />
