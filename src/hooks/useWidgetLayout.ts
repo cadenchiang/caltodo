@@ -162,10 +162,13 @@ export function useWidgetLayout() {
     []
   );
 
-  // Server-authoritative hydration (stale-while-revalidate)
+  // Server-authoritative hydration: localStorage is a read-only cache for
+  // instant initial paint. The server is the single source of truth.
+  // localStorage never drives saves — only user actions do.
   useEffect(() => {
     hydrationCompleteRef.current = false;
 
+    // Show cached layout instantly while we fetch from server
     const localLayout = readPersistedLayout();
     if (localLayout) {
       applyLayout(localLayout);
@@ -174,28 +177,21 @@ export function useWidgetLayout() {
 
     fetchServerLayout().then(({ layout: serverData, updatedAt: serverUpdatedAt }) => {
       if (serverData) {
-        const serverTs = serverUpdatedAt ? new Date(serverUpdatedAt).getTime() : 0;
-        const localTs = localLayout?.updatedAt ?? 0;
-
-        if (localLayout && localTs > serverTs) {
-          // Pre-mount localStorage has unsaved edits — push to recover
-          debouncedServerSave(localLayout);
-        } else {
-          // Server is authoritative — apply server data
-          const serverLayout = serverData as unknown as PersistedLayout;
-          serverLayout.version = SCHEMA_VERSION;
-          serverLayout.updatedAt = serverTs;
-          applyLayout(serverLayout);
-          writeLayoutCache(serverLayout);
-        }
-      } else if (!serverData && localLayout) {
-        // No server data but localStorage exists — migrate to server
-        debouncedServerSave(localLayout);
+        // Server has data — always apply it (server wins)
+        const serverLayout = serverData as unknown as PersistedLayout;
+        serverLayout.version = SCHEMA_VERSION;
+        serverLayout.updatedAt = serverUpdatedAt
+          ? new Date(serverUpdatedAt).getTime()
+          : 0;
+        applyLayout(serverLayout);
+        writeLayoutCache(serverLayout);
       }
+      // If server has no data, keep defaults in state but do NOT save
+      // them to the server. Only explicit user actions trigger saves.
 
       hydrationCompleteRef.current = true;
     }).catch(() => {
-      // Ungate even on failure so the user can still save edits
+      // Ungate so user can still save edits if fetch failed
       hydrationCompleteRef.current = true;
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
