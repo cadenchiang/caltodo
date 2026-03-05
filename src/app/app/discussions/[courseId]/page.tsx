@@ -334,7 +334,7 @@ export default function CourseChatPage({ params }: PageProps) {
         {/* Header bar */}
         <div className="flex items-center gap-3 px-4 pt-5 pb-3 border-b border-black/30 dark:border-white/20 shrink-0">
           <button
-            onClick={() => router.push("/app")}
+            onClick={() => router.back()}
             className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer md:hidden"
             title="Back to all chats"
           >
