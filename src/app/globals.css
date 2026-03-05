@@ -1859,3 +1859,14 @@ input[type="range"].slider-blue::-moz-range-track {
 .dark input[type="range"].slider-blue::-moz-range-thumb {
   border-color: #1c1c1e;
 }
+
+/* ── Aesthetic widget keyframes ── */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes colonBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}

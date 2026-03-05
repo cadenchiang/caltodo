@@ -49,20 +49,20 @@ export default function StackedFace({ now, is24h, timezone, fontWeight }: ClockF
   return (
     <div className="h-full w-full flex flex-col items-center justify-center p-4">
       <span
-        className="text-5xl tracking-tight text-foreground tabular-nums leading-none"
-        style={{ fontWeight: weight }}
+        className="text-6xl font-extralight tracking-tight text-foreground tabular-nums leading-none"
       >
         {hour}
       </span>
-      <div className="w-6 h-px bg-border my-1.5" />
+      <div className="w-8 h-px bg-gradient-to-r from-transparent via-foreground/20 to-transparent my-2" />
       <span
-        className="text-3xl tracking-tight text-foreground tabular-nums leading-none"
-        style={{ fontWeight: weight }}
+        className="text-4xl font-extralight tracking-tight text-foreground/60 tabular-nums leading-none"
       >
         {minute}
       </span>
       {period && (
-        <span className="text-xs text-muted-foreground mt-1">{period}</span>
+        <span className="text-[10px] text-muted-foreground mt-2 bg-muted rounded-md px-1.5 py-0.5">
+          {period}
+        </span>
       )}
     </div>
   );

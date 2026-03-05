@@ -154,7 +154,13 @@ export default function PomodoroWidget({
     <div ref={containerRef} className="h-full w-full flex flex-col items-center justify-center p-4 gap-1">
       {/* SVG progress ring with time display */}
       <div className="relative flex items-center justify-center">
-        <svg width={ringSize} height={ringSize} viewBox="0 0 120 120" className="-rotate-90">
+        <svg
+          width={ringSize}
+          height={ringSize}
+          viewBox="0 0 120 120"
+          className="-rotate-90"
+          style={running ? { filter: `drop-shadow(0 0 8px ${ringStroke}40)` } : undefined}
+        >
           {/* Background track */}
           <circle
             cx="60"
@@ -190,7 +196,7 @@ export default function PomodoroWidget({
 
       {/* Phase label — hidden in compact mode */}
       {!compact && (
-        <span className="text-xs font-medium text-muted-foreground tracking-wide uppercase">
+        <span className="text-xs font-medium text-muted-foreground tracking-wide uppercase bg-muted/50 rounded-full px-3 py-0.5">
           {labelText}
         </span>
       )}
@@ -201,7 +207,7 @@ export default function PomodoroWidget({
           {Array.from({ length: TOTAL_SESSIONS }).map((_, i) => (
             <div
               key={i}
-              className="w-1.5 h-1.5 rounded-full"
+              className="w-2 h-2 rounded-full transition-all duration-300"
               style={{
                 backgroundColor: i < completedSessions
                   ? workColor
@@ -227,7 +233,7 @@ export default function PomodoroWidget({
         <button
           onClick={handlePlayPause}
           disabled={editMode}
-          className="w-10 h-10 rounded-full flex items-center justify-center text-white transition-colors disabled:opacity-40 disabled:pointer-events-none"
+          className="w-10 h-10 rounded-full flex items-center justify-center text-white shadow-lg hover:scale-105 transition-transform disabled:opacity-40 disabled:pointer-events-none"
           style={{ backgroundColor: workColor }}
           aria-label={running ? "Pause timer" : "Start timer"}
         >

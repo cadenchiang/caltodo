@@ -28,16 +28,23 @@ export default function DigitalFace({ now, is24h, timezone, fontWeight }: ClockF
   const timeStr = now.toLocaleTimeString([], timeOptions);
   const dateStr = now.toLocaleDateString([], dateOptions);
 
+  /** Split time into parts around the colon for blinking. */
+  const colonIdx = timeStr.indexOf(":");
+  const timeBefore = colonIdx >= 0 ? timeStr.slice(0, colonIdx) : timeStr;
+  const timeAfter = colonIdx >= 0 ? timeStr.slice(colonIdx + 1) : "";
+
   return (
     <div className="h-full w-full flex flex-col items-center justify-center p-4">
       <span
         className="text-4xl tracking-tight text-foreground tabular-nums"
         style={{ fontWeight: Number(fontWeight) }}
       >
-        {timeStr}
+        {timeBefore}
+        <span style={{ animation: "colonBlink 1s ease-in-out infinite" }}>:</span>
+        {timeAfter}
       </span>
-      <div className="w-8 h-px bg-border my-2" />
-      <span className="text-xs tracking-widest text-foreground">
+      <div className="w-10 h-px bg-gradient-to-r from-transparent via-foreground/20 to-transparent my-2" />
+      <span className="text-[11px] tracking-[0.15em] text-foreground">
         {dateStr}
       </span>
     </div>

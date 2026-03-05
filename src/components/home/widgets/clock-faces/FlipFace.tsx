@@ -54,9 +54,10 @@ function getFlipDigits(
  */
 function FlipCard({ digit, fontWeight }: { digit: string; fontWeight: number }) {
   return (
-    <div className="w-10 h-14 rounded-lg bg-muted border border-border flex items-center justify-center">
+    <div className="relative w-10 h-16 rounded-xl bg-foreground/[0.06] flex items-center justify-center shadow-sm overflow-hidden">
+      <div className="absolute inset-x-0 top-1/2 h-px bg-foreground/[0.08]" />
       <span
-        className="text-2xl tabular-nums text-foreground"
+        className="text-2xl tabular-nums text-foreground relative z-10"
         style={{ fontWeight }}
       >
         {digit}
@@ -73,11 +74,14 @@ export default function FlipFace({ now, is24h, timezone, fontWeight }: ClockFace
     <div className="h-full w-full flex items-center justify-center gap-1.5 p-4">
       <FlipCard digit={digits[0]} fontWeight={weight} />
       <FlipCard digit={digits[1]} fontWeight={weight} />
-      <span className="text-2xl text-foreground font-bold mx-0.5 -mt-1">:</span>
+      <span
+        className="text-2xl text-foreground font-bold mx-0.5 -mt-1"
+        style={{ animation: "colonBlink 1s ease-in-out infinite" }}
+      >:</span>
       <FlipCard digit={digits[2]} fontWeight={weight} />
       <FlipCard digit={digits[3]} fontWeight={weight} />
       {period && (
-        <span className="text-xs text-muted-foreground ml-1 self-end mb-1">
+        <span className="text-[10px] text-muted-foreground ml-1 self-end mb-1.5 bg-muted rounded-md px-1.5 py-0.5">
           {period}
         </span>
       )}

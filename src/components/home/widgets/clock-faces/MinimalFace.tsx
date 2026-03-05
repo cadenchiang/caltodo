@@ -18,15 +18,23 @@ export default function MinimalFace({ now, is24h, timezone, fontWeight }: ClockF
     ...(timezone ? { timeZone: timezone } : {}),
   };
 
+  const secondsOptions: Intl.DateTimeFormatOptions = {
+    second: "2-digit",
+    ...(timezone ? { timeZone: timezone } : {}),
+  };
+
   const timeStr = now.toLocaleTimeString([], timeOptions);
+  const seconds = now.toLocaleTimeString([], secondsOptions).replace(/[^0-9]/g, "").slice(-2).padStart(2, "0");
 
   return (
-    <div className="h-full w-full flex items-center justify-center p-4">
+    <div className="h-full w-full flex flex-col items-center justify-center p-4">
       <span
-        className="text-5xl tracking-tight text-foreground tabular-nums"
-        style={{ fontWeight: Number(fontWeight) }}
+        className="text-5xl font-extralight tracking-tighter text-foreground tabular-nums"
       >
         {timeStr}
+      </span>
+      <span className="text-sm text-foreground/20 tabular-nums mt-1">
+        {seconds}
       </span>
     </div>
   );
