@@ -212,7 +212,13 @@ export default function WeatherWidget({ config, editMode }: WeatherWidgetProps) 
 
   if (error) {
     return (
-      <div className="h-full w-full flex flex-col items-center justify-center p-4 text-center">
+      <div
+        className={`h-full w-full flex flex-col items-center justify-center p-4 text-center ${!permDenied ? "cursor-pointer" : ""}`}
+        onClick={!permDenied ? () => setRetryCount((c) => c + 1) : undefined}
+        role={!permDenied ? "button" : undefined}
+        tabIndex={!permDenied ? 0 : undefined}
+        onKeyDown={!permDenied ? (e) => { if (e.key === "Enter" || e.key === " ") setRetryCount((c) => c + 1); } : undefined}
+      >
         <div className="text-muted-foreground mb-2">
           {getWeatherIcon(3, 24)}
         </div>
@@ -230,13 +236,9 @@ export default function WeatherWidget({ config, editMode }: WeatherWidgetProps) 
             </button>
           </>
         ) : (
-          <button
-            type="button"
-            onClick={() => setRetryCount((c) => c + 1)}
-            className="text-sm text-blue-500 hover:text-blue-600 transition-colors cursor-pointer"
-          >
+          <p className="text-sm text-blue-500">
             {error}
-          </button>
+          </p>
         )}
       </div>
     );

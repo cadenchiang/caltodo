@@ -363,6 +363,24 @@ export default function WidgetEditorPanel({
         {/* Divider + Appearance */}
         <div className="border-t border-border" />
         <p className="text-xs font-medium text-foreground">Appearance</p>
+        <div className="flex items-center gap-1.5 mb-1">
+          <button
+            type="button"
+            onClick={() => updateField("textBold", localConfig.textBold === "true" ? "false" : "true")}
+            className={`w-8 h-8 rounded-lg border text-sm font-bold flex items-center justify-center transition-colors ${localConfig.textBold === "true" ? "bg-foreground text-background border-foreground" : "border-input-border text-foreground hover:bg-muted"}`}
+            aria-label="Toggle bold"
+          >
+            B
+          </button>
+          <button
+            type="button"
+            onClick={() => updateField("textItalic", localConfig.textItalic === "true" ? "false" : "true")}
+            className={`w-8 h-8 rounded-lg border text-sm italic flex items-center justify-center transition-colors ${localConfig.textItalic === "true" ? "bg-foreground text-background border-foreground" : "border-input-border text-foreground hover:bg-muted"}`}
+            aria-label="Toggle italic"
+          >
+            I
+          </button>
+        </div>
         <div className="flex items-end justify-center gap-5">
           <ColorPickerPopover label="Text" value={localConfig.textColor || ""} onChange={(v) => updateField("textColor", v)} layout="compact" defaultValue="var(--foreground)" />
           <ColorPickerPopover label="Background" value={localConfig.bgColor || ""} onChange={(v) => updateField("bgColor", v)} layout="compact" />

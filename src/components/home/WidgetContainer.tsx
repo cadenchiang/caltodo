@@ -143,6 +143,8 @@ export default function WidgetContainer({
   const textColor = widget.config.textColor || undefined;
   const fontFamily = widget.config.fontFamily || undefined;
   const accentColor = widget.config.accentColor || undefined;
+  const fontWeight = widget.config.textBold === "true" ? "700" : undefined;
+  const fontStyle = widget.config.textItalic === "true" ? ("italic" as const) : undefined;
 
   // Determine CSS class: selected stops jiggle + shows blue ring, else jiggle in edit mode
   const editClass = isSelected
@@ -163,6 +165,8 @@ export default function WidgetContainer({
         ...(textColor ? { "--widget-text-color": textColor } as React.CSSProperties : {}),
         ...(accentColor ? { "--widget-accent-color": accentColor } as React.CSSProperties : {}),
         fontFamily,
+        fontWeight,
+        fontStyle,
       }}
     >
       {/* Widget content — disable interactions in edit mode (except image widget which needs upload clicks) */}
