@@ -215,6 +215,9 @@ export default function WidgetEditorPanel({
 
   useEffect(() => { requestAnimationFrame(updatePosition); }, [updatePosition]);
 
+  // Reposition when async content loads (e.g. calendar list) changes panel height
+  useEffect(() => { requestAnimationFrame(updatePosition); }, [calendars, updatePosition]);
+
   function handleDone() {
     const init = initialConfigRef.current;
     if (init.bgColor && !localConfig.bgColor && onApplyBgResetToAll) { setConfirmOverlay("bgReset"); return; }
