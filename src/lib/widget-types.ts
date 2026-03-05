@@ -18,7 +18,15 @@ export type WidgetType =
   | "notes"
   | "weather"
   | "cal-chat"
-  | "pomodoro";
+  | "pomodoro"
+  | "countdown"
+  | "quick-links"
+  | "habit-tracker"
+  | "quote"
+  | "stats"
+  | "weekly-heatmap"
+  | "sticker"
+  | "spotify";
 
 /** Configuration for a widget type: size constraints, display metadata. */
 export interface WidgetTypeConfig {
@@ -123,6 +131,70 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     description: "Focus timer with work and break intervals",
     iconName: "Timer",
     minW: 1, minH: 1, maxW: 3, maxH: 3,
+    defaultW: 2, defaultH: 2,
+  },
+  countdown: {
+    type: "countdown",
+    label: "Countdown",
+    description: "Days until your next deadline or event",
+    iconName: "Hourglass",
+    minW: 1, minH: 1, maxW: 4, maxH: 3,
+    defaultW: 2, defaultH: 1,
+  },
+  "quick-links": {
+    type: "quick-links",
+    label: "Quick Links",
+    description: "Pinned bookmarks with favicons",
+    iconName: "Link",
+    minW: 1, minH: 1, maxW: 4, maxH: 4,
+    defaultW: 2, defaultH: 2,
+  },
+  "habit-tracker": {
+    type: "habit-tracker",
+    label: "Habit Tracker",
+    description: "GitHub-style heatmap with streaks",
+    iconName: "Flame",
+    minW: 2, minH: 1, maxW: 4, maxH: 3,
+    defaultW: 2, defaultH: 2,
+  },
+  quote: {
+    type: "quote",
+    label: "Quote",
+    description: "Daily motivational quotes",
+    iconName: "Quote",
+    minW: 1, minH: 1, maxW: 4, maxH: 3,
+    defaultW: 2, defaultH: 1,
+  },
+  stats: {
+    type: "stats",
+    label: "Stats",
+    description: "Task completion metrics and trends",
+    iconName: "BarChart3",
+    minW: 1, minH: 1, maxW: 4, maxH: 3,
+    defaultW: 2, defaultH: 1,
+  },
+  "weekly-heatmap": {
+    type: "weekly-heatmap",
+    label: "Activity",
+    description: "Weekly productivity heatmap",
+    iconName: "Grid3X3",
+    minW: 2, minH: 1, maxW: 4, maxH: 3,
+    defaultW: 2, defaultH: 2,
+  },
+  sticker: {
+    type: "sticker",
+    label: "Sticker",
+    description: "Decorative emoji or text",
+    iconName: "Smile",
+    minW: 1, minH: 1, maxW: 4, maxH: 4,
+    defaultW: 1, defaultH: 1,
+  },
+  spotify: {
+    type: "spotify",
+    label: "Spotify",
+    description: "Embed a track, album, or playlist",
+    iconName: "Music",
+    minW: 2, minH: 2, maxW: 4, maxH: 4,
     defaultW: 2, defaultH: 2,
   },
 };

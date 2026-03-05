@@ -230,13 +230,13 @@ export default function WeatherWidget({ config, editMode }: WeatherWidgetProps) 
             <button
               type="button"
               onClick={() => setRetryCount((c) => c + 1)}
-              className="text-xs text-blue-500 hover:text-blue-600 transition-colors cursor-pointer"
+              className="text-xs text-foreground hover:text-muted-foreground transition-colors cursor-pointer"
             >
               Retry
             </button>
           </>
         ) : (
-          <p className="text-sm text-blue-500">
+          <p className="text-xs text-muted-foreground">
             {error}
           </p>
         )}

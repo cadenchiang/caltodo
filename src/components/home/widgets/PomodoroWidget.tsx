@@ -151,7 +151,7 @@ export default function PomodoroWidget({
   const timeTextClass = compact ? "text-xl" : "text-3xl";
 
   return (
-    <div ref={containerRef} className="h-full w-full flex flex-col items-center justify-center p-3 gap-1">
+    <div ref={containerRef} className="h-full w-full flex flex-col items-center justify-center p-4 gap-1">
       {/* SVG progress ring with time display */}
       <div className="relative flex items-center justify-center">
         <svg width={ringSize} height={ringSize} viewBox="0 0 120 120" className="-rotate-90">

@@ -26,6 +26,14 @@ import NotesWidget from "@/components/home/widgets/NotesWidget";
 import WeatherWidget from "@/components/home/widgets/WeatherWidget";
 import CalChatWidget from "@/components/home/widgets/CalChatWidget";
 import PomodoroWidget from "@/components/home/widgets/PomodoroWidget";
+import CountdownWidget from "@/components/home/widgets/CountdownWidget";
+import QuickLinksWidget from "@/components/home/widgets/QuickLinksWidget";
+import HabitTrackerWidget from "@/components/home/widgets/HabitTrackerWidget";
+import QuoteWidget from "@/components/home/widgets/QuoteWidget";
+import StatsWidget from "@/components/home/widgets/StatsWidget";
+import WeeklyHeatmapWidget from "@/components/home/widgets/WeeklyHeatmapWidget";
+import StickerWidget from "@/components/home/widgets/StickerWidget";
+import SpotifyWidget from "@/components/home/widgets/SpotifyWidget";
 
 /** Drag threshold in pixels — mouse must stay within this to count as a click. */
 const DRAG_THRESHOLD = 5;
@@ -48,8 +56,8 @@ const CLICK_TARGETS: Partial<Record<string, string>> = {
   "cal-chat": "/app/discussions",
 };
 
-/** Maps widget type to its React component. */
-function RenderWidget({
+/** Maps widget type to its React component. Exported for gallery previews. */
+export function RenderWidget({
   widget,
   editMode,
   onUpdateConfig,
@@ -81,6 +89,22 @@ function RenderWidget({
       return <CalChatWidget config={widget.config} />;
     case "pomodoro":
       return <PomodoroWidget config={widget.config} onUpdateConfig={onUpdateConfig} editMode={editMode} />;
+    case "countdown":
+      return <CountdownWidget config={widget.config} />;
+    case "quick-links":
+      return <QuickLinksWidget config={widget.config} onUpdateConfig={onUpdateConfig} />;
+    case "habit-tracker":
+      return <HabitTrackerWidget config={widget.config} onUpdateConfig={onUpdateConfig} />;
+    case "quote":
+      return <QuoteWidget config={widget.config} />;
+    case "stats":
+      return <StatsWidget config={widget.config} />;
+    case "weekly-heatmap":
+      return <WeeklyHeatmapWidget config={widget.config} />;
+    case "sticker":
+      return <StickerWidget config={widget.config} onUpdateConfig={onUpdateConfig} />;
+    case "spotify":
+      return <SpotifyWidget config={widget.config} onUpdateConfig={editMode ? onUpdateConfig : undefined} />;
     default:
       return null;
   }
@@ -159,7 +183,7 @@ export default function WidgetContainer({
       data-widget-id={widget.id}
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
-      className={`h-full w-full rounded-md overflow-hidden bg-transparent border border-foreground/8 ${editClass} ${isClickable ? "cursor-pointer" : ""} ${textColor ? "widget-custom-text" : ""}`}
+      className={`h-full w-full ${widget.config.widgetBorder === "false" ? "rounded-none bg-transparent" : "rounded-xl bg-card border border-foreground/[0.09]"} overflow-hidden ${editClass} ${isClickable ? "cursor-pointer" : ""} ${textColor ? "widget-custom-text" : ""}`}
       style={{
         backgroundColor: bgColor,
         ...(textColor ? { "--widget-text-color": textColor } as React.CSSProperties : {}),
@@ -169,8 +193,8 @@ export default function WidgetContainer({
         fontStyle,
       }}
     >
-      {/* Widget content — disable interactions in edit mode (except image widget which needs upload clicks) */}
-      <div className={`h-full w-full overflow-hidden ${editMode && widget.type !== "image" ? "pointer-events-none" : ""}`}>
+      {/* Widget content — disable interactions in edit mode (except image/spotify widgets which need inline interactions) */}
+      <div className={`h-full w-full overflow-hidden ${editMode && widget.type !== "image" && widget.type !== "spotify" ? "pointer-events-none" : ""}`}>
         <RenderWidget
           widget={widget}
           editMode={editMode}

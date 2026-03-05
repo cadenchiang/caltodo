@@ -11,6 +11,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import type { NotesStyleId } from "@/lib/notes-styles";
+import { WidgetShell, WidgetHeader } from "./WidgetPrimitives";
 
 /** Line height in pixels for lined/grid backgrounds. */
 const LINE_HEIGHT_PX = 24;
@@ -84,10 +85,8 @@ export default function NotesWidget({ config, onUpdateConfig }: NotesWidgetProps
   if (!onUpdateConfig) {
     // View mode — render notes as plain text
     return (
-      <div className="h-full w-full flex flex-col p-4 overflow-hidden">
-        <div className="mb-2">
-          <h3 className="text-sm font-semibold text-foreground">Notes</h3>
-        </div>
+      <WidgetShell>
+        <WidgetHeader title="Notes" />
         <div className="flex-1 overflow-y-auto" style={paperStyle}>
           {content ? (
             <p className="text-sm text-foreground whitespace-pre-wrap" style={{ lineHeight: paperStyle.lineHeight || "1.625" }}>
@@ -99,15 +98,13 @@ export default function NotesWidget({ config, onUpdateConfig }: NotesWidgetProps
             </p>
           )}
         </div>
-      </div>
+      </WidgetShell>
     );
   }
 
   return (
-    <div className="h-full w-full flex flex-col p-4 overflow-hidden">
-      <div className="mb-2">
-        <h3 className="text-sm font-semibold text-foreground">Notes</h3>
-      </div>
+    <WidgetShell>
+      <WidgetHeader title="Notes" />
       <textarea
         value={content}
         onChange={(e) => handleChange(e.target.value)}
@@ -116,6 +113,6 @@ export default function NotesWidget({ config, onUpdateConfig }: NotesWidgetProps
         className="no-drag flex-1 w-full text-sm bg-transparent text-foreground placeholder-muted-foreground resize-none focus:outline-none"
         style={{ ...paperStyle, lineHeight: paperStyle.lineHeight || "1.625" }}
       />
-    </div>
+    </WidgetShell>
   );
 }

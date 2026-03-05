@@ -21,7 +21,7 @@ import {
   useContainerWidth,
   verticalCompactor,
 } from "react-grid-layout";
-import type { Layout, ResponsiveLayouts } from "react-grid-layout";
+import type { Layout, LayoutItem, ResponsiveLayouts } from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
 import type { WidgetInstance } from "@/lib/widget-types";
 import WidgetContainer from "@/components/home/WidgetContainer";
@@ -52,6 +52,10 @@ interface WidgetGridProps {
   onDragStop?: () => void;
   /** ID of the widget currently open in the editor panel. */
   selectedWidgetId?: string | null;
+  /** Whether to accept external drops (drag-from-gallery). */
+  acceptDrop?: boolean;
+  /** Called when an external item is dropped onto the grid. */
+  onExternalDrop?: (item: LayoutItem, e: Event) => void;
 }
 
 export default function WidgetGrid({
@@ -65,6 +69,8 @@ export default function WidgetGrid({
   onDragStart,
   onDragStop,
   selectedWidgetId,
+  acceptDrop,
+  onExternalDrop,
 }: WidgetGridProps) {
   const { width, containerRef, mounted } = useContainerWidth({
     measureBeforeMount: false,
@@ -125,6 +131,9 @@ export default function WidgetGrid({
           containerPadding={[0, 0]}
           dragConfig={{ enabled: editMode, cancel: ".no-drag" }}
           resizeConfig={{ enabled: editMode, handles: ["se", "sw", "ne", "nw"] }}
+          dropConfig={{ enabled: !!acceptDrop, defaultItem: { w: 2, h: 2 } }}
+          onDrop={(_layout, item, e) => { if (item) onExternalDrop?.(item, e); }}
+          onDropDragOver={() => ({ w: 2, h: 2 })}
           compactor={verticalCompactor}
           onLayoutChange={onLayoutChange}
           onDragStart={onDragStart}

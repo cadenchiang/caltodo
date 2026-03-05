@@ -2,141 +2,98 @@
 
 /**
  * Modal showing available widget types to add to the dashboard.
- * Displays a grid of widget type cards with unique colors and icons per type.
- * Click a card to add that widget type to the dashboard.
+ * Displays a grid of widget cards with live mini previews (the actual
+ * widget components scaled down). Click to add, or drag to place.
  *
  * @param open - Whether the modal is visible
  * @param onClose - Callback to close the modal
  * @param onAdd - Callback when a widget type is selected (receives WidgetType)
+ * @param onDragStart - Callback when a widget card drag begins (for drag-to-place)
  */
 
+import React from "react";
 import {
-  X,
-  CheckSquare,
-  Clock,
-  MessageSquare,
-  ImageIcon,
-  GraduationCap,
-  FileText,
-  CloudSun,
-  MessagesSquare,
-  Timer,
+  X, CheckSquare, Clock, ImageIcon, GraduationCap, MessageSquare,
+  Calendar, FileText, CloudSun, MessagesSquare, Timer, Hourglass,
+  Link, Flame, Quote, BarChart3, Grid3X3, Smile, Music,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { WIDGET_REGISTRY, type WidgetType } from "@/lib/widget-types";
+import { RenderWidget } from "@/components/home/WidgetContainer";
 
-/** Official Google Calendar logo rendered inline for brand accuracy. */
-function GoogleCalendarIcon({ size = 20 }: { size?: number }) {
+/** Maps widget type to its lucide-react icon for the gallery card label. */
+const WIDGET_ICONS: Record<string, LucideIcon> = {
+  clock: Clock, "tasks-today": CheckSquare, "class-progress": GraduationCap,
+  "recent-chat": MessageSquare, "google-calendar": Calendar, image: ImageIcon,
+  notes: FileText, weather: CloudSun, "cal-chat": MessagesSquare, pomodoro: Timer,
+  countdown: Hourglass, "quick-links": Link, "habit-tracker": Flame,
+  quote: Quote, stats: BarChart3, "weekly-heatmap": Grid3X3, sticker: Smile, spotify: Music,
+};
+
+/**
+ * Renders the real widget component scaled down to fit the gallery thumbnail.
+ * The widget is rendered at full size (320×240) inside a clipped container,
+ * then CSS-scaled to fill the thumbnail area. pointer-events-none prevents
+ * interactions. Falls back to an empty box on error.
+ *
+ * @param type - The widget type to preview
+ */
+function LivePreview({ type }: { type: WidgetType }) {
+  const widget = { id: `preview-${type}`, type, config: {} };
+
   return (
-    <svg width={size} height={size} viewBox="0 0 200 200" fill="none">
-      {/* Calendar body (white center) */}
-      <rect x="40" y="40" width="120" height="120" rx="4" fill="white" />
-      {/* Top bar (blue) */}
-      <rect x="40" y="40" width="120" height="28" rx="4" fill="#4285F4" />
-      {/* Left edge (green) */}
-      <rect x="40" y="68" width="16" height="92" fill="#0B8043" />
-      {/* Bottom edge (yellow-green) */}
-      <rect x="40" y="144" width="120" height="16" fill="#F4B400" />
-      {/* Right edge (red) */}
-      <rect x="144" y="68" width="16" height="92" fill="#EA4335" />
-      {/* Corner squares for calendar hanger */}
-      <rect x="72" y="28" width="8" height="24" rx="4" fill="#616161" />
-      <rect x="120" y="28" width="8" height="24" rx="4" fill="#616161" />
-      {/* Calendar grid cells */}
-      <rect x="68" y="80" width="18" height="14" rx="2" fill="#4285F4" />
-      <rect x="92" y="80" width="18" height="14" rx="2" fill="#4285F4" />
-      <rect x="116" y="80" width="18" height="14" rx="2" fill="#4285F4" />
-      <rect x="68" y="102" width="18" height="14" rx="2" fill="#4285F4" />
-      <rect x="92" y="102" width="18" height="14" rx="2" fill="#EA4335" />
-      <rect x="116" y="102" width="18" height="14" rx="2" fill="#0B8043" />
-      <rect x="68" y="124" width="18" height="14" rx="2" fill="#F4B400" />
-      <rect x="92" y="124" width="18" height="14" rx="2" fill="#4285F4" />
-      <rect x="116" y="124" width="18" height="14" rx="2" fill="#4285F4" />
-    </svg>
+    <div className="w-full h-full relative overflow-hidden">
+      <div
+        className="absolute top-0 left-0 pointer-events-none origin-top-left"
+        style={{ width: 320, height: 240, transform: "scale(var(--preview-scale))" }}
+      >
+        <LivePreviewErrorBoundary>
+          <RenderWidget widget={widget} editMode={false} />
+        </LivePreviewErrorBoundary>
+      </div>
+    </div>
   );
 }
 
-/** Per-widget-type icon and color config. */
-const WIDGET_STYLE: Record<
-  string,
-  {
-    icon: React.ComponentType<{ size?: number; className?: string }>;
-    color: string;
-    bgColor: string;
-    hoverBg: string;
+/**
+ * Minimal error boundary — catches render errors from widgets that depend
+ * on contexts not available inside the gallery (e.g. TaskContext).
+ * Renders an empty placeholder on error.
+ */
+class LivePreviewErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
   }
-> = {
-  "tasks-today": {
-    icon: CheckSquare,
-    color: "text-emerald-500",
-    bgColor: "bg-emerald-500/10",
-    hoverBg: "group-hover:bg-emerald-500/20",
-  },
-  clock: {
-    icon: Clock,
-    color: "text-orange-500",
-    bgColor: "bg-orange-500/10",
-    hoverBg: "group-hover:bg-orange-500/20",
-  },
-  image: {
-    icon: ImageIcon,
-    color: "text-pink-500",
-    bgColor: "bg-pink-500/10",
-    hoverBg: "group-hover:bg-pink-500/20",
-  },
-  "class-progress": {
-    icon: GraduationCap,
-    color: "text-violet-500",
-    bgColor: "bg-violet-500/10",
-    hoverBg: "group-hover:bg-violet-500/20",
-  },
-  "recent-chat": {
-    icon: MessageSquare,
-    color: "text-blue-500",
-    bgColor: "bg-blue-500/10",
-    hoverBg: "group-hover:bg-blue-500/20",
-  },
-  "google-calendar": {
-    icon: GoogleCalendarIcon as unknown as React.ComponentType<{ size?: number; className?: string }>,
-    color: "",
-    bgColor: "bg-blue-50 dark:bg-blue-500/10",
-    hoverBg: "group-hover:bg-blue-100 dark:group-hover:bg-blue-500/20",
-  },
-  notes: {
-    icon: FileText,
-    color: "text-amber-500",
-    bgColor: "bg-amber-500/10",
-    hoverBg: "group-hover:bg-amber-500/20",
-  },
-  weather: {
-    icon: CloudSun,
-    color: "text-sky-500",
-    bgColor: "bg-sky-500/10",
-    hoverBg: "group-hover:bg-sky-500/20",
-  },
-  "cal-chat": {
-    icon: MessagesSquare,
-    color: "text-indigo-500",
-    bgColor: "bg-indigo-500/10",
-    hoverBg: "group-hover:bg-indigo-500/20",
-  },
-  pomodoro: {
-    icon: Timer,
-    color: "text-orange-500",
-    bgColor: "bg-orange-500/10",
-    hoverBg: "group-hover:bg-orange-500/20",
-  },
-};
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return <div className="w-full h-full" />;
+    }
+    return this.props.children;
+  }
+}
 
 interface WidgetGalleryModalProps {
   open: boolean;
   onClose: () => void;
   onAdd: (type: WidgetType) => void;
+  /** Called when the user starts dragging a widget card (for drag-to-place). */
+  onDragStart?: (type: WidgetType) => void;
 }
 
 export default function WidgetGalleryModal({
   open,
   onClose,
   onAdd,
+  onDragStart,
 }: WidgetGalleryModalProps) {
   if (!open) return null;
 
@@ -146,57 +103,64 @@ export default function WidgetGalleryModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/50 animate-announce-backdrop-in"
+        className="absolute inset-0 bg-black/40 animate-announce-backdrop-in"
         onClick={onClose}
       />
 
-      {/* Card */}
-      <div className="relative bg-popover rounded-2xl shadow-2xl border border-border w-full max-w-md mx-4 animate-announce-card-in overflow-hidden">
+      {/* Modal */}
+      <div
+        className="relative w-full max-w-[640px] mx-4 animate-announce-card-in overflow-hidden flex flex-col bg-popover rounded-[12px] border border-foreground/[0.09] shadow-[0_0_0_1px_rgba(0,0,0,0.04),0_3px_6px_rgba(0,0,0,0.06),0_9px_24px_rgba(0,0,0,0.1)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_3px_6px_rgba(0,0,0,0.2),0_9px_24px_rgba(0,0,0,0.35)]"
+      >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-border">
-          <h2 className="text-base font-semibold text-foreground">
-            Add Widget
+        <div className="flex items-center justify-between px-6 py-4 border-b border-foreground/[0.09]">
+          <h2 className="text-[15px] font-semibold text-foreground">
+            Widget Library
           </h2>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:bg-foreground/[0.05] transition-colors duration-150"
             aria-label="Close"
           >
-            <X size={16} />
+            <X size={15} />
           </button>
         </div>
 
-        {/* Widget grid */}
-        <div className="p-4 grid grid-cols-2 gap-3 max-h-[60vh] overflow-y-auto">
-          {widgetTypes.map((config) => {
-            const style = WIDGET_STYLE[config.type] || WIDGET_STYLE["tasks-today"];
-            const Icon = style.icon;
-            const isGoogleCal = config.type === "google-calendar";
-            return (
-              <button
-                key={config.type}
-                onClick={() => {
-                  onAdd(config.type);
-                  onClose();
-                }}
-                className="flex flex-col items-center gap-2 p-4 rounded-xl border border-border bg-card hover:bg-muted transition-colors text-center group"
+        {/* Widget grid — --preview-scale computed from thumbnail width / 320 */}
+        <div className="px-6 py-5 grid grid-cols-3 gap-4 max-h-[70vh] overflow-y-auto">
+          {widgetTypes.map((config) => (
+            <button
+              key={config.type}
+              draggable
+              onDragStart={(e) => {
+                e.dataTransfer.setData("text/plain", config.type);
+                setTimeout(() => onDragStart?.(config.type), 0);
+              }}
+              onClick={() => {
+                onAdd(config.type);
+                onClose();
+              }}
+              className="widget-gallery-card flex flex-col text-left overflow-hidden rounded-lg border border-foreground/[0.09] bg-card cursor-grab active:cursor-grabbing"
+            >
+              {/* Preview thumbnail — scale = container width / 320 ≈ 0.55 */}
+              <div
+                className="aspect-[4/3] overflow-hidden bg-foreground/[0.02] rounded-t-lg"
+                style={{ "--preview-scale": 0.55 } as React.CSSProperties}
               >
-                <div className={`w-10 h-10 rounded-lg ${style.bgColor} ${style.hoverBg} flex items-center justify-center transition-colors`}>
-                  {isGoogleCal ? (
-                    <Icon size={20} />
-                  ) : (
-                    <Icon size={20} className={style.color} />
-                  )}
-                </div>
-                <span className="text-sm font-medium text-foreground">
+                <LivePreview type={config.type} />
+              </div>
+
+              {/* Label + description */}
+              <div className="px-3.5 pt-2.5 pb-3">
+                <span className="text-[13px] font-semibold text-foreground flex items-center gap-1.5">
+                  {(() => { const Icon = WIDGET_ICONS[config.type]; return Icon ? <Icon size={13} className="text-muted-foreground shrink-0" /> : null; })()}
                   {config.label}
                 </span>
-                <span className="text-[11px] text-muted-foreground leading-tight">
+                <span className="text-[11.5px] leading-snug mt-0.5 text-muted-foreground block">
                   {config.description}
                 </span>
-              </button>
-            );
-          })}
+              </div>
+            </button>
+          ))}
         </div>
       </div>
     </div>

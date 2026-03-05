@@ -89,8 +89,8 @@ export function useWidgetLayout() {
    * Extracted to avoid duplication between localStorage and server hydration.
    */
   const applyLayout = useCallback((p: PersistedLayout) => {
-    setWidgets(p.widgets);
-    setLayoutsState(p.layouts);
+    setWidgets(p.widgets || []);
+    setLayoutsState(p.layouts || { lg: [], md: [], sm: [] });
     const title = p.boardTitle || "My Board";
     const desc = p.boardDescription || "";
     const cover = p.coverImageUrl ?? "";
@@ -271,13 +271,13 @@ export function useWidgetLayout() {
   );
 
   const addWidget = useCallback(
-    (type: WidgetType, config: Record<string, string> = {}): string => {
+    (type: WidgetType, config: Record<string, string> = {}, position?: { x: number; y: number }): string => {
       const id = generateWidgetId();
       const reg = WIDGET_REGISTRY[type];
       const newWidget: WidgetInstance = { id, type, config };
       const newLayoutItem: LayoutItem = {
-        i: id, x: 0, y: Infinity,
-        w: reg.defaultW, h: reg.defaultH, minW: reg.minW, minH: reg.minH,
+        i: id, x: position?.x ?? 0, y: position?.y ?? Infinity,
+        w: 2, h: 2, minW: reg.minW, minH: reg.minH,
       };
 
       setWidgets((prev) => {

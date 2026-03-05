@@ -174,18 +174,18 @@ export default function ImageWidget({
   return (
     <div
       className={`h-full w-full flex flex-col items-center justify-center p-4 rounded-xl transition-colors ${
-        dragOver ? "border-2 border-dashed border-blue-400 bg-blue-50/30 dark:bg-blue-900/20" : ""
+        dragOver ? "border-2 border-dashed border-muted-foreground/40 bg-muted/50" : ""
       }`}
       onDrop={handleDrop}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
     >
       {uploading ? (
-        <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-5 h-5 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin" />
       ) : (
         <>
           <ImageIcon size={24} className="text-muted-foreground mb-2" />
-          <p className="text-sm text-muted-foreground mb-1">
+          <p className="text-xs text-muted-foreground mb-1">
             {dragOver ? "Drop image here" : "No image"}
           </p>
           {!dragOver && onUpdateConfig && (
@@ -194,7 +194,7 @@ export default function ImageWidget({
                   e.stopPropagation();
                   onOpenSettings?.();
                 }}
-                className="no-drag flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border border-border text-foreground hover:bg-muted transition-colors mt-1"
+                className="no-drag flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-border text-foreground hover:bg-muted transition-colors mt-1"
               >
                 <Camera size={14} />
                 Select Image

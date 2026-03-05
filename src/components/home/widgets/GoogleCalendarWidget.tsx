@@ -13,8 +13,9 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { Calendar, MapPin, ExternalLink, X, Clock, FileText } from "lucide-react";
+import { Calendar, MapPin, ExternalLink, X, FileText } from "lucide-react";
 import { useCompactMode } from "@/hooks/useCompactMode";
+import { WidgetShell, WidgetHeader, WidgetEmptyState } from "./WidgetPrimitives";
 import type { GCalEvent } from "@/lib/types";
 
 /** Google Calendar color IDs mapped to hex colors. */
@@ -186,7 +187,7 @@ function EventDetailPopover({ event, color, onClose }: { event: GCalEvent; color
 
       <div
         ref={ref}
-        className="relative bg-white dark:bg-[#2d2e30] rounded-lg shadow-[0_24px_38px_3px_rgba(0,0,0,0.14),0_9px_46px_8px_rgba(0,0,0,0.12),0_11px_15px_-7px_rgba(0,0,0,0.2)] w-full max-w-[448px] overflow-hidden animate-in"
+        className="relative bg-popover rounded-lg shadow-2xl border border-border w-full max-w-[448px] overflow-hidden animate-in"
       >
         {/* Top action bar — close button */}
         <div className="flex items-center justify-end gap-1 px-2 pt-2">
@@ -194,14 +195,14 @@ function EventDetailPopover({ event, color, onClose }: { event: GCalEvent; color
             href={event.htmlLink}
             target="_blank"
             rel="noopener noreferrer"
-            className="w-9 h-9 rounded-full flex items-center justify-center text-[#5f6368] dark:text-[#9aa0a6] hover:bg-[#f1f3f4] dark:hover:bg-[#3c4043] transition-colors"
+            className="w-9 h-9 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             aria-label="Open in Google Calendar"
           >
             <ExternalLink size={18} />
           </a>
           <button
             onClick={onClose}
-            className="w-9 h-9 rounded-full flex items-center justify-center text-[#5f6368] dark:text-[#9aa0a6] hover:bg-[#f1f3f4] dark:hover:bg-[#3c4043] transition-colors"
+            className="w-9 h-9 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             aria-label="Close"
           >
             <X size={18} />
@@ -215,10 +216,10 @@ function EventDetailPopover({ event, color, onClose }: { event: GCalEvent; color
             style={{ backgroundColor: color }}
           />
           <div className="min-w-0 flex-1">
-            <h3 className="text-[22px] font-normal text-[#3c4043] dark:text-[#e8eaed] leading-7">
+            <h3 className="text-[22px] font-normal text-foreground leading-7">
               {event.summary}
             </h3>
-            <p className="text-sm text-[#5f6368] dark:text-[#9aa0a6] mt-0.5">
+            <p className="text-sm text-muted-foreground mt-0.5">
               {formatTimeRange(event.start, event.end, event.allDay)}
             </p>
           </div>
@@ -229,8 +230,8 @@ function EventDetailPopover({ event, color, onClose }: { event: GCalEvent; color
           {/* Location */}
           {event.location && (
             <div className="flex items-center gap-4 px-6 py-2.5">
-              <MapPin size={20} className="shrink-0 text-[#5f6368] dark:text-[#9aa0a6]" />
-              <span className="text-sm font-medium text-[#3c4043] dark:text-[#e8eaed]">
+              <MapPin size={20} className="shrink-0 text-muted-foreground" />
+              <span className="text-sm font-medium text-foreground">
                 {event.location}
               </span>
             </div>
@@ -239,8 +240,8 @@ function EventDetailPopover({ event, color, onClose }: { event: GCalEvent; color
           {/* Description */}
           {description && (
             <div className="flex items-start gap-4 px-6 py-2.5">
-              <FileText size={20} className="shrink-0 mt-0.5 text-[#5f6368] dark:text-[#9aa0a6]" />
-              <p className="text-sm text-[#3c4043] dark:text-[#e8eaed] whitespace-pre-wrap line-clamp-6">
+              <FileText size={20} className="shrink-0 mt-0.5 text-muted-foreground" />
+              <p className="text-sm text-foreground whitespace-pre-wrap line-clamp-6">
                 {description}
               </p>
             </div>
@@ -248,8 +249,8 @@ function EventDetailPopover({ event, color, onClose }: { event: GCalEvent; color
 
           {/* Calendar name */}
           <div className="flex items-center gap-4 px-6 py-2.5">
-            <Calendar size={20} className="shrink-0 text-[#5f6368] dark:text-[#9aa0a6]" />
-            <span className="text-sm text-[#3c4043] dark:text-[#e8eaed]">
+            <Calendar size={20} className="shrink-0 text-muted-foreground" />
+            <span className="text-sm text-foreground">
               {event.calendarId || "Google Calendar"}
             </span>
           </div>
@@ -493,20 +494,19 @@ export default function GoogleCalendarWidget({ config, editMode, onUpdateConfig 
 
   if (connected === false) {
     return (
-      <div className="h-full w-full flex flex-col items-center justify-center p-4 text-center">
-        <Calendar size={24} className="text-muted-foreground mb-2" />
-        <p className="text-sm font-medium text-foreground">Google Calendar</p>
-        <p className="text-xs text-muted-foreground mt-1 mb-3">
-          Connect to see your events
-        </p>
-        <button
-          type="button"
-          onClick={() => router.push("/app/settings?section=integrations")}
-          className="no-drag inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors cursor-pointer"
-        >
-          Sync Google Calendar
-        </button>
-      </div>
+      <WidgetEmptyState
+        icon={<Calendar size={24} />}
+        message="Connect to see your events"
+        action={
+          <button
+            type="button"
+            onClick={() => router.push("/app/settings?section=integrations")}
+            className="no-drag inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors cursor-pointer"
+          >
+            Sync Google Calendar
+          </button>
+        }
+      />
     );
   }
 
@@ -514,15 +514,16 @@ export default function GoogleCalendarWidget({ config, editMode, onUpdateConfig 
 
   return (
     <div ref={containerRef} className="h-full w-full flex flex-col p-4 overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center gap-2 mb-3">
-        <h3 className="text-sm font-semibold text-foreground">Google Calendar</h3>
-        <span className="text-[10px] text-muted-foreground">
-          {viewMode === "custom"
-            ? `${config.customDays || "7"} Days`
-            : VIEW_MODES.find((m) => m.key === viewMode)?.label ?? viewMode}
-        </span>
-      </div>
+      <WidgetHeader
+        title="Google Calendar"
+        right={
+          <span className="text-[10px] text-muted-foreground">
+            {viewMode === "custom"
+              ? `${config.customDays || "7"} Days`
+              : VIEW_MODES.find((m) => m.key === viewMode)?.label ?? viewMode}
+          </span>
+        }
+      />
 
       {events.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center text-center">

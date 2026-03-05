@@ -59,6 +59,8 @@ export default function HomePage() {
   const [settingsWidgetRect, setSettingsWidgetRect] = useState<DOMRect | null>(null);
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  /** Widget type being dragged from gallery (null when not drag-to-placing). */
+  const [draggingType, setDraggingType] = useState<WidgetType | null>(null);
   /** Live widget rect for the spotlight overlay (updates on scroll/resize). */
   const [spotlightRect, setSpotlightRect] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
   const spotlightRafRef = useRef(0);
@@ -73,7 +75,7 @@ export default function HomePage() {
     return () => window.removeEventListener("tour-set-edit-mode", handleTourEditMode);
   }, []);
 
-  // Track selected widget position for spotlight overlay
+  // Track selected widget position for spotlight overlay.
   useEffect(() => {
     if (!settingsWidget) { setSpotlightRect(null); return; }
     function updateSpotlight() {
@@ -96,6 +98,59 @@ export default function HomePage() {
     },
     [addWidget, showToast]
   );
+
+  /** Ref to prevent double-add from both onDrop and dragend firing. */
+  const dropHandledRef = useRef(false);
+
+  /** Called when user starts dragging a widget card from the gallery. */
+  const handleGalleryDragStart = useCallback(
+    (type: WidgetType) => {
+      dropHandledRef.current = false;
+      setDraggingType(type);
+      // Hide modal visually but keep it mounted so the drag source element
+      // stays in the DOM — removing it cancels the browser drag operation.
+      setGalleryOpen(false);
+    },
+    []
+  );
+
+  /** Called when user drops an external item onto the grid. */
+  const handleExternalDrop = useCallback(
+    (item: { x: number; y: number }) => {
+      if (dropHandledRef.current) return;
+      dropHandledRef.current = true;
+      setDraggingType((prev) => {
+        if (prev) {
+          addWidget(prev, {}, { x: item.x, y: item.y });
+          showToast("Widget added");
+        }
+        return null;
+      });
+    },
+    [addWidget, showToast]
+  );
+
+  // Fallback: if drag ends outside the grid, still add the widget at bottom
+  useEffect(() => {
+    if (!draggingType) return;
+    function handleDragEnd() {
+      if (dropHandledRef.current) {
+        // Already handled by onDrop — just clean up
+        setDraggingType(null);
+        return;
+      }
+      dropHandledRef.current = true;
+      setDraggingType((prev) => {
+        if (prev) {
+          addWidget(prev);
+          showToast("Widget added");
+        }
+        return null;
+      });
+    }
+    window.addEventListener("dragend", handleDragEnd);
+    return () => window.removeEventListener("dragend", handleDragEnd);
+  }, [draggingType, addWidget, showToast]);
 
   /** Opens editor panel for a specific widget with its bounding rect. */
   const handleWidgetSettings = useCallback(
@@ -230,6 +285,8 @@ export default function HomePage() {
             onDragStart={() => setIsDragging(true)}
             onDragStop={() => setIsDragging(false)}
             selectedWidgetId={settingsWidget?.id}
+            acceptDrop={!!draggingType}
+            onExternalDrop={handleExternalDrop}
           />
         </div>
 
@@ -252,12 +309,17 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* Gallery Modal */}
-        <WidgetGalleryModal
-          open={galleryOpen}
-          onClose={() => setGalleryOpen(false)}
-          onAdd={handleAddWidget}
-        />
+        {/* Gallery Modal — stays mounted (but invisible) during drag so
+            the browser doesn't cancel the drag operation when the source
+            element unmounts. */}
+        <div className={draggingType && !galleryOpen ? "invisible fixed inset-0 pointer-events-none" : ""}>
+          <WidgetGalleryModal
+            open={galleryOpen || !!draggingType}
+            onClose={() => setGalleryOpen(false)}
+            onAdd={handleAddWidget}
+            onDragStart={handleGalleryDragStart}
+          />
+        </div>
 
         {/* Backdrop: click catcher (transparent) + spotlight over selected widget */}
         {settingsWidget && (

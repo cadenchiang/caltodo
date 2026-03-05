@@ -12,6 +12,7 @@ import { useMemo } from "react";
 import { MessageSquare } from "lucide-react";
 import { useDiscussionBoards } from "@/hooks/useDiscussionBoards";
 import { useCompactMode } from "@/hooks/useCompactMode";
+import { WidgetShell, WidgetHeader, WidgetEmptyState } from "./WidgetPrimitives";
 
 interface CalChatWidgetProps {
   config?: Record<string, string>;
@@ -34,31 +35,33 @@ export default function CalChatWidget({ config }: CalChatWidgetProps) {
 
   if (loading) {
     return (
-      <div className="h-full w-full flex items-center justify-center p-4">
-        <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-      </div>
+      <WidgetShell centered>
+        <div className="w-5 h-5 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin" />
+      </WidgetShell>
     );
   }
 
   if (sortedBoards.length === 0) {
     return (
-      <div className="h-full w-full flex flex-col items-center justify-center p-4 text-center">
-        <MessageSquare size={24} className="text-foreground mb-2" />
-        <p className="text-sm text-foreground">No new messages</p>
-      </div>
+      <WidgetEmptyState
+        icon={<MessageSquare size={24} />}
+        message="No new messages"
+      />
     );
   }
 
   return (
-    <div ref={containerRef} className="h-full w-full flex flex-col p-3 overflow-hidden">
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="text-sm font-semibold text-foreground">Cal Chat</h3>
-        {compact && (
-          <span className="text-xs text-muted-foreground">
-            {sortedBoards.length} active
-          </span>
-        )}
-      </div>
+    <div ref={containerRef} className="h-full w-full flex flex-col p-4 overflow-hidden">
+      <WidgetHeader
+        title="Cal Chat"
+        right={
+          compact ? (
+            <span className="text-xs text-muted-foreground">
+              {sortedBoards.length} active
+            </span>
+          ) : undefined
+        }
+      />
 
       {compact ? null : (
         <ul className="flex-1 space-y-1.5 overflow-y-auto">
@@ -69,13 +72,13 @@ export default function CalChatWidget({ config }: CalChatWidgetProps) {
                   {board.course.name}
                 </span>
                 {board.last_message_at && (
-                  <span className="text-[10px] text-foreground/60 shrink-0">
+                  <span className="text-xs text-muted-foreground shrink-0">
                     {formatRelativeTime(board.last_message_at)}
                   </span>
                 )}
               </div>
               {board.last_message_body && (
-                <p className="text-[11px] text-foreground/70 line-clamp-1">
+                <p className="text-xs text-muted-foreground line-clamp-1">
                   <span className="font-medium">{board.last_message_author}: </span>
                   {board.last_message_body}
                 </p>

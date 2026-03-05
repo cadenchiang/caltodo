@@ -7,7 +7,12 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { X, Camera, Trash2 } from "lucide-react";
+import {
+  X, Camera, Trash2, CheckSquare, Clock, ImageIcon, GraduationCap,
+  MessageSquare, Calendar, FileText, CloudSun, MessagesSquare, Timer,
+  Hourglass, Link, Flame, Quote, BarChart3, Grid3X3, Smile, Music,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import type { WidgetInstance } from "@/lib/widget-types";
 import type { GCalCalendarEntry } from "@/lib/types";
 import { useDiscussionBoards } from "@/hooks/useDiscussionBoards";
@@ -78,6 +83,17 @@ const WIDGET_LABELS: Record<string, string> = {
   clock: "Clock", "tasks-today": "Tasks Widget", "class-progress": "Class Progress",
   "recent-chat": "Recent Chat", "google-calendar": "Google Calendar", image: "Image",
   notes: "Notes", weather: "Weather", "cal-chat": "Cal Chat", pomodoro: "Pomodoro",
+  countdown: "Countdown", "quick-links": "Quick Links", "habit-tracker": "Habit Tracker",
+  quote: "Quote", stats: "Stats", "weekly-heatmap": "Activity", sticker: "Sticker", spotify: "Spotify",
+};
+
+/** Maps widget type to its lucide-react icon component for the editor header. */
+const WIDGET_ICONS: Record<string, LucideIcon> = {
+  clock: Clock, "tasks-today": CheckSquare, "class-progress": GraduationCap,
+  "recent-chat": MessageSquare, "google-calendar": Calendar, image: ImageIcon,
+  notes: FileText, weather: CloudSun, "cal-chat": MessagesSquare, pomodoro: Timer,
+  countdown: Hourglass, "quick-links": Link, "habit-tracker": Flame,
+  quote: Quote, stats: BarChart3, "weekly-heatmap": Grid3X3, sticker: Smile, spotify: Music,
 };
 
 const WEIGHT_OPTIONS = [
@@ -248,6 +264,7 @@ export default function WidgetEditorPanel({
   }
 
   const label = WIDGET_LABELS[widget.type] || "Widget";
+  const IconComponent = WIDGET_ICONS[widget.type];
   const animClass = isClosing
     ? (isMobile ? "animate-editor-sheet-out" : `animate-editor-panel-out-${side}`)
     : (isMobile ? "animate-editor-sheet-in" : `animate-editor-panel-in-${side}`);
@@ -262,7 +279,10 @@ export default function WidgetEditorPanel({
     <div ref={panelRef} className={panelCls} style={panelStyle} onAnimationEnd={handleAnimEnd}>
       {/* Header */}
       <div className="flex items-center justify-between p-3 border-b border-border shrink-0">
-        <h2 className="text-sm font-semibold text-foreground">{label} Settings</h2>
+        <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+          {IconComponent && <IconComponent size={15} className="text-muted-foreground shrink-0" />}
+          {label} Settings
+        </h2>
         <button onClick={handleDone} className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors" aria-label="Close">
           <X size={16} />
         </button>
@@ -360,6 +380,42 @@ export default function WidgetEditorPanel({
           <NotesStylePicker value={localConfig.notesStyle || "blank"} onChange={(v) => updateField("notesStyle", v)} />
         </>}
 
+        {/* Countdown */}
+        {widget.type === "countdown" && <>
+          <div><label className="block text-sm font-medium text-foreground mb-1.5">Mode</label><SegmentedControl options={[{ value: "auto", label: "Auto" }, { value: "custom", label: "Custom" }]} value={localConfig.countdownMode || "auto"} onChange={(v) => updateField("countdownMode", v)} /></div>
+          {(localConfig.countdownMode || "auto") === "auto" && <p className="text-xs text-muted-foreground">Automatically shows your next upcoming deadline.</p>}
+          {localConfig.countdownMode === "custom" && <>
+            <div><label className="block text-sm font-medium text-foreground mb-1.5">Target Date</label><input type="date" value={localConfig.countdownDate || ""} onChange={(e) => updateField("countdownDate", e.target.value)} className={SEL} /></div>
+            <div><label className="block text-sm font-medium text-foreground mb-1.5">Label</label><input type="text" placeholder="e.g. Spring Break" value={localConfig.countdownLabel || ""} onChange={(e) => updateField("countdownLabel", e.target.value)} className={SEL} /></div>
+          </>}
+        </>}
+
+        {/* Habit Tracker */}
+        {widget.type === "habit-tracker" && <>
+          <div><label className="block text-sm font-medium text-foreground mb-1.5">Habit Name</label><input type="text" placeholder="e.g. Study 2 hours" value={localConfig.habitName || ""} onChange={(e) => updateField("habitName", e.target.value)} className={SEL} /></div>
+        </>}
+
+        {/* Quote */}
+        {widget.type === "quote" && <>
+          <div><label className="block text-sm font-medium text-foreground mb-1.5">Category</label><select value={localConfig.quoteCategory || "all"} onChange={(e) => updateField("quoteCategory", e.target.value)} className={SEL}><option value="all">All</option><option value="motivation">Motivation</option><option value="study">Study</option><option value="productivity">Productivity</option></select></div>
+        </>}
+
+        {/* Stats */}
+        {widget.type === "stats" && <>
+          <div><label className="block text-sm font-medium text-foreground mb-1.5">Metric</label><select value={localConfig.statsMetric || "completion"} onChange={(e) => updateField("statsMetric", e.target.value)} className={SEL}><option value="completion">Completion Rate</option><option value="completed-week">Completed This Week</option><option value="streak">Day Streak</option><option value="pending">Tasks Remaining</option></select></div>
+        </>}
+
+        {/* Sticker */}
+        {widget.type === "sticker" && <>
+          <div><label className="block text-sm font-medium text-foreground mb-1.5">Emoji</label><input type="text" value={localConfig.stickerEmoji || "✨"} onChange={(e) => updateField("stickerEmoji", e.target.value)} className={SEL} maxLength={4} /></div>
+          <div><label className="block text-sm font-medium text-foreground mb-1.5">Caption</label><input type="text" placeholder="Optional text" value={localConfig.stickerText || ""} onChange={(e) => updateField("stickerText", e.target.value)} className={SEL} /></div>
+        </>}
+
+        {/* Spotify */}
+        {widget.type === "spotify" && <>
+          <div><label className="block text-sm font-medium text-foreground mb-1.5">Spotify URL</label><input type="text" placeholder="https://open.spotify.com/track/..." value={localConfig.spotifyUrl || ""} onChange={(e) => updateField("spotifyUrl", e.target.value)} className={SEL} /></div>
+        </>}
+
         {/* Divider + Appearance */}
         <div className="border-t border-border" />
         <p className="text-xs font-medium text-foreground">Appearance</p>
@@ -381,6 +437,7 @@ export default function WidgetEditorPanel({
             I
           </button>
         </div>
+        <div><label className="block text-sm font-medium text-foreground mb-1.5">Border</label><SegmentedControl options={[{ value: "true", label: "Show" }, { value: "false", label: "Hide" }]} value={localConfig.widgetBorder ?? "true"} onChange={(v) => updateField("widgetBorder", v)} /></div>
         <div className="flex items-end justify-center gap-5">
           <ColorPickerPopover label="Text" value={localConfig.textColor || ""} onChange={(v) => updateField("textColor", v)} layout="compact" defaultValue="var(--foreground)" />
           <ColorPickerPopover label="Background" value={localConfig.bgColor || ""} onChange={(v) => updateField("bgColor", v)} layout="compact" />

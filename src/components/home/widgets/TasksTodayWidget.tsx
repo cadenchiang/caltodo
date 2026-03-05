@@ -19,6 +19,7 @@ import { useCompactMode } from "@/hooks/useCompactMode";
 import TaskCheckbox from "@/components/tasks/shared/TaskCheckbox";
 import TaskCreateModal from "@/components/tasks/TaskCreateModal";
 import TaskPreviewPopover from "@/components/tasks/TaskPreviewPopover";
+import { WidgetHeader, WidgetProgressBar } from "./WidgetPrimitives";
 import type { Task } from "@/lib/types";
 
 /** View mode labels for the header. */
@@ -119,37 +120,33 @@ export default function TasksTodayWidget({ config }: TasksTodayWidgetProps) {
   }
 
   return (
-    <div ref={containerRef} className="h-full w-full flex flex-col p-3 overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-1 px-1">
-        <h3 className="text-sm font-semibold text-foreground">{label}</h3>
-        <div className="flex items-center gap-1">
-          <span className="text-xs text-foreground">
-            {completedCount}/{totalCount}
-          </span>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowAddModal(true);
-            }}
-            className="no-drag w-5 h-5 flex items-center justify-center rounded text-foreground hover:bg-muted transition-colors"
-            aria-label="Add task"
-          >
-            <Plus size={14} />
-          </button>
-        </div>
-      </div>
+    <div ref={containerRef} className="h-full w-full flex flex-col p-4 overflow-hidden">
+      <WidgetHeader
+        title={label}
+        right={
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-muted-foreground tabular-nums">
+              {completedCount}/{totalCount}
+            </span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowAddModal(true);
+              }}
+              className="no-drag w-5 h-5 flex items-center justify-center rounded text-foreground hover:bg-muted transition-colors"
+              aria-label="Add task"
+            >
+              <Plus size={14} />
+            </button>
+          </div>
+        }
+      />
 
-      {/* Progress bar */}
-      <div className="w-full h-1 rounded-full bg-muted overflow-hidden mb-2 mx-1">
-        <div
-          className="h-full rounded-full transition-all duration-500"
-          style={{
-            width: `${progressPct}%`,
-            backgroundColor: config?.accentColor || '#3b82f6',
-          }}
-        />
-      </div>
+      <WidgetProgressBar
+        pct={progressPct}
+        accentColor={config?.accentColor}
+        className="mb-2.5"
+      />
 
       {/* Compact mode — show only header + progress bar */}
       {compact ? null : totalCount === 0 ? (
@@ -202,7 +199,7 @@ export default function TasksTodayWidget({ config }: TasksTodayWidgetProps) {
 
                   {/* Due badge */}
                   {dueBadge && !task.is_completed && (
-                    <span className={`text-[10px] shrink-0 ${dueBadge.className}`}>
+                    <span className={`text-xs shrink-0 ${dueBadge.className}`}>
                       {dueBadge.dateLabel}
                     </span>
                   )}
