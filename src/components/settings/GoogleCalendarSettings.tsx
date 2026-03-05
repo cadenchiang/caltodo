@@ -13,6 +13,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ExternalLink } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 import { useCredentials } from "@/components/settings/IntegrationSettings";
+import { readSyncStream } from "@/lib/gcal/read-sync-stream";
 
 /**
  * Module-level ref for showToast so sync can fire toasts after navigation.
@@ -23,54 +24,7 @@ let globalShowToast: ((msg: string, opts?: Parameters<ReturnType<typeof useToast
 /** Module-level ref for updateToastProgress so sync can update progress after navigation. */
 let globalUpdateProgress: ((progress: number) => void) | null = null;
 
-/**
- * Reads an NDJSON stream from the initial-sync endpoint, firing callbacks
- * for progress and completion events. Module-level so it can be shared by
- * both the background sync and the auto-setup flow.
- *
- * @param response - The fetch Response with an NDJSON body
- * @param callbacks - Progress and done handlers
- * @returns The final "done" event payload, or null if stream ended without one
- */
-async function readSyncStream(
-  response: Response,
-  callbacks: {
-    onProgress: (synced: number, total: number) => void;
-    onDone: () => void;
-  },
-): Promise<{ synced: number; total: number; errors: string[] } | null> {
-  const reader = response.body?.getReader();
-  if (!reader) return null;
-  const decoder = new TextDecoder();
-  let buffer = "";
-  let finalResult: { synced: number; total: number; errors: string[] } | null = null;
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) { buffer += decoder.decode(); break; }
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n");
-    buffer = lines.pop() ?? "";
-    for (const line of lines) {
-      if (!line.trim()) continue;
-      try {
-        const event = JSON.parse(line);
-        if (event.type === "start" || event.type === "progress") {
-          callbacks.onProgress(event.synced ?? 0, event.total);
-        } else if (event.type === "done") {
-          finalResult = event;
-          callbacks.onDone();
-        }
-      } catch { /* skip malformed lines */ }
-    }
-  }
-  if (buffer.trim()) {
-    try {
-      const event = JSON.parse(buffer);
-      if (event.type === "done") { finalResult = event; callbacks.onDone(); }
-    } catch { /* skip */ }
-  }
-  return finalResult;
-}
+// readSyncStream is now imported from @/lib/gcal/read-sync-stream
 
 /** Whether a module-level background sync is currently in progress. */
 let moduleSyncInProgress = false;
@@ -221,34 +175,20 @@ export default function GoogleCalendarSettings() {
     if (mountedRef.current) setter(value);
   }
 
-  /**
-   * Fetches the count of tasks with due dates that haven't synced to GCal.
-   * Auto-triggers background sync when unsynced tasks are detected,
-   * with a 5-minute cooldown to avoid retrying on persistent failures.
-   */
-  const fetchUnsyncedCount = useCallback(async () => {
-    try {
-      const res = await fetch("/api/gcal/unsynced-count");
-      if (!res.ok) return;
-      const data = await res.json();
-      const count = data.count ?? 0;
-      if (mountedRef.current) setUnsyncedCount(count);
-
-      // Auto-sync if there are unsynced tasks and cooldown has elapsed
-      if (count > 0 && !moduleSyncInProgress && Date.now() - lastAutoSyncAt >= AUTO_SYNC_COOLDOWN_MS) {
-        lastAutoSyncAt = Date.now();
-        runBackgroundSync();
-      }
-    } catch { /* network error — ignore silently */ }
-  }, []);
-
-  // Poll unsynced count every 10s when connected and idle for live updates
+  // Fetch unsynced count once on mount for the banner display
   useEffect(() => {
     if (!connected || syncing) return;
-    fetchUnsyncedCount();
-    const interval = setInterval(fetchUnsyncedCount, 10_000);
-    return () => clearInterval(interval);
-  }, [connected, syncing, fetchUnsyncedCount]);
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/gcal/unsynced-count");
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        if (!cancelled && mountedRef.current) setUnsyncedCount(data.count ?? 0);
+      } catch { /* network error — ignore silently */ }
+    })();
+    return () => { cancelled = true; };
+  }, [connected, syncing]);
 
   // Register module-level sync callback so sync survives navigation away
   useEffect(() => {
@@ -259,11 +199,17 @@ export default function GoogleCalendarSettings() {
       if (mountedRef.current) {
         setSyncing(isSyncing);
         setSyncProgress(progress);
-        if (!isSyncing) fetchUnsyncedCount();
+        // Refresh unsynced count after sync completes
+        if (!isSyncing) {
+          fetch("/api/gcal/unsynced-count")
+            .then((r) => r.ok ? r.json() : null)
+            .then((d) => { if (d && mountedRef.current) setUnsyncedCount(d.count ?? 0); })
+            .catch(() => {});
+        }
       }
     };
     return () => { onModuleSyncStateChange = null; };
-  }, [fetchUnsyncedCount]);
+  }, []);
 
   /**
    * Triggers background sync for unsynced tasks.

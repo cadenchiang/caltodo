@@ -10,6 +10,7 @@ import { trackEvent } from "@/lib/analytics";
 import { computeNextDueDate, shouldSpawnNext } from "@/lib/repeat";
 import { createTaskSnapshot, detectSyncChanges } from "@/lib/notification-helpers";
 import { showNewAssignmentsModal } from "@/components/ui/NewAssignmentsModal";
+import { readSyncStream } from "@/lib/gcal/read-sync-stream";
 
 /** localStorage key and version for stale-while-revalidate task caching. */
 const CACHE_KEY = "caltodo_tasks_cache";
@@ -159,6 +160,52 @@ export function TaskProvider({ children }: { children: ReactNode }) {
    */
   const hasInitialFetchRef = useRef(false);
 
+  /**
+   * Syncs any tasks with due dates but no google_event_id to Google Calendar.
+   * Called after assignment sync completes. Silently skips if GCal is not connected.
+   * Fire-and-forget — errors are logged but do not affect the caller.
+   *
+   * @param signal - Optional AbortSignal for clean cancellation
+   */
+  const syncUnsyncedToGCal = useCallback(async (signal?: AbortSignal) => {
+    try {
+      // Quick check: are there unsynced tasks and is GCal connected?
+      const checkRes = await fetch("/api/gcal/unsynced-count", { signal });
+      if (!checkRes.ok) return;
+      const checkData = await checkRes.json();
+      if (!checkData.connected || checkData.count === 0) return;
+
+      // Trigger bulk sync for unsynced tasks
+      const syncRes = await fetch("/api/gcal/initial-sync", { method: "POST", signal });
+      const contentType = syncRes.headers.get("Content-Type") ?? "";
+
+      if (contentType.includes("application/json")) {
+        // Non-streaming response (error or zero tasks)
+        const result = await syncRes.json();
+        if (syncRes.ok && result.synced > 0) {
+          showToast(`Synced ${result.synced} task${result.synced === 1 ? "" : "s"} to Google Calendar.`);
+        }
+        return;
+      }
+
+      // Read NDJSON stream for progress
+      const finalResult = await readSyncStream(syncRes, {
+        onProgress: () => {},
+        onDone: () => {},
+      });
+
+      if (finalResult && finalResult.synced > 0) {
+        const msg = finalResult.synced === finalResult.total
+          ? `Synced ${finalResult.synced} task${finalResult.synced === 1 ? "" : "s"} to Google Calendar.`
+          : `Synced ${finalResult.synced} of ${finalResult.total} tasks to Google Calendar.`;
+        showToast(msg);
+      }
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      console.warn("Post-sync GCal sync failed:", err);
+    }
+  }, [showToast]);
+
   const fetchTasks = useCallback(async (): Promise<Task[]> => {
     // Only show loading spinner if we have no cached data
     if (!hasCacheRef.current) {
@@ -279,6 +326,9 @@ export function TaskProvider({ children }: { children: ReactNode }) {
               });
             }
           }
+
+          // Sync any newly imported tasks (with due dates) to GCal
+          syncUnsyncedToGCal(abortController.signal);
         }
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") return;
@@ -299,7 +349,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       abortController.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [syncing, fetchTasks, addNotification]);
+  }, [syncing, fetchTasks, addNotification, syncUnsyncedToGCal]);
 
   /**
    * Adds a task with optimistic UI: immediately shows in the list with a temp ID,
@@ -975,6 +1025,9 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       for (const change of changes) {
         addNotification(change.type, change.title, change.description, change.taskId);
       }
+
+      // Sync any newly imported tasks (with due dates) to GCal
+      syncUnsyncedToGCal();
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       trackEvent("sync_failed", { error: message });
