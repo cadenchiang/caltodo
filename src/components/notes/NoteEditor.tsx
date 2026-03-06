@@ -7,17 +7,32 @@ import Placeholder from "@tiptap/extension-placeholder";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
 import UnderlineExt from "@tiptap/extension-underline";
-import { ChevronLeft, Pin, PinOff, Printer, Trash2, Smile } from "lucide-react";
+import { Check, ChevronLeft, Folder, Pin, PinOff, Printer, Trash2, Smile } from "lucide-react";
 import NoteEditorToolbar from "./NoteEditorToolbar";
 import ImageBubbleMenu from "./ImageBubbleMenu";
 import ResizableImage from "./ResizableImageExtension";
 import EmojiPicker from "@/components/home/EmojiPicker";
+import { LUCIDE_ICON_MAP, isFilledIcon } from "@/components/home/emoji-picker-data";
 import { uploadNoteImage } from "@/lib/upload-note-image";
 import { extractFirstLine } from "@/lib/notes-utils";
+import DeleteNoteConfirmModal from "./DeleteNoteConfirmModal";
 import type { Note, NoteUpdate } from "@/lib/types";
+
+interface FolderOption {
+  id: string;
+  label: string;
+}
 
 interface Props {
   note: Note;
+  /** Name of the folder this note belongs to. */
+  folderLabel: string;
+  /** All available folders for the move-to dropdown. */
+  folders: FolderOption[];
+  /** Current folder ID. */
+  currentFolderId: string;
+  /** Move this note to a different folder. */
+  onMoveToFolder: (folderId: string) => void;
   onUpdate: (id: string, updates: NoteUpdate) => void;
   onDelete: (id: string) => void;
   onBack: () => void;
@@ -36,12 +51,15 @@ const SAVE_DELAY = 500;
  * @param onDelete - Callback to delete the note
  * @param onBack - Navigate back to notes list
  */
-export default function NoteEditor({ note, onUpdate, onDelete, onBack }: Props) {
+export default function NoteEditor({ note, folderLabel, folders, currentFolderId, onMoveToFolder, onUpdate, onDelete, onBack }: Props) {
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const titleRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const noteIdRef = useRef(note.id);
   const [showIconPicker, setShowIconPicker] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showFolderMenu, setShowFolderMenu] = useState(false);
+  const folderMenuRef = useRef<HTMLDivElement>(null);
 
   /**
    * Schedules a debounced save for content and title.
@@ -142,6 +160,18 @@ export default function NoteEditor({ note, onUpdate, onDelete, onBack }: Props) 
     };
   }, []);
 
+  // Close folder menu on click outside
+  useEffect(() => {
+    if (!showFolderMenu) return;
+    function handleClick(e: MouseEvent) {
+      if (folderMenuRef.current && !folderMenuRef.current.contains(e.target as Node)) {
+        setShowFolderMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showFolderMenu]);
+
   /**
    * Uploads an image file and inserts it into the editor at the current cursor position.
    *
@@ -210,14 +240,47 @@ export default function NoteEditor({ note, onUpdate, onDelete, onBack }: Props) 
       />
       {/* Slim top bar with back / pin / delete */}
       <div className="note-top-bar flex items-center justify-between shrink-0 mb-2">
-        <button
-          onClick={onBack}
-          className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
-          aria-label="Back to notes"
-        >
-          <ChevronLeft size={18} />
-          <span className="hidden sm:inline">Back</span>
-        </button>
+        <div className="flex items-center gap-1 text-sm text-muted-foreground">
+          <button
+            onClick={onBack}
+            className="flex items-center gap-1 hover:text-foreground transition-colors"
+            aria-label="Back to notes"
+          >
+            <ChevronLeft size={18} />
+            <span className="hidden sm:inline">Back</span>
+          </button>
+          <span className="text-muted-foreground/40 mx-1">/</span>
+          <div className="relative" ref={folderMenuRef}>
+            <button
+              onClick={() => setShowFolderMenu((v) => !v)}
+              className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors max-w-[200px] cursor-pointer"
+              title="Move to folder"
+            >
+              <Folder size={14} fill="currentColor" className="shrink-0" />
+              <span className="truncate">{folderLabel}</span>
+            </button>
+            {showFolderMenu && (
+              <div className="absolute top-full left-0 mt-1 w-64 max-h-60 overflow-y-auto bg-popover border border-border rounded-xl shadow-lg z-50 py-1">
+                {folders.map((f) => (
+                  <button
+                    key={f.id}
+                    onClick={() => {
+                      if (f.id !== currentFolderId) onMoveToFolder(f.id);
+                      setShowFolderMenu(false);
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-muted transition-colors"
+                  >
+                    <Folder size={14} fill="currentColor" className="shrink-0 text-muted-foreground" />
+                    <span className="truncate flex-1">{f.label}</span>
+                    {f.id === currentFolderId && (
+                      <Check size={14} className="shrink-0 text-blue-500" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
 
         <div className="flex items-center gap-1">
           <button
@@ -235,7 +298,7 @@ export default function NoteEditor({ note, onUpdate, onDelete, onBack }: Props) 
             <Printer size={16} />
           </button>
           <button
-            onClick={() => onDelete(note.id)}
+            onClick={() => setShowDeleteConfirm(true)}
             title="Delete note"
             className="p-1.5 text-muted-foreground hover:text-red-500 transition-colors"
           >
@@ -249,14 +312,20 @@ export default function NoteEditor({ note, onUpdate, onDelete, onBack }: Props) 
         <div className="max-w-2xl mx-auto px-4 pt-8 pb-20">
           {/* Icon + Title */}
           <div className="group/title">
-            {note.icon && !note.icon.startsWith("lucide:") ? (
+            {note.icon ? (
               <div className="flex items-center gap-2 mb-2">
                 <button
                   onClick={() => setShowIconPicker(true)}
                   className="note-icon-print text-4xl hover:opacity-80 transition-opacity cursor-pointer"
                   title="Change icon"
                 >
-                  {note.icon}
+                  {note.icon.startsWith("lucide:") ? (() => {
+                    const name = note.icon!.slice(7);
+                    const IconComp = LUCIDE_ICON_MAP[name];
+                    if (!IconComp) return note.icon;
+                    const filled = isFilledIcon(name);
+                    return <IconComp size={36} fill={filled ? "currentColor" : "none"} />;
+                  })() : note.icon}
                 </button>
                 <button
                   onClick={() => onUpdate(noteIdRef.current, { icon: null })}
@@ -287,9 +356,8 @@ export default function NoteEditor({ note, onUpdate, onDelete, onBack }: Props) 
           <EmojiPicker
             open={showIconPicker}
             onSelect={(icon) => {
-              // Only accept actual emojis, not Lucide icon references
-              if (icon.startsWith("lucide:")) return;
               onUpdate(noteIdRef.current, { icon });
+              setShowIconPicker(false);
             }}
             onClose={() => setShowIconPicker(false)}
           />
@@ -309,6 +377,16 @@ export default function NoteEditor({ note, onUpdate, onDelete, onBack }: Props) 
           </div>
         </div>
       </div>
+
+      <DeleteNoteConfirmModal
+        open={showDeleteConfirm}
+        noteCount={1}
+        onConfirm={() => {
+          setShowDeleteConfirm(false);
+          onDelete(note.id);
+        }}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
     </div>
   );
 }

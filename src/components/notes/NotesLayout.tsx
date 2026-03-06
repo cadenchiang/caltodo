@@ -172,6 +172,27 @@ export default function NotesLayout({
         <NoteEditor
           key={selectedNote.id}
           note={selectedNote}
+          folderLabel={selectedFolder?.label ?? "General"}
+          folders={[
+            { id: "general", label: "General" },
+            ...initialCourses.map((c) => ({ id: c.id, label: c.name })),
+          ]}
+          currentFolderId={selectedFolder?.id ?? "general"}
+          onMoveToFolder={(folderId) => {
+            const courseId = folderId === "general" ? null : folderId;
+            handleUpdateNote(selectedNote.id, { course_id: courseId });
+            // Adjust counts: decrement old, increment new
+            const oldFId = selectedFolder?.id ?? "general";
+            setNoteCountAdjustments((prev) => ({
+              ...prev,
+              [oldFId]: (prev[oldFId] ?? 0) - 1,
+              [folderId]: (prev[folderId] ?? 0) + 1,
+            }));
+            // Update selectedFolder so breadcrumb reflects new folder
+            const target = initialCourses.find((c) => c.id === folderId);
+            setSelectedFolder(target ? { id: target.id, label: target.name } : { id: "general", label: "General" });
+            showToast("Note moved", { duration: 2000 });
+          }}
           onUpdate={handleUpdateNote}
           onDelete={handleDeleteNote}
           onBack={handleBackFromEditor}

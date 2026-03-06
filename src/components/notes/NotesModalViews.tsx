@@ -1,6 +1,7 @@
 "use client";
 
 import { Pin } from "lucide-react";
+import { LUCIDE_ICON_MAP, isFilledIcon } from "@/components/home/emoji-picker-data";
 import { extractTextPreview } from "@/lib/notes-utils";
 import NoteContentPreview from "./NoteContentPreview";
 import type { Note } from "@/lib/types";
@@ -26,7 +27,6 @@ export function ListView({ notes, selectedIds, onSelect, onOpen }: ViewProps) {
     <div className="rounded-xl border border-border overflow-hidden bg-popover">
       {notes.map((note, i) => {
         const title = note.title || "Untitled";
-        const preview = extractTextPreview(note.content, 80);
         const date = formatRelativeDate(note.updated_at);
         const selected = selectedIds.has(note.id);
 
@@ -46,7 +46,15 @@ export function ListView({ notes, selectedIds, onSelect, onOpen }: ViewProps) {
           >
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5">
-                {note.icon && !note.icon.startsWith("lucide:") && <span className="text-sm shrink-0">{note.icon}</span>}
+                {note.icon && (
+                  <span className="text-sm shrink-0">
+                    {note.icon.startsWith("lucide:") ? (() => {
+                      const name = note.icon!.slice(7);
+                      const IC = LUCIDE_ICON_MAP[name];
+                      return IC ? <IC size={14} fill={isFilledIcon(name) ? "currentColor" : "none"} /> : null;
+                    })() : note.icon}
+                  </span>
+                )}
                 <span className="text-sm font-medium text-foreground truncate">
                   {title}
                 </span>
@@ -54,11 +62,6 @@ export function ListView({ notes, selectedIds, onSelect, onOpen }: ViewProps) {
                   <Pin size={11} className="shrink-0 text-muted-foreground" />
                 )}
               </div>
-              {preview && (
-                <p className="text-xs text-muted-foreground truncate mt-0.5">
-                  {preview}
-                </p>
-              )}
             </div>
             <span className="text-[11px] text-muted-foreground shrink-0">
               {date}
@@ -109,7 +112,15 @@ export function GridView({ notes, selectedIds, onSelect, onOpen }: ViewProps) {
             )}
             <div className="px-2.5 py-1.5 border-t border-border">
               <div className="flex items-center gap-1">
-                {note.icon && !note.icon.startsWith("lucide:") && <span className="text-xs shrink-0">{note.icon}</span>}
+                {note.icon && (
+                  <span className="text-xs shrink-0">
+                    {note.icon.startsWith("lucide:") ? (() => {
+                      const name = note.icon!.slice(7);
+                      const IC = LUCIDE_ICON_MAP[name];
+                      return IC ? <IC size={12} fill={isFilledIcon(name) ? "currentColor" : "none"} /> : null;
+                    })() : note.icon}
+                  </span>
+                )}
                 <span className="text-xs font-medium text-foreground truncate flex-1">
                   {title}
                 </span>
