@@ -1,6 +1,6 @@
 "use client";
 
-import { StickyNote } from "lucide-react";
+import { Folder } from "lucide-react";
 import type { FolderAppearance } from "./FolderAppearanceModal";
 
 /** Default light warm gray for folder headers. */
@@ -66,7 +66,7 @@ export default function FolderCardPreview({
         style={getHeaderStyle()}
       >
         {isDefault && (
-          <StickyNote size={28} className="text-white/30 drop-shadow-sm" />
+          <Folder size={28} fill="currentColor" className="text-white/30 drop-shadow-sm" />
         )}
         {appearance.type === "image" && (
           <div className="absolute inset-0 bg-black/10" />

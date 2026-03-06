@@ -5,6 +5,7 @@
  */
 
 import {
+  Folder, FolderOpen,
   Sparkles, Star, Heart, Flower2, Leaf, TreePine, Mountain, Waves,
   Sun, Moon, Cloud, Zap, Coffee, BookOpen, GraduationCap, Palette,
   Music, Camera, Gem, Crown, Feather, Flame, Rocket, Globe, Compass,
@@ -119,6 +120,7 @@ export const LUCIDE_ICON_MAP: Record<string, LucideIcon> = {
   laptop: Laptop, smartphone: Smartphone, tablet: Tablet, database: Database,
   server: Server, cpu: Cpu,
   code: Code, terminal: Terminal, "file-code": FileCode, "git-branch": GitBranch,
+  folder: Folder, "folder-open": FolderOpen,
   infinity: Infinity, hash: Hash, "at-sign": AtSign, percent: Percent,
   bolt: Bolt, "circle-play": CirclePlay, disc3: Disc3, drumstick: Drumstick,
   dumbbell: Dumbbell, ear: Ear, fingerprint: Fingerprint, gift: Gift,
@@ -498,6 +500,8 @@ export const LUCIDE_CATEGORIES: {
       { name: "microscope", icon: Microscope },
       { name: "test-tube", icon: TestTube },
       { name: "stethoscope", icon: Stethoscope },
+      { name: "folder", icon: Folder, filled: true },
+      { name: "folder-open", icon: FolderOpen },
     ],
   },
   {

@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useCallback, useRef, lazy, Suspense } from "react";
+import { useState, useCallback, useRef, useEffect, lazy, Suspense } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useNotes } from "@/hooks/useNotes";
 import { useFolderSettings } from "@/hooks/useFolderSettings";
 import NotesFolderGrid from "./NotesFolderGrid";
 import type { FolderEntry } from "./NotesFolderGrid";
 import { extractTextPreview } from "@/lib/notes-utils";
+import { useToast } from "@/contexts/ToastContext";
 import type { Note, NoteUpdate, Course } from "@/lib/types";
 
 /** Lazy-load heavy components not needed on initial render. */
@@ -38,10 +39,20 @@ export default function NotesLayout({
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [gridRefreshKey, setGridRefreshKey] = useState(0);
+  /** Adjustments to note counts per folder (incremented/decremented on create/delete). */
+  const [noteCountAdjustments, setNoteCountAdjustments] = useState<Record<string, number>>({});
   /** Tracks if we're returning from editor to skip entrance animation. */
   const skipAnimationRef = useRef(false);
 
+  // Reset skipAnimation after the first render so subsequent modal opens still animate
+  useEffect(() => {
+    if (skipAnimationRef.current) {
+      skipAnimationRef.current = false;
+    }
+  });
+
   const supabase = createClient();
+  const { showToast } = useToast();
   const { getFolderSetting, updateSetting } = useFolderSettings();
 
   const { notes, loading, createNote, updateNote, deleteNote, deleteNotes } = useNotes(
@@ -66,13 +77,18 @@ export default function NotesLayout({
     setModalOpen(false);
     setView("editor");
 
+    // Increment note count for the current folder
+    const fId = selectedFolder?.id ?? "general";
+    setNoteCountAdjustments((prev) => ({ ...prev, [fId]: (prev[fId] ?? 0) + 1 }));
+    showToast("Note created", { duration: 2000 });
+
     // Swap in the real note once persisted so subsequent saves use the real ID
     persisted.then((real) => {
       if (real) {
         setSelectedNote((prev) => (prev?.id === optimistic.id ? real : prev));
       }
     });
-  }, [createNote]);
+  }, [createNote, selectedFolder?.id, showToast]);
 
   const handleUpdateNote = useCallback(
     (id: string, updates: NoteUpdate) => {
@@ -89,12 +105,16 @@ export default function NotesLayout({
   const handleDeleteNote = useCallback(
     (id: string) => {
       deleteNote(id);
+      // Decrement note count for the current folder
+      const fId = selectedFolder?.id ?? "general";
+      setNoteCountAdjustments((prev) => ({ ...prev, [fId]: (prev[fId] ?? 0) - 1 }));
+      showToast("Note deleted");
       if (selectedNote?.id === id) {
         setSelectedNote(null);
         setView("folders");
       }
     },
-    [deleteNote, selectedNote?.id]
+    [deleteNote, selectedNote?.id, selectedFolder?.id, showToast]
   );
 
   const handleBackFromEditor = useCallback(() => {
@@ -170,6 +190,7 @@ export default function NotesLayout({
         getFolderSetting={getFolderSetting}
         updateSetting={updateSetting}
         skipAnimation={skipAnimationRef.current}
+        noteCountAdjustments={noteCountAdjustments}
       />
       <Suspense fallback={null}>
         <NotesModal
@@ -184,11 +205,17 @@ export default function NotesLayout({
           onSelectNote={handleSelectNote}
           onCreateNote={handleCreateNote}
           onUpdateNote={updateNote}
-          onDeleteNotes={deleteNotes}
+          onDeleteNotes={(ids: string[]) => {
+            deleteNotes(ids);
+            const fId = selectedFolder?.id ?? "general";
+            setNoteCountAdjustments((prev) => ({ ...prev, [fId]: (prev[fId] ?? 0) - ids.length }));
+            showToast(`${ids.length} ${ids.length === 1 ? "note" : "notes"} deleted`);
+          }}
           onRenameFolder={handleRenameFolder}
           onUpdateDescription={(desc) => updateSetting(folderId, "description", desc)}
           onUpdateIcon={(icon) => updateSetting(folderId, "icon", icon)}
           onClose={() => setModalOpen(false)}
+          skipAnimation={skipAnimationRef.current}
         />
       </Suspense>
     </>

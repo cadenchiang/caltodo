@@ -3,13 +3,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
-  X, FilePlus, List, LayoutGrid, Pencil, Trash2, Pin, PinOff, Printer,
+  X, FilePlus, List, LayoutGrid, Pencil, Trash2, Pin, PinOff, Printer, Folder,
 } from "lucide-react";
 import { ListView, GridView } from "./NotesModalViews";
 import { FolderTitle } from "./NotesModalParts";
 import EditToggleButton from "@/components/ui/EditToggleButton";
 import EmojiPicker from "@/components/home/EmojiPicker";
+import { LUCIDE_ICON_MAP, isFilledIcon } from "@/components/home/emoji-picker-data";
 import { useMarqueeSelection } from "@/hooks/useMarqueeSelection";
+import DeleteNoteConfirmModal from "./DeleteNoteConfirmModal";
 import type { Note, NoteUpdate } from "@/lib/types";
 
 interface Props {
@@ -29,6 +31,8 @@ interface Props {
   onUpdateDescription: (description: string) => void;
   onUpdateIcon: (icon: string) => void;
   onClose: () => void;
+  /** Skip entrance animation (e.g. when returning from editor). */
+  skipAnimation?: boolean;
 }
 
 type ViewMode = "list" | "grid";
@@ -56,12 +60,13 @@ export default function NotesModal({
   onUpdateDescription,
   onUpdateIcon,
   onClose,
+  skipAnimation,
 }: Props) {
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
-    if (typeof window === "undefined") return "list";
+    if (typeof window === "undefined") return "grid";
     try {
-      return (localStorage.getItem(VIEW_MODE_KEY) as ViewMode) || "list";
-    } catch { return "list"; }
+      return (localStorage.getItem(VIEW_MODE_KEY) as ViewMode) || "grid";
+    } catch { return "grid"; }
   });
 
   const [editMode, setEditMode] = useState(false);
@@ -97,6 +102,8 @@ export default function NotesModal({
     }
   }, [selectedIds.size]);
 
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
   /** Tracks whether a marquee drag just finished to suppress the click-to-deselect. */
   const justMarqueedRef = useRef(false);
 
@@ -113,6 +120,22 @@ export default function NotesModal({
 
   // Closing animation state — must be before early return to preserve hook order
   const [isClosing, setIsClosing] = useState(false);
+
+  /** Render folderIcon — resolves "lucide:name" to actual component, or emoji text. */
+  function renderFolderIcon() {
+    if (!folderIcon) {
+      return <Folder size={70} fill="currentColor" />;
+    }
+    if (folderIcon.startsWith("lucide:")) {
+      const name = folderIcon.slice(7);
+      const IconComp = LUCIDE_ICON_MAP[name];
+      if (IconComp) {
+        const filled = isFilledIcon(name);
+        return <IconComp size={70} fill={filled ? "currentColor" : "none"} />;
+      }
+    }
+    return <>{folderIcon}</>;
+  }
 
   if (!open || typeof document === "undefined") return null;
 
@@ -178,11 +201,17 @@ export default function NotesModal({
     }
   }
 
-  /** Delete all selected notes and clear selection. */
+  /** Show delete confirmation for selected notes. */
   function handleDeleteSelected() {
+    setShowDeleteConfirm(true);
+  }
+
+  /** Confirm deletion of selected notes. */
+  function confirmDeleteSelected() {
     const ids = Array.from(selectedIds);
     onDeleteNotes(ids);
     setSelectedIds(new Set());
+    setShowDeleteConfirm(false);
   }
 
   /** Toggle pin on all selected notes. */
@@ -201,7 +230,7 @@ export default function NotesModal({
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
     const content = selected.map((n) => `<h2>${n.title || "Untitled"}</h2>`).join("<hr>");
-    printWindow.document.write(`<html><head><title>Print Notes</title></head><body style="font-family:system-ui;padding:2rem">${content}</body></html>`);
+    printWindow.document.write(`<html><head><title>Print Notes</title><style>@media print { @page { margin: 1cm; } }</style></head><body style="font-family:system-ui;padding:2rem">${content}</body></html>`);
     printWindow.document.close();
     printWindow.print();
   }
@@ -217,12 +246,12 @@ export default function NotesModal({
   return createPortal(
     <div className="fixed inset-0 z-[55] flex items-center justify-center">
       <div
-        className={`absolute inset-0 bg-black/50 ${isClosing ? "animate-announce-backdrop-out" : "animate-announce-backdrop-in"}`}
+        className={`absolute inset-0 bg-black/50 ${isClosing ? "animate-announce-backdrop-out" : skipAnimation ? "" : "animate-announce-backdrop-in"}`}
         onClick={handleClose}
       />
 
       {/* Modal — narrower fixed size */}
-      <div className={`relative bg-card rounded-2xl shadow-xl overflow-hidden w-[760px] h-[92vh] max-w-[calc(100vw-2rem)] max-h-[calc(100vh-4rem)] flex flex-col ${isClosing ? "animate-announce-card-out" : "animate-announce-card-in"}`}>
+      <div className={`relative bg-card rounded-2xl shadow-xl overflow-hidden w-[760px] h-[92vh] max-w-[calc(100vw-2rem)] max-h-[calc(100vh-4rem)] flex flex-col ${isClosing ? "animate-announce-card-out" : skipAnimation ? "" : "animate-announce-card-in"}`}>
         {/* Top-right controls: edit toggle + close */}
         <div className="absolute top-5 right-5 z-10 flex items-center gap-1">
           <EditToggleButton editing={editMode} onToggle={handleToggleEdit} />
@@ -236,7 +265,9 @@ export default function NotesModal({
         </div>
 
         <div
-          className="flex-1 overflow-y-auto"
+          ref={notesContainerRef}
+          onMouseDown={onMarqueeMouseDown}
+          className="flex-1 overflow-y-auto relative select-none"
           onClick={(e) => {
             // Skip deselect if a marquee drag just finished
             if (justMarqueedRef.current) {
@@ -253,22 +284,22 @@ export default function NotesModal({
           {/* Title area */}
           <div className="px-10 pt-10 pb-3">
             {/* Clickable emoji icon — only clickable in edit mode */}
-            <div className="mb-4">
+            <div className="mb-2">
               {editMode ? (
                 <button
                   onClick={() => setShowEmojiPicker(true)}
-                  className="relative text-5xl hover:bg-muted rounded-xl w-16 h-16 flex items-center justify-center transition-colors cursor-pointer group"
+                  className="relative text-5xl hover:bg-muted rounded-xl w-16 h-16 flex items-center justify-start transition-colors cursor-pointer group"
                   title="Change icon"
                   aria-label="Change folder icon"
                 >
-                  {folderIcon || "📁"}
+                  {renderFolderIcon()}
                   <span className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                     <Pencil size={10} className="text-white" />
                   </span>
                 </button>
               ) : (
-                <div className="text-5xl w-16 h-16 flex items-center justify-center">
-                  {folderIcon || "📁"}
+                <div className="text-5xl w-16 h-16 flex items-center justify-start">
+                  {renderFolderIcon()}
                 </div>
               )}
             </div>
@@ -322,17 +353,6 @@ export default function NotesModal({
           <div className="px-10 py-3 flex items-center justify-between">
             <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-muted">
               <button
-                onClick={() => toggleView("list")}
-                className={`p-1.5 rounded-md transition-colors ${
-                  viewMode === "list"
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-                title="List view"
-              >
-                <List size={16} />
-              </button>
-              <button
                 onClick={() => toggleView("grid")}
                 className={`p-1.5 rounded-md transition-colors ${
                   viewMode === "grid"
@@ -342,6 +362,17 @@ export default function NotesModal({
                 title="Grid view"
               >
                 <LayoutGrid size={16} />
+              </button>
+              <button
+                onClick={() => toggleView("list")}
+                className={`p-1.5 rounded-md transition-colors ${
+                  viewMode === "list"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+                title="List view"
+              >
+                <List size={16} />
               </button>
             </div>
             <button
@@ -354,18 +385,16 @@ export default function NotesModal({
           </div>
 
           {/* Notes content */}
+          {/* Marquee selection overlay */}
+          {marqueeStyle && (
+            <div
+              className="bg-blue-500/20 border border-blue-500/50 rounded-sm pointer-events-none z-10"
+              style={marqueeStyle}
+            />
+          )}
           <div
-            ref={notesContainerRef}
-            onMouseDown={onMarqueeMouseDown}
-            className="relative min-h-[200px] px-10 py-5 select-none"
+            className="min-h-[200px] px-10 py-5"
           >
-            {/* Marquee selection overlay */}
-            {marqueeStyle && (
-              <div
-                className="bg-blue-500/20 border border-blue-500/50 rounded-sm"
-                style={marqueeStyle}
-              />
-            )}
             {loading ? (
               <div className="flex items-center justify-center py-16">
                 <div className="w-5 h-5 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
@@ -455,6 +484,13 @@ export default function NotesModal({
           </button>
         </div>
       )}
+
+      <DeleteNoteConfirmModal
+        open={showDeleteConfirm}
+        noteCount={selectedIds.size}
+        onConfirm={confirmDeleteSelected}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
 
       <EmojiPicker
         open={showEmojiPicker}
