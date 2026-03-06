@@ -1,6 +1,6 @@
 "use client";
 
-import { X } from "lucide-react";
+import { X, Undo2 } from "lucide-react";
 import type { ReactNode } from "react";
 
 /** Configuration for an optional action button on the toast. */
@@ -54,7 +54,7 @@ export default function Toast({
           }}
           className="flex items-center gap-1 text-amber-400 hover:text-amber-300 transition-colors font-medium whitespace-nowrap"
         >
-          {action.icon}
+          {action.icon ?? (action.label === "Undo" ? <Undo2 size={14} /> : null)}
           {action.label}
         </button>
       )}

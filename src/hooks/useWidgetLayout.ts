@@ -259,7 +259,7 @@ export function useWidgetLayout() {
   const setLayouts = useCallback(
     (_currentLayout: Layout, allLayouts: ResponsiveLayouts<string>) => {
       setLayoutsState((prev) => {
-        if (JSON.stringify(prev) === JSON.stringify(allLayouts)) return prev;
+        if (prev === allLayouts) return prev;
         setWidgets((prevWidgets) => {
           persistLayout(prevWidgets, allLayouts);
           return prevWidgets;

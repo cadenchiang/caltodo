@@ -10,7 +10,8 @@
  * @param onUpdateConfig - Callback to persist config changes
  */
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import useSWR from "swr";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Calendar, MapPin, ExternalLink, X, FileText } from "lucide-react";
@@ -212,7 +213,7 @@ function EventDetailPopover({ event, color, onClose }: { event: GCalEvent; color
         {/* Title section — colored dot + title + time */}
         <div className="flex items-start gap-4 px-6 pb-4 pt-1">
           <div
-            className="w-4 h-4 rounded shrink-0 mt-1"
+            className="w-4 h-4 rounded shrink-0 mt-1.5"
             style={{ backgroundColor: color }}
           />
           <div className="min-w-0 flex-1">
@@ -229,8 +230,8 @@ function EventDetailPopover({ event, color, onClose }: { event: GCalEvent; color
         <div className="pb-4">
           {/* Location */}
           {event.location && (
-            <div className="flex items-center gap-4 px-6 py-2.5">
-              <MapPin size={20} className="shrink-0 text-muted-foreground" />
+            <div className="flex items-start gap-4 px-6 py-2.5">
+              <MapPin size={20} className="shrink-0 mt-0.5 text-muted-foreground" />
               <span className="text-sm font-medium text-foreground">
                 {event.location}
               </span>
@@ -416,11 +417,6 @@ export default function GoogleCalendarWidget({ config, editMode, onUpdateConfig 
   const router = useRouter();
   const viewMode = (config.viewMode as ViewMode) || "week";
   const { containerRef, compact } = useCompactMode(160);
-  const [events, setEvents] = useState<GCalEvent[]>([]);
-  const [connected, setConnected] = useState<boolean | null>(null);
-  /** True only on first mount before any data has loaded. */
-  const [initialLoading, setInitialLoading] = useState(true);
-
   // Parse multi-calendar config: calendarIds (JSON) → calendarId (single) → ["primary"]
   const calendarIds: string[] = useMemo(() => {
     if (config.calendarIds) {
@@ -438,40 +434,39 @@ export default function GoogleCalendarWidget({ config, editMode, onUpdateConfig 
     return {};
   }, [config.calendarColors]);
 
-  const calendarIdsKey = calendarIds.join(",");
-
-  const fetchEvents = useCallback(async () => {
-    try {
-      const params = new URLSearchParams();
-      if (calendarIds.length === 1) {
-        params.set("calendarId", calendarIds[0]);
-      } else if (calendarIds.length > 1) {
-        params.set("calendarIds", calendarIds.join(","));
-      }
-
-      const customDays = viewMode === "custom" ? parseInt(config.customDays || "7", 10) : undefined;
-      const { timeMin, timeMax } = getTimeRange(viewMode, customDays);
-      params.set("timeMin", timeMin);
-      params.set("timeMax", timeMax);
-
-      const res = await fetch(`/api/gcal/events?${params}`);
-      if (!res.ok) throw new Error("Failed to fetch");
-      const data = await res.json();
-      setEvents(data.events || []);
-      setConnected(data.connected ?? true);
-    } catch {
-      setConnected(false);
-    } finally {
-      setInitialLoading(false);
+  // Build SWR key from calendar + view params
+  const swrKey = useMemo(() => {
+    const params = new URLSearchParams();
+    if (calendarIds.length === 1) {
+      params.set("calendarId", calendarIds[0]);
+    } else if (calendarIds.length > 1) {
+      params.set("calendarIds", calendarIds.join(","));
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [calendarIdsKey, viewMode, config.customDays]);
+    const customDays = viewMode === "custom" ? parseInt(config.customDays || "7", 10) : undefined;
+    const { timeMin, timeMax } = getTimeRange(viewMode, customDays);
+    params.set("timeMin", timeMin);
+    params.set("timeMax", timeMax);
+    return `/api/gcal/events?${params}`;
+  }, [calendarIds, viewMode, config.customDays]);
 
-  useEffect(() => {
-    fetchEvents();
-  }, [fetchEvents]);
+  const { data, isLoading } = useSWR(
+    swrKey,
+    async (url: string) => {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
+    {
+      revalidateOnFocus: true,
+      dedupingInterval: 60000,
+      refreshInterval: 300000,
+    }
+  );
 
-  if (initialLoading) {
+  const events: GCalEvent[] = data?.events || [];
+  const connected: boolean | null = data ? (data.connected ?? true) : null;
+
+  if (isLoading) {
     return (
       <div className="h-full w-full flex flex-col p-4">
         <div className="flex items-center gap-2 mb-3">

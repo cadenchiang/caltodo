@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Plus, Pencil, ImageIcon, Trash2, X } from "lucide-react";
 import { useMarqueeSelection } from "@/hooks/useMarqueeSelection";
@@ -99,6 +99,11 @@ export default function NotesFolderGrid({
   const [newFolderName, setNewFolderName] = useState("");
   const supabase = createClient();
 
+  const folders: FolderEntry[] = useMemo(() => [
+    { id: "general", label: "General" },
+    ...courses.map((c) => ({ id: c.id, label: c.name })),
+  ], [courses]);
+
   // Side-panel editing state
   const [editingFolder, setEditingFolder] = useState<EditingFolder | null>(null);
   const [spotlightRect, setSpotlightRect] = useState<{
@@ -156,7 +161,7 @@ export default function NotesFolderGrid({
    * Select a folder. Plain click selects only this one and sets anchor.
    * Shift+click selects the range between the anchor and the clicked folder.
    */
-  function toggleFolderSelect(folderId: string, shiftKey: boolean) {
+  const toggleFolderSelect = useCallback((folderId: string, shiftKey: boolean) => {
     if (shiftKey && folderAnchorRef.current) {
       const anchorIdx = folders.findIndex((f) => f.id === folderAnchorRef.current);
       const targetIdx = folders.findIndex((f) => f.id === folderId);
@@ -168,14 +173,15 @@ export default function NotesFolderGrid({
         return;
       }
     }
-    if (selectedFolderIds.size === 1 && selectedFolderIds.has(folderId)) {
-      folderAnchorRef.current = null;
-      setSelectedFolderIds(new Set());
-    } else {
+    setSelectedFolderIds((prev) => {
+      if (prev.size === 1 && prev.has(folderId)) {
+        folderAnchorRef.current = null;
+        return new Set();
+      }
       folderAnchorRef.current = folderId;
-      setSelectedFolderIds(new Set([folderId]));
-    }
-  }
+      return new Set([folderId]);
+    });
+  }, [folders]);
 
   /** Delete all selected folders and clear selection. */
   async function handleDeleteSelected() {
@@ -448,6 +454,14 @@ export default function NotesFolderGrid({
   }
 
   /**
+   * Clears selection and opens a folder.
+   */
+  const handleOpenFolder = useCallback((folder: FolderEntry) => {
+    setSelectedFolderIds(new Set());
+    onSelectFolder(folder);
+  }, [onSelectFolder]);
+
+  /**
    * Opens the appearance side panel for a folder.
    */
   const handleOpenAppearance = useCallback((folderId: string, rect: DOMRect) => {
@@ -472,14 +486,8 @@ export default function NotesFolderGrid({
     closePanel();
   }
 
-  const folders: FolderEntry[] = [
-    { id: "general", label: "General" },
-    ...courses.map((c) => ({ id: c.id, label: c.name })),
-  ];
-
   /**
    * Opens the rename side panel for a folder.
-   * Defined after folders so it has access to the current list.
    */
   const openRename = (folderId: string, rect: DOMRect) => {
     const folder = folders.find((f) => f.id === folderId);
@@ -512,7 +520,7 @@ export default function NotesFolderGrid({
   }
 
   return (
-    <div ref={folderGridRef} className={`h-full overflow-y-auto px-1 -mx-1 pb-12 ${skipAnimation ? "" : "animate-page-in"} relative select-none`} onClick={handleBackgroundClick} onMouseDown={onMarqueeMouseDown}>
+    <div ref={folderGridRef} data-print-hide className={`h-full overflow-y-auto px-1 -mx-1 pb-12 ${skipAnimation ? "" : "animate-page-in"} relative select-none`} onClick={handleBackgroundClick} onMouseDown={onMarqueeMouseDown}>
       {/* Header with New Folder button */}
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -557,7 +565,7 @@ export default function NotesFolderGrid({
             key={folder.id}
             folder={folder}
             appearance={getFolderAppearance(folder.id)}
-            noteCount={(noteCounts[folder.id] ?? 0) + (noteCountAdjustments?.[folder.id] ?? 0)}
+            noteCount={Math.max(0, (noteCounts[folder.id] ?? 0) + (noteCountAdjustments?.[folder.id] ?? 0))}
             isGeneral={folder.id === "general"}
             hasCustomAppearance={folder.id === "general" || !!getFolderSetting(folder.id).appearance}
             highlighted={editingFolder?.id === folder.id}
@@ -568,10 +576,7 @@ export default function NotesFolderGrid({
                 : undefined
             }
             onSelect={toggleFolderSelect}
-            onOpen={(folder) => {
-              setSelectedFolderIds(new Set());
-              onSelectFolder(folder);
-            }}
+            onOpen={handleOpenFolder}
           />
         ))}
 

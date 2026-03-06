@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { memo, useRef } from "react";
 import FolderCardPreview from "./FolderCardPreview";
 import type { FolderAppearance } from "./FolderAppearanceModal";
 import type { FolderEntry } from "./NotesFolderGrid";
@@ -23,6 +23,8 @@ interface Props {
  * A single folder card in the notes grid.
  * Single click toggles selection; double click opens the folder.
  * Delegates rendering to FolderCardPreview for consistent look.
+ * Wrapped in React.memo to avoid re-rendering when parent state changes
+ * but this card's props haven't changed.
  *
  * @param folder - The folder entry data
  * @param appearance - Header appearance (color, gradient, or image)
@@ -34,7 +36,7 @@ interface Props {
  * @param onSelect - Toggle selection for this folder
  * @param onOpen - Open the folder to view notes
  */
-export default function FolderCard({
+const FolderCard = memo(function FolderCard({
   folder,
   appearance,
   noteCount,
@@ -72,4 +74,6 @@ export default function FolderCard({
       </button>
     </div>
   );
-}
+});
+
+export default FolderCard;

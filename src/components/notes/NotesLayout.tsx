@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, lazy, Suspense } from "react";
+import { useState, useCallback, lazy, Suspense } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useNotes } from "@/hooks/useNotes";
 import { useFolderSettings } from "@/hooks/useFolderSettings";
@@ -44,14 +44,7 @@ export default function NotesLayout({
   /** Tracks if we're returning from editor to skip entrance animation. */
   const [skipAnimation, setSkipAnimation] = useState(false);
 
-  // Reset skipAnimation after the render with skipAnimation=true completes
-  useEffect(() => {
-    if (!skipAnimation) return;
-    const id = requestAnimationFrame(() => {
-      requestAnimationFrame(() => setSkipAnimation(false));
-    });
-    return () => cancelAnimationFrame(id);
-  }, [skipAnimation]);
+  // skipAnimation is reset when the user opens a folder normally (not from back nav)
 
   const supabase = createClient();
   const { showToast } = useToast();
@@ -69,6 +62,7 @@ export default function NotesLayout({
   );
 
   const handleSelectFolder = useCallback((folder: FolderEntry) => {
+    setSkipAnimation(false);
     setSelectedFolder(folder);
     setSelectedNote(null);
     setModalOpen(true);
@@ -139,7 +133,29 @@ export default function NotesLayout({
       const hasTitle = selectedNote.title.trim().length > 0;
       const hasContent = extractTextPreview(selectedNote.content, 1).length > 0;
       if (!hasTitle && !hasContent) {
-        deleteNote(selectedNote.id);
+        // Hard-delete blank notes — they shouldn't go to Recently Deleted
+        const noteId = selectedNote.id;
+        const fId = selectedFolder?.id ?? "general";
+        setNoteCountAdjustments((prev) => ({ ...prev, [fId]: (prev[fId] ?? 0) - 1 }));
+        if (noteId.startsWith("temp-")) {
+          // Temp ID hasn't been persisted yet — poll briefly for the real row
+          const courseId = selectedNote.course_id;
+          setTimeout(async () => {
+            const { data } = await supabase
+              .from("notes")
+              .select("id")
+              .eq("title", "")
+              .is("course_id", courseId ?? null)
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .single();
+            if (data) {
+              await supabase.from("notes").delete().eq("id", data.id);
+            }
+          }, 1500);
+        } else {
+          supabase.from("notes").delete().eq("id", noteId);
+        }
       }
     }
     setSkipAnimation(true);
@@ -148,7 +164,7 @@ export default function NotesLayout({
     if (selectedFolder) {
       setModalOpen(true);
     }
-  }, [selectedFolder, selectedNote, deleteNote]);
+  }, [selectedFolder, selectedNote, supabase]);
 
   /**
    * Renames the selected folder. Updates courses + tasks in DB,
