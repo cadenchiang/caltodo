@@ -57,14 +57,8 @@ export default function Hero() {
             Login
           </Link>
           <Link
-            href="/mobile"
-            className="sm:hidden px-4 py-1.5 text-xs font-medium rounded-full bg-[#0071E3] text-white hover:scale-[1.05] active:scale-[0.97] transition-transform duration-200"
-          >
-            Get caltodo free
-          </Link>
-          <Link
             href="/login?signup=true"
-            className="hidden sm:block px-5 py-2 text-sm font-medium rounded-full bg-[#0071E3] text-white hover:scale-[1.05] active:scale-[0.97] transition-transform duration-200"
+            className="px-4 py-1.5 text-xs sm:px-5 sm:py-2 sm:text-sm font-medium rounded-full bg-[#0071E3] text-white hover:scale-[1.05] active:scale-[0.97] transition-transform duration-200"
           >
             Get caltodo free
           </Link>
@@ -160,16 +154,6 @@ export default function Hero() {
           </p>
 
           {/* CTA — simple pill on mobile, interactive hover button on desktop */}
-          <Link
-            href="/mobile"
-            className="sm:hidden flex items-center gap-2 px-6 py-2.5 rounded-full bg-[#0071E3] text-white text-sm font-semibold mb-6 active:scale-[0.97] transition-transform"
-          >
-            Get caltodo free
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M5 12h14" />
-              <path d="M12 5l7 7-7 7" />
-            </svg>
-          </Link>
           <Link
             href="/login?signup=true"
             className="group hidden sm:flex items-center gap-2 px-8 py-2 rounded-full bg-[#0071E3] text-white text-base font-medium hover:scale-[1.05] active:scale-[0.97] transition-transform duration-200 sm:mb-12"

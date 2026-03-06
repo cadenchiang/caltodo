@@ -71,38 +71,6 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
   useOnboardingStatus();
   const { pendingInviteCount } = useNotifications();
 
-  // Track whether user has clicked CalChat to dismiss "NEW" badge
-  const [calchatClicked, setCalchatClicked] = useState(true); // default true to avoid flash
-  useEffect(() => {
-    try {
-      setCalchatClicked(localStorage.getItem("calchat_new_dismissed") === "true");
-    } catch { /* ignore */ }
-  }, []);
-
-  // Dismiss "NEW" badge when user navigates to CalChat
-  useEffect(() => {
-    if (pathname.startsWith("/app/discussions") && !calchatClicked) {
-      setCalchatClicked(true);
-      try { localStorage.setItem("calchat_new_dismissed", "true"); } catch { /* ignore */ }
-    }
-  }, [pathname, calchatClicked]);
-
-  // Track whether user has visited Home to dismiss "NEW" badge
-  const [homeBadgeDismissed, setHomeBadgeDismissed] = useState(true); // default true to avoid flash
-  useEffect(() => {
-    try {
-      setHomeBadgeDismissed(localStorage.getItem("home-badge-dismissed") === "true");
-    } catch { /* ignore */ }
-  }, []);
-
-  // Dismiss Home "NEW" badge on first visit to /app/home
-  useEffect(() => {
-    if (pathname.startsWith("/app/home") && !homeBadgeDismissed) {
-      setHomeBadgeDismissed(true);
-      try { localStorage.setItem("home-badge-dismissed", "true"); } catch { /* ignore */ }
-    }
-  }, [pathname, homeBadgeDismissed]);
-
   // Derive active settings section directly from URL search params (single source of truth)
   const sectionParam = searchParams.get("section");
   const activeSettingsSection: SettingsSectionId =
@@ -210,13 +178,7 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
                         ? pendingInviteCount
                         : undefined
                   }
-                  badgeText={
-                    isChat && hasCalChatUnread === 0 && !calchatClicked
-                      ? "NEW"
-                      : isHome && !homeBadgeDismissed
-                        ? "NEW"
-                        : undefined
-                  }
+                  badgeText={undefined}
                   id={`tour-nav-${item.label.toLowerCase()}`}
                   imageSrc={undefined}
                   imageClassName={undefined}
