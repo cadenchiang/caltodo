@@ -77,12 +77,9 @@ export default function SyllabusSettings() {
               </button>
             </>
           ) : (
-            <button
-              onClick={() => router.push("/app/onboarding?setup=syllabus")}
-              className="text-xs font-medium text-purple-500 hover:text-purple-600 dark:hover:text-purple-400 px-3 py-1 rounded-lg border border-purple-200 dark:border-purple-500/30 hover:bg-purple-50 dark:hover:bg-purple-500/10 transition-colors cursor-pointer"
-            >
-              Upload
-            </button>
+            <span className="text-xs font-medium text-muted-foreground px-3 py-1">
+              Coming soon
+            </span>
           )}
         </div>
       </div>

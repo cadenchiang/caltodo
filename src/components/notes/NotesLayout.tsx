@@ -216,7 +216,7 @@ export default function NotesLayout({
           />
         </Suspense>
       )}
-      <div style={{ display: showEditor ? "none" : undefined }}>
+      <div className="h-full" style={{ display: showEditor ? "none" : undefined }}>
         <NotesFolderGrid
           key={gridRefreshKey}
           initialCourses={initialCourses}
