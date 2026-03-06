@@ -1,14 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
-  X, Plus, List, LayoutGrid, StickyNote, Pencil,
+  X, FilePlus, List, LayoutGrid, StickyNote, Pencil, Trash2,
 } from "lucide-react";
 import { ListView, GridView } from "./NotesModalViews";
 import { FolderTitle } from "./NotesModalParts";
 import EditToggleButton from "@/components/ui/EditToggleButton";
 import EmojiPicker from "@/components/home/EmojiPicker";
+import { useMarqueeSelection } from "@/hooks/useMarqueeSelection";
 import type { Note } from "@/lib/types";
 
 interface Props {
@@ -21,7 +22,8 @@ interface Props {
   notes: Note[];
   loading: boolean;
   onSelectNote: (note: Note) => void;
-  onCreateNote: () => void;
+  onCreateNote: (title?: string) => void;
+  onDeleteNotes: (ids: string[]) => void;
   onRenameFolder: (newName: string) => void;
   onUpdateDescription: (description: string) => void;
   onUpdateIcon: (icon: string) => void;
@@ -47,6 +49,7 @@ export default function NotesModal({
   loading,
   onSelectNote,
   onCreateNote,
+  onDeleteNotes,
   onRenameFolder,
   onUpdateDescription,
   onUpdateIcon,
@@ -63,6 +66,42 @@ export default function NotesModal({
   const [editTitle, setEditTitle] = useState("");
   const [editDesc, setEditDesc] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const notesContainerRef = useRef<HTMLDivElement>(null);
+
+  // Clear selection when modal opens/closes
+  useEffect(() => {
+    if (!open) setSelectedIds(new Set());
+  }, [open]);
+
+  // Animate floating bar exit
+  const [noteBarVisible, setNoteBarVisible] = useState(false);
+  const [noteBarClosing, setNoteBarClosing] = useState(false);
+  const noteBarTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  useEffect(() => {
+    if (selectedIds.size > 0) {
+      clearTimeout(noteBarTimerRef.current);
+      setNoteBarClosing(false);
+      setNoteBarVisible(true);
+    } else if (noteBarVisible) {
+      setNoteBarClosing(true);
+      noteBarTimerRef.current = setTimeout(() => {
+        setNoteBarVisible(false);
+        setNoteBarClosing(false);
+      }, 200);
+    }
+  }, [selectedIds.size]);
+
+  const handleMarqueeSelection = useCallback((ids: Set<string>) => {
+    setSelectedIds(ids);
+  }, []);
+
+  const { marqueeStyle, isSelecting, onMouseDown: onMarqueeMouseDown } = useMarqueeSelection({
+    containerRef: notesContainerRef,
+    onSelectionChange: handleMarqueeSelection,
+    existingSelection: selectedIds,
+  });
 
   if (!open || typeof document === "undefined") return null;
 
@@ -102,6 +141,32 @@ export default function NotesModal({
     }
   }
 
+  /** Select a note. Plain click selects only this one; Shift+click adds to selection. */
+  function toggleSelect(noteId: string, shiftKey: boolean) {
+    setSelectedIds((prev) => {
+      if (shiftKey) {
+        const next = new Set(prev);
+        if (next.has(noteId)) {
+          next.delete(noteId);
+        } else {
+          next.add(noteId);
+        }
+        return next;
+      }
+      if (prev.size === 1 && prev.has(noteId)) {
+        return new Set();
+      }
+      return new Set([noteId]);
+    });
+  }
+
+  /** Delete all selected notes and clear selection. */
+  function handleDeleteSelected() {
+    const ids = Array.from(selectedIds);
+    onDeleteNotes(ids);
+    setSelectedIds(new Set());
+  }
+
   return createPortal(
     <div className="fixed inset-0 z-[55] flex items-center justify-center">
       <div
@@ -110,7 +175,7 @@ export default function NotesModal({
       />
 
       {/* Modal — narrower fixed size */}
-      <div className="relative bg-card rounded-2xl shadow-xl animate-announce-card-in overflow-hidden w-[680px] h-[780px] max-w-[calc(100vw-2rem)] max-h-[calc(100vh-4rem)] flex flex-col">
+      <div className="relative bg-card rounded-2xl shadow-xl animate-announce-card-in overflow-hidden w-[680px] h-[640px] max-w-[calc(100vw-2rem)] max-h-[calc(100vh-4rem)] flex flex-col">
         {/* Top-right controls: edit toggle + close */}
         <div className="absolute top-5 right-5 z-10 flex items-center gap-1">
           <EditToggleButton editing={editMode} onToggle={handleToggleEdit} />
@@ -125,13 +190,13 @@ export default function NotesModal({
 
         <div className="flex-1 overflow-y-auto">
           {/* Title area */}
-          <div className="px-16 pt-16 pb-4">
+          <div className="px-10 pt-10 pb-3">
             {/* Clickable emoji icon — only clickable in edit mode */}
-            <div className="mb-3">
+            <div className="mb-4">
               {editMode ? (
                 <button
                   onClick={() => setShowEmojiPicker(true)}
-                  className="relative text-4xl hover:bg-muted rounded-xl w-14 h-14 flex items-center justify-center transition-colors cursor-pointer group"
+                  className="relative text-5xl hover:bg-muted rounded-xl w-16 h-16 flex items-center justify-center transition-colors cursor-pointer group"
                   title="Change icon"
                   aria-label="Change folder icon"
                 >
@@ -141,7 +206,7 @@ export default function NotesModal({
                   </span>
                 </button>
               ) : (
-                <div className="text-4xl w-14 h-14 flex items-center justify-center">
+                <div className="text-5xl w-16 h-16 flex items-center justify-center">
                   {folderIcon || "📁"}
                 </div>
               )}
@@ -190,10 +255,10 @@ export default function NotesModal({
             </p>
           </div>
 
-          <div className="mx-16 border-t border-border" />
+          <div className="mx-10 border-t border-border" />
 
           {/* Toolbar */}
-          <div className="px-16 py-4 flex items-center justify-between">
+          <div className="px-10 py-3 flex items-center justify-between">
             <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-muted">
               <button
                 onClick={() => toggleView("list")}
@@ -219,16 +284,27 @@ export default function NotesModal({
               </button>
             </div>
             <button
-              onClick={onCreateNote}
+              onClick={() => onCreateNote()}
               className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               title="New Note"
             >
-              <Plus size={18} />
+              <FilePlus size={18} />
             </button>
           </div>
 
           {/* Notes content */}
-          <div className="min-h-[320px] px-16 py-8">
+          <div
+            ref={notesContainerRef}
+            onMouseDown={onMarqueeMouseDown}
+            className="relative min-h-[200px] px-10 py-5 select-none"
+          >
+            {/* Marquee selection overlay */}
+            {marqueeStyle && (
+              <div
+                className="bg-blue-500/20 border border-blue-500/50 rounded-sm"
+                style={marqueeStyle}
+              />
+            )}
             {loading ? (
               <div className="flex items-center justify-center py-16">
                 <div className="w-5 h-5 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
@@ -238,20 +314,56 @@ export default function NotesModal({
                 <StickyNote size={40} strokeWidth={1.5} className="mb-3 opacity-40" />
                 <p className="text-sm">No notes yet</p>
                 <button
-                  onClick={onCreateNote}
+                  onClick={() => onCreateNote()}
                   className="text-sm text-blue-500 hover:text-blue-600 mt-2"
                 >
                   Create your first note
                 </button>
               </div>
             ) : viewMode === "list" ? (
-              <ListView notes={notes} onSelect={onSelectNote} />
+              <ListView
+                notes={notes}
+                selectedIds={selectedIds}
+                onSelect={toggleSelect}
+                onOpen={onSelectNote}
+              />
             ) : (
-              <GridView notes={notes} onSelect={onSelectNote} />
+              <GridView
+                notes={notes}
+                selectedIds={selectedIds}
+                onSelect={toggleSelect}
+                onOpen={onSelectNote}
+              />
             )}
           </div>
         </div>
       </div>
+
+      {/* Floating selection bar */}
+      {noteBarVisible && (
+        <div className={`absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-foreground text-background shadow-lg ${noteBarClosing ? "animate-announce-card-out" : "animate-announce-card-in"}`}>
+          <span className="text-xs font-medium">
+            {selectedIds.size} selected
+          </span>
+          <div className="w-px h-3.5 bg-background/20" />
+          <button
+            onClick={handleDeleteSelected}
+            className="w-7 h-7 rounded-md flex items-center justify-center text-red-400 hover:text-red-300 hover:bg-background/10 transition-colors"
+            title="Delete"
+            aria-label="Delete notes"
+          >
+            <Trash2 size={14} />
+          </button>
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            className="w-7 h-7 rounded-md flex items-center justify-center text-background/60 hover:text-background hover:bg-background/10 transition-colors"
+            title="Clear selection"
+            aria-label="Clear selection"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
 
       <EmojiPicker
         open={showEmojiPicker}

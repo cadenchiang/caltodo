@@ -4,26 +4,43 @@ import { Pin } from "lucide-react";
 import { extractTextPreview } from "@/lib/notes-utils";
 import type { Note } from "@/lib/types";
 
+interface ViewProps {
+  notes: Note[];
+  selectedIds: Set<string>;
+  onSelect: (noteId: string, shiftKey: boolean) => void;
+  onOpen: (note: Note) => void;
+}
+
 /**
  * List view: compact rows with title, preview, and date.
+ * Single click toggles selection; double click opens the note.
  *
  * @param notes - Notes to display
- * @param onSelect - Callback when a note row is clicked
+ * @param selectedIds - Currently selected note IDs
+ * @param onSelect - Toggle selection for a note ID
+ * @param onOpen - Open a note in the editor
  */
-export function ListView({ notes, onSelect }: { notes: Note[]; onSelect: (n: Note) => void }) {
+export function ListView({ notes, selectedIds, onSelect, onOpen }: ViewProps) {
   return (
     <div className="rounded-xl border border-border overflow-hidden bg-popover">
       {notes.map((note, i) => {
         const title = note.title || "Untitled";
         const preview = extractTextPreview(note.content, 80);
         const date = formatRelativeDate(note.updated_at);
+        const selected = selectedIds.has(note.id);
 
         return (
           <button
             key={note.id}
-            onClick={() => onSelect(note)}
-            className={`w-full text-left px-4 py-3 hover:bg-accent/50 transition-colors flex items-center gap-3 ${
+            data-note-id={note.id}
+            onClick={(e) => onSelect(note.id, e.shiftKey)}
+            onDoubleClick={() => onOpen(note)}
+            className={`w-full text-left px-4 py-3 transition-colors flex items-center gap-3 ${
               i < notes.length - 1 ? "border-b border-border" : ""
+            } ${
+              selected
+                ? "bg-blue-500/15 dark:bg-blue-500/20"
+                : "hover:bg-accent/50"
             }`}
           >
             <div className="flex-1 min-w-0">
@@ -53,25 +70,35 @@ export function ListView({ notes, onSelect }: { notes: Note[]; onSelect: (n: Not
 
 /**
  * Grid view: cards with a color bar and content preview.
+ * Single click toggles selection; double click opens the note.
  *
  * @param notes - Notes to display
- * @param onSelect - Callback when a note card is clicked
+ * @param selectedIds - Currently selected note IDs
+ * @param onSelect - Toggle selection for a note ID
+ * @param onOpen - Open a note in the editor
  */
-export function GridView({ notes, onSelect }: { notes: Note[]; onSelect: (n: Note) => void }) {
+export function GridView({ notes, selectedIds, onSelect, onOpen }: ViewProps) {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
       {notes.map((note) => {
         const title = note.title || "Untitled";
         const preview = extractTextPreview(note.content, 100);
         const date = formatRelativeDate(note.updated_at);
+        const selected = selectedIds.has(note.id);
 
         return (
           <button
             key={note.id}
-            onClick={() => onSelect(note)}
-            className="rounded-xl border border-border bg-popover text-left transition-all hover:shadow-md dark:hover:shadow-black/20 hover:border-border/80 overflow-hidden"
+            data-note-id={note.id}
+            onClick={(e) => onSelect(note.id, e.shiftKey)}
+            onDoubleClick={() => onOpen(note)}
+            className={`rounded-xl border text-left transition-all overflow-hidden ${
+              selected
+                ? "border-blue-500 bg-blue-500/10 ring-1 ring-blue-500/30"
+                : "border-border bg-popover hover:shadow-md dark:hover:shadow-black/20 hover:border-border/80"
+            }`}
           >
-            <div className="h-2 bg-muted" />
+            <div className={`h-2 ${selected ? "bg-blue-500/30" : "bg-muted"}`} />
             <div className="px-3 py-3">
               <div className="flex items-center gap-1.5 mb-1">
                 <span className="text-sm font-semibold text-foreground truncate flex-1">

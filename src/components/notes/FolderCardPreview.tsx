@@ -11,6 +11,7 @@ interface Props {
   appearance: FolderAppearance;
   noteCount: number;
   highlighted?: boolean;
+  selected?: boolean;
 }
 
 /**
@@ -23,12 +24,14 @@ interface Props {
  * @param appearance - Header appearance (color, gradient, or image)
  * @param noteCount - Number of notes shown below name
  * @param highlighted - Whether to show the blue active ring
+ * @param selected - Whether the card is selected via marquee or click
  */
 export default function FolderCardPreview({
   label,
   appearance,
   noteCount,
   highlighted = false,
+  selected = false,
 }: Props) {
   const isDefault =
     appearance.type === "color" && appearance.value === DEFAULT_COLOR;
@@ -49,15 +52,17 @@ export default function FolderCardPreview({
 
   return (
     <div
-      className={`relative rounded-xl overflow-hidden border bg-popover transition-all duration-150 ${
+      className={`relative rounded-xl bg-popover transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-sm ${
         highlighted
-          ? "border-blue-400 dark:border-blue-500 ring-2 ring-blue-400/20 shadow-lg dark:shadow-black/30"
-          : "border-border shadow-sm dark:shadow-none"
+          ? "border border-transparent outline-3 outline-blue-500/60 shadow-sm"
+          : selected
+            ? "border border-transparent outline-[2.5px] outline-blue-500/70 shadow-sm"
+            : "border border-border shadow-sm dark:shadow-none"
       }`}
     >
       {/* Header — fixed height so images don't shrink the card */}
       <div
-        className="h-[120px] flex items-center justify-center relative"
+        className="h-[140px] flex items-center justify-center relative rounded-t-[11px] overflow-hidden"
         style={getHeaderStyle()}
       >
         {isDefault && (
