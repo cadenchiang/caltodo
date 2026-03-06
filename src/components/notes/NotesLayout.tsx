@@ -255,7 +255,7 @@ export default function NotesLayout({
             folderDescription={folderSettings.description ?? ""}
             folderIcon={folderSettings.icon ?? ""}
             isGeneral={selectedFolder?.id === "general"}
-            notes={notes}
+            notes={notes.filter((n) => n.title.trim() || extractTextPreview(n.content, 1))}
             loading={loading}
             onSelectNote={handleSelectNote}
             onCreateNote={handleCreateNote}
