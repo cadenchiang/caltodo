@@ -191,6 +191,28 @@ export function useNotes(courseId: string | "general" | null) {
     }
   }
 
+  /**
+   * Restore soft-deleted notes by clearing their deleted_at timestamp.
+   * Refreshes local state after restore.
+   *
+   * @param ids - Array of note IDs to restore
+   */
+  async function restoreNotes(ids: string[]) {
+    if (ids.length === 0) return;
+
+    const { error: restoreError } = await supabase
+      .from("notes")
+      .update({ deleted_at: null })
+      .in("id", ids);
+
+    if (restoreError) {
+      setError(restoreError.message);
+      console.error("Failed to restore notes:", restoreError.message);
+    }
+
+    fetchNotes();
+  }
+
   return {
     notes,
     loading,
@@ -199,6 +221,7 @@ export function useNotes(courseId: string | "general" | null) {
     updateNote,
     deleteNote,
     deleteNotes,
+    restoreNotes,
     refetch: fetchNotes,
   };
 }

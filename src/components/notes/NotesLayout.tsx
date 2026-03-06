@@ -55,7 +55,7 @@ export default function NotesLayout({
   const { showToast } = useToast();
   const { getFolderSetting, updateSetting } = useFolderSettings();
 
-  const { notes, loading, createNote, updateNote, deleteNote, deleteNotes } = useNotes(
+  const { notes, loading, createNote, updateNote, deleteNote, deleteNotes, restoreNotes } = useNotes(
     selectedFolder?.id ?? null
   );
 
@@ -105,16 +105,23 @@ export default function NotesLayout({
   const handleDeleteNote = useCallback(
     (id: string) => {
       deleteNote(id);
-      // Decrement note count for the current folder
       const fId = selectedFolder?.id ?? "general";
       setNoteCountAdjustments((prev) => ({ ...prev, [fId]: (prev[fId] ?? 0) - 1 }));
-      showToast("Note deleted");
       if (selectedNote?.id === id) {
         setSelectedNote(null);
         setView("folders");
       }
+      showToast("Note deleted", {
+        action: {
+          label: "Undo",
+          onClick: () => {
+            restoreNotes([id]);
+            setNoteCountAdjustments((prev) => ({ ...prev, [fId]: (prev[fId] ?? 0) + 1 }));
+          },
+        },
+      });
     },
-    [deleteNote, selectedNote?.id, selectedFolder?.id, showToast]
+    [deleteNote, restoreNotes, selectedNote?.id, selectedFolder?.id, showToast]
   );
 
   const handleBackFromEditor = useCallback(() => {
@@ -230,7 +237,15 @@ export default function NotesLayout({
             deleteNotes(ids);
             const fId = selectedFolder?.id ?? "general";
             setNoteCountAdjustments((prev) => ({ ...prev, [fId]: (prev[fId] ?? 0) - ids.length }));
-            showToast(`${ids.length} ${ids.length === 1 ? "note" : "notes"} deleted`);
+            showToast(`${ids.length} ${ids.length === 1 ? "note" : "notes"} deleted`, {
+              action: {
+                label: "Undo",
+                onClick: () => {
+                  restoreNotes(ids);
+                  setNoteCountAdjustments((prev) => ({ ...prev, [fId]: (prev[fId] ?? 0) + ids.length }));
+                },
+              },
+            });
           }}
           onRenameFolder={handleRenameFolder}
           onUpdateDescription={(desc) => updateSetting(folderId, "description", desc)}

@@ -4,6 +4,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Plus, Pencil, ImageIcon, Trash2, X } from "lucide-react";
 import { useMarqueeSelection } from "@/hooks/useMarqueeSelection";
+import { useToast } from "@/contexts/ToastContext";
 import DeleteFolderConfirmModal from "./DeleteFolderConfirmModal";
 import RecentlyDeletedSection from "./RecentlyDeletedSection";
 import FolderCard from "./FolderCard";
@@ -32,6 +33,12 @@ export const DEFAULT_APPEARANCE: FolderAppearance = {
   value: "#d6d3d1",
 };
 
+/** Default appearance for the General folder — shows Campanile panorama. */
+const GENERAL_DEFAULT_APPEARANCE: FolderAppearance = {
+  type: "image",
+  value: "/campanile-panorama.jpg",
+};
+
 /** State for the currently editing folder panel. */
 interface EditingFolder {
   id: string;
@@ -51,6 +58,8 @@ interface Props {
   ) => void;
   /** When true, skip the entrance animation (e.g. returning from editor). */
   skipAnimation?: boolean;
+  /** Adjustments to note counts from create/delete operations in the modal. */
+  noteCountAdjustments?: Record<string, number>;
 }
 
 /**
@@ -69,7 +78,9 @@ export default function NotesFolderGrid({
   getFolderSetting,
   updateSetting,
   skipAnimation,
+  noteCountAdjustments,
 }: Props) {
+  const { showToast } = useToast();
   const [courses, setCourses] = useState<Course[]>(initialCourses);
   const [noteCounts, setNoteCounts] = useState<Record<string, number>>(initialNoteCounts);
   const [showNewFolder, setShowNewFolder] = useState(false);
@@ -96,6 +107,9 @@ export default function NotesFolderGrid({
   const [barVisible, setBarVisible] = useState(false);
   const [barClosing, setBarClosing] = useState(false);
   const barTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  /** Caches the last non-zero count so the exit animation doesn't flash "0 selected". */
+  const lastCountRef = useRef(0);
+  if (selectedFolderIds.size > 0) lastCountRef.current = selectedFolderIds.size;
 
   useEffect(() => {
     if (selectedFolderIds.size > 0) {
@@ -154,11 +168,76 @@ export default function NotesFolderGrid({
   /** Delete all selected folders and clear selection. */
   async function handleDeleteSelected() {
     const ids = Array.from(selectedFolderIds).filter((id) => id !== "general");
+
+    // Save state for undo
+    const deletedCourseMap = new Map<string, Course>();
+    const deletedNoteCountMap = new Map<string, number>();
     for (const id of ids) {
-      await handleDelete(id);
+      const course = courses.find((c) => c.id === id);
+      if (course) deletedCourseMap.set(id, course);
+      deletedNoteCountMap.set(id, noteCounts[id] ?? 0);
     }
+
+    const now = new Date().toISOString();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    for (const id of ids) {
+      await supabase.from("notes").update({ deleted_at: now }).eq("course_id", id);
+      if (user) {
+        await supabase
+          .from("course_memberships")
+          .update({ deleted_at: now })
+          .eq("user_id", user.id)
+          .eq("course_id", id);
+      }
+    }
+
+    setCourses((prev) => prev.filter((c) => !ids.includes(c.id)));
+    setNoteCounts((prev) => {
+      const updated = { ...prev };
+      for (const id of ids) delete updated[id];
+      return updated;
+    });
     setSelectedFolderIds(new Set());
     setShowBulkDeleteConfirm(false);
+
+    showToast(`${ids.length} ${ids.length === 1 ? "folder" : "folders"} deleted`, {
+      action: {
+        label: "Undo",
+        onClick: async () => {
+          const { data: { user: currentUser } } = await supabase.auth.getUser();
+          if (!currentUser) return;
+
+          for (const id of ids) {
+            await Promise.all([
+              supabase
+                .from("course_memberships")
+                .update({ deleted_at: null })
+                .eq("user_id", currentUser.id)
+                .eq("course_id", id),
+              supabase
+                .from("notes")
+                .update({ deleted_at: null })
+                .eq("course_id", id),
+            ]);
+          }
+
+          setCourses((prev) => {
+            const restored = ids
+              .map((id) => deletedCourseMap.get(id))
+              .filter(Boolean) as Course[];
+            return [...prev, ...restored].sort((a, b) => a.name.localeCompare(b.name));
+          });
+          setNoteCounts((prev) => {
+            const updated = { ...prev };
+            for (const id of ids) {
+              updated[id] = deletedNoteCountMap.get(id) ?? 0;
+            }
+            return updated;
+          });
+        },
+      },
+    });
   }
 
   /** Open rename panel for the single selected folder. */
@@ -264,18 +343,22 @@ export default function NotesFolderGrid({
   const handleDelete = useCallback(async (folderId: string) => {
     const now = new Date().toISOString();
 
+    // Save state for undo
+    const deletedCourse = courses.find((c) => c.id === folderId);
+    const deletedNoteCount = noteCounts[folderId] ?? 0;
+
     // Soft-delete all notes in this folder
     await supabase
       .from("notes")
       .update({ deleted_at: now })
       .eq("course_id", folderId);
 
-    // Remove course membership (folder disappears from grid)
+    // Soft-delete course membership (folder goes to Recently Deleted)
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       await supabase
         .from("course_memberships")
-        .delete()
+        .update({ deleted_at: now })
         .eq("user_id", user.id)
         .eq("course_id", folderId);
     }
@@ -286,7 +369,35 @@ export default function NotesFolderGrid({
       delete updated[folderId];
       return updated;
     });
-  }, [supabase]);
+    showToast("Folder deleted", {
+      action: {
+        label: "Undo",
+        onClick: async () => {
+          const { data: { user: currentUser } } = await supabase.auth.getUser();
+          if (!currentUser) return;
+
+          await Promise.all([
+            supabase
+              .from("course_memberships")
+              .update({ deleted_at: null })
+              .eq("user_id", currentUser.id)
+              .eq("course_id", folderId),
+            supabase
+              .from("notes")
+              .update({ deleted_at: null })
+              .eq("course_id", folderId),
+          ]);
+
+          if (deletedCourse) {
+            setCourses((prev) =>
+              [...prev, deletedCourse].sort((a, b) => a.name.localeCompare(b.name))
+            );
+          }
+          setNoteCounts((prev) => ({ ...prev, [folderId]: deletedNoteCount }));
+        },
+      },
+    });
+  }, [supabase, showToast, courses, noteCounts]);
 
   /**
    * Creates a new course folder. Inserts into courses table and
@@ -302,7 +413,7 @@ export default function NotesFolderGrid({
     const { data: course, error } = await supabase
       .from("courses")
       .insert({
-        source: "system",
+        source: "notes",
         external_id: `notes-folder-${Date.now()}`,
         name: trimmed,
       })
@@ -321,6 +432,7 @@ export default function NotesFolderGrid({
     setCourses((prev) => [...prev, course as Course].sort((a, b) => a.name.localeCompare(b.name)));
     setNewFolderName("");
     setShowNewFolder(false);
+    showToast("Folder created");
   }
 
   /**
@@ -367,7 +479,9 @@ export default function NotesFolderGrid({
    * Returns the appearance for a folder from settings, falling back to default.
    */
   function getFolderAppearance(folderId: string): FolderAppearance {
-    return getFolderSetting(folderId).appearance ?? DEFAULT_APPEARANCE;
+    const custom = getFolderSetting(folderId).appearance;
+    if (custom) return custom;
+    return folderId === "general" ? GENERAL_DEFAULT_APPEARANCE : DEFAULT_APPEARANCE;
   }
 
   const panelPosition = { top: panelPos.top, left: panelPos.left, width: SIDE_PANEL_WIDTH };
@@ -386,7 +500,7 @@ export default function NotesFolderGrid({
   }
 
   return (
-    <div ref={folderGridRef} className={`h-full overflow-y-auto px-1 -mx-1 ${skipAnimation ? "" : "animate-page-in"} relative select-none`} onClick={handleBackgroundClick} onMouseDown={onMarqueeMouseDown}>
+    <div ref={folderGridRef} className={`h-full overflow-y-auto px-1 -mx-1 pb-12 ${skipAnimation ? "" : "animate-page-in"} relative select-none`} onClick={handleBackgroundClick} onMouseDown={onMarqueeMouseDown}>
       {/* Header with New Folder button */}
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -431,7 +545,7 @@ export default function NotesFolderGrid({
             key={folder.id}
             folder={folder}
             appearance={getFolderAppearance(folder.id)}
-            noteCount={noteCounts[folder.id] ?? 0}
+            noteCount={(noteCounts[folder.id] ?? 0) + (noteCountAdjustments?.[folder.id] ?? 0)}
             isGeneral={folder.id === "general"}
             highlighted={editingFolder?.id === folder.id}
             selected={selectedFolderIds.has(folder.id)}
@@ -545,7 +659,7 @@ export default function NotesFolderGrid({
       {barVisible && (
         <div data-selection-bar className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] flex items-center gap-2 px-3 py-1.5 rounded-lg bg-foreground text-background shadow-lg ${barClosing ? "animate-announce-card-out" : "animate-announce-card-in"}`}>
           <span className="text-xs font-medium">
-            {selectedFolderIds.size} selected
+            {lastCountRef.current} selected
           </span>
           <div className="w-px h-3.5 bg-background/20" />
           {/* Rename — only when exactly 1 non-General folder is selected */}
