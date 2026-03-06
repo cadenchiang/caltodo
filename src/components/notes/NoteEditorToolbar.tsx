@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect, useCallback } from "react";
 import type { Editor } from "@tiptap/react";
 import {
   Bold,
@@ -13,22 +14,37 @@ import {
   ListChecks,
   Quote,
   Code,
+  ImagePlus,
   Undo2,
   Redo2,
 } from "lucide-react";
 
 interface Props {
   editor: Editor | null;
+  onInsertImage?: () => void;
 }
 
 /**
  * Formatting toolbar for the Tiptap editor.
  * Provides buttons for text formatting, headings, lists, and undo/redo.
+ * Re-renders on every editor transaction so active states stay in sync.
  *
  * @param editor - Tiptap editor instance (null while loading)
  */
-export default function NoteEditorToolbar({ editor }: Props) {
+export default function NoteEditorToolbar({ editor, onInsertImage }: Props) {
+  // Force re-render on every editor transaction so isActive() stays accurate
+  const [, setTick] = useState(0);
+  const bump = useCallback(() => setTick((t) => t + 1), []);
+
+  useEffect(() => {
+    if (!editor) return;
+    editor.on("transaction", bump);
+    return () => { editor.off("transaction", bump); };
+  }, [editor, bump]);
+
   if (!editor) return null;
+
+  const mod = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.userAgent) ? "\u2318" : "Ctrl+";
 
   const buttons: Array<{
     icon: typeof Bold;
@@ -38,25 +54,25 @@ export default function NoteEditorToolbar({ editor }: Props) {
   }> = [
     {
       icon: Bold,
-      label: "Bold",
+      label: `Bold (${mod}B)`,
       action: () => editor.chain().focus().toggleBold().run(),
       isActive: editor.isActive("bold"),
     },
     {
       icon: Italic,
-      label: "Italic",
+      label: `Italic (${mod}I)`,
       action: () => editor.chain().focus().toggleItalic().run(),
       isActive: editor.isActive("italic"),
     },
     {
       icon: Underline,
-      label: "Underline",
+      label: `Underline (${mod}U)`,
       action: () => editor.chain().focus().toggleUnderline().run(),
       isActive: editor.isActive("underline"),
     },
     {
       icon: Strikethrough,
-      label: "Strikethrough",
+      label: `Strikethrough (${mod}Shift+X)`,
       action: () => editor.chain().focus().toggleStrike().run(),
       isActive: editor.isActive("strike"),
     },
@@ -102,10 +118,16 @@ export default function NoteEditorToolbar({ editor }: Props) {
       action: () => editor.chain().focus().toggleCodeBlock().run(),
       isActive: editor.isActive("codeBlock"),
     },
+    {
+      icon: ImagePlus,
+      label: "Image (drag, paste, or click)",
+      action: () => onInsertImage?.(),
+      isActive: false,
+    },
   ];
 
   return (
-    <div className="flex items-center gap-0.5 px-3 py-1.5 border-b border-border overflow-x-auto">
+    <div className="flex items-center gap-0.5 py-1.5 overflow-x-auto -ml-1.5">
       {buttons.map((btn) => {
         const Icon = btn.icon;
         return (

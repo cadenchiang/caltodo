@@ -425,6 +425,10 @@ export interface Note {
   is_pinned: boolean;
   created_at: string;
   updated_at: string;
+  /** ISO timestamp when note was soft-deleted, null if active. */
+  deleted_at: string | null;
+  /** Optional emoji icon displayed before the note title. */
+  icon: string | null;
 }
 
 /**
@@ -434,6 +438,7 @@ export interface NoteInsert {
   course_id?: string | null;
   title?: string;
   content?: Record<string, unknown>;
+  icon?: string | null;
 }
 
 /**
@@ -444,6 +449,7 @@ export interface NoteUpdate {
   content?: Record<string, unknown>;
   is_pinned?: boolean;
   course_id?: string | null;
+  icon?: string | null;
 }
 
 export interface GCalEvent {

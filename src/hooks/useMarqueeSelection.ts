@@ -20,15 +20,18 @@ interface UseMarqueeSelectionOptions {
   dataAttribute?: string;
 }
 
+/** Minimum drag distance (px) before a mousedown becomes a marquee. */
+const DRAG_THRESHOLD = 5;
+
 /**
- * Hook for macOS-style drag-to-select (marquee) over note cards.
+ * Hook for macOS-style drag-to-select (marquee) over selectable items.
  *
- * Listens for mousedown on the container (ignoring clicks on [data-note-id]
- * elements), tracks a selection rectangle, and reports which note IDs
- * intersect it.
+ * Starts a marquee when the user drags beyond a small threshold from any
+ * empty space in the container. Tracks a selection rectangle and reports
+ * which item IDs intersect it.
  *
  * @param options - Container ref, selection callback, and existing selection
- * @returns marqueeStyle for the overlay div, and isSelecting flag
+ * @returns marqueeStyle for the overlay div, isSelecting flag, and onMouseDown handler
  */
 export function useMarqueeSelection({
   containerRef,
@@ -38,6 +41,7 @@ export function useMarqueeSelection({
 }: UseMarqueeSelectionOptions) {
   const [marquee, setMarquee] = useState<MarqueeState | null>(null);
   const isSelectingRef = useRef(false);
+  const pendingRef = useRef<{ clientX: number; clientY: number; containerX: number; containerY: number } | null>(null);
 
   /** Compute the CSS rect from two corner points relative to the container. */
   function getRect(m: MarqueeState) {
@@ -76,8 +80,8 @@ export function useMarqueeSelection({
       elements.forEach((el) => {
         const elRect = el.getBoundingClientRect();
         const rel = {
-          left: elRect.left - containerRect.left,
-          top: elRect.top - containerRect.top,
+          left: elRect.left - containerRect.left + container.scrollLeft,
+          top: elRect.top - containerRect.top + container.scrollTop,
           width: elRect.width,
           height: elRect.height,
         };
@@ -93,53 +97,70 @@ export function useMarqueeSelection({
 
   const onMouseDown = useCallback(
     (e: React.MouseEvent) => {
-      // Only left-click
       if (e.button !== 0) return;
-      // Ignore if the click started on a selectable item
+      // Ignore clicks on buttons/inputs/interactive elements (but allow on cards)
       const target = e.target as HTMLElement;
-      if (target.closest(`[${dataAttribute}]`)) return;
+      if (target.closest("button, input, textarea, a, [role='button']")) return;
 
       const container = containerRef.current;
       if (!container) return;
 
       const rect = container.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
+      const x = e.clientX - rect.left + container.scrollLeft;
+      const y = e.clientY - rect.top + container.scrollTop;
 
-      isSelectingRef.current = true;
-      setMarquee({ startX: x, startY: y, currentX: x, currentY: y });
+      // Store pending start — only becomes a marquee after dragging past threshold
+      pendingRef.current = { clientX: e.clientX, clientY: e.clientY, containerX: x, containerY: y };
     },
     [containerRef],
   );
 
   useEffect(() => {
-    if (!marquee) return;
-
     const handleMouseMove = (e: MouseEvent) => {
-      if (!isSelectingRef.current) return;
       const container = containerRef.current;
       if (!container) return;
 
-      const rect = container.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
+      // Check if we need to promote a pending mousedown into an active marquee
+      if (pendingRef.current && !isSelectingRef.current) {
+        const dx = e.clientX - pendingRef.current.clientX;
+        const dy = e.clientY - pendingRef.current.clientY;
+        if (Math.abs(dx) < DRAG_THRESHOLD && Math.abs(dy) < DRAG_THRESHOLD) return;
 
-      const updated = { ...marquee, currentX: x, currentY: y };
-      setMarquee(updated);
-
-      const intersecting = findIntersecting(updated);
-      if (e.shiftKey && existingSelection.size > 0) {
-        const merged = new Set(existingSelection);
-        intersecting.forEach((id) => merged.add(id));
-        onSelectionChange(merged);
-      } else {
-        onSelectionChange(intersecting);
+        // Threshold exceeded — start the marquee
+        isSelectingRef.current = true;
+        const p = pendingRef.current;
+        setMarquee({ startX: p.containerX, startY: p.containerY, currentX: p.containerX, currentY: p.containerY });
       }
+
+      if (!isSelectingRef.current) return;
+
+      const rect = container.getBoundingClientRect();
+      const x = e.clientX - rect.left + container.scrollLeft;
+      const y = e.clientY - rect.top + container.scrollTop;
+
+      setMarquee((prev) => {
+        if (!prev) return prev;
+        const updated = { ...prev, currentX: x, currentY: y };
+
+        const intersecting = findIntersecting(updated);
+        if (e.shiftKey && existingSelection.size > 0) {
+          const merged = new Set(existingSelection);
+          intersecting.forEach((id) => merged.add(id));
+          onSelectionChange(merged);
+        } else {
+          onSelectionChange(intersecting);
+        }
+
+        return updated;
+      });
     };
 
     const handleMouseUp = () => {
-      isSelectingRef.current = false;
-      setMarquee(null);
+      pendingRef.current = null;
+      if (isSelectingRef.current) {
+        isSelectingRef.current = false;
+        setMarquee(null);
+      }
     };
 
     window.addEventListener("mousemove", handleMouseMove);
@@ -148,7 +169,7 @@ export function useMarqueeSelection({
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [marquee, containerRef, findIntersecting, onSelectionChange, existingSelection]);
+  }, [containerRef, findIntersecting, onSelectionChange, existingSelection]);
 
   const marqueeStyle: React.CSSProperties | null = marquee
     ? (() => {

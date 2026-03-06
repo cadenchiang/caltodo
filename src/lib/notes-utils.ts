@@ -28,3 +28,26 @@ export function extractTextPreview(
   if (text.length <= maxLength) return text;
   return text.slice(0, maxLength) + "…";
 }
+
+/**
+ * Extracts the first non-empty text line from Tiptap JSON content.
+ * Used for auto-titling notes when the title field is empty.
+ *
+ * @param content - Tiptap document JSON
+ * @returns First text string found (max 100 chars), or empty string
+ */
+export function extractFirstLine(content: Record<string, unknown>): string {
+  if (!Array.isArray(content.content)) return "";
+  for (const node of content.content) {
+    const n = node as Record<string, unknown>;
+    if (Array.isArray(n.content)) {
+      for (const child of n.content) {
+        const c = child as Record<string, unknown>;
+        if (c.type === "text" && typeof c.text === "string" && c.text.trim()) {
+          return c.text.trim().slice(0, 100);
+        }
+      }
+    }
+  }
+  return "";
+}

@@ -2,6 +2,7 @@
 
 import { Pin } from "lucide-react";
 import { extractTextPreview } from "@/lib/notes-utils";
+import NoteContentPreview from "./NoteContentPreview";
 import type { Note } from "@/lib/types";
 
 interface ViewProps {
@@ -45,6 +46,7 @@ export function ListView({ notes, selectedIds, onSelect, onOpen }: ViewProps) {
           >
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5">
+                {note.icon && !note.icon.startsWith("lucide:") && <span className="text-sm shrink-0">{note.icon}</span>}
                 <span className="text-sm font-medium text-foreground truncate">
                   {title}
                 </span>
@@ -82,7 +84,7 @@ export function GridView({ notes, selectedIds, onSelect, onOpen }: ViewProps) {
     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
       {notes.map((note) => {
         const title = note.title || "Untitled";
-        const preview = extractTextPreview(note.content, 100);
+        const hasContent = extractTextPreview(note.content, 1).length > 0;
         const date = formatRelativeDate(note.updated_at);
         const selected = selectedIds.has(note.id);
 
@@ -98,24 +100,24 @@ export function GridView({ notes, selectedIds, onSelect, onOpen }: ViewProps) {
                 : "border-border bg-popover hover:shadow-md dark:hover:shadow-black/20 hover:border-border/80"
             }`}
           >
-            <div className={`h-2 ${selected ? "bg-blue-500/30" : "bg-muted"}`} />
-            <div className="px-3 py-3">
-              <div className="flex items-center gap-1.5 mb-1">
-                <span className="text-sm font-semibold text-foreground truncate flex-1">
+            {hasContent ? (
+              <NoteContentPreview content={note.content} />
+            ) : (
+              <div className="h-20 flex items-center justify-center">
+                <p className="text-[10px] text-muted-foreground/40 italic">Empty note</p>
+              </div>
+            )}
+            <div className="px-2.5 py-1.5 border-t border-border">
+              <div className="flex items-center gap-1">
+                {note.icon && !note.icon.startsWith("lucide:") && <span className="text-xs shrink-0">{note.icon}</span>}
+                <span className="text-xs font-medium text-foreground truncate flex-1">
                   {title}
                 </span>
                 {note.is_pinned && (
-                  <Pin size={11} className="shrink-0 text-muted-foreground" />
+                  <Pin size={10} className="shrink-0 text-muted-foreground" />
                 )}
               </div>
-              {preview ? (
-                <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed">
-                  {preview}
-                </p>
-              ) : (
-                <p className="text-xs text-muted-foreground/50 italic">Empty note</p>
-              )}
-              <p className="text-[10px] text-muted-foreground mt-2">{date}</p>
+              <p className="text-[9px] text-muted-foreground mt-0.5">{date}</p>
             </div>
           </button>
         );

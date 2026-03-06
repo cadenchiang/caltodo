@@ -3,14 +3,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
-  X, FilePlus, List, LayoutGrid, StickyNote, Pencil, Trash2,
+  X, FilePlus, List, LayoutGrid, Pencil, Trash2, Pin, PinOff, Printer,
 } from "lucide-react";
 import { ListView, GridView } from "./NotesModalViews";
 import { FolderTitle } from "./NotesModalParts";
 import EditToggleButton from "@/components/ui/EditToggleButton";
 import EmojiPicker from "@/components/home/EmojiPicker";
 import { useMarqueeSelection } from "@/hooks/useMarqueeSelection";
-import type { Note } from "@/lib/types";
+import type { Note, NoteUpdate } from "@/lib/types";
 
 interface Props {
   open: boolean;
@@ -23,6 +23,7 @@ interface Props {
   loading: boolean;
   onSelectNote: (note: Note) => void;
   onCreateNote: (title?: string) => void;
+  onUpdateNote: (id: string, updates: NoteUpdate) => void;
   onDeleteNotes: (ids: string[]) => void;
   onRenameFolder: (newName: string) => void;
   onUpdateDescription: (description: string) => void;
@@ -49,6 +50,7 @@ export default function NotesModal({
   loading,
   onSelectNote,
   onCreateNote,
+  onUpdateNote,
   onDeleteNotes,
   onRenameFolder,
   onUpdateDescription,
@@ -67,6 +69,8 @@ export default function NotesModal({
   const [editDesc, setEditDesc] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  /** Tracks the last plain-clicked note for shift+click range selection. */
+  const anchorIdRef = useRef<string | null>(null);
   const notesContainerRef = useRef<HTMLDivElement>(null);
 
   // Clear selection when modal opens/closes
@@ -93,8 +97,12 @@ export default function NotesModal({
     }
   }, [selectedIds.size]);
 
+  /** Tracks whether a marquee drag just finished to suppress the click-to-deselect. */
+  const justMarqueedRef = useRef(false);
+
   const handleMarqueeSelection = useCallback((ids: Set<string>) => {
     setSelectedIds(ids);
+    if (ids.size > 0) justMarqueedRef.current = true;
   }, []);
 
   const { marqueeStyle, isSelecting, onMouseDown: onMarqueeMouseDown } = useMarqueeSelection({
@@ -102,6 +110,9 @@ export default function NotesModal({
     onSelectionChange: handleMarqueeSelection,
     existingSelection: selectedIds,
   });
+
+  // Closing animation state — must be before early return to preserve hook order
+  const [isClosing, setIsClosing] = useState(false);
 
   if (!open || typeof document === "undefined") return null;
 
@@ -141,23 +152,30 @@ export default function NotesModal({
     }
   }
 
-  /** Select a note. Plain click selects only this one; Shift+click adds to selection. */
+  /**
+   * Select a note. Plain click selects only this one and sets anchor.
+   * Shift+click selects the range between the anchor and the clicked note.
+   */
   function toggleSelect(noteId: string, shiftKey: boolean) {
-    setSelectedIds((prev) => {
-      if (shiftKey) {
-        const next = new Set(prev);
-        if (next.has(noteId)) {
-          next.delete(noteId);
-        } else {
-          next.add(noteId);
-        }
-        return next;
+    if (shiftKey && anchorIdRef.current) {
+      const anchorIdx = notes.findIndex((n) => n.id === anchorIdRef.current);
+      const targetIdx = notes.findIndex((n) => n.id === noteId);
+      if (anchorIdx !== -1 && targetIdx !== -1) {
+        const start = Math.min(anchorIdx, targetIdx);
+        const end = Math.max(anchorIdx, targetIdx);
+        const rangeIds = notes.slice(start, end + 1).map((n) => n.id);
+        setSelectedIds(new Set(rangeIds));
+        return;
       }
-      if (prev.size === 1 && prev.has(noteId)) {
-        return new Set();
-      }
-      return new Set([noteId]);
-    });
+    }
+    // Plain click: select only this one, or deselect if already the sole selection
+    if (selectedIds.size === 1 && selectedIds.has(noteId)) {
+      anchorIdRef.current = null;
+      setSelectedIds(new Set());
+    } else {
+      anchorIdRef.current = noteId;
+      setSelectedIds(new Set([noteId]));
+    }
   }
 
   /** Delete all selected notes and clear selection. */
@@ -167,20 +185,49 @@ export default function NotesModal({
     setSelectedIds(new Set());
   }
 
+  /** Toggle pin on all selected notes. */
+  function handlePinSelected() {
+    const selected = notes.filter((n) => selectedIds.has(n.id));
+    const allPinned = selected.every((n) => n.is_pinned);
+    for (const n of selected) {
+      onUpdateNote(n.id, { is_pinned: !allPinned });
+    }
+    setSelectedIds(new Set());
+  }
+
+  /** Print selected notes by opening the browser print dialog. */
+  function handlePrintSelected() {
+    const selected = notes.filter((n) => selectedIds.has(n.id));
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) return;
+    const content = selected.map((n) => `<h2>${n.title || "Untitled"}</h2>`).join("<hr>");
+    printWindow.document.write(`<html><head><title>Print Notes</title></head><body style="font-family:system-ui;padding:2rem">${content}</body></html>`);
+    printWindow.document.close();
+    printWindow.print();
+  }
+
+  function handleClose() {
+    setIsClosing(true);
+    setTimeout(() => {
+      setIsClosing(false);
+      onClose();
+    }, 200);
+  }
+
   return createPortal(
     <div className="fixed inset-0 z-[55] flex items-center justify-center">
       <div
-        className="absolute inset-0 bg-black/50 animate-announce-backdrop-in"
-        onClick={onClose}
+        className={`absolute inset-0 bg-black/50 ${isClosing ? "animate-announce-backdrop-out" : "animate-announce-backdrop-in"}`}
+        onClick={handleClose}
       />
 
       {/* Modal — narrower fixed size */}
-      <div className="relative bg-card rounded-2xl shadow-xl animate-announce-card-in overflow-hidden w-[680px] h-[640px] max-w-[calc(100vw-2rem)] max-h-[calc(100vh-4rem)] flex flex-col">
+      <div className={`relative bg-card rounded-2xl shadow-xl overflow-hidden w-[760px] h-[92vh] max-w-[calc(100vw-2rem)] max-h-[calc(100vh-4rem)] flex flex-col ${isClosing ? "animate-announce-card-out" : "animate-announce-card-in"}`}>
         {/* Top-right controls: edit toggle + close */}
         <div className="absolute top-5 right-5 z-10 flex items-center gap-1">
           <EditToggleButton editing={editMode} onToggle={handleToggleEdit} />
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             aria-label="Close"
           >
@@ -188,7 +235,21 @@ export default function NotesModal({
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto">
+        <div
+          className="flex-1 overflow-y-auto"
+          onClick={(e) => {
+            // Skip deselect if a marquee drag just finished
+            if (justMarqueedRef.current) {
+              justMarqueedRef.current = false;
+              return;
+            }
+            const target = e.target as HTMLElement;
+            if (!target.closest("[data-note-id]") && selectedIds.size > 0) {
+              anchorIdRef.current = null;
+              setSelectedIds(new Set());
+            }
+          }}
+        >
           {/* Title area */}
           <div className="px-10 pt-10 pb-3">
             {/* Clickable emoji icon — only clickable in edit mode */}
@@ -310,15 +371,8 @@ export default function NotesModal({
                 <div className="w-5 h-5 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
               </div>
             ) : notes.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-32 text-muted-foreground">
-                <StickyNote size={40} strokeWidth={1.5} className="mb-3 opacity-40" />
-                <p className="text-sm">No notes yet</p>
-                <button
-                  onClick={() => onCreateNote()}
-                  className="text-sm text-blue-500 hover:text-blue-600 mt-2"
-                >
-                  Create your first note
-                </button>
+              <div className="flex flex-col items-center justify-center py-32">
+                <p className="text-sm text-muted-foreground/60">No notes</p>
               </div>
             ) : viewMode === "list" ? (
               <ListView
@@ -346,6 +400,43 @@ export default function NotesModal({
             {selectedIds.size} selected
           </span>
           <div className="w-px h-3.5 bg-background/20" />
+          {/* Pin/Unpin */}
+          <button
+            onClick={handlePinSelected}
+            className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-background/10 transition-colors"
+            title={notes.filter((n) => selectedIds.has(n.id)).every((n) => n.is_pinned) ? "Unpin" : "Pin"}
+            aria-label="Toggle pin"
+          >
+            {notes.filter((n) => selectedIds.has(n.id)).every((n) => n.is_pinned) ? <PinOff size={14} /> : <Pin size={14} />}
+          </button>
+          {/* Rename — only when exactly 1 note is selected */}
+          {selectedIds.size === 1 && (
+            <button
+              onClick={() => {
+                const noteId = Array.from(selectedIds)[0];
+                const note = notes.find((n) => n.id === noteId);
+                if (note) {
+                  onSelectNote(note);
+                  setSelectedIds(new Set());
+                }
+              }}
+              className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-background/10 transition-colors"
+              title="Edit"
+              aria-label="Edit note"
+            >
+              <Pencil size={14} />
+            </button>
+          )}
+          {/* Print */}
+          <button
+            onClick={handlePrintSelected}
+            className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-background/10 transition-colors"
+            title="Print"
+            aria-label="Print notes"
+          >
+            <Printer size={14} />
+          </button>
+          {/* Delete */}
           <button
             onClick={handleDeleteSelected}
             className="w-7 h-7 rounded-md flex items-center justify-center text-red-400 hover:text-red-300 hover:bg-background/10 transition-colors"

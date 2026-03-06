@@ -1870,3 +1870,117 @@ input[type="range"].slider-blue::-moz-range-track {
   0%, 100% { opacity: 1; }
   50% { opacity: 0; }
 }
+
+/* ── Print styles — clean Google Docs output ── */
+@media print {
+  /* Hide everything except the note content area */
+  body > *:not(#__next):not([data-nextjs-root-layout]),
+  nav, header, aside, footer,
+  [data-print-hide] {
+    display: none !important;
+  }
+
+  /* Hide the editor chrome: top bar, toolbar, divider */
+  .note-top-bar,
+  .note-toolbar,
+  .note-divider,
+  .note-icon-add {
+    display: none !important;
+  }
+
+  /* Remove background, shadow, max-width constraints */
+  * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Title: clean, large, no border */
+  .note-title-print {
+    font-size: 28pt !important;
+    font-weight: 700 !important;
+    color: black !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 0 12pt 0 !important;
+  }
+
+  /* Note icon for print */
+  .note-icon-print {
+    font-size: 32pt !important;
+    margin-bottom: 8pt !important;
+    display: block !important;
+  }
+
+  /* Editor content: full width, clean typography */
+  .prose {
+    max-width: 100% !important;
+    font-size: 11pt !important;
+    line-height: 1.6 !important;
+    color: black !important;
+  }
+
+  .prose h1 { font-size: 22pt !important; margin-top: 16pt !important; }
+  .prose h2 { font-size: 18pt !important; margin-top: 14pt !important; }
+  .prose h3 { font-size: 14pt !important; margin-top: 12pt !important; }
+
+  .prose img {
+    max-width: 100% !important;
+    page-break-inside: avoid;
+  }
+
+  .prose pre {
+    border: 1px solid #ddd !important;
+    background: #f5f5f5 !important;
+    page-break-inside: avoid;
+  }
+
+  /* Remove animations */
+  .animate-page-in,
+  .animate-announce-card-in,
+  .animate-announce-backdrop-in {
+    animation: none !important;
+  }
+}
+
+/* ── Note editor image styles ── */
+.prose img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.75rem;
+  margin: 0.75rem 0;
+}
+
+/* ── Resizable image float / align ── */
+.prose [data-float="left"] {
+  float: left;
+  margin-right: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.prose [data-float="right"] {
+  float: right;
+  margin-left: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.prose [data-text-align="center"] {
+  display: flex;
+  justify-content: center;
+}
+
+/* TipTap editor placeholder */
+.tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: var(--muted-foreground);
+  opacity: 0.4;
+  pointer-events: none;
+  height: 0;
+}

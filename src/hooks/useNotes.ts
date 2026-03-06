@@ -30,6 +30,7 @@ export function useNotes(courseId: string | "general" | null) {
     let query = supabase
       .from("notes")
       .select("*")
+      .is("deleted_at", null)
       .order("is_pinned", { ascending: false })
       .order("updated_at", { ascending: false });
 
@@ -57,33 +58,68 @@ export function useNotes(courseId: string | "general" | null) {
 
   /**
    * Create a new empty note in the current folder.
+   * Returns an optimistic note instantly; the real ID is resolved via
+   * the returned promise so the caller can swap it in if needed.
    *
    * @param overrides - Optional fields to set on creation
-   * @returns The created note, or null on error
+   * @returns Object with optimistic note and a promise resolving to the persisted note
    */
-  async function createNote(overrides?: NoteInsert): Promise<Note | null> {
-    const insertData = {
-      title: "",
-      content: { type: "doc", content: [{ type: "paragraph" }] },
+  function createNote(overrides?: NoteInsert): {
+    optimistic: Note;
+    persisted: Promise<Note | null>;
+  } {
+    const now = new Date().toISOString();
+    const tempId = `temp-${crypto.randomUUID()}`;
+    const optimistic: Note = {
+      id: tempId,
+      user_id: "",
       course_id: courseId === "general" ? null : courseId,
-      ...overrides,
+      title: overrides?.title ?? "",
+      content: overrides?.content ?? { type: "doc", content: [{ type: "paragraph" }] },
+      is_pinned: false,
+      created_at: now,
+      updated_at: now,
+      deleted_at: null,
+      icon: overrides?.icon ?? null,
     };
 
-    const { data, error: insertError } = await supabase
-      .from("notes")
-      .insert(insertData)
-      .select()
-      .single();
+    setNotes((prev) => [optimistic, ...prev]);
 
-    if (insertError) {
-      setError(insertError.message);
-      return null;
-    }
+    const persisted = (async (): Promise<Note | null> => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setError("Not authenticated");
+        setNotes((prev) => prev.filter((n) => n.id !== tempId));
+        return null;
+      }
 
-    if (data) {
-      setNotes((prev) => [data, ...prev]);
-    }
-    return data;
+      const insertData = {
+        user_id: user.id,
+        title: optimistic.title,
+        content: optimistic.content,
+        course_id: optimistic.course_id,
+        ...overrides,
+      };
+
+      const { data, error: insertError } = await supabase
+        .from("notes")
+        .insert(insertData)
+        .select()
+        .single();
+
+      if (insertError) {
+        setError(insertError.message);
+        setNotes((prev) => prev.filter((n) => n.id !== tempId));
+        return null;
+      }
+
+      if (data) {
+        setNotes((prev) => prev.map((n) => (n.id === tempId ? data : n)));
+      }
+      return data;
+    })();
+
+    return { optimistic, persisted };
   }
 
   /**
@@ -114,9 +150,10 @@ export function useNotes(courseId: string | "general" | null) {
   }
 
   /**
-   * Delete a note with optimistic removal.
+   * Soft-delete a note by setting deleted_at timestamp.
+   * Optimistically removes from local state.
    *
-   * @param id - Note ID to delete
+   * @param id - Note ID to soft-delete
    */
   async function deleteNote(id: string) {
     // Optimistic removal
@@ -124,12 +161,33 @@ export function useNotes(courseId: string | "general" | null) {
 
     const { error: deleteError } = await supabase
       .from("notes")
-      .delete()
+      .update({ deleted_at: new Date().toISOString() })
       .eq("id", id);
 
     if (deleteError) {
       setError(deleteError.message);
       fetchNotes(); // Revert on error
+    }
+  }
+
+  /**
+   * Soft-delete multiple notes by IDs. Optimistically removes all from state.
+   *
+   * @param ids - Array of note IDs to soft-delete
+   */
+  async function deleteNotes(ids: string[]) {
+    if (ids.length === 0) return;
+
+    setNotes((prev) => prev.filter((n) => !ids.includes(n.id)));
+
+    const { error: deleteError } = await supabase
+      .from("notes")
+      .update({ deleted_at: new Date().toISOString() })
+      .in("id", ids);
+
+    if (deleteError) {
+      setError(deleteError.message);
+      fetchNotes();
     }
   }
 
@@ -140,6 +198,7 @@ export function useNotes(courseId: string | "general" | null) {
     createNote,
     updateNote,
     deleteNote,
+    deleteNotes,
     refetch: fetchNotes,
   };
 }

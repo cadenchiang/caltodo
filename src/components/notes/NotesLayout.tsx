@@ -1,71 +1,79 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, lazy, Suspense } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useNotes } from "@/hooks/useNotes";
+import { useFolderSettings } from "@/hooks/useFolderSettings";
 import NotesFolderGrid from "./NotesFolderGrid";
-import NotesModal from "./NotesModal";
-import NoteEditor from "./NoteEditor";
 import type { FolderEntry } from "./NotesFolderGrid";
-import type { Note, NoteUpdate } from "@/lib/types";
+import { extractTextPreview } from "@/lib/notes-utils";
+import type { Note, NoteUpdate, Course } from "@/lib/types";
 
-/** LocalStorage key for folder descriptions. */
-const FOLDER_DESCRIPTIONS_KEY = "notes_folder_descriptions";
+/** Lazy-load heavy components not needed on initial render. */
+const NotesModal = lazy(() => import("./NotesModal"));
+const NoteEditor = lazy(() => import("./NoteEditor"));
 
 /** Current view state. */
 type View = "folders" | "editor";
+
+interface NotesLayoutProps {
+  initialCourses: Course[];
+  initialNoteCounts: Record<string, number>;
+}
 
 /**
  * Notes layout with folder grid, notes modal, and full-screen editor.
  * Clicking a folder opens a centered modal with list/grid view.
  * Clicking a note opens the editor full-screen.
+ *
+ * @param initialCourses - Server-fetched courses for instant folder grid render
+ * @param initialNoteCounts - Server-fetched note counts per folder
  */
-export default function NotesLayout() {
+export default function NotesLayout({
+  initialCourses,
+  initialNoteCounts,
+}: NotesLayoutProps) {
   const [view, setView] = useState<View>("folders");
   const [selectedFolder, setSelectedFolder] = useState<FolderEntry | null>(null);
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [gridRefreshKey, setGridRefreshKey] = useState(0);
+  /** Tracks if we're returning from editor to skip entrance animation. */
+  const skipAnimationRef = useRef(false);
 
   const supabase = createClient();
+  const { getFolderSetting, updateSetting } = useFolderSettings();
 
-  const { notes, loading, createNote, updateNote, deleteNote } = useNotes(
+  const { notes, loading, createNote, updateNote, deleteNote, deleteNotes } = useNotes(
     selectedFolder?.id ?? null
   );
 
-  /**
-   * Opens the notes modal for a folder.
-   */
   const handleSelectFolder = useCallback((folder: FolderEntry) => {
     setSelectedFolder(folder);
     setSelectedNote(null);
     setModalOpen(true);
   }, []);
 
-  /**
-   * Opens a note in the editor and closes the modal.
-   */
   const handleSelectNote = useCallback((note: Note) => {
     setSelectedNote(note);
     setModalOpen(false);
     setView("editor");
   }, []);
 
-  /**
-   * Creates a new note, closes the modal, opens the editor.
-   */
-  const handleCreateNote = useCallback(async () => {
-    const newNote = await createNote();
-    if (newNote) {
-      setSelectedNote(newNote);
-      setModalOpen(false);
-      setView("editor");
-    }
+  const handleCreateNote = useCallback((title?: string) => {
+    const { optimistic, persisted } = createNote(title ? { title } : undefined);
+    setSelectedNote(optimistic);
+    setModalOpen(false);
+    setView("editor");
+
+    // Swap in the real note once persisted so subsequent saves use the real ID
+    persisted.then((real) => {
+      if (real) {
+        setSelectedNote((prev) => (prev?.id === optimistic.id ? real : prev));
+      }
+    });
   }, [createNote]);
 
-  /**
-   * Updates a note. Keeps selectedNote in sync for the editor.
-   */
   const handleUpdateNote = useCallback(
     (id: string, updates: NoteUpdate) => {
       updateNote(id, updates);
@@ -78,9 +86,6 @@ export default function NotesLayout() {
     [updateNote]
   );
 
-  /**
-   * Deletes a note and returns to the folder grid.
-   */
   const handleDeleteNote = useCallback(
     (id: string) => {
       deleteNote(id);
@@ -92,22 +97,26 @@ export default function NotesLayout() {
     [deleteNote, selectedNote?.id]
   );
 
-  /**
-   * Returns from editor to the notes modal for the same folder.
-   */
   const handleBackFromEditor = useCallback(() => {
+    // Auto-delete empty untitled notes on back
+    if (selectedNote) {
+      const hasTitle = selectedNote.title.trim().length > 0;
+      const hasContent = extractTextPreview(selectedNote.content, 1).length > 0;
+      if (!hasTitle && !hasContent) {
+        deleteNote(selectedNote.id);
+      }
+    }
+    skipAnimationRef.current = true;
     setSelectedNote(null);
     setView("folders");
     if (selectedFolder) {
       setModalOpen(true);
     }
-  }, [selectedFolder]);
+  }, [selectedFolder, selectedNote, deleteNote]);
 
   /**
    * Renames the selected folder. Updates courses + tasks in DB,
    * refreshes the folder grid, and updates the modal title.
-   *
-   * @param newName - The new folder name
    */
   const handleRenameFolder = useCallback(async (newName: string) => {
     if (!selectedFolder || selectedFolder.id === "general") return;
@@ -134,51 +143,20 @@ export default function NotesLayout() {
     setGridRefreshKey((k) => k + 1);
   }, [selectedFolder, supabase]);
 
-  /**
-   * Returns the stored description for a folder from localStorage.
-   *
-   * @param folderId - The folder ID
-   * @returns The folder description or empty string
-   */
-  function getFolderDescription(folderId: string): string {
-    try {
-      const saved = localStorage.getItem(FOLDER_DESCRIPTIONS_KEY);
-      if (saved) {
-        const map = JSON.parse(saved) as Record<string, string>;
-        return map[folderId] ?? "";
-      }
-    } catch { /* ignore */ }
-    return "";
-  }
-
-  /**
-   * Saves a folder description to localStorage.
-   *
-   * @param folderId - The folder ID
-   * @param description - The new description text
-   */
-  function handleUpdateDescription(folderId: string, description: string) {
-    try {
-      const saved = localStorage.getItem(FOLDER_DESCRIPTIONS_KEY);
-      const map = saved ? JSON.parse(saved) as Record<string, string> : {};
-      if (description.trim()) {
-        map[folderId] = description.trim();
-      } else {
-        delete map[folderId];
-      }
-      localStorage.setItem(FOLDER_DESCRIPTIONS_KEY, JSON.stringify(map));
-    } catch { /* ignore quota errors */ }
-  }
+  const folderId = selectedFolder?.id ?? "general";
+  const folderSettings = getFolderSetting(folderId);
 
   if (view === "editor" && selectedNote) {
     return (
-      <NoteEditor
-        key={selectedNote.id}
-        note={selectedNote}
-        onUpdate={handleUpdateNote}
-        onDelete={handleDeleteNote}
-        onBack={handleBackFromEditor}
-      />
+      <Suspense fallback={null}>
+        <NoteEditor
+          key={selectedNote.id}
+          note={selectedNote}
+          onUpdate={handleUpdateNote}
+          onDelete={handleDeleteNote}
+          onBack={handleBackFromEditor}
+        />
+      </Suspense>
     );
   }
 
@@ -186,24 +164,33 @@ export default function NotesLayout() {
     <>
       <NotesFolderGrid
         key={gridRefreshKey}
+        initialCourses={initialCourses}
+        initialNoteCounts={initialNoteCounts}
         onSelectFolder={handleSelectFolder}
+        getFolderSetting={getFolderSetting}
+        updateSetting={updateSetting}
+        skipAnimation={skipAnimationRef.current}
       />
-      <NotesModal
-        open={modalOpen}
-        folderId={selectedFolder?.id ?? "general"}
-        folderLabel={selectedFolder?.label ?? ""}
-        folderDescription={selectedFolder ? getFolderDescription(selectedFolder.id) : ""}
-        isGeneral={selectedFolder?.id === "general"}
-        notes={notes}
-        loading={loading}
-        onSelectNote={handleSelectNote}
-        onCreateNote={handleCreateNote}
-        onRenameFolder={handleRenameFolder}
-        onUpdateDescription={(desc) => {
-          if (selectedFolder) handleUpdateDescription(selectedFolder.id, desc);
-        }}
-        onClose={() => setModalOpen(false)}
-      />
+      <Suspense fallback={null}>
+        <NotesModal
+          open={modalOpen}
+          folderId={folderId}
+          folderLabel={selectedFolder?.label ?? ""}
+          folderDescription={folderSettings.description ?? ""}
+          folderIcon={folderSettings.icon ?? ""}
+          isGeneral={selectedFolder?.id === "general"}
+          notes={notes}
+          loading={loading}
+          onSelectNote={handleSelectNote}
+          onCreateNote={handleCreateNote}
+          onUpdateNote={updateNote}
+          onDeleteNotes={deleteNotes}
+          onRenameFolder={handleRenameFolder}
+          onUpdateDescription={(desc) => updateSetting(folderId, "description", desc)}
+          onUpdateIcon={(icon) => updateSetting(folderId, "icon", icon)}
+          onClose={() => setModalOpen(false)}
+        />
+      </Suspense>
     </>
   );
 }

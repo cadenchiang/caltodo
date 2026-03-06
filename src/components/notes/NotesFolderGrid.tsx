@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Plus, Pencil, Trash2, X } from "lucide-react";
+import { Plus, Pencil, ImageIcon, Trash2, X } from "lucide-react";
 import { useMarqueeSelection } from "@/hooks/useMarqueeSelection";
 import DeleteFolderConfirmModal from "./DeleteFolderConfirmModal";
 import RecentlyDeletedSection from "./RecentlyDeletedSection";
@@ -49,6 +49,8 @@ interface Props {
     field: K,
     value: FolderSetting[K]
   ) => void;
+  /** When true, skip the entrance animation (e.g. returning from editor). */
+  skipAnimation?: boolean;
 }
 
 /**
@@ -66,6 +68,7 @@ export default function NotesFolderGrid({
   onSelectFolder,
   getFolderSetting,
   updateSetting,
+  skipAnimation,
 }: Props) {
   const [courses, setCourses] = useState<Course[]>(initialCourses);
   const [noteCounts, setNoteCounts] = useState<Record<string, number>>(initialNoteCounts);
@@ -85,6 +88,8 @@ export default function NotesFolderGrid({
   // Folder selection state
   const [selectedFolderIds, setSelectedFolderIds] = useState<Set<string>>(new Set());
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  /** Tracks the last plain-clicked folder for shift+click range selection. */
+  const folderAnchorRef = useRef<string | null>(null);
   const folderGridRef = useRef<HTMLDivElement>(null);
 
   // Animate floating bar exit
@@ -106,8 +111,12 @@ export default function NotesFolderGrid({
     }
   }, [selectedFolderIds.size]);
 
+  /** Tracks whether a marquee drag just finished to suppress the click-to-deselect. */
+  const justMarqueedRef = useRef(false);
+
   const handleMarqueeSelection = useCallback((ids: Set<string>) => {
     setSelectedFolderIds(ids);
+    if (ids.size > 0) justMarqueedRef.current = true;
   }, []);
 
   const { marqueeStyle, onMouseDown: onMarqueeMouseDown } = useMarqueeSelection({
@@ -117,24 +126,29 @@ export default function NotesFolderGrid({
     dataAttribute: "data-folder-id",
   });
 
-  /** Select a folder. Plain click selects only this one; Shift+click adds to selection. */
+  /**
+   * Select a folder. Plain click selects only this one and sets anchor.
+   * Shift+click selects the range between the anchor and the clicked folder.
+   */
   function toggleFolderSelect(folderId: string, shiftKey: boolean) {
-    setSelectedFolderIds((prev) => {
-      if (shiftKey) {
-        const next = new Set(prev);
-        if (next.has(folderId)) {
-          next.delete(folderId);
-        } else {
-          next.add(folderId);
-        }
-        return next;
+    if (shiftKey && folderAnchorRef.current) {
+      const anchorIdx = folders.findIndex((f) => f.id === folderAnchorRef.current);
+      const targetIdx = folders.findIndex((f) => f.id === folderId);
+      if (anchorIdx !== -1 && targetIdx !== -1) {
+        const start = Math.min(anchorIdx, targetIdx);
+        const end = Math.max(anchorIdx, targetIdx);
+        const rangeIds = folders.slice(start, end + 1).map((f) => f.id);
+        setSelectedFolderIds(new Set(rangeIds));
+        return;
       }
-      // Plain click: select only this one, or deselect if already the sole selection
-      if (prev.size === 1 && prev.has(folderId)) {
-        return new Set();
-      }
-      return new Set([folderId]);
-    });
+    }
+    if (selectedFolderIds.size === 1 && selectedFolderIds.has(folderId)) {
+      folderAnchorRef.current = null;
+      setSelectedFolderIds(new Set());
+    } else {
+      folderAnchorRef.current = folderId;
+      setSelectedFolderIds(new Set([folderId]));
+    }
   }
 
   /** Delete all selected folders and clear selection. */
@@ -154,6 +168,16 @@ export default function NotesFolderGrid({
     const el = document.querySelector(`[data-folder-id="${id}"]`);
     if (!el) return;
     openRename(id, el.getBoundingClientRect());
+    setSelectedFolderIds(new Set());
+  }
+
+  /** Open appearance panel for the single selected folder. */
+  function handleAppearanceSelected() {
+    const id = Array.from(selectedFolderIds)[0];
+    if (!id) return;
+    const el = document.querySelector(`[data-folder-id="${id}"]`);
+    if (!el) return;
+    handleOpenAppearance(id, el.getBoundingClientRect());
     setSelectedFolderIds(new Set());
   }
 
@@ -350,14 +374,19 @@ export default function NotesFolderGrid({
 
   /** Clear selection when clicking empty space outside folder cards. */
   function handleBackgroundClick(e: React.MouseEvent) {
+    if (justMarqueedRef.current) {
+      justMarqueedRef.current = false;
+      return;
+    }
     const target = e.target as HTMLElement;
     if (!target.closest("[data-folder-id]") && !target.closest("[data-selection-bar]")) {
+      folderAnchorRef.current = null;
       setSelectedFolderIds(new Set());
     }
   }
 
   return (
-    <div className="h-full overflow-y-auto px-1 -mx-1 animate-page-in" onClick={handleBackgroundClick}>
+    <div ref={folderGridRef} className={`h-full overflow-y-auto px-1 -mx-1 ${skipAnimation ? "" : "animate-page-in"} relative select-none`} onClick={handleBackgroundClick} onMouseDown={onMarqueeMouseDown}>
       {/* Header with New Folder button */}
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -387,18 +416,16 @@ export default function NotesFolderGrid({
       )}
 
       {/* Folder grid — p-1 ensures box-shadow highlight isn't clipped at edges */}
+      {/* Marquee selection overlay */}
+      {marqueeStyle && (
+        <div
+          className="bg-blue-500/20 border border-blue-500/50 rounded-sm z-50 pointer-events-none"
+          style={marqueeStyle}
+        />
+      )}
       <div
-        ref={folderGridRef}
-        onMouseDown={onMarqueeMouseDown}
-        className="relative grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 p-1 -m-1 select-none"
+        className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 p-1 -m-1"
       >
-        {/* Marquee selection overlay */}
-        {marqueeStyle && (
-          <div
-            className="bg-blue-500/20 border border-blue-500/50 rounded-sm z-50"
-            style={marqueeStyle}
-          />
-        )}
         {folders.map((folder) => (
           <FolderCard
             key={folder.id}
@@ -530,6 +557,17 @@ export default function NotesFolderGrid({
               aria-label="Rename folder"
             >
               <Pencil size={14} />
+            </button>
+          )}
+          {/* Appearance — when exactly 1 folder is selected */}
+          {selectedFolderIds.size === 1 && (
+            <button
+              onClick={handleAppearanceSelected}
+              className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-background/10 transition-colors"
+              title="Appearance"
+              aria-label="Change folder appearance"
+            >
+              <ImageIcon size={14} />
             </button>
           )}
           {/* Delete — hide if only "general" is selected */}
