@@ -7,7 +7,7 @@ import Placeholder from "@tiptap/extension-placeholder";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
 import UnderlineExt from "@tiptap/extension-underline";
-import { Check, ChevronLeft, Folder, Pin, PinOff, Printer, Trash2, Smile } from "lucide-react";
+import { Check, CheckCircle, ChevronLeft, Folder, Pin, PinOff, Printer, Trash2, Smile } from "lucide-react";
 import NoteEditorToolbar from "./NoteEditorToolbar";
 import ImageBubbleMenu from "./ImageBubbleMenu";
 import ResizableImage from "./ResizableImageExtension";
@@ -53,22 +53,30 @@ const SAVE_DELAY = 500;
  */
 export default function NoteEditor({ note, folderLabel, folders, currentFolderId, onMoveToFolder, onUpdate, onDelete, onBack }: Props) {
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingUpdatesRef = useRef<NoteUpdate | null>(null);
   const titleRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const noteIdRef = useRef(note.id);
   const [showIconPicker, setShowIconPicker] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showFolderMenu, setShowFolderMenu] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
   const folderMenuRef = useRef<HTMLDivElement>(null);
 
   /**
    * Schedules a debounced save for content and title.
+   * Tracks pending updates for flush-on-unmount and sets save status indicator.
    */
   const scheduleSave = useCallback(
     (updates: NoteUpdate) => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      pendingUpdatesRef.current = updates;
+      setSaveStatus("saving");
       saveTimerRef.current = setTimeout(() => {
         onUpdate(noteIdRef.current, updates);
+        pendingUpdatesRef.current = null;
+        setSaveStatus("saved");
+        setTimeout(() => setSaveStatus("idle"), 1500);
       }, SAVE_DELAY);
     },
     [onUpdate]
@@ -153,12 +161,16 @@ export default function NoteEditor({ note, folderLabel, folders, currentFolderId
     }
   }, [note.title]);
 
-  // Cleanup save timer on unmount
+  // Flush pending save and cleanup timer on unmount
   useEffect(() => {
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      if (pendingUpdatesRef.current) {
+        onUpdate(noteIdRef.current, pendingUpdatesRef.current);
+        pendingUpdatesRef.current = null;
+      }
     };
-  }, []);
+  }, [onUpdate]);
 
   // Close folder menu on click outside
   useEffect(() => {
@@ -249,6 +261,11 @@ export default function NoteEditor({ note, folderLabel, folders, currentFolderId
             <ChevronLeft size={18} />
             <span className="hidden sm:inline">Back</span>
           </button>
+          {saveStatus !== "idle" && (
+            <span className="text-xs text-muted-foreground/50 ml-2 flex items-center gap-1">
+              {saveStatus === "saving" ? "Saving..." : <><CheckCircle size={12} /> Saved</>}
+            </span>
+          )}
           <span className="text-muted-foreground/40 mx-1">/</span>
           <div className="relative" ref={folderMenuRef}>
             <button
@@ -257,7 +274,7 @@ export default function NoteEditor({ note, folderLabel, folders, currentFolderId
               title="Move to folder"
             >
               <Folder size={14} fill="currentColor" className="shrink-0" />
-              <span className="truncate">{folderLabel}</span>
+              <span className="truncate" title={folderLabel}>{folderLabel}</span>
             </button>
             {showFolderMenu && (
               <div className="absolute top-full left-0 mt-1 w-64 max-h-60 overflow-y-auto bg-popover border border-border rounded-xl shadow-lg z-50 py-1">

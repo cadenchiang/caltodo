@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import { Upload, Check, ImageIcon, Plus } from "lucide-react";
 import { SOLID_COVERS, GRADIENT_COVERS, PHOTO_COVER_CATEGORIES } from "@/lib/board-cover-presets";
 import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/contexts/ToastContext";
 import SidePanel from "@/components/ui/SidePanel";
 import ImageCropModal from "@/components/notes/ImageCropModal";
 import type { CustomImage } from "@/hooks/useFolderSettings";
@@ -70,6 +71,7 @@ export default function FolderAppearanceModal({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const colorInputRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
+  const { showToast } = useToast();
 
   if (!open) return null;
 
@@ -117,6 +119,7 @@ export default function FolderAppearanceModal({
 
       if (error) {
         console.error("Upload failed:", error.message);
+        showToast("Image upload failed");
         return;
       }
 
@@ -129,6 +132,7 @@ export default function FolderAppearanceModal({
       onAddCustomImage?.(publicUrl);
     } catch (err) {
       console.error("Upload error:", err);
+      showToast("Image upload failed");
     } finally {
       setUploading(false);
     }
@@ -173,10 +177,10 @@ export default function FolderAppearanceModal({
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-colors ${
+              className={`flex-1 py-2.5 text-xs font-medium rounded-md transition-colors ${
                 activeTab === tab.id
                   ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent/30"
               }`}
             >
               {tab.label}

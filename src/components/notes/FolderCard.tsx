@@ -61,7 +61,8 @@ const FolderCard = memo(function FolderCard({
       <button
         onClick={(e) => onSelect(folder.id, e.shiftKey)}
         onDoubleClick={() => onOpen(folder)}
-        className="w-full text-left"
+        onKeyDown={(e) => { if (e.key === "Enter") onOpen(folder); }}
+        className="w-full text-left focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded-xl"
       >
         <FolderCardPreview
           label={label}

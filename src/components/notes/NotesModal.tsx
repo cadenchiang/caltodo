@@ -12,6 +12,7 @@ import EmojiPicker from "@/components/home/EmojiPicker";
 import { LUCIDE_ICON_MAP, isFilledIcon } from "@/components/home/emoji-picker-data";
 import { useMarqueeSelection } from "@/hooks/useMarqueeSelection";
 import DeleteNoteConfirmModal from "./DeleteNoteConfirmModal";
+import { extractTextPreview } from "@/lib/notes-utils";
 import type { Note, NoteUpdate } from "@/lib/types";
 
 interface Props {
@@ -72,10 +73,15 @@ export default function NotesModal({
   const [editMode, setEditMode] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [editDesc, setEditDesc] = useState("");
+  const originalTitleRef = useRef("");
+  const originalDescRef = useRef("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   /** Tracks the last plain-clicked note for shift+click range selection. */
   const anchorIdRef = useRef<string | null>(null);
+  /** Caches the last non-empty selection so the exit animation doesn't flash empty state. */
+  const lastSelectedRef = useRef<Set<string>>(new Set());
+  if (selectedIds.size > 0) lastSelectedRef.current = new Set(selectedIds);
   const notesContainerRef = useRef<HTMLDivElement>(null);
 
   // Clear selection when modal opens/closes
@@ -150,6 +156,8 @@ export default function NotesModal({
   function enterEditMode() {
     setEditTitle(folderLabel);
     setEditDesc(folderDescription);
+    originalTitleRef.current = folderLabel;
+    originalDescRef.current = folderDescription;
     setEditMode(true);
   }
 
@@ -229,7 +237,7 @@ export default function NotesModal({
     const selected = notes.filter((n) => selectedIds.has(n.id));
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
-    const content = selected.map((n) => `<h2>${n.title || "Untitled"}</h2>`).join("<hr>");
+    const content = selected.map((n) => `<h2>${n.title || "Untitled"}</h2><p>${extractTextPreview(n.content, 200)}</p>`).join("<hr>");
     printWindow.document.write(`<html><head><title>Print Notes</title><style>@media print { @page { margin: 1cm; } }</style></head><body style="font-family:system-ui;padding:2rem">${content}</body></html>`);
     printWindow.document.close();
     printWindow.print();
@@ -313,6 +321,7 @@ export default function NotesModal({
                   onKeyDown={(e) => {
                     if (e.key === "Enter") exitEditMode();
                     if (e.key === "Escape") {
+                      setEditTitle(originalTitleRef.current);
                       setEditMode(false);
                     }
                   }}
@@ -329,7 +338,10 @@ export default function NotesModal({
                   value={editDesc}
                   onChange={(e) => setEditDesc(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Escape") setEditMode(false);
+                    if (e.key === "Escape") {
+                      setEditDesc(originalDescRef.current);
+                      setEditMode(false);
+                    }
                   }}
                   placeholder="Add a description..."
                   rows={2}
@@ -396,12 +408,20 @@ export default function NotesModal({
             className="min-h-[200px] px-10 py-5"
           >
             {loading ? (
-              <div className="flex items-center justify-center py-16">
-                <div className="w-5 h-5 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
+              <div className="space-y-2 px-1">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="h-14 rounded-lg bg-muted/50 animate-pulse" />
+                ))}
               </div>
             ) : notes.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-32">
-                <p className="text-sm text-muted-foreground/60">No notes</p>
+              <div className="flex flex-col items-center justify-center py-32 gap-3">
+                <p className="text-sm text-muted-foreground/60">No notes yet</p>
+                <button
+                  onClick={() => onCreateNote()}
+                  className="px-4 py-2 text-sm font-medium rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors"
+                >
+                  Create a note
+                </button>
               </div>
             ) : viewMode === "list" ? (
               <ListView
@@ -426,20 +446,20 @@ export default function NotesModal({
       {noteBarVisible && (
         <div className={`absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-foreground text-background shadow-lg ${noteBarClosing ? "animate-announce-card-out" : "animate-announce-card-in"}`}>
           <span className="text-xs font-medium">
-            {selectedIds.size} selected
+            {lastSelectedRef.current.size} selected
           </span>
           <div className="w-px h-3.5 bg-background/20" />
           {/* Pin/Unpin */}
           <button
             onClick={handlePinSelected}
-            className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-background/10 transition-colors"
-            title={notes.filter((n) => selectedIds.has(n.id)).every((n) => n.is_pinned) ? "Unpin" : "Pin"}
+            className="w-9 h-9 rounded-md flex items-center justify-center hover:bg-background/10 transition-colors"
+            title={notes.filter((n) => lastSelectedRef.current.has(n.id)).every((n) => n.is_pinned) ? "Unpin" : "Pin"}
             aria-label="Toggle pin"
           >
-            {notes.filter((n) => selectedIds.has(n.id)).every((n) => n.is_pinned) ? <PinOff size={14} /> : <Pin size={14} />}
+            {notes.filter((n) => lastSelectedRef.current.has(n.id)).every((n) => n.is_pinned) ? <PinOff size={14} /> : <Pin size={14} />}
           </button>
           {/* Rename — only when exactly 1 note is selected */}
-          {selectedIds.size === 1 && (
+          {lastSelectedRef.current.size === 1 && (
             <button
               onClick={() => {
                 const noteId = Array.from(selectedIds)[0];
@@ -449,7 +469,7 @@ export default function NotesModal({
                   setSelectedIds(new Set());
                 }
               }}
-              className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-background/10 transition-colors"
+              className="w-9 h-9 rounded-md flex items-center justify-center hover:bg-background/10 transition-colors"
               title="Edit"
               aria-label="Edit note"
             >
@@ -459,7 +479,7 @@ export default function NotesModal({
           {/* Print */}
           <button
             onClick={handlePrintSelected}
-            className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-background/10 transition-colors"
+            className="w-9 h-9 rounded-md flex items-center justify-center hover:bg-background/10 transition-colors"
             title="Print"
             aria-label="Print notes"
           >
@@ -468,7 +488,7 @@ export default function NotesModal({
           {/* Delete */}
           <button
             onClick={handleDeleteSelected}
-            className="w-7 h-7 rounded-md flex items-center justify-center text-red-400 hover:text-red-300 hover:bg-background/10 transition-colors"
+            className="w-9 h-9 rounded-md flex items-center justify-center text-red-400 hover:text-red-300 hover:bg-background/10 transition-colors"
             title="Delete"
             aria-label="Delete notes"
           >
@@ -476,7 +496,7 @@ export default function NotesModal({
           </button>
           <button
             onClick={() => setSelectedIds(new Set())}
-            className="w-7 h-7 rounded-md flex items-center justify-center text-background/60 hover:text-background hover:bg-background/10 transition-colors"
+            className="w-9 h-9 rounded-md flex items-center justify-center text-background/60 hover:text-background hover:bg-background/10 transition-colors"
             title="Clear selection"
             aria-label="Clear selection"
           >

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Folder } from "lucide-react";
 import type { FolderAppearance } from "./FolderAppearanceModal";
 
@@ -37,17 +38,21 @@ export default function FolderCardPreview({
   hasCustomAppearance = false,
 }: Props) {
   const isDefault = !hasCustomAppearance;
+  const [imgError, setImgError] = useState(false);
 
   function getHeaderStyle(): React.CSSProperties {
     if (appearance.type === "gradient") {
       return { background: appearance.value };
     }
-    if (appearance.type === "image") {
+    if (appearance.type === "image" && !imgError) {
       return {
         backgroundImage: `url(${appearance.value})`,
         backgroundSize: "cover",
         backgroundPosition: "center",
       };
+    }
+    if (appearance.type === "image" && imgError) {
+      return { backgroundColor: DEFAULT_COLOR };
     }
     return { backgroundColor: appearance.value };
   }
@@ -70,16 +75,24 @@ export default function FolderCardPreview({
         {isDefault && (
           <Folder size={28} fill="currentColor" className="text-white/30 drop-shadow-sm" />
         )}
-        {appearance.type === "image" && (
-          <div className="absolute inset-0 bg-black/10" />
+        {appearance.type === "image" && !imgError && (
+          <>
+            <img
+              src={appearance.value}
+              alt=""
+              className="hidden"
+              onError={() => setImgError(true)}
+            />
+            <div className="absolute inset-0 bg-black/10" />
+          </>
         )}
       </div>
 
       {/* Info */}
       <div className="px-3 py-3">
-        <p className="text-sm font-semibold text-foreground truncate">
+        <span className="text-sm font-semibold text-foreground truncate block" title={label}>
           {label || "Untitled"}
-        </p>
+        </span>
         <p className="text-xs text-muted-foreground mt-1">
           {noteCount} {noteCount === 1 ? "note" : "notes"}
         </p>

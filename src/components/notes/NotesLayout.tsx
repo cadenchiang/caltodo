@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, lazy, Suspense } from "react";
+import { useState, useCallback, useEffect, lazy, Suspense } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useNotes } from "@/hooks/useNotes";
 import { useFolderSettings } from "@/hooks/useFolderSettings";
@@ -57,9 +57,14 @@ export default function NotesLayout({
     addCustomImage,
   } = useFolderSettings();
 
-  const { notes, loading, createNote, updateNote, deleteNote, deleteNotes, restoreNotes } = useNotes(
+  const { notes, loading, error, createNote, updateNote, deleteNote, deleteNotes, restoreNotes } = useNotes(
     selectedFolder?.id ?? null
   );
+
+  // Surface useNotes errors via toast
+  useEffect(() => {
+    if (error) showToast(error);
+  }, [error, showToast]);
 
   const handleSelectFolder = useCallback((folder: FolderEntry) => {
     setSkipAnimation(false);
@@ -184,6 +189,7 @@ export default function NotesLayout({
     if (error) {
       console.error("Failed to rename folder:", error.message);
       setSelectedFolder((prev) => prev ? { ...prev, label: oldName } : prev);
+      showToast("Couldn't rename folder");
       return;
     }
 

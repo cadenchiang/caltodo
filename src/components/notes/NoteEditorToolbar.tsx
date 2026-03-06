@@ -135,7 +135,7 @@ export default function NoteEditorToolbar({ editor, onInsertImage }: Props) {
             key={btn.label}
             onClick={btn.action}
             title={btn.label}
-            className={`p-1.5 rounded transition-colors ${
+            className={`p-2 rounded transition-colors active:scale-95 ${
               btn.isActive
                 ? "bg-accent text-accent-foreground"
                 : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
@@ -152,7 +152,7 @@ export default function NoteEditorToolbar({ editor, onInsertImage }: Props) {
         onClick={() => editor.chain().focus().undo().run()}
         disabled={!editor.can().undo()}
         title="Undo"
-        className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors disabled:opacity-30"
+        className="p-2 rounded text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
       >
         <Undo2 size={16} />
       </button>
@@ -160,7 +160,7 @@ export default function NoteEditorToolbar({ editor, onInsertImage }: Props) {
         onClick={() => editor.chain().focus().redo().run()}
         disabled={!editor.can().redo()}
         title="Redo"
-        className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors disabled:opacity-30"
+        className="p-2 rounded text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
       >
         <Redo2 size={16} />
       </button>

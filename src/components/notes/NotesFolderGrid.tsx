@@ -338,6 +338,7 @@ export default function NotesFolderGrid({
       setCourses((prev) =>
         prev.map((c) => (c.id === folderId ? { ...c, name: oldName } : c))
       );
+      showToast("Couldn't rename folder");
       return;
     }
 
@@ -366,19 +367,31 @@ export default function NotesFolderGrid({
     const deletedNoteCount = noteCounts[folderId] ?? 0;
 
     // Soft-delete all notes in this folder
-    await supabase
+    const { error: notesError } = await supabase
       .from("notes")
       .update({ deleted_at: now })
       .eq("course_id", folderId);
 
+    if (notesError) {
+      console.error("Failed to delete folder notes:", notesError.message);
+      showToast("Couldn't delete folder");
+      return;
+    }
+
     // Soft-delete course membership (folder goes to Recently Deleted)
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-      await supabase
+      const { error: memberError } = await supabase
         .from("course_memberships")
         .update({ deleted_at: now })
         .eq("user_id", user.id)
         .eq("course_id", folderId);
+
+      if (memberError) {
+        console.error("Failed to delete folder membership:", memberError.message);
+        showToast("Couldn't delete folder");
+        return;
+      }
     }
 
     setCourses((prev) => prev.filter((c) => c.id !== folderId));
@@ -440,6 +453,7 @@ export default function NotesFolderGrid({
 
     if (error || !course) {
       console.error("Failed to create folder:", error?.message);
+      showToast("Couldn't create folder");
       return;
     }
 
@@ -691,7 +705,7 @@ export default function NotesFolderGrid({
           {selectedFolderIds.size === 1 && !selectedFolderIds.has("general") && (
             <button
               onClick={handleRenameSelected}
-              className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-background/10 transition-colors"
+              className="w-9 h-9 rounded-md flex items-center justify-center hover:bg-background/10 transition-colors"
               title="Rename"
               aria-label="Rename folder"
             >
@@ -702,7 +716,7 @@ export default function NotesFolderGrid({
           {selectedFolderIds.size === 1 && (
             <button
               onClick={handleAppearanceSelected}
-              className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-background/10 transition-colors"
+              className="w-9 h-9 rounded-md flex items-center justify-center hover:bg-background/10 transition-colors"
               title="Appearance"
               aria-label="Change folder appearance"
             >
@@ -713,7 +727,7 @@ export default function NotesFolderGrid({
           {Array.from(selectedFolderIds).some((id) => id !== "general") && (
             <button
               onClick={() => setShowBulkDeleteConfirm(true)}
-              className="w-7 h-7 rounded-md flex items-center justify-center text-red-400 hover:text-red-300 hover:bg-background/10 transition-colors"
+              className="w-9 h-9 rounded-md flex items-center justify-center text-red-400 hover:text-red-300 hover:bg-background/10 transition-colors"
               title="Delete"
               aria-label="Delete folders"
             >
@@ -722,7 +736,7 @@ export default function NotesFolderGrid({
           )}
           <button
             onClick={() => setSelectedFolderIds(new Set())}
-            className="w-7 h-7 rounded-md flex items-center justify-center text-background/60 hover:text-background hover:bg-background/10 transition-colors"
+            className="w-9 h-9 rounded-md flex items-center justify-center text-background/60 hover:text-background hover:bg-background/10 transition-colors"
             title="Clear selection"
             aria-label="Clear selection"
           >
