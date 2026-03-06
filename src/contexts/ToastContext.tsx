@@ -38,7 +38,7 @@ interface ToastItem {
 
 interface ToastContextValue {
   showToast: (message: string, options?: ToastOptions) => void;
-  /** Updates progress of the current toast without replacing it. */
+  /** Updates progress of the most recent toast without replacing it. */
   updateToastProgress: (progress: number) => void;
 }
 
@@ -46,95 +46,106 @@ const ToastContext = createContext<ToastContextValue | null>(null);
 
 const DEFAULT_DURATION = 6000;
 const DISMISS_ANIMATION_MS = 300;
+/** Maximum number of toasts visible at once. */
+const MAX_TOASTS = 3;
 
 /**
  * Provides toast notification state and rendering to the component tree.
- * Shows one toast at a time; new toasts replace the current one.
- * Auto-dismisses after the configured duration (default 4s).
+ * Supports stacking multiple toasts; oldest auto-dismissed when exceeding MAX_TOASTS.
  *
  * @param children - Child components that can call useToast()
  */
 export function ToastProvider({ children }: { children: ReactNode }) {
-  const [toast, setToast] = useState<ToastItem | null>(null);
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
   const idCounter = useRef(0);
-  const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const animationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const timersRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
 
-  /** Clears any pending auto-dismiss and animation timers. */
-  const clearDismissTimer = useCallback(() => {
-    if (dismissTimerRef.current) {
-      clearTimeout(dismissTimerRef.current);
-      dismissTimerRef.current = null;
-    }
-    if (animationTimerRef.current) {
-      clearTimeout(animationTimerRef.current);
-      animationTimerRef.current = null;
+  /** Clears dismiss timer for a specific toast. */
+  const clearTimer = useCallback((id: number) => {
+    const timer = timersRef.current.get(id);
+    if (timer) {
+      clearTimeout(timer);
+      timersRef.current.delete(id);
     }
   }, []);
 
-  /** Starts the dismiss animation, then removes the toast after animation completes. */
-  const dismissToast = useCallback(() => {
-    clearDismissTimer();
-    setToast((prev) => (prev ? { ...prev, dismissing: true } : null));
-    animationTimerRef.current = setTimeout(() => setToast(null), DISMISS_ANIMATION_MS);
-  }, [clearDismissTimer]);
+  /** Starts the dismiss animation for a specific toast, then removes it. */
+  const dismissToast = useCallback((id: number) => {
+    clearTimer(id);
+    setToasts((prev) => prev.map((t) => (t.id === id ? { ...t, dismissing: true } : t)));
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, DISMISS_ANIMATION_MS);
+  }, [clearTimer]);
 
   /**
    * Displays a toast notification at the bottom of the screen.
-   * Replaces any currently visible toast.
+   * Stacks with existing toasts up to MAX_TOASTS.
    *
    * @param message - Text to display in the toast
    * @param options - Optional action button and custom duration
    */
   const showToast = useCallback(
     (message: string, options?: ToastOptions) => {
-      clearDismissTimer();
       const id = ++idCounter.current;
       const duration = options?.duration ?? DEFAULT_DURATION;
       const hasProgress = typeof options?.progress === "number";
 
-      setToast({
+      const newToast: ToastItem = {
         id,
         message,
         action: options?.action,
         duration,
         dismissing: false,
         progress: options?.progress,
+      };
+
+      setToasts((prev) => {
+        const next = [...prev, newToast];
+        // Dismiss oldest toasts exceeding the limit
+        while (next.length > MAX_TOASTS) {
+          const oldest = next.shift();
+          if (oldest) clearTimer(oldest.id);
+        }
+        return next;
       });
 
-      // Don't auto-dismiss while progress is active
       if (!hasProgress) {
-        dismissTimerRef.current = setTimeout(() => {
-          dismissToast();
-        }, duration);
+        const timer = setTimeout(() => dismissToast(id), duration);
+        timersRef.current.set(id, timer);
       }
     },
-    [clearDismissTimer, dismissToast]
+    [clearTimer, dismissToast]
   );
 
   /**
-   * Updates the progress value of the current toast without replacing it.
-   * Does not restart the dismiss timer.
+   * Updates the progress value of the most recent toast without replacing it.
    *
    * @param progress - New progress value (0–100)
    */
   const updateToastProgress = useCallback((progress: number) => {
-    setToast((prev) => (prev ? { ...prev, progress } : null));
+    setToasts((prev) => {
+      if (prev.length === 0) return prev;
+      const last = prev[prev.length - 1];
+      return prev.map((t) => (t.id === last.id ? { ...t, progress } : t));
+    });
   }, []);
 
   return (
     <ToastContext.Provider value={{ showToast, updateToastProgress }}>
       {children}
-      {toast && (
-        <Toast
-          key={toast.id}
-          message={toast.message}
-          action={toast.action}
-          progress={toast.progress}
-          dismissing={toast.dismissing}
-          onDismiss={dismissToast}
-        />
-      )}
+      <div className="fixed bottom-36 md:bottom-6 left-0 right-0 z-[200] flex flex-col items-center gap-2 pointer-events-none px-4">
+        {toasts.map((toast) => (
+          <Toast
+            key={toast.id}
+            message={toast.message}
+            action={toast.action}
+            progress={toast.progress}
+            dismissing={toast.dismissing}
+            onDismiss={() => dismissToast(toast.id)}
+          />
+        ))}
+      </div>
     </ToastContext.Provider>
   );
 }
@@ -143,7 +154,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
  * Hook to access the toast notification system.
  * Must be used within a ToastProvider.
  *
- * @returns Object with showToast function
+ * @returns Object with showToast and updateToastProgress functions
  */
 export function useToast(): ToastContextValue {
   const ctx = useContext(ToastContext);

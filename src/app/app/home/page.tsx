@@ -357,6 +357,7 @@ export default function HomePage() {
             onApplyFontToAll={handleApplyFontToAll}
             onApplyBgResetToAll={() => { updateAllWidgetConfigs({ bgColor: "" }); showToast("Background reset on all widgets"); }}
             onApplyTextColorToAll={(color) => { updateAllWidgetConfigs({ textColor: color }); showToast("Text color applied to all widgets"); }}
+            onApplyBorderToAll={(value) => { updateAllWidgetConfigs({ widgetBorder: value }); showToast(`Border ${value === "false" ? "hidden" : "shown"} on all widgets`); }}
             savedImages={savedImages}
             onAddSavedImage={addSavedImage}
           />

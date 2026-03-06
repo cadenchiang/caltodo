@@ -121,13 +121,14 @@ interface Props {
   onApplyFontToAll?: (font: string) => void;
   onApplyBgResetToAll?: () => void;
   onApplyTextColorToAll?: (color: string) => void;
+  onApplyBorderToAll?: (value: string) => void;
   savedImages: string[];
   onAddSavedImage: (url: string) => void;
 }
 
 export default function WidgetEditorPanel({
   widget, widgetRect, onClose, onUpdateConfig, onRemove,
-  onApplyFontToAll, onApplyBgResetToAll, onApplyTextColorToAll,
+  onApplyFontToAll, onApplyBgResetToAll, onApplyTextColorToAll, onApplyBorderToAll,
   savedImages, onAddSavedImage,
 }: Props) {
   const { boards } = useDiscussionBoards();
@@ -145,7 +146,7 @@ export default function WidgetEditorPanel({
   const [calendars, setCalendars] = useState<GCalCalendarEntry[]>([]);
   const [calendarsLoading, setCalendarsLoading] = useState(false);
   const [selectedCalendarIds, setSelectedCalendarIds] = useState<Set<string>>(new Set(["primary"]));
-  const [confirmOverlay, setConfirmOverlay] = useState<"bgReset" | "textColor" | "delete" | null>(null);
+  const [confirmOverlay, setConfirmOverlay] = useState<"bgReset" | "textColor" | "border" | "delete" | null>(null);
   const [expandedPresetCats, setExpandedPresetCats] = useState<Set<string>>(new Set());
 
   /** Toggles a preset category between collapsed (horizontal scroll) and expanded (full grid). */
@@ -222,6 +223,7 @@ export default function WidgetEditorPanel({
     const init = initialConfigRef.current;
     if (init.bgColor && !localConfig.bgColor && onApplyBgResetToAll) { setConfirmOverlay("bgReset"); return; }
     if ((localConfig.textColor || "") !== (init.textColor || "") && onApplyTextColorToAll) { setConfirmOverlay("textColor"); return; }
+    if ((localConfig.widgetBorder || "true") !== (init.widgetBorder || "true") && onApplyBorderToAll) { setConfirmOverlay("border"); return; }
     triggerClose();
   }
 
@@ -472,6 +474,7 @@ export default function WidgetEditorPanel({
       {/* Confirm overlays */}
       {confirmOverlay === "bgReset" && <ConfirmPanel message="Reset background on all widgets?" onYes={() => { onApplyBgResetToAll?.(); setConfirmOverlay(null); triggerClose(); }} onNo={() => { setConfirmOverlay(null); triggerClose(); }} yesLabel="Reset all" noLabel="Just this one" />}
       {confirmOverlay === "textColor" && <ConfirmPanel message="Apply this text color to all widgets?" onYes={() => { onApplyTextColorToAll?.(localConfig.textColor || ""); setConfirmOverlay(null); triggerClose(); }} onNo={() => { setConfirmOverlay(null); triggerClose(); }} yesLabel="Apply to all" noLabel="Just this one" />}
+      {confirmOverlay === "border" && <ConfirmPanel message={`${localConfig.widgetBorder === "false" ? "Hide" : "Show"} border on all widgets?`} onYes={() => { onApplyBorderToAll?.(localConfig.widgetBorder || "true"); setConfirmOverlay(null); triggerClose(); }} onNo={() => { setConfirmOverlay(null); triggerClose(); }} yesLabel="Apply to all" noLabel="Just this one" />}
       {confirmOverlay === "delete" && <ConfirmPanel message="Remove this widget?" subtitle="This action cannot be undone." onYes={() => { onRemove(widget.id); onClose(); }} onNo={() => setConfirmOverlay(null)} yesLabel="Remove" noLabel="Cancel" destructive />}
     </div>
   );
