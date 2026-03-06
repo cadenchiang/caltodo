@@ -404,6 +404,48 @@ export interface CourseMemberProfile {
  * @param allDay - Whether this is an all-day event
  * @param calendarId - Source calendar ID (set when fetching from multiple calendars)
  */
+/**
+ * A user note stored in Tiptap JSON format.
+ *
+ * @param id - UUID primary key
+ * @param user_id - Owner's auth ID
+ * @param course_id - FK to courses table (null = "General" folder)
+ * @param title - Note title (may be auto-derived from first line)
+ * @param content - Tiptap document JSON
+ * @param is_pinned - Whether the note is pinned to top of list
+ * @param created_at - ISO timestamp of creation
+ * @param updated_at - ISO timestamp of last modification
+ */
+export interface Note {
+  id: string;
+  user_id: string;
+  course_id: string | null;
+  title: string;
+  content: Record<string, unknown>;
+  is_pinned: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Fields required to create a new note.
+ */
+export interface NoteInsert {
+  course_id?: string | null;
+  title?: string;
+  content?: Record<string, unknown>;
+}
+
+/**
+ * Fields that can be updated on an existing note.
+ */
+export interface NoteUpdate {
+  title?: string;
+  content?: Record<string, unknown>;
+  is_pinned?: boolean;
+  course_id?: string | null;
+}
+
 export interface GCalEvent {
   id: string;
   summary: string;
