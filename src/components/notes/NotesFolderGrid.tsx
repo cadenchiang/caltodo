@@ -12,7 +12,7 @@ import FolderCardPreview from "./FolderCardPreview";
 import NewFolderModal from "./NewFolderModal";
 import FolderAppearanceModal from "./FolderAppearanceModal";
 import type { FolderAppearance } from "./FolderAppearanceModal";
-import type { FolderSetting } from "@/hooks/useFolderSettings";
+import type { FolderSetting, CustomImage } from "@/hooks/useFolderSettings";
 import type { Course } from "@/lib/types";
 import SidePanel, {
   computeSidePanelPosition,
@@ -60,6 +60,14 @@ interface Props {
   skipAnimation?: boolean;
   /** Adjustments to note counts from create/delete operations in the modal. */
   noteCountAdjustments?: Record<string, number>;
+  /** User's saved custom colors for the appearance picker. */
+  customColors?: string[];
+  /** Callback to persist a new custom color. */
+  onAddCustomColor?: (hex: string) => void;
+  /** User's saved custom uploaded images for the appearance picker. */
+  customImages?: CustomImage[];
+  /** Callback to persist a new custom image URL. */
+  onAddCustomImage?: (url: string) => void;
 }
 
 /**
@@ -79,6 +87,10 @@ export default function NotesFolderGrid({
   updateSetting,
   skipAnimation,
   noteCountAdjustments,
+  customColors,
+  onAddCustomColor,
+  customImages,
+  onAddCustomImage,
 }: Props) {
   const { showToast } = useToast();
   const [courses, setCourses] = useState<Course[]>(initialCourses);
@@ -547,6 +559,7 @@ export default function NotesFolderGrid({
             appearance={getFolderAppearance(folder.id)}
             noteCount={(noteCounts[folder.id] ?? 0) + (noteCountAdjustments?.[folder.id] ?? 0)}
             isGeneral={folder.id === "general"}
+            hasCustomAppearance={folder.id === "general" || !!getFolderSetting(folder.id).appearance}
             highlighted={editingFolder?.id === folder.id}
             selected={selectedFolderIds.has(folder.id)}
             displayLabel={
@@ -555,7 +568,10 @@ export default function NotesFolderGrid({
                 : undefined
             }
             onSelect={toggleFolderSelect}
-            onOpen={onSelectFolder}
+            onOpen={(folder) => {
+              setSelectedFolderIds(new Set());
+              onSelectFolder(folder);
+            }}
           />
         ))}
 
@@ -607,6 +623,10 @@ export default function NotesFolderGrid({
           onClose={closePanel}
           position={panelPosition}
           side={panelSide}
+          customColors={customColors}
+          onAddCustomColor={onAddCustomColor}
+          customImages={customImages}
+          onAddCustomImage={onAddCustomImage}
         />
       )}
 

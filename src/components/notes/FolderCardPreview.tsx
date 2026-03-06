@@ -12,6 +12,8 @@ interface Props {
   noteCount: number;
   highlighted?: boolean;
   selected?: boolean;
+  /** When true, the user has customized this folder's appearance at least once. */
+  hasCustomAppearance?: boolean;
 }
 
 /**
@@ -32,9 +34,9 @@ export default function FolderCardPreview({
   noteCount,
   highlighted = false,
   selected = false,
+  hasCustomAppearance = false,
 }: Props) {
-  const isDefault =
-    appearance.type === "color" && appearance.value === DEFAULT_COLOR;
+  const isDefault = !hasCustomAppearance;
 
   function getHeaderStyle(): React.CSSProperties {
     if (appearance.type === "gradient") {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect, lazy, Suspense } from "react";
+import { useState, useCallback, useEffect, lazy, Suspense } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useNotes } from "@/hooks/useNotes";
 import { useFolderSettings } from "@/hooks/useFolderSettings";
@@ -42,18 +42,27 @@ export default function NotesLayout({
   /** Adjustments to note counts per folder (incremented/decremented on create/delete). */
   const [noteCountAdjustments, setNoteCountAdjustments] = useState<Record<string, number>>({});
   /** Tracks if we're returning from editor to skip entrance animation. */
-  const skipAnimationRef = useRef(false);
+  const [skipAnimation, setSkipAnimation] = useState(false);
 
-  // Reset skipAnimation after the first render so subsequent modal opens still animate
+  // Reset skipAnimation after the render with skipAnimation=true completes
   useEffect(() => {
-    if (skipAnimationRef.current) {
-      skipAnimationRef.current = false;
-    }
-  });
+    if (!skipAnimation) return;
+    const id = requestAnimationFrame(() => {
+      requestAnimationFrame(() => setSkipAnimation(false));
+    });
+    return () => cancelAnimationFrame(id);
+  }, [skipAnimation]);
 
   const supabase = createClient();
   const { showToast } = useToast();
-  const { getFolderSetting, updateSetting } = useFolderSettings();
+  const {
+    getFolderSetting,
+    updateSetting,
+    customColors,
+    addCustomColor,
+    customImages,
+    addCustomImage,
+  } = useFolderSettings();
 
   const { notes, loading, createNote, updateNote, deleteNote, deleteNotes, restoreNotes } = useNotes(
     selectedFolder?.id ?? null
@@ -133,7 +142,7 @@ export default function NotesLayout({
         deleteNote(selectedNote.id);
       }
     }
-    skipAnimationRef.current = true;
+    setSkipAnimation(true);
     setSelectedNote(null);
     setView("folders");
     if (selectedFolder) {
@@ -173,87 +182,90 @@ export default function NotesLayout({
   const folderId = selectedFolder?.id ?? "general";
   const folderSettings = getFolderSetting(folderId);
 
-  if (view === "editor" && selectedNote) {
-    return (
-      <Suspense fallback={null}>
-        <NoteEditor
-          key={selectedNote.id}
-          note={selectedNote}
-          folderLabel={selectedFolder?.label ?? "General"}
-          folders={[
-            { id: "general", label: "General" },
-            ...initialCourses.map((c) => ({ id: c.id, label: c.name })),
-          ]}
-          currentFolderId={selectedFolder?.id ?? "general"}
-          onMoveToFolder={(folderId) => {
-            const courseId = folderId === "general" ? null : folderId;
-            handleUpdateNote(selectedNote.id, { course_id: courseId });
-            // Adjust counts: decrement old, increment new
-            const oldFId = selectedFolder?.id ?? "general";
-            setNoteCountAdjustments((prev) => ({
-              ...prev,
-              [oldFId]: (prev[oldFId] ?? 0) - 1,
-              [folderId]: (prev[folderId] ?? 0) + 1,
-            }));
-            // Update selectedFolder so breadcrumb reflects new folder
-            const target = initialCourses.find((c) => c.id === folderId);
-            setSelectedFolder(target ? { id: target.id, label: target.name } : { id: "general", label: "General" });
-            showToast("Note moved", { duration: 2000 });
-          }}
-          onUpdate={handleUpdateNote}
-          onDelete={handleDeleteNote}
-          onBack={handleBackFromEditor}
-        />
-      </Suspense>
-    );
-  }
+  const showEditor = view === "editor" && selectedNote;
 
   return (
     <>
-      <NotesFolderGrid
-        key={gridRefreshKey}
-        initialCourses={initialCourses}
-        initialNoteCounts={initialNoteCounts}
-        onSelectFolder={handleSelectFolder}
-        getFolderSetting={getFolderSetting}
-        updateSetting={updateSetting}
-        skipAnimation={skipAnimationRef.current}
-        noteCountAdjustments={noteCountAdjustments}
-      />
-      <Suspense fallback={null}>
-        <NotesModal
-          open={modalOpen}
-          folderId={folderId}
-          folderLabel={selectedFolder?.label ?? ""}
-          folderDescription={folderSettings.description ?? ""}
-          folderIcon={folderSettings.icon ?? ""}
-          isGeneral={selectedFolder?.id === "general"}
-          notes={notes}
-          loading={loading}
-          onSelectNote={handleSelectNote}
-          onCreateNote={handleCreateNote}
-          onUpdateNote={updateNote}
-          onDeleteNotes={(ids: string[]) => {
-            deleteNotes(ids);
-            const fId = selectedFolder?.id ?? "general";
-            setNoteCountAdjustments((prev) => ({ ...prev, [fId]: (prev[fId] ?? 0) - ids.length }));
-            showToast(`${ids.length} ${ids.length === 1 ? "note" : "notes"} deleted`, {
-              action: {
-                label: "Undo",
-                onClick: () => {
-                  restoreNotes(ids);
-                  setNoteCountAdjustments((prev) => ({ ...prev, [fId]: (prev[fId] ?? 0) + ids.length }));
-                },
-              },
-            });
-          }}
-          onRenameFolder={handleRenameFolder}
-          onUpdateDescription={(desc) => updateSetting(folderId, "description", desc)}
-          onUpdateIcon={(icon) => updateSetting(folderId, "icon", icon)}
-          onClose={() => setModalOpen(false)}
-          skipAnimation={skipAnimationRef.current}
+      {showEditor && (
+        <Suspense fallback={null}>
+          <NoteEditor
+            key={selectedNote.id}
+            note={selectedNote}
+            folderLabel={selectedFolder?.label ?? "General"}
+            folders={[
+              { id: "general", label: "General" },
+              ...initialCourses.map((c) => ({ id: c.id, label: c.name })),
+            ]}
+            currentFolderId={selectedFolder?.id ?? "general"}
+            onMoveToFolder={(folderId) => {
+              const courseId = folderId === "general" ? null : folderId;
+              handleUpdateNote(selectedNote.id, { course_id: courseId });
+              const oldFId = selectedFolder?.id ?? "general";
+              setNoteCountAdjustments((prev) => ({
+                ...prev,
+                [oldFId]: (prev[oldFId] ?? 0) - 1,
+                [folderId]: (prev[folderId] ?? 0) + 1,
+              }));
+              const target = initialCourses.find((c) => c.id === folderId);
+              setSelectedFolder(target ? { id: target.id, label: target.name } : { id: "general", label: "General" });
+              showToast("Note moved", { duration: 2000 });
+            }}
+            onUpdate={handleUpdateNote}
+            onDelete={handleDeleteNote}
+            onBack={handleBackFromEditor}
+          />
+        </Suspense>
+      )}
+      <div style={{ display: showEditor ? "none" : undefined }}>
+        <NotesFolderGrid
+          key={gridRefreshKey}
+          initialCourses={initialCourses}
+          initialNoteCounts={initialNoteCounts}
+          onSelectFolder={handleSelectFolder}
+          getFolderSetting={getFolderSetting}
+          updateSetting={updateSetting}
+          skipAnimation={skipAnimation}
+          noteCountAdjustments={noteCountAdjustments}
+          customColors={customColors}
+          onAddCustomColor={addCustomColor}
+          customImages={customImages}
+          onAddCustomImage={addCustomImage}
         />
-      </Suspense>
+        <Suspense fallback={null}>
+          <NotesModal
+            open={modalOpen}
+            folderId={folderId}
+            folderLabel={selectedFolder?.label ?? ""}
+            folderDescription={folderSettings.description ?? ""}
+            folderIcon={folderSettings.icon ?? ""}
+            isGeneral={selectedFolder?.id === "general"}
+            notes={notes}
+            loading={loading}
+            onSelectNote={handleSelectNote}
+            onCreateNote={handleCreateNote}
+            onUpdateNote={updateNote}
+            onDeleteNotes={(ids: string[]) => {
+              deleteNotes(ids);
+              const fId = selectedFolder?.id ?? "general";
+              setNoteCountAdjustments((prev) => ({ ...prev, [fId]: (prev[fId] ?? 0) - ids.length }));
+              showToast(`${ids.length} ${ids.length === 1 ? "note" : "notes"} deleted`, {
+                action: {
+                  label: "Undo",
+                  onClick: () => {
+                    restoreNotes(ids);
+                    setNoteCountAdjustments((prev) => ({ ...prev, [fId]: (prev[fId] ?? 0) + ids.length }));
+                  },
+                },
+              });
+            }}
+            onRenameFolder={handleRenameFolder}
+            onUpdateDescription={(desc) => updateSetting(folderId, "description", desc)}
+            onUpdateIcon={(icon) => updateSetting(folderId, "icon", icon)}
+            onClose={() => setModalOpen(false)}
+            skipAnimation={skipAnimation}
+          />
+        </Suspense>
+      </div>
     </>
   );
 }

@@ -13,6 +13,8 @@ interface Props {
   highlighted?: boolean;
   selected?: boolean;
   displayLabel?: string;
+  /** When true, the user has customized this folder's appearance at least once. */
+  hasCustomAppearance?: boolean;
   onSelect: (folderId: string, shiftKey: boolean) => void;
   onOpen: (folder: FolderEntry) => void;
 }
@@ -40,6 +42,7 @@ export default function FolderCard({
   highlighted = false,
   selected = false,
   displayLabel,
+  hasCustomAppearance = false,
   onSelect,
   onOpen,
 }: Props) {
@@ -64,6 +67,7 @@ export default function FolderCard({
           noteCount={noteCount}
           highlighted={highlighted}
           selected={selected}
+          hasCustomAppearance={hasCustomAppearance}
         />
       </button>
     </div>

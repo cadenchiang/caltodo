@@ -58,6 +58,8 @@ export const PHOTO_COVER_CATEGORIES: { label: string; photos: PhotoCover[] }[] =
     photos: [
       { id: "cal", label: "Cal Berkeley", url: "/cal-logo.webp", bgColor: "#012677" },
       { id: "campanile", label: "Campanile Panorama", url: "/campanile-panorama.jpg" },
+      { id: "p60", label: "Sather Gate", url: "https://images.unsplash.com/photo-1588263823647-ce3546d325bc?w=3200&h=700&fit=crop&crop=center&q=90" },
+      { id: "p61", label: "Memorial Glade", url: "https://images.unsplash.com/photo-1541625602330-2277a4c46182?w=3200&h=700&fit=crop&crop=center&q=90" },
     ],
   },
   {
@@ -128,6 +130,8 @@ export const PHOTO_COVER_CATEGORIES: { label: string; photos: PhotoCover[] }[] =
       { id: "p43", label: "Milky Way Mountains", url: "https://images.unsplash.com/photo-1765825365130-52e276bca060?w=3200&h=700&fit=crop&crop=center&q=90" },
       { id: "p44", label: "Milky Way Galaxy", url: "https://images.unsplash.com/photo-1538370965046-79c0d6907d47?w=3200&h=700&fit=crop&crop=center&q=90" },
       { id: "p45", label: "Starry Night Sky", url: "https://images.unsplash.com/photo-1742626157111-59f3f1019a8a?w=3200&h=700&fit=crop&crop=center&q=90" },
+      { id: "p62", label: "Nebula Clouds", url: "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=3200&h=700&fit=crop&crop=center&q=90" },
+      { id: "p63", label: "Aurora Borealis", url: "https://images.unsplash.com/photo-1531366936337-7c912a4589a7?w=3200&h=700&fit=crop&crop=center&q=90" },
     ],
   },
   {
@@ -152,6 +156,50 @@ export const PHOTO_COVER_CATEGORIES: { label: string; photos: PhotoCover[] }[] =
       { id: "p57", label: "Beach Shore Waves", url: "https://images.unsplash.com/photo-1710790095456-6b122a198033?w=3200&h=700&fit=crop&crop=center&q=90" },
       { id: "p58", label: "Ocean Waves", url: "https://images.unsplash.com/photo-1627302800387-8dbab13aefba?w=3200&h=700&fit=crop&crop=center&q=90" },
       { id: "p59", label: "Sandy Beach Aerial", url: "https://images.unsplash.com/photo-1736774635366-c2fa40e86409?w=3200&h=700&fit=crop&crop=center&q=90" },
+    ],
+  },
+  {
+    label: "Macro & Texture",
+    photos: [
+      { id: "p64", label: "Water Drops", url: "https://images.unsplash.com/photo-1509803874385-db7c23652552?w=3200&h=700&fit=crop&crop=center&q=90" },
+      { id: "p65", label: "Leaf Veins", url: "https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?w=3200&h=700&fit=crop&crop=center&q=90" },
+      { id: "p66", label: "Silk Fabric", url: "https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=3200&h=700&fit=crop&crop=center&q=90" },
+      { id: "p67", label: "Ice Crystals", url: "https://images.unsplash.com/photo-1517299321609-52687d1bc55a?w=3200&h=700&fit=crop&crop=center&q=90" },
+      { id: "p68", label: "Marble Texture", url: "https://images.unsplash.com/photo-1541123603104-512919d6a96c?w=3200&h=700&fit=crop&crop=center&q=90" },
+      { id: "p69", label: "Sand Ripples", url: "https://images.unsplash.com/photo-1509515837298-2c67a3933321?w=3200&h=700&fit=crop&crop=center&q=90" },
+    ],
+  },
+  {
+    label: "Dark & Moody",
+    photos: [
+      { id: "p70", label: "Storm Clouds", url: "https://images.unsplash.com/photo-1534088568595-a066f410bcda?w=3200&h=700&fit=crop&crop=center&q=90" },
+      { id: "p71", label: "Volcanic Glow", url: "https://images.unsplash.com/photo-1462651567147-aa679fd1cfaf?w=3200&h=700&fit=crop&crop=center&q=90" },
+      { id: "p72", label: "Foggy Forest", url: "https://images.unsplash.com/photo-1542273917363-3b1817f69a2d?w=3200&h=700&fit=crop&crop=center&q=90" },
+      { id: "p73", label: "Rain on Glass", url: "https://images.unsplash.com/photo-1428592953211-077101b2021b?w=3200&h=700&fit=crop&crop=center&q=90" },
+      { id: "p74", label: "Dark Ocean", url: "https://images.unsplash.com/photo-1505118380757-91f5f5632de0?w=3200&h=700&fit=crop&crop=center&q=90" },
+      { id: "p75", label: "Lightning Strike", url: "https://images.unsplash.com/photo-1461511669078-d46bf351cd6e?w=3200&h=700&fit=crop&crop=center&q=90" },
+    ],
+  },
+  {
+    label: "Aerial & Geometric",
+    photos: [
+      { id: "p76", label: "Terraced Fields", url: "https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=3200&h=700&fit=crop&crop=center&q=90" },
+      { id: "p77", label: "Salt Flats", url: "https://images.unsplash.com/photo-1509316785289-025f5b846b35?w=3200&h=700&fit=crop&crop=center&q=90" },
+      { id: "p78", label: "Coastline Patterns", url: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=3200&h=700&fit=crop&crop=center&q=90" },
+      { id: "p79", label: "Desert Dunes", url: "https://images.unsplash.com/photo-1473580044384-7ba9967e16a0?w=3200&h=700&fit=crop&crop=center&q=90" },
+      { id: "p80", label: "River Delta", url: "https://images.unsplash.com/photo-1433477155337-9aea4e790195?w=3200&h=700&fit=crop&crop=center&q=90" },
+      { id: "p81", label: "Coral Reef Aerial", url: "https://images.unsplash.com/photo-1546026423-cc4642628d2b?w=3200&h=700&fit=crop&crop=center&q=90" },
+    ],
+  },
+  {
+    label: "Minimalist",
+    photos: [
+      { id: "p82", label: "Lone Tree in Snow", url: "https://images.unsplash.com/photo-1491002052546-bf38f186af56?w=3200&h=700&fit=crop&crop=center&q=90" },
+      { id: "p83", label: "Foggy Lake", url: "https://images.unsplash.com/photo-1505765050516-f72dcac9c60e?w=3200&h=700&fit=crop&crop=center&q=90" },
+      { id: "p84", label: "White Sand Dunes", url: "https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?w=3200&h=700&fit=crop&crop=center&q=90" },
+      { id: "p85", label: "Misty Horizon", url: "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?w=3200&h=700&fit=crop&crop=center&q=90" },
+      { id: "p86", label: "Lone Sailboat", url: "https://images.unsplash.com/photo-1500930287596-c1ecaa210c84?w=3200&h=700&fit=crop&crop=center&q=90" },
+      { id: "p87", label: "Empty Road", url: "https://images.unsplash.com/photo-1510784722466-f2aa9c52fff6?w=3200&h=700&fit=crop&crop=center&q=90" },
     ],
   },
 ];
