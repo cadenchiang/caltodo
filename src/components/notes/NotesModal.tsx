@@ -1,14 +1,14 @@
 "use client";
 
-import { useState, useRef, useMemo } from "react";
+import { useState } from "react";
 import { createPortal } from "react-dom";
 import {
-  X, Plus, List, LayoutGrid, StickyNote,
-  MoreVertical, Pencil, FileText,
+  X, Plus, List, LayoutGrid, StickyNote, Pencil,
 } from "lucide-react";
-import useClickOutside from "@/hooks/useClickOutside";
 import { ListView, GridView } from "./NotesModalViews";
-import { RenameModal, DescriptionModal } from "./FolderEditModals";
+import { FolderTitle } from "./NotesModalParts";
+import EditToggleButton from "@/components/ui/EditToggleButton";
+import EmojiPicker from "@/components/home/EmojiPicker";
 import type { Note } from "@/lib/types";
 
 interface Props {
@@ -16,6 +16,7 @@ interface Props {
   folderId: string;
   folderLabel: string;
   folderDescription: string;
+  folderIcon: string;
   isGeneral: boolean;
   notes: Note[];
   loading: boolean;
@@ -23,6 +24,7 @@ interface Props {
   onCreateNote: () => void;
   onRenameFolder: (newName: string) => void;
   onUpdateDescription: (description: string) => void;
+  onUpdateIcon: (icon: string) => void;
   onClose: () => void;
 }
 
@@ -32,13 +34,14 @@ const VIEW_MODE_KEY = "notes_view_mode";
 /**
  * Fixed-size modal for browsing notes inside a folder.
  * Large title (auto-shrinks for long names), optional description,
- * three-dot menu for rename/description, list/grid toggle.
+ * edit toggle for inline editing of title/description/icon, list/grid toggle.
  * Notes area has a light gray background.
  */
 export default function NotesModal({
   open,
   folderLabel,
   folderDescription,
+  folderIcon,
   isGeneral,
   notes,
   loading,
@@ -46,6 +49,7 @@ export default function NotesModal({
   onCreateNote,
   onRenameFolder,
   onUpdateDescription,
+  onUpdateIcon,
   onClose,
 }: Props) {
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
@@ -55,16 +59,10 @@ export default function NotesModal({
     } catch { return "list"; }
   });
 
-  const [showMenu, setShowMenu] = useState(false);
-  const [showRenameModal, setShowRenameModal] = useState(false);
-  const [renameValue, setRenameValue] = useState("");
-  const [showDescModal, setShowDescModal] = useState(false);
-  const [descValue, setDescValue] = useState("");
-
-  const menuBtnRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  useClickOutside(menuRef, () => setShowMenu(false), showMenu, [menuBtnRef]);
+  const [editMode, setEditMode] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDesc, setEditDesc] = useState("");
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   if (!open || typeof document === "undefined") return null;
 
@@ -73,15 +71,35 @@ export default function NotesModal({
     try { localStorage.setItem(VIEW_MODE_KEY, mode); } catch { /* ignore */ }
   }
 
-  function commitRename() {
-    const trimmed = renameValue.trim();
-    if (trimmed && trimmed !== folderLabel) onRenameFolder(trimmed);
-    setShowRenameModal(false);
+  /**
+   * Enter edit mode — initialize local state from current folder props.
+   */
+  function enterEditMode() {
+    setEditTitle(folderLabel);
+    setEditDesc(folderDescription);
+    setEditMode(true);
   }
 
-  function commitDescription() {
-    onUpdateDescription(descValue);
-    setShowDescModal(false);
+  /**
+   * Exit edit mode — commit any changes to title/description.
+   */
+  function exitEditMode() {
+    const trimmedTitle = editTitle.trim();
+    if (!isGeneral && trimmedTitle && trimmedTitle !== folderLabel) {
+      onRenameFolder(trimmedTitle);
+    }
+    if (editDesc !== folderDescription) {
+      onUpdateDescription(editDesc);
+    }
+    setEditMode(false);
+  }
+
+  function handleToggleEdit() {
+    if (editMode) {
+      exitEditMode();
+    } else {
+      enterEditMode();
+    }
   }
 
   return createPortal(
@@ -92,51 +110,10 @@ export default function NotesModal({
       />
 
       {/* Modal — narrower fixed size */}
-      <div className="relative bg-card rounded-2xl shadow-xl animate-announce-card-in overflow-hidden w-[680px] h-[700px] max-w-[calc(100vw-2rem)] max-h-[calc(100vh-4rem)] flex flex-col">
-        {/* Top-right controls: three-dot menu + close */}
+      <div className="relative bg-card rounded-2xl shadow-xl animate-announce-card-in overflow-hidden w-[680px] h-[780px] max-w-[calc(100vw-2rem)] max-h-[calc(100vh-4rem)] flex flex-col">
+        {/* Top-right controls: edit toggle + close */}
         <div className="absolute top-5 right-5 z-10 flex items-center gap-1">
-          {!isGeneral && (
-            <div className="relative">
-              <button
-                ref={menuBtnRef}
-                onClick={() => setShowMenu(!showMenu)}
-                className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                title="Edit folder"
-              >
-                <MoreVertical size={16} />
-              </button>
-
-              {showMenu && (
-                <div
-                  ref={menuRef}
-                  className="absolute top-full right-0 mt-1 z-[60] rounded-xl shadow-2xl border border-border overflow-hidden min-w-[160px] bg-popover animate-in"
-                >
-                  <button
-                    onClick={() => {
-                      setRenameValue(folderLabel);
-                      setShowRenameModal(true);
-                      setShowMenu(false);
-                    }}
-                    className="flex items-center gap-2 w-full text-left px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-                  >
-                    <Pencil size={13} />
-                    Rename
-                  </button>
-                  <button
-                    onClick={() => {
-                      setDescValue(folderDescription);
-                      setShowDescModal(true);
-                      setShowMenu(false);
-                    }}
-                    className="flex items-center gap-2 w-full text-left px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-                  >
-                    <FileText size={13} />
-                    Description
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
+          <EditToggleButton editing={editMode} onToggle={handleToggleEdit} />
           <button
             onClick={onClose}
             className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
@@ -148,14 +125,64 @@ export default function NotesModal({
 
         <div className="flex-1 overflow-y-auto">
           {/* Title area */}
-          <div className="px-12 pt-12 pb-4">
+          <div className="px-16 pt-16 pb-4">
+            {/* Clickable emoji icon — only clickable in edit mode */}
+            <div className="mb-3">
+              {editMode ? (
+                <button
+                  onClick={() => setShowEmojiPicker(true)}
+                  className="relative text-4xl hover:bg-muted rounded-xl w-14 h-14 flex items-center justify-center transition-colors cursor-pointer group"
+                  title="Change icon"
+                  aria-label="Change folder icon"
+                >
+                  {folderIcon || "📁"}
+                  <span className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Pencil size={10} className="text-white" />
+                  </span>
+                </button>
+              ) : (
+                <div className="text-4xl w-14 h-14 flex items-center justify-center">
+                  {folderIcon || "📁"}
+                </div>
+              )}
+            </div>
+
             <div className="max-w-[380px]">
-              <FolderTitle label={folderLabel} />
-              {folderDescription && (
+              {editMode && !isGeneral ? (
+                <input
+                  autoFocus
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") exitEditMode();
+                    if (e.key === "Escape") {
+                      setEditMode(false);
+                    }
+                  }}
+                  placeholder="Folder name"
+                  className="w-full bg-transparent text-foreground font-bold outline-none border-b-2 border-blue-500 pb-1"
+                  style={{ fontSize: "36px", lineHeight: 1.2 }}
+                />
+              ) : (
+                <FolderTitle label={folderLabel} />
+              )}
+
+              {editMode ? (
+                <textarea
+                  value={editDesc}
+                  onChange={(e) => setEditDesc(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") setEditMode(false);
+                  }}
+                  placeholder="Add a description..."
+                  rows={2}
+                  className="w-full mt-2 text-sm bg-transparent text-foreground outline-none border-b border-border focus:border-blue-500 resize-none placeholder:text-muted-foreground leading-relaxed pb-1 transition-colors"
+                />
+              ) : folderDescription ? (
                 <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
                   {folderDescription}
                 </p>
-              )}
+              ) : null}
             </div>
 
             <p className="text-sm text-muted-foreground mt-3">
@@ -163,8 +190,10 @@ export default function NotesModal({
             </p>
           </div>
 
+          <div className="mx-16 border-t border-border" />
+
           {/* Toolbar */}
-          <div className="px-12 pb-4 flex items-center justify-between">
+          <div className="px-16 py-4 flex items-center justify-between">
             <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-muted">
               <button
                 onClick={() => toggleView("list")}
@@ -191,21 +220,21 @@ export default function NotesModal({
             </div>
             <button
               onClick={onCreateNote}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors"
+              className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              title="New Note"
             >
-              <Plus size={16} />
-              New Note
+              <Plus size={18} />
             </button>
           </div>
 
-          {/* Notes content — light gray area */}
-          <div className="bg-stone-50 dark:bg-stone-900/40 min-h-[320px] px-12 py-8">
+          {/* Notes content */}
+          <div className="min-h-[320px] px-16 py-8">
             {loading ? (
               <div className="flex items-center justify-center py-16">
                 <div className="w-5 h-5 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
               </div>
             ) : notes.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+              <div className="flex flex-col items-center justify-center py-32 text-muted-foreground">
                 <StickyNote size={40} strokeWidth={1.5} className="mb-3 opacity-40" />
                 <p className="text-sm">No notes yet</p>
                 <button
@@ -224,46 +253,15 @@ export default function NotesModal({
         </div>
       </div>
 
-      {showRenameModal && (
-        <RenameModal
-          value={renameValue}
-          onChange={setRenameValue}
-          onSave={commitRename}
-          onClose={() => setShowRenameModal(false)}
-        />
-      )}
-
-      {showDescModal && (
-        <DescriptionModal
-          value={descValue}
-          onChange={setDescValue}
-          onSave={commitDescription}
-          onClose={() => setShowDescModal(false)}
-        />
-      )}
+      <EmojiPicker
+        open={showEmojiPicker}
+        onSelect={(emoji) => {
+          onUpdateIcon(emoji);
+          setShowEmojiPicker(false);
+        }}
+        onClose={() => setShowEmojiPicker(false)}
+      />
     </div>,
     document.body,
-  );
-}
-
-/**
- * Renders the folder title with auto-shrinking font size.
- * Picks a smaller size for longer names to fit in max 2 lines.
- *
- * @param label - The folder name to display
- */
-function FolderTitle({ label }: { label: string }) {
-  const titleClass = useMemo(() => {
-    const len = label.length;
-    if (len <= 15) return "text-4xl";
-    if (len <= 30) return "text-3xl";
-    if (len <= 50) return "text-2xl";
-    return "text-xl";
-  }, [label]);
-
-  return (
-    <h1 className={`${titleClass} font-bold text-foreground leading-tight line-clamp-2`}>
-      {label}
-    </h1>
   );
 }
