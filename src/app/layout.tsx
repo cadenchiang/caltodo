@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import SWRProvider from "@/components/SWRProvider";
 import PostHogProvider from "@/components/PostHogProvider";
-import PostHogPageView from "@/components/PostHogPageView";
 import ChunkErrorRecovery from "@/components/ChunkErrorRecovery";
 import "./globals.css";
 
@@ -148,10 +148,11 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <PostHogProvider>
-          <PostHogPageView />
           <ChunkErrorRecovery />
           <ThemeProvider>
-            {children}
+            <SWRProvider>
+              {children}
+            </SWRProvider>
           </ThemeProvider>
         </PostHogProvider>
         <Analytics />

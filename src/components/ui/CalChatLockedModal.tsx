@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Lock } from "lucide-react";
 import { useTour } from "@/components/ui/AppTour";
@@ -34,6 +34,16 @@ export default function CalChatLockedModal({ open, onClose }: CalChatLockedModal
     onClose();
     router.push("/app/settings?section=integrations");
   }, [router, onClose]);
+
+  // Close on Escape
+  useEffect(() => {
+    if (!open) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [open, onClose]);
 
   if (!open) return null;
 
@@ -73,7 +83,7 @@ export default function CalChatLockedModal({ open, onClose }: CalChatLockedModal
       >
         <button
           onClick={handleSync}
-          className="w-full px-4 py-2.5 bg-gray-900 text-white dark:bg-white dark:text-gray-900 rounded-xl text-sm font-medium hover:opacity-90 transition-opacity cursor-pointer active:scale-95 transition-transform duration-150"
+          className="w-full px-4 py-2.5 bg-foreground text-background rounded-xl text-sm font-medium hover:bg-foreground/90 transition-colors cursor-pointer active:scale-95 transition-transform duration-150"
         >
           Sync classes
         </button>

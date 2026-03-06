@@ -410,8 +410,11 @@ export default function TaskList({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12 text-subtle-foreground text-sm">
-        Loading tasks...
+      <div className="flex-1 flex items-center justify-center py-12">
+        <div className="flex flex-col items-center gap-2">
+          <div className="w-5 h-5 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
+          <p className="text-sm text-muted-foreground">Loading tasks...</p>
+        </div>
       </div>
     );
   }
@@ -515,7 +518,7 @@ export default function TaskList({
       )}
 
       {active.length === 0 && snoozed.length === 0 && completed.length === 0 && (
-        <div className="flex flex-col items-center py-12 text-subtle-foreground text-sm gap-3">
+        <div className="flex flex-col items-center py-12 text-muted-foreground text-sm gap-3">
           {isMiffy && (
             <img
               src="/miffy/miffy-pen.png"
@@ -641,6 +644,7 @@ export default function TaskList({
                         onClick={() => unsnoozeTask(task.id)}
                         className="p-1 text-muted-foreground hover:text-foreground rounded-lg transition-colors"
                         title="Unhide"
+                        aria-label="Unhide"
                       >
                         <Eye size={14} />
                       </button>
@@ -649,6 +653,7 @@ export default function TaskList({
                         onClick={() => onToggle(task.id)}
                         className="p-1 text-muted-foreground hover:text-green-600 rounded-lg transition-colors"
                         title="Complete"
+                        aria-label="Complete"
                       >
                         <Check size={14} />
                       </button>
@@ -657,6 +662,7 @@ export default function TaskList({
                         onClick={() => onDelete(task.id)}
                         className="p-1 text-muted-foreground hover:text-red-500 rounded-lg transition-colors"
                         title="Delete"
+                        aria-label="Delete"
                       >
                         <Trash2 size={14} />
                       </button>
@@ -694,6 +700,7 @@ export default function TaskList({
               onClick={(e) => { e.stopPropagation(); setCompletedMenuOpen(!completedMenuOpen); }}
               className="ml-auto p-1 text-muted-foreground hover:text-foreground rounded-lg transition-all opacity-0 group-hover:opacity-100"
               title="Auto-hide settings"
+              aria-label="Auto-hide settings"
             >
               <MoreVertical size={14} />
             </button>

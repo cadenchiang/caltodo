@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Plus, Pencil, ImageIcon, Trash2, X } from "lucide-react";
+import { FolderPlus, FilePlus, Pencil, ImageIcon, Trash2, X, LayoutGrid, List } from "lucide-react";
 import { useMarqueeSelection } from "@/hooks/useMarqueeSelection";
 import { useToast } from "@/contexts/ToastContext";
 import DeleteFolderConfirmModal from "./DeleteFolderConfirmModal";
@@ -13,7 +13,8 @@ import NewFolderModal from "./NewFolderModal";
 import FolderAppearanceModal from "./FolderAppearanceModal";
 import type { FolderAppearance } from "./FolderAppearanceModal";
 import type { FolderSetting, CustomImage } from "@/hooks/useFolderSettings";
-import type { Course } from "@/lib/types";
+import type { Course, Note } from "@/lib/types";
+import RecentNotes from "./RecentNotes";
 import SidePanel, {
   computeSidePanelPosition,
   SIDE_PANEL_WIDTH,
@@ -68,6 +69,12 @@ interface Props {
   customImages?: CustomImage[];
   /** Callback to persist a new custom image URL. */
   onAddCustomImage?: (url: string) => void;
+  /** Create a new note from the home page (goes to General folder). */
+  onCreateNote?: () => void;
+  /** Recent notes to display below folders. */
+  recentNotes?: Note[];
+  /** Open a recent note in the editor. */
+  onOpenRecentNote?: (note: Note) => void;
 }
 
 /**
@@ -91,8 +98,16 @@ export default function NotesFolderGrid({
   onAddCustomColor,
   customImages,
   onAddCustomImage,
+  onCreateNote,
+  recentNotes,
+  onOpenRecentNote,
 }: Props) {
   const { showToast } = useToast();
+  const HOME_VIEW_KEY = "notes_home_view_mode";
+  const [homeViewMode, setHomeViewMode] = useState<"grid" | "list">(() => {
+    if (typeof window === "undefined") return "grid";
+    return (localStorage.getItem(HOME_VIEW_KEY) as "grid" | "list") ?? "grid";
+  });
   const [courses, setCourses] = useState<Course[]>(initialCourses);
   const [noteCounts, setNoteCounts] = useState<Record<string, number>>(initialNoteCounts);
   const [showNewFolder, setShowNewFolder] = useState(false);
@@ -535,7 +550,7 @@ export default function NotesFolderGrid({
 
   return (
     <div ref={folderGridRef} data-print-hide className={`h-full overflow-y-auto px-1 -mx-1 pb-12 ${skipAnimation ? "" : "animate-page-in"} relative select-none`} onClick={handleBackgroundClick} onMouseDown={onMarqueeMouseDown}>
-      {/* Header with New Folder button */}
+      {/* Header with actions */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-bold text-foreground">Notes</h1>
@@ -543,14 +558,39 @@ export default function NotesFolderGrid({
             {folders.length} {folders.length === 1 ? "folder" : "folders"}
           </p>
         </div>
-        <button
-          onClick={() => setShowNewFolder(true)}
-          className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-          title="New Folder"
-          aria-label="New Folder"
-        >
-          <Plus size={18} />
-        </button>
+        <div className="flex items-center gap-1">
+          {/* View toggle */}
+          <button
+            onClick={() => {
+              const next = homeViewMode === "grid" ? "list" : "grid";
+              setHomeViewMode(next);
+              localStorage.setItem(HOME_VIEW_KEY, next);
+            }}
+            className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            title={homeViewMode === "grid" ? "List view" : "Grid view"}
+            aria-label={homeViewMode === "grid" ? "Switch to list view" : "Switch to grid view"}
+          >
+            {homeViewMode === "grid" ? <List size={16} /> : <LayoutGrid size={16} />}
+          </button>
+          {/* New document */}
+          <button
+            onClick={onCreateNote}
+            className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            title="New Document"
+            aria-label="New Document"
+          >
+            <FilePlus size={16} />
+          </button>
+          {/* New folder */}
+          <button
+            onClick={() => setShowNewFolder(true)}
+            className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            title="New Folder"
+            aria-label="New Folder"
+          >
+            <FolderPlus size={16} />
+          </button>
+        </div>
       </div>
 
       {/* New folder modal */}
@@ -606,6 +646,18 @@ export default function NotesFolderGrid({
           </div>
         )}
       </div>
+
+      {/* Recent documents below folders */}
+      {recentNotes && recentNotes.length > 0 && onOpenRecentNote && (
+        <RecentNotes
+          notes={recentNotes}
+          viewMode={homeViewMode}
+          onOpenNote={onOpenRecentNote}
+          folderNames={Object.fromEntries([
+            ...courses.map((c) => [c.id, c.name]),
+          ])}
+        />
+      )}
 
       <RecentlyDeletedSection />
 
@@ -696,16 +748,16 @@ export default function NotesFolderGrid({
 
       {/* Floating selection bar */}
       {barVisible && (
-        <div data-selection-bar className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] flex items-center gap-2 px-3 py-1.5 rounded-lg bg-foreground text-background shadow-lg ${barClosing ? "animate-announce-card-out" : "animate-announce-card-in"}`}>
+        <div data-selection-bar className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] flex items-center gap-1 px-2.5 py-1 rounded-lg bg-foreground text-background shadow-lg ${barClosing ? "animate-announce-card-out" : "animate-announce-card-in"}`}>
           <span className="text-xs font-medium">
             {lastCountRef.current} selected
           </span>
-          <div className="w-px h-3.5 bg-background/20" />
+          <div className="w-px h-3.5 bg-background/20 mx-0.5" />
           {/* Rename — only when exactly 1 non-General folder is selected */}
           {selectedFolderIds.size === 1 && !selectedFolderIds.has("general") && (
             <button
               onClick={handleRenameSelected}
-              className="w-9 h-9 rounded-md flex items-center justify-center hover:bg-background/10 transition-colors"
+              className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-background/10 transition-colors"
               title="Rename"
               aria-label="Rename folder"
             >
@@ -716,7 +768,7 @@ export default function NotesFolderGrid({
           {selectedFolderIds.size === 1 && (
             <button
               onClick={handleAppearanceSelected}
-              className="w-9 h-9 rounded-md flex items-center justify-center hover:bg-background/10 transition-colors"
+              className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-background/10 transition-colors"
               title="Appearance"
               aria-label="Change folder appearance"
             >
@@ -727,7 +779,7 @@ export default function NotesFolderGrid({
           {Array.from(selectedFolderIds).some((id) => id !== "general") && (
             <button
               onClick={() => setShowBulkDeleteConfirm(true)}
-              className="w-9 h-9 rounded-md flex items-center justify-center text-red-400 hover:text-red-300 hover:bg-background/10 transition-colors"
+              className="w-7 h-7 rounded-md flex items-center justify-center text-red-400 hover:text-red-300 hover:bg-background/10 transition-colors"
               title="Delete"
               aria-label="Delete folders"
             >
@@ -736,7 +788,7 @@ export default function NotesFolderGrid({
           )}
           <button
             onClick={() => setSelectedFolderIds(new Set())}
-            className="w-9 h-9 rounded-md flex items-center justify-center text-background/60 hover:text-background hover:bg-background/10 transition-colors"
+            className="w-7 h-7 rounded-md flex items-center justify-center text-background/60 hover:text-background hover:bg-background/10 transition-colors"
             title="Clear selection"
             aria-label="Clear selection"
           >

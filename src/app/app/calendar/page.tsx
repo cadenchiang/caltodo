@@ -185,8 +185,11 @@ export default function CalendarPage() {
 
             <div className="flex-1 min-h-0 overflow-y-auto">
               {loading ? (
-                <div className="p-12 flex items-center justify-center text-muted-foreground text-sm h-full">
-                  Loading calendar...
+                <div className="flex-1 flex items-center justify-center h-full">
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="w-5 h-5 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
+                    <p className="text-sm text-muted-foreground">Loading calendar...</p>
+                  </div>
                 </div>
               ) : viewMode === "month" ? (
                 <CalendarGrid

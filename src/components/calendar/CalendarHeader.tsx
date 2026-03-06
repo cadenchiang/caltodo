@@ -179,10 +179,10 @@ export default function CalendarHeader({
         >
           Today
         </button>
-        <button onClick={onPrev} className="p-1 md:p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-accent transition-all">
+        <button onClick={onPrev} className="p-1 md:p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-accent transition-all" aria-label="Previous">
           <ChevronLeft size={18} />
         </button>
-        <button onClick={onNext} className="p-1 md:p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-accent transition-all">
+        <button onClick={onNext} className="p-1 md:p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-accent transition-all" aria-label="Next">
           <ChevronRight size={18} />
         </button>
         <h1 className="text-base md:text-xl font-bold text-foreground truncate ml-0.5 md:ml-1">{title}</h1>

@@ -1,11 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
 import NotesLayout from "@/components/notes/NotesLayout";
 import { extractTextPreview } from "@/lib/notes-utils";
-import type { Course } from "@/lib/types";
+import type { Course, Note } from "@/lib/types";
 
 /**
- * Notes page. Fetches courses and note counts server-side for instant render,
- * then passes data to the client-side NotesLayout.
+ * Notes page. Fetches courses, note counts, and recent notes server-side
+ * for instant render, then passes data to the client-side NotesLayout.
  */
 export default async function NotesPage() {
   const supabase = await createClient();
@@ -15,9 +15,10 @@ export default async function NotesPage() {
 
   let initialCourses: Course[] = [];
   let initialNoteCounts: Record<string, number> = {};
+  let initialRecentNotes: Note[] = [];
 
   if (user) {
-    const [membershipsRes, notesRes] = await Promise.all([
+    const [membershipsRes, notesRes, recentRes] = await Promise.all([
       supabase
         .from("course_memberships")
         .select("course_id, courses(id, source, external_id, name, created_at)")
@@ -28,6 +29,13 @@ export default async function NotesPage() {
         .select("id, course_id, title, content")
         .eq("user_id", user.id)
         .is("deleted_at", null),
+      supabase
+        .from("notes")
+        .select("*")
+        .eq("user_id", user.id)
+        .is("deleted_at", null)
+        .order("updated_at", { ascending: false })
+        .limit(12),
     ]);
 
     if (membershipsRes.data) {
@@ -48,12 +56,21 @@ export default async function NotesPage() {
       }
       initialNoteCounts = counts;
     }
+
+    if (recentRes.data) {
+      // Filter out blank notes
+      initialRecentNotes = (recentRes.data as Note[]).filter((n) => {
+        const hasContent = n.content ? extractTextPreview(n.content as Record<string, unknown>, 1).length > 0 : false;
+        return n.title?.trim() || hasContent;
+      });
+    }
   }
 
   return (
     <NotesLayout
       initialCourses={initialCourses}
       initialNoteCounts={initialNoteCounts}
+      initialRecentNotes={initialRecentNotes}
     />
   );
 }

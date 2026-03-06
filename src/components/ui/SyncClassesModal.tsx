@@ -205,7 +205,7 @@ export default function SyncClassesModal() {
               {/* CTA */}
               <button
                 onClick={() => setScreen(2)}
-                className="px-8 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-full text-sm font-medium hover:opacity-90 transition-opacity cursor-pointer active:scale-95"
+                className="px-8 py-2.5 bg-foreground text-background rounded-full text-sm font-medium hover:bg-foreground/90 transition-colors cursor-pointer active:scale-95"
               >
                 next &rarr;
               </button>
@@ -293,7 +293,7 @@ export default function SyncClassesModal() {
             <div className="flex justify-end">
               <button
                 onClick={closeAndShowWidget}
-                className="px-8 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-full text-sm font-medium hover:opacity-90 transition-opacity cursor-pointer active:scale-95"
+                className="px-8 py-2.5 bg-foreground text-background rounded-full text-sm font-medium hover:bg-foreground/90 transition-colors cursor-pointer active:scale-95"
               >
                 start organizing &rarr;
               </button>

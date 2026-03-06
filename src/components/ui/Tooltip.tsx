@@ -105,7 +105,7 @@ export default function Tooltip({
       {visible && coords && createPortal(
         <div
           role="tooltip"
-          className="fixed px-2 py-1 bg-gray-900 dark:bg-gray-200 text-white dark:text-gray-900 text-xs rounded whitespace-nowrap pointer-events-none z-[99999]"
+          className="fixed px-2 py-1 bg-foreground text-background text-xs rounded whitespace-nowrap pointer-events-none z-[99999]"
           style={{
             top: coords.top,
             left: coords.left,

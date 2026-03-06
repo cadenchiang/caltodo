@@ -246,13 +246,13 @@ export default function EditProfileModal({
   return createPortal(
     <div
       className={`fixed inset-0 z-50 flex items-center justify-center bg-black/50 transition-opacity duration-150 ${
-        closing ? "opacity-0" : "animate-in fade-in duration-150"
+        closing ? "opacity-0" : "animate-announce-backdrop-in"
       }`}
       onClick={handleClose}
     >
       <div
         className={`relative bg-card rounded-2xl border border-border shadow-2xl w-[380px] max-w-[90vw] overflow-hidden transition-all duration-150 ${
-          closing ? "scale-95 opacity-0" : "animate-in zoom-in-95 fade-in duration-200"
+          closing ? "scale-95 opacity-0" : "animate-announce-card-in"
         }`}
         onClick={(e) => e.stopPropagation()}
       >
@@ -368,7 +368,7 @@ export default function EditProfileModal({
           <button
             onClick={handleSaveName}
             disabled={savingName}
-            className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-sm font-medium hover:opacity-90 disabled:opacity-40 transition-all"
+            className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-foreground text-background text-sm font-medium hover:bg-foreground/90 disabled:opacity-40 transition-all"
           >
             {savingName ? (
               <Loader2 size={14} className="animate-spin" />

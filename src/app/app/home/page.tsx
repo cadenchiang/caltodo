@@ -16,7 +16,8 @@ import WidgetEditorPanel from "@/components/home/WidgetEditorPanel";
 import BoardCover from "@/components/home/BoardCover";
 import BoardTitle from "@/components/home/BoardTitle";
 import BoardDescription from "@/components/home/BoardDescription";
-import EmojiPicker, { LUCIDE_ICON_MAP, ICON_SIZES } from "@/components/home/EmojiPicker";
+import EmojiPicker, { LUCIDE_ICON_MAP, isFilledIcon } from "@/components/home/EmojiPicker";
+import { ICON_SIZES } from "@/components/home/emoji-picker-data";
 import { useWidgetLayout } from "@/hooks/useWidgetLayout";
 import { useToast } from "@/contexts/ToastContext";
 import type { WidgetType, WidgetInstance } from "@/lib/widget-types";
@@ -177,7 +178,10 @@ export default function HomePage() {
     return (
       <PageTransition>
         <div className="h-full flex items-center justify-center">
-          <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          <div className="flex flex-col items-center gap-2">
+            <div className="w-5 h-5 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
+            <p className="text-sm text-muted-foreground">Loading...</p>
+          </div>
         </div>
       </PageTransition>
     );
@@ -185,6 +189,7 @@ export default function HomePage() {
 
   return (
     <PageTransition>
+      <div className="h-full overflow-hidden">
       <div className={`h-full flex flex-col -mx-4 md:-mx-10 -mt-4 md:-mt-10 -mb-4 md:-mb-10 ${isDragging ? "overflow-hidden" : "overflow-y-auto"}`}>
         {/* Cover Image */}
         <BoardCover
@@ -215,7 +220,7 @@ export default function HomePage() {
                   const iconName = boardEmoji.slice(7);
                   const LucideIcon = LUCIDE_ICON_MAP[iconName];
                   if (LucideIcon) {
-                    return <LucideIcon size={sizePx} strokeWidth={1.5} className="text-foreground" />;
+                    return <LucideIcon size={sizePx} strokeWidth={1.5} fill={isFilledIcon(iconName) ? "currentColor" : "none"} className="text-foreground" />;
                   }
                 }
                 return <span style={{ fontSize: sizePx, lineHeight: 1 }}>{boardEmoji}</span>;
@@ -225,9 +230,6 @@ export default function HomePage() {
               open={emojiPickerOpen}
               onSelect={setBoardEmoji}
               onClose={() => setEmojiPickerOpen(false)}
-              paletteColors={[]}
-              iconSize={iconSize}
-              onSizeChange={setIconSize}
             />
           </div>
 
@@ -292,8 +294,8 @@ export default function HomePage() {
 
         {/* Empty state */}
         {widgets.length === 0 && !editMode && (
-          <div className="flex-1 flex flex-col items-center justify-center text-center pb-20">
-            <p className="text-muted-foreground mb-3">
+          <div className="flex-1 flex flex-col items-center justify-center text-center py-12">
+            <p className="text-sm text-muted-foreground mb-3">
               Your dashboard is empty
             </p>
             <button
@@ -363,6 +365,7 @@ export default function HomePage() {
           />
         )}
 
+      </div>
       </div>
     </PageTransition>
   );

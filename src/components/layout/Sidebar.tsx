@@ -127,6 +127,7 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
                 onClick={() => router.push("/app/inbox")}
                 className="w-7 h-7 rounded-lg border border-border bg-white dark:bg-zinc-800 shadow-sm dark:shadow-none flex items-center justify-center text-foreground hover:bg-accent transition-colors cursor-pointer active:scale-[0.95] shrink-0"
                 title="Back"
+                aria-label="Back"
               >
                 <ChevronLeft size={16} className="animate-[fadeIn_150ms_ease-out]" />
               </button>

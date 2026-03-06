@@ -16,6 +16,7 @@ import SyncClassesModal from "@/components/ui/SyncClassesModal";
 import GlobalChatNotifier from "@/components/ui/GlobalChatNotifier";
 import NewAssignmentsModal from "@/components/ui/NewAssignmentsModal";
 import PostHogIdentify from "@/components/PostHogIdentify";
+import PostHogPageView from "@/components/PostHogPageView";
 
 /**
  * Prevent search engines from indexing any authenticated app routes.
@@ -50,6 +51,7 @@ export default async function AppLayout({
   return (
     <div className="flex flex-col md:flex-row h-dvh">
       <PostHogIdentify userId={session.user.id} email={email} fullName={fullName} />
+      <PostHogPageView />
       <ToastProvider>
         <NotificationProvider>
           <PresenceProvider>

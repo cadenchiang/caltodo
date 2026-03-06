@@ -609,7 +609,7 @@ export function TourProvider({ children, steps, onComplete }: TourProviderProps)
                 )}
                 <button
                   onClick={nextStep}
-                  className="text-xs font-medium bg-gray-900 text-white dark:bg-white dark:text-gray-900 hover:opacity-80 px-3 py-1.5 rounded-lg transition-colors"
+                  className="text-xs font-medium bg-foreground text-background hover:bg-foreground/90 px-3 py-1.5 rounded-lg transition-colors"
                 >
                   {currentStep === steps.length - 1 ? "Finish" : "Next"}
                 </button>
@@ -698,7 +698,7 @@ export function TourStartDialog({ open, onClose }: TourStartDialogProps) {
               onClose();
               setTimeout(startTour, 50);
             }}
-            className="px-8 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-full text-sm font-medium hover:opacity-90 transition-opacity cursor-pointer active:scale-95"
+            className="px-8 py-2.5 bg-foreground text-background rounded-full text-sm font-medium hover:bg-foreground/90 transition-colors cursor-pointer active:scale-95"
           >
             start tour &rarr;
           </button>

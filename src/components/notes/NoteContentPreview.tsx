@@ -99,7 +99,7 @@ export default function NoteContentPreview({ content }: Props) {
   if (!html) return null;
 
   return (
-    <div className="h-20 overflow-hidden pointer-events-none relative">
+    <div className="h-36 overflow-hidden pointer-events-none relative">
       <div
         className="prose prose-xs dark:prose-invert max-w-none origin-top-left px-5 pt-3 text-[11px] leading-snug"
         style={{ transform: "scale(0.45)", width: "222%" }}

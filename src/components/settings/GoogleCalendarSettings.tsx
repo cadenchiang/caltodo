@@ -13,6 +13,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ExternalLink } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 import { useCredentials } from "@/components/settings/IntegrationSettings";
+import GoogleAuthWarningModal from "./GoogleAuthWarningModal";
 import { readSyncStream } from "@/lib/gcal/read-sync-stream";
 
 /**
@@ -138,10 +139,10 @@ export default function GoogleCalendarSettings() {
 
   const [syncing, setSyncing] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [showAuthWarning, setShowAuthWarning] = useState(false);
   const [syncProgress, setSyncProgress] = useState<{ synced: number; total: number } | null>(null);
   // Local override for connected state during OAuth flow (before context refreshes)
   const [oauthConnecting, setOauthConnecting] = useState(false);
-  const [unsyncedCount, setUnsyncedCount] = useState(0);
   const mountedRef = useRef(true);
 
   globalShowToast = showToast;
@@ -175,20 +176,27 @@ export default function GoogleCalendarSettings() {
     if (mountedRef.current) setter(value);
   }
 
-  // Fetch unsynced count once on mount for the banner display
+  // Auto-sync unsynced tasks on mount — no manual banner needed.
+  // Skips if already syncing, during OAuth setup, or within cooldown.
   useEffect(() => {
-    if (!connected || syncing) return;
+    if (!connected || oauthConnecting || moduleSyncInProgress) return;
+    if (Date.now() - lastAutoSyncAt < AUTO_SYNC_COOLDOWN_MS) return;
     let cancelled = false;
     (async () => {
       try {
         const res = await fetch("/api/gcal/unsynced-count");
         if (!res.ok || cancelled) return;
         const data = await res.json();
-        if (!cancelled && mountedRef.current) setUnsyncedCount(data.count ?? 0);
+        if (!cancelled && mountedRef.current && data.count > 0 && !moduleSyncInProgress) {
+          lastAutoSyncAt = Date.now();
+          setSyncing(true);
+          setSyncProgress({ synced: 0, total: 0 });
+          runBackgroundSync();
+        }
       } catch { /* network error — ignore silently */ }
     })();
     return () => { cancelled = true; };
-  }, [connected, syncing]);
+  }, [connected, oauthConnecting]);
 
   // Register module-level sync callback so sync survives navigation away
   useEffect(() => {
@@ -199,27 +207,10 @@ export default function GoogleCalendarSettings() {
       if (mountedRef.current) {
         setSyncing(isSyncing);
         setSyncProgress(progress);
-        // Refresh unsynced count after sync completes
-        if (!isSyncing) {
-          fetch("/api/gcal/unsynced-count")
-            .then((r) => r.ok ? r.json() : null)
-            .then((d) => { if (d && mountedRef.current) setUnsyncedCount(d.count ?? 0); })
-            .catch(() => {});
-        }
       }
     };
     return () => { onModuleSyncStateChange = null; };
   }, []);
-
-  /**
-   * Triggers background sync for unsynced tasks.
-   * Runs at module level so navigation away doesn't interrupt the sync.
-   */
-  function handleRetrySync() {
-    setSyncing(true);
-    setSyncProgress({ synced: 0, total: 0 });
-    runBackgroundSync();
-  }
 
   async function autoSetupCalendar() {
     setSyncing(true);
@@ -359,11 +350,19 @@ export default function GoogleCalendarSettings() {
   }
 
   /**
-   * Handles the connect click.
+   * Shows the auth warning modal before starting the OAuth flow.
+   */
+  function handleConnect() {
+    setShowAuthWarning(true);
+  }
+
+  /**
+   * Proceeds with OAuth after user acknowledges the warning.
    * Desktop: opens Google OAuth in a centered popup, polls for completion.
    * Mobile: falls back to full-page redirect.
    */
-  function handleConnect() {
+  function handleConfirmConnect() {
+    setShowAuthWarning(false);
     const isDesktop = typeof window !== "undefined" && window.innerWidth >= 768;
 
     if (!isDesktop) {
@@ -440,7 +439,7 @@ export default function GoogleCalendarSettings() {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <p className="text-sm font-semibold text-foreground">Google Calendar</p>
-              <span className="text-[9px] font-medium uppercase tracking-wider text-blue-500 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 px-1.5 py-0.5 rounded-full leading-none">
+              <span className="text-[9px] font-medium text-blue-500 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 px-1.5 py-0.5 rounded-full leading-none">
                 Real-time
               </span>
             </div>
@@ -473,21 +472,6 @@ export default function GoogleCalendarSettings() {
           )}
         </div>
 
-        {/* Unsynced tasks banner */}
-        {unsyncedCount > 0 && !syncing && (
-          <div className="flex items-center justify-between px-4 py-2 border-t border-border bg-amber-50/50 dark:bg-amber-500/5">
-            <p className="text-xs text-amber-700 dark:text-amber-400">
-              {unsyncedCount} task{unsyncedCount === 1 ? "" : "s"} haven&apos;t synced to Google Calendar
-            </p>
-            <button
-              onClick={handleRetrySync}
-              className="text-xs font-medium text-blue-500 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer shrink-0 ml-3"
-            >
-              Sync Now
-            </button>
-          </div>
-        )}
-
         {/* Sync progress bar at bottom of card */}
         {syncing && (
           <div className="h-1 w-full bg-muted overflow-hidden">
@@ -503,6 +487,11 @@ export default function GoogleCalendarSettings() {
         )}
       </div>
 
+      <GoogleAuthWarningModal
+        open={showAuthWarning}
+        onContinue={handleConfirmConnect}
+        onCancel={() => setShowAuthWarning(false)}
+      />
     </>
   );
 }

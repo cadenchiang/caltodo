@@ -261,11 +261,6 @@ export default function NoteEditor({ note, folderLabel, folders, currentFolderId
             <ChevronLeft size={18} />
             <span className="hidden sm:inline">Back</span>
           </button>
-          {saveStatus !== "idle" && (
-            <span className="text-xs text-muted-foreground/50 ml-2 flex items-center gap-1">
-              {saveStatus === "saving" ? "Saving..." : <><CheckCircle size={12} /> Saved</>}
-            </span>
-          )}
           <span className="text-muted-foreground/40 mx-1">/</span>
           <div className="relative" ref={folderMenuRef}>
             <button
@@ -300,6 +295,9 @@ export default function NoteEditor({ note, folderLabel, folders, currentFolderId
         </div>
 
         <div className="flex items-center gap-1">
+          <span className={`text-xs text-muted-foreground/50 flex items-center gap-1 mr-1 transition-opacity duration-300 ${saveStatus !== "idle" ? "opacity-100" : "opacity-0"}`}>
+            {saveStatus === "saving" ? "Saving..." : <><CheckCircle size={12} /> Saved</>}
+          </span>
           <button
             onClick={() => onUpdate(note.id, { is_pinned: !note.is_pinned })}
             title={note.is_pinned ? "Unpin" : "Pin"}
@@ -333,7 +331,7 @@ export default function NoteEditor({ note, folderLabel, folders, currentFolderId
               <div className="flex items-center gap-2 mb-2">
                 <button
                   onClick={() => setShowIconPicker(true)}
-                  className="note-icon-print text-4xl hover:opacity-80 transition-opacity cursor-pointer"
+                  className="note-icon-print text-5xl hover:opacity-80 transition-opacity cursor-pointer"
                   title="Change icon"
                 >
                   {note.icon.startsWith("lucide:") ? (() => {
@@ -341,7 +339,7 @@ export default function NoteEditor({ note, folderLabel, folders, currentFolderId
                     const IconComp = LUCIDE_ICON_MAP[name];
                     if (!IconComp) return note.icon;
                     const filled = isFilledIcon(name);
-                    return <IconComp size={36} fill={filled ? "currentColor" : "none"} />;
+                    return <IconComp size={48} fill={filled ? "currentColor" : "none"} />;
                   })() : note.icon}
                 </button>
                 <button

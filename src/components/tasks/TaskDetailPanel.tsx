@@ -51,7 +51,7 @@ export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: Tas
         {isMiffy && (
           <img src="/miffy/miffy-snoopy.png" alt="" className="w-32 h-auto opacity-60 select-none pointer-events-none" draggable={false} />
         )}
-        <p className="text-sm text-subtle-foreground">Select a task to view details</p>
+        <p className="text-sm text-muted-foreground">Select a task to view details</p>
       </div>
     );
   }

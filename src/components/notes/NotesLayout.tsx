@@ -20,6 +20,7 @@ type View = "folders" | "editor";
 interface NotesLayoutProps {
   initialCourses: Course[];
   initialNoteCounts: Record<string, number>;
+  initialRecentNotes: Note[];
 }
 
 /**
@@ -33,6 +34,7 @@ interface NotesLayoutProps {
 export default function NotesLayout({
   initialCourses,
   initialNoteCounts,
+  initialRecentNotes,
 }: NotesLayoutProps) {
   const [view, setView] = useState<View>("folders");
   const [selectedFolder, setSelectedFolder] = useState<FolderEntry | null>(null);
@@ -65,6 +67,61 @@ export default function NotesLayout({
   useEffect(() => {
     if (error) showToast(error);
   }, [error, showToast]);
+
+  /**
+   * Creates a new note in "General" from the home page (no folder selected).
+   * Does a direct Supabase insert since useNotes may not be scoped to "general".
+   */
+  const handleCreateNoteFromHome = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const now = new Date().toISOString();
+    const tempId = `temp-${crypto.randomUUID()}`;
+    const optimistic: Note = {
+      id: tempId,
+      user_id: user.id,
+      course_id: null,
+      title: "",
+      content: { type: "doc", content: [{ type: "paragraph" }] },
+      is_pinned: false,
+      created_at: now,
+      updated_at: now,
+      deleted_at: null,
+      icon: null,
+    };
+
+    setSelectedFolder({ id: "general", label: "General" });
+    setSelectedNote(optimistic);
+    setModalOpen(false);
+    setView("editor");
+    setNoteCountAdjustments((prev) => ({ ...prev, general: (prev.general ?? 0) + 1 }));
+    showToast("Note created", { duration: 2000 });
+
+    const { data } = await supabase
+      .from("notes")
+      .insert({ user_id: user.id, title: "", content: optimistic.content, course_id: null })
+      .select()
+      .single();
+
+    if (data) {
+      setSelectedNote((prev) => (prev?.id === tempId ? data : prev));
+    }
+  }, [supabase, showToast]);
+
+  /**
+   * Opens a recent note from the home page in the editor.
+   * Sets the selected folder to match the note's folder.
+   */
+  const handleOpenRecentNote = useCallback((note: Note) => {
+    const course = initialCourses.find((c) => c.id === note.course_id);
+    setSelectedFolder(
+      course ? { id: course.id, label: course.name } : { id: "general", label: "General" }
+    );
+    setSelectedNote(note);
+    setModalOpen(false);
+    setView("editor");
+  }, [initialCourses]);
 
   const handleSelectFolder = useCallback((folder: FolderEntry) => {
     setSkipAnimation(false);
@@ -252,6 +309,9 @@ export default function NotesLayout({
           onAddCustomColor={addCustomColor}
           customImages={customImages}
           onAddCustomImage={addCustomImage}
+          onCreateNote={handleCreateNoteFromHome}
+          recentNotes={initialRecentNotes}
+          onOpenRecentNote={handleOpenRecentNote}
         />
         <Suspense fallback={null}>
           <NotesModal

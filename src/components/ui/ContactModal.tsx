@@ -92,12 +92,12 @@ export default function ContactModal({ open, onClose, userName, userEmail }: Con
     <div className="fixed inset-0 z-[9999] flex items-center justify-center">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-announce-backdrop-in"
         onClick={onClose}
       />
 
       {/* Modal */}
-      <div className="relative bg-card rounded-2xl border border-border shadow-2xl w-full max-w-md mx-4 animate-modal-in">
+      <div className="relative bg-card rounded-2xl border border-border shadow-2xl w-full max-w-md mx-4 animate-announce-card-in">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <div className="flex items-center gap-2">
@@ -137,7 +137,7 @@ export default function ContactModal({ open, onClose, userName, userEmail }: Con
             <button
               type="submit"
               disabled={!message.trim() || submitting}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium bg-gray-900 text-white dark:bg-white dark:text-gray-900 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium bg-foreground text-background hover:bg-foreground/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
             >
               <Send size={14} />
               {submitting ? "Sending..." : "Send"}

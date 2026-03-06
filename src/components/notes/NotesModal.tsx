@@ -444,15 +444,15 @@ export default function NotesModal({
 
       {/* Floating selection bar */}
       {noteBarVisible && (
-        <div className={`absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-foreground text-background shadow-lg ${noteBarClosing ? "animate-announce-card-out" : "animate-announce-card-in"}`}>
+        <div className={`absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1 px-2.5 py-1 rounded-lg bg-foreground text-background shadow-lg ${noteBarClosing ? "animate-announce-card-out" : "animate-announce-card-in"}`}>
           <span className="text-xs font-medium">
             {lastSelectedRef.current.size} selected
           </span>
-          <div className="w-px h-3.5 bg-background/20" />
+          <div className="w-px h-3.5 bg-background/20 mx-0.5" />
           {/* Pin/Unpin */}
           <button
             onClick={handlePinSelected}
-            className="w-9 h-9 rounded-md flex items-center justify-center hover:bg-background/10 transition-colors"
+            className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-background/10 transition-colors"
             title={notes.filter((n) => lastSelectedRef.current.has(n.id)).every((n) => n.is_pinned) ? "Unpin" : "Pin"}
             aria-label="Toggle pin"
           >
@@ -469,7 +469,7 @@ export default function NotesModal({
                   setSelectedIds(new Set());
                 }
               }}
-              className="w-9 h-9 rounded-md flex items-center justify-center hover:bg-background/10 transition-colors"
+              className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-background/10 transition-colors"
               title="Edit"
               aria-label="Edit note"
             >
@@ -479,7 +479,7 @@ export default function NotesModal({
           {/* Print */}
           <button
             onClick={handlePrintSelected}
-            className="w-9 h-9 rounded-md flex items-center justify-center hover:bg-background/10 transition-colors"
+            className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-background/10 transition-colors"
             title="Print"
             aria-label="Print notes"
           >
@@ -488,7 +488,7 @@ export default function NotesModal({
           {/* Delete */}
           <button
             onClick={handleDeleteSelected}
-            className="w-9 h-9 rounded-md flex items-center justify-center text-red-400 hover:text-red-300 hover:bg-background/10 transition-colors"
+            className="w-7 h-7 rounded-md flex items-center justify-center text-red-400 hover:text-red-300 hover:bg-background/10 transition-colors"
             title="Delete"
             aria-label="Delete notes"
           >
@@ -496,7 +496,7 @@ export default function NotesModal({
           </button>
           <button
             onClick={() => setSelectedIds(new Set())}
-            className="w-9 h-9 rounded-md flex items-center justify-center text-background/60 hover:text-background hover:bg-background/10 transition-colors"
+            className="w-7 h-7 rounded-md flex items-center justify-center text-background/60 hover:text-background hover:bg-background/10 transition-colors"
             title="Clear selection"
             aria-label="Clear selection"
           >

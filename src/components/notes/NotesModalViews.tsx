@@ -84,7 +84,7 @@ export function ListView({ notes, selectedIds, onSelect, onOpen }: ViewProps) {
  */
 export function GridView({ notes, selectedIds, onSelect, onOpen }: ViewProps) {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+    <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
       {notes.map((note) => {
         const title = note.title || "Untitled";
         const hasContent = extractTextPreview(note.content, 1).length > 0;
@@ -106,7 +106,7 @@ export function GridView({ notes, selectedIds, onSelect, onOpen }: ViewProps) {
             {hasContent ? (
               <NoteContentPreview content={note.content} />
             ) : (
-              <div className="h-20 flex items-center justify-center">
+              <div className="h-36 flex items-center justify-center">
                 <p className="text-[10px] text-muted-foreground/40 italic">Empty note</p>
               </div>
             )}
