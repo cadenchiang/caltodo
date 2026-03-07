@@ -5,8 +5,8 @@
  * Today: gradient bg with white text overlay showing temp and icon.
  * Week: gradient header with forecast list below.
  *
- * Gradient mapping:
- * - Clear/Sunny (0-1): warm orange-yellow
+ * Gradient mapping (Apple Weather-inspired):
+ * - Clear/Sunny (0-1): sky blue
  * - Partly cloudy (2-3): blue-gray
  * - Fog (45,48): gray-slate
  * - Drizzle/Rain (51-82): cool blue
@@ -24,7 +24,7 @@ import type { WeatherDisplayProps } from "./types";
  * @returns CSS linear-gradient string
  */
 function getWeatherGradient(code: number): string {
-  if (code <= 1) return "linear-gradient(135deg, #f97316, #facc15)";
+  if (code <= 1) return "linear-gradient(135deg, #47b2ff, #1a8cff)";
   if (code <= 3) return "linear-gradient(135deg, #60a5fa, #94a3b8)";
   if (code <= 48) return "linear-gradient(135deg, #94a3b8, #64748b)";
   if (code <= 55) return "linear-gradient(135deg, #60a5fa, #3b82f6)";

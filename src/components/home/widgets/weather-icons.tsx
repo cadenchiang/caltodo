@@ -29,8 +29,8 @@ const WMO_MAP: Record<
     colorClass: string;
   }
 > = {
-  0: { icon: Sun, label: "Clear", colorClass: "text-amber-400" },
-  1: { icon: CloudSun, label: "Mostly Clear", colorClass: "text-amber-300" },
+  0: { icon: Sun, label: "Clear", colorClass: "text-yellow-400" },
+  1: { icon: CloudSun, label: "Mostly Clear", colorClass: "text-yellow-300" },
   2: { icon: CloudSun, label: "Partly Cloudy", colorClass: "text-amber-300" },
   3: { icon: Cloud, label: "Overcast", colorClass: "text-gray-400" },
   45: { icon: CloudFog, label: "Foggy", colorClass: "text-gray-400" },
