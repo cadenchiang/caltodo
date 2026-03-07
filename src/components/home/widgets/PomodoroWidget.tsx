@@ -61,6 +61,10 @@ export default function PomodoroWidget({
   const totalForPhase = phase === "work" ? workMinutes * 60 : breakMinutes * 60;
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  /** Wall-clock timestamp (ms) when the timer was started/resumed. */
+  const startTimeRef = useRef<number>(0);
+  /** How many seconds were remaining when the timer was started/resumed. */
+  const startSecondsRef = useRef<number>(0);
 
   /** Clears the running interval if active. */
   const clearTimer = useCallback(() => {
@@ -77,35 +81,45 @@ export default function PomodoroWidget({
     clearTimer();
   }, [workMinutes, breakMinutes, clearTimer]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /** Tick the timer every second while running. */
+  /**
+   * Tick the timer using wall-clock elapsed time so it stays accurate
+   * even when the browser tab is backgrounded / throttled.
+   */
   useEffect(() => {
     if (!running) {
       clearTimer();
       return;
     }
 
-    intervalRef.current = setInterval(() => {
-      setSecondsLeft((prev) => {
-        if (prev <= 1) {
-          // Phase complete — switch phases
-          clearTimer();
-          setRunning(false);
+    startTimeRef.current = Date.now();
+    startSecondsRef.current = secondsLeft;
 
-          if (phase === "work") {
-            setCompletedSessions((s) => s + 1);
-            setPhase("break");
-            return breakMinutes * 60;
-          } else {
-            setPhase("work");
-            return workMinutes * 60;
-          }
+    const tick = () => {
+      const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
+      const remaining = Math.max(0, startSecondsRef.current - elapsed);
+
+      if (remaining <= 0) {
+        // Phase complete — switch phases
+        clearTimer();
+        setRunning(false);
+
+        if (phase === "work") {
+          setCompletedSessions((s) => s + 1);
+          setPhase("break");
+          setSecondsLeft(breakMinutes * 60);
+        } else {
+          setPhase("work");
+          setSecondsLeft(workMinutes * 60);
         }
-        return prev - 1;
-      });
-    }, 1000);
+        return;
+      }
+      setSecondsLeft(remaining);
+    };
+
+    intervalRef.current = setInterval(tick, 500);
 
     return clearTimer;
-  }, [running, phase, workMinutes, breakMinutes, clearTimer]);
+  }, [running, phase, workMinutes, breakMinutes, clearTimer]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** Toggle play/pause. */
   function handlePlayPause() {
