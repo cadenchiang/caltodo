@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
-import { FolderOpen, FileText, Palette } from "lucide-react";
+import { FolderOpen, FileText, Palette, ChevronRight } from "lucide-react";
 
 /** localStorage key to permanently dismiss the notes welcome modal. */
 const WELCOME_KEY = "caltodo_notes_welcome_seen";
@@ -47,17 +48,20 @@ function markSeen(): void {
  * **Tracking:** Uses localStorage key `caltodo_notes_welcome_seen`.
  * Once "true", the modal never shows again.
  */
-export default function NotesWelcomeModal() {
+interface NotesWelcomeModalProps {
+  /** Callback to create a new note (opens editor). */
+  onCreateNote?: () => void;
+}
+
+export default function NotesWelcomeModal({ onCreateNote }: NotesWelcomeModalProps) {
+  const router = useRouter();
   const [visible, setVisible] = useState(false);
   const [exiting, setExiting] = useState(false);
 
   useEffect(() => {
     if (isAlreadySeen()) return;
     seenThisSession = true;
-    const timer = setTimeout(() => {
-      setVisible(true);
-    }, 300);
-    return () => clearTimeout(timer);
+    setVisible(true);
   }, []);
 
   /**
@@ -117,35 +121,45 @@ export default function NotesWelcomeModal() {
           className="mb-8 animate-drop-in"
           style={{ animationDelay: "290ms" }}
         >
-          {/* Item 1: Folders */}
-          <div className="flex items-start gap-3.5 py-4 border-t border-border">
+          {/* Item 1: Sync classes — navigates to integrations settings */}
+          <button
+            type="button"
+            onClick={() => { handleDismiss(); router.push("/app/settings?section=integrations"); }}
+            className="flex items-center gap-3.5 py-4 border-t border-border w-full text-left rounded-lg hover:bg-accent/50 transition-colors px-1 -mx-1 group"
+          >
             <FolderOpen size={18} className="text-foreground shrink-0 mt-0.5" />
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-foreground">folders for every class</p>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-foreground">sync your classes</p>
               <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                your courses sync as folders automatically. create custom folders anytime.
+                connect bCourses or Gradescope to create folders automatically.
               </p>
             </div>
-          </div>
+            <ChevronRight size={14} className="text-muted-foreground shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+          </button>
 
-          {/* Item 2: Rich editing */}
-          <div className="flex items-start gap-3.5 py-4 border-t border-border">
+          {/* Item 2: Rich editing — creates a new note */}
+          <button
+            type="button"
+            onClick={() => { handleDismiss(); onCreateNote?.(); }}
+            className="flex items-center gap-3.5 py-4 border-t border-border w-full text-left rounded-lg hover:bg-accent/50 transition-colors px-1 -mx-1 group"
+          >
             <FileText size={18} className="text-foreground shrink-0 mt-0.5" />
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-foreground">rich text editor</p>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-foreground">start writing</p>
               <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                write with headings, lists, code blocks, images, and more. changes save automatically.
+                rich text with headings, lists, code blocks, images, and more.
               </p>
             </div>
-          </div>
+            <ChevronRight size={14} className="text-muted-foreground shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+          </button>
 
-          {/* Item 3: Customization */}
-          <div className="flex items-start gap-3.5 py-4 border-t border-border">
+          {/* Item 3: Customization — stays on notes page */}
+          <div className="flex items-start gap-3.5 py-4 border-t border-border px-1 -mx-1">
             <Palette size={18} className="text-foreground shrink-0 mt-0.5" />
             <div className="min-w-0">
               <p className="text-sm font-medium text-foreground">make it yours</p>
               <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                customize folder covers with colors or images. add icons and descriptions to stay organized.
+                customize folder covers with colors or images. add icons and descriptions.
               </p>
             </div>
           </div>

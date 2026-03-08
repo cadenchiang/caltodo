@@ -345,7 +345,7 @@ export default function NotesLayout({
 
   return (
     <>
-      <NotesWelcomeModal />
+      <NotesWelcomeModal onCreateNote={handleCreateNoteFromHome} />
       {/* Editor skeleton while note is loading from DB */}
       {view === "editor" && !selectedNote && (
         <div className="fixed top-0 right-0 bottom-0 left-0 md:left-52 z-[35] flex flex-col bg-muted/50 dark:bg-neutral-900/50">
