@@ -1552,8 +1552,12 @@ textarea:-webkit-autofill {
 
 /* Accent-colored header bar background when --widget-accent-color is set */
 [style*="--widget-accent-color"] .widget-header {
-  background-color: color-mix(in srgb, var(--widget-accent-color) 15%, transparent);
-  border-bottom-color: color-mix(in srgb, var(--widget-accent-color) 25%, transparent);
+  background-color: var(--widget-accent-color);
+  border-bottom-color: var(--widget-accent-color);
+  color: var(--widget-text-color, #fff) !important;
+}
+[style*="--widget-accent-color"] .widget-header * {
+  color: var(--widget-text-color, #fff) !important;
 }
 
 /* Dark overlay on hover in edit mode */
