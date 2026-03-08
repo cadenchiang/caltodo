@@ -1,59 +1,32 @@
 "use client";
 
+import { useMemo } from "react";
 import { format } from "date-fns";
-import { Plus, CalendarDays } from "lucide-react";
-import type { Task, PendingInvite } from "@/lib/types";
-import { getThemeColor } from "@/lib/constants";
+import { Plus } from "lucide-react";
+import type { Task, PendingInvite, GCalEvent } from "@/lib/types";
+import { getEventDateKey } from "@/lib/gcal/event-utils";
 import { pendingInviteToPseudoTask } from "@/lib/pending-invite-helpers";
-import { useTheme } from "@/contexts/ThemeContext";
+import CalendarTaskBar from "./CalendarTaskBar";
+import CalendarGCalItem from "./CalendarGCalItem";
+import TimeGrid from "./TimeGrid";
 
 interface CalendarDayViewProps {
   currentDate: Date;
   tasks: Task[];
   pendingInvites?: PendingInvite[];
+  gcalEvents?: GCalEvent[];
   onAddClick: (date: string, rect: DOMRect) => void;
   onTaskClick: (task: Task, rect: DOMRect) => void;
+  onEventCreate?: (date: string, startTime: string, endTime: string) => void;
 }
 
 /**
- * Formats a 24-hour time string to compact 12-hour format.
- * e.g. "23:59" → "11:59p", "09:00" → "9a", "14:30" → "2:30p"
- *
- * @param time24 - "HH:MM" format
- * @returns Compact formatted time string
- */
-function formatTime(time24: string): string {
-  const [h, m] = time24.split(":");
-  const hour = parseInt(h, 10);
-  const minute = m;
-  const suffix = hour >= 12 ? "p" : "a";
-  const h12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-  if (minute === "00") return `${h12}${suffix}`;
-  return `${h12}:${minute}${suffix}`;
-}
-
-/**
- * Converts a hex color to an rgba string at the given opacity.
- *
- * @param hex - Hex color string (e.g. "#3b82f6")
- * @param opacity - Opacity between 0 and 1
- * @returns rgba string
- */
-function hexToRgba(hex: string, opacity: number): string {
-  const clean = hex.replace("#", "");
-  const r = parseInt(clean.substring(0, 2), 16);
-  const g = parseInt(clean.substring(2, 4), 16);
-  const b = parseInt(clean.substring(4, 6), 16);
-  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
-}
-
-/**
- * Single-day view showing all tasks for a specific date.
- * Task cards use the task's color as a tinted background.
- * Shows empty state with calendar icon when no tasks exist.
+ * Single-day view with task bars at top (all-day section),
+ * then a scrollable time grid for timed GCal events below.
  *
  * @param currentDate - The date to display
  * @param tasks - All tasks (filtered by date in this component)
+ * @param gcalEvents - Google Calendar events for the view range
  * @param onAddClick - Callback to open add-task popover
  * @param onTaskClick - Callback to open task edit popover
  */
@@ -61,17 +34,40 @@ export default function CalendarDayView({
   currentDate,
   tasks,
   pendingInvites = [],
+  gcalEvents = [],
   onAddClick,
   onTaskClick,
+  onEventCreate,
 }: CalendarDayViewProps) {
-  const { colorTheme } = useTheme();
-  const isMiffy = colorTheme === "miffy";
   const dateStr = format(currentDate, "yyyy-MM-dd");
   const dayTasks = tasks.filter((t) => t.due_date === dateStr);
   const dayInvites = pendingInvites.filter((inv) => inv.taskDueDate === dateStr);
 
+  // Split GCal events for this day
+  const { allDayEvents, timedEvents } = useMemo(() => {
+    const allDay: GCalEvent[] = [];
+    const timed: GCalEvent[] = [];
+    for (const event of gcalEvents) {
+      const eventDate = getEventDateKey(event.start);
+      if (eventDate !== dateStr) continue;
+      if (event.allDay) {
+        allDay.push(event);
+      } else {
+        timed.push(event);
+      }
+    }
+    return { allDayEvents: allDay, timedEvents: timed };
+  }, [gcalEvents, dateStr]);
+
+  const hasAllDayContent = dayTasks.length > 0 || dayInvites.length > 0 || allDayEvents.length > 0;
+
+  // Build time grid column
+  const timeGridColumns = useMemo(() => [{
+    events: timedEvents,
+  }], [timedEvents]);
+
   return (
-    <div className="overflow-hidden bg-card flex flex-col h-full relative">
+    <div className="overflow-hidden bg-white dark:bg-[#141414] flex flex-col h-full relative">
       {/* + icon top right */}
       <button
         onClick={(e) => {
@@ -83,121 +79,41 @@ export default function CalendarDayView({
         <Plus size={18} />
       </button>
 
-      {/* Task list or empty state */}
-      <div
-        className="flex-1 overflow-y-auto p-3 md:p-6"
-        onDoubleClick={(e) => {
-          const rect = new DOMRect(e.clientX - 40, e.clientY, 80, 1);
-          onAddClick(dateStr, rect);
-        }}
-      >
-        {(dayTasks.length > 0 || dayInvites.length > 0) ? (
-          <div className="flex flex-col gap-3 max-w-xl">
+      {/* All-day section: task bars + all-day GCal events */}
+      {hasAllDayContent && (
+        <div className="shrink-0 border-b border-gray-300 dark:border-gray-500 p-3 md:p-4">
+          <div className="flex flex-col gap-1 max-w-xl">
             {dayTasks.map((task) => (
-              <DayTaskCard key={task.id} task={task} onTaskClick={onTaskClick} />
+              <CalendarTaskBar key={task.id} task={task} onClick={onTaskClick} />
             ))}
             {dayInvites.map((invite) => (
-              <DayTaskCard
+              <CalendarTaskBar
                 key={invite.shareId}
                 task={pendingInviteToPseudoTask(invite)}
-                onTaskClick={() => {}}
+                onClick={() => {}}
                 isPending
               />
             ))}
+            {allDayEvents.map((event) => (
+              <CalendarGCalItem key={event.id} event={event} />
+            ))}
           </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center py-12 md:py-20 text-center">
-            {isMiffy ? (
-              <img
-                src="/miffy/miffy-balloon.png"
-                alt=""
-                className="w-16 md:w-20 h-auto opacity-50 mb-3 md:mb-4 select-none pointer-events-none"
-                draggable={false}
-              />
-            ) : (
-              <div className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-muted flex items-center justify-center mb-3 md:mb-4">
-                <CalendarDays size={24} className="text-muted-foreground md:hidden" />
-                <CalendarDays size={28} className="text-muted-foreground hidden md:block" />
-              </div>
-            )}
-            <p className="text-sm md:text-base text-muted-foreground font-medium mb-1">No tasks for this day</p>
-            <p className="text-xs md:text-sm text-muted-foreground/70">Press + to add a task</p>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* Always show time grid with hour lines */}
+      <TimeGrid
+        columns={timeGridColumns}
+        columnDates={[dateStr]}
+        rowHeight={60}
+        showCurrentTime={true}
+        onTimeDoubleClick={onEventCreate ? (date, hour, minute) => {
+          const start = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+          const endH = hour + 1;
+          const end = `${String(endH).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+          onEventCreate(date, start, end);
+        } : undefined}
+      />
     </div>
-  );
-}
-
-/**
- * Task card for day view with color-tinted background and hover effect.
- *
- * @param task - The task to render
- * @param onTaskClick - Click callback
- * @param isPending - When true, renders with dashed outline for pending invites
- */
-function DayTaskCard({
-  task,
-  onTaskClick,
-  isPending,
-}: {
-  task: Task;
-  onTaskClick: (task: Task, rect: DOMRect) => void;
-  isPending?: boolean;
-}) {
-  const { colorTheme } = useTheme();
-  const color = getThemeColor(task.color, colorTheme);
-
-  return (
-    <button
-      onClick={(e) => onTaskClick(task, e.currentTarget.getBoundingClientRect())}
-      className={`w-full text-left rounded-xl p-3 md:p-4 transition-all hover:-translate-y-px hover:shadow-sm ${
-        task.is_completed ? "opacity-50" : ""
-      } ${isPending ? "opacity-50" : ""}`}
-      style={isPending ? {
-        backgroundColor: "transparent",
-        border: `1px dashed ${hexToRgba(color, 0.4)}`,
-        borderLeftWidth: "2px",
-        borderLeftStyle: "dashed",
-        borderLeftColor: color,
-      } : {
-        backgroundColor: hexToRgba(color, 0.1),
-        borderLeft: `2px solid ${color}`,
-      }}
-      onMouseEnter={(e) => {
-        if (!isPending) e.currentTarget.style.backgroundColor = hexToRgba(color, 0.18);
-      }}
-      onMouseLeave={(e) => {
-        if (!isPending) e.currentTarget.style.backgroundColor = hexToRgba(color, 0.1);
-      }}
-      title={isPending ? `Pending invite: ${task.title}` : undefined}
-    >
-      <div className="flex-1 min-w-0">
-        <p
-          className={`text-sm font-semibold flex items-center gap-1.5 ${task.is_completed && !isPending ? "line-through" : ""}`}
-          style={{ color: isPending ? hexToRgba(color, 0.6) : color }}
-        >
-          {task.is_completed && !isPending && (
-            <svg className="w-4 h-4 shrink-0" style={{ color }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-          )}
-          {task.title}
-          {task.repeat_interval && task.repeat_unit && (
-            <svg className="w-3.5 h-3.5 shrink-0 opacity-50" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M17 2l4 4-4 4" /><path d="M3 11v-1a4 4 0 014-4h14" /><path d="M7 22l-4-4 4-4" /><path d="M21 13v1a4 4 0 01-4 4H3" />
-            </svg>
-          )}
-        </p>
-        {task.due_time && (
-          <p className="text-xs mt-1" style={{ color: isPending ? hexToRgba(color, 0.6) : color, opacity: 0.7 }}>
-            {formatTime(task.due_time)}
-          </p>
-        )}
-        {task.description && !isPending && (
-          <p className="text-xs mt-1 truncate" style={{ color, opacity: 0.6 }}>{task.description}</p>
-        )}
-      </div>
-    </button>
   );
 }

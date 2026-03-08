@@ -4,32 +4,20 @@ import { useState } from "react";
 import type { Task } from "@/lib/types";
 import { getThemeColor } from "@/lib/constants";
 import { useTheme } from "@/contexts/ThemeContext";
+import { hexToRgba } from "@/lib/gcal/event-utils";
 
 interface CalendarTaskBarProps {
   task: Task;
   onClick: (task: Task, rect: DOMRect) => void;
   /** When true, renders as a dashed outline bar for pending invites. */
   isPending?: boolean;
-}
-
-/**
- * Converts a hex color to an rgba string at the given opacity.
- *
- * @param hex - Hex color string (e.g. "#3b82f6")
- * @param opacity - Opacity between 0 and 1
- * @returns rgba string
- */
-function hexToRgba(hex: string, opacity: number): string {
-  const clean = hex.replace("#", "");
-  const r = parseInt(clean.substring(0, 2), 16);
-  const g = parseInt(clean.substring(2, 4), 16);
-  const b = parseInt(clean.substring(4, 6), 16);
-  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+  /** When true, uses compact 16px height (month view). Default false = 24px (week/day). */
+  compact?: boolean;
 }
 
 /**
  * Formats a 24-hour time string "HH:MM" to compact 12-hour format.
- * e.g. "23:59" → "11:59p", "09:00" → "9a", "14:30" → "2:30p"
+ * e.g. "23:59" -> "11:59p", "09:00" -> "9a", "14:30" -> "2:30p"
  *
  * @param time24 - Time string in "HH:MM" format
  * @returns Compact formatted time string
@@ -61,13 +49,13 @@ function truncateTitle(title: string, max: number): string {
 
 /**
  * Compact task bar in a calendar day cell.
- * Left colored border, light glassy background, colored text.
- * Titles are truncated to MAX_TITLE_CHARS with "..." — full title shown on hover.
+ * Solid colored background with dark text, matching Google Calendar style.
  *
  * @param task - The task to display
  * @param onClick - Callback when clicked (opens popover with full details)
+ * @param isPending - When true, renders as a dashed outline bar for pending invites
  */
-export default function CalendarTaskBar({ task, onClick, isPending }: CalendarTaskBarProps) {
+export default function CalendarTaskBar({ task, onClick, isPending, compact = false }: CalendarTaskBarProps) {
   const { colorTheme } = useTheme();
   const [hovered, setHovered] = useState(false);
   const color = getThemeColor(task.color, colorTheme);
@@ -80,41 +68,36 @@ export default function CalendarTaskBar({ task, onClick, isPending }: CalendarTa
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className={`w-full text-left flex items-center gap-1 px-2 py-0.5 rounded-md transition-all overflow-hidden hover:-translate-y-px hover:shadow-sm ${
-        task.is_completed ? "opacity-70" : ""
+      className={`w-full text-left flex items-center gap-0.5 rounded transition-all overflow-hidden hover:-translate-y-px hover:shadow-sm ${compact ? "px-1 py-0 h-[16px]" : "px-1.5 py-0.5 h-[22px]"} ${
+        task.is_completed ? "opacity-50" : ""
       } ${isPending ? "opacity-50" : ""}`}
       style={isPending ? {
         backgroundColor: "transparent",
-        borderLeft: `2px dashed ${color}`,
         border: `1px dashed ${hexToRgba(color, 0.4)}`,
         borderLeftWidth: "2px",
       } : {
-        backgroundColor: hexToRgba(color, hovered ? 0.18 : 0.1),
-        borderLeft: `2px solid ${color}`,
+        backgroundColor: task.is_completed ? hexToRgba(color, 0.35) : color,
+        opacity: hovered ? 0.9 : undefined,
       }}
       title={isPending ? `Pending invite: ${task.title}` : task.title}
     >
       {task.is_completed && !isPending && (
-        <svg className="w-3 h-3 shrink-0 mr-1 hidden md:block" style={{ color }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+        <svg className={`w-2.5 h-2.5 shrink-0 mr-1 hidden md:block ${task.is_completed ? "text-white" : "text-gray-900"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
           <polyline points="20 6 9 17 4 12" />
         </svg>
       )}
       {task.due_time && (
-        <span
-          className="text-[10px] font-semibold shrink-0 opacity-70"
-          style={{ color: isPending ? hexToRgba(color, 0.6) : color }}
-        >
+        <span className={`${compact ? "text-[9px]" : "text-[11px]"} font-medium shrink-0 ${task.is_completed ? "text-white/80" : "text-gray-900/80"}`}>
           {formatTimeCompact(task.due_time)}
         </span>
       )}
       <span
-        className={`text-[11px] font-medium truncate ${task.is_completed && !isPending ? "line-through" : ""}`}
-        style={{ color: isPending ? hexToRgba(color, 0.6) : color }}
+        className={`${compact ? "text-[10px]" : "text-[12px]"} font-medium truncate ${task.is_completed ? "text-white line-through" : "text-gray-900"}`}
       >
         {truncateTitle(task.title, MAX_TITLE_CHARS)}
       </span>
       {task.repeat_interval && task.repeat_unit && (
-        <svg className="w-2.5 h-2.5 shrink-0 opacity-40" style={{ color }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <svg className="w-2.5 h-2.5 shrink-0 opacity-40 text-gray-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M17 2l4 4-4 4" /><path d="M3 11v-1a4 4 0 014-4h14" /><path d="M7 22l-4-4 4-4" /><path d="M21 13v1a4 4 0 01-4 4H3" />
         </svg>
       )}

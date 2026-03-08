@@ -11,7 +11,7 @@ import TextAlign from "@tiptap/extension-text-align";
 import { TextStyle } from "@tiptap/extension-text-style";
 import FontFamily from "@tiptap/extension-font-family";
 import FontSize from "./FontSizeExtension";
-import { Check, ChevronLeft, Folder, Pin, PinOff, Printer, Trash2, Smile, Upload } from "lucide-react";
+import { Check, ChevronLeft, Folder, Printer, Trash2, Smile, Upload } from "lucide-react";
 import NoteEditorToolbar from "./NoteEditorToolbar";
 import ImageBubbleMenu from "./ImageBubbleMenu";
 import ResizableImage from "./ResizableImageExtension";
@@ -505,18 +505,10 @@ export default function NoteEditor({ note, folderLabel, folders, currentFolderId
               </span>
             )}
             <button
-              onClick={() => onUpdate(note.id, { is_pinned: !note.is_pinned })}
-              title={note.is_pinned ? "Unpin" : "Pin"}
-              aria-label={note.is_pinned ? "Unpin note" : "Pin note"}
-              className="p-1.5 text-foreground/50 hover:text-foreground transition-colors"
-            >
-              {note.is_pinned ? <PinOff size={16} /> : <Pin size={16} />}
-            </button>
-            <button
               onClick={() => setShowCanvasSubmit(true)}
               title="Submit to Canvas"
               aria-label="Submit to Canvas"
-              className="p-1.5 text-foreground/50 hover:text-foreground transition-colors"
+              className="p-1.5 text-foreground hover:text-foreground/70 transition-colors"
             >
               <Upload size={16} />
             </button>
@@ -524,7 +516,7 @@ export default function NoteEditor({ note, folderLabel, folders, currentFolderId
               onClick={handlePrint}
               title="Print"
               aria-label="Print note"
-              className="p-1.5 text-foreground/50 hover:text-foreground transition-colors"
+              className="p-1.5 text-foreground hover:text-foreground/70 transition-colors"
             >
               <Printer size={16} />
             </button>
@@ -532,7 +524,7 @@ export default function NoteEditor({ note, folderLabel, folders, currentFolderId
               onClick={() => setShowDeleteConfirm(true)}
               title="Delete note"
               aria-label="Delete note"
-              className="p-1.5 text-foreground/50 hover:text-red-500 transition-colors"
+              className="p-1.5 text-foreground hover:text-red-500 transition-colors"
             >
               <Trash2 size={16} />
             </button>

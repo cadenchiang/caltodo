@@ -1,13 +1,10 @@
 /**
  * GET /api/gcal/unsynced-count
  *
- * Returns the number of tasks that have a due_date but no google_event_id,
- * indicating they were missed during the initial GCal sync.
+ * Returns the count of tasks with due_date but no google_event_id,
+ * indicating they need to be synced to Google Calendar.
  *
- * Response shapes:
- *   { count: N, connected: true }  — normal case
- *   { count: 0, connected: false } — GCal not connected
- *   { count: 0, connected: true }  — no calendar selected or no unsynced tasks
+ * @returns { count: N, connected: boolean }
  */
 
 import { NextResponse } from "next/server";
@@ -31,13 +28,11 @@ export async function GET() {
 
   const accessToken = await getValidAccessToken(supabase, user.id);
   if (!accessToken) {
-    logger.info("GET /api/gcal/unsynced-count: not connected", { userId: user.id });
     return NextResponse.json({ count: 0, connected: false });
   }
 
   const calendarId = await getCalendarId(supabase, user.id);
   if (!calendarId) {
-    logger.info("GET /api/gcal/unsynced-count: no calendar selected", { userId: user.id });
     return NextResponse.json({ count: 0, connected: true });
   }
 
@@ -50,17 +45,9 @@ export async function GET() {
     .is("dismissed_at", null);
 
   if (countError) {
-    logger.error("GET /api/gcal/unsynced-count: query failed", {
-      userId: user.id,
-      error: countError.message,
-    });
+    logger.error("GET /api/gcal/unsynced-count: query failed", { userId: user.id, error: countError.message });
     return NextResponse.json({ error: "Failed to count unsynced tasks" }, { status: 500 });
   }
-
-  logger.info("GET /api/gcal/unsynced-count: result", {
-    userId: user.id,
-    count: count ?? 0,
-  });
 
   return NextResponse.json({ count: count ?? 0, connected: true });
 }

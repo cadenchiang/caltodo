@@ -1,59 +1,35 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { format, isSameDay, startOfWeek, addDays } from "date-fns";
-import type { Task, PendingInvite } from "@/lib/types";
+import type { Task, PendingInvite, GCalEvent } from "@/lib/types";
 import { getThemeColor } from "@/lib/constants";
+import { getEventDateKey, getEventColor } from "@/lib/gcal/event-utils";
 import { pendingInviteToPseudoTask } from "@/lib/pending-invite-helpers";
 import { useTheme } from "@/contexts/ThemeContext";
+import CalendarTaskBar from "./CalendarTaskBar";
+import CalendarGCalItem from "./CalendarGCalItem";
+import TimeGrid from "./TimeGrid";
 
 interface CalendarWeekViewProps {
   currentDate: Date;
   tasks: Task[];
   pendingInvites?: PendingInvite[];
+  gcalEvents?: GCalEvent[];
+  /** Date string of the day currently being added to (shows placeholder). */
+  addingDate?: string | null;
   onDayClick: (date: string, rect: DOMRect) => void;
   onTaskClick: (task: Task, rect: DOMRect) => void;
+  onEventCreate?: (date: string, startTime: string, endTime: string) => void;
 }
 
 /**
- * Formats a 24-hour time string to compact 12-hour format.
- * e.g. "23:59" → "11:59p", "09:00" → "9a", "14:30" → "2:30p"
- *
- * @param time24 - "HH:MM" format
- * @returns Compact formatted time string
- */
-function formatTime(time24: string): string {
-  const [h, m] = time24.split(":");
-  const hour = parseInt(h, 10);
-  const minute = m;
-  const suffix = hour >= 12 ? "p" : "a";
-  const h12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-  if (minute === "00") return `${h12}${suffix}`;
-  return `${h12}:${minute}${suffix}`;
-}
-
-/**
- * Converts a hex color to an rgba string at the given opacity.
- *
- * @param hex - Hex color string (e.g. "#3b82f6")
- * @param opacity - Opacity between 0 and 1
- * @returns rgba string
- */
-function hexToRgba(hex: string, opacity: number): string {
-  const clean = hex.replace("#", "");
-  const r = parseInt(clean.substring(0, 2), 16);
-  const g = parseInt(clean.substring(2, 4), 16);
-  const b = parseInt(clean.substring(4, 6), 16);
-  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
-}
-
-/**
- * Week view showing 7 day columns (Mon-Sun) with colored task cards.
- * Centered date headers with day name + large date number.
- * Hover shows + icon for adding tasks, double-click also works.
+ * Week view with all-day section (task bars + all-day GCal events) at top,
+ * then a scrollable time grid for timed GCal events.
  *
  * @param currentDate - Any date within the target week
- * @param tasks - All tasks (filtered by week in this component)
+ * @param tasks - All tasks for the week
+ * @param gcalEvents - Google Calendar events for the week
  * @param onDayClick - Handler for adding tasks
  * @param onTaskClick - Click handler for editing tasks
  */
@@ -61,8 +37,11 @@ export default function CalendarWeekView({
   currentDate,
   tasks,
   pendingInvites = [],
+  gcalEvents = [],
+  addingDate,
   onDayClick,
   onTaskClick,
+  onEventCreate,
 }: CalendarWeekViewProps) {
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -91,10 +70,50 @@ export default function CalendarWeekView({
     }
   }
 
+  // Split GCal events into all-day and timed, grouped by date
+  const { allDayByDate, timedByDate } = useMemo(() => {
+    const allDay: Record<string, GCalEvent[]> = {};
+    const timed: Record<string, GCalEvent[]> = {};
+    for (const event of gcalEvents) {
+      const dateKey = getEventDateKey(event.start);
+      if (event.allDay) {
+        if (!allDay[dateKey]) allDay[dateKey] = [];
+        allDay[dateKey].push(event);
+      } else {
+        if (!timed[dateKey]) timed[dateKey] = [];
+        timed[dateKey].push(event);
+      }
+    }
+    return { allDayByDate: allDay, timedByDate: timed };
+  }, [gcalEvents]);
+
+  // Check if there are any all-day items (tasks, all-day events, or adding placeholder)
+  const hasAllDayContent = days.some((day) => {
+    const dateStr = format(day, "yyyy-MM-dd");
+    return (tasksByDate[dateStr]?.length ?? 0) > 0 ||
+           (allDayByDate[dateStr]?.length ?? 0) > 0 ||
+           (invitesByDate[dateStr]?.length ?? 0) > 0 ||
+           addingDate === dateStr;
+  });
+
+  // Build time grid columns
+  const timeGridColumns = useMemo(() => {
+    return days.map((day) => {
+      const dateStr = format(day, "yyyy-MM-dd");
+      return {
+        events: timedByDate[dateStr] ?? [],
+      };
+    });
+  }, [days, timedByDate]);
+
+  const columnDates = useMemo(() => days.map((d) => format(d, "yyyy-MM-dd")), [days]);
+
+  const hasTimedEvents = timeGridColumns.some((col) => col.events.length > 0);
+
   return (
-    <div className="bg-card flex flex-col h-full overflow-hidden">
-      {/* Column headers — centered day name + date number */}
-      <div className="grid grid-cols-7 border-b border-gray-300 dark:border-gray-500 shrink-0">
+    <div className="bg-white dark:bg-[#141414] flex flex-col h-full overflow-hidden">
+      {/* Column headers */}
+      <div className="grid grid-cols-7 shrink-0 bg-white dark:bg-[#141414]" style={{ marginLeft: !isMobile ? "56px" : "0" }}>
         {days.map((day) => {
           const dateStr = format(day, "yyyy-MM-dd");
           const isToday = isSameDay(day, new Date());
@@ -123,204 +142,148 @@ export default function CalendarWeekView({
         })}
       </div>
 
-      {/* Day columns with task cards (desktop) or dots (mobile) */}
-      <div className="grid grid-cols-7 flex-1 min-h-0 overflow-y-auto">
-        {days.map((day, i) => {
-          const dateStr = format(day, "yyyy-MM-dd");
-          const dayTasks = tasksByDate[dateStr] ?? [];
-          const isLastCol = i === 6;
-          return (
-            <WeekDayColumn
-              key={dateStr}
-              dateStr={dateStr}
-              tasks={dayTasks}
-              pendingInvites={invitesByDate[dateStr] ?? []}
-              isLastCol={isLastCol}
-              isMobile={isMobile}
-              onDayClick={onDayClick}
-              onTaskClick={onTaskClick}
-            />
-          );
-        })}
-      </div>
+      {/* All-day section: task bars + all-day GCal events */}
+      {hasAllDayContent && !isMobile && (
+        <div className="grid grid-cols-7 border-b border-gray-200 dark:border-gray-700/50 shrink-0 bg-white dark:bg-[#141414]" style={{ marginLeft: !isMobile ? "56px" : "0" }}>
+          {days.map((day, i) => {
+            const dateStr = format(day, "yyyy-MM-dd");
+            const dayTasks = tasksByDate[dateStr] ?? [];
+            const dayAllDayEvents = allDayByDate[dateStr] ?? [];
+            const dayInvites = invitesByDate[dateStr] ?? [];
+            const isLastCol = i === 6;
+            return (
+              <div
+                key={dateStr}
+                className={`p-1 flex flex-col gap-0.5 ${isLastCol ? "" : "border-r"} border-gray-200 dark:border-gray-700/50`}
+                onDoubleClick={(e) => {
+                  const rect = new DOMRect(e.clientX - 40, e.clientY, 80, 1);
+                  onDayClick(dateStr, rect);
+                }}
+              >
+                {dayTasks.map((task) => (
+                  <CalendarTaskBar key={task.id} task={task} onClick={onTaskClick} />
+                ))}
+                {dayInvites.map((invite) => (
+                  <CalendarTaskBar
+                    key={invite.shareId}
+                    task={pendingInviteToPseudoTask(invite)}
+                    onClick={() => {}}
+                    isPending
+                  />
+                ))}
+                {dayAllDayEvents.map((event) => (
+                  <CalendarGCalItem key={event.id} event={event} />
+                ))}
+                {addingDate === dateStr && (
+                  <div className="bg-blue-500 text-white text-[10px] font-medium px-1.5 py-0.5 rounded truncate">
+                    (No title)
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Time grid (desktop) or simplified dots (mobile) */}
+      {isMobile ? (
+        <MobileWeekContent
+          days={days}
+          tasksByDate={tasksByDate}
+          invitesByDate={invitesByDate}
+          allDayByDate={allDayByDate}
+          timedByDate={timedByDate}
+          onDayClick={onDayClick}
+          onTaskClick={onTaskClick}
+        />
+      ) : (
+        <TimeGrid
+          columns={timeGridColumns}
+          columnDates={columnDates}
+          rowHeight={60}
+          showCurrentTime={true}
+          onTimeDoubleClick={onEventCreate ? (date, hour, minute) => {
+            const start = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+            const endH = hour + 1;
+            const end = `${String(endH).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+            onEventCreate(date, start, end);
+          } : undefined}
+        />
+      )}
     </div>
   );
 }
 
 /**
- * Single day column in week view with hover + icon and task cards.
+ * Mobile week view: simplified dots + list items under each day column.
  */
-function WeekDayColumn({
-  dateStr,
-  tasks,
-  pendingInvites,
-  isLastCol,
-  isMobile,
+function MobileWeekContent({
+  days,
+  tasksByDate,
+  invitesByDate,
+  allDayByDate,
+  timedByDate,
   onDayClick,
   onTaskClick,
 }: {
-  dateStr: string;
-  tasks: Task[];
-  pendingInvites: PendingInvite[];
-  isLastCol: boolean;
-  isMobile: boolean;
+  days: Date[];
+  tasksByDate: Record<string, Task[]>;
+  invitesByDate: Record<string, PendingInvite[]>;
+  allDayByDate: Record<string, GCalEvent[]>;
+  timedByDate: Record<string, GCalEvent[]>;
   onDayClick: (date: string, rect: DOMRect) => void;
   onTaskClick: (task: Task, rect: DOMRect) => void;
 }) {
   const { colorTheme } = useTheme();
-  const [hovered, setHovered] = useState(false);
   const maxDots = 4;
 
   return (
-    <div
-      className={`${isLastCol ? "" : "border-r"} border-gray-300 dark:border-gray-600 p-1 md:p-1.5 flex flex-col gap-1 md:gap-1.5 hover:bg-muted/30 transition-colors`}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      onClick={isMobile ? (e) => {
-        const rect = e.currentTarget.getBoundingClientRect();
-        onDayClick(dateStr, new DOMRect(rect.left, rect.bottom + 4, rect.width, 1));
-      } : undefined}
-      onDoubleClick={!isMobile ? (e) => {
-        const rect = new DOMRect(e.clientX - 40, e.clientY, 80, 1);
-        onDayClick(dateStr, rect);
-      } : undefined}
-    >
-      {isMobile ? (
-        /* Mobile: centered colored dots */
-        <div className="flex flex-col items-center justify-start pt-1 gap-1.5">
-          {(tasks.length > 0 || pendingInvites.length > 0) && (
-            <div className="flex items-center justify-center gap-[3px] flex-wrap max-w-[36px]">
-              {tasks.slice(0, maxDots).map((task) => (
-                <span
-                  key={task.id}
-                  className={`w-[5px] h-[5px] rounded-full shrink-0 ${task.is_completed ? "opacity-40" : ""}`}
-                  style={{ backgroundColor: getThemeColor(task.color, colorTheme) }}
-                />
-              ))}
-              {pendingInvites.map((invite) => (
-                <span
-                  key={invite.shareId}
-                  className="w-[5px] h-[5px] rounded-full shrink-0 opacity-40"
-                  style={{
-                    backgroundColor: "transparent",
-                    border: `1px dashed ${getThemeColor(invite.taskColor, colorTheme)}`,
-                  }}
-                />
-              ))}
-              {tasks.length > maxDots && (
-                <span className="text-[8px] text-muted-foreground leading-none">+{tasks.length - maxDots}</span>
+    <div className="grid grid-cols-7 flex-1 min-h-0 overflow-y-auto">
+      {days.map((day, i) => {
+        const dateStr = format(day, "yyyy-MM-dd");
+        const dayTasks = tasksByDate[dateStr] ?? [];
+        const dayInvites = invitesByDate[dateStr] ?? [];
+        const allEvents = [...(allDayByDate[dateStr] ?? []), ...(timedByDate[dateStr] ?? [])];
+        const isLastCol = i === 6;
+        const totalItems = dayTasks.length + allEvents.length;
+        return (
+          <div
+            key={dateStr}
+            className={`${isLastCol ? "" : "border-r"} border-gray-300 dark:border-gray-600 p-1 flex flex-col gap-1.5 hover:bg-muted/30 transition-colors`}
+            onClick={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect();
+              onDayClick(dateStr, new DOMRect(rect.left, rect.bottom + 4, rect.width, 1));
+            }}
+          >
+            <div className="flex flex-col items-center justify-start pt-1 gap-1.5">
+              {totalItems > 0 && (
+                <div className="flex items-center justify-center gap-[3px] flex-wrap max-w-[36px]">
+                  {dayTasks.slice(0, maxDots).map((task) => (
+                    <span
+                      key={task.id}
+                      className={`w-[5px] h-[5px] rounded-full shrink-0 ${task.is_completed ? "opacity-40" : ""}`}
+                      style={{ backgroundColor: getThemeColor(task.color, colorTheme) }}
+                    />
+                  ))}
+                  {allEvents.slice(0, Math.max(0, maxDots - dayTasks.length)).map((event) => (
+                    <span
+                      key={event.id}
+                      className="w-[5px] h-[5px] rounded-full shrink-0"
+                      style={{
+                        backgroundColor: "transparent",
+                        border: `1.5px solid ${getEventColor(event.colorId)}`,
+                      }}
+                    />
+                  ))}
+                  {totalItems > maxDots && (
+                    <span className="text-[8px] text-muted-foreground leading-none">+{totalItems - maxDots}</span>
+                  )}
+                </div>
               )}
             </div>
-          )}
-        </div>
-      ) : (
-        <>
-          {/* Desktop: + icon row and full task cards */}
-          <div className="flex justify-end h-5 shrink-0">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                const rect = e.currentTarget.getBoundingClientRect();
-                onDayClick(dateStr, new DOMRect(rect.left, rect.bottom + 4, rect.width, 1));
-              }}
-              className={`w-5 h-5 rounded-full flex items-center justify-center text-muted-foreground hover:bg-gray-300 dark:hover:bg-gray-600 hover:text-foreground transition-all ${
-                hovered ? "opacity-100" : "opacity-0 pointer-events-none"
-              }`}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <line x1="12" y1="5" x2="12" y2="19" />
-                <line x1="5" y1="12" x2="19" y2="12" />
-              </svg>
-            </button>
           </div>
-
-          {tasks.map((task) => (
-            <WeekTaskCard key={task.id} task={task} onTaskClick={onTaskClick} />
-          ))}
-          {pendingInvites.map((invite) => (
-            <WeekTaskCard
-              key={invite.shareId}
-              task={pendingInviteToPseudoTask(invite)}
-              onTaskClick={() => {}}
-              isPending
-            />
-          ))}
-        </>
-      )}
+        );
+      })}
     </div>
-  );
-}
-
-/**
- * Task card for week view with color-tinted background and hover effect.
- *
- * @param task - The task to render
- * @param onTaskClick - Click callback
- * @param isPending - When true, renders with dashed outline for pending invites
- */
-function WeekTaskCard({
-  task,
-  onTaskClick,
-  isPending,
-}: {
-  task: Task;
-  onTaskClick: (task: Task, rect: DOMRect) => void;
-  isPending?: boolean;
-}) {
-  const { colorTheme } = useTheme();
-  const color = getThemeColor(task.color, colorTheme);
-
-  return (
-    <button
-      onClick={(e) => {
-        e.stopPropagation();
-        onTaskClick(task, e.currentTarget.getBoundingClientRect());
-      }}
-      className={`group w-full text-left rounded-lg p-1.5 md:p-2.5 transition-all hover:-translate-y-px hover:shadow-sm ${
-        task.is_completed ? "opacity-50" : ""
-      } ${isPending ? "opacity-50" : ""}`}
-      style={isPending ? {
-        backgroundColor: "transparent",
-        border: `1px dashed ${hexToRgba(color, 0.4)}`,
-        borderLeftWidth: "2px",
-        borderLeftStyle: "dashed",
-        borderLeftColor: color,
-      } : {
-        backgroundColor: hexToRgba(color, 0.1),
-        borderLeft: `2px solid ${color}`,
-      }}
-      onMouseEnter={(e) => {
-        if (!isPending) e.currentTarget.style.backgroundColor = hexToRgba(color, 0.18);
-      }}
-      onMouseLeave={(e) => {
-        if (!isPending) e.currentTarget.style.backgroundColor = hexToRgba(color, 0.1);
-      }}
-    >
-      <p
-        className={`text-[11px] md:text-[13px] font-semibold leading-snug flex items-center gap-1 ${task.is_completed && !isPending ? "line-through" : ""}`}
-        style={{ color: isPending ? hexToRgba(color, 0.6) : color }}
-      >
-        {task.is_completed && !isPending && (
-          <svg className="w-3.5 h-3.5 shrink-0 hidden md:block" style={{ color }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
-        )}
-        {task.title}
-        {task.repeat_interval && task.repeat_unit && (
-          <svg className="w-3 h-3 shrink-0 opacity-50" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M17 2l4 4-4 4" /><path d="M3 11v-1a4 4 0 014-4h14" /><path d="M7 22l-4-4 4-4" /><path d="M21 13v1a4 4 0 01-4 4H3" />
-          </svg>
-        )}
-      </p>
-      {task.due_time && (
-        <p className="hidden md:flex text-xs mt-1 items-center gap-1" style={{ color: isPending ? hexToRgba(color, 0.6) : color, opacity: 0.7 }}>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10" />
-            <polyline points="12 6 12 12 16 14" />
-          </svg>
-          {formatTime(task.due_time)}
-        </p>
-      )}
-    </button>
   );
 }

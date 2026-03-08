@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import type { CourseMemberProfile } from "@/lib/types";
 
 const CACHE_PREFIX = "chat_members_cache_";
@@ -45,19 +45,25 @@ function writeCache(courseId: string, members: CourseMemberProfile[]) {
  * Hook to fetch and cache course members for a given course.
  * Uses stale-while-revalidate: returns cached data instantly,
  * then refreshes from API in background.
+ * Listens for "calchat-members-changed" custom events to refetch
+ * when new members join or leave.
  *
  * @param courseId - The course UUID to fetch members for
- * @returns members array and loading state
+ * @returns members array, loading state, and refetch function
  */
 export function useChatMembers(courseId: string): {
   members: CourseMemberProfile[];
   loading: boolean;
+  refetch: () => void;
 } {
   const [members, setMembers] = useState<CourseMemberProfile[]>(
     () => readCache(courseId) ?? []
   );
   const [loading, setLoading] = useState(() => !readCache(courseId));
   const prevCourseIdRef = useRef(courseId);
+  /** Ref to track the active courseId for stale-guard in async callbacks. */
+  const activeCourseIdRef = useRef(courseId);
+  activeCourseIdRef.current = courseId;
 
   // Synchronously update state when courseId changes (no flash frame)
   if (prevCourseIdRef.current !== courseId) {
@@ -72,6 +78,29 @@ export function useChatMembers(courseId: string): {
     }
   }
 
+  /**
+   * Fetches members from API and updates state + cache.
+   * Keeps existing data on failure to prevent list from disappearing.
+   */
+  const fetchMembers = useCallback(() => {
+    fetch(`/api/discussions/members?courseId=${encodeURIComponent(courseId)}`)
+      .then((res) => {
+        if (!res.ok) return null;
+        return res.json();
+      })
+      .then((data: CourseMemberProfile[] | null) => {
+        if (activeCourseIdRef.current !== courseId || !data) return;
+        setMembers(data);
+        writeCache(courseId, data);
+      })
+      .catch(() => {
+        // Keep existing members on network error
+      })
+      .finally(() => {
+        if (activeCourseIdRef.current === courseId) setLoading(false);
+      });
+  }, [courseId]);
+
   useEffect(() => {
     const cached = readCache(courseId);
     if (cached) {
@@ -79,22 +108,21 @@ export function useChatMembers(courseId: string): {
       setLoading(false);
     }
 
-    let cancelled = false;
-    fetch(`/api/discussions/members?courseId=${encodeURIComponent(courseId)}`)
-      .then((res) => (res.ok ? res.json() : []))
-      .then((data: CourseMemberProfile[]) => {
-        if (cancelled) return;
-        setMembers(data);
-        writeCache(courseId, data);
-      })
-      .catch(() => {})
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [courseId]);
+    fetchMembers();
 
-  return { members, loading };
+    // Listen for member change events (fired by useCourseChat on join/leave)
+    function handleMemberChange(e: Event) {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.courseId === courseId) {
+        fetchMembers();
+      }
+    }
+    window.addEventListener("calchat-members-changed", handleMemberChange);
+
+    return () => {
+      window.removeEventListener("calchat-members-changed", handleMemberChange);
+    };
+  }, [courseId, fetchMembers]);
+
+  return { members, loading, refetch: fetchMembers };
 }

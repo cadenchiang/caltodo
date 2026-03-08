@@ -19,8 +19,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getValidAccessToken, getCalendarId } from "@/lib/gcal/token-manager";
-import { addAttendeeToEvent } from "@/lib/gcal/calendar-attendees";
 import { sendInviteEmail } from "@/lib/email";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
@@ -199,15 +197,6 @@ export async function POST(request: NextRequest) {
     inviteeEmail: trimmedEmail,
   });
 
-  // Fire-and-forget: add invitee as GCal attendee if inviter has GCal connected
-  if (task.google_event_id) {
-    addGCalAttendee(supabase, user.id, task.google_event_id, trimmedEmail).catch((err) => {
-      logger.warn("POST /api/tasks/invite: GCal attendee addition failed (non-blocking)", {
-        error: err instanceof Error ? err.message : String(err),
-      });
-    });
-  }
-
   return NextResponse.json({
     share: {
       ...share,
@@ -215,30 +204,6 @@ export async function POST(request: NextRequest) {
       invitee_avatar_url: invitee.avatar_url,
     },
   });
-}
-
-/**
- * Fire-and-forget helper to add an attendee to a Google Calendar event.
- * Silently skips if GCal is not connected.
- *
- * @param supabase - Authenticated Supabase client
- * @param userId - The inviter's user ID
- * @param googleEventId - The Google Calendar event ID
- * @param email - The invitee's email address
- */
-async function addGCalAttendee(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  userId: string,
-  googleEventId: string,
-  email: string
-): Promise<void> {
-  const accessToken = await getValidAccessToken(supabase, userId);
-  if (!accessToken) return;
-
-  const calendarId = await getCalendarId(supabase, userId);
-  if (!calendarId) return;
-
-  await addAttendeeToEvent(accessToken, calendarId, googleEventId, email);
 }
 
 /**

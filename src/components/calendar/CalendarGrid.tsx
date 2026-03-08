@@ -9,18 +9,21 @@ import {
   eachDayOfInterval,
   format,
 } from "date-fns";
-import type { Task, PendingInvite } from "@/lib/types";
+import type { Task, PendingInvite, GCalEvent } from "@/lib/types";
+import { getEventDateKey } from "@/lib/gcal/event-utils";
 import CalendarDayCell from "./CalendarDayCell";
 
 interface CalendarGridProps {
   currentMonth: Date;
   tasks: Task[];
   pendingInvites?: PendingInvite[];
+  gcalEvents?: GCalEvent[];
   addingDate?: string | null;
   selectedDate?: string | null;
   onDayClick: (date: string, rect: DOMRect) => void;
   onDaySelect: (date: string) => void;
   onTaskClick: (task: Task, rect: DOMRect) => void;
+  onShowMore?: (date: string, rect: DOMRect) => void;
 }
 
 /** Full labels for desktop, single-letter for mobile. */
@@ -35,11 +38,13 @@ export default function CalendarGrid({
   currentMonth,
   tasks,
   pendingInvites = [],
+  gcalEvents = [],
   addingDate,
   selectedDate,
   onDayClick,
   onDaySelect,
   onTaskClick,
+  onShowMore,
 }: CalendarGridProps) {
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
@@ -77,30 +82,29 @@ export default function CalendarGrid({
     }
   }
 
+  // Group GCal events by date
+  const eventsByDate: Record<string, GCalEvent[]> = {};
+  for (const event of gcalEvents) {
+    const dateKey = getEventDateKey(event.start);
+    if (!eventsByDate[dateKey]) {
+      eventsByDate[dateKey] = [];
+    }
+    eventsByDate[dateKey].push(event);
+  }
+
   const labels = isMobile ? WEEKDAY_LABELS_SHORT : WEEKDAY_LABELS_FULL;
   const minRowHeight = isMobile ? "52px" : "120px";
 
   return (
-    <div id="tour-calendar-grid" className="bg-card h-full flex flex-col">
-      {/* Weekday headers */}
-      <div className="grid grid-cols-7 border-b border-gray-300 dark:border-gray-600 shrink-0">
-        {labels.map((label, i) => (
-          <div
-            key={`${label}-${i}`}
-            className="text-center text-[10px] md:text-xs font-semibold text-foreground/70 py-1.5 md:py-2.5"
-          >
-            {label}
-          </div>
-        ))}
-      </div>
-
-      {/* Day grid — equal-height rows filling available space */}
+    <div id="tour-calendar-grid" className="bg-white dark:bg-[#141414] h-full flex flex-col">
+      {/* Day grid — weekday labels are inside first-row cells like Google Calendar */}
       <div
-        className="grid grid-cols-7 flex-1"
-        style={{ gridTemplateRows: `repeat(${rowCount}, minmax(${minRowHeight}, auto))` }}
+        className="grid grid-cols-7 flex-1 min-h-0"
+        style={{ gridTemplateRows: `minmax(0, 1.15fr) repeat(${rowCount - 1}, minmax(0, 1fr))` }}
       >
         {days.map((day, i) => {
           const dateStr = format(day, "yyyy-MM-dd");
+          const isFirstRow = i < 7;
           return (
             <CalendarDayCell
               key={dateStr}
@@ -108,12 +112,15 @@ export default function CalendarGrid({
               currentMonth={currentMonth}
               tasks={tasksByDate[dateStr] ?? []}
               pendingInvites={invitesByDate[dateStr] ?? []}
+              gcalEvents={eventsByDate[dateStr] ?? []}
               addingDate={addingDate}
               isLastCol={(i + 1) % 7 === 0}
               isSelected={selectedDate === dateStr}
+              weekdayLabel={isFirstRow ? labels[i % 7] : undefined}
               onDayClick={onDayClick}
               onDaySelect={onDaySelect}
               onTaskClick={onTaskClick}
+              onShowMore={onShowMore}
             />
           );
         })}

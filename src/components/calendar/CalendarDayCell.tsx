@@ -1,53 +1,71 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { format, isSameDay, isSameMonth, isBefore, startOfDay } from "date-fns";
-import type { Task, PendingInvite } from "@/lib/types";
+import type { Task, PendingInvite, GCalEvent } from "@/lib/types";
 import { getThemeColor } from "@/lib/constants";
+import { getEventColor } from "@/lib/gcal/event-utils";
 import { pendingInviteToPseudoTask } from "@/lib/pending-invite-helpers";
 import { useTheme } from "@/contexts/ThemeContext";
 import CalendarTaskBar from "./CalendarTaskBar";
+import CalendarGCalItem from "./CalendarGCalItem";
 
 interface CalendarDayCellProps {
   day: Date;
   currentMonth: Date;
   tasks: Task[];
   pendingInvites?: PendingInvite[];
+  gcalEvents?: GCalEvent[];
   addingDate?: string | null;
   isLastCol?: boolean;
   isSelected?: boolean;
+  /** Weekday label shown inside the cell for first-row cells (e.g. "Mon"). */
+  weekdayLabel?: string;
   onDayClick: (date: string, rect: DOMRect) => void;
   onDaySelect: (date: string) => void;
   onTaskClick: (task: Task, rect: DOMRect) => void;
+  onShowMore?: (date: string, rect: DOMRect) => void;
 }
+
+/** Approximate heights in px for layout calculations. */
+const HEADER_HEIGHT = 22;
+const HEADER_HEIGHT_WITH_LABEL = 34;
+const ITEM_HEIGHT = 17;
+const MORE_LINE_HEIGHT = 14;
 
 /**
  * A single day cell in the month grid. Double-click to add a task.
- * Shows a "Double-click to add" hint on hover for every day.
+ * Dynamically measures available height to show as many items as fit,
+ * with a "+N more" button that opens an overflow popover.
  *
  * @param day - The date this cell represents
  * @param currentMonth - The currently displayed month
  * @param tasks - Tasks assigned to this day
+ * @param gcalEvents - Google Calendar events for this day
  * @param onDayClick - Callback when double-clicked
  * @param onTaskClick - Callback when a task is clicked
+ * @param onShowMore - Callback when "+N more" is clicked
  */
 export default function CalendarDayCell({
   day,
   currentMonth,
   tasks,
   pendingInvites = [],
+  gcalEvents = [],
   addingDate,
   isLastCol,
   isSelected,
+  weekdayLabel,
   onDayClick,
   onDaySelect,
   onTaskClick,
+  onShowMore,
 }: CalendarDayCellProps) {
   const { colorTheme } = useTheme();
-  const isMiffyTheme = colorTheme === "miffy";
-  const [expanded, setExpanded] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [hovered, setHovered] = useState(false);
+  const [maxItems, setMaxItems] = useState(5);
+  const cellRef = useRef<HTMLDivElement>(null);
   const isCurrentMonth = isSameMonth(day, currentMonth);
   const isToday = isSameDay(day, new Date());
   const isPast = isBefore(day, startOfDay(new Date())) && !isToday;
@@ -60,26 +78,51 @@ export default function CalendarDayCell({
     return () => window.removeEventListener("resize", check);
   }, []);
 
-  const maxVisible = isMobile ? 2 : 3;
-  const visibleTasks = expanded ? tasks : tasks.slice(0, maxVisible);
-  const overflow = tasks.length - maxVisible;
+  const headerH = weekdayLabel ? HEADER_HEIGHT_WITH_LABEL : HEADER_HEIGHT;
+
+  // Dynamically compute how many items fit in the cell
+  useEffect(() => {
+    const el = cellRef.current;
+    if (!el || isMobile) return;
+    const observer = new ResizeObserver(([entry]) => {
+      const h = entry.contentBoxSize[0].blockSize;
+      const available = h - headerH - MORE_LINE_HEIGHT;
+      setMaxItems(Math.max(1, Math.floor(available / ITEM_HEIGHT)));
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [isMobile, headerH]);
+
+  const totalItems = tasks.length + pendingInvites.length + gcalEvents.length;
+  const hasOverflow = totalItems > maxItems;
+
+  // Distribute maxItems slots: tasks first, then invites, then events
+  const slotsForItems = hasOverflow ? maxItems : totalItems;
+  const taskSlots = Math.min(tasks.length, slotsForItems);
+  const inviteSlots = Math.min(pendingInvites.length, slotsForItems - taskSlots);
+  const eventSlots = Math.min(gcalEvents.length, slotsForItems - taskSlots - inviteSlots);
+  const visibleTasks = tasks.slice(0, taskSlots);
+  const visibleInvites = pendingInvites.slice(0, inviteSlots);
+  const visibleEvents = gcalEvents.slice(0, eventSlots);
+  const overflow = totalItems - taskSlots - inviteSlots - eventSlots;
 
   /** Max colored dots to show on mobile before "+N". */
   const maxDots = 4;
   const dotTasks = tasks.slice(0, maxDots);
-  const dotOverflow = tasks.length - maxDots;
+  const dotOverflow = tasks.length + gcalEvents.length - maxDots;
 
   return (
     <div
-      className={`p-0.5 md:p-1.5 ${isLastCol ? "" : "border-r"} border-b border-gray-300 dark:border-gray-600 transition-colors relative ${
+      ref={cellRef}
+      className={`p-0.5 md:px-1 md:py-0.5 overflow-hidden ${isLastCol ? "" : "border-r"} border-b border-gray-200 dark:border-gray-700/50 transition-colors relative ${
         isPast
-          ? "bg-gray-100 dark:bg-gray-900/60"
+          ? "bg-gray-100 dark:bg-black/30"
           : !isCurrentMonth
-            ? "bg-muted/40"
+            ? "bg-gray-50 dark:bg-black/15"
             : isSelected && isMobile
-              ? "bg-muted/60"
-              : "bg-card"
-      } hover:bg-muted/50`}
+              ? "bg-gray-100 dark:bg-white/5"
+              : "bg-white dark:bg-[#141414]"
+      } hover:bg-black/[0.02] dark:hover:bg-white/[0.03]`}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onClick={() => onDaySelect(dateStr)}
@@ -104,20 +147,29 @@ export default function CalendarDayCell({
           >
             {format(day, "d")}
           </span>
-          {/* Colored dots for tasks + pending invites */}
-          {(tasks.length > 0 || pendingInvites.length > 0) && (
-            <div className="flex items-center justify-center gap-[3px] flex-wrap max-w-[36px]">
+          {(tasks.length > 0 || gcalEvents.length > 0 || pendingInvites.length > 0) && (
+            <div className="flex items-center justify-center gap-[3px] flex-wrap max-w-[40px]">
               {dotTasks.map((task) => (
                 <span
                   key={task.id}
-                  className={`w-[5px] h-[5px] rounded-full shrink-0 ${task.is_completed ? "opacity-60" : ""}`}
+                  className={`w-[7px] h-[7px] rounded-full shrink-0 ${task.is_completed ? "opacity-60" : ""}`}
                   style={{ backgroundColor: getThemeColor(task.color, colorTheme) }}
+                />
+              ))}
+              {gcalEvents.slice(0, Math.max(0, maxDots - tasks.length)).map((event) => (
+                <span
+                  key={event.id}
+                  className="w-[7px] h-[7px] rounded-full shrink-0"
+                  style={{
+                    backgroundColor: "transparent",
+                    border: `1.5px solid ${getEventColor(event.colorId)}`,
+                  }}
                 />
               ))}
               {pendingInvites.map((invite) => (
                 <span
                   key={invite.shareId}
-                  className="w-[5px] h-[5px] rounded-full shrink-0 opacity-40"
+                  className="w-[7px] h-[7px] rounded-full shrink-0 opacity-40"
                   style={{
                     backgroundColor: "transparent",
                     border: `1px dashed ${getThemeColor(invite.taskColor, colorTheme)}`,
@@ -132,8 +184,13 @@ export default function CalendarDayCell({
         </div>
       ) : (
         <>
-          {/* Desktop: day number + add button row */}
-          <div className="flex items-center justify-between mb-1.5">
+          {/* Desktop: optional weekday label + centered day number + add button */}
+          {weekdayLabel && (
+            <div className="text-center text-[10px] font-semibold text-muted-foreground uppercase tracking-wide leading-none pt-0.5 pb-px">
+              {weekdayLabel}
+            </div>
+          )}
+          <div className="flex items-center justify-center relative mb-0.5">
             <span
               className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-[11px] leading-none transition-all duration-200 ease-out ${
                 isToday
@@ -153,7 +210,7 @@ export default function CalendarDayCell({
                 const rect = e.currentTarget.getBoundingClientRect();
                 onDayClick(dateStr, new DOMRect(rect.left, rect.bottom + 4, rect.width, 1));
               }}
-              className={`w-4 h-4 rounded-full items-center justify-center text-muted-foreground hover:bg-gray-300 dark:hover:bg-gray-600 hover:text-foreground transition-all flex ${
+              className={`absolute right-0 w-4 h-4 rounded-full items-center justify-center text-muted-foreground hover:bg-gray-300 dark:hover:bg-gray-600 hover:text-foreground transition-all flex ${
                 hovered && !addingDate ? "opacity-100" : "opacity-0 pointer-events-none"
               }`}
             >
@@ -164,49 +221,43 @@ export default function CalendarDayCell({
             </button>
           </div>
 
-          {/* "(No title)" placeholder when this day is being added to */}
           {addingDate === dateStr && (
             <div className="bg-blue-500 text-white text-[10px] font-medium px-1.5 py-0.5 rounded truncate mb-0.5">
               (No title)
             </div>
           )}
 
-          {/* Task bars — desktop only */}
-          <div className="flex flex-col gap-0.5">
+          {/* Task bars + GCal events */}
+          <div className="flex flex-col gap-px">
             {visibleTasks.map((task) => (
-              <CalendarTaskBar key={task.id} task={task} onClick={onTaskClick} />
+              <CalendarTaskBar key={task.id} task={task} onClick={onTaskClick} compact />
             ))}
-            {/* Pending invite bars — dashed outline style */}
-            {pendingInvites.map((invite) => (
+            {visibleInvites.map((invite) => (
               <CalendarTaskBar
                 key={invite.shareId}
                 task={pendingInviteToPseudoTask(invite)}
                 onClick={() => {}}
                 isPending
+                compact
               />
             ))}
-            {overflow > 0 && !expanded && (
+            <div className={isPast ? "opacity-40" : ""}>
+              {visibleEvents.map((event) => (
+                <CalendarGCalItem key={event.id} event={event} />
+              ))}
+            </div>
+            {overflow > 0 && (
               <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  setExpanded(true);
+                  if (onShowMore && cellRef.current) {
+                    onShowMore(dateStr, cellRef.current.getBoundingClientRect());
+                  }
                 }}
-                className="text-[10px] text-blue-500 font-semibold hover:text-blue-700 hover:underline px-0.5 text-left transition-all"
+                className="text-[10px] text-foreground font-semibold hover:underline px-0.5 text-left transition-all"
               >
-                +{overflow} more
-              </button>
-            )}
-            {expanded && overflow > 0 && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setExpanded(false);
-                }}
-                className="text-[10px] text-muted-foreground hover:text-foreground hover:underline px-0.5 text-left transition-all"
-              >
-                show less
+                {overflow} more
               </button>
             )}
           </div>

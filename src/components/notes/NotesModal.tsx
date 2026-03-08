@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
-  X, FilePlus, List, LayoutGrid, Pencil, Trash2, Pin, PinOff, Printer, Folder,
+  X, FilePlus, List, LayoutGrid, Pencil, Trash2, Printer, Folder,
 } from "lucide-react";
 import { ListView, GridView } from "./NotesModalViews";
 import { FolderTitle } from "./NotesModalParts";
@@ -222,15 +222,6 @@ export default function NotesModal({
     setShowDeleteConfirm(false);
   }
 
-  /** Toggle pin on all selected notes. */
-  function handlePinSelected() {
-    const selected = notes.filter((n) => selectedIds.has(n.id));
-    const allPinned = selected.every((n) => n.is_pinned);
-    for (const n of selected) {
-      onUpdateNote(n.id, { is_pinned: !allPinned });
-    }
-    setSelectedIds(new Set());
-  }
 
   /** Print selected notes by opening the browser print dialog. */
   function handlePrintSelected() {
@@ -452,15 +443,6 @@ export default function NotesModal({
             {lastSelectedRef.current.size} selected
           </span>
           <div className="w-px h-3.5 bg-background/20 mx-0.5" />
-          {/* Pin/Unpin */}
-          <button
-            onClick={handlePinSelected}
-            className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-background/10 transition-colors"
-            title={notes.filter((n) => lastSelectedRef.current.has(n.id)).every((n) => n.is_pinned) ? "Unpin" : "Pin"}
-            aria-label="Toggle pin"
-          >
-            {notes.filter((n) => lastSelectedRef.current.has(n.id)).every((n) => n.is_pinned) ? <PinOff size={14} /> : <Pin size={14} />}
-          </button>
           {/* Rename — only when exactly 1 note is selected */}
           {lastSelectedRef.current.size === 1 && (
             <button

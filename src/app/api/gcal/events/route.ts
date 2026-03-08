@@ -13,6 +13,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getValidAccessToken } from "@/lib/gcal/token-manager";
+import { listAllCalendars } from "@/lib/gcal/calendar-list";
 import { logger } from "@/lib/logger";
 import type { GCalEvent } from "@/lib/types";
 
@@ -23,6 +24,13 @@ const GCAL_EVENTS_URL = "https://www.googleapis.com/calendar/v3/calendars";
 const MAX_CALENDARS = 10;
 
 /** Shape of a raw Google Calendar event item. */
+interface GCalAttendee {
+  email?: string;
+  displayName?: string;
+  self?: boolean;
+  responseStatus?: string;
+}
+
 interface GCalEventItem {
   id: string;
   summary?: string;
@@ -32,6 +40,9 @@ interface GCalEventItem {
   colorId?: string;
   location?: string;
   htmlLink?: string;
+  attendees?: GCalAttendee[];
+  hangoutLink?: string;
+  conferenceData?: { entryPoints?: Array<{ entryPointType?: string; uri?: string }> };
 }
 
 /**
@@ -55,6 +66,7 @@ async function fetchCalendarEvents(
     singleEvents: "true",
     orderBy: "startTime",
     maxResults: "50",
+    conferenceDataVersion: "1",
   });
 
   const url = `${GCAL_EVENTS_URL}/${encodeURIComponent(calendarId)}/events?${params}`;
@@ -76,18 +88,29 @@ async function fetchCalendarEvents(
   const data = await res.json();
   const items: GCalEventItem[] = data.items || [];
 
-  return items.map((item) => ({
-    id: item.id,
-    summary: item.summary || "(No title)",
-    description: item.description || null,
-    start: item.start?.dateTime || item.start?.date || "",
-    end: item.end?.dateTime || item.end?.date || "",
-    colorId: item.colorId || null,
-    location: item.location || null,
-    htmlLink: item.htmlLink || "",
-    allDay: !item.start?.dateTime,
-    calendarId,
-  }));
+  return items.map((item) => {
+    const selfAttendee = item.attendees?.find((a) => a.self);
+    return {
+      id: item.id,
+      summary: item.summary || "(No title)",
+      description: item.description || null,
+      start: item.start?.dateTime || item.start?.date || "",
+      end: item.end?.dateTime || item.end?.date || "",
+      colorId: item.colorId || null,
+      location: item.location || null,
+      htmlLink: item.htmlLink || "",
+      allDay: !item.start?.dateTime,
+      calendarId,
+      responseStatus: selfAttendee?.responseStatus || null,
+      attendeeCount: (item.attendees ?? []).filter((a: GCalAttendee) => !a.self).length,
+      attendees: (item.attendees ?? []).filter((a) => !a.self).map((a) => ({
+        email: a.email || "",
+        displayName: a.displayName || a.email || "",
+        responseStatus: a.responseStatus || null,
+      })),
+      meetLink: item.hangoutLink || item.conferenceData?.entryPoints?.find((e) => e.entryPointType === "video")?.uri || null,
+    };
+  });
 }
 
 export async function GET(request: NextRequest) {
@@ -110,7 +133,7 @@ export async function GET(request: NextRequest) {
     searchParams.get("timeMax") ||
     new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
-  // Resolve calendar IDs: prefer calendarIds (multi), fallback to calendarId (single), then "primary"
+  // Resolve calendar IDs: query param > DB selection > "primary"
   const calendarIdsParam = searchParams.get("calendarIds");
   const calendarIdParam = searchParams.get("calendarId");
 
@@ -121,17 +144,45 @@ export async function GET(request: NextRequest) {
       .map((id) => id.trim())
       .filter(Boolean)
       .slice(0, MAX_CALENDARS);
+  } else if (calendarIdParam) {
+    calendarIds = [calendarIdParam];
   } else {
-    calendarIds = [calendarIdParam || "primary"];
+    // Load saved calendar selection from DB
+    const { data: creds } = await supabase
+      .from("integration_credentials")
+      .select("google_calendar_id")
+      .eq("user_id", user.id)
+      .single();
+
+    const stored = creds?.google_calendar_id;
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        calendarIds = Array.isArray(parsed) ? parsed.slice(0, MAX_CALENDARS) : [stored];
+      } catch {
+        calendarIds = [stored];
+      }
+    } else {
+      calendarIds = ["primary"];
+    }
   }
 
   try {
-    // Fetch events from all calendars in parallel
-    const results = await Promise.all(
-      calendarIds.map((id) => fetchCalendarEvents(accessToken, id, timeMin, timeMax))
-    );
+    // Fetch events and calendar list in parallel
+    const [results, calendarList] = await Promise.all([
+      Promise.all(calendarIds.map((id) => fetchCalendarEvents(accessToken, id, timeMin, timeMax))),
+      listAllCalendars(accessToken),
+    ]);
 
-    // Merge all events, skip failed calendars
+    // Build calendarId -> display name map
+    const calNameMap = new Map<string, string>();
+    if (calendarList) {
+      for (const cal of calendarList) {
+        calNameMap.set(cal.id, cal.summary);
+      }
+    }
+
+    // Merge all events, skip failed calendars, tag with calendar name
     const allEvents: GCalEvent[] = [];
     const seen = new Set<string>();
 
@@ -140,6 +191,7 @@ export async function GET(request: NextRequest) {
       for (const event of calEvents) {
         if (!seen.has(event.id)) {
           seen.add(event.id);
+          event.calendarSummary = calNameMap.get(event.calendarId ?? "") ?? undefined;
           allEvents.push(event);
         }
       }

@@ -4,12 +4,10 @@
  * Syncs a single task to Google Calendar.
  * Actions: "create", "update", or "delete".
  *
- * - Silently skips if Google Calendar is not connected.
- * - Never blocks the client — all GCal errors are caught and logged.
- *
  * @param body.action - "create" | "update" | "delete"
  * @param body.taskId - The task ID to sync
  * @param body.googleEventId - (optional) The Google Calendar event ID for delete actions
+ * @returns GCalSyncResponse with sync result
  */
 
 import { NextResponse, type NextRequest } from "next/server";
@@ -19,7 +17,7 @@ import {
   createCalendarEvent,
   updateCalendarEvent,
   deleteCalendarEvent,
-} from "@/lib/gcal/calendar-client";
+} from "@/lib/gcal/calendar-sync";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
 import type { GCalSyncResponse, Task } from "@/lib/types";
@@ -51,22 +49,18 @@ export async function POST(request: NextRequest) {
   }
 
   const { action, taskId, googleEventId } = body;
-
   if (!action || !taskId) {
     return NextResponse.json({ error: "Missing action or taskId" }, { status: 400 });
   }
 
-  // Get valid access token — silently skip if not connected
   const accessToken = await getValidAccessToken(supabase, user.id);
   if (!accessToken) {
     const response: GCalSyncResponse = { synced: false, reason: "not_connected" };
     return NextResponse.json(response);
   }
 
-  // Get the dedicated caltodo calendar ID
   const calendarId = await getCalendarId(supabase, user.id);
   if (!calendarId) {
-    logger.warn("POST /api/gcal/sync: no calendar ID found", { userId: user.id });
     const response: GCalSyncResponse = { synced: false, reason: "no_calendar" };
     return NextResponse.json(response);
   }
@@ -76,7 +70,6 @@ export async function POST(request: NextRequest) {
       return await handleDelete(accessToken, calendarId, taskId, googleEventId, supabase, user.id);
     }
 
-    // Fetch the task for create/update
     const { data: task, error: taskError } = await supabase
       .from("tasks")
       .select("*")
@@ -85,7 +78,6 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (taskError || !task) {
-      logger.warn("POST /api/gcal/sync: task not found", { taskId, userId: user.id });
       const response: GCalSyncResponse = { synced: false, reason: "task_not_found" };
       return NextResponse.json(response);
     }
@@ -93,34 +85,22 @@ export async function POST(request: NextRequest) {
     if (action === "create") {
       return await handleCreate(accessToken, calendarId, task as Task, supabase);
     }
-
     if (action === "update") {
-      logger.info("POST /api/gcal/sync: updating task", {
-        taskId,
-        is_completed: (task as Task).is_completed,
-        google_event_id: (task as Task).google_event_id,
-      });
       return await handleUpdate(accessToken, calendarId, task as Task, supabase);
     }
 
     return NextResponse.json({ error: "Invalid action" }, { status: 400 });
   } catch (err) {
     logger.error("POST /api/gcal/sync: unexpected error", {
-      action,
-      taskId,
-      error: err instanceof Error ? err.message : String(err),
+      action, taskId, error: err instanceof Error ? err.message : String(err),
     });
-    const response: GCalSyncResponse = {
-      synced: false,
-      error: err instanceof Error ? err.message : "Unknown error",
-    };
+    const response: GCalSyncResponse = { synced: false, error: err instanceof Error ? err.message : "Unknown error" };
     return NextResponse.json(response);
   }
 }
 
 /**
- * Handles creating a new Google Calendar event for a task.
- * Skips if no due_date. Saves the google_event_id to the task row.
+ * Creates a new GCal event for a task and saves the google_event_id.
  */
 async function handleCreate(
   accessToken: string,
@@ -129,31 +109,20 @@ async function handleCreate(
   supabase: Awaited<ReturnType<typeof createClient>>
 ): Promise<NextResponse> {
   if (!task.due_date) {
-    const response: GCalSyncResponse = { synced: false, reason: "no_due_date" };
-    return NextResponse.json(response);
+    return NextResponse.json({ synced: false, reason: "no_due_date" } satisfies GCalSyncResponse);
   }
 
   const eventId = await createCalendarEvent(accessToken, calendarId, task);
   if (!eventId) {
-    const response: GCalSyncResponse = { synced: false, error: "Failed to create event" };
-    return NextResponse.json(response);
+    return NextResponse.json({ synced: false, error: "Failed to create event" } satisfies GCalSyncResponse);
   }
 
-  // Save google_event_id to task
-  await supabase
-    .from("tasks")
-    .update({ google_event_id: eventId })
-    .eq("id", task.id);
-
-  const response: GCalSyncResponse = { synced: true, googleEventId: eventId };
-  return NextResponse.json(response);
+  await supabase.from("tasks").update({ google_event_id: eventId }).eq("id", task.id);
+  return NextResponse.json({ synced: true, googleEventId: eventId } satisfies GCalSyncResponse);
 }
 
 /**
- * Handles updating a Google Calendar event for a task.
- * - If task has no google_event_id but has due_date → create instead.
- * - If task has google_event_id but no due_date → delete event + clear ID.
- * - Otherwise → update the existing event.
+ * Updates an existing GCal event, creating or deleting as needed.
  */
 async function handleUpdate(
   accessToken: string,
@@ -161,57 +130,36 @@ async function handleUpdate(
   task: Task,
   supabase: Awaited<ReturnType<typeof createClient>>
 ): Promise<NextResponse> {
-  // No existing event + has due date → create
   if (!task.google_event_id && task.due_date) {
     return handleCreate(accessToken, calendarId, task, supabase);
   }
-
-  // Has existing event + no due date → delete event
   if (task.google_event_id && !task.due_date) {
     await deleteCalendarEvent(accessToken, calendarId, task.google_event_id);
-    await supabase
-      .from("tasks")
-      .update({ google_event_id: null })
-      .eq("id", task.id);
-
-    const response: GCalSyncResponse = { synced: true, reason: "event_deleted_no_due_date" };
-    return NextResponse.json(response);
+    await supabase.from("tasks").update({ google_event_id: null }).eq("id", task.id);
+    return NextResponse.json({ synced: true, reason: "event_deleted_no_due_date" } satisfies GCalSyncResponse);
   }
-
-  // No event + no due date → nothing to do
   if (!task.google_event_id) {
-    const response: GCalSyncResponse = { synced: false, reason: "no_due_date" };
-    return NextResponse.json(response);
+    return NextResponse.json({ synced: false, reason: "no_due_date" } satisfies GCalSyncResponse);
   }
 
-  // Update existing event
   const result = await updateCalendarEvent(accessToken, calendarId, task.google_event_id, task);
-
-  // Event was deleted externally — clear stale ID and re-create
   if (result === "not_found") {
-    await supabase
-      .from("tasks")
-      .update({ google_event_id: null })
-      .eq("id", task.id);
-
+    await supabase.from("tasks").update({ google_event_id: null }).eq("id", task.id);
     if (task.due_date) {
       return handleCreate(accessToken, calendarId, { ...task, google_event_id: null }, supabase);
     }
-    const response: GCalSyncResponse = { synced: false, reason: "event_deleted_externally" };
-    return NextResponse.json(response);
+    return NextResponse.json({ synced: false, reason: "event_deleted_externally" } satisfies GCalSyncResponse);
   }
 
-  const response: GCalSyncResponse = {
+  return NextResponse.json({
     synced: !!result,
     googleEventId: task.google_event_id,
     ...(!result && { error: "Failed to update event" }),
-  };
-  return NextResponse.json(response);
+  } satisfies GCalSyncResponse);
 }
 
 /**
- * Handles deleting a Google Calendar event.
- * Clears google_event_id from the task row.
+ * Deletes a GCal event and clears the google_event_id on the task.
  */
 async function handleDelete(
   accessToken: string,
@@ -222,19 +170,9 @@ async function handleDelete(
   userId: string
 ): Promise<NextResponse> {
   if (!googleEventId) {
-    const response: GCalSyncResponse = { synced: false, reason: "no_event_id" };
-    return NextResponse.json(response);
+    return NextResponse.json({ synced: false, reason: "no_event_id" } satisfies GCalSyncResponse);
   }
-
   await deleteCalendarEvent(accessToken, calendarId, googleEventId);
-
-  // Clear google_event_id (task may already be deleted, so we don't check errors)
-  await supabase
-    .from("tasks")
-    .update({ google_event_id: null })
-    .eq("id", taskId)
-    .eq("user_id", userId);
-
-  const response: GCalSyncResponse = { synced: true };
-  return NextResponse.json(response);
+  await supabase.from("tasks").update({ google_event_id: null }).eq("id", taskId).eq("user_id", userId);
+  return NextResponse.json({ synced: true } satisfies GCalSyncResponse);
 }

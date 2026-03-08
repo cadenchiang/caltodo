@@ -165,24 +165,20 @@ export function TaskProvider({ children }: { children: ReactNode }) {
   /**
    * Syncs any tasks with due dates but no google_event_id to Google Calendar.
    * Called after assignment sync completes. Silently skips if GCal is not connected.
-   * Fire-and-forget — errors are logged but do not affect the caller.
    *
    * @param signal - Optional AbortSignal for clean cancellation
    */
   const syncUnsyncedToGCal = useCallback(async (signal?: AbortSignal) => {
     try {
-      // Quick check: are there unsynced tasks and is GCal connected?
       const checkRes = await fetch("/api/gcal/unsynced-count", { signal });
       if (!checkRes.ok) return;
       const checkData = await checkRes.json();
       if (!checkData.connected || checkData.count === 0) return;
 
-      // Trigger bulk sync for unsynced tasks
       const syncRes = await fetch("/api/gcal/initial-sync", { method: "POST", signal });
       const contentType = syncRes.headers.get("Content-Type") ?? "";
 
       if (contentType.includes("application/json")) {
-        // Non-streaming response (error or zero tasks)
         const result = await syncRes.json();
         if (syncRes.ok && result.synced > 0) {
           showToast(`Synced ${result.synced} task${result.synced === 1 ? "" : "s"} to Google Calendar.`);
@@ -190,7 +186,6 @@ export function TaskProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // Read NDJSON stream for progress
       const finalResult = await readSyncStream(syncRes, {
         onProgress: () => {},
         onDone: () => {},
@@ -434,17 +429,6 @@ export function TaskProvider({ children }: { children: ReactNode }) {
         return updated;
       });
 
-      // Fire-and-forget: sync to Google Calendar if task has a due date
-      if (data.due_date) {
-        fetch("/api/gcal/sync", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "create", taskId: data.id }),
-        }).catch((err) => {
-          console.warn("GCal sync (create) failed:", err);
-        });
-      }
-
       // Fire-and-forget: send invites if any emails were provided
       if (inviteEmails && inviteEmails.length > 0) {
         for (const email of inviteEmails) {
@@ -481,20 +465,6 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     if (updateError) {
       setError(updateError.message);
       fetchTasks();
-    } else {
-      // Fire-and-forget: sync update to Google Calendar
-      fetch("/api/gcal/sync", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "update", taskId: id }),
-      }).then(async (res) => {
-        if (!res.ok) {
-          const body = await res.text().catch(() => "");
-          console.warn("GCal sync (update) failed:", res.status, body);
-        }
-      }).catch((err) => {
-        console.warn("GCal sync (update) network error:", err);
-      });
     }
   }
 
@@ -644,7 +614,6 @@ export function TaskProvider({ children }: { children: ReactNode }) {
    */
   async function deleteTask(id: string) {
     trackEvent("task_deleted");
-    // Capture task before optimistic removal for GCal cleanup
     const taskToDelete = tasks.find((t) => t.id === id);
 
     setTasks((prev) => {
@@ -670,19 +639,6 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     if (deleteError) {
       setError(deleteError.message);
       fetchTasks();
-    } else if (taskToDelete?.google_event_id) {
-      // Fire-and-forget: delete Google Calendar event
-      fetch("/api/gcal/sync", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "delete",
-          taskId: id,
-          googleEventId: taskToDelete.google_event_id,
-        }),
-      }).catch((err) => {
-        console.warn("GCal sync (delete) failed:", err);
-      });
     }
   }
 
@@ -713,9 +669,6 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       return updated;
     });
 
-    // Collect GCal event IDs before deletion
-    const gcalTasks = previousTasks.filter((t) => t.source === source && t.google_event_id);
-
     // Hard-delete from Supabase
     const { error: deleteError } = await supabase
       .from("tasks")
@@ -728,21 +681,6 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       setTasks(previousTasks);
       setCachedTasks(previousTasks);
       fetchTasks();
-    } else {
-      // Fire-and-forget: clean up GCal events
-      for (const t of gcalTasks) {
-        fetch("/api/gcal/sync", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "delete",
-            taskId: t.id,
-            googleEventId: t.google_event_id,
-          }),
-        }).catch((err) => {
-          console.warn("GCal sync (delete) failed for task", t.id, err);
-        });
-      }
     }
   }
 
@@ -775,9 +713,6 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       return updated;
     });
 
-    // Collect GCal event IDs before deletion
-    const gcalTasks = matchingTasks.filter((t) => t.google_event_id);
-
     // Hard-delete from Supabase (these are synced tasks but the account is being removed)
     const { error: deleteError } = await supabase
       .from("tasks")
@@ -791,21 +726,6 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       setTasks(previousTasks);
       setCachedTasks(previousTasks);
       fetchTasks();
-    } else {
-      // Fire-and-forget: clean up GCal events
-      for (const t of gcalTasks) {
-        fetch("/api/gcal/sync", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "delete",
-            taskId: t.id,
-            googleEventId: t.google_event_id,
-          }),
-        }).catch((err) => {
-          console.warn("GCal sync (delete) failed for task", t.id, err);
-        });
-      }
     }
   }
 
@@ -836,9 +756,6 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       return updated;
     });
 
-    // Collect GCal event IDs before deletion
-    const gcalTasks = matchingTasks.filter((t) => t.google_event_id);
-
     // Hard-delete from Supabase
     const { error: deleteError } = await supabase
       .from("tasks")
@@ -852,21 +769,6 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       setCachedTasks(previousTasks);
       fetchTasks();
       return 0;
-    }
-
-    // Fire-and-forget: clean up GCal events
-    for (const t of gcalTasks) {
-      fetch("/api/gcal/sync", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "delete",
-          taskId: t.id,
-          googleEventId: t.google_event_id,
-        }),
-      }).catch((err) => {
-        console.warn("GCal sync (delete) failed for task", t.id, err);
-      });
     }
 
     return count;
@@ -967,9 +869,6 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     trackEvent("all_tasks_deleted");
     const previousTasks = [...tasks];
 
-    // Collect GCal event IDs before clearing state
-    const gcalTasks = previousTasks.filter((t) => t.google_event_id);
-
     setTasks([]);
     clearCachedTasks();
     taskBaselineRef.current = [];
@@ -994,21 +893,6 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       setTasks(previousTasks);
       setCachedTasks(previousTasks);
       fetchTasks();
-    } else {
-      // Fire-and-forget: clean up GCal events for deleted tasks
-      for (const t of gcalTasks) {
-        fetch("/api/gcal/sync", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "delete",
-            taskId: t.id,
-            googleEventId: t.google_event_id,
-          }),
-        }).catch((err) => {
-          console.warn("GCal sync (delete) failed for task", t.id, err);
-        });
-      }
     }
   }
 

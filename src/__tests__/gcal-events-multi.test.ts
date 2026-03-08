@@ -83,6 +83,7 @@ function mockEvent(
     htmlLink: "",
     allDay: false,
     calendarId,
+    responseStatus: null,
   };
 }
 

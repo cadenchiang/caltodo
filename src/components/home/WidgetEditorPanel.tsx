@@ -55,11 +55,11 @@ export const computePanelPosition = computeSidePanelPosition;
 const WIDGET_ACCENT_DEFAULTS: Record<string, string> = {
   "tasks-today": "#3b82f6",
   "class-progress": "#3b82f6",
-  "google-calendar": "#039BE5",
-  pomodoro: "#007AFF",
-  quote: "#007AFF",
-  stats: "#007AFF",
-  countdown: "#007AFF",
+  "google-calendar": "#4285F4",
+  pomodoro: "#4285F4",
+  quote: "#4285F4",
+  stats: "#4285F4",
+  countdown: "#4285F4",
 };
 
 const WIDGET_LABELS: Record<string, string> = {

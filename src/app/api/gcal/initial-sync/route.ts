@@ -2,29 +2,20 @@
  * POST /api/gcal/initial-sync
  *
  * Syncs all existing tasks with a due_date but no google_event_id
- * to Google Calendar. Called after calendar selection.
+ * to Google Calendar. Streams progress as NDJSON.
  *
- * Streams progress as NDJSON (newline-delimited JSON) so the client
- * can display a real-time progress bar. Each line is one of:
- *   {"type":"start","total":N}
- *   {"type":"progress","synced":N,"total":N}
- *   {"type":"done","synced":N,"total":N,"errors":[]}
- *
- * Non-streaming JSON responses are returned for error/edge cases
- * (unauthorized, no calendar, no tasks).
- *
- * Uses a concurrency pool (5 parallel requests) for fast syncing.
+ * @returns NDJSON stream: start, progress, done events
  */
 
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getValidAccessToken, getCalendarId } from "@/lib/gcal/token-manager";
-import { createCalendarEvent } from "@/lib/gcal/calendar-client";
+import { createCalendarEvent } from "@/lib/gcal/calendar-sync";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
 import type { Task } from "@/lib/types";
 
-/** Max concurrent Google Calendar API requests (kept low to avoid 403 rate limits). */
+/** Max concurrent Google Calendar API requests. */
 const CONCURRENCY_LIMIT = 2;
 
 export async function POST() {
@@ -45,17 +36,11 @@ export async function POST() {
     return NextResponse.json({ synced: 0, reason: "not_connected" });
   }
 
-  // Require a calendar to be selected before syncing
   const calendarId = await getCalendarId(supabase, user.id);
-
   if (!calendarId) {
-    logger.info("POST /api/gcal/initial-sync: no calendar selected, prompting selection", {
-      userId: user.id,
-    });
     return NextResponse.json({ synced: 0, needsCalendarSelection: true });
   }
 
-  // Fetch all non-dismissed tasks with due_date but no google_event_id
   const { data: tasks, error: fetchError } = await supabase
     .from("tasks")
     .select("*")
@@ -66,10 +51,7 @@ export async function POST() {
     .order("due_date", { ascending: true });
 
   if (fetchError) {
-    logger.error("POST /api/gcal/initial-sync: failed to fetch tasks", {
-      userId: user.id,
-      error: fetchError.message,
-    });
+    logger.error("POST /api/gcal/initial-sync: failed to fetch tasks", { userId: user.id, error: fetchError.message });
     return NextResponse.json({ error: "Failed to fetch tasks" }, { status: 500 });
   }
 
@@ -77,44 +59,27 @@ export async function POST() {
     return NextResponse.json({ synced: 0, total: 0 });
   }
 
-  logger.info("POST /api/gcal/initial-sync: starting bulk sync", {
-    userId: user.id,
-    taskCount: tasks.length,
-    calendarId,
-  });
+  logger.info("POST /api/gcal/initial-sync: starting bulk sync", { userId: user.id, taskCount: tasks.length });
 
   const encoder = new TextEncoder();
   const total = tasks.length;
 
   const stream = new ReadableStream({
     async start(controller) {
-      // Emit start event
-      controller.enqueue(
-        encoder.encode(JSON.stringify({ type: "start", total }) + "\n")
-      );
+      controller.enqueue(encoder.encode(JSON.stringify({ type: "start", total }) + "\n"));
 
       let synced = 0;
       let processed = 0;
       const errors: string[] = [];
       const taskList = tasks as Task[];
 
-      /**
-       * Syncs a single task to Google Calendar with one automatic retry on failure.
-       * Waits 500ms before the retry to handle transient rate-limit or network errors.
-       *
-       * @param task - The task to sync
-       */
       async function syncTask(task: Task): Promise<void> {
         let lastError: string | null = null;
-
         for (let attempt = 0; attempt < 2; attempt++) {
           try {
             const eventId = await createCalendarEvent(accessToken!, calendarId!, task);
             if (eventId) {
-              await supabase
-                .from("tasks")
-                .update({ google_event_id: eventId })
-                .eq("id", task.id);
+              await supabase.from("tasks").update({ google_event_id: eventId }).eq("id", task.id);
               synced++;
               lastError = null;
               break;
@@ -123,60 +88,29 @@ export async function POST() {
           } catch (err) {
             lastError = err instanceof Error ? err.message : String(err);
           }
-          // Wait before retry
-          if (attempt === 0) {
-            await new Promise((r) => setTimeout(r, 500));
-          }
+          if (attempt === 0) await new Promise((r) => setTimeout(r, 500));
         }
-
         if (lastError) {
           errors.push(lastError);
-          logger.error("POST /api/gcal/initial-sync: task sync failed after retry", {
-            taskId: task.id,
-            error: lastError,
-          });
+          logger.error("POST /api/gcal/initial-sync: task sync failed", { taskId: task.id, error: lastError });
         }
-
         processed++;
-
-        // Emit progress event after each task completes
-        controller.enqueue(
-          encoder.encode(JSON.stringify({ type: "progress", synced, total, processed }) + "\n")
-        );
+        controller.enqueue(encoder.encode(JSON.stringify({ type: "progress", synced, total, processed }) + "\n"));
       }
 
-      // Process tasks in parallel with concurrency limit
       let cursor = 0;
       const running: Set<Promise<void>> = new Set();
-
       while (cursor < taskList.length || running.size > 0) {
-        // Fill up to CONCURRENCY_LIMIT parallel requests
         while (cursor < taskList.length && running.size < CONCURRENCY_LIMIT) {
           const task = taskList[cursor++];
-          const promise = syncTask(task).then(() => {
-            running.delete(promise);
-          });
+          const promise = syncTask(task).then(() => { running.delete(promise); });
           running.add(promise);
         }
-
-        // Wait for at least one to finish before continuing
-        if (running.size > 0) {
-          await Promise.race(running);
-        }
+        if (running.size > 0) await Promise.race(running);
       }
 
-      // Emit done event
-      controller.enqueue(
-        encoder.encode(JSON.stringify({ type: "done", synced, total, errors }) + "\n")
-      );
-
-      logger.info("POST /api/gcal/initial-sync: bulk sync complete", {
-        userId: user.id,
-        synced,
-        total,
-        errorCount: errors.length,
-      });
-
+      controller.enqueue(encoder.encode(JSON.stringify({ type: "done", synced, total, errors }) + "\n"));
+      logger.info("POST /api/gcal/initial-sync: complete", { userId: user.id, synced, total, errorCount: errors.length });
       controller.close();
     },
   });

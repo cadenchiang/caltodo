@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { format } from "date-fns";
 import { ChevronLeft, ChevronRight, Unlink, XCircle, Check } from "lucide-react";
+import CalendarSettingsPopover from "./CalendarSettingsPopover";
 import { useToast } from "@/contexts/ToastContext";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 
@@ -39,6 +39,8 @@ function GCalIcon({ size = 12 }: { size?: number }) {
   );
 }
 
+export type CalendarMode = "assignments" | "calendar";
+
 interface CalendarHeaderProps {
   currentMonth: Date;
   /** Title text to display (e.g. "February 2026", "Feb 8 - Feb 14, 2026"). */
@@ -48,6 +50,10 @@ interface CalendarHeaderProps {
   onPrev: () => void;
   onNext: () => void;
   onToday: () => void;
+  /** Toggle between simple assignment view and full calendar view. */
+  calendarMode?: CalendarMode;
+  onCalendarModeChange?: (mode: CalendarMode) => void;
+  onCalendarsChange?: () => void;
 }
 
 /**
@@ -62,6 +68,9 @@ export default function CalendarHeader({
   onPrev,
   onNext,
   onToday,
+  calendarMode = "calendar",
+  onCalendarModeChange,
+  onCalendarsChange,
 }: CalendarHeaderProps) {
   const { showToast } = useToast();
   const { hasCompletedOnboarding, loading: onboardingLoading } = useOnboardingStatus();
@@ -175,7 +184,7 @@ export default function CalendarHeader({
       <div className="flex items-center gap-1.5 md:gap-2 min-w-0">
         <button
           onClick={onToday}
-          className="px-2.5 py-1 md:px-3.5 md:py-1.5 text-xs md:text-sm font-medium text-foreground rounded-lg border border-input-border hover:bg-accent active:scale-95 transition-all shrink-0"
+          className="px-2.5 py-1 md:px-3.5 md:py-1.5 text-xs md:text-sm font-medium text-foreground rounded-lg border border-gray-300 dark:border-gray-500 hover:bg-black/5 dark:hover:bg-white/10 active:scale-95 transition-all shrink-0"
         >
           Today
         </button>
@@ -244,7 +253,7 @@ export default function CalendarHeader({
                     <Check size={14} className="text-emerald-500 shrink-0" />
                   </div>
                 )}
-                <p className="text-xs text-subtle-foreground mb-3">Tasks are synced to Google Calendar in real time.</p>
+                <p className="text-xs text-subtle-foreground mb-3">Viewing events from Google Calendar.</p>
                 <button
                   onClick={handleDisconnect}
                   disabled={disconnecting}
@@ -271,7 +280,7 @@ export default function CalendarHeader({
             >
               <div className="rounded-full bg-blue-50 dark:bg-blue-500/10 border border-blue-200/60 dark:border-blue-500/20 pl-2.5 pr-3 py-1.5 flex items-center gap-2 hover:bg-blue-100 dark:hover:bg-blue-500/15 hover:border-blue-300 dark:hover:border-blue-500/30 transition-colors">
                 <GCalIcon size={16} />
-                <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">Sync Google Calendar</span>
+                <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">Connect Google Calendar</span>
               </div>
               {/* Notification dot */}
               <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[#007AFF] border-2 border-white dark:border-gray-900" />
@@ -296,21 +305,33 @@ export default function CalendarHeader({
         )}
       </div>
 
-      {/* Right: View mode segmented control */}
-      <div className="flex items-center shrink-0 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800">
-        {VIEW_MODES.map((mode) => (
-          <button
-            key={mode}
-            onClick={() => onViewModeChange(mode)}
-            className={`px-2.5 py-1 md:px-4 md:py-1.5 text-xs md:text-sm font-medium capitalize transition-all duration-200 ease-out ${
-              viewMode === mode
-                ? "bg-white dark:bg-gray-700 text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {mode}
-          </button>
-        ))}
+      {/* Right: Settings gear + View mode */}
+      <div className="flex items-center gap-2 shrink-0">
+        {/* Calendar settings popover trigger */}
+        {onCalendarModeChange && (
+          <CalendarSettingsPopover
+            calendarMode={calendarMode}
+            onCalendarModeChange={onCalendarModeChange}
+            onCalendarsChange={onCalendarsChange}
+          />
+        )}
+
+        {/* View mode: Month / Week / Day */}
+        <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden bg-transparent">
+          {VIEW_MODES.map((mode) => (
+            <button
+              key={mode}
+              onClick={() => onViewModeChange(mode)}
+              className={`px-2.5 py-1 md:px-4 md:py-1.5 text-xs md:text-sm font-medium capitalize transition-all duration-200 ease-out ${
+                viewMode === mode
+                  ? "bg-white dark:bg-white text-gray-900 shadow-sm"
+                  : "text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10"
+              }`}
+            >
+              {mode}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );

@@ -542,6 +542,8 @@ export function useCourseChat(courseId: string, options?: { isSystemCourse?: boo
       async (payload) => {
         const newMember = payload.new as { user_id: string };
         const name = await fetchUserName(newMember.user_id);
+        // Notify member list hooks to refetch
+        window.dispatchEvent(new CustomEvent("calchat-members-changed", { detail: { courseId } }));
         if (isSystemCourse) {
           pendingJoinsRef.current.push(name);
           savePendingJoins(pendingJoinsRef.current);
@@ -568,6 +570,8 @@ export function useCourseChat(courseId: string, options?: { isSystemCourse?: boo
         const old = payload.old as { user_id?: string };
         if (!old.user_id) return;
         const name = await fetchUserName(old.user_id);
+        // Notify member list hooks to refetch
+        window.dispatchEvent(new CustomEvent("calchat-members-changed", { detail: { courseId } }));
         setMessages((prev) => [...prev, createSystemEvent(courseId, `sys-leave-${old.user_id}-${Date.now()}`, `${name} left the group`)]);
       }
     );

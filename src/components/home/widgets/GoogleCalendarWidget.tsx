@@ -262,7 +262,7 @@ function EventDetailPopover({ event, color, onClose }: { event: GCalEvent; color
   );
 }
 
-function EventsByDay({ events, calendarColors = {}, fallbackColor = "#039BE5" }: { events: GCalEvent[]; calendarColors?: Record<string, string>; fallbackColor?: string }) {
+function EventsByDay({ events, calendarColors = {}, fallbackColor = "#4285F4" }: { events: GCalEvent[]; calendarColors?: Record<string, string>; fallbackColor?: string }) {
   // Tick state: re-render every 60s to keep countdown fresh
   const [, setTick] = useState(0);
   useEffect(() => {
@@ -505,7 +505,7 @@ export default function GoogleCalendarWidget({ config, editMode, onUpdateConfig 
     );
   }
 
-  const accentFallback = config.accentColor || "#039BE5";
+  const accentFallback = config.accentColor || "#4285F4";
 
   return (
     <div ref={containerRef} className="h-full w-full flex flex-col p-4 overflow-hidden">

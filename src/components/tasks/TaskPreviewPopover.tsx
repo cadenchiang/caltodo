@@ -22,7 +22,7 @@ const POPOVER_WIDTH = 448;
 /** Estimated max height for overflow detection. */
 const POPOVER_MAX_HEIGHT = 520;
 /** Gap between anchor and popover edge. */
-const GAP = 12;
+const GAP = 6;
 
 interface TaskPreviewPopoverProps {
   /** The task to display in the preview. */

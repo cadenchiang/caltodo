@@ -71,6 +71,21 @@ function isIgnoredException(
   return false;
 }
 
+/**
+ * Checks whether the current page is an authenticated app route (/app/*).
+ * Used to restrict all PostHog event capture to authenticated users only,
+ * preventing landing page visitors from skewing retention and usage metrics.
+ *
+ * @returns true if the browser URL starts with /app/
+ */
+function isAuthenticatedRoute(): boolean {
+  try {
+    return window.location.pathname.startsWith("/app");
+  } catch {
+    return false;
+  }
+}
+
 if (typeof window !== "undefined" && process.env.NODE_ENV === "production") {
   const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
 
@@ -84,6 +99,14 @@ if (typeof window !== "undefined" && process.env.NODE_ENV === "production") {
       autocapture: true,
       before_send: (event) => {
         if (!event) return event;
+
+        // Drop ALL events on unauthenticated routes (landing page, login, etc.)
+        // to prevent anonymous sessions from skewing retention metrics.
+        // Only track events from /app/* routes where users are identified.
+        if (!isAuthenticatedRoute()) {
+          return null;
+        }
+
         // Filter out known benign errors from $exception events
         if (event.event === "$exception" && isIgnoredException(event.properties)) {
           return null;

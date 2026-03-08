@@ -463,4 +463,14 @@ export interface GCalEvent {
   htmlLink: string;
   allDay: boolean;
   calendarId?: string;
+  /** User's RSVP status: "accepted" | "declined" | "tentative" | "needsAction" | null. */
+  responseStatus: string | null;
+  /** Number of non-self attendees (0 for self-created events with no invitees). */
+  attendeeCount?: number;
+  /** Non-self attendee details. */
+  attendees?: Array<{ email: string; displayName: string; responseStatus: string | null }>;
+  /** Google Meet or video conference link, if any. */
+  meetLink?: string | null;
+  /** Display name of the source calendar (resolved from calendarList API). */
+  calendarSummary?: string;
 }

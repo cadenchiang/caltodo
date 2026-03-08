@@ -36,11 +36,15 @@ interface TaskCreateModalProps {
   onClose: () => void;
   onAdd: (task: TaskInsert) => void;
   defaultDate?: string | null;
+  /** Pre-fill due time in "HH:MM" 24h format (from time grid double-click). */
+  defaultTime?: string | null;
   editTask?: Task | null;
   onSave?: (id: string, updates: TaskUpdate) => void;
   onDelete?: (id: string) => void;
   /** Optional: called when user chooses to apply a color change to all tasks in a class. */
   onSaveColorForClass?: (courseName: string, color: string) => void;
+  /** When provided, shows a Task/Event toggle at the top. */
+  createTypeToggle?: React.ReactNode;
 }
 
 /**
@@ -51,7 +55,7 @@ interface TaskCreateModalProps {
  * @param props - See TaskCreateModalProps
  */
 export default function TaskCreateModal({
-  open, onClose, onAdd, defaultDate, editTask, onSave, onDelete, onSaveColorForClass,
+  open, onClose, onAdd, defaultDate, defaultTime, editTask, onSave, onDelete, onSaveColorForClass, createTypeToggle,
 }: TaskCreateModalProps) {
   const { availableTags, availableCourses, courseColors } = useTaskContext();
   const { colorTheme } = useTheme();
@@ -127,10 +131,13 @@ export default function TaskCreateModal({
     if (open) setTimeout(() => titleRef.current?.focus(), 100);
   }, [open]);
 
-  // Set defaultDate in create mode
+  // Set defaultDate and defaultTime in create mode
   useEffect(() => {
-    if (open && !editTask) setDueDate(defaultDate ?? null);
-  }, [defaultDate, open, editTask]);
+    if (open && !editTask) {
+      setDueDate(defaultDate ?? null);
+      setDueTime(defaultTime ?? null);
+    }
+  }, [defaultDate, defaultTime, open, editTask]);
 
   // Pre-fill fields in edit mode
   useEffect(() => {
@@ -562,7 +569,13 @@ export default function TaskCreateModal({
           <X size={18} />
         </button>
 
-        <form onSubmit={handleSubmit} className="pt-8 pb-4">
+        <form onSubmit={handleSubmit} className="pt-4 pb-4">
+          {/* ── Type toggle (Task / Event) ── */}
+          {createTypeToggle && !isEditMode && (
+            <div className="px-6 pb-3">
+              {createTypeToggle}
+            </div>
+          )}
           {/* ── Color circle + Title ── */}
           <div className="pl-6 pr-6 pb-4 flex items-center gap-4">
             <button

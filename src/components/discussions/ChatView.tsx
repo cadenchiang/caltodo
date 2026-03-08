@@ -191,14 +191,24 @@ export default function ChatView({
     return () => observer.disconnect();
   }, []);
 
-  // Initial scroll to bottom — only once when loading finishes
+  // Initial scroll to bottom — only once when loading finishes.
+  // Uses double rAF to ensure the DOM has fully laid out before scrolling.
   const hasInitialScrolled = useRef(false);
   useEffect(() => {
     if (!loading && messages.length > 0 && !hasInitialScrolled.current) {
       hasInitialScrolled.current = true;
-      scrollToBottom();
+      requestAnimationFrame(() => requestAnimationFrame(() => scrollToBottom()));
     }
   }, [loading, scrollToBottom, messages.length]);
+
+  // After the initial API fetch completes, scroll again to ensure correct position.
+  // API data may differ from cache (different count or newer messages), so the
+  // scroll height can change after the first render from cache.
+  useEffect(() => {
+    if (initialFetchDone) {
+      requestAnimationFrame(() => requestAnimationFrame(() => scrollToBottom()));
+    }
+  }, [initialFetchDone, scrollToBottom]);
 
   /**
    * Scrolls to a specific message by ID with smooth animation and flash highlight.
