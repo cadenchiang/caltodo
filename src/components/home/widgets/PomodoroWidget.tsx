@@ -69,8 +69,8 @@ function playClickSound() {
     filter.Q.value = 5;
 
     const gain = ctx.createGain();
-    gain.gain.setValueAtTime(0.6, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.03);
+    gain.gain.setValueAtTime(1.0, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
 
     noise.connect(filter);
     filter.connect(gain);
@@ -108,12 +108,12 @@ function playRingSound() {
 
       const gain = ctx.createGain();
       gain.gain.setValueAtTime(0, offset);
-      gain.gain.linearRampToValueAtTime(0.25, offset + 0.005);
+      gain.gain.linearRampToValueAtTime(0.7, offset + 0.005);
       gain.gain.exponentialRampToValueAtTime(0.001, offset + 0.09);
 
       const gain2 = ctx.createGain();
       gain2.gain.setValueAtTime(0, offset);
-      gain2.gain.linearRampToValueAtTime(0.08, offset + 0.005);
+      gain2.gain.linearRampToValueAtTime(0.25, offset + 0.005);
       gain2.gain.exponentialRampToValueAtTime(0.001, offset + 0.07);
 
       osc.connect(gain);
