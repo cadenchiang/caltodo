@@ -144,8 +144,8 @@ interface PreviewBlock {
 export default function TimeGrid({
   columns,
   columnDates,
-  startHour = 7,
-  endHour = 22,
+  startHour = 0,
+  endHour = 24,
   rowHeight = DEFAULT_ROW_HEIGHT,
   showCurrentTime = true,
   onTimeDoubleClick,
@@ -157,20 +157,11 @@ export default function TimeGrid({
   const clearPreview = useCallback(() => setPreview(null), []);
   useEffect(() => { setPreview(null); }, [columns]);
 
-  // Expand range if events exist outside default range
-  const effectiveRange = useMemo(() => {
-    let min = startHour;
-    let max = endHour;
-    for (const col of columns) {
-      for (const event of col.events) {
-        const s = new Date(event.start);
-        const e = new Date(event.end);
-        min = Math.min(min, s.getHours());
-        max = Math.max(max, e.getHours() + (e.getMinutes() > 0 ? 1 : 0));
-      }
-    }
-    return { startHour: min, endHour: Math.min(max, 24) };
-  }, [columns, startHour, endHour]);
+  /** Full day range — always 12 AM to 12 AM (midnight to midnight). */
+  const effectiveRange = useMemo(() => ({
+    startHour,
+    endHour,
+  }), [startHour, endHour]);
 
   const hours = Array.from(
     { length: effectiveRange.endHour - effectiveRange.startHour },
@@ -178,14 +169,13 @@ export default function TimeGrid({
   );
   const totalHeight = hours.length * rowHeight;
 
-  // Auto-scroll to current hour on mount
+  // Auto-scroll to current hour on mount (1 hour before current time)
   useEffect(() => {
     if (!scrollRef.current) return;
-    const now = new Date();
-    const currentHour = now.getHours();
-    const scrollTo = Math.max(0, (currentHour - effectiveRange.startHour - 1) * rowHeight);
-    scrollRef.current.scrollTop = scrollTo;
-  }, [effectiveRange.startHour, rowHeight]);
+    const currentHour = new Date().getHours();
+    const targetHour = Math.max(0, currentHour - 1);
+    scrollRef.current.scrollTop = targetHour * rowHeight;
+  }, [rowHeight]);
 
   // Current time indicator
   const now = new Date();
