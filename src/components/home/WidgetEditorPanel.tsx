@@ -9,7 +9,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
   X, Camera, Trash2, CheckSquare, Clock, ImageIcon, GraduationCap,
-  MessageSquare, Calendar, FileText, CloudSun, MessagesSquare, Timer,
+  Calendar, FileText, CloudSun, MessagesSquare, Timer,
   Hourglass, Link, Flame, Quote, BarChart3, Grid3X3, Smile, Music,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -26,47 +26,27 @@ import NotesStylePicker from "@/components/home/NotesStylePicker";
 import { IMAGE_WIDGET_PRESETS, IMAGE_WIDGET_PRESET_CATEGORIES } from "@/lib/image-widget-presets";
 import ImageCropModal from "@/components/ui/ImageCropModal";
 import { createClient } from "@/lib/supabase/client";
+import {
+  SIDE_PANEL_WIDTH,
+  SIDE_PANEL_GAP,
+  SIDE_PANEL_EDGE_PAD,
+  computeSidePanelPosition,
+} from "@/components/ui/SidePanel";
 
-export const PANEL_WIDTH = 340;
-export const GAP = 16;
-/** Minimum distance from any viewport edge. */
-export const EDGE_PAD = 8;
+/** @deprecated Use SIDE_PANEL_WIDTH from SidePanel instead. */
+export const PANEL_WIDTH = SIDE_PANEL_WIDTH;
+/** @deprecated Use SIDE_PANEL_GAP from SidePanel instead. */
+export const GAP = SIDE_PANEL_GAP;
+/** @deprecated Use SIDE_PANEL_EDGE_PAD from SidePanel instead. */
+export const EDGE_PAD = SIDE_PANEL_EDGE_PAD;
 
 /**
  * Computes the fixed position for the editor panel relative to a widget rect.
- * Ensures the panel never overflows any viewport edge.
+ * Delegates to the shared computeSidePanelPosition utility.
  *
- * @param widgetRect - Bounding rect of the selected widget
- * @param viewportW - Viewport width (window.innerWidth)
- * @param viewportH - Viewport height (window.innerHeight)
- * @param panelH - Measured or estimated panel height
- * @returns { side, top, left } for the panel
+ * @deprecated Use computeSidePanelPosition from SidePanel instead.
  */
-export function computePanelPosition(
-  widgetRect: { top: number; left: number; right: number; bottom: number },
-  viewportW: number,
-  viewportH: number,
-  panelH: number
-): { side: "right" | "left"; top: number; left: number } {
-  // Decide which side to place the panel
-  const side: "right" | "left" =
-    widgetRect.right + GAP + PANEL_WIDTH < viewportW ? "right"
-    : widgetRect.left - GAP - PANEL_WIDTH > EDGE_PAD ? "left"
-    : "right";
-
-  // Horizontal position, clamped to viewport
-  let left = side === "right"
-    ? widgetRect.right + GAP
-    : widgetRect.left - GAP - PANEL_WIDTH;
-  left = Math.max(EDGE_PAD, Math.min(left, viewportW - PANEL_WIDTH - EDGE_PAD));
-
-  // Vertical position: align to widget top, clamp to viewport
-  let top = widgetRect.top;
-  if (top + panelH > viewportH - EDGE_PAD) top = viewportH - panelH - EDGE_PAD;
-  if (top < EDGE_PAD) top = EDGE_PAD;
-
-  return { side, top, left };
-}
+export const computePanelPosition = computeSidePanelPosition;
 
 /**
  * Default accent colors per widget type. Matches the fallback each widget
@@ -76,12 +56,15 @@ const WIDGET_ACCENT_DEFAULTS: Record<string, string> = {
   "tasks-today": "#3b82f6",
   "class-progress": "#3b82f6",
   "google-calendar": "#039BE5",
-  pomodoro: "#f97316",
+  pomodoro: "#007AFF",
+  quote: "#007AFF",
+  stats: "#007AFF",
+  countdown: "#007AFF",
 };
 
 const WIDGET_LABELS: Record<string, string> = {
   clock: "Clock", "tasks-today": "Tasks Widget", "class-progress": "Class Progress",
-  "recent-chat": "Recent Chat", "google-calendar": "Google Calendar", image: "Image",
+  "google-calendar": "Google Calendar", image: "Image",
   notes: "Notes", weather: "Weather", "cal-chat": "Cal Chat", pomodoro: "Pomodoro",
   countdown: "Countdown", "quick-links": "Quick Links", "habit-tracker": "Habit Tracker",
   quote: "Quote", stats: "Stats", "weekly-heatmap": "Activity", sticker: "Sticker", spotify: "Spotify",
@@ -90,7 +73,7 @@ const WIDGET_LABELS: Record<string, string> = {
 /** Maps widget type to its lucide-react icon component for the editor header. */
 const WIDGET_ICONS: Record<string, LucideIcon> = {
   clock: Clock, "tasks-today": CheckSquare, "class-progress": GraduationCap,
-  "recent-chat": MessageSquare, "google-calendar": Calendar, image: ImageIcon,
+  "google-calendar": Calendar, image: ImageIcon,
   notes: FileText, weather: CloudSun, "cal-chat": MessagesSquare, pomodoro: Timer,
   countdown: Hourglass, "quick-links": Link, "habit-tracker": Flame,
   quote: Quote, stats: BarChart3, "weekly-heatmap": Grid3X3, sticker: Smile, spotify: Music,
@@ -311,9 +294,6 @@ export default function WidgetEditorPanel({
 
         {/* Class Progress */}
         {widget.type === "class-progress" && <div><label className="block text-sm font-medium text-foreground mb-1.5">Sort Courses By</label><select value={localConfig.progressSort || "count"} onChange={(e) => updateField("progressSort", e.target.value)} className={SEL}><option value="count">Most tasks first</option><option value="alpha">Alphabetical</option><option value="completion">Completion % (highest first)</option></select></div>}
-
-        {/* Recent Chat */}
-        {widget.type === "recent-chat" && <div><label className="block text-sm font-medium text-foreground mb-1.5">Course</label>{boards.length === 0 ? <p className="text-sm text-muted-foreground">No courses available</p> : <select value={localConfig.courseId || ""} onChange={(e) => updateField("courseId", e.target.value)} className={SEL}><option value="">Auto (first course)</option>{boards.map((b) => <option key={b.course.id} value={b.course.id}>{b.course.name}</option>)}</select>}</div>}
 
         {/* Google Calendar */}
         {widget.type === "google-calendar" && <>

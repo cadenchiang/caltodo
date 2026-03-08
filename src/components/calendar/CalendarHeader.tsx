@@ -271,7 +271,7 @@ export default function CalendarHeader({
             >
               <div className="rounded-full bg-blue-50 dark:bg-blue-500/10 border border-blue-200/60 dark:border-blue-500/20 pl-2.5 pr-3 py-1.5 flex items-center gap-2 hover:bg-blue-100 dark:hover:bg-blue-500/15 hover:border-blue-300 dark:hover:border-blue-500/30 transition-colors">
                 <GCalIcon size={16} />
-                <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">Sync GCal</span>
+                <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">Sync Google Calendar</span>
               </div>
               {/* Notification dot */}
               <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[#007AFF] border-2 border-white dark:border-gray-900" />

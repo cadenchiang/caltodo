@@ -99,9 +99,16 @@ export default function PomodoroWidget({
       const remaining = Math.max(0, startSecondsRef.current - elapsed);
 
       if (remaining <= 0) {
-        // Phase complete — switch phases
-        clearTimer();
-        setRunning(false);
+        // Phase complete — auto-transition to next phase (industry standard)
+        // Notify user
+        try {
+          if (Notification.permission === "granted") {
+            new Notification(phase === "work" ? "Break time!" : "Back to focus!", {
+              body: phase === "work" ? "Great work! Take a break." : "Break's over. Let's go!",
+              silent: false,
+            });
+          }
+        } catch { /* notifications not supported */ }
 
         if (phase === "work") {
           setCompletedSessions((s) => s + 1);
@@ -111,6 +118,7 @@ export default function PomodoroWidget({
           setPhase("work");
           setSecondsLeft(workMinutes * 60);
         }
+        // setPhase triggers effect re-run which restarts the interval
         return;
       }
       setSecondsLeft(remaining);
@@ -121,9 +129,12 @@ export default function PomodoroWidget({
     return clearTimer;
   }, [running, phase, workMinutes, breakMinutes, clearTimer]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /** Toggle play/pause. */
+  /** Toggle play/pause. Requests notification permission on first start. */
   function handlePlayPause() {
     if (editMode) return;
+    if (!running && typeof Notification !== "undefined" && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
     setRunning((r) => !r);
   }
 
@@ -156,18 +167,19 @@ export default function PomodoroWidget({
   const dashOffset = RING_CIRCUMFERENCE * (1 - progress);
 
   /** Ring color based on current phase and accent config. */
-  const workColor = config?.accentColor || '#f97316';
+  const workColor = config?.accentColor || '#007AFF';
   const breakColor = '#22c55e';
   const ringStroke = phase === "work" ? workColor : breakColor;
   const labelText = phase === "work" ? "Focus" : "Break";
 
-  const ringSize = compact ? 80 : 130;
-  const timeTextClass = compact ? "text-xl" : "text-3xl";
+  const ringSize = compact ? 56 : 130;
+  const timeTextClass = compact ? "text-sm" : "text-3xl";
+  const strokeWidth = compact ? 4 : 6;
 
   return (
-    <div ref={containerRef} className="h-full w-full flex flex-col items-center justify-center p-4 gap-1">
+    <div ref={containerRef} className={`h-full w-full flex items-center justify-center ${compact ? "p-1.5 gap-2" : "flex-col p-4 gap-1"}`}>
       {/* SVG progress ring with time display */}
-      <div className="relative flex items-center justify-center">
+      <div className="relative flex items-center justify-center shrink-0">
         <svg
           width={ringSize}
           height={ringSize}
@@ -183,7 +195,7 @@ export default function PomodoroWidget({
             fill="none"
             stroke="currentColor"
             className="text-muted-foreground/15"
-            strokeWidth="6"
+            strokeWidth={strokeWidth}
           />
           {/* Progress arc */}
           <circle
@@ -192,7 +204,7 @@ export default function PomodoroWidget({
             r={RING_RADIUS}
             fill="none"
             stroke={ringStroke}
-            strokeWidth="6"
+            strokeWidth={strokeWidth}
             strokeLinecap="round"
             strokeDasharray={RING_CIRCUMFERENCE}
             strokeDashoffset={dashOffset}
@@ -208,61 +220,90 @@ export default function PomodoroWidget({
         </div>
       </div>
 
-      {/* Phase label — hidden in compact mode */}
-      {!compact && (
-        <span className="text-xs font-medium text-muted-foreground tracking-wide uppercase bg-muted/50 rounded-full px-3 py-0.5">
-          {labelText}
-        </span>
-      )}
-
-      {/* Session dots — hidden in compact mode */}
-      {!compact && (
-        <div className="flex gap-1.5">
-          {Array.from({ length: TOTAL_SESSIONS }).map((_, i) => (
-            <div
-              key={i}
-              className="w-2 h-2 rounded-full transition-all duration-300"
-              style={{
-                backgroundColor: i < completedSessions
-                  ? workColor
-                  : 'var(--color-muted-foreground, #9ca3af)',
-                opacity: i < completedSessions ? 1 : 0.2,
-              }}
-            />
-          ))}
+      {compact ? (
+        /* Compact: controls stacked vertically beside the ring */
+        <div className="flex flex-col items-center gap-0.5 no-drag">
+          <button
+            onClick={handlePlayPause}
+            disabled={editMode}
+            className="w-7 h-7 rounded-full flex items-center justify-center text-white hover:scale-105 transition-transform disabled:opacity-40 disabled:pointer-events-none"
+            style={{ backgroundColor: workColor }}
+            aria-label={running ? "Pause timer" : "Start timer"}
+          >
+            {running ? <Pause size={12} /> : <Play size={12} className="ml-0.5" />}
+          </button>
+          <div className="flex gap-1">
+            <button
+              onClick={handleReset}
+              disabled={editMode}
+              className="w-5 h-5 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:pointer-events-none"
+              aria-label="Reset timer"
+            >
+              <RotateCcw size={10} />
+            </button>
+            <button
+              onClick={handleSkip}
+              disabled={editMode}
+              className="w-5 h-5 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:pointer-events-none"
+              aria-label="Skip to next phase"
+            >
+              <SkipForward size={10} />
+            </button>
+          </div>
         </div>
+      ) : (
+        /* Full size: label, dots, controls below ring */
+        <>
+          <span className="text-xs font-medium text-muted-foreground tracking-wide uppercase bg-muted/50 rounded-full px-3 py-0.5">
+            {labelText}
+          </span>
+
+          <div className="flex gap-1.5">
+            {Array.from({ length: TOTAL_SESSIONS }).map((_, i) => (
+              <div
+                key={i}
+                className="w-2 h-2 rounded-full transition-all duration-300"
+                style={{
+                  backgroundColor: i < completedSessions
+                    ? workColor
+                    : 'var(--color-muted-foreground, #9ca3af)',
+                  opacity: i < completedSessions ? 1 : 0.2,
+                }}
+              />
+            ))}
+          </div>
+
+          <div className="flex items-center gap-2 mt-1 no-drag">
+            <button
+              onClick={handleReset}
+              disabled={editMode}
+              className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-40 disabled:pointer-events-none"
+              aria-label="Reset timer"
+            >
+              <RotateCcw size={14} />
+            </button>
+
+            <button
+              onClick={handlePlayPause}
+              disabled={editMode}
+              className="w-10 h-10 rounded-full flex items-center justify-center text-white shadow-lg hover:scale-105 transition-transform disabled:opacity-40 disabled:pointer-events-none"
+              style={{ backgroundColor: workColor }}
+              aria-label={running ? "Pause timer" : "Start timer"}
+            >
+              {running ? <Pause size={18} /> : <Play size={18} className="ml-0.5" />}
+            </button>
+
+            <button
+              onClick={handleSkip}
+              disabled={editMode}
+              className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-40 disabled:pointer-events-none"
+              aria-label="Skip to next phase"
+            >
+              <SkipForward size={14} />
+            </button>
+          </div>
+        </>
       )}
-
-      {/* Controls */}
-      <div className="flex items-center gap-2 mt-1 no-drag">
-        <button
-          onClick={handleReset}
-          disabled={editMode}
-          className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-40 disabled:pointer-events-none"
-          aria-label="Reset timer"
-        >
-          <RotateCcw size={14} />
-        </button>
-
-        <button
-          onClick={handlePlayPause}
-          disabled={editMode}
-          className="w-10 h-10 rounded-full flex items-center justify-center text-white shadow-lg hover:scale-105 transition-transform disabled:opacity-40 disabled:pointer-events-none"
-          style={{ backgroundColor: workColor }}
-          aria-label={running ? "Pause timer" : "Start timer"}
-        >
-          {running ? <Pause size={18} /> : <Play size={18} className="ml-0.5" />}
-        </button>
-
-        <button
-          onClick={handleSkip}
-          disabled={editMode}
-          className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-40 disabled:pointer-events-none"
-          aria-label="Skip to next phase"
-        >
-          <SkipForward size={14} />
-        </button>
-      </div>
     </div>
   );
 }

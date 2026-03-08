@@ -12,13 +12,14 @@ export function extractTextPreview(
 ): string {
   const parts: string[] = [];
 
-  function walk(node: Record<string, unknown>) {
+  function walk(node: Record<string, unknown>, depth = 0) {
+    if (depth > 50) return;
     if (node.type === "text" && typeof node.text === "string") {
       parts.push(node.text);
     }
     if (Array.isArray(node.content)) {
       for (const child of node.content) {
-        walk(child as Record<string, unknown>);
+        walk(child as Record<string, unknown>, depth + 1);
       }
     }
   }

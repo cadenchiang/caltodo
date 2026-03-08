@@ -4,10 +4,16 @@ import { extractTextPreview } from "@/lib/notes-utils";
 import type { Course, Note } from "@/lib/types";
 
 /**
- * Notes page. Fetches courses, note counts, and recent notes server-side
- * for instant render, then passes data to the client-side NotesLayout.
+ * Notes page. Fetches courses, note counts, and recent notes server-side.
+ * If ?note=ID is in the URL, also fetches that note so the editor can
+ * render immediately without a client-side fetch (prevents flash on reload).
  */
-export default async function NotesPage() {
+export default async function NotesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ note?: string; folder?: string }>;
+}) {
+  const params = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -16,9 +22,12 @@ export default async function NotesPage() {
   let initialCourses: Course[] = [];
   let initialNoteCounts: Record<string, number> = {};
   let initialRecentNotes: Note[] = [];
+  let initialNote: Note | null = null;
 
   if (user) {
-    const [membershipsRes, notesRes, recentRes] = await Promise.all([
+    // Build parallel fetches — always fetch courses, counts, recents
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const fetches: PromiseLike<any>[] = [
       supabase
         .from("course_memberships")
         .select("course_id, courses(id, source, external_id, name, created_at)")
@@ -36,7 +45,26 @@ export default async function NotesPage() {
         .is("deleted_at", null)
         .order("updated_at", { ascending: false })
         .limit(12),
-    ]);
+    ];
+
+    // If a note ID is in the URL, fetch it in parallel too
+    if (params.note) {
+      fetches.push(
+        supabase
+          .from("notes")
+          .select("*")
+          .eq("id", params.note)
+          .eq("user_id", user.id)
+          .single()
+      );
+    }
+
+    const results = await Promise.all(fetches);
+    const [membershipsRes, notesRes, recentRes] = results as [
+      { data: Array<{ course_id: string; courses: unknown }> | null },
+      { data: Array<{ id: string; course_id: string | null; title: string; content: unknown }> | null },
+      { data: Note[] | null },
+    ];
 
     if (membershipsRes.data) {
       initialCourses = membershipsRes.data
@@ -48,7 +76,6 @@ export default async function NotesPage() {
     if (notesRes.data) {
       const counts: Record<string, number> = {};
       for (const note of notesRes.data) {
-        // Skip blank untitled notes — they're auto-deleted on back navigation
         const hasContent = note.content ? extractTextPreview(note.content as Record<string, unknown>, 1).length > 0 : false;
         if (!note.title?.trim() && !hasContent) continue;
         const key = note.course_id ?? "general";
@@ -58,11 +85,16 @@ export default async function NotesPage() {
     }
 
     if (recentRes.data) {
-      // Filter out blank notes
       initialRecentNotes = (recentRes.data as Note[]).filter((n) => {
         const hasContent = n.content ? extractTextPreview(n.content as Record<string, unknown>, 1).length > 0 : false;
         return n.title?.trim() || hasContent;
       });
+    }
+
+    // Extract the pre-fetched note if available
+    if (params.note && results[3]) {
+      const noteRes = results[3] as { data: Note | null };
+      initialNote = noteRes.data ?? null;
     }
   }
 
@@ -71,6 +103,8 @@ export default async function NotesPage() {
       initialCourses={initialCourses}
       initialNoteCounts={initialNoteCounts}
       initialRecentNotes={initialRecentNotes}
+      initialNote={initialNote}
+      initialNoteFolder={params.folder ?? null}
     />
   );
 }

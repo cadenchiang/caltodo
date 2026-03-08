@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { NodeViewWrapper } from "@tiptap/react";
 import type { ReactNodeViewProps } from "@tiptap/react";
 
@@ -21,6 +21,19 @@ export default function ResizableImageView({
   const { src, alt, width, float: floatVal, textAlign } = node.attrs;
   const containerRef = useRef<HTMLDivElement>(null);
   const [resizing, setResizing] = useState(false);
+  /** Stores active resize handlers so cleanup can remove them on unmount. */
+  const handlersRef = useRef<{ move: (e: MouseEvent) => void; up: () => void } | null>(null);
+
+  // Clean up document listeners on unmount to prevent leaks during active resize
+  useEffect(() => {
+    return () => {
+      if (handlersRef.current) {
+        document.removeEventListener("mousemove", handlersRef.current.move);
+        document.removeEventListener("mouseup", handlersRef.current.up);
+        handlersRef.current = null;
+      }
+    };
+  }, []);
 
   /**
    * Starts drag-to-resize on mousedown of the handle.
@@ -47,8 +60,10 @@ export default function ResizableImageView({
         setResizing(false);
         document.removeEventListener("mousemove", onMouseMove);
         document.removeEventListener("mouseup", onMouseUp);
+        handlersRef.current = null;
       }
 
+      handlersRef.current = { move: onMouseMove, up: onMouseUp };
       document.addEventListener("mousemove", onMouseMove);
       document.addEventListener("mouseup", onMouseUp);
     },

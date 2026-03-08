@@ -71,6 +71,14 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
   useOnboardingStatus();
   const { pendingInviteCount } = useNotifications();
 
+  // Track whether user has visited Notes at least once
+  const [notesIsNew, setNotesIsNew] = useState(false);
+  useEffect(() => {
+    try {
+      if (!localStorage.getItem("notes-visited")) setNotesIsNew(true);
+    } catch { /* ignore */ }
+  }, []);
+
   // Derive active settings section directly from URL search params (single source of truth)
   const sectionParam = searchParams.get("section");
   const activeSettingsSection: SettingsSectionId =
@@ -106,19 +114,21 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
     >
       <div>
         <div className="mb-6 px-3 pt-1">
-          {isMiffy ? (
-            <img
-              src={isDark ? "/logo-miffy-dark.png" : "/logo-miffy.png"}
-              alt="caltodo"
-              className="h-10 object-contain"
-            />
-          ) : (
-            <img
-              src="/logo.png"
-              alt="caltodo"
-              className="h-10 dark:invert"
-            />
-          )}
+          <a href="/" className="block hover:opacity-80 transition-opacity">
+            {isMiffy ? (
+              <img
+                src={isDark ? "/logo-miffy-dark.png" : "/logo-miffy.png"}
+                alt="caltodo"
+                className="h-10 object-contain"
+              />
+            ) : (
+              <img
+                src="/logo.png"
+                alt="caltodo"
+                className="h-10 dark:invert"
+              />
+            )}
+          </a>
         </div>
         {isSettings ? (
           <div className="flex flex-col gap-1">
@@ -164,7 +174,7 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
               const isInbox = item.href === "/app/inbox";
               const isCalendar = item.href === "/app/calendar";
               const isChat = item.href === "/app/discussions";
-              const isHome = item.href === "/app/home";
+              const isNotes = item.href === "/app/notes";
               return (
                 <SidebarNavItem
                   key={item.href}
@@ -179,11 +189,14 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
                         ? pendingInviteCount
                         : undefined
                   }
-                  badgeText={undefined}
+                  badgeText={isNotes && notesIsNew ? "NEW" : undefined}
                   id={`tour-nav-${item.label.toLowerCase()}`}
                   imageSrc={undefined}
                   imageClassName={undefined}
-                  onClick={undefined}
+                  onClick={isNotes && notesIsNew ? () => {
+                    setNotesIsNew(false);
+                    try { localStorage.setItem("notes-visited", "1"); } catch { /* ignore */ }
+                  } : undefined}
                 />
               );
             })}

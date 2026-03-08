@@ -58,7 +58,7 @@ function isLastWeek(dateStr: string): boolean {
 export default function StatsWidget({ config }: StatsWidgetProps) {
   const { tasks } = useTaskContext();
   const metric = config?.statsMetric || "completion";
-  const accentColor = config?.accentColor || undefined;
+  const accentColor = config?.accentColor || "#007AFF";
 
   const stats = useMemo(() => {
     const active = tasks.filter((t) => !t.dismissed_at);
@@ -106,19 +106,16 @@ export default function StatsWidget({ config }: StatsWidgetProps) {
     }
   }, [tasks, metric]);
 
-  /** Gradient bg for the icon badge based on metric type. */
-  const badgeConfig = metric === "streak"
-    ? { icon: "🔥", gradient: "from-orange-400 to-amber-400" }
-    : metric === "pending"
-      ? { icon: "📋", gradient: "from-blue-400 to-cyan-400" }
-      : { icon: "✓", gradient: "from-purple-400 to-pink-400" };
+  /** Icon badge based on metric type. */
+  const badgeIcon = metric === "streak" ? "🔥" : metric === "pending" ? "📋" : "✓";
 
   return (
     <WidgetShell centered>
       <div
-        className={`w-7 h-7 rounded-lg bg-gradient-to-br ${badgeConfig.gradient} flex items-center justify-center text-white text-xs mb-2`}
+        className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs mb-2"
+        style={{ backgroundColor: accentColor }}
       >
-        {badgeConfig.icon}
+        {badgeIcon}
       </div>
 
       <div className="flex items-baseline gap-0.5">

@@ -81,7 +81,7 @@ export default function BoardTitle({
     <>
       <h1
         className={`${sizeClass} font-bold text-foreground ${
-          editMode ? "cursor-pointer hover:opacity-70 transition-opacity" : ""
+          editMode ? "cursor-pointer hover:opacity-70 transition-opacity animate-edit-hint" : ""
         }`}
         style={titleStyle}
         onClick={() => {

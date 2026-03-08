@@ -11,9 +11,8 @@ import {
 } from "@/lib/widget-types";
 
 describe("WIDGET_REGISTRY", () => {
-  it("should contain all 10 widget types", () => {
+  it("should contain all widget types", () => {
     const expectedTypes: WidgetType[] = [
-      "recent-chat",
       "tasks-today",
       "clock",
       "image",
@@ -23,6 +22,14 @@ describe("WIDGET_REGISTRY", () => {
       "weather",
       "cal-chat",
       "pomodoro",
+      "countdown",
+      "quick-links",
+      "habit-tracker",
+      "quote",
+      "stats",
+      "weekly-heatmap",
+      "sticker",
+      "spotify",
     ];
     expect(Object.keys(WIDGET_REGISTRY).sort()).toEqual(expectedTypes.sort());
   });
@@ -62,15 +69,16 @@ describe("generateWidgetId", () => {
 });
 
 describe("getDefaultLayout", () => {
-  it("should return 6 default widgets", () => {
+  it("should return an empty default layout (clean slate)", () => {
     const { widgets } = getDefaultLayout();
-    expect(widgets).toHaveLength(6);
+    expect(widgets).toHaveLength(0);
   });
 
-  it("should include google-calendar, tasks-today, clock, weather, image, and notes", () => {
-    const { widgets } = getDefaultLayout();
-    const types = widgets.map((w) => w.type).sort();
-    expect(types).toEqual(["clock", "google-calendar", "image", "notes", "tasks-today", "weather"]);
+  it("should return empty layouts for all breakpoints", () => {
+    const { layouts } = getDefaultLayout();
+    expect(layouts.lg).toEqual([]);
+    expect(layouts.md).toEqual([]);
+    expect(layouts.sm).toEqual([]);
   });
 
   it("should have a layout entry for every widget", () => {

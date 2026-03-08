@@ -101,7 +101,15 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       };
 
       setToasts((prev) => {
-        const next = [...prev, newToast];
+        // Remove any completed progress toasts (progress === 100) immediately
+        const filtered = prev.filter((t) => {
+          if (typeof t.progress === "number" && t.progress >= 100) {
+            clearTimer(t.id);
+            return false;
+          }
+          return true;
+        });
+        const next = [...filtered, newToast];
         // Dismiss oldest toasts exceeding the limit
         while (next.length > MAX_TOASTS) {
           const oldest = next.shift();
@@ -127,9 +135,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     setToasts((prev) => {
       if (prev.length === 0) return prev;
       const last = prev[prev.length - 1];
+      // Auto-dismiss completed progress toasts after a brief delay
+      if (progress >= 100) {
+        const timer = setTimeout(() => dismissToast(last.id), 600);
+        timersRef.current.set(last.id, timer);
+      }
       return prev.map((t) => (t.id === last.id ? { ...t, progress } : t));
     });
-  }, []);
+  }, [dismissToast]);
 
   return (
     <ToastContext.Provider value={{ showToast, updateToastProgress }}>

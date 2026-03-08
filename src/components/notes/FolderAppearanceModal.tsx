@@ -177,7 +177,7 @@ export default function FolderAppearanceModal({
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 py-2.5 text-xs font-medium rounded-md transition-colors ${
+              className={`flex-1 py-2.5 text-xs font-medium rounded-lg transition-colors ${
                 activeTab === tab.id
                   ? "bg-background text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground hover:bg-accent/30"
@@ -205,7 +205,7 @@ export default function FolderAppearanceModal({
                 >
                   {isSelected("color", s.color) && (
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <Check size={16} className={s.color === "#ffffff" || s.color === "#e7e5e4" ? "text-gray-800" : "text-white"} />
+                      <Check size={16} className={s.color === "#ffffff" || s.color === "#e7e5e4" ? "text-foreground" : "text-white"} />
                     </div>
                   )}
                 </button>

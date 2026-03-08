@@ -36,6 +36,8 @@ export default function RecentlyDeletedSection() {
   const [items, setItems] = useState<DeletedItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasFetched, setHasFetched] = useState(false);
+  /** Item pending permanent delete confirmation. */
+  const [confirmDeleteItem, setConfirmDeleteItem] = useState<DeletedItem | null>(null);
   const supabase = createClient();
   const { showToast } = useToast();
   /** Timer ref for delayed Clear All hard-delete. */
@@ -362,17 +364,15 @@ export default function RecentlyDeletedSection() {
                     }
                     className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                     title={item.type === "note" ? "Restore to General" : "Restore folder"}
+                    aria-label="Restore"
                   >
                     <RotateCcw size={14} />
                   </button>
                   <button
-                    onClick={() =>
-                      item.type === "note"
-                        ? handlePermanentDeleteNote(item.id)
-                        : handlePermanentDeleteFolder(item.course_id!)
-                    }
-                    className="p-1.5 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
+                    onClick={() => setConfirmDeleteItem(item)}
+                    className="p-1.5 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors"
                     title="Delete forever"
+                    aria-label="Delete permanently"
                   >
                     <X size={14} />
                   </button>
@@ -380,6 +380,49 @@ export default function RecentlyDeletedSection() {
               </div>
             ))
           )}
+        </div>
+      )}
+      {/* Permanent delete confirmation */}
+      {confirmDeleteItem && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-announce-backdrop-in"
+            onClick={() => setConfirmDeleteItem(null)}
+          />
+          <div className="relative bg-card rounded-2xl border border-border shadow-2xl max-w-sm mx-4 p-6 animate-announce-card-in">
+            <div className="text-center">
+              <h2 className="text-lg font-semibold text-foreground mb-3">
+                Delete forever?
+              </h2>
+              <p className="text-sm text-muted-foreground mb-6">
+                <span className="font-medium text-foreground">{confirmDeleteItem.label}</span>
+                {" "}will be permanently deleted. This cannot be undone.
+              </p>
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (confirmDeleteItem.type === "note") {
+                      handlePermanentDeleteNote(confirmDeleteItem.id);
+                    } else {
+                      handlePermanentDeleteFolder(confirmDeleteItem.course_id!);
+                    }
+                    setConfirmDeleteItem(null);
+                  }}
+                  className="w-full px-4 py-2.5 rounded-xl text-sm font-medium text-white bg-red-500 hover:bg-red-600 transition-all cursor-pointer"
+                >
+                  Delete Forever
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmDeleteItem(null)}
+                  className="w-full px-4 py-2 rounded-xl text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

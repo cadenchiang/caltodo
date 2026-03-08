@@ -41,8 +41,30 @@ export function useFolderSettings() {
   const supabase = createClient();
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingRef = useRef<SettingsMap | null>(null);
-  /** Suppresses Realtime echoes from our own writes. */
-  const localWritePendingRef = useRef(false);
+  /** Write counter for suppressing Realtime echoes from our own writes. */
+  const writeCounterRef = useRef(0);
+
+  // Clean up debounce timer and flush pending save on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+      // Flush any pending save synchronously
+      if (pendingRef.current) {
+        const toSave = pendingRef.current;
+        pendingRef.current = null;
+        (async () => {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) return;
+          await supabase
+            .from("notes_folder_settings")
+            .upsert({ user_id: user.id, settings: toSave }, { onConflict: "user_id" });
+        })();
+      }
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Hydrate from localStorage instantly, then fetch from Supabase + subscribe to Realtime
   useEffect(() => {
@@ -90,7 +112,11 @@ export function useFolderSettings() {
             filter: `user_id=eq.${user.id}`,
           },
           (payload) => {
-            if (localWritePendingRef.current) return;
+            // Skip echoes from our own writes by checking if the counter changed
+            if (writeCounterRef.current > 0) {
+              writeCounterRef.current--;
+              return;
+            }
             const incoming = payload.new as {
               settings: SettingsMap;
               custom_colors?: string[];
@@ -139,8 +165,6 @@ export function useFolderSettings() {
       if (error) {
         console.error("Failed to save folder settings:", error.message);
       }
-      // Clear after a short delay to let the Realtime echo pass
-      setTimeout(() => { localWritePendingRef.current = false; }, 2000);
     }, 500);
   }, [supabase]);
 
@@ -153,7 +177,11 @@ export function useFolderSettings() {
    */
   const updateSetting = useCallback(
     <K extends keyof FolderSetting>(folderId: string, field: K, value: FolderSetting[K]) => {
-      localWritePendingRef.current = true;
+      // Truncate description to prevent excessively long values
+      if (field === "description" && typeof value === "string") {
+        value = value.slice(0, 1000) as FolderSetting[K];
+      }
+      writeCounterRef.current++;
       setSettings((prev) => {
         const updated = {
           ...prev,
@@ -217,6 +245,11 @@ export function useFolderSettings() {
    * @param url - The public URL of the uploaded image
    */
   const addCustomImage = useCallback(async (url: string) => {
+    // Reject dangerous URL schemes
+    if (/^(javascript|data|blob):/i.test(url)) {
+      console.warn("[useFolderSettings] Rejected unsafe image URL scheme:", url);
+      return;
+    }
     const newEntry: CustomImage = { url, uploadedAt: new Date().toISOString() };
     setCustomImages((prev) => {
       const deduped = prev.filter((img) => img.url !== url);

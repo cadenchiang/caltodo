@@ -64,7 +64,7 @@ export default function BoardDescription({
           }}
           className={`text-left w-full text-sm italic text-muted-foreground ${
             editMode
-              ? "cursor-pointer hover:text-foreground transition-colors"
+              ? "cursor-pointer hover:text-foreground transition-colors animate-edit-hint"
               : "cursor-default"
           }`}
         >

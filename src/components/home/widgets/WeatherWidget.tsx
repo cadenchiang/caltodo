@@ -6,10 +6,13 @@
  * Dispatches rendering to a selected weather display component.
  * Clicking opens a detailed Apple Weather-style modal.
  *
+ * Uses SWR for caching weather data across page navigations.
+ *
  * @param config - Widget configuration (weatherView, tempUnit, weatherDisplay)
  */
 
 import { useState, useEffect } from "react";
+import useSWR from "swr";
 import { getWeatherIcon } from "./weather-icons";
 import { useCompactMode } from "@/hooks/useCompactMode";
 import WeatherDetailModal from "./WeatherDetailModal";
@@ -39,7 +42,7 @@ function cToF(c: number): number {
  * @param lon - Longitude
  * @returns City name like "Berkeley, CA" or fallback coords string
  */
-async function reverseGeocode(lat: number, lon: number): Promise<string> {
+export async function reverseGeocode(lat: number, lon: number): Promise<string> {
   try {
     const res = await fetch(
       `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&zoom=10`,
@@ -62,33 +65,69 @@ async function reverseGeocode(lat: number, lon: number): Promise<string> {
   }
 }
 
+/**
+ * SWR fetcher for weather data. Parses the key to extract coords,
+ * then fetches reverse geocode and Open-Meteo in parallel.
+ *
+ * @param key - SWR key in format "weather:{lat},{lon}"
+ * @returns Object with current weather, forecast, and location name
+ */
+export async function weatherFetcher(
+  key: string
+): Promise<{ current: CurrentWeather; forecast: DayForecast[]; locationName: string }> {
+  const match = key.match(/^weather:([-\d.]+),([-\d.]+)$/);
+  if (!match) throw new Error(`Invalid weather key: ${key}`);
+  const lat = parseFloat(match[1]);
+  const lon = parseFloat(match[2]);
+
+  const [cityName, weatherRes] = await Promise.all([
+    reverseGeocode(lat, lon),
+    fetch(
+      `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,weather_code&forecast_days=7&timezone=auto`
+    ),
+  ]);
+
+  if (!weatherRes.ok) throw new Error("Weather API error");
+  const data = await weatherRes.json();
+
+  return {
+    current: {
+      temp: data.current.temperature_2m,
+      weatherCode: data.current.weather_code,
+      humidity: data.current.relative_humidity_2m,
+      windSpeed: data.current.wind_speed_10m,
+      feelsLike: data.current.apparent_temperature,
+    },
+    forecast: data.daily.time.map((date: string, i: number) => ({
+      date,
+      tempMax: data.daily.temperature_2m_max[i],
+      tempMin: data.daily.temperature_2m_min[i],
+      weatherCode: data.daily.weather_code[i],
+    })),
+    locationName: cityName,
+  };
+}
+
 export default function WeatherWidget({ config, editMode }: WeatherWidgetProps) {
   const viewMode = (config?.weatherView || "today") as "today" | "week";
   const units = config?.tempUnit || "F";
   const displayId = config?.weatherDisplay || DEFAULT_WEATHER_DISPLAY;
-  const [current, setCurrent] = useState<CurrentWeather | null>(null);
-  const [forecast, setForecast] = useState<DayForecast[]>([]);
-  const [locationName, setLocationName] = useState("");
-  const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(
-    null
-  );
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [retryCount, setRetryCount] = useState(0);
+  const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
+  const [geoError, setGeoError] = useState("");
   const [permDenied, setPermDenied] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const [detailOpen, setDetailOpen] = useState(false);
   const { containerRef, compact } = useCompactMode(160);
 
+  // Part A: Geolocation (stays as useEffect)
   useEffect(() => {
     let cancelled = false;
 
-    async function fetchWeather() {
-      setLoading(true);
-      setError("");
+    async function getLocation() {
+      setGeoError("");
       setPermDenied(false);
 
       try {
-        // Check if geolocation permission is permanently denied
         if (navigator.permissions) {
           try {
             const status = await navigator.permissions.query({
@@ -99,14 +138,12 @@ export default function WeatherWidget({ config, editMode }: WeatherWidgetProps) 
               throw new Error("PERMISSION_DENIED");
             }
           } catch (permErr) {
-            // Re-throw our own PERMISSION_DENIED error
             if (
               permErr instanceof Error &&
               permErr.message === "PERMISSION_DENIED"
             ) {
               throw permErr;
             }
-            // Otherwise permissions API unavailable, continue
           }
         }
 
@@ -119,71 +156,47 @@ export default function WeatherWidget({ config, editMode }: WeatherWidgetProps) 
           }
         );
 
-        const { latitude, longitude } = pos.coords;
         if (cancelled) return;
-
-        setCoords({ lat: latitude, lon: longitude });
-
-        // Reverse geocode in parallel with weather fetch
-        const [cityName, weatherRes] = await Promise.all([
-          reverseGeocode(latitude, longitude),
-          fetch(
-            `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,weather_code&forecast_days=7&timezone=auto`
-          ),
-        ]);
-
-        if (cancelled) return;
-        setLocationName(cityName);
-
-        if (!weatherRes.ok) throw new Error("Weather API error");
-        const data = await weatherRes.json();
-        if (cancelled) return;
-
-        setCurrent({
-          temp: data.current.temperature_2m,
-          weatherCode: data.current.weather_code,
-          humidity: data.current.relative_humidity_2m,
-          windSpeed: data.current.wind_speed_10m,
-          feelsLike: data.current.apparent_temperature,
-        });
-
-        setForecast(
-          data.daily.time.map((date: string, i: number) => ({
-            date,
-            tempMax: data.daily.temperature_2m_max[i],
-            tempMin: data.daily.temperature_2m_min[i],
-            weatherCode: data.daily.weather_code[i],
-          }))
-        );
+        setCoords({ lat: pos.coords.latitude, lon: pos.coords.longitude });
       } catch (err) {
-        if (!cancelled) {
-          const geoErr = err as { code?: number };
-          if (geoErr?.code === 1) {
-            // PERMISSION_DENIED from geolocation API
-            setPermDenied(true);
-            setError("Location blocked — enable in site settings");
-          } else if (geoErr?.code === 2 || geoErr?.code === 3) {
-            // POSITION_UNAVAILABLE or TIMEOUT
-            setError("Enable location access");
-          } else if (
-            err instanceof Error &&
-            err.message === "PERMISSION_DENIED"
-          ) {
-            setError("Location blocked — enable in site settings");
-          } else {
-            setError("Could not load weather");
-          }
+        if (cancelled) return;
+        const geoErr = err as { code?: number };
+        if (geoErr?.code === 1) {
+          setPermDenied(true);
+          setGeoError("Location blocked — enable in site settings");
+        } else if (geoErr?.code === 2 || geoErr?.code === 3) {
+          setGeoError("Enable location access");
+        } else if (
+          err instanceof Error &&
+          err.message === "PERMISSION_DENIED"
+        ) {
+          setGeoError("Location blocked — enable in site settings");
+        } else {
+          setGeoError("Could not load weather");
         }
-      } finally {
-        if (!cancelled) setLoading(false);
       }
     }
 
-    fetchWeather();
+    getLocation();
     return () => {
       cancelled = true;
     };
   }, [retryCount]);
+
+  // Part B: Weather data (useSWR — null key skips fetch until coords ready)
+  const swrKey = coords ? `weather:${coords.lat},${coords.lon}` : null;
+  const { data, isLoading: weatherLoading } = useSWR(swrKey, weatherFetcher, {
+    revalidateOnFocus: false,
+    dedupingInterval: 300000,
+    refreshInterval: 900000,
+  });
+
+  const current = data?.current ?? null;
+  const forecast = data?.forecast ?? [];
+  const locationName = data?.locationName ?? "";
+
+  // Loading: waiting for geolocation OR weather fetch (with no cached data)
+  const loading = !coords ? !geoError : weatherLoading;
 
   /** Formats temperature based on unit preference. */
   function formatTemp(celsius: number): string {
@@ -210,7 +223,7 @@ export default function WeatherWidget({ config, editMode }: WeatherWidgetProps) 
     );
   }
 
-  if (error) {
+  if (geoError) {
     return (
       <div
         className={`h-full w-full flex flex-col items-center justify-center p-4 text-center ${!permDenied ? "cursor-pointer" : ""}`}
@@ -237,7 +250,7 @@ export default function WeatherWidget({ config, editMode }: WeatherWidgetProps) 
           </>
         ) : (
           <p className="text-xs text-muted-foreground">
-            {error}
+            {geoError}
           </p>
         )}
       </div>

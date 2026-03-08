@@ -78,8 +78,8 @@ describe("getWeatherLabel", () => {
 /* ── getWeatherColorClass ──────────────────────────────────────── */
 
 describe("getWeatherColorClass", () => {
-  it("returns amber for clear sky", () => {
-    expect(getWeatherColorClass(0)).toBe("text-amber-400");
+  it("returns yellow for clear sky", () => {
+    expect(getWeatherColorClass(0)).toBe("text-yellow-400");
   });
 
   it("returns blue for rain", () => {

@@ -189,8 +189,8 @@ export default function HomePage() {
 
   return (
     <PageTransition>
-      <div className="h-full overflow-hidden">
-      <div className={`h-full flex flex-col -mx-4 md:-mx-10 -mt-4 md:-mt-10 -mb-4 md:-mb-10 ${isDragging ? "overflow-hidden" : "overflow-y-auto"}`}>
+      <div className="h-full overflow-hidden -mx-4 md:-mx-10 -mt-4 md:-mt-10 -mb-4 md:-mb-10">
+      <div className={`h-full flex flex-col ${isDragging ? "overflow-hidden" : "overflow-y-auto"}`}>
         {/* Cover Image */}
         <BoardCover
           coverImageUrl={coverImageUrl}
@@ -210,7 +210,7 @@ export default function HomePage() {
                 if (editMode) setEmojiPickerOpen((p) => !p);
               }}
               className={`leading-none ${
-                editMode ? "cursor-pointer hover:opacity-80 transition-opacity" : "cursor-default"
+                editMode ? "cursor-pointer hover:opacity-80 transition-opacity animate-edit-hint" : "cursor-default"
               }`}
               aria-label="Board icon"
             >

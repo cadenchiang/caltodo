@@ -100,11 +100,8 @@ export default function NotesModal({
       setNoteBarClosing(false);
       setNoteBarVisible(true);
     } else if (noteBarVisible) {
-      setNoteBarClosing(true);
-      noteBarTimerRef.current = setTimeout(() => {
-        setNoteBarVisible(false);
-        setNoteBarClosing(false);
-      }, 200);
+      setNoteBarVisible(false);
+      setNoteBarClosing(false);
     }
   }, [selectedIds.size]);
 
@@ -115,7 +112,10 @@ export default function NotesModal({
 
   const handleMarqueeSelection = useCallback((ids: Set<string>) => {
     setSelectedIds(ids);
-    if (ids.size > 0) justMarqueedRef.current = true;
+    if (ids.size > 0) {
+      justMarqueedRef.current = true;
+      requestAnimationFrame(() => { justMarqueedRef.current = false; });
+    }
   }, []);
 
   const { marqueeStyle, isSelecting, onMouseDown: onMarqueeMouseDown } = useMarqueeSelection({
@@ -372,6 +372,7 @@ export default function NotesModal({
                     : "text-muted-foreground hover:text-foreground"
                 }`}
                 title="Grid view"
+                aria-label="Grid view"
               >
                 <LayoutGrid size={16} />
               </button>
@@ -383,6 +384,7 @@ export default function NotesModal({
                     : "text-muted-foreground hover:text-foreground"
                 }`}
                 title="List view"
+                aria-label="List view"
               >
                 <List size={16} />
               </button>
@@ -391,6 +393,7 @@ export default function NotesModal({
               onClick={() => onCreateNote()}
               className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               title="New Note"
+              aria-label="New note"
             >
               <FilePlus size={18} />
             </button>

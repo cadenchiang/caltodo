@@ -387,40 +387,59 @@ export async function updateCalendarEvent(
 ): Promise<boolean | "not_found"> {
   const payload = buildEventPayload(task);
 
-  const res = await fetch(`${GCAL_API_BASE}/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`, {
-    method: "PATCH",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
-
-  // Event was deleted externally — return special value so caller can re-create
-  if (res.status === 404 || res.status === 410) {
-    logger.warn("updateCalendarEvent: event not found (deleted externally)", {
-      eventId,
-      taskId: task.id,
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    const res = await fetch(`${GCAL_API_BASE}/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
     });
-    return "not_found";
+
+    // Event was deleted externally — return special value so caller can re-create
+    if (res.status === 404 || res.status === 410) {
+      logger.warn("updateCalendarEvent: event not found (deleted externally)", {
+        eventId,
+        taskId: task.id,
+      });
+      return "not_found";
+    }
+
+    // Retry on rate limit (429 or 403 rateLimitExceeded) with exponential backoff
+    const isRateLimited = res.status === 429 ||
+      (res.status === 403 && (await res.clone().text()).includes("rateLimitExceeded"));
+    if (isRateLimited && attempt < MAX_RETRIES) {
+      const delay = RETRY_BASE_DELAY_MS * Math.pow(2, attempt);
+      logger.warn("updateCalendarEvent: rate limited, retrying", {
+        taskId: task.id,
+        eventId,
+        attempt: attempt + 1,
+        delayMs: delay,
+      });
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      continue;
+    }
+
+    if (!res.ok) {
+      const body = await res.text();
+      logger.error("updateCalendarEvent: API call failed", {
+        status: res.status,
+        eventId,
+        taskId: task.id,
+        body,
+      });
+      return false;
+    }
+
+    logger.info("updateCalendarEvent: event updated", {
+      taskId: task.id,
+      eventId,
+    });
+    return true;
   }
 
-  if (!res.ok) {
-    const body = await res.text();
-    logger.error("updateCalendarEvent: API call failed", {
-      status: res.status,
-      eventId,
-      taskId: task.id,
-      body,
-    });
-    return false;
-  }
-
-  logger.info("updateCalendarEvent: event updated", {
-    taskId: task.id,
-    eventId,
-  });
-  return true;
+  return false;
 }
 
 /**

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { createPortal } from "react-dom";
 import Cropper from "react-easy-crop";
 import type { Area } from "react-easy-crop";
@@ -61,6 +61,16 @@ export default function ImageCropModal({
       setApplying(false);
     }
   }
+
+  // Close on Escape
+  useEffect(() => {
+    if (!open || !imageSrc) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onCancel();
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [open, imageSrc, onCancel]);
 
   if (!open || !imageSrc || typeof document === "undefined") return null;
 

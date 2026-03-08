@@ -9,7 +9,6 @@ import type { ResponsiveLayouts } from "react-grid-layout";
 
 /** All available widget type identifiers. */
 export type WidgetType =
-  | "recent-chat"
   | "tasks-today"
   | "clock"
   | "image"
@@ -83,14 +82,6 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     description: "Per-course completion bars",
     iconName: "GraduationCap",
     minW: 2, minH: 1, maxW: 4, maxH: 4,
-    defaultW: 2, defaultH: 2,
-  },
-  "recent-chat": {
-    type: "recent-chat",
-    label: "Recent Chat",
-    description: "Latest messages from a course",
-    iconName: "MessageSquare",
-    minW: 1, minH: 1, maxW: 4, maxH: 4,
     defaultW: 2, defaultH: 2,
   },
   "google-calendar": {

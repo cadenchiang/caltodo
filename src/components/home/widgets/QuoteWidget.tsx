@@ -57,6 +57,7 @@ const QUOTES: QuoteEntry[] = [
 
 export default function QuoteWidget({ config }: QuoteWidgetProps) {
   const category = config?.quoteCategory || "all";
+  const accentColor = config?.accentColor || "#007AFF";
 
   const quote = useMemo(() => {
     const filtered = category === "all"
@@ -82,7 +83,7 @@ export default function QuoteWidget({ config }: QuoteWidgetProps) {
         >
           {quote.text}
         </p>
-        <div className="w-12 h-0.5 bg-gradient-to-r from-purple-400 to-pink-400 opacity-30 mt-3 rounded-full" />
+        <div className="w-12 h-0.5 opacity-30 mt-3 rounded-full" style={{ backgroundColor: accentColor }} />
         <p className="text-[11px] text-muted-foreground mt-2 tracking-wide">
           &mdash; {quote.author}
         </p>

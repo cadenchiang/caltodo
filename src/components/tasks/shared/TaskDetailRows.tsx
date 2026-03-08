@@ -68,7 +68,9 @@ export function TaskCourseRow({ courseName, iconSize = DEFAULT_ICON_SIZE }: Task
   if (!courseName) return null;
   return (
     <div className="flex items-center gap-4 py-3 min-w-0">
-      <BookOpen size={iconSize} className="shrink-0 text-secondary-foreground" />
+      <div className="shrink-0 w-5 flex items-center justify-center">
+        <BookOpen size={iconSize} className="text-secondary-foreground" />
+      </div>
       <span className="text-sm text-foreground truncate">{courseName}</span>
     </div>
   );
@@ -98,7 +100,9 @@ export function TaskTagsRow({ tags, sourceBadges, iconSize = DEFAULT_ICON_SIZE }
 
   return (
     <div className="flex items-start gap-4 py-3">
-      <Tag size={iconSize} className="shrink-0 mt-0.5 text-secondary-foreground" />
+      <div className="shrink-0 w-5 flex items-center justify-center mt-0.5">
+        <Tag size={iconSize} className="text-secondary-foreground" />
+      </div>
       <div className="flex flex-wrap gap-1.5 min-w-0">
         {sourceBadges?.map((b) => (
           <span
@@ -146,7 +150,9 @@ export function TaskDescriptionRow({ description, lineClamp, iconSize = DEFAULT_
 
   return (
     <div className="flex items-start gap-4 py-3">
-      <AlignLeft size={iconSize} className="shrink-0 mt-0.5 text-secondary-foreground" />
+      <div className="shrink-0 w-5 flex items-center justify-center mt-0.5">
+        <AlignLeft size={iconSize} className="text-secondary-foreground" />
+      </div>
       <p className={`text-sm text-foreground ${clampClass} break-words min-w-0`}>
         {description}
       </p>

@@ -18,7 +18,6 @@ import { useRouter } from "next/navigation";
 import type { WidgetInstance } from "@/lib/widget-types";
 import ClockWidget from "@/components/home/widgets/ClockWidget";
 import TasksTodayWidget from "@/components/home/widgets/TasksTodayWidget";
-import RecentChatWidget from "@/components/home/widgets/RecentChatWidget";
 import GoogleCalendarWidget from "@/components/home/widgets/GoogleCalendarWidget";
 import ImageWidget from "@/components/home/widgets/ImageWidget";
 import ClassProgressWidget from "@/components/home/widgets/ClassProgressWidget";
@@ -52,7 +51,6 @@ interface WidgetContainerProps {
  * built-in TaskPreviewPopover for inline task viewing. */
 const CLICK_TARGETS: Partial<Record<string, string>> = {
   "google-calendar": "/app/calendar",
-  "recent-chat": "/app/discussions",
   "cal-chat": "/app/discussions",
 };
 
@@ -75,8 +73,6 @@ export function RenderWidget({
       return <TasksTodayWidget config={widget.config} />;
     case "class-progress":
       return <ClassProgressWidget config={widget.config} />;
-    case "recent-chat":
-      return <RecentChatWidget config={widget.config} />;
     case "google-calendar":
       return <GoogleCalendarWidget config={widget.config} editMode={editMode} onUpdateConfig={onUpdateConfig} />;
     case "image":
@@ -183,7 +179,7 @@ export default function WidgetContainer({
       data-widget-id={widget.id}
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
-      className={`h-full w-full ${widget.config.widgetBorder === "false" ? "rounded-none bg-transparent" : "rounded-xl bg-card border border-foreground/[0.09]"} overflow-hidden ${editClass} ${isClickable ? "cursor-pointer" : ""} ${textColor ? "widget-custom-text" : ""}`}
+      className={`h-full w-full ${widget.config.widgetBorder === "false" ? "rounded-none bg-transparent" : "rounded-xl bg-transparent border border-foreground/[0.09]"} overflow-hidden ${editClass} ${isClickable ? "cursor-pointer" : ""} ${textColor ? "widget-custom-text" : ""}`}
       style={{
         backgroundColor: bgColor,
         ...(textColor ? { "--widget-text-color": textColor } as React.CSSProperties : {}),

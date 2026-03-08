@@ -15,6 +15,8 @@ interface Props {
   onOpenNote: (note: Note) => void;
   /** Map of course_id to folder name for displaying folder labels. */
   folderNames: Record<string, string>;
+  /** Set of selected note IDs (without "note:" prefix) for marquee highlight. */
+  selectedNoteIds?: Set<string>;
 }
 
 /**
@@ -26,16 +28,16 @@ interface Props {
  * @param onOpenNote - Callback when a note is clicked
  * @param folderNames - Map of course_id to folder label
  */
-export default function RecentNotes({ notes, viewMode, onOpenNote, folderNames }: Props) {
+export default function RecentNotes({ notes, viewMode, onOpenNote, folderNames, selectedNoteIds }: Props) {
   if (notes.length === 0) return null;
 
   return (
     <div className="mt-8">
       <h2 className="text-sm font-medium text-muted-foreground mb-3">Recent documents</h2>
       {viewMode === "grid" ? (
-        <RecentGrid notes={notes} onOpenNote={onOpenNote} folderNames={folderNames} />
+        <RecentGrid notes={notes} onOpenNote={onOpenNote} folderNames={folderNames} selectedNoteIds={selectedNoteIds} />
       ) : (
-        <RecentList notes={notes} onOpenNote={onOpenNote} folderNames={folderNames} />
+        <RecentList notes={notes} onOpenNote={onOpenNote} folderNames={folderNames} selectedNoteIds={selectedNoteIds} />
       )}
     </div>
   );
@@ -44,20 +46,26 @@ export default function RecentNotes({ notes, viewMode, onOpenNote, folderNames }
 /**
  * Grid view: tall document cards with content preview, like Google Docs.
  */
-function RecentGrid({ notes, onOpenNote, folderNames }: Omit<Props, "viewMode">) {
+function RecentGrid({ notes, onOpenNote, folderNames, selectedNoteIds }: Omit<Props, "viewMode">) {
   return (
-    <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+    <div className="grid grid-cols-5 sm:grid-cols-6 lg:grid-cols-7 gap-3 p-1 -m-1">
       {notes.map((note) => {
         const title = note.title || "Untitled";
         const hasContent = extractTextPreview(note.content, 1).length > 0;
         const date = formatRelativeDate(note.updated_at);
         const folder = note.course_id ? folderNames[note.course_id] : "General";
+        const isSelected = selectedNoteIds?.has(note.id) ?? false;
 
         return (
           <button
             key={note.id}
-            onClick={() => onOpenNote(note)}
-            className="rounded-xl border border-border bg-popover text-left transition-all overflow-hidden hover:shadow-md dark:hover:shadow-black/20 hover:border-border/80"
+            data-folder-id={`note:${note.id}`}
+            onDoubleClick={() => onOpenNote(note)}
+            className={`rounded-xl border bg-popover text-left transition-all overflow-hidden hover:shadow-md dark:hover:shadow-black/20 cursor-default ${
+              isSelected
+                ? "border-blue-500 ring-2 ring-blue-500/30"
+                : "border-border hover:border-border/80"
+            }`}
           >
             {hasContent ? (
               <NoteContentPreview content={note.content} />
@@ -67,7 +75,7 @@ function RecentGrid({ notes, onOpenNote, folderNames }: Omit<Props, "viewMode">)
               </div>
             )}
             <div className="px-2.5 py-1.5 border-t border-border">
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 min-w-0">
                 {note.icon && (
                   <span className="text-xs shrink-0">
                     {note.icon.startsWith("lucide:") ? (() => {
@@ -84,11 +92,11 @@ function RecentGrid({ notes, onOpenNote, folderNames }: Omit<Props, "viewMode">)
                   <Pin size={10} className="shrink-0 text-muted-foreground" />
                 )}
               </div>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <span className="text-[9px] text-muted-foreground">{date}</span>
+              <div className="flex items-center gap-1 mt-0.5 min-w-0">
+                <span className="text-[9px] text-muted-foreground whitespace-nowrap shrink-0">{date}</span>
                 {folder && (
                   <>
-                    <span className="text-[9px] text-muted-foreground/40">·</span>
+                    <span className="text-[9px] text-muted-foreground/40 shrink-0">·</span>
                     <span className="text-[9px] text-muted-foreground truncate">{folder}</span>
                   </>
                 )}
@@ -104,21 +112,23 @@ function RecentGrid({ notes, onOpenNote, folderNames }: Omit<Props, "viewMode">)
 /**
  * List view: compact rows with title, folder, and date.
  */
-function RecentList({ notes, onOpenNote, folderNames }: Omit<Props, "viewMode">) {
+function RecentList({ notes, onOpenNote, folderNames, selectedNoteIds }: Omit<Props, "viewMode">) {
   return (
     <div className="rounded-xl border border-border overflow-hidden bg-popover">
       {notes.map((note, i) => {
         const title = note.title || "Untitled";
         const date = formatRelativeDate(note.updated_at);
         const folder = note.course_id ? folderNames[note.course_id] : "General";
+        const isSelected = selectedNoteIds?.has(note.id) ?? false;
 
         return (
           <button
             key={note.id}
-            onClick={() => onOpenNote(note)}
-            className={`w-full text-left px-4 py-3 transition-colors flex items-center gap-3 hover:bg-accent/50 ${
-              i < notes.length - 1 ? "border-b border-border" : ""
-            }`}
+            data-folder-id={`note:${note.id}`}
+            onDoubleClick={() => onOpenNote(note)}
+            className={`w-full text-left px-4 py-3 transition-colors flex items-center gap-3 cursor-default ${
+              isSelected ? "bg-blue-500/10" : "hover:bg-accent/50"
+            } ${i < notes.length - 1 ? "border-b border-border" : ""}`}
           >
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5">

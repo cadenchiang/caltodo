@@ -13,7 +13,7 @@
 
 import React from "react";
 import {
-  X, CheckSquare, Clock, ImageIcon, GraduationCap, MessageSquare,
+  X, CheckSquare, Clock, ImageIcon, GraduationCap,
   Calendar, FileText, CloudSun, MessagesSquare, Timer, Hourglass,
   Link, Flame, Quote, BarChart3, Grid3X3, Smile, Music,
 } from "lucide-react";
@@ -24,7 +24,7 @@ import { RenderWidget } from "@/components/home/WidgetContainer";
 /** Maps widget type to its lucide-react icon for the gallery card label. */
 const WIDGET_ICONS: Record<string, LucideIcon> = {
   clock: Clock, "tasks-today": CheckSquare, "class-progress": GraduationCap,
-  "recent-chat": MessageSquare, "google-calendar": Calendar, image: ImageIcon,
+  "google-calendar": Calendar, image: ImageIcon,
   notes: FileText, weather: CloudSun, "cal-chat": MessagesSquare, pomodoro: Timer,
   countdown: Hourglass, "quick-links": Link, "habit-tracker": Flame,
   quote: Quote, stats: BarChart3, "weekly-heatmap": Grid3X3, sticker: Smile, spotify: Music,

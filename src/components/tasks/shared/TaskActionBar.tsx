@@ -61,7 +61,7 @@ export default function TaskActionBar({
         </button>
       </Tooltip>
       {hasMenuItems && (
-        <div ref={menuRef} className="relative">
+        <div ref={menuRef} className="relative flex items-center">
           <Tooltip label="More options">
             <button
               onClick={() => setMenuOpen((p) => !p)}

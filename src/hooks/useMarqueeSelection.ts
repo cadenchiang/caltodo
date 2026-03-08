@@ -42,6 +42,10 @@ export function useMarqueeSelection({
   const [marquee, setMarquee] = useState<MarqueeState | null>(null);
   const isSelectingRef = useRef(false);
   const pendingRef = useRef<{ clientX: number; clientY: number; containerX: number; containerY: number } | null>(null);
+  const rafRef = useRef<number | null>(null);
+  /** Ref for existingSelection to avoid Set in dependency arrays. */
+  const existingSelectionRef = useRef(existingSelection);
+  existingSelectionRef.current = existingSelection;
 
   /** Compute the CSS rect from two corner points relative to the container. */
   function getRect(m: MarqueeState) {
@@ -98,9 +102,10 @@ export function useMarqueeSelection({
   const onMouseDown = useCallback(
     (e: React.MouseEvent) => {
       if (e.button !== 0) return;
-      // Ignore clicks on buttons/inputs/interactive elements (but allow on cards)
       const target = e.target as HTMLElement;
-      if (target.closest("button, input, textarea, a, [role='button']")) return;
+      // Allow drag from selectable items, but ignore other interactive elements
+      const isOnItem = target.closest(`[${dataAttribute}]`);
+      if (!isOnItem && target.closest("button, input, textarea, a, [role='button']")) return;
 
       const container = containerRef.current;
       if (!container) return;
@@ -134,29 +139,41 @@ export function useMarqueeSelection({
 
       if (!isSelectingRef.current) return;
 
-      const rect = container.getBoundingClientRect();
-      const x = e.clientX - rect.left + container.scrollLeft;
-      const y = e.clientY - rect.top + container.scrollTop;
+      // Throttle DOM queries to one per animation frame
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      const shiftKey = e.shiftKey;
+      const clientX = e.clientX;
+      const clientY = e.clientY;
+      rafRef.current = requestAnimationFrame(() => {
+        rafRef.current = null;
+        const rect = container.getBoundingClientRect();
+        const x = clientX - rect.left + container.scrollLeft;
+        const y = clientY - rect.top + container.scrollTop;
 
-      setMarquee((prev) => {
-        if (!prev) return prev;
-        const updated = { ...prev, currentX: x, currentY: y };
+        setMarquee((prev) => {
+          if (!prev) return prev;
+          const updated = { ...prev, currentX: x, currentY: y };
 
-        const intersecting = findIntersecting(updated);
-        if (e.shiftKey && existingSelection.size > 0) {
-          const merged = new Set(existingSelection);
-          intersecting.forEach((id) => merged.add(id));
-          onSelectionChange(merged);
-        } else {
-          onSelectionChange(intersecting);
-        }
+          const intersecting = findIntersecting(updated);
+          if (shiftKey && existingSelectionRef.current.size > 0) {
+            const merged = new Set(existingSelectionRef.current);
+            intersecting.forEach((id) => merged.add(id));
+            onSelectionChange(merged);
+          } else {
+            onSelectionChange(intersecting);
+          }
 
-        return updated;
+          return updated;
+        });
       });
     };
 
     const handleMouseUp = () => {
       pendingRef.current = null;
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
       if (isSelectingRef.current) {
         isSelectingRef.current = false;
         setMarquee(null);
@@ -168,8 +185,12 @@ export function useMarqueeSelection({
     return () => {
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
     };
-  }, [containerRef, findIntersecting, onSelectionChange, existingSelection]);
+  }, [containerRef, findIntersecting, onSelectionChange]);
 
   const marqueeStyle: React.CSSProperties | null = marquee
     ? (() => {

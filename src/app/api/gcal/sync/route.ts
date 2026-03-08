@@ -95,6 +95,11 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === "update") {
+      logger.info("POST /api/gcal/sync: updating task", {
+        taskId,
+        is_completed: (task as Task).is_completed,
+        google_event_id: (task as Task).google_event_id,
+      });
       return await handleUpdate(accessToken, calendarId, task as Task, supabase);
     }
 
