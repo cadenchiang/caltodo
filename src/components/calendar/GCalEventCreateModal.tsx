@@ -1,15 +1,14 @@
 /**
  * Modal for creating a new Google Calendar event.
- * Matches TaskCreateModal's shell (same size, header, title input) so
- * switching between Task and Event via the toggle feels seamless.
- * Renders as a centered portal overlay.
+ * Shell, sizing, icons, and footer match TaskCreateModal exactly
+ * so switching between Task and Event via the toggle is seamless.
  */
 
 "use client";
 
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { X, Clock, MapPin, FileText } from "lucide-react";
+import { X, CalendarDays, Clock, MapPin, AlignLeft } from "lucide-react";
 import { format } from "date-fns";
 
 interface GCalEventCreateModalProps {
@@ -25,8 +24,8 @@ interface GCalEventCreateModalProps {
 
 /**
  * Creates a Google Calendar event via the API.
- * Layout matches TaskCreateModal: same max-w-md, same close button position,
- * same title input style, so toggling between Task/Event is seamless.
+ * Layout matches TaskCreateModal exactly: same w-[540px], bg-card,
+ * rounded-2xl, icon sizes, row padding, footer border-t, button styles.
  *
  * @param open - Whether the modal is visible
  * @param onClose - Callback to close the modal
@@ -39,7 +38,6 @@ interface GCalEventCreateModalProps {
 export default function GCalEventCreateModal({ open, onClose, onCreated, defaultDate, defaultStartTime, defaultEndTime, createTypeToggle }: GCalEventCreateModalProps) {
   const ref = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
-
   const [title, setTitle] = useState("");
   const [date, setDate] = useState(defaultDate || format(new Date(), "yyyy-MM-dd"));
   const [startTime, setStartTime] = useState("09:00");
@@ -63,17 +61,22 @@ export default function GCalEventCreateModal({ open, onClose, onCreated, default
       setError(null);
       setTimeout(() => titleRef.current?.focus(), 100);
     }
-  }, [open, defaultDate]);
+  }, [open, defaultDate, defaultStartTime, defaultEndTime]);
+
+  /** Close the modal. */
+  function handleClose() {
+    onClose();
+  }
 
   // Close on escape
   useEffect(() => {
     if (!open) return;
     function handleKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") handleClose();
     }
     document.addEventListener("keydown", handleKey);
     return () => document.removeEventListener("keydown", handleKey);
-  }, [open, onClose]);
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -140,20 +143,22 @@ export default function GCalEventCreateModal({ open, onClose, onCreated, default
     }
   }
 
-  if (!open) return null;
-
   return createPortal(
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/20" onClick={onClose} />
-
-      {/* Shell matches TaskCreateModal: same max-w-md, rounded-2xl, shadow */}
+    <div style={!open ? { display: 'none' } : undefined}>
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center pt-[18vh] bg-black/40"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) handleClose();
+      }}
+    >
       <div
         ref={ref}
-        className="relative bg-popover rounded-2xl shadow-2xl border border-border w-full max-w-md overflow-hidden"
+        className="relative bg-card rounded-2xl border border-border shadow-2xl w-[540px] max-w-[95vw] max-h-[90vh] overflow-y-auto"
+        onMouseDown={(e) => e.stopPropagation()}
       >
-        {/* Close button — same position as TaskCreateModal */}
+        {/* Close button — exact same as TaskCreateModal */}
         <button
-          onClick={onClose}
+          onClick={handleClose}
           className="absolute top-4 right-4 p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-accent transition-colors duration-150 cursor-pointer z-10"
           aria-label="Close"
         >
@@ -161,17 +166,19 @@ export default function GCalEventCreateModal({ open, onClose, onCreated, default
         </button>
 
         <form onSubmit={handleSubmit} className="pt-4 pb-4">
-          {/* ── Type toggle (Task / Event) ── */}
+          {/* ── Type toggle (Task / Event) — left-aligned with icons ── */}
           {createTypeToggle && (
-            <div className="px-6 pb-3">
+            <div className="px-6 pb-5 pt-1">
               {createTypeToggle}
             </div>
           )}
 
-          {/* ── Title — same style as TaskCreateModal ── */}
+          {/* ── Color circle + Title — exact same as TaskCreateModal ── */}
           <div className="pl-6 pr-6 pb-4 flex items-center gap-4">
-            {/* Blue dot placeholder matching color circle position */}
-            <div className="w-5 h-5 rounded-full shrink-0 bg-blue-500 border border-black/10 dark:border-white/10" />
+            <div
+              className="w-5 h-5 rounded-full shrink-0 border border-black/10 dark:border-white/10"
+              style={{ backgroundColor: "#4285F4" }}
+            />
             <input
               ref={titleRef}
               type="text"
@@ -183,68 +190,79 @@ export default function GCalEventCreateModal({ open, onClose, onCreated, default
             />
           </div>
 
-          {/* ── Rows — same icon+label style as TaskCreateModal ── */}
+          {/* ── Rows — exact same px-2 wrapper, px-4 py-4 rows, size-20 icons ── */}
           <div className="px-2">
-            {/* Date + Time row */}
-            <div className="flex items-start gap-4 px-4 py-3 rounded-xl">
-              <Clock size={20} className="shrink-0 mt-0.5 text-muted-foreground" />
-              <div className="flex-1 flex flex-col gap-2">
-                <input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="text-sm text-foreground bg-muted rounded-lg px-3 py-2 border-none outline-none w-fit"
-                />
-                <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={allDay}
-                    onChange={(e) => setAllDay(e.target.checked)}
-                    className="rounded"
-                  />
+            {/* Date row */}
+            <div className="flex items-center gap-4 px-4 py-4 rounded-xl transition-colors duration-150 hover:bg-gray-100 dark:hover:bg-gray-800">
+              <CalendarDays size={20} className="shrink-0 text-foreground" />
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="text-sm text-foreground bg-transparent border-none outline-none cursor-pointer [&::-webkit-calendar-picker-indicator]:hidden"
+              />
+            </div>
+
+            {/* Time row — start/end or "All day" */}
+            <div className="flex items-center gap-4 px-4 py-4 rounded-xl transition-colors duration-150 hover:bg-gray-100 dark:hover:bg-gray-800">
+              <Clock size={20} className="shrink-0 text-foreground" />
+              {allDay ? (
+                <button
+                  type="button"
+                  onClick={() => setAllDay(false)}
+                  className="text-sm leading-snug text-foreground cursor-pointer"
+                >
                   All day
-                </label>
-                {!allDay && (
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="time"
-                      value={startTime}
-                      onChange={(e) => setStartTime(e.target.value)}
-                      className="text-sm text-foreground bg-muted rounded-lg px-3 py-2 border-none outline-none"
-                    />
-                    <span className="text-muted-foreground text-sm">to</span>
-                    <input
-                      type="time"
-                      value={endTime}
-                      onChange={(e) => setEndTime(e.target.value)}
-                      className="text-sm text-foreground bg-muted rounded-lg px-3 py-2 border-none outline-none"
-                    />
-                  </div>
-                )}
-              </div>
+                </button>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="time"
+                    value={startTime}
+                    onChange={(e) => setStartTime(e.target.value)}
+                    className="text-sm text-foreground bg-muted rounded-lg px-3 py-2 border-none outline-none [&::-webkit-calendar-picker-indicator]:hidden"
+                  />
+                  <span className="text-sm text-muted-foreground">to</span>
+                  <input
+                    type="time"
+                    value={endTime}
+                    onChange={(e) => setEndTime(e.target.value)}
+                    className="text-sm text-foreground bg-muted rounded-lg px-3 py-2 border-none outline-none [&::-webkit-calendar-picker-indicator]:hidden"
+                  />
+                  <span className="mx-1 text-muted-foreground/30">|</span>
+                  <button
+                    type="button"
+                    onClick={() => setAllDay(true)}
+                    className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                  >
+                    All day
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Location row */}
-            <div className="flex items-center gap-4 px-4 py-3 rounded-xl">
-              <MapPin size={20} className="shrink-0 text-muted-foreground" />
+            <div className="flex items-center gap-4 px-4 py-4 rounded-xl transition-colors duration-150 hover:bg-gray-100 dark:hover:bg-gray-800">
+              <MapPin size={20} className="shrink-0 text-foreground" />
               <input
                 type="text"
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
                 placeholder="Add location"
-                className="flex-1 text-sm text-foreground bg-transparent placeholder:text-muted-foreground/50 focus:outline-none"
+                className="flex-1 text-sm text-foreground bg-transparent placeholder-muted-foreground/60 focus:outline-none"
               />
             </div>
 
             {/* Description row */}
-            <div className="flex items-start gap-4 px-4 py-3 rounded-xl">
-              <FileText size={20} className="shrink-0 mt-0.5 text-muted-foreground" />
+            <div className="flex items-start gap-4 px-4 py-4 rounded-xl transition-colors duration-150 hover:bg-gray-100 dark:hover:bg-gray-800">
+              <AlignLeft size={20} className="shrink-0 mt-0.5 text-foreground" />
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Add description"
                 rows={2}
-                className="flex-1 text-sm text-foreground bg-transparent placeholder:text-muted-foreground/50 focus:outline-none resize-none"
+                className="flex-1 text-sm text-foreground bg-transparent placeholder-muted-foreground/60 focus:outline-none resize-none leading-relaxed"
+                maxLength={2000}
               />
             </div>
           </div>
@@ -253,25 +271,28 @@ export default function GCalEventCreateModal({ open, onClose, onCreated, default
             <p className="text-xs text-red-500 px-6 pt-2">{error}</p>
           )}
 
-          {/* ── Footer — same style as TaskCreateModal ── */}
-          <div className="flex justify-end gap-2 px-6 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted transition-colors cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={saving || !title.trim()}
-              className="px-5 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors cursor-pointer"
-            >
-              {saving ? "Saving..." : "Save"}
-            </button>
+          {/* ── Footer — exact same as TaskCreateModal ── */}
+          <div className="flex items-center justify-end px-6 pt-5 mt-3 border-t border-border">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleClose}
+                className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-xl transition-colors duration-150 active:scale-[0.97] cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={saving || !title.trim()}
+                className="px-6 py-2 text-sm font-medium rounded-full bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150 active:scale-[0.97] cursor-pointer"
+              >
+                {saving ? "Saving..." : "Save"}
+              </button>
+            </div>
           </div>
         </form>
       </div>
+    </div>
     </div>,
     document.body
   );

@@ -45,6 +45,8 @@ interface TaskCreateModalProps {
   onSaveColorForClass?: (courseName: string, color: string) => void;
   /** When provided, shows a Task/Event toggle at the top. */
   createTypeToggle?: React.ReactNode;
+  /** When true, stay mounted (hidden) when not open, for seamless toggle transitions. */
+  keepMounted?: boolean;
 }
 
 /**
@@ -55,7 +57,7 @@ interface TaskCreateModalProps {
  * @param props - See TaskCreateModalProps
  */
 export default function TaskCreateModal({
-  open, onClose, onAdd, defaultDate, defaultTime, editTask, onSave, onDelete, onSaveColorForClass, createTypeToggle,
+  open, onClose, onAdd, defaultDate, defaultTime, editTask, onSave, onDelete, onSaveColorForClass, createTypeToggle, keepMounted,
 }: TaskCreateModalProps) {
   const { availableTags, availableCourses, courseColors } = useTaskContext();
   const { colorTheme } = useTheme();
@@ -504,7 +506,7 @@ export default function TaskCreateModal({
     return () => document.removeEventListener("mousedown", handleClick);
   }, [showDatePicker, showTagDropdown, showCourseDropdown, showColorWheel, showColorPopover, showTimePicker, showRepeatPicker]);
 
-  if (!open) return null;
+  if (!open && !keepMounted) return null;
 
   /** Display color accounting for active color theme. */
   const displayColor = getThemeColor(color, colorTheme);
@@ -519,9 +521,10 @@ export default function TaskCreateModal({
     : null;
 
   return createPortal(
+    <div style={!open && keepMounted ? { display: 'none' } : undefined}>
     <div
-      className={`fixed inset-0 z-50 flex items-center justify-center bg-black/40 transition-opacity duration-150 ${
-        closing ? "opacity-0" : "animate-in fade-in duration-150"
+      className={`fixed inset-0 z-50 flex justify-center bg-black/40 ${
+        keepMounted ? "items-start pt-[18vh]" : `items-center transition-opacity duration-150 ${closing ? "opacity-0" : "animate-in fade-in duration-150"}`
       }`}
       onMouseDown={(e) => {
         // Only close when clicking the backdrop itself, not portaled children
@@ -529,10 +532,8 @@ export default function TaskCreateModal({
       }}
     >
       <div
-        className={`relative bg-card rounded-2xl border border-border shadow-2xl w-[540px] max-w-[95vw] max-h-[90vh] overflow-y-auto transition-all duration-150 ${
-          closing
-            ? "scale-95 opacity-0"
-            : "animate-in zoom-in-95 fade-in duration-200"
+        className={`relative bg-card rounded-2xl border border-border shadow-2xl w-[540px] max-w-[95vw] max-h-[90vh] overflow-y-auto ${
+          keepMounted ? "" : `transition-all duration-150 ${closing ? "scale-95 opacity-0" : "animate-in zoom-in-95 fade-in duration-200"}`
         }`}
         onMouseDown={(e) => {
           const target = e.target as Node;
@@ -570,9 +571,9 @@ export default function TaskCreateModal({
         </button>
 
         <form onSubmit={handleSubmit} className="pt-4 pb-4">
-          {/* ── Type toggle (Task / Event) ── */}
+          {/* ── Type toggle (Task / Event) — left-aligned with icons ── */}
           {createTypeToggle && !isEditMode && (
-            <div className="px-6 pb-3">
+            <div className="px-6 pb-5 pt-1">
               {createTypeToggle}
             </div>
           )}
@@ -1174,6 +1175,7 @@ export default function TaskCreateModal({
           </div>,
           document.body
         )}
+    </div>
     </div>,
     document.body
   );

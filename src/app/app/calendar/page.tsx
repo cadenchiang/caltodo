@@ -245,32 +245,32 @@ export default function CalendarPage() {
           </div>
         </div>
 
-        {/* Unified creation modal: Task or Event based on toggle */}
-        {modals.addingDate && modals.createType === "task" && (
-          <TaskCreateModal
-            open
-            onClose={modals.closeAddPopover}
-            onAdd={(task) => { addTask(task); modals.closeAddPopover(); }}
-            defaultDate={modals.addingDate}
-            defaultTime={modals.addingTime}
-            createTypeToggle={
-              <CreateTypeToggle value={modals.createType} onChange={modals.switchCreateType} />
-            }
-          />
-        )}
-
-        {modals.addingDate && modals.createType === "event" && (
-          <GCalEventCreateModal
-            open
-            onClose={modals.closeAddPopover}
-            onCreated={() => { refetchEvents(); modals.closeAddPopover(); }}
-            defaultDate={modals.addingDate}
-            defaultStartTime={modals.addingTime}
-            defaultEndTime={modals.addingEndTime}
-            createTypeToggle={
-              <CreateTypeToggle value={modals.createType} onChange={modals.switchCreateType} />
-            }
-          />
+        {/* Unified creation modal: both always mounted when addingDate set, toggled via display */}
+        {modals.addingDate && (
+          <>
+            <TaskCreateModal
+              open={modals.createType === "task"}
+              keepMounted
+              onClose={modals.closeAddPopover}
+              onAdd={(task) => { addTask(task); modals.closeAddPopover(); }}
+              defaultDate={modals.addingDate}
+              defaultTime={modals.addingTime}
+              createTypeToggle={
+                <CreateTypeToggle value={modals.createType} onChange={modals.switchCreateType} />
+              }
+            />
+            <GCalEventCreateModal
+              open={modals.createType === "event"}
+              onClose={modals.closeAddPopover}
+              onCreated={() => { refetchEvents(); modals.closeAddPopover(); }}
+              defaultDate={modals.addingDate}
+              defaultStartTime={modals.addingTime}
+              defaultEndTime={modals.addingEndTime}
+              createTypeToggle={
+                <CreateTypeToggle value={modals.createType} onChange={modals.switchCreateType} />
+              }
+            />
+          </>
         )}
 
         {currentPreviewTask && modals.previewRect && (

@@ -1,7 +1,6 @@
 /**
- * Animated segmented toggle for switching between Task and Event creation.
- * Uses a sliding pill indicator for smooth visual feedback.
- * Rendered at the top of creation modals in calendar views.
+ * Subtle underline toggle for switching between Task and Event creation.
+ * Left-aligned with modal icons, minimal styling.
  */
 
 "use client";
@@ -14,43 +13,41 @@ interface CreateTypeToggleProps {
 }
 
 /**
- * Segmented control: Task | Event with animated sliding pill.
+ * Minimal text toggle: Task | Event with sliding underline indicator.
  *
  * @param value - Current selection ("task" or "event")
  * @param onChange - Called when the user switches
  */
 export default function CreateTypeToggle({ value, onChange }: CreateTypeToggleProps) {
   return (
-    <div className="relative flex items-center bg-muted rounded-lg p-0.5 w-fit">
-      {/* Sliding pill indicator */}
-      <div
-        className="absolute top-0.5 bottom-0.5 rounded-md bg-white dark:bg-gray-600 shadow-md transition-all duration-200 ease-out"
-        style={{
-          left: value === "task" ? "2px" : "50%",
-          width: "calc(50% - 2px)",
-        }}
-      />
+    <div className="flex items-center gap-4">
       <button
         type="button"
         onClick={() => onChange("task")}
-        className={`relative z-[1] px-4 py-1 text-xs font-medium rounded-md transition-colors duration-200 ${
+        className={`relative text-sm font-medium pb-1 transition-colors duration-200 ${
           value === "task"
             ? "text-foreground"
-            : "text-muted-foreground hover:text-foreground"
+            : "text-muted-foreground/50 hover:text-muted-foreground"
         }`}
       >
         Task
+        {value === "task" && (
+          <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-foreground rounded-full" />
+        )}
       </button>
       <button
         type="button"
         onClick={() => onChange("event")}
-        className={`relative z-[1] px-4 py-1 text-xs font-medium rounded-md transition-colors duration-200 ${
+        className={`relative text-sm font-medium pb-1 transition-colors duration-200 ${
           value === "event"
             ? "text-foreground"
-            : "text-muted-foreground hover:text-foreground"
+            : "text-muted-foreground/50 hover:text-muted-foreground"
         }`}
       >
         Event
+        {value === "event" && (
+          <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-foreground rounded-full" />
+        )}
       </button>
     </div>
   );
