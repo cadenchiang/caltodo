@@ -118,6 +118,7 @@ export async function POST(request: NextRequest) {
   try {
     // Use admin client to bypass RLS for server-validated inserts.
     // Auth check is already done above; RLS uid() can be unreliable in server context.
+    // Explicitly set requester_id to authenticated user to prevent spoofing.
     const adminClient = createAdminClient();
     const { data: friendship, error: insertError } = await adminClient
       .from("friendships")

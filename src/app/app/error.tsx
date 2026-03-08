@@ -26,7 +26,13 @@ export default function AppError({
       error.message?.includes("Failed to load chunk");
 
     if (isChunkError) {
-      window.location.reload();
+      // Prevent infinite reload loops — max 2 retries per session
+      const RELOAD_KEY = "caltodo_chunk_reload_count";
+      const count = parseInt(sessionStorage.getItem(RELOAD_KEY) ?? "0", 10);
+      if (count < 2) {
+        sessionStorage.setItem(RELOAD_KEY, String(count + 1));
+        window.location.reload();
+      }
     }
   }, [error]);
 

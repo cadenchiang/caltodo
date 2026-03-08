@@ -52,8 +52,10 @@ function saveNotifications(items: AppNotification[]): void {
   try {
     const data: StoredNotifications = { version: STORAGE_VERSION, items };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  } catch {
-    // localStorage full or unavailable — non-critical
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "QuotaExceededError") {
+      console.warn("[NotificationContext] localStorage quota exceeded — notifications not persisted");
+    }
   }
 }
 

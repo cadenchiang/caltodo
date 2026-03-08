@@ -185,6 +185,8 @@ export default function CourseChatPage({ params }: PageProps) {
   // Gated on initialFetchDone so pre-existing messages never trigger notifications.
   /** Tracks whether notification baseline has been initialized after initial fetch. */
   const notifInitializedRef = useRef(false);
+  /** Tracks the timestamp of the last desktop notification for throttling (max 1 per 5s). */
+  const lastNotifTimeRef = useRef<number>(0);
 
   // Reset notification baseline when switching chats
   useEffect(() => {
@@ -246,6 +248,11 @@ export default function CourseChatPage({ params }: PageProps) {
     } else {
       notifBody = textPart.slice(0, 100);
     }
+
+    // Throttle: max 1 desktop notification per 5 seconds
+    const notifNow = Date.now();
+    if (notifNow - lastNotifTimeRef.current < 5000) return;
+    lastNotifTimeRef.current = notifNow;
 
     new Notification(`CalTodo — ${senderLabel}`, {
       body: `${displayName}: ${notifBody}`,

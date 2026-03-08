@@ -58,9 +58,9 @@ describe("crypto", () => {
     }
   });
 
-  it("should throw on invalid encrypted string format", () => {
+  it("should throw generic error on invalid encrypted string format", () => {
     expect(() => decrypt("not-a-valid-encrypted-string")).toThrow(
-      "Invalid encrypted string format"
+      "Failed to decrypt credentials. Please re-authenticate."
     );
   });
 

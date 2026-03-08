@@ -52,8 +52,10 @@ function setCachedTasks(tasks: Task[]): void {
       timestamp: Date.now(),
     };
     localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
-  } catch {
-    // localStorage full or unavailable — non-critical
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "QuotaExceededError") {
+      console.warn("[TaskContext] localStorage quota exceeded — task cache not persisted");
+    }
   }
 }
 
@@ -485,8 +487,13 @@ export function TaskProvider({ children }: { children: ReactNode }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "update", taskId: id }),
+      }).then(async (res) => {
+        if (!res.ok) {
+          const body = await res.text().catch(() => "");
+          console.warn("GCal sync (update) failed:", res.status, body);
+        }
       }).catch((err) => {
-        console.warn("GCal sync (update) failed:", err);
+        console.warn("GCal sync (update) network error:", err);
       });
     }
   }
@@ -584,26 +591,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
   async function snoozeTask(id: string, hours: number) {
     const snoozedUntil = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
     trackEvent("task_snoozed", { hours });
-
-    // Optimistically update snoozed_until so task moves to Hidden section
-    setTasks((prev) => {
-      const updated = prev.map((t) =>
-        t.id === id ? { ...t, snoozed_until: snoozedUntil } : t
-      );
-      setCachedTasks(updated);
-      taskBaselineRef.current = updated;
-      return updated;
-    });
-
-    const { error: snoozeError } = await supabase
-      .from("tasks")
-      .update({ snoozed_until: snoozedUntil })
-      .eq("id", id);
-
-    if (snoozeError) {
-      setError(snoozeError.message);
-      fetchTasks();
-    }
+    await updateTask(id, { snoozed_until: snoozedUntil });
   }
 
   /**
@@ -725,6 +713,9 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       return updated;
     });
 
+    // Collect GCal event IDs before deletion
+    const gcalTasks = previousTasks.filter((t) => t.source === source && t.google_event_id);
+
     // Hard-delete from Supabase
     const { error: deleteError } = await supabase
       .from("tasks")
@@ -737,6 +728,21 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       setTasks(previousTasks);
       setCachedTasks(previousTasks);
       fetchTasks();
+    } else {
+      // Fire-and-forget: clean up GCal events
+      for (const t of gcalTasks) {
+        fetch("/api/gcal/sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "delete",
+            taskId: t.id,
+            googleEventId: t.google_event_id,
+          }),
+        }).catch((err) => {
+          console.warn("GCal sync (delete) failed for task", t.id, err);
+        });
+      }
     }
   }
 
@@ -769,6 +775,9 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       return updated;
     });
 
+    // Collect GCal event IDs before deletion
+    const gcalTasks = matchingTasks.filter((t) => t.google_event_id);
+
     // Hard-delete from Supabase (these are synced tasks but the account is being removed)
     const { error: deleteError } = await supabase
       .from("tasks")
@@ -782,6 +791,21 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       setTasks(previousTasks);
       setCachedTasks(previousTasks);
       fetchTasks();
+    } else {
+      // Fire-and-forget: clean up GCal events
+      for (const t of gcalTasks) {
+        fetch("/api/gcal/sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "delete",
+            taskId: t.id,
+            googleEventId: t.google_event_id,
+          }),
+        }).catch((err) => {
+          console.warn("GCal sync (delete) failed for task", t.id, err);
+        });
+      }
     }
   }
 
@@ -812,6 +836,9 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       return updated;
     });
 
+    // Collect GCal event IDs before deletion
+    const gcalTasks = matchingTasks.filter((t) => t.google_event_id);
+
     // Hard-delete from Supabase
     const { error: deleteError } = await supabase
       .from("tasks")
@@ -825,6 +852,21 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       setCachedTasks(previousTasks);
       fetchTasks();
       return 0;
+    }
+
+    // Fire-and-forget: clean up GCal events
+    for (const t of gcalTasks) {
+      fetch("/api/gcal/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "delete",
+          taskId: t.id,
+          googleEventId: t.google_event_id,
+        }),
+      }).catch((err) => {
+        console.warn("GCal sync (delete) failed for task", t.id, err);
+      });
     }
 
     return count;
@@ -924,6 +966,10 @@ export function TaskProvider({ children }: { children: ReactNode }) {
 
     trackEvent("all_tasks_deleted");
     const previousTasks = [...tasks];
+
+    // Collect GCal event IDs before clearing state
+    const gcalTasks = previousTasks.filter((t) => t.google_event_id);
+
     setTasks([]);
     clearCachedTasks();
     taskBaselineRef.current = [];
@@ -948,6 +994,21 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       setTasks(previousTasks);
       setCachedTasks(previousTasks);
       fetchTasks();
+    } else {
+      // Fire-and-forget: clean up GCal events for deleted tasks
+      for (const t of gcalTasks) {
+        fetch("/api/gcal/sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "delete",
+            taskId: t.id,
+            googleEventId: t.google_event_id,
+          }),
+        }).catch((err) => {
+          console.warn("GCal sync (delete) failed for task", t.id, err);
+        });
+      }
     }
   }
 

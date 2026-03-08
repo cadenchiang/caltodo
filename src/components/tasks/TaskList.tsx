@@ -240,6 +240,8 @@ export default function TaskList({
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
   const dragEnabled = sortMode === "date" && !!onReorder;
+  /** Pending requestAnimationFrame ID for throttled drag-over updates. */
+  const dragRafRef = useRef<number | null>(null);
 
   /** Toggles a course group's collapsed state. */
   const toggleGroup = useCallback((groupName: string) => {
@@ -367,13 +369,20 @@ export default function TaskList({
     e.dataTransfer.setData("text/plain", taskId);
   }, []);
 
-  /** Handles drag over a task row: determines drop position (above or below). */
+  /** Handles drag over a task row: determines drop position (above or below). Throttled with RAF. */
   const handleDragOver = useCallback((e: React.DragEvent, index: number) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
+    const clientY = e.clientY;
     const rect = e.currentTarget.getBoundingClientRect();
-    const midY = rect.top + rect.height / 2;
-    setDropTargetIndex(e.clientY < midY ? index : index + 1);
+    if (dragRafRef.current !== null) {
+      cancelAnimationFrame(dragRafRef.current);
+    }
+    dragRafRef.current = requestAnimationFrame(() => {
+      dragRafRef.current = null;
+      const midY = rect.top + rect.height / 2;
+      setDropTargetIndex(clientY < midY ? index : index + 1);
+    });
   }, []);
 
   /** Handles drop: reorders the active task list and calls onReorder. */

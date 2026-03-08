@@ -3,6 +3,8 @@
  * Centralizes admin email check for API routes and server components.
  */
 
+import { logger } from "@/lib/logger";
+
 /**
  * The email address of the application administrator.
  * Used by isAdmin() to gate access to /app/admin and /api/admin/* routes.
@@ -11,6 +13,7 @@ export const ADMIN_EMAIL = "cadenchiang@berkeley.edu";
 
 /**
  * Checks whether a given email belongs to the admin user.
+ * Logs admin access for audit traceability.
  *
  * @param email - The email address to check (from supabase auth user)
  * @returns true if the email matches ADMIN_EMAIL, false otherwise
@@ -23,5 +26,9 @@ export const ADMIN_EMAIL = "cadenchiang@berkeley.edu";
  */
 export function isAdmin(email: string | undefined | null): boolean {
   if (!email) return false;
-  return email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+  const result = email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+  if (result) {
+    logger.info("Admin access granted", { email });
+  }
+  return result;
 }

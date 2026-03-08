@@ -61,7 +61,7 @@ export function decrypt(encryptedStr: string): string {
   const key = getKey();
   const parts = encryptedStr.split(":");
   if (parts.length !== 3) {
-    throw new Error("Invalid encrypted string format: expected iv:authTag:ciphertext");
+    throw new Error("Failed to decrypt credentials. Please re-authenticate.");
   }
 
   const iv = Buffer.from(parts[0], "base64");

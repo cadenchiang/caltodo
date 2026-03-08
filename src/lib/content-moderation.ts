@@ -89,6 +89,9 @@ const BLOCKED_PATTERNS: RegExp[] = BLOCKED_WORDS.map(buildPattern);
  */
 export function normalizeText(text: string): string {
   let normalized = text.toLowerCase();
+  // Decompose Unicode to strip combining characters (accent marks, diacritics)
+  // that can bypass word filters (e.g. n̄igger → nigger)
+  normalized = normalized.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   // Strip zero-width characters (U+200B, U+200C, U+200D, U+FEFF)
   normalized = normalized.replace(/[\u200B\u200C\u200D\uFEFF]/g, "");
   return normalized;

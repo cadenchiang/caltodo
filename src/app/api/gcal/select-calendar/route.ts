@@ -51,6 +51,30 @@ export async function POST(request: Request) {
 
   let newCalendarId = body.calendarId;
 
+  // Verify user has access to the requested calendar (skip for create_new)
+  if (newCalendarId !== "create_new") {
+    try {
+      const calRes = await fetch(
+        `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(newCalendarId)}`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      );
+      if (!calRes.ok) {
+        logger.warn("POST /api/gcal/select-calendar: user lacks access to calendar", {
+          userId: user.id,
+          calendarId: newCalendarId,
+          status: calRes.status,
+        });
+        return NextResponse.json({ error: "You don't have access to this calendar" }, { status: 403 });
+      }
+    } catch (err) {
+      logger.error("POST /api/gcal/select-calendar: failed to verify calendar access", {
+        userId: user.id,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return NextResponse.json({ error: "Failed to verify calendar access" }, { status: 500 });
+    }
+  }
+
   // Handle "create_new" — create a dedicated caltodo calendar
   if (newCalendarId === "create_new") {
     const created = await createCaltodoCalendar(accessToken);

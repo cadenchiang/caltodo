@@ -90,6 +90,8 @@ export function readPersistedLayout(): PersistedLayout | null {
           return { ...item, x: Math.max(0, clampedX), w: newW };
         });
       }
+      // Write migrated layout back to localStorage so migration only runs once
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed)); } catch { /* non-critical */ }
     }
 
     if (parsed.version !== SCHEMA_VERSION) return null;

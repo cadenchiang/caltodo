@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { Loader2 } from "lucide-react";
 
@@ -39,6 +40,16 @@ export default function ClassChangeConfirmDialog({
   onConfirm,
   onCancel,
 }: ClassChangeConfirmDialogProps) {
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        onCancel();
+      }
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [onCancel]);
+
   const hasAdded = addedNames.length > 0;
   const hasRemoved = removedNames.length > 0;
 

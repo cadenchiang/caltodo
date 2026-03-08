@@ -65,16 +65,28 @@ export default function ProfilePopup({ avatarUrl, fullName, email }: ProfilePopu
     return "?";
   }
 
+  const [signingOut, setSigningOut] = useState(false);
+
   async function handleSignOutClick() {
     if (!confirmSignOut) {
       setConfirmSignOut(true);
       return;
     }
     // Second click confirms
-    setOpen(false);
-    setConfirmSignOut(false);
-    await fetch("/auth/signout", { method: "POST" });
-    router.push("/");
+    setSigningOut(true);
+    try {
+      const res = await fetch("/auth/signout", { method: "POST" });
+      if (!res.ok) {
+        throw new Error(`Sign out failed (${res.status})`);
+      }
+      setOpen(false);
+      setConfirmSignOut(false);
+      router.push("/");
+    } catch {
+      setSigningOut(false);
+      setConfirmSignOut(false);
+      alert("Failed to sign out. Please try again.");
+    }
   }
 
   return (
@@ -168,14 +180,15 @@ export default function ProfilePopup({ avatarUrl, fullName, email }: ProfilePopu
             </button>
             <button
               onClick={handleSignOutClick}
-              className={`flex items-center gap-3 w-full px-4 py-3 text-sm rounded-b-xl transition-colors ${
+              disabled={signingOut}
+              className={`flex items-center gap-3 w-full px-4 py-3 text-sm rounded-b-xl transition-colors disabled:opacity-60 ${
                 confirmSignOut
                   ? "text-red-500 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/50"
                   : "text-secondary-foreground hover:bg-accent"
               }`}
             >
               <LogOut size={16} />
-              {confirmSignOut ? "Click again to confirm" : "Sign Out"}
+              {signingOut ? "Signing out..." : confirmSignOut ? "Click again to confirm" : "Sign Out"}
             </button>
           </div>
         </div>

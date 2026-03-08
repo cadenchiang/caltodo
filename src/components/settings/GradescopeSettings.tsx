@@ -95,7 +95,7 @@ export default function GradescopeSettings({ credentials, onUpdate }: Gradescope
                 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30
                 hover:text-red-500 hover:border-red-300 hover:bg-red-50 dark:hover:text-red-400 dark:hover:border-red-500/30 dark:hover:bg-red-500/10"
             >
-              <span className="group-hover:hidden">{disconnecting ? "..." : "Connected"}</span>
+              <span className="group-hover:hidden">{disconnecting ? "Disconnecting..." : "Connected"}</span>
               <span className="hidden group-hover:inline">Disconnect</span>
             </button>
           )

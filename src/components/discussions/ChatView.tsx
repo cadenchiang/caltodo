@@ -528,6 +528,7 @@ export default function ChatView({
               <div
                 key={msg.id}
                 id={`msg-${msg.id}`}
+                role="status"
                 className="flex justify-center py-2"
                 style={{ contentVisibility: "auto", containIntrinsicSize: "auto 32px" }}
               >

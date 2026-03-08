@@ -164,7 +164,7 @@ export function useCourseChat(courseId: string, options?: { isSystemCourse?: boo
       }
 
       const ext = processedFile.name.split(".").pop() ?? "bin";
-      const path = `${courseId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const path = `${courseId}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
       const { error: uploadError } = await supabase.storage
         .from("chat-attachments")
         .upload(path, processedFile, { cacheControl: "3600", upsert: false });

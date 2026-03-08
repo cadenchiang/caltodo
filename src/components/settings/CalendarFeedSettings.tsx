@@ -240,6 +240,7 @@ export default function CalendarFeedSettings() {
                 onClick={handleCopy}
                 className="shrink-0 px-3 py-2 rounded-xl border border-input-border text-sm text-secondary-foreground hover:bg-accent transition-colors flex items-center gap-1.5"
                 title="Copy URL"
+                aria-label="Copy calendar URL"
               >
                 {copied ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
                 {copied ? "Copied" : "Copy"}

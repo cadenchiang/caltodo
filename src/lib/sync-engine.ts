@@ -13,6 +13,7 @@ import { logger } from "@/lib/logger";
 import { isAllowedCanvasUrl } from "@/lib/canvas-url-validation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { syncCourseEnrollments, gatherEnrollableCourses } from "@/lib/course-enrollment";
+import { buildCourseNameMap, getCanonicalName } from "@/lib/course-name-merge";
 import type { SyncResult, SyncSourceResult, AdditionalCanvasAccount } from "@/lib/types";
 
 const UPSERT_BATCH_SIZE = 50;
@@ -111,17 +112,22 @@ export async function runSync(
     credentials.selected_gradescope_courses = courseOverrides.gradescope_courses;
   }
 
+  // Build cross-platform course name map so duplicate courses (e.g. "UGBA 101A"
+  // on both Canvas and Gradescope) get the same canonical course_name on tasks.
+  const enrollable = gatherEnrollableCourses(credentials);
+  const courseNameMap = buildCourseNameMap(enrollable);
+
   // Run syncs independently — only for requested platforms (default: all)
   const syncAll = !platforms || platforms.length === 0;
   const [canvasResult, gradescopeResult, pensieveResult] = await Promise.all([
     syncAll || platforms!.includes("canvas")
-      ? syncCanvas(supabase, userId, credentials, timezone)
+      ? syncCanvas(supabase, userId, credentials, timezone, courseNameMap)
       : { synced: 0, errors: [] } as SyncSourceResult,
     syncAll || platforms!.includes("gradescope")
-      ? syncGradescope(supabase, userId, credentials, timezone, forceGradescope)
+      ? syncGradescope(supabase, userId, credentials, timezone, forceGradescope, courseNameMap)
       : { synced: 0, errors: [] } as SyncSourceResult,
     syncAll || platforms!.includes("pensieve")
-      ? syncPensieve(supabase, userId, credentials, timezone)
+      ? syncPensieve(supabase, userId, credentials, timezone, courseNameMap)
       : { synced: 0, errors: [] } as SyncSourceResult,
   ]);
 
@@ -129,7 +135,7 @@ export async function runSync(
   if (syncAll || platforms?.includes("canvas")) {
     const additionalAccounts = credentials.additional_canvas_accounts ?? [];
     for (const account of additionalAccounts) {
-      const result = await syncAdditionalCanvas(supabase, userId, account, timezone);
+      const result = await syncAdditionalCanvas(supabase, userId, account, timezone, courseNameMap);
       canvasResult.synced += result.synced;
       canvasResult.errors.push(...result.errors);
     }
@@ -156,8 +162,13 @@ export async function runSync(
   // Uses (source, external_id) as dedup key so name changes don't split boards.
   try {
     const adminClient = createAdminClient();
-    const enrollable = gatherEnrollableCourses(credentials);
-    await syncCourseEnrollments(adminClient, userId, enrollable);
+    // Apply canonical names to enrollable courses so cross-platform duplicates
+    // share the same display name in the courses table.
+    const mergedEnrollable = enrollable.map((c) => ({
+      ...c,
+      name: getCanonicalName(c.name, courseNameMap),
+    }));
+    await syncCourseEnrollments(adminClient, userId, mergedEnrollable);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     logger.error("runSync: course enrollment failed (non-blocking)", {
@@ -182,7 +193,8 @@ async function syncCanvas(
   supabase: SupabaseClient,
   userId: string,
   creds: CredentialsRow,
-  timezone: string
+  timezone: string,
+  courseNameMap: Map<string, string> = new Map()
 ): Promise<SyncSourceResult> {
   if (!creds.canvas_token) {
     return { synced: 0, errors: [] };
@@ -201,7 +213,12 @@ async function syncCanvas(
     const assignments = selectedCourses && selectedCourses.length > 0
       ? await fetchCanvasAssignmentsForCourses(creds.canvas_token, creds.canvas_base_url, selectedCourses)
       : await fetchAllCanvasAssignments(creds.canvas_token, creds.canvas_base_url);
-    const synced = await upsertAssignments(supabase, userId, "canvas", assignments, timezone);
+    // Apply canonical course names so cross-platform duplicates merge
+    const merged = assignments.map((a) => ({
+      ...a,
+      course_name: getCanonicalName(a.course_name, courseNameMap),
+    }));
+    const synced = await upsertAssignments(supabase, userId, "canvas", merged, timezone);
     return { synced, errors: [] };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -225,7 +242,8 @@ async function syncAdditionalCanvas(
   supabase: SupabaseClient,
   userId: string,
   account: AdditionalCanvasAccount,
-  timezone: string
+  timezone: string,
+  courseNameMap: Map<string, string> = new Map()
 ): Promise<SyncSourceResult> {
   if (!account.token) {
     return { synced: 0, errors: [] };
@@ -256,9 +274,11 @@ async function syncAdditionalCanvas(
       : await fetchAllCanvasAssignments(account.token, account.base_url);
 
     // Namespace external_id to prevent collisions with primary bCourses
+    // and apply canonical course names for cross-platform merging
     const namespacedAssignments = assignments.map((a) => ({
       ...a,
       external_id: `${account.id}:${a.external_id}`,
+      course_name: getCanonicalName(a.course_name, courseNameMap),
     }));
 
     const synced = await upsertAssignments(supabase, userId, "canvas", namespacedAssignments, timezone);
@@ -294,7 +314,8 @@ async function syncGradescope(
   userId: string,
   creds: CredentialsRow,
   timezone: string,
-  force: boolean = false
+  force: boolean = false,
+  courseNameMap: Map<string, string> = new Map()
 ): Promise<SyncSourceResult> {
   if (!creds.gradescope_email || !creds.gradescope_password_encrypted) {
     return { synced: 0, errors: [] };
@@ -314,7 +335,7 @@ async function syncGradescope(
     if (elapsed < GRADESCOPE_SYNC_COOLDOWN_MS) {
       const minutesLeft = Math.ceil((GRADESCOPE_SYNC_COOLDOWN_MS - elapsed) / 60_000);
       logger.info("syncGradescope skipped: cooldown active", { userId, minutesLeft });
-      return { synced: 0, errors: [] };
+      return { synced: 0, errors: [`Gradescope sync on cooldown. Next sync available in ${minutesLeft} minute${minutesLeft === 1 ? "" : "s"}.`] };
     }
   }
 
@@ -332,12 +353,17 @@ async function syncGradescope(
     const assignments = selectedCourses && selectedCourses.length > 0
       ? await fetchGradescopeAssignmentsForCourses(creds.gradescope_email, password, selectedCourses)
       : await fetchAllGradescopeAssignments(creds.gradescope_email, password);
-    const synced = await upsertAssignments(supabase, userId, "gradescope", assignments, timezone);
+    // Apply canonical course names for cross-platform merging
+    const merged = assignments.map((a) => ({
+      ...a,
+      course_name: getCanonicalName(a.course_name, courseNameMap),
+    }));
+    const synced = await upsertAssignments(supabase, userId, "gradescope", merged, timezone);
 
-    // Update last Gradescope sync timestamp on success
+    // Update last Gradescope sync timestamp on success and clear auth failure flag
     await supabase
       .from("integration_credentials")
-      .update({ last_gradescope_synced_at: new Date().toISOString() })
+      .update({ last_gradescope_synced_at: new Date().toISOString(), gradescope_auth_failed: false })
       .eq("user_id", userId);
 
     return { synced, errors: [] };
@@ -372,7 +398,8 @@ async function syncPensieve(
   supabase: SupabaseClient,
   userId: string,
   creds: CredentialsRow,
-  timezone: string
+  timezone: string,
+  courseNameMap: Map<string, string> = new Map()
 ): Promise<SyncSourceResult> {
   if (!creds.pensieve_calendar_url) {
     logger.info("syncPensieve skipped: no calendar URL configured", { userId });
@@ -401,7 +428,12 @@ async function syncPensieve(
       });
     }
 
-    const synced = await upsertAssignments(supabase, userId, "pensieve", assignments, timezone);
+    // Apply canonical course names for cross-platform merging
+    const merged = assignments.map((a) => ({
+      ...a,
+      course_name: getCanonicalName(a.course_name, courseNameMap),
+    }));
+    const synced = await upsertAssignments(supabase, userId, "pensieve", merged, timezone);
     logger.info("syncPensieve: upserted", { userId, synced });
     return { synced, errors: [] };
   } catch (err) {
@@ -485,12 +517,12 @@ async function upsertAssignments(
       user_id: userId,
       source,
       external_id: a.external_id,
-      course_name: a.course_name,
-      title: a.title,
+      course_name: (a.course_name || "Unknown Course").slice(0, 200),
+      title: (a.title || "Untitled").slice(0, 255),
       due_date: toLocalDateString(a.due_date, timezone),
       due_time: toLocalTimeString(a.due_date, timezone),
       source_url: a.source_url,
-      points_possible: a.points_possible,
+      points_possible: a.points_possible != null && a.points_possible >= 0 ? a.points_possible : null,
       is_submitted: a.is_submitted ?? false,
       color,
       late_due_date: a.late_due_date ? toLocalDateString(a.late_due_date, timezone) : null,

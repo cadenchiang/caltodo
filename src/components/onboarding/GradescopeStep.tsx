@@ -70,6 +70,8 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
   const [showWhy, setShowWhy] = useState(false);
   const [videoTime, setVideoTime] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
+  /** Tracks the timestamp of the last verification attempt for rate limiting. */
+  const lastVerifyRef = useRef<number>(0);
 
   /** Ref tracking latest state for unmount draft reporting. */
   const draftRef = useRef({ email, password, courses, selectedIds: Array.from(selectedIds) });
@@ -116,6 +118,13 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
       return;
     }
 
+    // Client-side rate limit: 2-second cooldown between attempts
+    const now = Date.now();
+    if (now - lastVerifyRef.current < 2000) {
+      return;
+    }
+    lastVerifyRef.current = now;
+
     setVerifying(true);
     setError(null);
 
@@ -126,6 +135,12 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
         body: JSON.stringify({ email: email.trim(), password: password.trim() }),
       });
       if (!res.ok) {
+        if (res.status === 401) {
+          throw new Error("Invalid email or password.");
+        }
+        if (res.status >= 500 && res.status < 600) {
+          throw new Error("Server error. Please try again later.");
+        }
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error || `Verification failed: ${res.status}`);
       }
@@ -134,7 +149,11 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
       setCourses(fetchedCourses);
       setSelectedIds(new Set());
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      if (err instanceof TypeError) {
+        setError("Network error. Check your connection.");
+      } else {
+        setError(err instanceof Error ? err.message : String(err));
+      }
     } finally {
       setVerifying(false);
     }

@@ -40,6 +40,8 @@ interface ChatInputProps {
 /** Max file size: 10 MB */
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf"];
+/** Max number of attachments per message. */
+const MAX_ATTACHMENTS = 10;
 
 export default function ChatInput({ onSend, disabled, error, onTyping }: ChatInputProps) {
   const [value, setValue] = useState("");
@@ -109,7 +111,12 @@ export default function ChatInput({ onSend, disabled, error, onTyping }: ChatInp
     setFileError(null);
 
     const newAttachments: PendingAttachment[] = [];
-    for (const file of Array.from(files)) {
+    const remaining = MAX_ATTACHMENTS - attachments.length;
+    const selectedFiles = Array.from(files).slice(0, remaining);
+    if (Array.from(files).length > remaining) {
+      setFileError(`Maximum ${MAX_ATTACHMENTS} attachments per message`);
+    }
+    for (const file of selectedFiles) {
       if (file.size > MAX_FILE_SIZE) {
         setFileError(`${file.name} exceeds 10 MB limit`);
         continue;
@@ -131,7 +138,12 @@ export default function ChatInput({ onSend, disabled, error, onTyping }: ChatInp
             )
           );
         }).catch(() => {
-          // Fail-open: classification error does not block attachment
+          // Fail-closed: classification error marks image as sensitive
+          setAttachments((prev) =>
+            prev.map((att) =>
+              att.file === file ? { ...att, isSensitive: true } : att
+            )
+          );
         });
       }
     }
@@ -316,6 +328,7 @@ export default function ChatInput({ onSend, disabled, error, onTyping }: ChatInp
             onChange={handleChange}
             onKeyDown={handleKeyDown}
             placeholder="Message"
+            aria-label="Type a message"
             rows={1}
             className="flex-1 bg-transparent text-[15px] text-foreground placeholder:text-gray-400 dark:placeholder:text-zinc-500 resize-none outline-none min-h-[24px] max-h-[120px] leading-[24px] py-0"
           />

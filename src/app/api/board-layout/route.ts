@@ -26,7 +26,7 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { allowed } = rateLimit(`board-layout:${user.id}`, 30, 60_000);
+  const { allowed } = rateLimit(`board-layout:get:${user.id}`, 30, 60_000);
   if (!allowed) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
@@ -77,7 +77,7 @@ async function upsertLayout(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { allowed } = rateLimit(`board-layout:${user.id}`, 30, 60_000);
+  const { allowed } = rateLimit(`board-layout:put:${user.id}`, 30, 60_000);
   if (!allowed) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }

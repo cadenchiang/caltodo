@@ -22,6 +22,18 @@ import {
 
 const GRADESCOPE_BASE = "https://www.gradescope.com";
 
+/**
+ * Strips HTML tags, trims whitespace, and caps length for extracted text.
+ * Prevents injection via course/assignment names scraped from Gradescope HTML.
+ *
+ * @param raw - Raw text extracted from HTML elements
+ * @param maxLength - Maximum character length (default 200)
+ * @returns Sanitized text
+ */
+function sanitizeExtractedText(raw: string, maxLength = 200): string {
+  return raw.replace(/<[^>]*>/g, "").trim().slice(0, maxLength);
+}
+
 /** Timeout in milliseconds for external Gradescope HTTP calls. */
 const FETCH_TIMEOUT_MS = 30_000;
 
@@ -116,6 +128,9 @@ export async function fetchGradescopeCourses(
   }
 
   const html = await dashboardRes.text();
+  if (html.length > 10_000_000) {
+    throw new Error("Gradescope dashboard HTML response too large (>10MB)");
+  }
   const $ = cheerio.load(html);
   const courses: GradescopeCourse[] = [];
   const seen = new Set<string>();
@@ -144,8 +159,8 @@ export async function fetchGradescopeCourses(
       if (seen.has(id)) return;
       seen.add(id);
 
-      const shortName = $(el).find(".courseBox--shortname").text().trim();
-      const name = $(el).find(".courseBox--name").text().trim() || $(el).text().trim();
+      const shortName = sanitizeExtractedText($(el).find(".courseBox--shortname").text());
+      const name = sanitizeExtractedText($(el).find(".courseBox--name").text() || $(el).text());
       courses.push({ id, name: name || shortName || `Course ${id}`, shortName });
     });
   } else {
@@ -158,8 +173,8 @@ export async function fetchGradescopeCourses(
       if (seen.has(id)) return;
       seen.add(id);
 
-      const shortName = $(el).find(".courseBox--shortname").text().trim();
-      const name = $(el).find(".courseBox--name").text().trim() || $(el).text().trim();
+      const shortName = sanitizeExtractedText($(el).find(".courseBox--shortname").text());
+      const name = sanitizeExtractedText($(el).find(".courseBox--name").text() || $(el).text());
       courses.push({ id, name: name || shortName || `Course ${id}`, shortName });
     });
   }
@@ -196,6 +211,9 @@ export async function fetchGradescopeAssignments(
   }
 
   const html = await pageRes.text();
+  if (html.length > 10_000_000) {
+    throw new Error(`Gradescope course page ${courseId} HTML response too large (>10MB)`);
+  }
 
   // Strategy 1: React props JSON (instructor/TA view — structured, reliable)
   const reactResults = parseAssignmentsFromReactProps(html, courseId, courseName);

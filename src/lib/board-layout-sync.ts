@@ -133,14 +133,16 @@ function flushPendingSync(): void {
     debounceTimer = null;
   }
 
-  // sendBeacon is reliable during page unload; fetch may be cancelled by the browser
-  if (typeof navigator !== "undefined" && navigator.sendBeacon) {
-    const blob = new Blob([JSON.stringify(data)], { type: "application/json" });
-    navigator.sendBeacon("/api/board-layout", blob);
-  } else {
-    // Fallback: fire-and-forget fetch (may not complete on unload)
-    saveServerLayout(data);
-  }
+  // Use fetch with keepalive for reliable delivery during page unload.
+  // sendBeacon Blob Content-Type may be stripped by some browsers; fetch preserves headers.
+  fetch("/api/board-layout", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+    keepalive: true,
+  }).catch(() => {
+    // Best-effort on tab close — nothing to retry
+  });
 }
 
 /** Register flush listeners once (module-level singleton). */

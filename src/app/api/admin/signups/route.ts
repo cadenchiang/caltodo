@@ -11,6 +11,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isAdmin } from "@/lib/admin";
 import { logger } from "@/lib/logger";
+import { rateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -169,6 +170,11 @@ export async function GET(request: NextRequest) {
         userId: user.id,
       });
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const { allowed } = rateLimit(`admin-signups:${user.id}`, 5, 60_000);
+    if (!allowed) {
+      return NextResponse.json({ error: "Too many requests" }, { status: 429 });
     }
 
     const adminClient = createAdminClient();

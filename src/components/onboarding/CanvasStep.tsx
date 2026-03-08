@@ -129,16 +129,39 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
       return;
     }
 
+    // Client-side URL validation
+    const trimmedUrl = canvasBaseUrl.trim();
+    if (!trimmedUrl.startsWith("https://")) {
+      setError("Canvas URL must start with https://");
+      return;
+    }
+    try {
+      const parsed = new URL(trimmedUrl);
+      if (!parsed.hostname || !parsed.hostname.includes(".")) {
+        setError("Canvas URL must have a valid hostname.");
+        return;
+      }
+    } catch {
+      setError("Canvas URL is not a valid URL.");
+      return;
+    }
+
     setVerifying(true);
     setError(null);
 
     try {
       const params = new URLSearchParams({
         token: canvasToken.trim(),
-        base_url: canvasBaseUrl.trim(),
+        base_url: trimmedUrl,
       });
       const res = await fetch(`/api/canvas/courses?${params}`);
       if (!res.ok) {
+        if (res.status === 401) {
+          throw new Error("Invalid access token.");
+        }
+        if (res.status >= 500 && res.status < 600) {
+          throw new Error("Server error. Please try again later.");
+        }
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error || `Verification failed: ${res.status}`);
       }
@@ -147,7 +170,11 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
       setCourses(fetchedCourses);
       setSelectedIds(new Set());
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      if (err instanceof TypeError) {
+        setError("Network error. Check your connection.");
+      } else {
+        setError(err instanceof Error ? err.message : String(err));
+      }
     } finally {
       setVerifying(false);
     }

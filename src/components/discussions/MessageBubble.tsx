@@ -364,6 +364,7 @@ export default function MessageBubble({
                             onToggleReaction?.(emoji);
                             setShowReactPicker(false);
                           }}
+                          aria-label={`React with ${emoji}`}
                           className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors cursor-pointer text-base ${
                             isActive
                               ? "bg-blue-100 dark:bg-blue-900/30 ring-1 ring-blue-300 dark:ring-blue-700"

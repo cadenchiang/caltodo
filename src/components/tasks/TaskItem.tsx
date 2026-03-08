@@ -57,6 +57,7 @@ export default function TaskItem({ task, isSelected, onToggle, onSelect, onDelet
   const [menuOpen, setMenuOpen] = useState(false);
   const [snoozeOpen, setSnoozeOpen] = useState(false);
   const [customHours, setCustomHours] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const menuBtnRef = useRef<HTMLButtonElement>(null);
   const isOptimistic = task.id.startsWith("temp-");
@@ -86,7 +87,12 @@ export default function TaskItem({ task, isSelected, onToggle, onSelect, onDelet
   }
 
   function handleDelete() {
+    if (!confirmDelete) {
+      setConfirmDelete(true);
+      return;
+    }
     setMenuOpen(false);
+    setConfirmDelete(false);
     onDelete(task.id);
   }
 
@@ -230,9 +236,10 @@ export default function TaskItem({ task, isSelected, onToggle, onSelect, onDelet
             <button
               onClick={handleDelete}
               className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
+              aria-label={confirmDelete ? "Confirm delete task" : "Delete task"}
             >
               <Trash2 size={14} />
-              Delete task
+              {confirmDelete ? "Click to confirm" : "Delete task"}
             </button>
           </div>
         </>,

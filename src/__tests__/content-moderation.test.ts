@@ -16,6 +16,13 @@ describe("normalizeText", () => {
     expect(normalizeText("he\u200Bllo")).toBe("hello");
     expect(normalizeText("he\uFEFFllo")).toBe("hello");
   });
+
+  it("should strip combining diacritical marks via NFD normalization", () => {
+    // n̄ (n + combining macron) → n
+    expect(normalizeText("n\u0304igger")).toBe("nigger");
+    // ñ (precomposed) → n after NFD decomposition
+    expect(normalizeText("ñigger")).toBe("nigger");
+  });
 });
 
 describe("containsBlockedContent", () => {
@@ -103,5 +110,22 @@ describe("containsBlockedContent", () => {
   it("should allow empty and whitespace-only input", () => {
     expect(containsBlockedContent("")).toBe(false);
     expect(containsBlockedContent("   ")).toBe(false);
+  });
+
+  it("should block Unicode combining character bypass attempts", () => {
+    // n with combining macron: n̄igger
+    expect(containsBlockedContent("n\u0304igger")).toBe(true);
+    // precomposed ñ decomposes to n + combining tilde
+    expect(containsBlockedContent("ñigger")).toBe(true);
+  });
+
+  it("should handle very long input without crashing", () => {
+    const longText = "a".repeat(100_000);
+    expect(containsBlockedContent(longText)).toBe(false);
+  });
+
+  it("should handle special characters without false positives", () => {
+    expect(containsBlockedContent("@#$%^&*()")).toBe(false);
+    expect(containsBlockedContent("🔥🎉💯")).toBe(false);
   });
 });

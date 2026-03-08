@@ -152,11 +152,38 @@ export async function PUT(request: Request) {
     updateData.selected_pensieve_courses = body.selected_pensieve_courses;
   }
   if (body.pensieve_calendar_url !== undefined) {
+    if (body.pensieve_calendar_url) {
+      // Validate Pensieve URL against SSRF: must be HTTPS, not internal
+      try {
+        const pUrl = new URL(body.pensieve_calendar_url);
+        if (pUrl.protocol !== "https:") {
+          return NextResponse.json({ error: "Pensieve calendar URL must use HTTPS" }, { status: 400 });
+        }
+        const hostname = pUrl.hostname.toLowerCase();
+        if (
+          hostname === "localhost" ||
+          hostname.startsWith("127.") ||
+          hostname.startsWith("10.") ||
+          hostname.startsWith("192.168.") ||
+          /^172\.(1[6-9]|2\d|3[01])\./.test(hostname) ||
+          hostname === "0.0.0.0" ||
+          hostname === "[::1]"
+        ) {
+          logger.warn("PUT /api/credentials: rejected internal Pensieve URL", { userId: user.id, url: body.pensieve_calendar_url });
+          return NextResponse.json({ error: "Internal URLs are not allowed" }, { status: 400 });
+        }
+      } catch {
+        return NextResponse.json({ error: "Invalid Pensieve calendar URL" }, { status: 400 });
+      }
+    }
     updateData.pensieve_calendar_url = body.pensieve_calendar_url;
   }
   if (body.additional_canvas_accounts !== undefined) {
     // Validate each additional Canvas account URL against allowlist
     const accounts = body.additional_canvas_accounts as AdditionalCanvasAccount[] | null;
+    if (accounts && accounts.length > 10) {
+      return NextResponse.json({ error: "Maximum 10 additional Canvas accounts allowed" }, { status: 400 });
+    }
     if (accounts && accounts.length > 0) {
       for (const account of accounts) {
         if (account.base_url && !isAllowedCanvasUrl(account.base_url)) {
@@ -192,11 +219,11 @@ export async function PUT(request: Request) {
     .single();
 
   if (!existing) {
-    // New user — check if we're still under 1,000 total users
+    // New user — check if we're still under 500 total users (founding member spots)
     const admin = createAdminClient();
     const { data: authData } = await admin.auth.admin.listUsers({ perPage: 1, page: 1 });
     const totalUsers = (authData && "total" in authData ? authData.total : authData?.users.length) ?? 0;
-    updateData.is_founding_member = totalUsers <= 1000;
+    updateData.is_founding_member = totalUsers <= 500;
   }
 
   const { error } = await supabase
