@@ -43,6 +43,92 @@ function formatTime(totalSeconds: number): string {
 
 const TOTAL_SESSIONS = 4;
 
+/**
+ * Plays a mechanical clock tick sound using noise burst + resonant filter.
+ * Mimics the sharp "tick" of a wind-up clock mechanism.
+ */
+function playClickSound() {
+  try {
+    const ctx = new AudioContext();
+    const t = ctx.currentTime;
+
+    // Short noise burst for the mechanical "click"
+    const bufferSize = Math.floor(ctx.sampleRate * 0.015);
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
+    }
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+
+    // Bandpass filter to give it a woody, clock-like resonance
+    const filter = ctx.createBiquadFilter();
+    filter.type = "bandpass";
+    filter.frequency.value = 3200;
+    filter.Q.value = 5;
+
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.6, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.03);
+
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+    noise.start(t);
+    noise.stop(t + 0.03);
+  } catch { /* Web Audio not supported */ }
+}
+
+/**
+ * Plays a classic mechanical alarm bell sound.
+ * Rapid alternating strikes like a wind-up alarm clock ringing.
+ */
+function playRingSound() {
+  try {
+    const ctx = new AudioContext();
+    const t = ctx.currentTime;
+    const strikes = 8;
+    const interval = 0.12;
+
+    for (let i = 0; i < strikes; i++) {
+      const offset = t + i * interval;
+      // Alternate between two slightly different pitches like a twin-bell alarm
+      const freq = i % 2 === 0 ? 2200 : 2600;
+
+      // Bell tone
+      const osc = ctx.createOscillator();
+      osc.type = "square";
+      osc.frequency.value = freq;
+
+      // Metallic overtone
+      const osc2 = ctx.createOscillator();
+      osc2.type = "sine";
+      osc2.frequency.value = freq * 2.76;
+
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0, offset);
+      gain.gain.linearRampToValueAtTime(0.25, offset + 0.005);
+      gain.gain.exponentialRampToValueAtTime(0.001, offset + 0.09);
+
+      const gain2 = ctx.createGain();
+      gain2.gain.setValueAtTime(0, offset);
+      gain2.gain.linearRampToValueAtTime(0.08, offset + 0.005);
+      gain2.gain.exponentialRampToValueAtTime(0.001, offset + 0.07);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc2.connect(gain2);
+      gain2.connect(ctx.destination);
+
+      osc.start(offset);
+      osc.stop(offset + 0.1);
+      osc2.start(offset);
+      osc2.stop(offset + 0.1);
+    }
+  } catch { /* Web Audio not supported */ }
+}
+
 export default function PomodoroWidget({
   config,
   onUpdateConfig,
@@ -99,8 +185,8 @@ export default function PomodoroWidget({
       const remaining = Math.max(0, startSecondsRef.current - elapsed);
 
       if (remaining <= 0) {
-        // Phase complete — auto-transition to next phase (industry standard)
-        // Notify user
+        // Phase complete — play alarm and notify user
+        playRingSound();
         try {
           if (Notification.permission === "granted") {
             new Notification(phase === "work" ? "Break time!" : "Back to focus!", {
@@ -129,11 +215,14 @@ export default function PomodoroWidget({
     return clearTimer;
   }, [running, phase, workMinutes, breakMinutes, clearTimer]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /** Toggle play/pause. Requests notification permission on first start. */
+  /** Toggle play/pause. Plays click sound on start. Requests notification permission on first start. */
   function handlePlayPause() {
     if (editMode) return;
-    if (!running && typeof Notification !== "undefined" && Notification.permission === "default") {
-      Notification.requestPermission();
+    if (!running) {
+      playClickSound();
+      if (typeof Notification !== "undefined" && Notification.permission === "default") {
+        Notification.requestPermission();
+      }
     }
     setRunning((r) => !r);
   }
