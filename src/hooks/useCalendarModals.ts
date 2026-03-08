@@ -5,6 +5,7 @@
  */
 
 import { useState, useCallback } from "react";
+import { format } from "date-fns";
 import type { Task } from "@/lib/types";
 
 /** Whether creating a task or a GCal event. */
@@ -30,6 +31,16 @@ export function useCalendarModals() {
     setAddingDate(null);
     setPreviewTask(task);
     setPreviewRect(rect);
+  }
+
+  /** Opens task create modal for today (used by header "+" button). */
+  function handleAddClick() {
+    setPreviewTask(null);
+    setPreviewRect(null);
+    setAddingDate(format(new Date(), "yyyy-MM-dd"));
+    setAddingTime(null);
+    setAddingEndTime(null);
+    setCreateType("task");
   }
 
   /** Double-click on all-day section or month cell — opens task create. */
@@ -97,6 +108,7 @@ export function useCalendarModals() {
     addingEndTime,
     createType,
     handleTaskClick,
+    handleAddClick,
     handleDayClick,
     handleTimeGridCreate,
     switchCreateType,

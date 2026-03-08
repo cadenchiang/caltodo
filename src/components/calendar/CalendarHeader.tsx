@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { ChevronLeft, ChevronRight, Unlink, XCircle, Check } from "lucide-react";
+import { ChevronLeft, ChevronRight, Unlink, XCircle, Check, Plus } from "lucide-react";
 import CalendarSettingsPopover from "./CalendarSettingsPopover";
 import { useToast } from "@/contexts/ToastContext";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
@@ -54,6 +54,8 @@ interface CalendarHeaderProps {
   calendarMode?: CalendarMode;
   onCalendarModeChange?: (mode: CalendarMode) => void;
   onCalendarsChange?: () => void;
+  /** Callback when the "+" add button is clicked. */
+  onAddClick?: () => void;
 }
 
 /**
@@ -71,6 +73,7 @@ export default function CalendarHeader({
   calendarMode = "calendar",
   onCalendarModeChange,
   onCalendarsChange,
+  onAddClick,
 }: CalendarHeaderProps) {
   const { showToast } = useToast();
   const { hasCompletedOnboarding, loading: onboardingLoading } = useOnboardingStatus();
@@ -180,8 +183,18 @@ export default function CalendarHeader({
 
   return (
     <div className="relative z-10 flex flex-wrap items-center justify-between gap-2 md:gap-4 mb-1">
-      {/* Left: Today + nav + title + GCal */}
+      {/* Left: Add + Today + nav + title + GCal */}
       <div className="flex items-center gap-1.5 md:gap-2 min-w-0">
+        {/* Add task/event button — white circle */}
+        {onAddClick && (
+          <button
+            onClick={onAddClick}
+            className="w-8 h-8 rounded-full bg-white dark:bg-white text-gray-900 flex items-center justify-center shadow-sm hover:opacity-80 active:scale-95 transition-all shrink-0"
+            title="Add task or event"
+          >
+            <Plus size={16} strokeWidth={2.5} />
+          </button>
+        )}
         <button
           onClick={onToday}
           className="px-2.5 py-1 md:px-3.5 md:py-1.5 text-xs md:text-sm font-medium text-foreground rounded-lg border border-gray-300 dark:border-gray-500 hover:bg-black/5 dark:hover:bg-white/10 active:scale-95 transition-all shrink-0"
@@ -305,7 +318,7 @@ export default function CalendarHeader({
         )}
       </div>
 
-      {/* Right: Settings gear + View mode */}
+      {/* Right: Settings gear + Add + View mode */}
       <div className="flex items-center gap-2 shrink-0">
         {/* Calendar settings popover trigger */}
         {onCalendarModeChange && (
@@ -332,6 +345,7 @@ export default function CalendarHeader({
             </button>
           ))}
         </div>
+
       </div>
     </div>
   );

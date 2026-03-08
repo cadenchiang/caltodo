@@ -2,7 +2,6 @@
 
 import { useMemo } from "react";
 import { format } from "date-fns";
-import { Plus } from "lucide-react";
 import type { Task, PendingInvite, GCalEvent } from "@/lib/types";
 import { getEventDateKey } from "@/lib/gcal/event-utils";
 import { pendingInviteToPseudoTask } from "@/lib/pending-invite-helpers";
@@ -68,17 +67,6 @@ export default function CalendarDayView({
 
   return (
     <div className="overflow-hidden bg-white dark:bg-[#141414] flex flex-col h-full relative">
-      {/* + icon top right */}
-      <button
-        onClick={(e) => {
-          const rect = e.currentTarget.getBoundingClientRect();
-          onAddClick(dateStr, new DOMRect(rect.left, rect.bottom + 4, rect.width, 1));
-        }}
-        className="absolute top-2 right-3 md:top-3 md:right-4 z-10 w-9 h-9 md:w-8 md:h-8 rounded-full bg-gray-800 dark:bg-white text-white dark:text-gray-900 flex items-center justify-center hover:opacity-80 active:scale-95 transition-all shadow-sm"
-      >
-        <Plus size={18} />
-      </button>
-
       {/* All-day section: task bars + all-day GCal events */}
       {hasAllDayContent && (
         <div className="shrink-0 border-b border-gray-300 dark:border-gray-500 p-3 md:p-4">

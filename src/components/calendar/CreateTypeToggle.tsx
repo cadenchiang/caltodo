@@ -24,7 +24,7 @@ export default function CreateTypeToggle({ value, onChange }: CreateTypeTogglePr
     <div className="relative flex items-center bg-muted rounded-lg p-0.5 w-fit">
       {/* Sliding pill indicator */}
       <div
-        className="absolute top-0.5 bottom-0.5 rounded-md bg-popover shadow-sm transition-all duration-200 ease-out"
+        className="absolute top-0.5 bottom-0.5 rounded-md bg-white dark:bg-gray-600 shadow-md transition-all duration-200 ease-out"
         style={{
           left: value === "task" ? "2px" : "50%",
           width: "calc(50% - 2px)",

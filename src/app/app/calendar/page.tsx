@@ -175,6 +175,7 @@ export default function CalendarPage() {
               calendarMode={calendarMode}
               onCalendarModeChange={handleCalendarModeChange}
               onCalendarsChange={refetchEvents}
+              onAddClick={modals.handleAddClick}
             />
           </div>
 
