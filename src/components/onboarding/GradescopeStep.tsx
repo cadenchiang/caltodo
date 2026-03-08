@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
-import { ArrowDown, Eye, EyeOff, Loader2, Play, X } from "lucide-react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { ArrowDown, Eye, EyeOff, Loader2, Play, X, Merge } from "lucide-react";
+import { extractCourseCode } from "@/lib/course-name-merge";
 
 /** Clickable chapter timestamps for the Gradescope instruction video. */
 const GRADESCOPE_CHAPTERS: Array<{ label: string; time: number }> = [
@@ -47,6 +48,8 @@ interface GradescopeStepProps {
   initialSelectedIds?: string[];
   /** Called on unmount to persist draft state across step navigation. */
   onDraftChange?: (draft: { email: string; password: string; courses: GradescopeCourse[] | null; selectedIds: string[] }) => void;
+  /** Already-selected Canvas courses (for detecting overlaps). */
+  existingCanvasCourses?: Array<{ id: number; name: string }>;
 }
 
 /**
@@ -59,7 +62,7 @@ interface GradescopeStepProps {
  * @param error - Current error message to display
  * @param setError - Callback to set/clear error messages
  */
-export default function GradescopeStep({ onNext, onSkip, saving, error, setError, initialEmail, initialPassword, initialCourses, initialSelectedIds, onDraftChange }: GradescopeStepProps) {
+export default function GradescopeStep({ onNext, onSkip, saving, error, setError, initialEmail, initialPassword, initialCourses, initialSelectedIds, onDraftChange, existingCanvasCourses }: GradescopeStepProps) {
   const [email, setEmail] = useState(initialEmail ?? "");
   const [password, setPassword] = useState(initialPassword ?? "");
   const [showPassword, setShowPassword] = useState(false);
@@ -68,6 +71,9 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set(initialSelectedIds ?? []));
   const [videoExpanded, setVideoExpanded] = useState(false);
   const [showWhy, setShowWhy] = useState(false);
+  const [showMergeModal, setShowMergeModal] = useState(false);
+  /** Gradescope courses that overlap with already-selected Canvas courses. */
+  const [overlappingCourses, setOverlappingCourses] = useState<GradescopeCourse[]>([]);
   const [videoTime, setVideoTime] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
   /** Tracks the timestamp of the last verification attempt for rate limiting. */
@@ -148,6 +154,23 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
       const fetchedCourses: GradescopeCourse[] = data.courses;
       setCourses(fetchedCourses);
       setSelectedIds(new Set());
+
+      // Detect overlapping courses with already-selected Canvas courses
+      if (existingCanvasCourses && existingCanvasCourses.length > 0) {
+        const canvasCodes = new Set(
+          existingCanvasCourses
+            .map((c) => extractCourseCode(c.name))
+            .filter(Boolean) as string[]
+        );
+        const overlaps = fetchedCourses.filter((gc) => {
+          const code = extractCourseCode(gc.name);
+          return code && canvasCodes.has(code);
+        });
+        if (overlaps.length > 0) {
+          setOverlappingCourses(overlaps);
+          setShowMergeModal(true);
+        }
+      }
     } catch (err) {
       if (err instanceof TypeError) {
         setError("Network error. Check your connection.");
@@ -511,6 +534,51 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
             </button>
           </div>
         </>
+      )}
+      {/* Merge confirmation modal */}
+      {showMergeModal && overlappingCourses.length > 0 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-card rounded-2xl shadow-2xl border border-border p-5 max-w-sm w-full mx-4 animate-drop-in">
+            <div className="flex items-center gap-2 mb-3">
+              <Merge size={18} className="text-teal-500" />
+              <h3 className="text-sm font-bold text-foreground">Merge with bCourses?</h3>
+            </div>
+            <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
+              These Gradescope courses match classes you already have from bCourses. Would you like to sync them together?
+            </p>
+            <div className="rounded-xl border border-border mb-4 max-h-40 overflow-auto">
+              {overlappingCourses.map((gc) => (
+                <div key={gc.id} className="flex items-center gap-2 px-3 py-2 border-b border-border last:border-0">
+                  <span className="text-sm text-foreground truncate">{gc.name}</span>
+                  <span className="text-[9px] font-medium px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-600 dark:bg-emerald-600/40 dark:text-emerald-400 shrink-0">Gradescope</span>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setShowMergeModal(false)}
+                className="flex-1 px-3 py-2 text-sm text-muted-foreground rounded-xl bg-card border border-border hover:bg-accent transition-colors"
+              >
+                No thanks
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedIds((prev) => {
+                    const next = new Set(prev);
+                    overlappingCourses.forEach((c) => next.add(c.id));
+                    return next;
+                  });
+                  setShowMergeModal(false);
+                }}
+                className="flex-1 px-3 py-2 text-sm font-semibold rounded-xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 btn-elevated-primary"
+              >
+                Merge & select
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

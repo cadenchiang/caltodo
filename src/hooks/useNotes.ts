@@ -8,7 +8,7 @@ import type { Note, NoteInsert, NoteUpdate } from "@/lib/types";
  * Hook for note CRUD operations with optimistic updates.
  * Fetches notes from Supabase filtered by course folder.
  *
- * @param courseId - Course ID to filter by, or "general" for notes with null course_id
+ * @param courseId - Course ID to filter by, "general" for null course_id, or comma-separated IDs for merged folders
  * @returns Notes array, loading/error state, and CRUD functions
  */
 export function useNotes(courseId: string | "general" | null) {
@@ -36,6 +36,9 @@ export function useNotes(courseId: string | "general" | null) {
 
     if (courseId === "general") {
       query = query.is("course_id", null);
+    } else if (courseId.includes(",")) {
+      // Merged folder: fetch notes from multiple course IDs
+      query = query.in("course_id", courseId.split(","));
     } else {
       query = query.eq("course_id", courseId);
     }
@@ -70,11 +73,12 @@ export function useNotes(courseId: string | "general" | null) {
   } {
     const now = new Date().toISOString();
     const tempId = `temp-${crypto.randomUUID()}`;
+    const truncatedTitle = (overrides?.title ?? "").slice(0, 500);
     const optimistic: Note = {
       id: tempId,
       user_id: "",
-      course_id: courseId === "general" ? null : courseId,
-      title: overrides?.title ?? "",
+      course_id: courseId === "general" ? null : (courseId?.includes(",") ? courseId.split(",")[0] : courseId),
+      title: truncatedTitle,
       content: overrides?.content ?? { type: "doc", content: [{ type: "paragraph" }] },
       is_pinned: false,
       created_at: now,
@@ -83,6 +87,7 @@ export function useNotes(courseId: string | "general" | null) {
       icon: overrides?.icon ?? null,
     };
 
+    setError(null);
     setNotes((prev) => [optimistic, ...prev]);
 
     const persisted = (async (): Promise<Note | null> => {
@@ -128,7 +133,11 @@ export function useNotes(courseId: string | "general" | null) {
    * @param id - Note ID to update
    * @param updates - Fields to update
    */
-  async function updateNote(id: string, updates: NoteUpdate) {
+  async function updateNote(id: string, updates: NoteUpdate): Promise<boolean> {
+    setError(null);
+    if (updates.title !== undefined) {
+      updates = { ...updates, title: updates.title.slice(0, 500) };
+    }
     // Optimistic update
     setNotes((prev) =>
       prev.map((n) =>
@@ -146,7 +155,9 @@ export function useNotes(courseId: string | "general" | null) {
     if (updateError) {
       setError(updateError.message);
       fetchNotes(); // Revert on error
+      return false;
     }
+    return true;
   }
 
   /**
@@ -156,6 +167,7 @@ export function useNotes(courseId: string | "general" | null) {
    * @param id - Note ID to soft-delete
    */
   async function deleteNote(id: string) {
+    setError(null);
     // Optimistic removal
     setNotes((prev) => prev.filter((n) => n.id !== id));
 
@@ -178,6 +190,7 @@ export function useNotes(courseId: string | "general" | null) {
   async function deleteNotes(ids: string[]) {
     if (ids.length === 0) return;
 
+    setError(null);
     setNotes((prev) => prev.filter((n) => !ids.includes(n.id)));
 
     const { error: deleteError } = await supabase
@@ -200,6 +213,7 @@ export function useNotes(courseId: string | "general" | null) {
   async function restoreNotes(ids: string[]) {
     if (ids.length === 0) return;
 
+    setError(null);
     const { error: restoreError } = await supabase
       .from("notes")
       .update({ deleted_at: null })

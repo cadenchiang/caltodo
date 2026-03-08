@@ -655,6 +655,7 @@ export default function OnboardingPage() {
                 initialCourses={gradescopeDraftRef.current.courses}
                 initialSelectedIds={gradescopeDraftRef.current.selectedIds}
                 onDraftChange={handleGradescopeDraft}
+                existingCanvasCourses={canvasDraftRef.current.courses?.filter((c) => canvasDraftRef.current.selectedIds.includes(c.id)).map((c) => ({ id: c.id, name: c.name }))}
               />
             )}
 

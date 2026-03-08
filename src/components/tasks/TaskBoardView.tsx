@@ -24,6 +24,7 @@ import TaskCreateModal from "./TaskCreateModal";
 import SortableColumn from "./SortableColumn";
 import TaskCheckbox from "./shared/TaskCheckbox";
 import { useTheme } from "@/contexts/ThemeContext";
+import { extractCourseCode } from "@/lib/course-name-merge";
 
 /** localStorage key for column name aliases. */
 const COLUMN_ALIASES_KEY = "caltodo_board_column_aliases";
@@ -108,37 +109,57 @@ interface TaskBoardViewProps {
 }
 
 /**
- * Groups tasks by course name into a sorted Map.
+ * Groups tasks by course name into a sorted Map, merging courses with the
+ * same extracted code (e.g. "UGBA 101A-LEC-002" and "UGBA 101A" merge).
  * Tasks without course_name go under "General".
  *
  * @param tasks - Array of tasks to group
- * @returns Map of column name to tasks array, sorted alphabetically with General last
+ * @returns Map of canonical column name to tasks array, sorted alphabetically with General last
  */
 function groupByCourse(tasks: Task[]): Map<string, Task[]> {
-  const groups = new Map<string, Task[]>();
+  // Map from course code → canonical (shortest) display name
+  const codeToCanonical = new Map<string, string>();
+  const codeGroups = new Map<string, Task[]>();
 
   for (const task of tasks) {
-    const key = task.course_name || GENERAL_COLUMN;
-    const existing = groups.get(key);
-    if (existing) {
-      existing.push(task);
+    const raw = task.course_name || GENERAL_COLUMN;
+    const code = raw !== GENERAL_COLUMN ? extractCourseCode(raw) : null;
+
+    let key: string;
+    if (code) {
+      const existing = codeToCanonical.get(code);
+      if (!existing || raw.length < existing.length) {
+        codeToCanonical.set(code, raw);
+      }
+      key = code;
     } else {
-      groups.set(key, [task]);
+      key = raw;
+    }
+
+    const list = codeGroups.get(key);
+    if (list) {
+      list.push(task);
+    } else {
+      codeGroups.set(key, [task]);
     }
   }
 
-  // Sort: named courses alphabetically, "General" last
-  const sorted = new Map<string, Task[]>();
-  const keys = [...groups.keys()].sort((a, b) => {
-    if (a === GENERAL_COLUMN) return 1;
-    if (b === GENERAL_COLUMN) return -1;
-    return a.localeCompare(b);
+  // Build result with canonical display names, sorted alphabetically
+  const entries: [string, Task[]][] = [];
+  for (const [key, tasks] of codeGroups) {
+    const displayName = codeToCanonical.get(key) || key;
+    entries.push([displayName, tasks]);
+  }
+  entries.sort((a, b) => {
+    if (a[0] === GENERAL_COLUMN) return 1;
+    if (b[0] === GENERAL_COLUMN) return -1;
+    return a[0].localeCompare(b[0]);
   });
 
-  for (const key of keys) {
-    sorted.set(key, groups.get(key)!);
+  const sorted = new Map<string, Task[]>();
+  for (const [name, tasks] of entries) {
+    sorted.set(name, tasks);
   }
-
   return sorted;
 }
 

@@ -15,6 +15,7 @@ import type { FolderAppearance } from "./FolderAppearanceModal";
 import type { FolderSetting, CustomImage } from "@/hooks/useFolderSettings";
 import type { Course, Note } from "@/lib/types";
 import RecentNotes from "./RecentNotes";
+import { extractCourseCode } from "@/lib/course-name-merge";
 import SidePanel, {
   computeSidePanelPosition,
   SIDE_PANEL_WIDTH,
@@ -75,6 +76,8 @@ interface Props {
   recentNotes?: Note[];
   /** Open a recent note in the editor. */
   onOpenRecentNote?: (note: Note) => void;
+  /** Notify parent when notes are deleted (for recent notes cleanup). */
+  onDeleteNoteIds?: (ids: string[]) => void;
 }
 
 /**
@@ -101,6 +104,7 @@ export default function NotesFolderGrid({
   onCreateNote,
   recentNotes,
   onOpenRecentNote,
+  onDeleteNoteIds,
 }: Props) {
   const { showToast } = useToast();
   const HOME_VIEW_KEY = "notes_home_view_mode";
@@ -112,12 +116,43 @@ export default function NotesFolderGrid({
   const [noteCounts, setNoteCounts] = useState<Record<string, number>>(initialNoteCounts);
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
+  const [creatingFolder, setCreatingFolder] = useState(false);
   const supabase = createClient();
 
-  const folders: FolderEntry[] = useMemo(() => [
-    { id: "general", label: "General" },
-    ...courses.map((c) => ({ id: c.id, label: c.name })),
-  ], [courses]);
+  /**
+   * Merged folders: courses with the same extracted course code are combined
+   * into a single folder entry with a comma-separated ID (for multi-course queries).
+   */
+  const folders: FolderEntry[] = useMemo(() => {
+    const codeGroups = new Map<string, Course[]>();
+    const noCode: Course[] = [];
+
+    for (const c of courses) {
+      const code = extractCourseCode(c.name);
+      if (code) {
+        const group = codeGroups.get(code);
+        if (group) group.push(c);
+        else codeGroups.set(code, [c]);
+      } else {
+        noCode.push(c);
+      }
+    }
+
+    const merged: FolderEntry[] = [{ id: "general", label: "General" }];
+
+    for (const [, group] of codeGroups) {
+      // Pick shortest name as canonical label
+      const canonical = group.reduce((s, c) => c.name.length < s.name.length ? c : s);
+      const id = group.map((c) => c.id).join(",");
+      merged.push({ id, label: canonical.name });
+    }
+
+    for (const c of noCode) {
+      merged.push({ id: c.id, label: c.name });
+    }
+
+    return merged;
+  }, [courses]);
 
   // Side-panel editing state
   const [editingFolder, setEditingFolder] = useState<EditingFolder | null>(null);
@@ -128,12 +163,26 @@ export default function NotesFolderGrid({
   const [panelSide, setPanelSide] = useState<"right" | "left">("right");
   const spotlightRafRef = useRef(0);
 
-  // Folder selection state
+  // Unified selection state — folder IDs are plain strings, note IDs are prefixed with "note:"
   const [selectedFolderIds, setSelectedFolderIds] = useState<Set<string>>(new Set());
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   /** Tracks the last plain-clicked folder for shift+click range selection. */
   const folderAnchorRef = useRef<string | null>(null);
   const folderGridRef = useRef<HTMLDivElement>(null);
+
+  /** Derived: only actual folder IDs (no "note:" prefix). */
+  const selectedPureFolderIds = useMemo(() => {
+    const ids = new Set<string>();
+    selectedFolderIds.forEach((id) => { if (!id.startsWith("note:")) ids.add(id); });
+    return ids;
+  }, [selectedFolderIds]);
+
+  /** Derived: only note IDs (stripped of "note:" prefix). */
+  const selectedNoteIds = useMemo(() => {
+    const ids = new Set<string>();
+    selectedFolderIds.forEach((id) => { if (id.startsWith("note:")) ids.add(id.slice(5)); });
+    return ids;
+  }, [selectedFolderIds]);
 
   // Animate floating bar exit
   const [barVisible, setBarVisible] = useState(false);
@@ -149,11 +198,9 @@ export default function NotesFolderGrid({
       setBarClosing(false);
       setBarVisible(true);
     } else if (barVisible) {
-      setBarClosing(true);
-      barTimerRef.current = setTimeout(() => {
-        setBarVisible(false);
-        setBarClosing(false);
-      }, 200);
+      // Instantly remove — no exit animation to avoid stale icon flash
+      setBarVisible(false);
+      setBarClosing(false);
     }
   }, [selectedFolderIds.size]);
 
@@ -162,7 +209,11 @@ export default function NotesFolderGrid({
 
   const handleMarqueeSelection = useCallback((ids: Set<string>) => {
     setSelectedFolderIds(ids);
-    if (ids.size > 0) justMarqueedRef.current = true;
+    if (ids.size > 0) {
+      justMarqueedRef.current = true;
+      // Clear after the synthetic click from mouseup fires (~0ms), so the next real click works
+      requestAnimationFrame(() => { justMarqueedRef.current = false; });
+    }
   }, []);
 
   const { marqueeStyle, onMouseDown: onMarqueeMouseDown } = useMarqueeSelection({
@@ -200,7 +251,7 @@ export default function NotesFolderGrid({
 
   /** Delete all selected folders and clear selection. */
   async function handleDeleteSelected() {
-    const ids = Array.from(selectedFolderIds).filter((id) => id !== "general");
+    const ids = Array.from(selectedPureFolderIds).filter((id) => id !== "general");
 
     // Save state for undo
     const deletedCourseMap = new Map<string, Course>();
@@ -275,7 +326,7 @@ export default function NotesFolderGrid({
 
   /** Open rename panel for the single selected folder. */
   function handleRenameSelected() {
-    const id = Array.from(selectedFolderIds)[0];
+    const id = Array.from(selectedPureFolderIds)[0];
     if (!id || id === "general") return;
     const el = document.querySelector(`[data-folder-id="${id}"]`);
     if (!el) return;
@@ -285,7 +336,7 @@ export default function NotesFolderGrid({
 
   /** Open appearance panel for the single selected folder. */
   function handleAppearanceSelected() {
-    const id = Array.from(selectedFolderIds)[0];
+    const id = Array.from(selectedPureFolderIds)[0];
     if (!id) return;
     const el = document.querySelector(`[data-folder-id="${id}"]`);
     if (!el) return;
@@ -451,10 +502,14 @@ export default function NotesFolderGrid({
    */
   async function handleCreateFolder() {
     const trimmed = newFolderName.trim();
-    if (!trimmed) return;
+    if (!trimmed || creatingFolder) return;
 
+    setCreatingFolder(true);
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) {
+      setCreatingFolder(false);
+      return;
+    }
 
     const { data: course, error } = await supabase
       .from("courses")
@@ -469,6 +524,7 @@ export default function NotesFolderGrid({
     if (error || !course) {
       console.error("Failed to create folder:", error?.message);
       showToast("Couldn't create folder");
+      setCreatingFolder(false);
       return;
     }
 
@@ -479,6 +535,7 @@ export default function NotesFolderGrid({
     setCourses((prev) => [...prev, course as Course].sort((a, b) => a.name.localeCompare(b.name)));
     setNewFolderName("");
     setShowNewFolder(false);
+    setCreatingFolder(false);
     showToast("Folder created");
   }
 
@@ -525,17 +582,55 @@ export default function NotesFolderGrid({
   };
 
   /**
+   * Returns the total note count for a folder, summing across merged course IDs.
+   */
+  function getFolderNoteCount(folderId: string): number {
+    if (!folderId.includes(",")) {
+      return (noteCounts[folderId] ?? 0) + (noteCountAdjustments?.[folderId] ?? 0);
+    }
+    const ids = folderId.split(",");
+    let total = 0;
+    for (const id of ids) {
+      total += (noteCounts[id] ?? 0) + (noteCountAdjustments?.[id] ?? 0);
+    }
+    return total;
+  }
+
+  /**
    * Returns the appearance for a folder from settings, falling back to default.
    */
   function getFolderAppearance(folderId: string): FolderAppearance {
-    const custom = getFolderSetting(folderId).appearance;
+    // For merged folders, check each sub-ID for a custom appearance
+    const primaryId = folderId.includes(",") ? folderId.split(",")[0] : folderId;
+    const custom = getFolderSetting(primaryId).appearance;
     if (custom) return custom;
-    return folderId === "general" ? GENERAL_DEFAULT_APPEARANCE : DEFAULT_APPEARANCE;
+    return primaryId === "general" ? GENERAL_DEFAULT_APPEARANCE : DEFAULT_APPEARANCE;
   }
 
   const panelPosition = { top: panelPos.top, left: panelPos.left, width: SIDE_PANEL_WIDTH };
 
-  /** Clear selection when clicking empty space outside folder cards. */
+  /** Delete selected notes (soft-delete). */
+  async function handleDeleteSelectedNotes() {
+    const noteIds = Array.from(selectedNoteIds);
+    if (noteIds.length === 0) return;
+
+    const now = new Date().toISOString();
+    await supabase.from("notes").update({ deleted_at: now }).in("id", noteIds);
+
+    onDeleteNoteIds?.(noteIds);
+    setSelectedFolderIds(new Set());
+    setShowBulkDeleteConfirm(false);
+    showToast(`${noteIds.length} ${noteIds.length === 1 ? "note" : "notes"} deleted`, {
+      action: {
+        label: "Undo",
+        onClick: async () => {
+          await supabase.from("notes").update({ deleted_at: null }).in("id", noteIds);
+        },
+      },
+    });
+  }
+
+  /** Clear selection when clicking empty space outside folder/note cards. */
   function handleBackgroundClick(e: React.MouseEvent) {
     if (justMarqueedRef.current) {
       justMarqueedRef.current = false;
@@ -619,9 +714,9 @@ export default function NotesFolderGrid({
             key={folder.id}
             folder={folder}
             appearance={getFolderAppearance(folder.id)}
-            noteCount={Math.max(0, (noteCounts[folder.id] ?? 0) + (noteCountAdjustments?.[folder.id] ?? 0))}
+            noteCount={Math.max(0, getFolderNoteCount(folder.id))}
             isGeneral={folder.id === "general"}
-            hasCustomAppearance={folder.id === "general" || !!getFolderSetting(folder.id).appearance}
+            hasCustomAppearance={folder.id === "general" || !!getFolderSetting(folder.id.includes(",") ? folder.id.split(",")[0] : folder.id).appearance}
             highlighted={editingFolder?.id === folder.id}
             selected={selectedFolderIds.has(folder.id)}
             displayLabel={
@@ -656,6 +751,7 @@ export default function NotesFolderGrid({
           folderNames={Object.fromEntries([
             ...courses.map((c) => [c.id, c.name]),
           ])}
+          selectedNoteIds={selectedNoteIds}
         />
       )}
 
@@ -748,13 +844,13 @@ export default function NotesFolderGrid({
 
       {/* Floating selection bar */}
       {barVisible && (
-        <div data-selection-bar className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] flex items-center gap-1 px-2.5 py-1 rounded-lg bg-foreground text-background shadow-lg ${barClosing ? "animate-announce-card-out" : "animate-announce-card-in"}`}>
+        <div data-selection-bar className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] flex items-center gap-1 px-2.5 py-1 rounded-xl bg-foreground text-background shadow-lg ${barClosing ? "animate-announce-card-out" : "animate-announce-card-in"}`}>
           <span className="text-xs font-medium">
             {lastCountRef.current} selected
           </span>
           <div className="w-px h-3.5 bg-background/20 mx-0.5" />
-          {/* Rename — only when exactly 1 non-General folder is selected */}
-          {selectedFolderIds.size === 1 && !selectedFolderIds.has("general") && (
+          {/* Rename — only when exactly 1 non-General folder is selected (no notes) */}
+          {selectedPureFolderIds.size === 1 && selectedNoteIds.size === 0 && !selectedPureFolderIds.has("general") && (
             <button
               onClick={handleRenameSelected}
               className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-background/10 transition-colors"
@@ -764,8 +860,8 @@ export default function NotesFolderGrid({
               <Pencil size={14} />
             </button>
           )}
-          {/* Appearance — when exactly 1 folder is selected */}
-          {selectedFolderIds.size === 1 && (
+          {/* Appearance — when exactly 1 folder is selected (no notes) */}
+          {selectedPureFolderIds.size === 1 && selectedNoteIds.size === 0 && (
             <button
               onClick={handleAppearanceSelected}
               className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-background/10 transition-colors"
@@ -775,13 +871,22 @@ export default function NotesFolderGrid({
               <ImageIcon size={14} />
             </button>
           )}
-          {/* Delete — hide if only "general" is selected */}
-          {Array.from(selectedFolderIds).some((id) => id !== "general") && (
+          {/* Delete — available for folders (except General alone) or notes */}
+          {(selectedNoteIds.size > 0 || Array.from(selectedPureFolderIds).some((id) => id !== "general")) && (
             <button
-              onClick={() => setShowBulkDeleteConfirm(true)}
+              onClick={() => {
+                if (selectedPureFolderIds.size > 0 && selectedNoteIds.size === 0) {
+                  setShowBulkDeleteConfirm(true);
+                } else if (selectedNoteIds.size > 0 && selectedPureFolderIds.size === 0) {
+                  handleDeleteSelectedNotes();
+                } else {
+                  // Mixed: delete both
+                  setShowBulkDeleteConfirm(true);
+                }
+              }}
               className="w-7 h-7 rounded-md flex items-center justify-center text-red-400 hover:text-red-300 hover:bg-background/10 transition-colors"
               title="Delete"
-              aria-label="Delete folders"
+              aria-label="Delete selected"
             >
               <Trash2 size={14} />
             </button>
@@ -801,16 +906,26 @@ export default function NotesFolderGrid({
       <DeleteFolderConfirmModal
         open={showBulkDeleteConfirm}
         folderName={
-          selectedFolderIds.size === 1
-            ? (folders.find((f) => f.id === Array.from(selectedFolderIds)[0])?.label ?? "folder")
-            : `${Array.from(selectedFolderIds).filter((id) => id !== "general").length} folders`
+          selectedPureFolderIds.size === 1 && selectedNoteIds.size === 0
+            ? (folders.find((f) => f.id === Array.from(selectedPureFolderIds)[0])?.label ?? "folder")
+            : (() => {
+                const parts: string[] = [];
+                const folderCount = Array.from(selectedPureFolderIds).filter((id) => id !== "general").length;
+                if (folderCount > 0) parts.push(`${folderCount} ${folderCount === 1 ? "folder" : "folders"}`);
+                if (selectedNoteIds.size > 0) parts.push(`${selectedNoteIds.size} ${selectedNoteIds.size === 1 ? "note" : "notes"}`);
+                return parts.join(" and ");
+              })()
         }
         noteCount={
-          Array.from(selectedFolderIds)
+          Array.from(selectedPureFolderIds)
             .filter((id) => id !== "general")
             .reduce((sum, id) => sum + (noteCounts[id] ?? 0), 0)
         }
-        onConfirm={handleDeleteSelected}
+        onConfirm={async () => {
+          if (selectedPureFolderIds.size > 0) await handleDeleteSelected();
+          if (selectedNoteIds.size > 0) await handleDeleteSelectedNotes();
+          setShowBulkDeleteConfirm(false);
+        }}
         onCancel={() => setShowBulkDeleteConfirm(false)}
       />
     </div>

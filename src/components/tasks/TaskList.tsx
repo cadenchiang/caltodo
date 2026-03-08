@@ -10,6 +10,7 @@ import ClassGroupHeader from "./ClassGroupHeader";
 import UserAvatar from "@/components/ui/UserAvatar";
 import { pendingInviteToPseudoTask } from "@/lib/pending-invite-helpers";
 import { useTheme } from "@/contexts/ThemeContext";
+import { extractCourseCode } from "@/lib/course-name-merge";
 
 /**
  * Formats a countdown string from now until the given ISO timestamp.
@@ -138,16 +139,34 @@ interface TaskListProps {
 }
 
 /**
- * Groups tasks by course_name, preserving input order within each group.
+ * Groups tasks by course_name, merging courses with the same extracted code
+ * (e.g. "UGBA 101A-LEC-002" and "UGBA 101A" both become "UGBA 101A").
  * Tasks with null course_name are grouped under "General".
  *
  * @param tasks - Pre-sorted array of tasks
  * @returns Ordered array of [groupName, tasks[]] pairs
  */
 function groupByCourse(tasks: Task[]): [string, Task[]][] {
+  // Map from course code → canonical (shortest) display name
+  const codeToCanonical = new Map<string, string>();
   const map = new Map<string, Task[]>();
+
   for (const t of tasks) {
-    const key = t.course_name || "General";
+    const raw = t.course_name || "General";
+    const code = raw !== "General" ? extractCourseCode(raw) : null;
+
+    let key: string;
+    if (code) {
+      // Use the shortest name as canonical for this code
+      const existing = codeToCanonical.get(code);
+      if (!existing || raw.length < existing.length) {
+        codeToCanonical.set(code, raw);
+      }
+      key = code;
+    } else {
+      key = raw;
+    }
+
     const list = map.get(key);
     if (list) {
       list.push(t);
@@ -155,7 +174,14 @@ function groupByCourse(tasks: Task[]): [string, Task[]][] {
       map.set(key, [t]);
     }
   }
-  return Array.from(map.entries());
+
+  // Replace code keys with canonical display names
+  const result: [string, Task[]][] = [];
+  for (const [key, tasks] of map) {
+    const displayName = codeToCanonical.get(key) || key;
+    result.push([displayName, tasks]);
+  }
+  return result;
 }
 
 /**
