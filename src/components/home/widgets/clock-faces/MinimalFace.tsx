@@ -27,7 +27,7 @@ export default function MinimalFace({ now, is24h, timezone, fontWeight }: ClockF
   const seconds = now.toLocaleTimeString([], secondsOptions).replace(/[^0-9]/g, "").slice(-2).padStart(2, "0");
 
   return (
-    <div className="h-full w-full flex flex-col items-center justify-center p-4">
+    <div className="h-full w-full flex flex-col items-center justify-center p-3">
       <span
         className="text-5xl font-extralight tracking-tighter text-foreground tabular-nums"
       >

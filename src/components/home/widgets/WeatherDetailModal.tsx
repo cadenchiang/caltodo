@@ -194,7 +194,7 @@ export default function WeatherDetailModal({
       {/* Card */}
       <div className="relative bg-popover rounded-2xl shadow-2xl border border-border w-full max-w-lg mx-4 animate-announce-card-in overflow-hidden max-h-[85vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
+        <div className="flex items-center justify-between p-3 border-b border-border shrink-0">
           <div className="flex items-center gap-1.5">
             <MapPin size={14} className="text-muted-foreground" />
             <span className="text-sm font-medium text-foreground truncate">

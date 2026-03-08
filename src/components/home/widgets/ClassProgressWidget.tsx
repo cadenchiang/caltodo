@@ -136,7 +136,7 @@ export default function ClassProgressWidget({ config }: ClassProgressWidgetProps
 
   return (
     <>
-      <div ref={containerRef} className="h-full w-full flex flex-col p-4 overflow-hidden">
+      <div ref={containerRef} className="h-full w-full flex flex-col p-3 overflow-hidden">
         <WidgetHeader
           title="Courses"
           right={

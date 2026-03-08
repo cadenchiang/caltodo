@@ -47,7 +47,7 @@ export default function StackedFace({ now, is24h, timezone, fontWeight }: ClockF
   const weight = Number(fontWeight);
 
   return (
-    <div className="h-full w-full flex flex-col items-center justify-center p-4">
+    <div className="h-full w-full flex flex-col items-center justify-center p-3">
       <span
         className="text-6xl font-extralight tracking-tight text-foreground tabular-nums leading-none"
       >

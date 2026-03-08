@@ -63,6 +63,8 @@ export interface PersistedLayout {
   coverPositionY: number;
   dividerColor?: string;
   dividerThickness?: number;
+  dividerText?: string;
+  dividerVisible?: boolean;
   savedImages?: string[];
   updatedAt: number;
 }

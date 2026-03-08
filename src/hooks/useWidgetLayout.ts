@@ -58,6 +58,8 @@ export function useWidgetLayout() {
   const [coverPositionY, setCoverPositionYState] = useState(DEFAULT_COVER_POSITION_Y);
   const [dividerColor, setDividerColorState] = useState("");
   const [dividerThickness, setDividerThicknessState] = useState(1);
+  const [dividerText, setDividerTextState] = useState("");
+  const [dividerVisible, setDividerVisibleState] = useState(true);
   const [savedImages, setSavedImagesState] = useState<string[]>([]);
   const [hydrated, setHydrated] = useState(false);
 
@@ -74,6 +76,8 @@ export function useWidgetLayout() {
   const coverPositionYRef = useRef(coverPositionY);
   const dividerColorRef = useRef(dividerColor);
   const dividerThicknessRef = useRef(dividerThickness);
+  const dividerTextRef = useRef(dividerText);
+  const dividerVisibleRef = useRef(dividerVisible);
   const savedImagesRef = useRef(savedImages);
 
   /** Instance-level gate: prevents server saves before initial fetch completes. */
@@ -116,11 +120,15 @@ export function useWidgetLayout() {
     const sImages = p.savedImages || [];
     const dColor = p.dividerColor || "";
     const dThick = p.dividerThickness ?? 1;
+    const dText = p.dividerText || "";
+    const dVisible = p.dividerVisible ?? true;
     setCoverHeightState(cHeight);
     setCoverPositionYState(cPosY);
     setSavedImagesState(sImages);
     setDividerColorState(dColor);
     setDividerThicknessState(dThick);
+    setDividerTextState(dText);
+    setDividerVisibleState(dVisible);
     boardTitleRef.current = title;
     boardDescriptionRef.current = desc;
     coverImageUrlRef.current = cover;
@@ -134,6 +142,8 @@ export function useWidgetLayout() {
     savedImagesRef.current = sImages;
     dividerColorRef.current = dColor;
     dividerThicknessRef.current = dThick;
+    dividerTextRef.current = dText;
+    dividerVisibleRef.current = dVisible;
   }, []);
 
   /**
@@ -163,6 +173,8 @@ export function useWidgetLayout() {
         coverPositionY: overrides.coverPositionY ?? coverPositionYRef.current,
         dividerColor: overrides.dividerColor ?? dividerColorRef.current,
         dividerThickness: overrides.dividerThickness ?? dividerThicknessRef.current,
+        dividerText: overrides.dividerText ?? dividerTextRef.current,
+        dividerVisible: overrides.dividerVisible ?? dividerVisibleRef.current,
         savedImages: overrides.savedImages ?? savedImagesRef.current,
         updatedAt: Date.now(),
       };
@@ -456,14 +468,20 @@ export function useWidgetLayout() {
    * @param color - CSS color string (empty = default theme color)
    * @param thickness - Pixel thickness (1-6)
    */
-  const setDividerConfig = useCallback((color: string, thickness: number) => {
+  const setDividerConfig = useCallback((color: string, thickness: number, text?: string, visible?: boolean) => {
     setDividerColorState(color);
     setDividerThicknessState(thickness);
+    if (text !== undefined) { setDividerTextState(text); dividerTextRef.current = text; }
+    if (visible !== undefined) { setDividerVisibleState(visible); dividerVisibleRef.current = visible; }
     dividerColorRef.current = color;
     dividerThicknessRef.current = thickness;
     setWidgets((prev) => {
       setLayoutsState((prevLayouts) => {
-        persistLayout(prev, prevLayouts, { dividerColor: color, dividerThickness: thickness });
+        persistLayout(prev, prevLayouts, {
+          dividerColor: color, dividerThickness: thickness,
+          ...(text !== undefined ? { dividerText: text } : {}),
+          ...(visible !== undefined ? { dividerVisible: visible } : {}),
+        });
         return prevLayouts;
       });
       return prev;
@@ -491,7 +509,7 @@ export function useWidgetLayout() {
     boardTitle, boardDescription, coverImageUrl, boardEmoji, iconSize,
     titleFontFamily, titleTextColor, titleFontSize,
     coverHeight, coverPositionY,
-    dividerColor, dividerThickness,
+    dividerColor, dividerThickness, dividerText, dividerVisible,
     setLayouts, addWidget, removeWidget,
     updateWidgetConfig, updateAllWidgetConfigs,
     setBoardTitle, setBoardDescription, setCoverImageUrl,

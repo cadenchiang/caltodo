@@ -51,7 +51,7 @@ export default function CalChatWidget({ config }: CalChatWidgetProps) {
   }
 
   return (
-    <div ref={containerRef} className="h-full w-full flex flex-col p-4 overflow-hidden">
+    <div ref={containerRef} className="h-full w-full flex flex-col p-3 overflow-hidden">
       <WidgetHeader
         title="Cal Chat"
         right={

@@ -52,7 +52,7 @@ export default function GradientDisplay({
   if (viewMode === "today") {
     return (
       <div
-        className="h-full w-full flex flex-col justify-between p-4 overflow-hidden cursor-pointer rounded-[inherit]"
+        className="h-full w-full flex flex-col justify-between p-3 overflow-hidden cursor-pointer rounded-[inherit]"
         style={{ background: gradient }}
         onClick={handleClick}
       >

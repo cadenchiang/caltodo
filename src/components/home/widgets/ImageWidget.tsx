@@ -134,7 +134,7 @@ export default function ImageWidget({
   // Image is set — display it, with change button in edit mode
   if (config.imageUrl) {
     return (
-      <div className="h-full w-full overflow-hidden rounded-xl relative group">
+      <div className="h-full w-full overflow-hidden relative group">
         <img
           src={resolvedUrl}
           alt="Widget image"
@@ -173,7 +173,7 @@ export default function ImageWidget({
   // No image — show drop zone + upload prompt
   return (
     <div
-      className={`h-full w-full flex flex-col items-center justify-center p-4 rounded-xl transition-colors ${
+      className={`h-full w-full flex flex-col items-center justify-center p-3 transition-colors ${
         dragOver ? "border-2 border-dashed border-muted-foreground/40 bg-muted/50" : ""
       }`}
       onDrop={handleDrop}

@@ -25,9 +25,6 @@ interface PomodoroWidgetProps {
 /** Pomodoro phase — either focusing or taking a break. */
 type Phase = "work" | "break";
 
-/** SVG progress ring radius and derived constants. */
-const RING_RADIUS = 54;
-const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 
 /**
  * Formats seconds into MM:SS string.
@@ -265,141 +262,76 @@ export default function PomodoroWidget({
 
   /** Progress fraction (0 = full, 1 = empty). */
   const progress = 1 - secondsLeft / totalForPhase;
-  const dashOffset = RING_CIRCUMFERENCE * (1 - progress);
-
-  /** Ring color based on current phase and accent config. */
   const workColor = config?.accentColor || '#007AFF';
   const breakColor = '#22c55e';
   const ringStroke = phase === "work" ? workColor : breakColor;
-  const labelText = phase === "work" ? "Focus" : "Break";
-
-  const ringSize = compact ? 56 : 130;
-  const timeTextClass = compact ? "text-sm" : "text-3xl";
-  const strokeWidth = compact ? 4 : 6;
 
   return (
-    <div ref={containerRef} className={`h-full w-full flex items-center justify-center ${compact ? "p-1.5 gap-2" : "flex-col p-4 gap-1"}`}>
-      {/* SVG progress ring with time display */}
-      <div className="relative flex items-center justify-center shrink-0">
-        <svg
-          width={ringSize}
-          height={ringSize}
-          viewBox="0 0 120 120"
-          className="-rotate-90"
-          style={running ? { filter: `drop-shadow(0 0 8px ${ringStroke}40)` } : undefined}
-        >
-          {/* Background track */}
-          <circle
-            cx="60"
-            cy="60"
-            r={RING_RADIUS}
-            fill="none"
-            stroke="currentColor"
-            className="text-muted-foreground/15"
-            strokeWidth={strokeWidth}
-          />
-          {/* Progress arc */}
-          <circle
-            cx="60"
-            cy="60"
-            r={RING_RADIUS}
-            fill="none"
-            stroke={ringStroke}
-            strokeWidth={strokeWidth}
-            strokeLinecap="round"
-            strokeDasharray={RING_CIRCUMFERENCE}
-            strokeDashoffset={dashOffset}
-            style={{ transition: "stroke-dashoffset 0.4s ease" }}
-          />
-        </svg>
-
-        {/* Centered time text */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className={`${timeTextClass} font-light tracking-tight text-foreground tabular-nums`}>
+    <div ref={containerRef} className="h-full w-full flex flex-col p-3 overflow-hidden">
+      {compact ? (
+        /* Compact: single row */
+        <div className="flex items-center gap-2 h-full">
+          <span className="text-lg font-light text-foreground tabular-nums flex-1">
             {formatTime(secondsLeft)}
           </span>
-        </div>
-      </div>
-
-      {compact ? (
-        /* Compact: controls stacked vertically beside the ring */
-        <div className="flex flex-col items-center gap-0.5 no-drag">
-          <button
-            onClick={handlePlayPause}
-            disabled={editMode}
-            className="w-7 h-7 rounded-full flex items-center justify-center text-white hover:scale-105 transition-transform disabled:opacity-40 disabled:pointer-events-none"
-            style={{ backgroundColor: workColor }}
-            aria-label={running ? "Pause timer" : "Start timer"}
-          >
-            {running ? <Pause size={12} /> : <Play size={12} className="ml-0.5" />}
-          </button>
-          <div className="flex gap-1">
-            <button
-              onClick={handleReset}
-              disabled={editMode}
-              className="w-5 h-5 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:pointer-events-none"
-              aria-label="Reset timer"
-            >
-              <RotateCcw size={10} />
+          <div className="flex items-center gap-1 no-drag shrink-0">
+            <button onClick={handlePlayPause} disabled={editMode} className="w-7 h-7 rounded-full flex items-center justify-center text-white hover:scale-105 transition-transform disabled:opacity-40" style={{ backgroundColor: workColor }} aria-label={running ? "Pause" : "Start"}>
+              {running ? <Pause size={12} /> : <Play size={12} className="ml-0.5" />}
             </button>
-            <button
-              onClick={handleSkip}
-              disabled={editMode}
-              className="w-5 h-5 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:pointer-events-none"
-              aria-label="Skip to next phase"
-            >
-              <SkipForward size={10} />
+            <button onClick={handleReset} disabled={editMode} className="w-5 h-5 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40" aria-label="Reset">
+              <RotateCcw size={10} />
             </button>
           </div>
         </div>
       ) : (
-        /* Full size: label, dots, controls below ring */
+        /* Full size: large time, progress bar, label + controls */
         <>
-          <span className="text-xs font-medium text-muted-foreground tracking-wide uppercase bg-muted/50 rounded-full px-3 py-0.5">
-            {labelText}
-          </span>
-
-          <div className="flex gap-1.5">
-            {Array.from({ length: TOTAL_SESSIONS }).map((_, i) => (
-              <div
-                key={i}
-                className="w-2 h-2 rounded-full transition-all duration-300"
-                style={{
-                  backgroundColor: i < completedSessions
-                    ? workColor
-                    : 'var(--color-muted-foreground, #9ca3af)',
-                  opacity: i < completedSessions ? 1 : 0.2,
-                }}
-              />
-            ))}
+          {/* Phase label */}
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[10px] font-semibold text-muted-foreground tracking-wide uppercase">
+              {phase === "work" ? "Focus" : "Break"}
+            </span>
+            <div className="flex gap-1">
+              {Array.from({ length: TOTAL_SESSIONS }).map((_, i) => (
+                <div
+                  key={i}
+                  className="w-1.5 h-1.5 rounded-full transition-all duration-300"
+                  style={{
+                    backgroundColor: i < completedSessions ? workColor : 'var(--color-muted-foreground, #9ca3af)',
+                    opacity: i < completedSessions ? 1 : 0.2,
+                  }}
+                />
+              ))}
+            </div>
           </div>
 
-          <div className="flex items-center gap-2 mt-1 no-drag">
-            <button
-              onClick={handleReset}
-              disabled={editMode}
-              className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-40 disabled:pointer-events-none"
-              aria-label="Reset timer"
+          {/* Large time display */}
+          <div className="flex-1 flex items-center justify-center">
+            <span
+              className="text-5xl font-extralight tracking-tight text-foreground tabular-nums"
+              style={running ? { textShadow: `0 0 20px ${ringStroke}30` } : undefined}
             >
+              {formatTime(secondsLeft)}
+            </span>
+          </div>
+
+          {/* Progress bar */}
+          <div className="w-full h-1 rounded-full bg-muted overflow-hidden mb-2">
+            <div
+              className="h-full rounded-full transition-all duration-500 ease-out"
+              style={{ width: `${progress * 100}%`, backgroundColor: ringStroke }}
+            />
+          </div>
+
+          {/* Controls */}
+          <div className="flex items-center justify-center gap-3 no-drag">
+            <button onClick={handleReset} disabled={editMode} className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-40 disabled:pointer-events-none" aria-label="Reset timer">
               <RotateCcw size={14} />
             </button>
-
-            <button
-              onClick={handlePlayPause}
-              disabled={editMode}
-              className="w-10 h-10 rounded-full flex items-center justify-center text-white shadow-lg hover:scale-105 transition-transform disabled:opacity-40 disabled:pointer-events-none"
-              style={{ backgroundColor: workColor }}
-              aria-label={running ? "Pause timer" : "Start timer"}
-            >
+            <button onClick={handlePlayPause} disabled={editMode} className="w-10 h-10 rounded-full flex items-center justify-center text-white shadow-lg hover:scale-105 transition-transform disabled:opacity-40 disabled:pointer-events-none" style={{ backgroundColor: workColor }} aria-label={running ? "Pause timer" : "Start timer"}>
               {running ? <Pause size={18} /> : <Play size={18} className="ml-0.5" />}
             </button>
-
-            <button
-              onClick={handleSkip}
-              disabled={editMode}
-              className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-40 disabled:pointer-events-none"
-              aria-label="Skip to next phase"
-            >
+            <button onClick={handleSkip} disabled={editMode} className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-40 disabled:pointer-events-none" aria-label="Skip to next phase">
               <SkipForward size={14} />
             </button>
           </div>

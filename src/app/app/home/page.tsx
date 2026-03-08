@@ -52,6 +52,8 @@ export default function HomePage() {
     setCoverConfig,
     dividerColor,
     dividerThickness,
+    dividerText,
+    dividerVisible,
     setDividerConfig,
     savedImages,
     addSavedImage,
@@ -279,8 +281,10 @@ export default function HomePage() {
         <BoardDivider
           color={dividerColor}
           thickness={dividerThickness}
+          text={dividerText}
+          visible={dividerVisible}
           editMode={editMode}
-          onDividerChange={setDividerConfig}
+          onChange={setDividerConfig}
         />
 
         {/* Widget Grid (full width) */}

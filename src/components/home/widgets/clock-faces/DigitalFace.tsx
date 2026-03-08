@@ -34,7 +34,7 @@ export default function DigitalFace({ now, is24h, timezone, fontWeight }: ClockF
   const timeAfter = colonIdx >= 0 ? timeStr.slice(colonIdx + 1) : "";
 
   return (
-    <div className="h-full w-full flex flex-col items-center justify-center p-4">
+    <div className="h-full w-full flex flex-col items-center justify-center p-3">
       <span
         className="text-4xl tracking-tight text-foreground tabular-nums"
         style={{ fontWeight: Number(fontWeight) }}

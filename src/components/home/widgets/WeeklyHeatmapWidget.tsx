@@ -102,7 +102,7 @@ export default function WeeklyHeatmapWidget({ config }: WeeklyHeatmapWidgetProps
   }
 
   return (
-    <div className="h-full w-full flex flex-col p-4 overflow-hidden">
+    <div className="h-full w-full flex flex-col p-3 overflow-hidden">
       <WidgetHeader
         title="Activity"
         right={

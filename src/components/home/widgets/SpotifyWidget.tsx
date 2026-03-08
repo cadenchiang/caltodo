@@ -2,19 +2,17 @@
 
 /**
  * Spotify embed widget — renders a playable Spotify player via iframe.
- * Users paste a Spotify URL (track, album, playlist, podcast) and it
- * constructs the embed URL automatically. No API key or OAuth required.
+ * Users paste a Spotify URL (track, album, playlist, podcast) in the
+ * settings panel. Supports custom header text, colors, and dark/light theme.
  *
  * @module SpotifyWidget
  */
 
-import { useState, useCallback } from "react";
 import { Music } from "lucide-react";
-import { WidgetShell, WidgetEmptyState } from "./WidgetPrimitives";
+import { WidgetShell, WidgetHeader, WidgetEmptyState } from "./WidgetPrimitives";
 
 interface SpotifyWidgetProps {
   config: Record<string, string>;
-  onUpdateConfig?: (config: Record<string, string>) => void;
 }
 
 /**
@@ -65,6 +63,15 @@ export function parseSpotifyUrl(
   return null;
 }
 
+/** Content type labels for the header. */
+const TYPE_LABELS: Record<string, string> = {
+  track: "Track",
+  album: "Album",
+  playlist: "Playlist",
+  episode: "Episode",
+  show: "Podcast",
+};
+
 /**
  * Builds the Spotify embed iframe URL from a parsed type and ID.
  *
@@ -77,70 +84,41 @@ function buildEmbedUrl(type: string, id: string, darkMode = true): string {
   return `https://open.spotify.com/embed/${type}/${id}?theme=${darkMode ? "0" : "1"}`;
 }
 
-export default function SpotifyWidget({
-  config,
-  onUpdateConfig,
-}: SpotifyWidgetProps) {
-  const [inputValue, setInputValue] = useState("");
-
+export default function SpotifyWidget({ config }: SpotifyWidgetProps) {
   const parsed = parseSpotifyUrl(config.spotifyUrl || "");
 
-  const handleSubmit = useCallback(() => {
-    const trimmed = inputValue.trim();
-    if (!trimmed || !onUpdateConfig) return;
-
-    const result = parseSpotifyUrl(trimmed);
-    if (result) {
-      onUpdateConfig({ ...config, spotifyUrl: trimmed });
-      setInputValue("");
-    }
-  }, [inputValue, config, onUpdateConfig]);
-
-  // Empty state — show input prompt
+  // Empty state — direct to settings
   if (!parsed) {
     return (
       <WidgetEmptyState
         icon={<Music size={24} />}
-        message="Add a Spotify link"
-        action={
-          onUpdateConfig ? (
-            <div className="flex items-center gap-1.5 mt-1">
-              <input
-                type="text"
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleSubmit();
-                }}
-                placeholder="Paste Spotify URL..."
-                className="px-2.5 py-1.5 text-xs rounded-lg border border-input-border bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring w-44"
-              />
-              <button
-                onClick={handleSubmit}
-                className="px-2.5 py-1.5 text-xs rounded-lg bg-green-500 text-white hover:bg-green-600 transition-colors font-medium"
-              >
-                Add
-              </button>
-            </div>
-          ) : undefined
-        }
+        message="Click to add a Spotify link in settings"
       />
     );
   }
 
-  // Render embedded player
-  const embedUrl = buildEmbedUrl(parsed.type, parsed.id);
+  // Render embedded player with optional header
+  const useDarkTheme = config.spotifyTheme !== "light";
+  const embedUrl = buildEmbedUrl(parsed.type, parsed.id, useDarkTheme);
+  const headerText = config.spotifyLabel || TYPE_LABELS[parsed.type] || "Spotify";
+  const showHeader = config.spotifyShowHeader !== "false";
+
   return (
-    <WidgetShell className="p-0">
-      <iframe
-        src={embedUrl}
-        width="100%"
-        height="100%"
-        allow="encrypted-media"
-        loading="lazy"
-        className="rounded-xl"
-        title="Spotify Player"
-      />
+    <WidgetShell className={showHeader ? "" : "p-0"}>
+      {showHeader && (
+        <WidgetHeader title={headerText} />
+      )}
+      <div className={`flex-1 min-h-0 overflow-hidden ${showHeader ? "-mx-3 -mb-3" : ""}`}>
+        <iframe
+          src={embedUrl}
+          width="100%"
+          height="100%"
+          allow="encrypted-media"
+          loading="lazy"
+          className={showHeader ? "" : "rounded-sm"}
+          title="Spotify Player"
+        />
+      </div>
     </WidgetShell>
   );
 }

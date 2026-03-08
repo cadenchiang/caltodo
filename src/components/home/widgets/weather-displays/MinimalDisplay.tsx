@@ -24,7 +24,7 @@ export default function MinimalDisplay({
   if (viewMode === "today") {
     return (
       <div
-        className="h-full w-full flex items-center justify-center gap-3 p-4 cursor-pointer"
+        className="h-full w-full flex items-center justify-center gap-3 p-3 cursor-pointer"
         onClick={handleClick}
       >
         <span className="text-5xl font-extralight tracking-tighter tabular-nums text-foreground leading-none">
@@ -40,7 +40,7 @@ export default function MinimalDisplay({
   // Week view — condensed rows
   return (
     <div
-      className="h-full w-full flex flex-col justify-center p-4 overflow-hidden cursor-pointer"
+      className="h-full w-full flex flex-col justify-center p-3 overflow-hidden cursor-pointer"
       onClick={handleClick}
     >
       <ul className="space-y-1">

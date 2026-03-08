@@ -22,6 +22,7 @@ import ColorPickerPopover from "@/components/ui/ColorPickerPopover";
 import CalendarPicker from "@/components/home/CalendarPicker";
 import ClockFacePicker from "@/components/home/ClockFacePicker";
 import WeatherDisplayPicker from "@/components/home/WeatherDisplayPicker";
+import GCalDisplayPicker from "@/components/home/GCalDisplayPicker";
 import NotesStylePicker from "@/components/home/NotesStylePicker";
 import { IMAGE_WIDGET_PRESETS, IMAGE_WIDGET_PRESET_CATEGORIES } from "@/lib/image-widget-presets";
 import ImageCropModal from "@/components/ui/ImageCropModal";
@@ -68,6 +69,7 @@ const WIDGET_LABELS: Record<string, string> = {
   notes: "Notes", weather: "Weather", "cal-chat": "Cal Chat", pomodoro: "Pomodoro",
   countdown: "Countdown", "quick-links": "Quick Links", "habit-tracker": "Habit Tracker",
   quote: "Quote", stats: "Stats", "weekly-heatmap": "Activity", sticker: "Sticker", spotify: "Spotify",
+  courses: "Courses",
 };
 
 /** Maps widget type to its lucide-react icon component for the editor header. */
@@ -77,6 +79,7 @@ const WIDGET_ICONS: Record<string, LucideIcon> = {
   notes: FileText, weather: CloudSun, "cal-chat": MessagesSquare, pomodoro: Timer,
   countdown: Hourglass, "quick-links": Link, "habit-tracker": Flame,
   quote: Quote, stats: BarChart3, "weekly-heatmap": Grid3X3, sticker: Smile, spotify: Music,
+  courses: GraduationCap,
 };
 
 const WEIGHT_OPTIONS = [
@@ -298,6 +301,7 @@ export default function WidgetEditorPanel({
 
         {/* Google Calendar */}
         {widget.type === "google-calendar" && <>
+          <GCalDisplayPicker value={localConfig.gcalDisplay || "list"} onChange={(v) => updateField("gcalDisplay", v)} />
           <CalendarPicker calendars={calendars} selectedIds={selectedCalendarIds} onToggle={handleCalToggle} onSelectAll={() => { setSelectedCalendarIds(new Set(calendars.map((c) => c.id))); updateField("calendarIds", JSON.stringify(calendars.map((c) => c.id))); }} onDeselectAll={() => { setSelectedCalendarIds(new Set()); updateField("calendarIds", "[]"); }} loading={calendarsLoading} />
           <div><label className="block text-sm font-medium text-foreground mb-1.5">Default View</label><select value={localConfig.viewMode || "week"} onChange={(e) => updateField("viewMode", e.target.value)} className={SEL}><option value="today">Today</option><option value="2day">2 Days</option><option value="3day">3 Days</option><option value="4day">4 Days</option><option value="5day">5 Days</option><option value="week">Week</option><option value="month">Month</option><option value="custom">Custom...</option></select></div>
           {localConfig.viewMode === "custom" && <div><label className="block text-sm font-medium text-foreground mb-1.5">Number of Days</label><input type="number" min={1} max={90} value={localConfig.customDays || "7"} onChange={(e) => updateField("customDays", e.target.value)} className={SEL} /></div>}
@@ -399,7 +403,10 @@ export default function WidgetEditorPanel({
 
         {/* Spotify */}
         {widget.type === "spotify" && <>
-          <div><label className="block text-sm font-medium text-foreground mb-1.5">Spotify URL</label><input type="text" placeholder="https://open.spotify.com/track/..." value={localConfig.spotifyUrl || ""} onChange={(e) => updateField("spotifyUrl", e.target.value)} className={SEL} /></div>
+          <div><label className="block text-sm font-medium text-foreground mb-1.5">Spotify URL</label><input type="text" placeholder="https://open.spotify.com/track/..." value={localConfig.spotifyUrl || ""} onChange={(e) => updateField("spotifyUrl", e.target.value)} className={SEL} /><p className="text-[10px] text-muted-foreground mt-1">Paste a link to a track, album, playlist, or podcast from Spotify.</p></div>
+          <div><label className="block text-sm font-medium text-foreground mb-1.5">Header Label</label><input type="text" placeholder="e.g. My Playlist" value={localConfig.spotifyLabel || ""} onChange={(e) => updateField("spotifyLabel", e.target.value)} className={SEL} /></div>
+          <div><label className="block text-sm font-medium text-foreground mb-1.5">Show Header</label><SegmentedControl options={[{ value: "true", label: "Show" }, { value: "false", label: "Hide" }]} value={localConfig.spotifyShowHeader ?? "true"} onChange={(v) => updateField("spotifyShowHeader", v)} /></div>
+          <div><label className="block text-sm font-medium text-foreground mb-1.5">Player Theme</label><SegmentedControl options={[{ value: "dark", label: "Dark" }, { value: "light", label: "Light" }]} value={localConfig.spotifyTheme || "dark"} onChange={(v) => updateField("spotifyTheme", v)} /></div>
         </>}
 
         {/* Divider + Appearance */}

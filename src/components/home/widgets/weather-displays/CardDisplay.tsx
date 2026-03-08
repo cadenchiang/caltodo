@@ -24,7 +24,7 @@ export default function CardDisplay({
   if (viewMode === "today") {
     return (
       <div
-        className="h-full w-full flex flex-col items-center justify-center p-4 cursor-pointer"
+        className="h-full w-full flex flex-col items-center justify-center p-3 cursor-pointer"
         onClick={handleClick}
       >
         <span className="text-muted-foreground mb-2">
@@ -43,7 +43,7 @@ export default function CardDisplay({
   // Week view — icon-focused list
   return (
     <div
-      className="h-full w-full flex flex-col p-4 overflow-hidden cursor-pointer"
+      className="h-full w-full flex flex-col p-3 overflow-hidden cursor-pointer"
       onClick={handleClick}
     >
       {/* Current header */}

@@ -27,7 +27,8 @@ export type WidgetType =
   | "sticker"
   | "spotify"
   | "mini-calendar"
-  | "daily-reminders";
+  | "daily-reminders"
+  | "courses";
 
 /** Configuration for a widget type: size constraints, display metadata. */
 export interface WidgetTypeConfig {
@@ -67,8 +68,8 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     label: "Clock",
     description: "Live time and date",
     iconName: "Clock",
-    minW: 1, minH: 1, maxW: 3, maxH: 2,
-    defaultW: 1, defaultH: 1,
+    minW: 2, minH: 2, maxW: 4, maxH: 3,
+    defaultW: 2, defaultH: 2,
   },
   image: {
     type: "image",
@@ -123,7 +124,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     label: "Pomodoro",
     description: "Focus timer with work and break intervals",
     iconName: "Timer",
-    minW: 1, minH: 1, maxW: 3, maxH: 3,
+    minW: 2, minH: 2, maxW: 4, maxH: 4,
     defaultW: 2, defaultH: 2,
   },
   countdown: {
@@ -205,6 +206,14 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     iconName: "ListChecks",
     minW: 1, minH: 1, maxW: 3, maxH: 3,
     defaultW: 1, defaultH: 2,
+  },
+  courses: {
+    type: "courses",
+    label: "Courses",
+    description: "Course folders with task counts",
+    iconName: "GraduationCap",
+    minW: 2, minH: 2, maxW: 4, maxH: 4,
+    defaultW: 2, defaultH: 2,
   },
 };
 

@@ -28,7 +28,7 @@ export default function DetailedDisplay({
   if (viewMode === "today") {
     return (
       <div
-        className="h-full w-full flex flex-col justify-between p-4 overflow-hidden cursor-pointer"
+        className="h-full w-full flex flex-col justify-between p-3 overflow-hidden cursor-pointer"
         onClick={handleClick}
       >
         {/* Location */}
@@ -85,7 +85,7 @@ export default function DetailedDisplay({
   // Week view — same as standard (already detailed)
   return (
     <div
-      className="h-full w-full flex flex-col p-4 overflow-hidden cursor-pointer"
+      className="h-full w-full flex flex-col p-3 overflow-hidden cursor-pointer"
       onClick={handleClick}
     >
       {/* Header */}

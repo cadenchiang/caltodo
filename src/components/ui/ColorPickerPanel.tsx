@@ -12,7 +12,7 @@
  */
 
 import { useState, useRef, useEffect } from "react";
-import { Plus, X, Check } from "lucide-react";
+import { Plus, X, Check, Pipette } from "lucide-react";
 import { TASK_COLORS } from "@/lib/constants";
 import ColorWheel from "@/components/ui/ColorWheel";
 
@@ -121,6 +121,28 @@ export default function ColorPickerPanel({ value, onChange, onApplyToAll }: Colo
     handleColorSelect(wheelColor);
   }
 
+  /** Whether the browser supports the EyeDropper API. */
+  const hasEyeDropper = typeof window !== "undefined" && "EyeDropper" in window;
+
+  /**
+   * Opens the native EyeDropper to pick a color from anywhere on screen.
+   */
+  async function handleEyeDropper() {
+    try {
+      // Hide all overlays/modals so the eyedropper sees the actual page
+      document.body.classList.add("eyedropper-active");
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const dropper = new (window as any).EyeDropper();
+      const result = await dropper.open();
+      document.body.classList.remove("eyedropper-active");
+      if (result?.sRGBHex) {
+        handleColorSelect(result.sRGBHex);
+      }
+    } catch {
+      document.body.classList.remove("eyedropper-active");
+    }
+  }
+
   /**
    * Removes a saved color swatch.
    *
@@ -166,6 +188,18 @@ export default function ColorPickerPanel({ value, onChange, onApplyToAll }: Colo
         >
           <Plus size={12} className="text-muted-foreground" />
         </button>
+
+        {/* Eyedropper — pick color from screen */}
+        {hasEyeDropper && (
+          <button
+            type="button"
+            onClick={handleEyeDropper}
+            className="w-7 h-7 rounded-full border-2 border-border flex items-center justify-center cursor-pointer hover:scale-110 hover:border-muted-foreground transition-all duration-150"
+            aria-label="Pick color from screen"
+          >
+            <Pipette size={12} className="text-muted-foreground" />
+          </button>
+        )}
       </div>
 
       {/* Color wheel for custom color picking */}

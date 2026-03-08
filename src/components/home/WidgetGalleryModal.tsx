@@ -128,8 +128,10 @@ export default function WidgetGalleryModal({
         {/* Widget grid — --preview-scale computed from thumbnail width / 320 */}
         <div className="px-6 py-5 grid grid-cols-3 gap-4 max-h-[70vh] overflow-y-auto">
           {widgetTypes.map((config) => (
-            <button
+            <div
               key={config.type}
+              role="button"
+              tabIndex={0}
               draggable
               onDragStart={(e) => {
                 e.dataTransfer.setData("text/plain", config.type);
@@ -138,6 +140,9 @@ export default function WidgetGalleryModal({
               onClick={() => {
                 onAdd(config.type);
                 onClose();
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") { onAdd(config.type); onClose(); }
               }}
               className="widget-gallery-card flex flex-col text-left overflow-hidden rounded-lg border border-foreground/[0.09] bg-card cursor-grab active:cursor-grabbing"
             >
@@ -159,7 +164,7 @@ export default function WidgetGalleryModal({
                   {config.description}
                 </span>
               </div>
-            </button>
+            </div>
           ))}
         </div>
       </div>

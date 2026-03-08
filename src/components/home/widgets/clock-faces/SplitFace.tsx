@@ -68,17 +68,16 @@ export default function SplitFace({ now, is24h, timezone, fontWeight }: ClockFac
     return () => ro.disconnect();
   }, []);
 
-  // Scale everything relative to the smaller dimension
-  // Reserve ~75% height for cards, ~25% for labels below
-  const cardAreaH = size.h * 0.72;
-  const availW = size.w * 0.9; // 90% of width, leaving outer padding
-  // Each card gets ~45% of width (with gap between)
-  const cardW = Math.min(availW * 0.44, cardAreaH * 0.85);
-  const cardH = Math.min(cardAreaH, cardW * 1.15);
-  const fontSize = cardH * 0.55;
-  const labelSize = Math.max(cardH * 0.14, 10);
-  const gap = cardW * 0.12;
-  const borderRadius = cardH * 0.18;
+  // Scale cards to fill nearly all available space
+  // Reserve ~15% height for labels below the cards
+  const cardAreaH = size.h * 0.82;
+  const availW = size.w * 0.88;
+  const gap = Math.max(availW * 0.03, 4);
+  const cardW = (availW - gap) / 2;
+  const cardH = Math.min(cardAreaH, cardW * 1.2);
+  const fontSize = cardH * 0.58;
+  const labelSize = Math.max(cardH * 0.13, 10);
+  const borderRadius = cardH * 0.12;
 
   return (
     <div ref={containerRef} className="h-full w-full flex items-center justify-center">
@@ -87,23 +86,32 @@ export default function SplitFace({ now, is24h, timezone, fontWeight }: ClockFac
           {/* Hour card */}
           <div className="flex flex-col items-center">
             <div
-              className="bg-foreground/[0.07] flex items-center justify-center shadow-sm"
+              className="relative flex items-center justify-center overflow-hidden"
               style={{
                 width: cardW,
                 height: cardH,
                 borderRadius,
+                backgroundColor: "var(--split-card-bg, rgba(200, 190, 180, 0.25))",
               }}
             >
+              <div
+                className="absolute inset-x-0 top-1/2 -translate-y-px"
+                style={{ height: 1, backgroundColor: "var(--split-divider, rgba(0,0,0,0.06))" }}
+              />
               <span
-                className="tabular-nums text-foreground leading-none"
-                style={{ fontSize, fontWeight: weight }}
+                className="tabular-nums leading-none relative z-10"
+                style={{
+                  fontSize,
+                  fontWeight: Math.max(weight, 700),
+                  color: "var(--split-digit-color, white)",
+                }}
               >
                 {hour}
               </span>
             </div>
             {period && (
               <span
-                className="text-muted-foreground uppercase tracking-wider"
+                className="text-muted-foreground uppercase tracking-wider font-semibold"
                 style={{ fontSize: labelSize, marginTop: labelSize * 0.4 }}
               >
                 {period}
@@ -114,22 +122,31 @@ export default function SplitFace({ now, is24h, timezone, fontWeight }: ClockFac
           {/* Minute card */}
           <div className="flex flex-col items-center">
             <div
-              className="bg-foreground/[0.07] flex items-center justify-center shadow-sm"
+              className="relative flex items-center justify-center overflow-hidden"
               style={{
                 width: cardW,
                 height: cardH,
                 borderRadius,
+                backgroundColor: "var(--split-card-bg, rgba(200, 190, 180, 0.25))",
               }}
             >
+              <div
+                className="absolute inset-x-0 top-1/2 -translate-y-px"
+                style={{ height: 1, backgroundColor: "var(--split-divider, rgba(0,0,0,0.06))" }}
+              />
               <span
-                className="tabular-nums text-foreground leading-none"
-                style={{ fontSize, fontWeight: weight }}
+                className="tabular-nums leading-none relative z-10"
+                style={{
+                  fontSize,
+                  fontWeight: Math.max(weight, 700),
+                  color: "var(--split-digit-color, white)",
+                }}
               >
                 {minute}
               </span>
             </div>
             <span
-              className="text-muted-foreground uppercase tracking-wider"
+              className="text-muted-foreground uppercase tracking-wider font-semibold"
               style={{ fontSize: labelSize, marginTop: labelSize * 0.4 }}
             >
               {day}

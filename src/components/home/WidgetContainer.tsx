@@ -35,6 +35,7 @@ import StickerWidget from "@/components/home/widgets/StickerWidget";
 import SpotifyWidget from "@/components/home/widgets/SpotifyWidget";
 import MiniCalendarWidget from "@/components/home/widgets/MiniCalendarWidget";
 import DailyRemindersWidget from "@/components/home/widgets/DailyRemindersWidget";
+import CoursesWidget from "@/components/home/widgets/CoursesWidget";
 
 /** Drag threshold in pixels — mouse must stay within this to count as a click. */
 const DRAG_THRESHOLD = 5;
@@ -101,11 +102,13 @@ export function RenderWidget({
     case "sticker":
       return <StickerWidget config={widget.config} onUpdateConfig={onUpdateConfig} />;
     case "spotify":
-      return <SpotifyWidget config={widget.config} onUpdateConfig={editMode ? onUpdateConfig : undefined} />;
+      return <SpotifyWidget config={widget.config} />;
     case "mini-calendar":
       return <MiniCalendarWidget config={widget.config} />;
     case "daily-reminders":
       return <DailyRemindersWidget config={widget.config} onUpdateConfig={onUpdateConfig} />;
+    case "courses":
+      return <CoursesWidget config={widget.config} />;
     default:
       return null;
   }
@@ -184,18 +187,18 @@ export default function WidgetContainer({
       data-widget-id={widget.id}
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
-      className={`h-full w-full ${widget.config.widgetBorder === "false" ? "rounded-none bg-transparent" : "rounded-md bg-transparent border border-foreground/[0.09]"} overflow-hidden ${editClass} ${isClickable ? "cursor-pointer" : ""} ${textColor ? "widget-custom-text" : ""}`}
+      className={`h-full w-full ${widget.config.widgetBorder === "false" ? "rounded-none bg-transparent" : "rounded-sm bg-transparent border border-foreground/[0.09]"} overflow-hidden ${editClass} ${isClickable ? "cursor-pointer" : ""} ${textColor ? "widget-custom-text" : ""}`}
       style={{
         backgroundColor: bgColor,
-        ...(textColor ? { "--widget-text-color": textColor } as React.CSSProperties : {}),
+        ...(textColor ? { "--widget-text-color": textColor, color: textColor } as React.CSSProperties : {}),
         ...(accentColor ? { "--widget-accent-color": accentColor } as React.CSSProperties : {}),
         fontFamily,
         fontWeight,
         fontStyle,
       }}
     >
-      {/* Widget content — disable interactions in edit mode (except image/spotify widgets which need inline interactions) */}
-      <div className={`h-full w-full overflow-hidden ${editMode && widget.type !== "image" && widget.type !== "spotify" ? "pointer-events-none" : ""}`}>
+      {/* Widget content — disable interactions in edit mode (except image widget which needs inline interactions) */}
+      <div className={`h-full w-full overflow-hidden ${editMode && widget.type !== "image" ? "pointer-events-none" : ""}`}>
         <RenderWidget
           widget={widget}
           editMode={editMode}

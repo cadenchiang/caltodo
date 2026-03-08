@@ -8,6 +8,7 @@ import { useTaskContext } from "@/contexts/TaskContext";
 import { expandRepeatingTasks, getRealTaskId } from "@/lib/expand-repeating-tasks";
 import TaskList from "@/components/tasks/TaskList";
 import TaskBoardView from "@/components/tasks/TaskBoardView";
+import CourseGridView from "@/components/courses/CourseGridView";
 import TaskDetailPanel from "@/components/tasks/TaskDetailPanel";
 import TaskCreateModal from "@/components/tasks/TaskCreateModal";
 import TaskPreviewPopover from "@/components/tasks/TaskPreviewPopover";
@@ -21,7 +22,7 @@ import { trackEvent } from "@/lib/analytics";
 const SYNC_BADGE_DISMISSED_KEY = "caltodo_sync_badge_dismissed";
 
 type InboxFilter = "all" | "today" | "7days";
-type ViewMode = "list" | "board";
+type ViewMode = "list" | "board" | "courses";
 
 const FILTER_OPTIONS: { key: InboxFilter; label: string; icon: React.ComponentType<{ size?: number; className?: string }> }[] = [
   { key: "all", label: "Inbox", icon: Inbox },
@@ -185,7 +186,7 @@ function saveSelections(courses: SelectedCourse[]): void {
 export default function InboxPage() {
   const {
     tasks, loading, error, addTask, toggleComplete: rawToggle, deleteTask: rawDelete, updateTask: rawUpdate,
-    syncing, triggerSync, reorderTasks, fetchTasks, lastSyncedAt,
+    syncing, triggerSync, reorderTasks, fetchTasks, lastSyncedAt, courseColors,
   } = useTaskContext();
 
   /** Wraps toggleComplete to resolve virtual repeat instance IDs to real task IDs. */
@@ -797,6 +798,18 @@ export default function InboxPage() {
                     <LayoutGrid size={14} />
                     Board
                   </button>
+                  <button
+                    onClick={() => { trackEvent("view_mode_changed", { mode: "courses" }); setViewMode("courses"); setShowViewMenu(false); }}
+                    className={`flex items-center gap-2 w-full text-left px-3 py-2 text-sm transition-colors ${
+                      viewMode === "courses"
+                        ? "text-foreground font-medium"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                    style={{ backgroundColor: viewMode === "courses" ? "rgba(255,255,255,0.08)" : "transparent" }}
+                  >
+                    <GraduationCap size={14} />
+                    Courses
+                  </button>
                   <div className="border-t border-border my-1" />
                   <button
                     onClick={() => { setShowViewMenu(false); handleSyncClick(); }}
@@ -861,6 +874,12 @@ export default function InboxPage() {
                   pendingInvites={pendingInvites}
                   onRespondInvite={handleRespondInvite}
                   onAcceptAllInvites={handleAcceptAllInvites}
+                />
+              ) : viewMode === "courses" ? (
+                <CourseGridView
+                  tasks={filteredTasks}
+                  courseColors={courseColors}
+                  loading={loading}
                 />
               ) : (
                 <TaskBoardView

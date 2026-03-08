@@ -1543,6 +1543,19 @@ textarea:-webkit-autofill {
   color: white !important;
 }
 
+/* Hide all overlays while EyeDropper is active so the picker sees the real page */
+.eyedropper-active .fixed,
+.eyedropper-active [class*="z-50"],
+.eyedropper-active [class*="z-[52]"] {
+  visibility: hidden !important;
+}
+
+/* Accent-colored header bar background when --widget-accent-color is set */
+[style*="--widget-accent-color"] .widget-header {
+  background-color: color-mix(in srgb, var(--widget-accent-color) 15%, transparent);
+  border-bottom-color: color-mix(in srgb, var(--widget-accent-color) 25%, transparent);
+}
+
 /* Dark overlay on hover in edit mode */
 .widget-jiggle::after {
   content: "";

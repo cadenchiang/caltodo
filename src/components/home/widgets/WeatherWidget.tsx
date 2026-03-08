@@ -205,7 +205,7 @@ export default function WeatherWidget({ config, editMode }: WeatherWidgetProps) 
 
   if (loading) {
     return (
-      <div className="h-full w-full flex flex-col justify-between p-4">
+      <div className="h-full w-full flex flex-col justify-between p-3">
         <div className="h-2.5 w-20 rounded bg-muted animate-pulse" />
         <div className="flex items-center justify-between">
           <div className="space-y-2">
@@ -226,7 +226,7 @@ export default function WeatherWidget({ config, editMode }: WeatherWidgetProps) 
   if (geoError) {
     return (
       <div
-        className={`h-full w-full flex flex-col items-center justify-center p-4 text-center ${!permDenied ? "cursor-pointer" : ""}`}
+        className={`h-full w-full flex flex-col items-center justify-center p-3 text-center ${!permDenied ? "cursor-pointer" : ""}`}
         onClick={!permDenied ? () => setRetryCount((c) => c + 1) : undefined}
         role={!permDenied ? "button" : undefined}
         tabIndex={!permDenied ? 0 : undefined}

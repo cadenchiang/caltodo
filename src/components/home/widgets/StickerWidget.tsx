@@ -18,7 +18,7 @@ export default function StickerWidget({ config, onUpdateConfig }: StickerWidgetP
   const stickerText = config?.stickerText || "";
 
   return (
-    <div className="h-full w-full flex flex-col items-center justify-center p-4 text-center select-none">
+    <div className="h-full w-full flex flex-col items-center justify-center p-3 text-center select-none">
       <span
         className="leading-none"
         style={{

@@ -31,7 +31,7 @@ export function WidgetShell({
 }) {
   return (
     <div
-      className={`h-full w-full flex flex-col p-4 overflow-hidden ${
+      className={`h-full w-full flex flex-col p-3 overflow-hidden ${
         centered ? "items-center justify-center text-center" : ""
       } ${className}`}
     >
@@ -55,10 +55,10 @@ export function WidgetHeader({
   right?: ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between mb-2">
-      <h3 className="text-xs font-semibold text-foreground">{title}</h3>
+    <div className="widget-header flex items-center justify-between mb-2 -mx-3 -mt-3 px-3 h-8 shrink-0 border-b border-foreground/[0.06]" style={{ color: "var(--widget-text-color, var(--foreground))" }}>
+      <h3 className="text-xs font-semibold" style={{ color: "inherit" }}>{title}</h3>
       {right && (
-        <div className="flex items-center gap-1.5 shrink-0">{right}</div>
+        <div className="flex items-center gap-1.5 shrink-0" style={{ color: "inherit" }}>{right}</div>
       )}
     </div>
   );
@@ -82,7 +82,7 @@ export function WidgetEmptyState({
   action?: ReactNode;
 }) {
   return (
-    <div className="h-full w-full flex flex-col items-center justify-center p-4 text-center">
+    <div className="h-full w-full flex flex-col items-center justify-center p-3 text-center">
       <div className="text-muted-foreground mb-2">{icon}</div>
       <p className="text-xs text-muted-foreground">{message}</p>
       {action && <div className="mt-3">{action}</div>}

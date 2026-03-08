@@ -152,7 +152,7 @@ export default function HabitTrackerWidget({ config, onUpdateConfig }: HabitTrac
   }
 
   return (
-    <div className="h-full w-full flex flex-col p-4 overflow-hidden">
+    <div className="h-full w-full flex flex-col p-3 overflow-hidden">
       <WidgetHeader
         title={habitName}
         right={

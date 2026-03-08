@@ -50,7 +50,7 @@ export default function AnalogFace({ now, timezone }: ClockFaceProps) {
   const ticks = Array.from({ length: 12 }, (_, i) => i * 30);
 
   return (
-    <div className="h-full w-full flex items-center justify-center p-4">
+    <div className="h-full w-full flex items-center justify-center p-3">
       <svg viewBox="0 0 200 200" className="max-w-[160px] aspect-square">
         {/* Outer circle */}
         <circle

@@ -28,7 +28,7 @@ export default function StandardDisplay({
   if (viewMode === "today") {
     return (
       <div
-        className="h-full w-full flex flex-col justify-between p-4 overflow-hidden cursor-pointer"
+        className="h-full w-full flex flex-col justify-between p-3 overflow-hidden cursor-pointer"
         onClick={handleClick}
       >
         {/* Location */}
@@ -75,7 +75,7 @@ export default function StandardDisplay({
   // Week view
   return (
     <div
-      className="h-full w-full flex flex-col p-4 overflow-hidden cursor-pointer"
+      className="h-full w-full flex flex-col p-3 overflow-hidden cursor-pointer"
       onClick={handleClick}
     >
       {/* Header */}

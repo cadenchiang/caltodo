@@ -71,7 +71,7 @@ export default function FlipFace({ now, is24h, timezone, fontWeight }: ClockFace
   const weight = Number(fontWeight);
 
   return (
-    <div className="h-full w-full flex items-center justify-center gap-1.5 p-4">
+    <div className="h-full w-full flex items-center justify-center gap-1.5 p-3">
       <FlipCard digit={digits[0]} fontWeight={weight} />
       <FlipCard digit={digits[1]} fontWeight={weight} />
       <span

@@ -172,7 +172,9 @@ export default function ColorPickerPopover({
       ref={triggerRef}
       type="button"
       onClick={handleToggle}
-      className="relative w-7 h-7 rounded-full overflow-hidden border border-border cursor-pointer transition-transform hover:scale-110 shrink-0"
+      className={`relative w-7 h-7 rounded-full overflow-hidden cursor-pointer transition-transform hover:scale-110 shrink-0 ${
+        value ? "border-2 border-border" : "border border-dashed border-border"
+      }`}
       aria-label={`Pick ${label} color`}
     >
       <div

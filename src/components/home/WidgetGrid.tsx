@@ -36,7 +36,7 @@ const BREAKPOINTS = { lg: 996, md: 768, sm: 0 };
 const ROW_HEIGHT = 120;
 
 /** Gap between grid items [horizontal, vertical]. */
-const MARGIN: readonly [number, number] = [16, 16];
+const MARGIN: readonly [number, number] = [10, 10];
 
 interface WidgetGridProps {
   widgets: WidgetInstance[];

@@ -19,7 +19,7 @@ import { useCompactMode } from "@/hooks/useCompactMode";
 import TaskCheckbox from "@/components/tasks/shared/TaskCheckbox";
 import TaskCreateModal from "@/components/tasks/TaskCreateModal";
 import TaskPreviewPopover from "@/components/tasks/TaskPreviewPopover";
-import { WidgetHeader, WidgetProgressBar } from "./WidgetPrimitives";
+import { WidgetHeader } from "./WidgetPrimitives";
 import type { Task } from "@/lib/types";
 
 /** View mode labels for the header. */
@@ -87,7 +87,6 @@ export default function TasksTodayWidget({ config }: TasksTodayWidgetProps) {
 
   const completedCount = filteredTasks.filter((t) => t.is_completed).length;
   const totalCount = filteredTasks.length;
-  const progressPct = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
   const label = VIEW_LABELS[viewMode] || "Today";
 
   /**
@@ -120,7 +119,7 @@ export default function TasksTodayWidget({ config }: TasksTodayWidgetProps) {
   }
 
   return (
-    <div ref={containerRef} className="h-full w-full flex flex-col p-4 overflow-hidden">
+    <div ref={containerRef} className="h-full w-full flex flex-col p-3 overflow-hidden">
       <WidgetHeader
         title={label}
         right={
@@ -142,11 +141,6 @@ export default function TasksTodayWidget({ config }: TasksTodayWidgetProps) {
         }
       />
 
-      <WidgetProgressBar
-        pct={progressPct}
-        accentColor={config?.accentColor}
-        className="mb-2.5"
-      />
 
       {/* Compact mode — show only header + progress bar */}
       {compact ? null : totalCount === 0 ? (
@@ -157,7 +151,7 @@ export default function TasksTodayWidget({ config }: TasksTodayWidgetProps) {
           </p>
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto -mx-3">
           {filteredTasks
             .filter((t) => !hideCompleted || !t.is_completed)
             .slice(0, 8)
@@ -168,7 +162,7 @@ export default function TasksTodayWidget({ config }: TasksTodayWidgetProps) {
               return (
                 <div
                   key={task.id}
-                  className={`group flex items-center gap-2 px-2 h-8 rounded-lg transition-colors duration-100 cursor-pointer hover:bg-black/10 dark:hover:bg-white/15 ${
+                  className={`group flex items-center gap-2 px-3 h-8 transition-colors duration-100 cursor-pointer hover:bg-black/10 dark:hover:bg-white/15 ${
                     task.is_completed ? "opacity-50" : ""
                   }`}
                   onClick={(e) => handleTaskClick(task, e)}
