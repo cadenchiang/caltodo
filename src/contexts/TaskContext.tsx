@@ -326,10 +326,14 @@ export function TaskProvider({ children }: { children: ReactNode }) {
 
           // Sync any newly imported tasks (with due dates) to GCal
           syncUnsyncedToGCal(abortController.signal);
+        } else {
+          // Even if assignment sync fails, still sync any unsynced tasks to GCal
+          syncUnsyncedToGCal(abortController.signal);
         }
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") return;
-        // Silent failure for auto-sync — user can still manually sync
+        // Silent failure for auto-sync — still try GCal sync
+        syncUnsyncedToGCal(abortController.signal);
       }
     }
 

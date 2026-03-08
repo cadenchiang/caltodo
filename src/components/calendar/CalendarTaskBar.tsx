@@ -76,23 +76,24 @@ export default function CalendarTaskBar({ task, onClick, isPending, compact = fa
         border: `1px dashed ${hexToRgba(color, 0.4)}`,
         borderLeftWidth: "2px",
       } : {
-        backgroundColor: task.is_completed ? hexToRgba(color, 0.35) : color,
-        opacity: hovered ? 0.9 : undefined,
+        backgroundColor: hexToRgba(color, hovered ? 0.18 : 0.1),
+        borderLeft: `2px solid ${color}`,
       }}
       title={isPending ? `Pending invite: ${task.title}` : task.title}
     >
       {task.is_completed && !isPending && (
-        <svg className={`w-2.5 h-2.5 shrink-0 mr-1 hidden md:block ${task.is_completed ? "text-foreground/60" : "text-foreground"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+        <svg className="w-2.5 h-2.5 shrink-0 mr-1 hidden md:block" style={{ color }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
           <polyline points="20 6 9 17 4 12" />
         </svg>
       )}
       {task.due_time && (
-        <span className={`${compact ? "text-[9px]" : "text-[11px]"} font-medium shrink-0 ${task.is_completed ? "text-foreground/50" : "text-foreground/80"}`}>
+        <span className={`${compact ? "text-[9px]" : "text-[11px]"} font-medium shrink-0`} style={{ color }}>
           {formatTimeCompact(task.due_time)}
         </span>
       )}
       <span
-        className={`${compact ? "text-[10px]" : "text-[12px]"} font-medium truncate ${task.is_completed ? "text-foreground/60 line-through" : "text-foreground"}`}
+        className={`${compact ? "text-[10px]" : "text-[12px]"} font-medium truncate ${task.is_completed ? "line-through" : ""}`}
+        style={{ color }}
       >
         {truncateTitle(task.title, MAX_TITLE_CHARS)}
       </span>

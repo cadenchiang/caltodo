@@ -42,6 +42,7 @@ export function useGCalEvents(timeMin?: string, timeMax?: string): UseGCalEvents
     revalidateOnFocus: true,
     dedupingInterval: 60_000,
     refreshInterval: 300_000,
+    keepPreviousData: true,
   });
 
   return {

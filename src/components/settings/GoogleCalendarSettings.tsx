@@ -57,6 +57,7 @@ async function runBackgroundSync(): Promise<void> {
 
     if (contentType.includes("application/json")) {
       const result = await syncRes.json();
+      progress(100);
       if (syncRes.ok && result.synced === 0 && result.total === 0) {
         toast("All tasks are already synced.");
       } else if (!syncRes.ok) {
@@ -74,6 +75,7 @@ async function runBackgroundSync(): Promise<void> {
     });
 
     if (!finalResult) {
+      progress(100);
       toast("Sync failed: no response stream.");
       return;
     }
@@ -90,6 +92,7 @@ async function runBackgroundSync(): Promise<void> {
     }
   } catch (err) {
     console.error("Background sync error:", err);
+    progress(100);
     toast("Failed to sync tasks. Please try again.");
   } finally {
     moduleSyncInProgress = false;
