@@ -6,10 +6,11 @@
 
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { X, CalendarDays, Clock, MapPin, AlignLeft } from "lucide-react";
 import { format } from "date-fns";
+import { useLocationAutocomplete } from "@/hooks/useLocationAutocomplete";
 
 interface GCalEventCreateModalProps {
   open: boolean;
@@ -47,6 +48,23 @@ export default function GCalEventCreateModal({ open, onClose, onCreated, default
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [locationFocused, setLocationFocused] = useState(false);
+  const locationSuggestions = useLocationAutocomplete(location, locationFocused);
+  const locationRef = useRef<HTMLDivElement>(null);
+
+  /** Close location dropdown on outside click. */
+  const handleLocationBlur = useCallback((e: MouseEvent) => {
+    if (locationRef.current && !locationRef.current.contains(e.target as Node)) {
+      setLocationFocused(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (locationFocused) {
+      document.addEventListener("mousedown", handleLocationBlur);
+      return () => document.removeEventListener("mousedown", handleLocationBlur);
+    }
+  }, [locationFocused, handleLocationBlur]);
 
   // Reset form when opened
   useEffect(() => {
@@ -241,16 +259,33 @@ export default function GCalEventCreateModal({ open, onClose, onCreated, default
               )}
             </div>
 
-            {/* Location row */}
-            <div className="flex items-center gap-4 px-4 py-4 rounded-xl transition-colors duration-150 hover:bg-gray-100 dark:hover:bg-gray-800">
-              <MapPin size={20} className="shrink-0 text-foreground" />
-              <input
-                type="text"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                placeholder="Add location"
-                className="flex-1 text-sm text-foreground bg-transparent placeholder-muted-foreground/60 focus:outline-none"
-              />
+            {/* Location row with autocomplete */}
+            <div ref={locationRef} className="relative">
+              <div className="flex items-center gap-4 px-4 py-4 rounded-xl transition-colors duration-150 hover:bg-gray-100 dark:hover:bg-gray-800">
+                <MapPin size={20} className="shrink-0 text-foreground" />
+                <input
+                  type="text"
+                  value={location}
+                  onChange={(e) => { setLocation(e.target.value); setLocationFocused(true); }}
+                  onFocus={() => setLocationFocused(true)}
+                  placeholder="Add location"
+                  className="flex-1 text-sm text-foreground bg-transparent placeholder-muted-foreground/60 focus:outline-none"
+                />
+              </div>
+              {locationFocused && locationSuggestions.length > 0 && (
+                <div className="absolute left-4 right-4 top-full z-20 bg-popover border border-border rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+                  {locationSuggestions.map((s, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => { setLocation(s); setLocationFocused(false); }}
+                      className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors truncate"
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Description row */}
