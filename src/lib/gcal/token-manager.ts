@@ -162,14 +162,11 @@ export async function isGoogleCalendarConnected(
 }
 
 /**
- * Fetches the stored Google Calendar ID for syncing tasks.
- * The google_calendar_id column may contain a JSON array (multi-calendar
- * selection) or a plain string. This resolves to the first calendar ID
- * for write operations (creating/updating events).
+ * Fetches the stored Google Calendar ID for the user's dedicated "caltodo" calendar.
  *
  * @param supabase - Authenticated Supabase client
  * @param userId - The user's UUID
- * @returns A single calendar ID string, or null if not set
+ * @returns The stored calendar ID, or null if not set
  */
 export async function getCalendarId(
   supabase: SupabaseClient,
@@ -185,20 +182,5 @@ export async function getCalendarId(
     return null;
   }
 
-  const stored = data.google_calendar_id as string;
-
-  // Handle JSON array format: ["primary", "calId2", ...] → use first ID
-  if (stored.startsWith("[")) {
-    try {
-      const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed[0];
-      }
-      return null;
-    } catch {
-      return null;
-    }
-  }
-
-  return stored;
+  return data.google_calendar_id as string;
 }

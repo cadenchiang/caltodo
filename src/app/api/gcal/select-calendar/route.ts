@@ -49,13 +49,9 @@ export async function POST(request: Request) {
   // Store as JSON string in google_calendar_id column
   const calendarIdsJson = JSON.stringify(body.calendarIds);
 
-  // Invalidate syncToken when calendar selection changes (new calendars need fresh sync)
   const { error: updateError } = await supabase
     .from("integration_credentials")
-    .update({
-      google_calendar_id: calendarIdsJson,
-      gcal_sync_token: null,
-    })
+    .update({ google_calendar_id: calendarIdsJson })
     .eq("user_id", user.id);
 
   if (updateError) {

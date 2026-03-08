@@ -16,9 +16,9 @@ import { rateLimit } from "@/lib/rate-limit";
 /** Google OAuth2 authorization endpoint. */
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 
-/** Scopes required for calendar access and profile info display. */
+/** Scopes required for calendar read/write access and profile info display. */
 const OAUTH_SCOPES = [
-  "https://www.googleapis.com/auth/calendar.readonly",
+  "https://www.googleapis.com/auth/calendar",
   "https://www.googleapis.com/auth/userinfo.email",
   "https://www.googleapis.com/auth/userinfo.profile",
 ].join(" ");

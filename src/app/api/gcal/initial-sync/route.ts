@@ -31,18 +31,15 @@ export async function POST() {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
 
-  let accessToken = await getValidAccessToken(supabase, user.id);
+  const accessToken = await getValidAccessToken(supabase, user.id);
   if (!accessToken) {
     return NextResponse.json({ synced: 0, reason: "not_connected" });
   }
 
   const calendarId = await getCalendarId(supabase, user.id);
   if (!calendarId) {
-    logger.warn("POST /api/gcal/initial-sync: no calendar ID found", { userId: user.id });
     return NextResponse.json({ synced: 0, needsCalendarSelection: true });
   }
-
-  logger.info("POST /api/gcal/initial-sync: resolved calendarId", { userId: user.id, calendarId });
 
   const { data: tasks, error: fetchError } = await supabase
     .from("tasks")
@@ -86,11 +83,6 @@ export async function POST() {
               synced++;
               lastError = null;
               break;
-            }
-            // If first attempt fails, try refreshing the access token
-            if (attempt === 0) {
-              const refreshedToken = await getValidAccessToken(supabase, user!.id);
-              if (refreshedToken) accessToken = refreshedToken;
             }
             lastError = `Failed to create event for task: ${task.id}`;
           } catch (err) {
