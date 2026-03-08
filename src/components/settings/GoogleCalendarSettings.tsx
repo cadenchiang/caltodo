@@ -58,10 +58,16 @@ async function runBackgroundSync(): Promise<void> {
     if (contentType.includes("application/json")) {
       const result = await syncRes.json();
       progress(100);
-      if (syncRes.ok && result.synced === 0 && result.total === 0) {
-        toast("All tasks are already synced.");
-      } else if (!syncRes.ok) {
+      if (!syncRes.ok) {
         toast(`Sync failed: ${result.error || syncRes.status}`);
+      } else if (result.reason === "not_connected") {
+        toast("Google Calendar not connected. Please reconnect in Settings.");
+      } else if (result.needsCalendarSelection) {
+        toast("Calendar setup needed. Please reconnect Google Calendar.");
+      } else if (result.synced === 0 && result.total === 0) {
+        toast("All tasks are already synced.");
+      } else {
+        toast("Sync complete.");
       }
       return;
     }
@@ -220,17 +226,26 @@ export default function GoogleCalendarSettings() {
     toast("Setting up Google Calendar...", { progress: 0 });
     try {
       await refresh();
+      // First fetch available calendars to find or create the caltodo calendar
+      const calListRes = await fetch("/api/gcal/calendars?all=true");
+      let calendarIds = ["primary"];
+      if (calListRes.ok) {
+        const calData = await calListRes.json();
+        if (calData.calendars && calData.calendars.length > 0) {
+          calendarIds = calData.calendars.map((c: { id: string }) => c.id);
+        }
+      }
       const selectRes = await fetch("/api/gcal/select-calendar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ calendarId: "create_new" }),
+        body: JSON.stringify({ calendarIds }),
       });
       if (!selectRes.ok) {
         const err = await selectRes.json();
-        toast(`Failed to create calendar: ${err.error || selectRes.status}`);
+        toast(`Failed to set up calendar: ${err.error || selectRes.status}`);
         return;
       }
-      const selectResult = await selectRes.json();
+      const selectResult = { needsSync: true };
       const gcalUrl = googleEmail
         ? `https://calendar.google.com/calendar/r?authuser=${encodeURIComponent(googleEmail)}`
         : "https://calendar.google.com";
