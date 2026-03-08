@@ -33,6 +33,8 @@ import StatsWidget from "@/components/home/widgets/StatsWidget";
 import WeeklyHeatmapWidget from "@/components/home/widgets/WeeklyHeatmapWidget";
 import StickerWidget from "@/components/home/widgets/StickerWidget";
 import SpotifyWidget from "@/components/home/widgets/SpotifyWidget";
+import MiniCalendarWidget from "@/components/home/widgets/MiniCalendarWidget";
+import DailyRemindersWidget from "@/components/home/widgets/DailyRemindersWidget";
 
 /** Drag threshold in pixels — mouse must stay within this to count as a click. */
 const DRAG_THRESHOLD = 5;
@@ -101,6 +103,10 @@ export function RenderWidget({
       return <StickerWidget config={widget.config} onUpdateConfig={onUpdateConfig} />;
     case "spotify":
       return <SpotifyWidget config={widget.config} onUpdateConfig={editMode ? onUpdateConfig : undefined} />;
+    case "mini-calendar":
+      return <MiniCalendarWidget config={widget.config} />;
+    case "daily-reminders":
+      return <DailyRemindersWidget config={widget.config} onUpdateConfig={onUpdateConfig} />;
     default:
       return null;
   }
@@ -179,7 +185,7 @@ export default function WidgetContainer({
       data-widget-id={widget.id}
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
-      className={`h-full w-full ${widget.config.widgetBorder === "false" ? "rounded-none bg-transparent" : "rounded-xl bg-transparent border border-foreground/[0.09]"} overflow-hidden ${editClass} ${isClickable ? "cursor-pointer" : ""} ${textColor ? "widget-custom-text" : ""}`}
+      className={`h-full w-full ${widget.config.widgetBorder === "false" ? "rounded-none bg-transparent" : "rounded-md bg-transparent border border-foreground/[0.09]"} overflow-hidden ${editClass} ${isClickable ? "cursor-pointer" : ""} ${textColor ? "widget-custom-text" : ""}`}
       style={{
         backgroundColor: bgColor,
         ...(textColor ? { "--widget-text-color": textColor } as React.CSSProperties : {}),

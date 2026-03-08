@@ -30,6 +30,8 @@ describe("WIDGET_REGISTRY", () => {
       "weekly-heatmap",
       "sticker",
       "spotify",
+      "mini-calendar",
+      "daily-reminders",
     ];
     expect(Object.keys(WIDGET_REGISTRY).sort()).toEqual(expectedTypes.sort());
   });

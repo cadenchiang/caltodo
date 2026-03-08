@@ -16,6 +16,7 @@ import WidgetEditorPanel from "@/components/home/WidgetEditorPanel";
 import BoardCover from "@/components/home/BoardCover";
 import BoardTitle from "@/components/home/BoardTitle";
 import BoardDescription from "@/components/home/BoardDescription";
+import BoardDivider from "@/components/home/BoardDivider";
 import EmojiPicker, { LUCIDE_ICON_MAP, isFilledIcon } from "@/components/home/EmojiPicker";
 import { ICON_SIZES } from "@/components/home/emoji-picker-data";
 import { useWidgetLayout } from "@/hooks/useWidgetLayout";
@@ -49,6 +50,9 @@ export default function HomePage() {
     coverPositionY,
     setTitleConfig,
     setCoverConfig,
+    dividerColor,
+    dividerThickness,
+    setDividerConfig,
     savedImages,
     addSavedImage,
   } = useWidgetLayout();
@@ -272,7 +276,12 @@ export default function HomePage() {
         />
 
         {/* Divider */}
-        <div className="border-t border-foreground/8 mx-6 md:mx-10 mb-6" />
+        <BoardDivider
+          color={dividerColor}
+          thickness={dividerThickness}
+          editMode={editMode}
+          onDividerChange={setDividerConfig}
+        />
 
         {/* Widget Grid (full width) */}
         <div id="widget-grid" className="flex-1 min-h-0 pb-20 md:pb-0">
@@ -360,6 +369,7 @@ export default function HomePage() {
             onApplyBgResetToAll={() => { updateAllWidgetConfigs({ bgColor: "" }); showToast("Background reset on all widgets"); }}
             onApplyTextColorToAll={(color) => { updateAllWidgetConfigs({ textColor: color }); showToast("Text color applied to all widgets"); }}
             onApplyBorderToAll={(value) => { updateAllWidgetConfigs({ widgetBorder: value }); showToast(`Border ${value === "false" ? "hidden" : "shown"} on all widgets`); }}
+            onApplyAccentToAll={(color) => { updateAllWidgetConfigs({ accentColor: color }); showToast("Accent color applied to all widgets"); }}
             savedImages={savedImages}
             onAddSavedImage={addSavedImage}
           />

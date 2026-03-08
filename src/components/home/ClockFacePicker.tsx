@@ -76,6 +76,17 @@ function FacePreview({ faceId }: { faceId: ClockFaceId }) {
           <span className="text-[10px] tabular-nums font-light text-foreground leading-none">00</span>
         </div>
       );
+    case "split":
+      return (
+        <div className="flex items-center justify-center h-full gap-1">
+          <div className="w-5 h-6 rounded-[3px] bg-muted border border-border flex items-center justify-center">
+            <span className="text-[9px] tabular-nums text-foreground">10</span>
+          </div>
+          <div className="w-5 h-6 rounded-[3px] bg-muted border border-border flex items-center justify-center">
+            <span className="text-[9px] tabular-nums text-foreground">45</span>
+          </div>
+        </div>
+      );
     default:
       return null;
   }

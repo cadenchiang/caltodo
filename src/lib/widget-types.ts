@@ -25,7 +25,9 @@ export type WidgetType =
   | "stats"
   | "weekly-heatmap"
   | "sticker"
-  | "spotify";
+  | "spotify"
+  | "mini-calendar"
+  | "daily-reminders";
 
 /** Configuration for a widget type: size constraints, display metadata. */
 export interface WidgetTypeConfig {
@@ -187,6 +189,22 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     iconName: "Music",
     minW: 2, minH: 2, maxW: 4, maxH: 4,
     defaultW: 2, defaultH: 2,
+  },
+  "mini-calendar": {
+    type: "mini-calendar",
+    label: "Mini Calendar",
+    description: "Current month grid with today highlighted",
+    iconName: "CalendarDays",
+    minW: 1, minH: 1, maxW: 2, maxH: 2,
+    defaultW: 1, defaultH: 1,
+  },
+  "daily-reminders": {
+    type: "daily-reminders",
+    label: "Daily Reminders",
+    description: "Checkbox list that resets each day",
+    iconName: "ListChecks",
+    minW: 1, minH: 1, maxW: 3, maxH: 3,
+    defaultW: 1, defaultH: 2,
   },
 };
 

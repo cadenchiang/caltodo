@@ -67,6 +67,8 @@ interface ColorPickerPopoverProps {
   layout?: "horizontal" | "compact";
   /** Shown in the circle when value is empty. Falls back to var(--muted). */
   defaultValue?: string;
+  /** Optional callback to apply the chosen color to all widgets. */
+  onApplyToAll?: (color: string) => void;
 }
 
 export default function ColorPickerPopover({
@@ -75,6 +77,7 @@ export default function ColorPickerPopover({
   onChange,
   layout = "horizontal",
   defaultValue,
+  onApplyToAll,
 }: ColorPickerPopoverProps) {
   const [open, setOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
@@ -203,7 +206,7 @@ export default function ColorPickerPopover({
             </button>
           )}
         </div>
-        <ColorPickerPanel value={value || defaultValue || "#000000"} onChange={onChange} />
+        <ColorPickerPanel value={value || defaultValue || "#000000"} onChange={onChange} onApplyToAll={onApplyToAll} />
       </div>,
       document.body
     );

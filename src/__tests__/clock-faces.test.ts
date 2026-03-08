@@ -8,11 +8,11 @@ import { CLOCK_FACES, DEFAULT_CLOCK_FACE } from "@/lib/clock-faces";
 import type { ClockFaceId } from "@/lib/clock-faces";
 import { CLOCK_FACE_MAP } from "@/components/home/widgets/clock-faces";
 
-const EXPECTED_IDS: ClockFaceId[] = ["digital", "analog", "minimal", "flip", "stacked"];
+const EXPECTED_IDS: ClockFaceId[] = ["digital", "analog", "minimal", "flip", "stacked", "split"];
 
 describe("clock-faces registry", () => {
-  it("contains exactly 5 face entries", () => {
-    expect(CLOCK_FACES).toHaveLength(5);
+  it("contains exactly 6 face entries", () => {
+    expect(CLOCK_FACES).toHaveLength(6);
   });
 
   it("has correct IDs in order", () => {

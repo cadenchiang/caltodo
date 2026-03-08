@@ -56,6 +56,8 @@ export function useWidgetLayout() {
   const [titleFontSize, setTitleFontSizeState] = useState("lg");
   const [coverHeight, setCoverHeightState] = useState(DEFAULT_COVER_HEIGHT);
   const [coverPositionY, setCoverPositionYState] = useState(DEFAULT_COVER_POSITION_Y);
+  const [dividerColor, setDividerColorState] = useState("");
+  const [dividerThickness, setDividerThicknessState] = useState(1);
   const [savedImages, setSavedImagesState] = useState<string[]>([]);
   const [hydrated, setHydrated] = useState(false);
 
@@ -70,6 +72,8 @@ export function useWidgetLayout() {
   const titleFontSizeRef = useRef(titleFontSize);
   const coverHeightRef = useRef(coverHeight);
   const coverPositionYRef = useRef(coverPositionY);
+  const dividerColorRef = useRef(dividerColor);
+  const dividerThicknessRef = useRef(dividerThickness);
   const savedImagesRef = useRef(savedImages);
 
   /** Instance-level gate: prevents server saves before initial fetch completes. */
@@ -110,9 +114,13 @@ export function useWidgetLayout() {
     setTitleTextColorState(tColor);
     setTitleFontSizeState(tSize);
     const sImages = p.savedImages || [];
+    const dColor = p.dividerColor || "";
+    const dThick = p.dividerThickness ?? 1;
     setCoverHeightState(cHeight);
     setCoverPositionYState(cPosY);
     setSavedImagesState(sImages);
+    setDividerColorState(dColor);
+    setDividerThicknessState(dThick);
     boardTitleRef.current = title;
     boardDescriptionRef.current = desc;
     coverImageUrlRef.current = cover;
@@ -124,6 +132,8 @@ export function useWidgetLayout() {
     coverHeightRef.current = cHeight;
     coverPositionYRef.current = cPosY;
     savedImagesRef.current = sImages;
+    dividerColorRef.current = dColor;
+    dividerThicknessRef.current = dThick;
   }, []);
 
   /**
@@ -151,6 +161,8 @@ export function useWidgetLayout() {
         titleFontSize: overrides.titleFontSize ?? titleFontSizeRef.current,
         coverHeight: overrides.coverHeight ?? coverHeightRef.current,
         coverPositionY: overrides.coverPositionY ?? coverPositionYRef.current,
+        dividerColor: overrides.dividerColor ?? dividerColorRef.current,
+        dividerThickness: overrides.dividerThickness ?? dividerThicknessRef.current,
         savedImages: overrides.savedImages ?? savedImagesRef.current,
         updatedAt: Date.now(),
       };
@@ -438,6 +450,26 @@ export function useWidgetLayout() {
     });
   }, [persistLayout]);
 
+  /**
+   * Updates the divider color and thickness, persisting to storage.
+   *
+   * @param color - CSS color string (empty = default theme color)
+   * @param thickness - Pixel thickness (1-6)
+   */
+  const setDividerConfig = useCallback((color: string, thickness: number) => {
+    setDividerColorState(color);
+    setDividerThicknessState(thickness);
+    dividerColorRef.current = color;
+    dividerThicknessRef.current = thickness;
+    setWidgets((prev) => {
+      setLayoutsState((prevLayouts) => {
+        persistLayout(prev, prevLayouts, { dividerColor: color, dividerThickness: thickness });
+        return prevLayouts;
+      });
+      return prev;
+    });
+  }, [persistLayout]);
+
   const addSavedImage = useCallback((url: string) => {
     setSavedImagesState((prev) => {
       const deduped = prev.filter((u) => u !== url);
@@ -459,10 +491,12 @@ export function useWidgetLayout() {
     boardTitle, boardDescription, coverImageUrl, boardEmoji, iconSize,
     titleFontFamily, titleTextColor, titleFontSize,
     coverHeight, coverPositionY,
+    dividerColor, dividerThickness,
     setLayouts, addWidget, removeWidget,
     updateWidgetConfig, updateAllWidgetConfigs,
     setBoardTitle, setBoardDescription, setCoverImageUrl,
     setBoardEmoji, setIconSize, setTitleConfig, setCoverConfig,
+    setDividerConfig,
     savedImages, addSavedImage,
   };
 }

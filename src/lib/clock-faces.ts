@@ -5,7 +5,7 @@
  */
 
 /** Union of all supported clock face identifiers. */
-export type ClockFaceId = "digital" | "analog" | "minimal" | "flip" | "stacked";
+export type ClockFaceId = "digital" | "analog" | "minimal" | "flip" | "stacked" | "split";
 
 /** Metadata entry for a single clock face style. */
 export interface ClockFaceMeta {
@@ -21,6 +21,7 @@ export const CLOCK_FACES: ClockFaceMeta[] = [
   { id: "minimal", label: "Minimal", description: "Time only, oversized" },
   { id: "flip", label: "Flip", description: "Retro flip-card digits" },
   { id: "stacked", label: "Stacked", description: "Hours large, minutes below" },
+  { id: "split", label: "Split", description: "Hours & minutes in cards" },
 ];
 
 /** Default clock face for new or migrated widgets. */

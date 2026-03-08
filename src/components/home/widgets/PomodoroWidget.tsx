@@ -208,12 +208,24 @@ export default function PomodoroWidget({
         return;
       }
       setSecondsLeft(remaining);
+      // Update tab title in the same tick — no separate interval needed
+      const label = phase === "work" ? "Focus" : "Break";
+      document.title = `${formatTime(remaining)} — ${label} | CalTodo`;
     };
+
+    // Set title immediately on start
+    const label = phase === "work" ? "Focus" : "Break";
+    document.title = `${formatTime(secondsLeft)} — ${label} | CalTodo`;
 
     intervalRef.current = setInterval(tick, 500);
 
     return clearTimer;
   }, [running, phase, workMinutes, breakMinutes, clearTimer]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** Reset tab title when timer stops. */
+  useEffect(() => {
+    if (!running) document.title = "CalTodo";
+  }, [running]);
 
   /** Toggle play/pause. Plays click sound on start. Requests notification permission on first start. */
   function handlePlayPause() {

@@ -105,13 +105,14 @@ interface Props {
   onApplyBgResetToAll?: () => void;
   onApplyTextColorToAll?: (color: string) => void;
   onApplyBorderToAll?: (value: string) => void;
+  onApplyAccentToAll?: (color: string) => void;
   savedImages: string[];
   onAddSavedImage: (url: string) => void;
 }
 
 export default function WidgetEditorPanel({
   widget, widgetRect, onClose, onUpdateConfig, onRemove,
-  onApplyFontToAll, onApplyBgResetToAll, onApplyTextColorToAll, onApplyBorderToAll,
+  onApplyFontToAll, onApplyBgResetToAll, onApplyTextColorToAll, onApplyBorderToAll, onApplyAccentToAll,
   savedImages, onAddSavedImage,
 }: Props) {
   const { boards } = useDiscussionBoards();
@@ -426,7 +427,7 @@ export default function WidgetEditorPanel({
         <div className="flex items-end justify-center gap-5">
           <ColorPickerPopover label="Text" value={localConfig.textColor || ""} onChange={(v) => updateField("textColor", v)} layout="compact" defaultValue="var(--foreground)" />
           <ColorPickerPopover label="Background" value={localConfig.bgColor || ""} onChange={(v) => updateField("bgColor", v)} layout="compact" />
-          <ColorPickerPopover label="Accent" value={localConfig.accentColor || ""} onChange={(v) => updateField("accentColor", v)} layout="compact" defaultValue={WIDGET_ACCENT_DEFAULTS[widget.type]} />
+          <ColorPickerPopover label="Accent" value={localConfig.accentColor || ""} onChange={(v) => updateField("accentColor", v)} layout="compact" defaultValue={WIDGET_ACCENT_DEFAULTS[widget.type]} onApplyToAll={onApplyAccentToAll} />
         </div>
         <div><label className="block text-sm font-medium text-foreground mb-1.5">Font (all widgets)</label><FontPicker value={localConfig.fontFamily || ""} onChange={(v) => { updateField("fontFamily", v); onApplyFontToAll?.(v); }} /></div>
 

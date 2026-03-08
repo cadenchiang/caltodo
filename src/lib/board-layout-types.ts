@@ -42,6 +42,8 @@ export const DEFAULT_COVER_POSITION_Y = 50;
  * @property titleFontSize - Title size ("sm" | "md" | "lg")
  * @property coverHeight - Banner height in pixels (80-350)
  * @property coverPositionY - Vertical image position percentage (0-100)
+ * @property dividerColor - CSS color for the board divider line
+ * @property dividerThickness - Pixel thickness of the board divider (1-6)
  * @property savedImages - User's saved image URLs for image widgets
  * @property updatedAt - Epoch ms timestamp for comparing freshness
  */
@@ -59,6 +61,8 @@ export interface PersistedLayout {
   titleFontSize: string;
   coverHeight: number;
   coverPositionY: number;
+  dividerColor?: string;
+  dividerThickness?: number;
   savedImages?: string[];
   updatedAt: number;
 }
