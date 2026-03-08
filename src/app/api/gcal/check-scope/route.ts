@@ -47,8 +47,9 @@ export async function GET() {
 
     const data = await res.json();
     const scope = (data.scope as string) ?? "";
-    const hasFullAccess = scope.includes("https://www.googleapis.com/auth/calendar") &&
-      !scope.match(/calendar\.readonly(?:\s|$)/);
+    // Split scopes and check for exact full-access scope (not .readonly)
+    const scopes = scope.split(/\s+/);
+    const hasFullAccess = scopes.includes("https://www.googleapis.com/auth/calendar");
 
     logger.info("GET /api/gcal/check-scope: scope checked", {
       userId: user.id,
