@@ -9,6 +9,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getValidAccessToken } from "@/lib/gcal/token-manager";
+import { stopWatchChannel } from "@/lib/gcal/watch-manager";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
 
@@ -56,6 +57,19 @@ export async function POST() {
     });
   }
 
+  // Stop watch channel before clearing tokens (best-effort)
+  if (accessToken) {
+    const { data: creds } = await supabase
+      .from("integration_credentials")
+      .select("gcal_channel_id, gcal_channel_resource_id")
+      .eq("user_id", user.id)
+      .single();
+
+    if (creds?.gcal_channel_id && creds?.gcal_channel_resource_id) {
+      await stopWatchChannel(accessToken, creds.gcal_channel_id, creds.gcal_channel_resource_id);
+    }
+  }
+
   // Clear Google columns from integration_credentials
   const { error: clearError } = await supabase
     .from("integration_credentials")
@@ -66,6 +80,12 @@ export async function POST() {
       google_calendar_id: null,
       google_email: null,
       google_photo_url: null,
+      gcal_sync_token: null,
+      gcal_last_full_sync_at: null,
+      gcal_channel_id: null,
+      gcal_channel_resource_id: null,
+      gcal_channel_expiration: null,
+      gcal_events_updated_at: null,
     })
     .eq("user_id", user.id);
 

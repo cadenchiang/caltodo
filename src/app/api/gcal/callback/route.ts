@@ -12,6 +12,8 @@ import { createClient } from "@/lib/supabase/server";
 import { encrypt } from "@/lib/crypto";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
+import { registerWatchChannel } from "@/lib/gcal/watch-manager";
+import { performFullSync } from "@/lib/gcal/incremental-sync";
 
 /** Google OAuth2 token endpoint. */
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
@@ -187,5 +189,28 @@ export async function GET(request: NextRequest) {
   }
 
   logger.info("GET /api/gcal/callback: Google Calendar connected", { userId: user.id });
+
+  // Register push notification channel and perform initial full sync (best-effort, non-blocking)
+  try {
+    const channelResult = await registerWatchChannel(tokens.access_token, "primary", user.id);
+    if (channelResult) {
+      await supabase
+        .from("integration_credentials")
+        .update({
+          gcal_channel_id: channelResult.channelId,
+          gcal_channel_resource_id: channelResult.resourceId,
+          gcal_channel_expiration: channelResult.expiration,
+        })
+        .eq("user_id", user.id);
+      logger.info("GET /api/gcal/callback: watch channel registered", { userId: user.id });
+    }
+    await performFullSync(supabase, user.id, tokens.access_token, "primary");
+  } catch (err) {
+    logger.warn("GET /api/gcal/callback: post-connect setup failed (non-blocking)", {
+      userId: user.id,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+
   return NextResponse.redirect(new URL("/app/settings?gcal=connected", request.url));
 }
