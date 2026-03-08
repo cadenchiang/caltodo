@@ -52,14 +52,19 @@ function layoutEvents(
   /** Minimum width % for the last event in an overlap group. */
   const MIN_WIDTH = 40;
 
-  // Sort by start time, then longer events first (so they sit behind)
+  // Sort by start time, then longer events first (so they sit behind),
+  // then tentative/needsAction events last so they render on top
   const sorted = [...events].sort((a, b) => {
     const aStart = new Date(a.start).getTime();
     const bStart = new Date(b.start).getTime();
     if (aStart !== bStart) return aStart - bStart;
     const aDur = new Date(a.end).getTime() - aStart;
     const bDur = new Date(b.end).getTime() - bStart;
-    return bDur - aDur;
+    if (aDur !== bDur) return bDur - aDur;
+    // Tentative events sort last so they get higher z-index in cascade
+    const aTent = a.responseStatus === "tentative" || a.responseStatus === "needsAction" ? 1 : 0;
+    const bTent = b.responseStatus === "tentative" || b.responseStatus === "needsAction" ? 1 : 0;
+    return aTent - bTent;
   });
 
   // Compute top/height for each event

@@ -66,7 +66,7 @@ export default function CalendarDayView({
   }], [timedEvents]);
 
   return (
-    <div className="overflow-hidden bg-white dark:bg-[#141414] flex flex-col h-full relative">
+    <div className="overflow-hidden bg-card flex flex-col h-full relative">
       {/* All-day section: task bars + all-day GCal events */}
       {hasAllDayContent && (
         <div className="shrink-0 border-b border-gray-300 dark:border-gray-500 p-3 md:p-4">

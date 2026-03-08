@@ -53,7 +53,13 @@ export default function TimeGridEvent({ event, calendarColor, top, height, left,
   const isPast = new Date(event.end).getTime() < Date.now();
   const isTentative = event.responseStatus === "tentative" || event.responseStatus === "needsAction";
   const isDeclined = event.responseStatus === "declined";
-  const displayColor = isPast ? blendHex(color, "#141414", 0.5) : color;
+  const isDark = typeof window !== "undefined" && document.documentElement.classList.contains("dark");
+  /** Past events use a washed-out color (toward white in light, toward dark bg in dark). */
+  const displayColor = isPast
+    ? blendHex(color, isDark ? "#1a1a2e" : "#FFFFFF", 0.5)
+    : color;
+  /** Border: white on light theme, black on dark theme. */
+  const borderColor = isDark ? "#000000" : "#FFFFFF";
   const startTime = formatEventTime(event.start, false);
   const endDate = new Date(event.end);
   const endH = endDate.getHours();
@@ -61,7 +67,7 @@ export default function TimeGridEvent({ event, calendarColor, top, height, left,
   const endSuffix = endH >= 12 ? "pm" : "am";
   const endH12 = endH === 0 ? 12 : endH > 12 ? endH - 12 : endH;
   const endTime = endM === 0 ? `${endH12}${endSuffix}` : `${endH12}:${String(endM).padStart(2, "0")}${endSuffix}`;
-  const textClass = isPast ? "text-white/70" : "text-gray-900";
+  const textClass = isPast ? "text-foreground/50" : "text-foreground";
 
   return (
     <>
@@ -70,14 +76,14 @@ export default function TimeGridEvent({ event, calendarColor, top, height, left,
           e.stopPropagation();
           setPopoverAnchor(e.currentTarget.getBoundingClientRect());
         }}
-        className={`absolute rounded-lg overflow-hidden cursor-pointer transition-all hover:shadow-lg hover:brightness-110 hover:-translate-y-px ${isTentative && !isPast ? "bg-white dark:bg-gray-950" : ""} ${isDeclined ? "opacity-40" : ""}`}
+        className={`absolute rounded-lg overflow-hidden cursor-pointer transition-all hover:shadow-lg hover:brightness-110 hover:-translate-y-px ${isTentative && !isPast ? "bg-card" : ""} ${isDeclined ? "opacity-40" : ""}`}
         style={{
           top: `${top + 1}px`,
           height: `${minHeight - 2}px`,
           left,
           width,
           backgroundColor: isTentative ? undefined : displayColor,
-          border: isTentative ? `1.5px solid ${isPast ? displayColor : color}` : "1.5px solid #141414",
+          border: isTentative ? `1.5px solid ${isPast ? displayColor : color}` : `1.5px solid ${borderColor}`,
           zIndex,
         }}
         title={event.summary}

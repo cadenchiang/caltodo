@@ -52,7 +52,6 @@ interface WidgetContainerProps {
  * Note: "tasks-today" intentionally excluded — it has its own
  * built-in TaskPreviewPopover for inline task viewing. */
 const CLICK_TARGETS: Partial<Record<string, string>> = {
-  "google-calendar": "/app/calendar",
   "cal-chat": "/app/discussions",
 };
 

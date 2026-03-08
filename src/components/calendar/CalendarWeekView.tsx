@@ -111,9 +111,9 @@ export default function CalendarWeekView({
   const hasTimedEvents = timeGridColumns.some((col) => col.events.length > 0);
 
   return (
-    <div className="bg-white dark:bg-[#141414] flex flex-col h-full overflow-hidden">
+    <div className="bg-card flex flex-col h-full overflow-hidden">
       {/* Column headers */}
-      <div className="grid grid-cols-7 shrink-0 bg-white dark:bg-[#141414]" style={{ marginLeft: !isMobile ? "56px" : "0" }}>
+      <div className="grid grid-cols-7 shrink-0 bg-card" style={{ marginLeft: !isMobile ? "56px" : "0" }}>
         {days.map((day) => {
           const dateStr = format(day, "yyyy-MM-dd");
           const isToday = isSameDay(day, new Date());
@@ -144,7 +144,7 @@ export default function CalendarWeekView({
 
       {/* All-day section: task bars + all-day GCal events */}
       {hasAllDayContent && !isMobile && (
-        <div className="grid grid-cols-7 border-b border-gray-200 dark:border-gray-700/50 shrink-0 bg-white dark:bg-[#141414]" style={{ marginLeft: !isMobile ? "56px" : "0" }}>
+        <div className="grid grid-cols-7 border-b border-gray-200 dark:border-gray-700/50 shrink-0 bg-card" style={{ marginLeft: !isMobile ? "56px" : "0" }}>
           {days.map((day, i) => {
             const dateStr = format(day, "yyyy-MM-dd");
             const dayTasks = tasksByDate[dateStr] ?? [];

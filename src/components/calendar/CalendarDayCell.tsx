@@ -121,7 +121,7 @@ export default function CalendarDayCell({
             ? "bg-gray-50 dark:bg-black/15"
             : isSelected && isMobile
               ? "bg-gray-100 dark:bg-white/5"
-              : "bg-white dark:bg-[#141414]"
+              : "bg-card"
       } hover:bg-black/[0.02] dark:hover:bg-white/[0.03]`}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}

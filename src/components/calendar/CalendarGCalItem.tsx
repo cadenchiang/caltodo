@@ -44,7 +44,7 @@ export default function CalendarGCalItem({ event, calendarColor }: CalendarGCalI
   const isPast = new Date(event.end).getTime() < Date.now();
   const isTentative = event.responseStatus === "tentative" || event.responseStatus === "needsAction";
   const isDeclined = event.responseStatus === "declined";
-  const dotColor = isPast ? blendHex(color, "#141414", 0.5) : color;
+  const dotColor = isPast ? blendHex(color, "#FFFFFF", 0.5) : color;
 
   return (
     <>
@@ -61,7 +61,7 @@ export default function CalendarGCalItem({ event, calendarColor }: CalendarGCalI
           className="w-2 h-2 rounded-full shrink-0"
           style={isTentative
             ? { backgroundColor: "transparent", border: `1.5px solid ${dotColor}`, opacity: isPast ? 0.5 : 1 }
-            : { backgroundColor: dotColor, border: "1.5px solid #141414" }
+            : { backgroundColor: dotColor }
           }
         />
         {!event.allDay && (

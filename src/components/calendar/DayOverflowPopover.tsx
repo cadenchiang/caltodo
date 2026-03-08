@@ -85,7 +85,7 @@ export default function DayOverflowPopover({
   return createPortal(
     <div
       ref={popoverRef}
-      className="fixed z-50 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#141414] overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+      className="fixed z-50 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 bg-card overflow-hidden animate-in fade-in zoom-in-95 duration-150"
       style={{ left, top, width: popoverWidth }}
     >
       {/* Header */}

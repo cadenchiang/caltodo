@@ -35,7 +35,7 @@ export default function AssignmentsDayView({
   const dayInvites = pendingInvites.filter((inv) => inv.taskDueDate === dateStr);
 
   return (
-    <div className="overflow-hidden bg-white dark:bg-[#141414] flex flex-col h-full relative">
+    <div className="overflow-hidden bg-card flex flex-col h-full relative">
       {/* + icon top right */}
       <button
         onClick={(e) => {

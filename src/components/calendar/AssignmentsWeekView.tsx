@@ -59,9 +59,9 @@ export default function AssignmentsWeekView({
   }
 
   return (
-    <div className="bg-white dark:bg-[#141414] flex flex-col h-full overflow-hidden">
+    <div className="bg-card flex flex-col h-full overflow-hidden">
       {/* Column headers */}
-      <div className="grid grid-cols-7 shrink-0 bg-white dark:bg-[#141414]">
+      <div className="grid grid-cols-7 shrink-0 bg-card">
         {days.map((day) => {
           const dateStr = format(day, "yyyy-MM-dd");
           const isToday = isSameDay(day, new Date());
