@@ -87,11 +87,24 @@ describe("getEventColor", () => {
   });
 
   it("should fall back to default when both are missing", () => {
-    expect(getEventColor(null)).toBe("#8B8FE8");
+    expect(getEventColor(null)).toBe("#4285F4");
   });
 
   it("should use custom fallback", () => {
     expect(getEventColor(null, undefined, "#123456")).toBe("#123456");
+  });
+
+  it("should use theme default when colorTheme is set and no colorId/calendarColor", () => {
+    expect(getEventColor(null, undefined, undefined, "miffy")).toBe("#e8729a");
+    expect(getEventColor(null, undefined, undefined, "nord")).toBe("#5e81ac");
+  });
+
+  it("should prefer colorId over theme default", () => {
+    expect(getEventColor("1", undefined, undefined, "miffy")).toBe(GCAL_COLORS["1"]);
+  });
+
+  it("should prefer calendarColor over theme default", () => {
+    expect(getEventColor(null, "#FF0000", undefined, "miffy")).toBe("#FF0000");
   });
 });
 

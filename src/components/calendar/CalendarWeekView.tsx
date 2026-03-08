@@ -271,7 +271,7 @@ function MobileWeekContent({
                       className="w-[5px] h-[5px] rounded-full shrink-0"
                       style={{
                         backgroundColor: "transparent",
-                        border: `1.5px solid ${getEventColor(event.colorId)}`,
+                        border: `1.5px solid ${getEventColor(event.colorId, undefined, undefined, colorTheme)}`,
                       }}
                     />
                   ))}

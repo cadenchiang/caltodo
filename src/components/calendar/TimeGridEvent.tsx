@@ -9,6 +9,7 @@ import { useState, useCallback } from "react";
 import { useSWRConfig } from "swr";
 import type { GCalEvent } from "@/lib/types";
 import { hexToRgba, getEventColor, formatEventTime, blendHex } from "@/lib/gcal/event-utils";
+import { useTheme } from "@/contexts/ThemeContext";
 import GCalEventPopover from "./GCalEventPopover";
 
 interface TimeGridEventProps {
@@ -47,7 +48,8 @@ export default function TimeGridEvent({ event, calendarColor, top, height, left,
       { revalidate: false },
     );
   }, [globalMutate]);
-  const color = getEventColor(event.colorId, calendarColor);
+  const { colorTheme } = useTheme();
+  const color = getEventColor(event.colorId, calendarColor, undefined, colorTheme);
   const minHeight = Math.max(height, 20);
 
   const isPast = new Date(event.end).getTime() < Date.now();

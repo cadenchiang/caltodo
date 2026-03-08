@@ -10,6 +10,7 @@ import { useState, useCallback } from "react";
 import { useSWRConfig } from "swr";
 import type { GCalEvent } from "@/lib/types";
 import { formatEventTime, getEventColor, blendHex } from "@/lib/gcal/event-utils";
+import { useTheme } from "@/contexts/ThemeContext";
 import GCalEventPopover from "./GCalEventPopover";
 
 interface CalendarGCalItemProps {
@@ -39,7 +40,8 @@ export default function CalendarGCalItem({ event, calendarColor }: CalendarGCalI
       { revalidate: false },
     );
   }, [globalMutate]);
-  const color = getEventColor(event.colorId, calendarColor);
+  const { colorTheme } = useTheme();
+  const color = getEventColor(event.colorId, calendarColor, undefined, colorTheme);
   const timeStr = formatEventTime(event.start, event.allDay);
   const isPast = new Date(event.end).getTime() < Date.now();
   const isTentative = event.responseStatus === "tentative" || event.responseStatus === "needsAction";

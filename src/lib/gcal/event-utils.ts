@@ -98,22 +98,33 @@ export function formatTimeCompact(time24: string): string {
   return `${h12}:${minute}${suffix}`;
 }
 
+/** Theme-specific default event colors. */
+const THEME_EVENT_DEFAULTS: Record<string, string> = {
+  miffy: "#e8729a",
+  nord: "#5e81ac",
+  rosewood: "#a03040",
+  midnight: "#3a6cf0",
+};
+
 /**
  * Resolves the display color for a GCal event.
- * Priority: event colorId -> calendar color -> fallback.
+ * Priority: event colorId -> calendar color -> theme default -> fallback.
  *
  * @param colorId - The event's colorId (may be null)
  * @param calendarColor - The calendar's background color
  * @param fallback - Default color if neither is set
+ * @param colorTheme - Active color theme ID for theme-aware defaults
  * @returns Hex color string
  */
 export function getEventColor(
   colorId: string | null,
   calendarColor?: string,
-  fallback: string = "#8B8FE8"
+  fallback: string = "#4285F4",
+  colorTheme?: string | null,
 ): string {
   if (colorId && GCAL_COLORS[colorId]) return GCAL_COLORS[colorId];
   if (calendarColor) return calendarColor;
+  if (colorTheme && THEME_EVENT_DEFAULTS[colorTheme]) return THEME_EVENT_DEFAULTS[colorTheme];
   return fallback;
 }
 

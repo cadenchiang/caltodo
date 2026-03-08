@@ -162,7 +162,7 @@ export default function CalendarDayCell({
                   className="w-[7px] h-[7px] rounded-full shrink-0"
                   style={{
                     backgroundColor: "transparent",
-                    border: `1.5px solid ${getEventColor(event.colorId)}`,
+                    border: `1.5px solid ${getEventColor(event.colorId, undefined, undefined, colorTheme)}`,
                   }}
                 />
               ))}
