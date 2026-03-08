@@ -1554,10 +1554,10 @@ textarea:-webkit-autofill {
 [style*="--widget-accent-color"] .widget-header {
   background-color: var(--widget-accent-color);
   border-bottom-color: var(--widget-accent-color);
-  color: var(--widget-text-color, #fff) !important;
+  color: var(--widget-text-color, #000) !important;
 }
 [style*="--widget-accent-color"] .widget-header * {
-  color: var(--widget-text-color, #fff) !important;
+  color: var(--widget-text-color, #000) !important;
 }
 
 /* Dark overlay on hover in edit mode */
