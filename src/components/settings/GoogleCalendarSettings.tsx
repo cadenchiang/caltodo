@@ -146,6 +146,8 @@ export default function GoogleCalendarSettings() {
   const [syncProgress, setSyncProgress] = useState<{ synced: number; total: number } | null>(null);
   // Local override for connected state during OAuth flow (before context refreshes)
   const [oauthConnecting, setOauthConnecting] = useState(false);
+  /** Whether the user's token lacks write scope and needs reconnection. */
+  const [needsReconnect, setNeedsReconnect] = useState(false);
   const mountedRef = useRef(true);
 
   globalShowToast = showToast;
@@ -178,6 +180,23 @@ export default function GoogleCalendarSettings() {
   function ifMounted<T>(setter: React.Dispatch<React.SetStateAction<T>>, value: NoInfer<T>) {
     if (mountedRef.current) setter(value);
   }
+
+  // Check if existing token has write scope — prompt reconnect if read-only
+  useEffect(() => {
+    if (!connected || oauthConnecting) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/gcal/check-scope");
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        if (!cancelled && mountedRef.current && data.needsReconnect) {
+          setNeedsReconnect(true);
+        }
+      } catch { /* network error — ignore */ }
+    })();
+    return () => { cancelled = true; };
+  }, [connected, oauthConnecting]);
 
   // Auto-sync unsynced tasks on mount — no manual banner needed.
   // Skips if already syncing, during OAuth setup, or within cooldown.
@@ -483,6 +502,25 @@ export default function GoogleCalendarSettings() {
             </button>
           )}
         </div>
+
+        {/* Reconnect banner — shown when token has read-only scope */}
+        {needsReconnect && isConnectedOrConnecting && (
+          <div className="mx-4 mb-3 p-2.5 rounded-lg bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20">
+            <p className="text-xs text-amber-800 dark:text-amber-300 mb-1.5">
+              Please reconnect to enable task syncing to Google Calendar.
+            </p>
+            <button
+              onClick={async () => {
+                setNeedsReconnect(false);
+                await handleDisconnect();
+                handleConnect();
+              }}
+              className="text-xs font-medium text-amber-700 dark:text-amber-400 hover:text-amber-900 dark:hover:text-amber-300 underline underline-offset-2 cursor-pointer"
+            >
+              Reconnect now
+            </button>
+          </div>
+        )}
 
         {/* Sync progress bar at bottom of card */}
         {syncing && (
