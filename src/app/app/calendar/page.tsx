@@ -42,7 +42,7 @@ export default function CalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<CalendarViewMode>("month");
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [calendarMode, setCalendarMode] = useState<CalendarMode>("calendar");
+  const [calendarMode, setCalendarMode] = useState<CalendarMode>("assignments");
 
   const { tasks, loading, error, addTask, updateTask, deleteTask, toggleComplete } = useTaskContext();
   const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
@@ -74,10 +74,8 @@ export default function CalendarPage() {
     };
   }, [currentDate, viewMode]);
 
-  const { events: gcalEvents, mutate: refetchEvents } = useGCalEvents(
-    calendarMode === "calendar" ? timeMin : undefined,
-    calendarMode === "calendar" ? timeMax : undefined
-  );
+  // Always fetch events so they're cached and render instantly when switching modes
+  const { events: gcalEvents, mutate: refetchEvents } = useGCalEvents(timeMin, timeMax);
 
   /** Derive fresh task data from context so toggles reflect immediately. */
   const currentPreviewTask = modals.previewTask
@@ -179,7 +177,7 @@ export default function CalendarPage() {
             />
           </div>
 
-          <div className="flex-1 min-h-0 flex flex-col overflow-y-auto md:mx-4 md:rounded-2xl md:border md:border-gray-200/80 md:dark:border-gray-700/50 md:overflow-hidden bg-white dark:bg-[#141414]">
+          <div className="flex-1 min-h-0 flex flex-col overflow-y-auto md:mx-4 md:rounded-2xl md:border md:border-gray-200/80 md:dark:border-gray-700/50 md:overflow-hidden bg-white dark:bg-[#141414]" key={`${viewMode}-${calendarMode}-${format(currentDate, viewMode === "month" ? "yyyy-MM" : viewMode === "week" ? "yyyy-ww" : "yyyy-MM-dd")}`} style={{ animation: "calViewFade 150ms ease-out" }}>
             {loading ? (
               <div className="flex-1 flex items-center justify-center h-full">
                 <div className="flex flex-col items-center gap-2">
@@ -193,6 +191,7 @@ export default function CalendarPage() {
                 tasks={visibleTasks}
                 pendingInvites={pendingInvites}
                 gcalEvents={calendarMode === "calendar" ? gcalEvents : []}
+                calendarMode={calendarMode}
                 addingDate={modals.addingDate}
                 selectedDate={selectedDate}
                 onDayClick={modals.handleDayClick}

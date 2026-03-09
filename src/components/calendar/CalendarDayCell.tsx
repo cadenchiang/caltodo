@@ -25,12 +25,15 @@ interface CalendarDayCellProps {
   onDaySelect: (date: string) => void;
   onTaskClick: (task: Task, rect: DOMRect) => void;
   onShowMore?: (date: string, rect: DOMRect) => void;
+  /** When true, hides events and uses bigger task bars. */
+  assignmentsMode?: boolean;
 }
 
 /** Approximate heights in px for layout calculations. */
 const HEADER_HEIGHT = 22;
 const HEADER_HEIGHT_WITH_LABEL = 34;
 const ITEM_HEIGHT = 17;
+const ITEM_HEIGHT_LARGE = 22;
 const MORE_LINE_HEIGHT = 14;
 
 /**
@@ -60,6 +63,7 @@ export default function CalendarDayCell({
   onDaySelect,
   onTaskClick,
   onShowMore,
+  assignmentsMode = false,
 }: CalendarDayCellProps) {
   const { colorTheme } = useTheme();
   const [isMobile, setIsMobile] = useState(false);
@@ -84,32 +88,34 @@ export default function CalendarDayCell({
   useEffect(() => {
     const el = cellRef.current;
     if (!el || isMobile) return;
+    const itemH = assignmentsMode ? ITEM_HEIGHT_LARGE : ITEM_HEIGHT;
     const observer = new ResizeObserver(([entry]) => {
       const h = entry.contentBoxSize[0].blockSize;
       const available = h - headerH - MORE_LINE_HEIGHT;
-      setMaxItems(Math.max(1, Math.floor(available / ITEM_HEIGHT)));
+      setMaxItems(Math.max(1, Math.floor(available / itemH)));
     });
     observer.observe(el);
     return () => observer.disconnect();
-  }, [isMobile, headerH]);
+  }, [isMobile, headerH, assignmentsMode]);
 
-  const totalItems = tasks.length + pendingInvites.length + gcalEvents.length;
+  const effectiveEvents = assignmentsMode ? [] : gcalEvents;
+  const totalItems = tasks.length + pendingInvites.length + effectiveEvents.length;
   const hasOverflow = totalItems > maxItems;
 
   // Distribute maxItems slots: tasks first, then invites, then events
   const slotsForItems = hasOverflow ? maxItems : totalItems;
   const taskSlots = Math.min(tasks.length, slotsForItems);
   const inviteSlots = Math.min(pendingInvites.length, slotsForItems - taskSlots);
-  const eventSlots = Math.min(gcalEvents.length, slotsForItems - taskSlots - inviteSlots);
+  const eventSlots = Math.min(effectiveEvents.length, slotsForItems - taskSlots - inviteSlots);
   const visibleTasks = tasks.slice(0, taskSlots);
   const visibleInvites = pendingInvites.slice(0, inviteSlots);
-  const visibleEvents = gcalEvents.slice(0, eventSlots);
+  const visibleEvents = effectiveEvents.slice(0, eventSlots);
   const overflow = totalItems - taskSlots - inviteSlots - eventSlots;
 
   /** Max colored dots to show on mobile before "+N". */
   const maxDots = 4;
   const dotTasks = tasks.slice(0, maxDots);
-  const dotOverflow = tasks.length + gcalEvents.length - maxDots;
+  const dotOverflow = tasks.length + effectiveEvents.length - maxDots;
 
   return (
     <div
@@ -156,7 +162,7 @@ export default function CalendarDayCell({
                   style={{ backgroundColor: getThemeColor(task.color, colorTheme) }}
                 />
               ))}
-              {gcalEvents.slice(0, Math.max(0, maxDots - tasks.length)).map((event) => (
+              {effectiveEvents.slice(0, Math.max(0, maxDots - tasks.length)).map((event) => (
                 <span
                   key={event.id}
                   className="w-[7px] h-[7px] rounded-full shrink-0"
@@ -230,7 +236,7 @@ export default function CalendarDayCell({
           {/* Task bars + GCal events */}
           <div className="flex flex-col gap-px">
             {visibleTasks.map((task) => (
-              <CalendarTaskBar key={task.id} task={task} onClick={onTaskClick} compact />
+              <CalendarTaskBar key={task.id} task={task} onClick={onTaskClick} compact={!assignmentsMode} />
             ))}
             {visibleInvites.map((invite) => (
               <CalendarTaskBar
@@ -238,7 +244,7 @@ export default function CalendarDayCell({
                 task={pendingInviteToPseudoTask(invite)}
                 onClick={() => {}}
                 isPending
-                compact
+                compact={!assignmentsMode}
               />
             ))}
             <div className={isPast ? "opacity-40" : ""}>

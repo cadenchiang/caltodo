@@ -18,6 +18,8 @@ interface CalendarGridProps {
   tasks: Task[];
   pendingInvites?: PendingInvite[];
   gcalEvents?: GCalEvent[];
+  /** Current calendar mode — "assignments" uses bigger task bars, no events. */
+  calendarMode?: "assignments" | "calendar";
   addingDate?: string | null;
   selectedDate?: string | null;
   onDayClick: (date: string, rect: DOMRect) => void;
@@ -39,6 +41,7 @@ export default function CalendarGrid({
   tasks,
   pendingInvites = [],
   gcalEvents = [],
+  calendarMode = "calendar",
   addingDate,
   selectedDate,
   onDayClick,
@@ -113,6 +116,7 @@ export default function CalendarGrid({
               tasks={tasksByDate[dateStr] ?? []}
               pendingInvites={invitesByDate[dateStr] ?? []}
               gcalEvents={eventsByDate[dateStr] ?? []}
+              assignmentsMode={calendarMode === "assignments"}
               addingDate={addingDate}
               isLastCol={(i + 1) % 7 === 0}
               isSelected={selectedDate === dateStr}

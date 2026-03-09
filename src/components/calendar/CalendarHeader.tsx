@@ -338,7 +338,7 @@ export default function CalendarHeader({
               className={`px-2.5 py-1 md:px-4 md:py-1.5 text-xs md:text-sm font-medium capitalize transition-all duration-200 ease-out ${
                 viewMode === mode
                   ? "bg-white dark:bg-white text-gray-900 shadow-sm"
-                  : "text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10"
+                  : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10"
               }`}
             >
               {mode}
