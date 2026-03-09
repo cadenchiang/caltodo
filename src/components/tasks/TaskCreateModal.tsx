@@ -570,7 +570,7 @@ export default function TaskCreateModal({
           <X size={18} />
         </button>
 
-        <form onSubmit={handleSubmit} className="pt-4 pb-4">
+        <form onSubmit={handleSubmit} className="pt-12 pb-4">
           {/* ── Type toggle (Task / Event) — left-aligned with icons ── */}
           {createTypeToggle && !isEditMode && (
             <div className="px-6 pb-5 pt-1">

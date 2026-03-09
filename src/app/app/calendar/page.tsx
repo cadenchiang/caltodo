@@ -184,7 +184,7 @@ export default function CalendarPage() {
             />
           </div>
 
-          <div className="flex-1 min-h-0 flex flex-col overflow-y-auto md:mx-4 md:rounded-2xl md:border md:border-gray-200/80 md:dark:border-gray-700/50 md:overflow-hidden bg-white dark:bg-[#141414]" key={`${viewMode}-${calendarMode}-${format(currentDate, viewMode === "month" ? "yyyy-MM" : viewMode === "week" ? "yyyy-ww" : "yyyy-MM-dd")}`} style={{ animation: "calViewFade 150ms ease-out" }}>
+          <div className="flex-1 min-h-0 flex flex-col overflow-y-auto md:mx-4 md:rounded-2xl md:border md:border-gray-200/80 md:dark:border-gray-700/50 md:overflow-hidden bg-white dark:bg-[#141414]">
             {loading ? (
               <div className="flex-1 flex items-center justify-center h-full">
                 <div className="flex flex-col items-center gap-2">
