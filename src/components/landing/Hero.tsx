@@ -88,13 +88,15 @@ export default function Hero({ loggedIn }: HeroProps) {
           {/* Logo with integration icons behind */}
           <div className="flex flex-col items-center mt-2 sm:mt-6 mb-3 sm:mb-4">
             <div className="relative flex items-end justify-center" style={{ gap: 0 }}>
-              {/* bCourses — outer left, highest */}
+              {/* Canvas — outer left, highest */}
               <div className="group relative cursor-pointer flex flex-col items-center -mr-1 sm:-mr-3" style={{ marginBottom: "20px" }}>
-                <img src="/bcourses-logo.png" alt="bCourses" className="w-9 h-9 sm:w-16 sm:h-16 object-contain transition-transform duration-200 group-hover:scale-110 relative z-10" />
+                <div className="w-9 h-9 sm:w-16 sm:h-16 rounded-[10px] sm:rounded-[14px] bg-white shadow-[0_1px_3px_rgba(0,0,0,0.12)] flex items-center justify-center transition-transform duration-200 group-hover:scale-110 relative z-10">
+                  <img src="/canvas-logo.png" alt="Canvas" className="w-[70%] h-[70%] object-contain" />
+                </div>
                 <div className="w-7 h-2 sm:w-14 sm:h-4 mt-1 transition-all duration-200 group-hover:w-9 sm:group-hover:w-16" style={{ background: "radial-gradient(ellipse at center, rgba(0,0,0,0.12) 0%, rgba(0,0,0,0.04) 50%, transparent 70%)", borderRadius: "50%" }} />
                 <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-3 rounded-lg bg-[#F5F5F7] text-[#1D1D1F] text-xs px-3 py-2 shadow-md opacity-0 scale-95 transition-all duration-200 group-hover:opacity-100 group-hover:scale-100 z-50 whitespace-nowrap">
                   <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-[#F5F5F7] rotate-45" />
-                  bCourses
+                  Canvas
                 </div>
               </div>
               {/* Gradescope — inner left, mid */}
