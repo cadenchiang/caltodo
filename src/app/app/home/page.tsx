@@ -7,7 +7,7 @@
  */
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import { Plus } from "lucide-react";
+import { Plus, LayoutTemplate } from "lucide-react";
 import PageTransition from "@/components/ui/PageTransition";
 import EditToggleButton from "@/components/ui/EditToggleButton";
 import WidgetGrid from "@/components/home/WidgetGrid";
@@ -18,6 +18,7 @@ import BoardTitle from "@/components/home/BoardTitle";
 import BoardDescription from "@/components/home/BoardDescription";
 import BoardDivider from "@/components/home/BoardDivider";
 import EmojiPicker, { LUCIDE_ICON_MAP, isFilledIcon } from "@/components/home/EmojiPicker";
+import BoardTemplatesModal from "@/components/home/BoardTemplatesModal";
 import { ICON_SIZES } from "@/components/home/emoji-picker-data";
 import { useWidgetLayout } from "@/hooks/useWidgetLayout";
 import { useToast } from "@/contexts/ToastContext";
@@ -57,11 +58,13 @@ export default function HomePage() {
     setDividerConfig,
     savedImages,
     addSavedImage,
+    applyTemplate,
   } = useWidgetLayout();
 
   const { showToast } = useToast();
   const [editMode, setEditMode] = useState(false);
   const [galleryOpen, setGalleryOpen] = useState(false);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
   const [settingsWidget, setSettingsWidget] = useState<WidgetInstance | null>(null);
   const [settingsWidgetRect, setSettingsWidgetRect] = useState<DOMRect | null>(null);
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
@@ -251,14 +254,23 @@ export default function HomePage() {
 
             <div className="flex items-center gap-2.5 shrink-0">
               {editMode && (
-                <button
-                  id="add-widget-btn"
-                  onClick={() => setGalleryOpen(true)}
-                  className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-full border border-border bg-white dark:bg-gray-800 text-foreground hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm transition-all active:scale-[0.97]"
-                >
-                  <Plus size={14} />
-                  Add Widget
-                </button>
+                <>
+                  <button
+                    onClick={() => setTemplatesOpen(true)}
+                    className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-full border border-border bg-white dark:bg-gray-800 text-foreground hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm transition-all active:scale-[0.97]"
+                  >
+                    <LayoutTemplate size={14} />
+                    Templates
+                  </button>
+                  <button
+                    id="add-widget-btn"
+                    onClick={() => setGalleryOpen(true)}
+                    className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-full border border-border bg-white dark:bg-gray-800 text-foreground hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm transition-all active:scale-[0.97]"
+                  >
+                    <Plus size={14} />
+                    Add Widget
+                  </button>
+                </>
               )}
 
               <EditToggleButton
@@ -335,6 +347,16 @@ export default function HomePage() {
             onDragStart={handleGalleryDragStart}
           />
         </div>
+
+        {/* Board templates modal */}
+        <BoardTemplatesModal
+          open={templatesOpen}
+          onClose={() => setTemplatesOpen(false)}
+          onApply={(template) => {
+            applyTemplate(template.layout);
+            showToast(`Applied "${template.name}" template`);
+          }}
+        />
 
         {/* Backdrop: click catcher (transparent) + spotlight over selected widget */}
         {settingsWidget && (
