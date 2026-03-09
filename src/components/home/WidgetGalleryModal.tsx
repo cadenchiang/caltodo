@@ -47,21 +47,6 @@ const CATEGORY_TABS: { key: "all" | WidgetCategory; label: string }[] = [
 ];
 
 /**
- * Sorts widgets: "popular" category first, then alphabetical by label.
- *
- * @param widgets - Array of widget configs to sort
- * @returns New sorted array
- */
-function sortWidgets(widgets: WidgetTypeConfig[]): WidgetTypeConfig[] {
-  return [...widgets].sort((a, b) => {
-    const aPopular = a.category === "popular" ? 0 : 1;
-    const bPopular = b.category === "popular" ? 0 : 1;
-    if (aPopular !== bPopular) return aPopular - bPopular;
-    return a.label.localeCompare(b.label);
-  });
-}
-
-/**
  * Renders the real widget component scaled down to fit the gallery thumbnail.
  * The widget is rendered at full size (320x240) inside a clipped container,
  * then CSS-scaled to fill the thumbnail area. pointer-events-none prevents
@@ -112,6 +97,57 @@ class LivePreviewErrorBoundary extends React.Component<
   }
 }
 
+/**
+ * Single widget card in the gallery grid. Shows live preview, icon, label, and description.
+ * Supports click to add and drag to place.
+ *
+ * @param config - Widget type configuration
+ * @param onAdd - Called when clicked
+ * @param onDragStart - Called when drag begins
+ */
+function WidgetCard({
+  config,
+  onAdd,
+  onDragStart,
+}: {
+  config: WidgetTypeConfig;
+  onAdd: () => void;
+  onDragStart: () => void;
+}) {
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.setData("text/plain", config.type);
+        setTimeout(onDragStart, 0);
+      }}
+      onClick={onAdd}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") onAdd();
+      }}
+      className="widget-gallery-card flex flex-col text-left overflow-hidden rounded-lg border border-foreground/[0.09] bg-card cursor-grab active:cursor-grabbing"
+    >
+      <div
+        className="aspect-[4/3] overflow-hidden bg-foreground/[0.02] rounded-t-lg"
+        style={{ "--preview-scale": 0.55 } as React.CSSProperties}
+      >
+        <LivePreview type={config.type} />
+      </div>
+      <div className="px-3.5 pt-2.5 pb-3">
+        <span className="text-[13px] font-semibold text-foreground flex items-center gap-1.5">
+          {(() => { const Icon = WIDGET_ICONS[config.type]; return Icon ? <Icon size={13} className="text-muted-foreground shrink-0" /> : null; })()}
+          {config.label}
+        </span>
+        <span className="text-[11.5px] leading-snug mt-0.5 text-muted-foreground block">
+          {config.description}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 interface WidgetGalleryModalProps {
   open: boolean;
   onClose: () => void;
@@ -129,7 +165,8 @@ export default function WidgetGalleryModal({
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<"all" | WidgetCategory>("all");
 
-  const filteredWidgets = useMemo(() => {
+  /** Groups widgets by category, ordered: Popular first, then rest alphabetically. */
+  const groupedWidgets = useMemo(() => {
     const all = Object.values(WIDGET_REGISTRY);
     const query = search.toLowerCase().trim();
 
@@ -142,7 +179,31 @@ export default function WidgetGalleryModal({
       return matchesCategory && matchesSearch;
     });
 
-    return sortWidgets(filtered);
+    // Group by category
+    const groups = new Map<string, WidgetTypeConfig[]>();
+    for (const w of filtered) {
+      const cat = w.category;
+      if (!groups.has(cat)) groups.set(cat, []);
+      groups.get(cat)!.push(w);
+    }
+
+    // Sort widgets within each group alphabetically
+    for (const [, widgets] of groups) {
+      widgets.sort((a, b) => a.label.localeCompare(b.label));
+    }
+
+    // Order groups: Popular first, then alphabetical by category label
+    const categoryOrder = CATEGORY_TABS.filter((t) => t.key !== "all").map((t) => t.key);
+    const ordered: { label: string; widgets: WidgetTypeConfig[] }[] = [];
+    for (const key of categoryOrder) {
+      const widgets = groups.get(key);
+      if (widgets && widgets.length > 0) {
+        const tab = CATEGORY_TABS.find((t) => t.key === key);
+        ordered.push({ label: tab?.label || key, widgets });
+      }
+    }
+
+    return ordered;
   }, [search, activeCategory]);
 
   if (!open) return null;
@@ -207,49 +268,27 @@ export default function WidgetGalleryModal({
           ))}
         </div>
 
-        {/* Widget grid */}
-        <div className="px-6 py-4 grid grid-cols-4 gap-4 max-h-[75vh] overflow-y-auto">
-          {filteredWidgets.length === 0 && (
-            <p className="col-span-4 text-center text-[13px] text-muted-foreground py-8">
+        {/* Widget grid grouped by category */}
+        <div className="px-6 py-4 max-h-[75vh] overflow-y-auto space-y-6">
+          {groupedWidgets.length === 0 && (
+            <p className="text-center text-[13px] text-muted-foreground py-8">
               No widgets match your search.
             </p>
           )}
-          {filteredWidgets.map((config) => (
-            <div
-              key={config.type}
-              role="button"
-              tabIndex={0}
-              draggable
-              onDragStart={(e) => {
-                e.dataTransfer.setData("text/plain", config.type);
-                setTimeout(() => onDragStart?.(config.type), 0);
-              }}
-              onClick={() => {
-                onAdd(config.type);
-                onClose();
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") { onAdd(config.type); onClose(); }
-              }}
-              className="widget-gallery-card flex flex-col text-left overflow-hidden rounded-lg border border-foreground/[0.09] bg-card cursor-grab active:cursor-grabbing"
-            >
-              {/* Preview thumbnail */}
-              <div
-                className="aspect-[4/3] overflow-hidden bg-foreground/[0.02] rounded-t-lg"
-                style={{ "--preview-scale": 0.55 } as React.CSSProperties}
-              >
-                <LivePreview type={config.type} />
-              </div>
-
-              {/* Label + description */}
-              <div className="px-3.5 pt-2.5 pb-3">
-                <span className="text-[13px] font-semibold text-foreground flex items-center gap-1.5">
-                  {(() => { const Icon = WIDGET_ICONS[config.type]; return Icon ? <Icon size={13} className="text-muted-foreground shrink-0" /> : null; })()}
-                  {config.label}
-                </span>
-                <span className="text-[11.5px] leading-snug mt-0.5 text-muted-foreground block">
-                  {config.description}
-                </span>
+          {groupedWidgets.map((group) => (
+            <div key={group.label}>
+              <h3 className="text-[12px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+                {group.label}
+              </h3>
+              <div className="grid grid-cols-4 gap-3">
+                {group.widgets.map((config) => (
+                  <WidgetCard
+                    key={config.type}
+                    config={config}
+                    onAdd={() => { onAdd(config.type); onClose(); }}
+                    onDragStart={() => onDragStart?.(config.type)}
+                  />
+                ))}
               </div>
             </div>
           ))}

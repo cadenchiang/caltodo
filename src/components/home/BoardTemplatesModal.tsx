@@ -173,7 +173,7 @@ export default function BoardTemplatesModal({ open, onClose, onApply }: BoardTem
       }}
     >
       <div
-        className="relative bg-card rounded-2xl border border-border shadow-2xl w-[1100px] max-w-[95vw] h-[85vh] max-h-[800px] overflow-hidden flex animate-event-modal-card-in"
+        className="relative bg-card rounded-2xl border border-border shadow-2xl w-[1300px] max-w-[95vw] h-[90vh] max-h-[900px] overflow-hidden flex animate-event-modal-card-in"
         onMouseDown={(e) => e.stopPropagation()}
       >
         {/* Sidebar */}
