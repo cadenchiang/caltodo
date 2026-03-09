@@ -226,11 +226,8 @@ export default function BoardTemplatesModal({ open, onClose, onApply }: BoardTem
                   className="group text-left rounded-xl border border-border overflow-hidden transition-all duration-200 cursor-pointer hover:shadow-xl hover:border-foreground/15 hover:-translate-y-0.5 bg-muted/30"
                 >
                   <BoardPreview template={template} />
-                  <div className="px-4 py-3 border-t border-border/50">
+                  <div className="px-4 py-2.5 border-t border-border/50">
                     <h3 className="text-sm font-semibold text-foreground">{template.name}</h3>
-                    <p className="text-xs text-muted-foreground leading-relaxed mt-0.5 line-clamp-1">
-                      {template.description}
-                    </p>
                   </div>
                 </button>
               ))}
