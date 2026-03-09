@@ -10,7 +10,7 @@ const FEATURES = [
   {
     icon: RefreshCw,
     title: "Deadline Sync",
-    description: "Auto-sync assignments from bCourses, Gradescope, and Pensieve.",
+    description: "Auto-sync assignments from bCourses, Gradescope, and Pensive.",
     className: "md:col-span-2",
   },
   {

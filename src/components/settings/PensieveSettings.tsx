@@ -52,7 +52,7 @@ export default function PensieveSettings({ credentials, onUpdate }: PensieveSett
       const updated: IntegrationCredentials = await res.json();
       onUpdate(updated);
       await deleteTasksBySource("pensieve");
-      showToast("Pensieve disconnected.");
+      showToast("Pensive disconnected.");
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Failed to disconnect");
     } finally {
@@ -67,14 +67,14 @@ export default function PensieveSettings({ credentials, onUpdate }: PensieveSett
           <img src="/pensieve-logo.png" alt="" className="w-5 h-5" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-foreground">Pensieve</p>
+          <p className="text-sm font-semibold text-foreground">Pensive</p>
           <p className="text-xs text-muted-foreground truncate">Sync CS & Data Science review assignments</p>
         </div>
         {isConnected ? (
           <button
             onClick={() => setShowConfirm(true)}
             disabled={disconnecting}
-            aria-label="Disconnect Pensieve"
+            aria-label="Disconnect Pensive"
             className="group min-w-[84px] text-xs font-medium px-3 py-1 rounded-lg shrink-0 border transition-colors cursor-pointer disabled:opacity-60
               text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30
               hover:text-red-500 hover:border-red-300 hover:bg-red-50 dark:hover:text-red-400 dark:hover:border-red-500/30 dark:hover:bg-red-500/10"
@@ -98,11 +98,11 @@ export default function PensieveSettings({ credentials, onUpdate }: PensieveSett
           <div className="relative bg-card rounded-2xl border border-border shadow-2xl max-w-sm mx-4 p-6 animate-modal-in">
             <div className="text-center">
               <h2 className="text-lg font-semibold text-foreground mb-2">
-                Disconnect Pensieve?
+                Disconnect Pensive?
               </h2>
               <p className="text-sm text-muted-foreground mb-6">
                 {sourceTaskCount > 0
-                  ? `This will remove ${sourceTaskCount === 1 ? "1 synced task" : `${sourceTaskCount} synced tasks`} from Pensieve. You can reconnect later to sync them again.`
+                  ? `This will remove ${sourceTaskCount === 1 ? "1 synced task" : `${sourceTaskCount} synced tasks`} from Pensive. You can reconnect later to sync them again.`
                   : "No synced tasks to remove. You can reconnect later to sync again."}
               </p>
               <div className="space-y-2">

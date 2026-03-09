@@ -47,7 +47,7 @@ export default function PlatformAdoption({
     { name: "Canvas", count: canvas },
     { name: "Gradescope", count: gradescope },
     { name: "Google Cal", count: googleCalendar },
-    { name: "Pensieve", count: pensieve },
+    { name: "Pensive", count: pensieve },
   ];
 
   const barColors = [

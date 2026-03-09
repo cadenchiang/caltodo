@@ -36,7 +36,7 @@ function formatSource(source: string): string {
     manual: "Manual",
     canvas: "Canvas",
     gradescope: "Gradescope",
-    pensieve: "Pensieve",
+    pensieve: "Pensive",
   };
   return labels[source] ?? source.charAt(0).toUpperCase() + source.slice(1);
 }

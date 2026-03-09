@@ -141,7 +141,7 @@ describe("getSourceBadges", () => {
   it("returns Pensieve badge for pensieve source", () => {
     const badges = getSourceBadges(makeTask({ source: "pensieve" }));
     expect(badges).toHaveLength(1);
-    expect(badges[0].label).toBe("Pensieve");
+    expect(badges[0].label).toBe("Pensive");
   });
 
   it("returns Gradescope badge for gradescope source", () => {

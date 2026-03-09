@@ -16,7 +16,7 @@ const jsonLd = {
       url: "https://caltodo.me",
       logo: "https://caltodo.me/logo.png",
       description:
-        "caltodo syncs your bcourses, gradescope, and pensieve assignments into one dashboard. free assignment management platform for berkeley students.",
+        "caltodo syncs your bcourses, gradescope, and pensive assignments into one dashboard. free assignment management platform for berkeley students.",
     },
     {
       "@type": "WebSite",
@@ -33,7 +33,7 @@ const jsonLd = {
       operatingSystem: "Web",
       offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
       description:
-        "free assignment management platform for berkeley students. syncs bcourses, gradescope, and pensieve deadlines into one dashboard with google calendar integration.",
+        "free assignment management platform for berkeley students. syncs bcourses, gradescope, and pensive deadlines into one dashboard with google calendar integration.",
     },
   ],
 };

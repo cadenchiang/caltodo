@@ -1,6 +1,6 @@
 # CalTodo
 
-Task management app for students. Syncs assignments from Canvas/bCourses, Gradescope, and Pensieve, with Google Calendar integration.
+Task management app for students. Syncs assignments from Canvas/bCourses, Gradescope, and Pensive, with Google Calendar integration.
 
 ## Tech Stack
 

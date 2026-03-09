@@ -85,7 +85,7 @@ describe("parseICalEvents — title stripping", () => {
       dtstart: "20260301",
     });
     const [result] = parseICalEvents(ical);
-    expect(result.course_name).toBe("Pensieve");
+    expect(result.course_name).toBe("Pensive");
     expect(result.title).toBe("Study Session");
   });
 

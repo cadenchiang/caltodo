@@ -35,7 +35,7 @@ function getSourceLabel(source: string): string {
   switch (source) {
     case "canvas": return "bCourses";
     case "gradescope": return "Gradescope";
-    case "pensieve": return "Pensieve";
+    case "pensieve": return "Pensive";
     default: return source;
   }
 }

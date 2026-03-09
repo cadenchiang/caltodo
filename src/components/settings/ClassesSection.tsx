@@ -164,7 +164,7 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
             .then(async (res) => {
               if (!res.ok) {
                 const body = await res.json().catch(() => ({}));
-                throw new Error(body.error || "Failed to load Pensieve courses");
+                throw new Error(body.error || "Failed to load Pensive courses");
               }
               return res.json();
             })
@@ -372,7 +372,7 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
   const groups = [
     ...(canvasCourses.length > 0 ? [{ label: "bCourses", courses: canvasCourses, color: "#3b82f6" }] : []),
     ...(gseCourses.length > 0 ? [{ label: "Gradescope", courses: gseCourses, color: "#14b8a6" }] : []),
-    ...(pensieveCourses.length > 0 ? [{ label: "Pensieve", courses: pensieveCourses, color: "#8B5CF6" }] : []),
+    ...(pensieveCourses.length > 0 ? [{ label: "Pensive", courses: pensieveCourses, color: "#8B5CF6" }] : []),
   ];
   const allModalCourses = [...canvasCourses, ...gseCourses, ...pensieveCourses];
 

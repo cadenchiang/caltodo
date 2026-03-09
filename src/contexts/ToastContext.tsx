@@ -121,6 +121,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       if (!hasProgress) {
         const timer = setTimeout(() => dismissToast(id), duration);
         timersRef.current.set(id, timer);
+      } else {
+        // Safety: auto-dismiss progress toasts after 60s if never completed
+        const safetyTimer = setTimeout(() => dismissToast(id), 60_000);
+        timersRef.current.set(id, safetyTimer);
       }
     },
     [clearTimer, dismissToast]

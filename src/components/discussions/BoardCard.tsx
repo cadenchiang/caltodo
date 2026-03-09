@@ -21,7 +21,7 @@ interface BoardCardProps {
 const SOURCE_BADGE: Record<string, { label: string; className: string }> = {
   canvas: { label: "Canvas", className: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" },
   gradescope: { label: "Gradescope", className: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" },
-  pensieve: { label: "Pensieve", className: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" },
+  pensieve: { label: "Pensive", className: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" },
 };
 
 /**

@@ -73,6 +73,17 @@ export function parseICalEvents(icsText: string): NormalizedAssignment[] {
 
     const isSubmitted = detectSubmitted(status, description);
 
+    // Log raw iCal fields for debugging submission detection
+    if (status || description) {
+      logger.info("parseICalEvents: VEVENT fields", {
+        uid: uid?.slice(0, 30),
+        summary: summary?.slice(0, 50),
+        status,
+        descriptionSnippet: description?.slice(0, 100),
+        isSubmitted,
+      });
+    }
+
     // Parse the due date from DTSTART or DTEND
     const dueDate = parseDueDate(dtend || dtstart);
 
@@ -98,7 +109,7 @@ export function parseICalEvents(icsText: string): NormalizedAssignment[] {
 
     // Strip course name suffix from title (e.g. "Assignment 1 - test_testcourse" → "Assignment 1")
     let cleanTitle = unescapeICalText(summary);
-    if (courseName && courseName !== "Pensieve") {
+    if (courseName && courseName !== "Pensive") {
       cleanTitle = cleanTitle
         .replace(new RegExp(`\\s*[-–—]\\s*${escapeRegExp(courseName)}\\s*$`, "i"), "")
         .trim();
@@ -191,7 +202,7 @@ function parseDueDate(raw: string | null): string | null {
  *
  * @param summary - VEVENT SUMMARY value
  * @param description - VEVENT DESCRIPTION value (optional)
- * @returns Extracted course name, or "Pensieve" as fallback
+ * @returns Extracted course name, or "Pensive" as fallback
  */
 function extractCourseName(summary: string, description: string | null): string {
   // Try "Course: Assignment" pattern in summary
@@ -218,7 +229,7 @@ function extractCourseName(summary: string, description: string | null): string 
     return unescapeICalText(dashMatch[1].trim());
   }
 
-  return "Pensieve";
+  return "Pensive";
 }
 
 /**

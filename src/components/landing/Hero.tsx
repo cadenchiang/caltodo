@@ -125,12 +125,12 @@ export default function Hero({ loggedIn }: HeroProps) {
               <div className="group relative cursor-pointer flex flex-col items-center -ml-1 sm:-ml-3 z-10" style={{ marginBottom: "10px" }}>
                 <div className="relative w-9 h-9 sm:w-16 sm:h-16 transition-transform duration-200 group-hover:scale-110 z-10">
                   <div className="absolute inset-[10%] rounded-full bg-white" />
-                  <img src="/pensieve-logo.png" alt="Pensieve" className="w-full h-full object-contain relative" />
+                  <img src="/pensieve-logo.png" alt="Pensive" className="w-full h-full object-contain relative" />
                 </div>
                 <div className="w-7 h-2 sm:w-14 sm:h-4 mt-1 transition-all duration-200 group-hover:w-9 sm:group-hover:w-16" style={{ background: "radial-gradient(ellipse at center, rgba(0,0,0,0.12) 0%, rgba(0,0,0,0.04) 50%, transparent 70%)", borderRadius: "50%" }} />
                 <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-3 rounded-lg bg-[#F5F5F7] text-[#1D1D1F] text-xs px-3 py-2 shadow-md opacity-0 scale-95 transition-all duration-200 group-hover:opacity-100 group-hover:scale-100 z-50 whitespace-nowrap">
                   <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-[#F5F5F7] rotate-45" />
-                  Pensieve
+                  Pensive
                 </div>
               </div>
               {/* Google Calendar — outer right, highest */}
@@ -215,7 +215,7 @@ export default function Hero({ loggedIn }: HeroProps) {
           {/* Three-step how it works */}
           <div className="w-full max-w-5xl mb-16 sm:mb-24 flex flex-col gap-8 sm:gap-10">
             {([
-              { step: "1", title: "Sync your classes", desc: "Connect bCourses, Gradescope, Pensieve, and Google Calendar in one click.", img: "/step-sync.png", icon: RefreshCw },
+              { step: "1", title: "Sync your classes", desc: "Connect bCourses, Gradescope, Pensive, and Google Calendar in one click.", img: "/step-sync.png", icon: RefreshCw },
               { step: "2", title: "Manage your assignments", desc: "See every deadline on a single calendar — no more switching between tabs.", img: "/step-calendar.png", icon: CalendarDays },
               { step: "3", title: "Personalize your board", desc: "Build your perfect dashboard in under 5 minutes with drag-and-drop widgets and themes.", img: "/step-personalize.png", icon: LayoutGrid },
             ] as const).map((item, i) => {
@@ -342,7 +342,7 @@ export default function Hero({ loggedIn }: HeroProps) {
                   why I built caltodo.
                 </h3>
                 <p className="text-xs sm:text-sm text-black/50 leading-relaxed mt-2 sm:mt-3">
-                  as a Berkeley student, I was constantly switching between bCourses, Gradescope, Pensieve, and Google Calendar just to keep track of deadlines. I&apos;d miss assignments not because I didn&apos;t do the work, but because I forgot they existed. I built caltodo so no Berkeley student has to go through that again.
+                  as a Berkeley student, I was constantly switching between bCourses, Gradescope, Pensive, and Google Calendar just to keep track of deadlines. I&apos;d miss assignments not because I didn&apos;t do the work, but because I forgot they existed. I built caltodo so no Berkeley student has to go through that again.
                 </p>
                 <p className="text-xs text-black/30 mt-3">— Caden</p>
               </div>

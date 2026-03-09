@@ -144,7 +144,7 @@ export default function IntegrationsWelcomeModal() {
             <div className="min-w-0">
               <p className="text-sm font-medium text-foreground">sync your classes</p>
               <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                connect bCourses, Gradescope, or Pensieve to import assignments
+                connect bCourses, Gradescope, or Pensive to import assignments
               </p>
             </div>
           </div>

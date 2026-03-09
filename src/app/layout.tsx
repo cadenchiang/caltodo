@@ -29,14 +29,14 @@ export const metadata: Metadata = {
     default: "CalTodo",
     template: "%s | CalTodo",
   },
-  description: "caltodo syncs your bcourses, gradescope, and pensieve assignments into one dashboard. free assignment management platform built for berkeley students — never miss a deadline again.",
-  keywords: ["caltodo", "cal todo", "berkeley", "assignment management", "bcourses", "gradescope", "pensieve", "deadline tracker", "student planner"],
+  description: "caltodo syncs your bcourses, gradescope, and pensive assignments into one dashboard. free assignment management platform built for berkeley students — never miss a deadline again.",
+  keywords: ["caltodo", "cal todo", "berkeley", "assignment management", "bcourses", "gradescope", "pensive", "deadline tracker", "student planner"],
   metadataBase: new URL("https://caltodo.me"),
   alternates: { canonical: "/" },
   applicationName: "CalTodo",
   openGraph: {
     title: "caltodo — assignment management platform for berkeley students",
-    description: "sync bcourses, gradescope, and pensieve assignments into one dashboard. free for berkeley students.",
+    description: "sync bcourses, gradescope, and pensive assignments into one dashboard. free for berkeley students.",
     url: "https://caltodo.me",
     siteName: "CalTodo",
     type: "website",
@@ -53,7 +53,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "caltodo — assignment management platform for berkeley students",
-    description: "sync bcourses, gradescope, and pensieve into one dashboard. free for berkeley students.",
+    description: "sync bcourses, gradescope, and pensive into one dashboard. free for berkeley students.",
     images: ["/og-image.png"],
   },
   icons: {

@@ -74,7 +74,7 @@ export default function NewAssignmentsModal() {
   function sourceLabel(source: string | null): string {
     if (source === "canvas") return "bCourses";
     if (source === "gradescope") return "Gradescope";
-    if (source === "pensieve") return "Pensieve";
+    if (source === "pensieve") return "Pensive";
     return "";
   }
 

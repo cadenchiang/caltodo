@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { ChevronRight, MoreVertical, Eye, Check, Trash2 } from "lucide-react";
+import { ChevronRight, MoreVertical, Eye, Check, Trash2, Archive } from "lucide-react";
 import type { Task, TaskInsert, PendingInvite } from "@/lib/types";
 import { useTaskContext } from "@/contexts/TaskContext";
 import TaskItem from "./TaskItem";
@@ -253,6 +253,8 @@ export default function TaskList({
   const [hiddenExpanded, setHiddenExpanded] = useState(false);
   const [showAllActive, setShowAllActive] = useState(false);
   const [showAllCompleted, setShowAllCompleted] = useState(false);
+  const [archiveExpanded, setArchiveExpanded] = useState(false);
+  const [showAllArchived, setShowAllArchived] = useState(false);
   /** Ticks every 60s when Hidden section is expanded to refresh countdowns. */
   const [countdownTick, setCountdownTick] = useState(0);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
@@ -347,7 +349,7 @@ export default function TaskList({
     });
   }, []);
 
-  const { active, snoozed, completed } = useMemo(() => {
+  const { active, snoozed, completed, archived } = useMemo(() => {
     const now = Date.now();
     const activeList: Task[] = [];
     const snoozedList: Task[] = [];
@@ -363,21 +365,31 @@ export default function TaskList({
       }
     }
 
-    // Filter completed tasks to only show those within the auto-hide window
-    // hideHours=0 means "never hide" — show all completed tasks
-    const recentCompleted = hideHours === 0
-      ? completedList
-      : completedList.filter((t) => {
-          if (!t.completed_at) return true; // Legacy tasks without completed_at stay visible
-          const completedTime = new Date(t.completed_at).getTime();
-          const cutoff = now - hideHours * 60 * 60 * 1000;
-          return completedTime > cutoff;
-        });
+    // Split completed tasks: recent (within auto-hide window) vs archived (older)
+    // hideHours=0 means "never hide" — all go to completed, none archived
+    // Archive cutoff: tasks completed more than 7 days ago
+    const ARCHIVE_CUTOFF_MS = 7 * 24 * 60 * 60 * 1000;
+    const archiveCutoff = now - ARCHIVE_CUTOFF_MS;
+    const recentCompleted: Task[] = [];
+    const archivedList: Task[] = [];
+
+    for (const t of completedList) {
+      const completedTime = t.completed_at ? new Date(t.completed_at).getTime() : now;
+      if (completedTime <= archiveCutoff) {
+        archivedList.push(t);
+      } else if (hideHours === 0 || !t.completed_at || completedTime > now - hideHours * 60 * 60 * 1000) {
+        recentCompleted.push(t);
+      } else {
+        // Between hideHours cutoff and 7-day archive cutoff — still show in archive
+        archivedList.push(t);
+      }
+    }
 
     return {
       active: sortByDueDate(activeList),
       snoozed: sortByDueDate(snoozedList),
       completed: sortByDueDate(recentCompleted),
+      archived: sortByDueDate(archivedList),
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tasks, hideHours, countdownTick]);
@@ -464,6 +476,7 @@ export default function TaskList({
 
   const activeToShow = showAllActive ? active : active.slice(0, ITEMS_PER_SECTION);
   const completedToShow = showAllCompleted ? completed : completed.slice(0, ITEMS_PER_SECTION);
+  const archivedToShow = showAllArchived ? archived : archived.slice(0, ITEMS_PER_SECTION);
 
   return (
     <div className="flex flex-col">
@@ -798,6 +811,47 @@ export default function TaskList({
                   className="px-8 py-2 text-xs text-subtle-foreground hover:text-secondary-foreground transition-colors w-full text-left"
                 >
                   {showAllCompleted ? "Show less" : `+${completed.length - ITEMS_PER_SECTION} more`}
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Archive section — completed tasks older than 7 days */}
+      {archived.length > 0 && (
+        <div className="mt-1">
+          <div
+            className="flex items-center mx-2 pl-2.5 pr-1 py-1.5 rounded-lg hover:bg-accent transition-colors group cursor-pointer"
+            onClick={() => setArchiveExpanded(!archiveExpanded)}
+          >
+            <Archive
+              size={12}
+              className="shrink-0 text-secondary-foreground"
+            />
+            <span className="text-sm font-semibold text-foreground ml-1.5">Archive</span>
+            <span className="text-xs text-subtle-foreground ml-1.5">{archived.length}</span>
+          </div>
+          {archiveExpanded && (
+            <>
+              {archivedToShow.map((task, i) => (
+                <div key={task.id} className="cv-auto-task">
+                  {i > 0 && <div className="mx-12 h-px bg-border" />}
+                  <TaskItem
+                    task={task}
+                    isSelected={selectedTaskId === task.id}
+                    onToggle={onToggle}
+                    onSelect={onSelect}
+                    onDelete={onDelete}
+                  />
+                </div>
+              ))}
+              {archived.length > ITEMS_PER_SECTION && (
+                <button
+                  onClick={() => setShowAllArchived(!showAllArchived)}
+                  className="px-8 py-2 text-xs text-subtle-foreground hover:text-secondary-foreground transition-colors w-full text-left"
+                >
+                  {showAllArchived ? "Show less" : `+${archived.length - ITEMS_PER_SECTION} more`}
                 </button>
               )}
             </>

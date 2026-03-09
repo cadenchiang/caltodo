@@ -73,7 +73,7 @@ export default function CalChatLockedModal({ open, onClose }: CalChatLockedModal
         className="text-sm text-muted-foreground text-center mb-5 animate-drop-in"
         style={{ animationDelay: "290ms" }}
       >
-        Sync your classes to unlock CalChat. Connect bCourses, Gradescope, or Pensieve to get started.
+        Sync your classes to unlock CalChat. Connect bCourses, Gradescope, or Pensive to get started.
       </p>
 
       {/* CTA button */}

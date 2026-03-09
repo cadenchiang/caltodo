@@ -17,7 +17,7 @@ export default function EmptyBoardState() {
         No chat rooms yet
       </h2>
       <p className="text-sm text-muted-foreground max-w-sm mb-6">
-        Sync your courses from Canvas, Gradescope, or Pensieve to start chatting with classmates.
+        Sync your courses from Canvas, Gradescope, or Pensive to start chatting with classmates.
       </p>
       <Link
         href="/app/settings"

@@ -993,7 +993,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
    * Used to populate the tag picker dropdown.
    */
   const availableTags = useMemo(() => {
-    const tagSet = new Set<string>(["bCourses", "Canvas", "Gradescope", "Pensieve"]);
+    const tagSet = new Set<string>(["bCourses", "Canvas", "Gradescope", "Pensive"]);
     for (const t of tasks) {
       if (t.tags) {
         for (const tag of t.tags) tagSet.add(tag);

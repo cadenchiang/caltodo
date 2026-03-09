@@ -516,7 +516,7 @@ export default function TaskCreateModal({
     ? ({
         canvas: { label: "bCourses", cls: "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-600/40" },
         gradescope: { label: "Gradescope", cls: "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-600/40" },
-        pensieve: { label: "Pensieve", cls: "text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-600/40" },
+        pensieve: { label: "Pensive", cls: "text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-600/40" },
       } as Record<string, { label: string; cls: string }>)[editTask.source] ?? null
     : null;
 

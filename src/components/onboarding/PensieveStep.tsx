@@ -8,7 +8,7 @@ const PENSIEVE_URL_REGEX = /^https:\/\/api\.pensieve\.co\/api\/calendar\/[^/]+\.
 
 /** Instruction steps for connecting Pensieve. */
 const PENSIEVE_STEPS: Array<{ text: string; href?: string }> = [
-  { text: "Log into Pensieve", href: "https://www.pensieve.co" },
+  { text: "Log into Pensive", href: "https://www.pensieve.co" },
   { text: "Click on your profile (bottom left)" },
   { text: "Click on \"Enable Calendar URL\"" },
   { text: "Copy and paste the URL below" },
@@ -55,11 +55,11 @@ export default function PensieveStep({ onNext, onSkip, saving, error, setError, 
   async function handleSaveAndNext() {
     const trimmed = url.trim();
     if (!trimmed) {
-      setError("Please enter your Pensieve calendar URL.");
+      setError("Please enter your Pensive calendar URL.");
       return;
     }
     if (!PENSIEVE_URL_REGEX.test(trimmed)) {
-      setError("Invalid Pensieve URL. It should look like https://api.pensieve.co/api/calendar/...ics");
+      setError("Invalid Pensive URL. It should look like https://api.pensieve.co/api/calendar/...ics");
       return;
     }
     setError(null);
@@ -69,8 +69,8 @@ export default function PensieveStep({ onNext, onSkip, saving, error, setError, 
   return (
     <div className="text-center">
       <div className="flex items-center justify-center gap-2 mb-4">
-        <img src="/pensieve-logo.png" alt="Pensieve" width={22} height={22} className="shrink-0" />
-        <h2 className="text-lg font-bold text-foreground animate-drop-in">Pensieve</h2>
+        <img src="/pensieve-logo.png" alt="Pensive" width={22} height={22} className="shrink-0" />
+        <h2 className="text-lg font-bold text-foreground animate-drop-in">Pensive</h2>
       </div>
 
       {/* Numbered instruction steps */}
@@ -90,7 +90,7 @@ export default function PensieveStep({ onNext, onSkip, saving, error, setError, 
                     rel="noopener noreferrer"
                     className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 underline"
                   >
-                    Pensieve
+                    Pensive
                   </a>
                 </span>
               ) : (
