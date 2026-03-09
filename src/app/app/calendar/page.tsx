@@ -48,6 +48,13 @@ export default function CalendarPage() {
   const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
 
   const modals = useCalendarModals();
+  const [clearPreviewSignal, setClearPreviewSignal] = useState(0);
+
+  /** Closes the create modal and triggers the preview block exit animation. */
+  function closeCreateModal() {
+    setClearPreviewSignal((n) => n + 1);
+    modals.closeAddPopover();
+  }
 
   // Compute date range for GCal events
   const { timeMin, timeMax } = useMemo(() => {
@@ -75,7 +82,7 @@ export default function CalendarPage() {
   }, [currentDate, viewMode]);
 
   // Always fetch events so they're cached and render instantly when switching modes
-  const { events: gcalEvents, mutate: refetchEvents } = useGCalEvents(timeMin, timeMax);
+  const { events: gcalEvents, calendarColors, mutate: refetchEvents } = useGCalEvents(timeMin, timeMax);
 
   /** Derive fresh task data from context so toggles reflect immediately. */
   const currentPreviewTask = modals.previewTask
@@ -191,6 +198,7 @@ export default function CalendarPage() {
                 tasks={visibleTasks}
                 pendingInvites={pendingInvites}
                 gcalEvents={calendarMode === "calendar" ? gcalEvents : []}
+                calendarColors={calendarColors}
                 calendarMode={calendarMode}
                 addingDate={modals.addingDate}
                 selectedDate={selectedDate}
@@ -214,10 +222,12 @@ export default function CalendarPage() {
                   tasks={visibleTasks}
                   pendingInvites={pendingInvites}
                   gcalEvents={gcalEvents}
+                  calendarColors={calendarColors}
                   addingDate={modals.addingDate}
                   onDayClick={modals.handleDayClick}
                   onTaskClick={modals.handleTaskClick}
                   onEventCreate={modals.handleTimeGridCreate}
+                  clearPreviewSignal={clearPreviewSignal}
                 />
               )
             ) : (
@@ -235,9 +245,11 @@ export default function CalendarPage() {
                   tasks={visibleTasks}
                   pendingInvites={pendingInvites}
                   gcalEvents={gcalEvents}
+                  calendarColors={calendarColors}
                   onAddClick={modals.handleDayClick}
                   onTaskClick={modals.handleTaskClick}
                   onEventCreate={modals.handleTimeGridCreate}
+                  clearPreviewSignal={clearPreviewSignal}
                 />
               )
             )}
@@ -248,27 +260,31 @@ export default function CalendarPage() {
         {modals.addingDate && (
           <>
             <TaskCreateModal
-              open={modals.createType === "task"}
-              keepMounted
-              onClose={modals.closeAddPopover}
-              onAdd={(task) => { addTask(task); modals.closeAddPopover(); }}
+              open={calendarMode === "assignments" || modals.createType === "task"}
+              keepMounted={calendarMode !== "assignments"}
+              onClose={closeCreateModal}
+              onAdd={(task) => { addTask(task); closeCreateModal(); }}
               defaultDate={modals.addingDate}
               defaultTime={modals.addingTime}
               createTypeToggle={
-                <CreateTypeToggle value={modals.createType} onChange={modals.switchCreateType} />
+                calendarMode === "calendar"
+                  ? <CreateTypeToggle value={modals.createType} onChange={modals.switchCreateType} />
+                  : undefined
               }
             />
-            <GCalEventCreateModal
-              open={modals.createType === "event"}
-              onClose={modals.closeAddPopover}
-              onCreated={() => { refetchEvents(); modals.closeAddPopover(); }}
-              defaultDate={modals.addingDate}
-              defaultStartTime={modals.addingTime}
-              defaultEndTime={modals.addingEndTime}
-              createTypeToggle={
-                <CreateTypeToggle value={modals.createType} onChange={modals.switchCreateType} />
-              }
-            />
+            {calendarMode === "calendar" && (
+              <GCalEventCreateModal
+                open={modals.createType === "event"}
+                onClose={closeCreateModal}
+                onCreated={() => { refetchEvents(); closeCreateModal(); }}
+                defaultDate={modals.addingDate}
+                defaultStartTime={modals.addingTime}
+                defaultEndTime={modals.addingEndTime}
+                createTypeToggle={
+                  <CreateTypeToggle value={modals.createType} onChange={modals.switchCreateType} />
+                }
+              />
+            )}
           </>
         )}
 
@@ -309,10 +325,10 @@ export default function CalendarPage() {
             date={modals.overflowDate}
             tasks={visibleTasks.filter((t) => t.due_date === modals.overflowDate)}
             pendingInvites={pendingInvites.filter((i) => i.taskDueDate === modals.overflowDate)}
-            gcalEvents={gcalEvents.filter((e) => getEventDateKey(e.start) === modals.overflowDate)}
+            gcalEvents={calendarMode === "calendar" ? gcalEvents.filter((e) => getEventDateKey(e.start) === modals.overflowDate) : []}
             anchorRect={modals.overflowRect}
             onClose={modals.closeOverflow}
-            onTaskClick={(task, rect) => { modals.closeOverflow(); modals.handleTaskClick(task, rect); }}
+            onTaskClick={(task, rect) => { modals.handleTaskClick(task, rect); }}
           />
         )}
         <GCalAnnouncementModal />

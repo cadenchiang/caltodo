@@ -98,6 +98,62 @@ export function formatTimeCompact(time24: string): string {
   return `${h12}:${minute}${suffix}`;
 }
 
+/**
+ * Maps Google Calendar API backgroundColor values to the darker colors
+ * that Google Calendar actually renders on its web UI.
+ * Keys are lowercase hex from the calendarList API.
+ */
+const GCAL_BG_TO_RENDERED: Record<string, string> = {
+  // Blues
+  "#4986e7": "#3F51B5",  // Google Calendar blue → deep indigo
+  "#4285f4": "#3F51B5",  // Google Blue → deep indigo
+  "#7986cb": "#3F51B5",  // Lavender → deep indigo
+  "#a4bdfc": "#3F51B5",  // Light blue → deep indigo
+  "#5484ed": "#3F51B5",  // Bold blue → deep indigo
+  "#039be5": "#0277BD",  // Peacock → deeper teal-blue
+  // Greens
+  "#42d692": "#0B8043",  // Sage green → basil
+  "#33b679": "#0B8043",  // Sage → basil
+  "#7bd148": "#558B2F",  // Fern → dark green
+  "#51b749": "#2E7D32",  // Green → forest
+  "#0b8043": "#0B8043",  // Basil → same
+  "#16a765": "#0B8043",  // Green → basil
+  "#7cb342": "#558B2F",  // Fern → dark green
+  "#009688": "#00796B",  // Teal → deeper teal
+  // Oranges / Yellows
+  "#ff7537": "#EF6C00",  // Orange → deep orange
+  "#f4511e": "#EF6C00",  // Tangerine → deep orange
+  "#ef6c00": "#EF6C00",  // Deep orange → same
+  "#f6bf26": "#F09300",  // Banana → deeper gold
+  "#fbe983": "#F09300",  // Yellow → deeper gold
+  "#e4c441": "#F09300",  // Citron → gold
+  "#ffb878": "#EF6C00",  // Apricot → deep orange
+  "#f09300": "#F09300",  // Deep gold → same
+  // Reds / Pinks
+  "#e67c73": "#D32F2F",  // Flamingo → deeper red
+  "#d50000": "#C62828",  // Tomato → deeper red
+  "#dc2127": "#C62828",  // Red → deeper red
+  "#d81b60": "#AD1457",  // Flamingo pink → deeper
+  "#ad1457": "#AD1457",  // Deep pink → same
+  "#cd74e6": "#7B1FA2",  // Orchid → deep purple
+  // Purples
+  "#8e24aa": "#7B1FA2",  // Grape → deeper purple
+  "#b39ddb": "#7E57C2",  // Light lavender → deeper purple
+  "#9e69af": "#7B1FA2",  // Medium purple → deep purple
+  "#dbadff": "#7E57C2",  // Light purple → deeper purple
+  "#9a9cff": "#3F51B5",  // Periwinkle → indigo
+  "#3f51b5": "#3F51B5",  // Blueberry → same
+  // Neutrals / Browns
+  "#616161": "#424242",  // Graphite → darker gray
+  "#795548": "#4E342E",  // Brown → deeper brown
+  "#a79b8e": "#8D6E63",  // Birch → warm brown
+  "#cabdbf": "#8D6E63",  // Light brown → warm brown
+  "#c0ca33": "#9E9D24",  // Lime → olive
+  "#afb42b": "#9E9D24",  // Pistachio → olive
+  "#b3dc6c": "#558B2F",  // Light green → dark green
+  "#92e1c0": "#00796B",  // Mint → teal
+};
+
 /** Theme-specific default event colors. */
 const THEME_EVENT_DEFAULTS: Record<string, string> = {
   miffy: "#e8729a",
@@ -119,11 +175,15 @@ const THEME_EVENT_DEFAULTS: Record<string, string> = {
 export function getEventColor(
   colorId: string | null,
   calendarColor?: string,
-  fallback: string = "#4285F4",
+  fallback: string = "#3F51B5",
   colorTheme?: string | null,
 ): string {
   if (colorId && GCAL_COLORS[colorId]) return GCAL_COLORS[colorId];
-  if (calendarColor) return calendarColor;
+  if (calendarColor) {
+    // Map Google API background colors to their actual rendered equivalents
+    const mapped = GCAL_BG_TO_RENDERED[calendarColor.toLowerCase()];
+    return mapped ?? calendarColor;
+  }
   if (colorTheme && THEME_EVENT_DEFAULTS[colorTheme]) return THEME_EVENT_DEFAULTS[colorTheme];
   return fallback;
 }

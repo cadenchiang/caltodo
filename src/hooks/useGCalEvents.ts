@@ -22,6 +22,8 @@ async function fetcher(url: string) {
 
 interface UseGCalEventsResult {
   events: GCalEvent[];
+  /** Map of calendarId → backgroundColor from Google. */
+  calendarColors: Record<string, string>;
   isLoading: boolean;
   connected: boolean | null;
   /** Trigger a refetch of events. */
@@ -72,6 +74,7 @@ export function useGCalEvents(timeMin?: string, timeMax?: string): UseGCalEvents
 
   return {
     events: data?.events ?? [],
+    calendarColors: data?.calendarColors ?? {},
     isLoading,
     connected: data ? (data.connected ?? true) : null,
     /** Trigger a refetch of events. */

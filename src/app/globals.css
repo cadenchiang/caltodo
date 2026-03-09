@@ -1231,6 +1231,88 @@ textarea:-webkit-autofill {
   }
 }
 
+/* Event create preview block pulse-in on time grid */
+@keyframes previewBlockIn {
+  from {
+    opacity: 0;
+    transform: scaleY(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+}
+
+.animate-preview-in {
+  animation: previewBlockIn 200ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  transform-origin: top;
+}
+
+@keyframes previewBlockOut {
+  from {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+  to {
+    opacity: 0;
+    transform: scaleY(0.8);
+  }
+}
+
+.animate-preview-out {
+  animation: previewBlockOut 180ms cubic-bezier(0.4, 0, 1, 1) both;
+  transform-origin: top;
+}
+
+/* Event create modal: smooth scale + fade in */
+@keyframes eventModalBackdropIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes eventModalCardIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes eventModalBackdropOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes eventModalCardOut {
+  from {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.95) translateY(8px);
+  }
+}
+
+.animate-event-modal-backdrop-in {
+  animation: eventModalBackdropIn 200ms ease-out both;
+}
+
+.animate-event-modal-card-in {
+  animation: eventModalCardIn 250ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-event-modal-backdrop-out {
+  animation: eventModalBackdropOut 180ms ease-in both;
+}
+
+.animate-event-modal-card-out {
+  animation: eventModalCardOut 180ms ease-in both;
+}
+
 /* Course row staggered fade-in */
 @keyframes rowFadeIn {
   from {

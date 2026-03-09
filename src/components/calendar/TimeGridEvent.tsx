@@ -15,6 +15,8 @@ import GCalEventPopover from "./GCalEventPopover";
 interface TimeGridEventProps {
   event: GCalEvent;
   calendarColor?: string;
+  /** The YYYY-MM-DD date of the column this event is in. */
+  columnDate?: string;
   top: number;
   height: number;
   left: string;
@@ -32,8 +34,9 @@ interface TimeGridEventProps {
  * @param left - CSS left position (e.g. "0%", "50%")
  * @param width - CSS width (e.g. "100%", "50%")
  */
-export default function TimeGridEvent({ event, calendarColor, top, height, left, width, zIndex = 10 }: TimeGridEventProps) {
+export default function TimeGridEvent({ event, calendarColor, columnDate, top, height, left, width, zIndex = 10 }: TimeGridEventProps) {
   const [popoverAnchor, setPopoverAnchor] = useState<DOMRect | null>(null);
+  const isSelected = popoverAnchor !== null;
   const { mutate: globalMutate } = useSWRConfig();
   const invalidateEvents = useCallback(() => {
     globalMutate((key: string) => typeof key === "string" && key.startsWith("/api/gcal/events"));
@@ -49,19 +52,21 @@ export default function TimeGridEvent({ event, calendarColor, top, height, left,
     );
   }, [globalMutate]);
   const { colorTheme } = useTheme();
-  const color = getEventColor(event.colorId, calendarColor, undefined, colorTheme);
+  const rawColor = getEventColor(event.colorId, calendarColor, undefined, colorTheme);
   const minHeight = Math.max(height, 20);
 
-  const isPast = new Date(event.end).getTime() < Date.now();
+  // Only fade events from past days, not events that ended earlier today
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const isToday = columnDate === todayStr;
+  const isPast = !isToday && new Date(event.end).getTime() < Date.now();
   const isTentative = event.responseStatus === "tentative" || event.responseStatus === "needsAction";
   const isDeclined = event.responseStatus === "declined";
   const isDark = typeof window !== "undefined" && document.documentElement.classList.contains("dark");
-  /** Past events use a washed-out color (toward white in light, toward dark bg in dark). */
+  /** Use Google's colors directly. Only fade past-day events. */
+  const color = rawColor;
   const displayColor = isPast
-    ? blendHex(color, isDark ? "#1a1a2e" : "#FFFFFF", 0.5)
+    ? blendHex(color, isDark ? "#1a1a2e" : "#FFFFFF", 0.45)
     : color;
-  /** Border: white on light theme, black on dark theme. */
-  const borderColor = isDark ? "#000000" : "#FFFFFF";
   const startTime = formatEventTime(event.start, false);
   const endDate = new Date(event.end);
   const endH = endDate.getHours();
@@ -69,7 +74,7 @@ export default function TimeGridEvent({ event, calendarColor, top, height, left,
   const endSuffix = endH >= 12 ? "pm" : "am";
   const endH12 = endH === 0 ? 12 : endH > 12 ? endH - 12 : endH;
   const endTime = endM === 0 ? `${endH12}${endSuffix}` : `${endH12}:${String(endM).padStart(2, "0")}${endSuffix}`;
-  const textClass = isPast ? "text-foreground/50" : "text-foreground";
+  const textClass = isPast ? "text-foreground/50" : "text-white";
 
   return (
     <>
@@ -85,41 +90,41 @@ export default function TimeGridEvent({ event, calendarColor, top, height, left,
           left,
           width,
           backgroundColor: isTentative ? undefined : displayColor,
-          border: isTentative ? `1.5px solid ${isPast ? displayColor : color}` : `1.5px solid ${borderColor}`,
-          zIndex,
+          border: isTentative ? `1px solid ${isPast ? displayColor : color}` : `1px solid ${isDark ? "#000000" : "#FFFFFF"}`,
+          zIndex: isSelected ? 50 : zIndex,
         }}
         title={event.summary}
         aria-label={`${event.summary}, ${startTime} – ${endTime}${event.location ? `, ${event.location}` : ""}`}
       >
         {minHeight <= 24 ? (
-          <div className="px-1.5 h-full flex items-center overflow-hidden text-left">
+          <div className="px-1.5 h-full flex items-center overflow-hidden text-left" style={{ maskImage: "linear-gradient(to right, black 95%, transparent 100%)", WebkitMaskImage: "linear-gradient(to right, black 95%, transparent 100%)" }}>
             <p
-              className={`text-[10px] font-medium leading-none truncate ${textClass}`}
-              style={{ color: isTentative ? (isPast ? displayColor : color) : undefined }}
+              className={`text-[10px] font-medium leading-none whitespace-nowrap ${textClass}`}
+              style={{ color: isTentative ? (isPast ? displayColor : rawColor) : undefined }}
             >
               {event.summary}
             </p>
           </div>
         ) : (
-          <div className="px-2 py-1 h-full flex flex-col justify-start overflow-hidden text-left">
+          <div className="px-2 py-1 h-full flex flex-col justify-start overflow-hidden text-left" style={{ maskImage: "linear-gradient(to right, black 95%, transparent 100%)", WebkitMaskImage: "linear-gradient(to right, black 95%, transparent 100%)" }}>
             <p
-              className={`text-[12px] font-medium leading-snug truncate ${isDeclined ? "line-through" : ""} ${isTentative ? "" : textClass}`}
-              style={isTentative ? { color: isPast ? displayColor : color } : undefined}
+              className={`text-[12px] font-medium leading-snug whitespace-nowrap ${isDeclined ? "line-through" : ""} ${isTentative ? "" : textClass}`}
+              style={isTentative ? { color: isPast ? displayColor : rawColor } : undefined}
             >
               {event.summary}
             </p>
             {minHeight > 30 && (
               <p
-                className={`text-[11px] font-medium leading-snug truncate ${isTentative ? "" : textClass}`}
-                style={isTentative ? { color: isPast ? displayColor : color, opacity: 0.8 } : undefined}
+                className={`text-[11px] font-medium leading-snug whitespace-nowrap ${isTentative ? "" : textClass}`}
+                style={isTentative ? { color: isPast ? displayColor : rawColor, opacity: 0.8 } : undefined}
               >
                 {startTime} – {endTime}
               </p>
             )}
             {minHeight > 50 && event.location && (
               <p
-                className={`text-[11px] font-medium leading-snug truncate ${isTentative ? "" : textClass}`}
-                style={isTentative ? { color: isPast ? displayColor : color, opacity: 0.6 } : undefined}
+                className={`text-[11px] font-medium leading-snug whitespace-nowrap ${isTentative ? "" : textClass}`}
+                style={isTentative ? { color: isPast ? displayColor : rawColor, opacity: 0.6 } : undefined}
               >
                 {event.location}
               </p>

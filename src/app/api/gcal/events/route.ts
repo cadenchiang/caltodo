@@ -174,11 +174,15 @@ export async function GET(request: NextRequest) {
       listAllCalendars(accessToken),
     ]);
 
-    // Build calendarId -> display name map
+    // Build calendarId -> display name and color maps
     const calNameMap = new Map<string, string>();
+    const calColorMap: Record<string, string> = {};
     if (calendarList) {
       for (const cal of calendarList) {
         calNameMap.set(cal.id, cal.summary);
+        if (cal.backgroundColor) {
+          calColorMap[cal.id] = cal.backgroundColor;
+        }
       }
     }
 
@@ -206,7 +210,7 @@ export async function GET(request: NextRequest) {
       eventCount: allEvents.length,
     });
 
-    return NextResponse.json({ events: allEvents, connected: true });
+    return NextResponse.json({ events: allEvents, calendarColors: calColorMap, connected: true });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     logger.error("gcal/events: fetch failed", {

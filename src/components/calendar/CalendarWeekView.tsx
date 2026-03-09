@@ -16,11 +16,15 @@ interface CalendarWeekViewProps {
   tasks: Task[];
   pendingInvites?: PendingInvite[];
   gcalEvents?: GCalEvent[];
+  /** Map of calendarId → backgroundColor from Google. */
+  calendarColors?: Record<string, string>;
   /** Date string of the day currently being added to (shows placeholder). */
   addingDate?: string | null;
   onDayClick: (date: string, rect: DOMRect) => void;
   onTaskClick: (task: Task, rect: DOMRect) => void;
   onEventCreate?: (date: string, startTime: string, endTime: string) => void;
+  /** Incremented when create modal closes, to animate-out the preview block. */
+  clearPreviewSignal?: number;
 }
 
 /**
@@ -38,10 +42,12 @@ export default function CalendarWeekView({
   tasks,
   pendingInvites = [],
   gcalEvents = [],
+  calendarColors = {},
   addingDate,
   onDayClick,
   onTaskClick,
   onEventCreate,
+  clearPreviewSignal,
 }: CalendarWeekViewProps) {
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -102,9 +108,10 @@ export default function CalendarWeekView({
       const dateStr = format(day, "yyyy-MM-dd");
       return {
         events: timedByDate[dateStr] ?? [],
+        calendarColors,
       };
     });
-  }, [days, timedByDate]);
+  }, [days, timedByDate, calendarColors]);
 
   const columnDates = useMemo(() => days.map((d) => format(d, "yyyy-MM-dd")), [days]);
 
@@ -172,7 +179,7 @@ export default function CalendarWeekView({
                   />
                 ))}
                 {dayAllDayEvents.map((event) => (
-                  <CalendarGCalItem key={event.id} event={event} />
+                  <CalendarGCalItem key={event.id} event={event} calendarColor={calendarColors[event.calendarId ?? ""]} />
                 ))}
                 {addingDate === dateStr && (
                   <div className="bg-blue-500 text-white text-[10px] font-medium px-1.5 py-0.5 rounded truncate">
@@ -200,7 +207,7 @@ export default function CalendarWeekView({
         <TimeGrid
           columns={timeGridColumns}
           columnDates={columnDates}
-          rowHeight={60}
+          rowHeight={48}
           showCurrentTime={true}
           onTimeDoubleClick={onEventCreate ? (date, hour, minute) => {
             const start = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
@@ -208,6 +215,7 @@ export default function CalendarWeekView({
             const end = `${String(endH).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
             onEventCreate(date, start, end);
           } : undefined}
+          clearPreviewSignal={clearPreviewSignal}
         />
       )}
     </div>

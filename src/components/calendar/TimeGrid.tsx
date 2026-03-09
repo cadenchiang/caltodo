@@ -7,6 +7,7 @@
 "use client";
 
 import { useEffect, useRef, useMemo, useState, useCallback } from "react";
+import { format } from "date-fns";
 import type { GCalEvent } from "@/lib/types";
 import { parseEventDate } from "@/lib/gcal/event-utils";
 import TimeGridEvent from "./TimeGridEvent";
@@ -27,6 +28,8 @@ interface TimeGridProps {
   rowHeight?: number;
   showCurrentTime?: boolean;
   onTimeDoubleClick?: (date: string, hour: number, minute: number) => void;
+  /** When true, animate-out and clear the preview block. */
+  clearPreviewSignal?: number;
 }
 
 /**
@@ -46,11 +49,11 @@ function layoutEvents(
   if (events.length === 0) return [];
 
   /** Offset in % each overlapping event is shifted right. */
-  const OVERLAP_OFFSET = 30;
+  const OVERLAP_OFFSET = 20;
   /** Maximum width % for any event in an overlap group. */
-  const MAX_WIDTH = 85;
+  const MAX_WIDTH = 80;
   /** Minimum width % for the last event in an overlap group. */
-  const MIN_WIDTH = 40;
+  const MIN_WIDTH = 35;
 
   // Sort by start time, then longer events first (so they sit behind),
   // then tentative/needsAction events last so they render on top
@@ -114,13 +117,14 @@ function layoutEvents(
       for (let i = 0; i < count; i++) {
         const entry = group[i];
         const leftPct = i * OVERLAP_OFFSET;
+        // Cap width so it never exceeds the column boundary
         const widthPct = Math.max(Math.min(100 - leftPct, MAX_WIDTH), MIN_WIDTH);
         result.push({
           event: entry.event,
           top: entry.top,
           height: entry.height,
           left: `${leftPct}%`,
-          width: `${widthPct}%`,
+          width: `${Math.min(widthPct, 100 - leftPct)}%`,
           zIndex: 10 + i,
         });
       }
@@ -144,6 +148,8 @@ interface PreviewBlock {
   colIndex: number;
   top: number;
   height: number;
+  /** Whether the block is animating out before removal. */
+  exiting?: boolean;
 }
 
 export default function TimeGrid({
@@ -154,6 +160,7 @@ export default function TimeGrid({
   rowHeight = DEFAULT_ROW_HEIGHT,
   showCurrentTime = true,
   onTimeDoubleClick,
+  clearPreviewSignal,
 }: TimeGridProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [preview, setPreview] = useState<PreviewBlock | null>(null);
@@ -161,6 +168,14 @@ export default function TimeGrid({
   /** Clear the preview block when clicking outside the grid or when events change. */
   const clearPreview = useCallback(() => setPreview(null), []);
   useEffect(() => { setPreview(null); }, [columns]);
+
+  /** Animate-out the preview when signal changes (modal closed). */
+  useEffect(() => {
+    if (!clearPreviewSignal || !preview || preview.exiting) return;
+    setPreview((p) => p ? { ...p, exiting: true } : null);
+    const t = setTimeout(() => setPreview(null), 180);
+    return () => clearTimeout(t);
+  }, [clearPreviewSignal]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** Full day range — always 12 AM to 12 AM (midnight to midnight). */
   const effectiveRange = useMemo(() => ({
@@ -194,14 +209,14 @@ export default function TimeGrid({
     <div ref={scrollRef} className="flex-1 overflow-y-auto relative">
       <div className="flex" style={{ minHeight: `${totalHeight}px` }}>
         {/* Hour labels gutter */}
-        <div className="w-14 shrink-0 relative" style={{ height: `${totalHeight}px` }}>
+        <div className="w-14 shrink-0 relative border-r border-gray-200 dark:border-gray-700/50" style={{ height: `${totalHeight}px` }}>
           {hours.map((hour) => {
             const top = (hour - effectiveRange.startHour) * rowHeight;
             const label = hour === 0 ? "12 AM" : hour < 12 ? `${hour} AM` : hour === 12 ? "12 PM" : `${hour - 12} PM`;
             return (
               <div
                 key={hour}
-                className="absolute right-2 text-[10px] text-muted-foreground leading-none"
+                className="absolute right-2 text-[10px] text-foreground font-medium leading-none"
                 style={{ top: `${top - 5}px` }}
               >
                 {label}
@@ -224,16 +239,29 @@ export default function TimeGrid({
             );
           })}
 
-          {/* Current time line */}
-          {showLine && (
-            <div
-              className="absolute left-0 right-0 z-20 flex items-center"
-              style={{ top: `${currentTimeTop}px` }}
-            >
-              <div className="w-2.5 h-2.5 rounded-full bg-red-500 -ml-1" />
-              <div className="flex-1 h-[2px] bg-red-500" />
-            </div>
-          )}
+          {/* Current time line — rendered in parent so the dot isn't clipped */}
+          {showLine && (() => {
+            const todayStr = format(new Date(), "yyyy-MM-dd");
+            const todayIndex = columnDates?.findIndex((d) => d === todayStr) ?? -1;
+            if (todayIndex < 0) return null;
+            const colCount = columns.length;
+            // Position: left edge of today's column minus a few px for the dot
+            const leftPct = (todayIndex / colCount) * 100;
+            const widthPct = (1 / colCount) * 100;
+            return (
+              <div
+                className="absolute z-20 flex items-center pointer-events-none"
+                style={{
+                  top: `${currentTimeTop}px`,
+                  left: `calc(${leftPct}% - 5px)`,
+                  width: `calc(${widthPct}% + 5px)`,
+                }}
+              >
+                <div className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0" />
+                <div className="flex-1 h-[2px] bg-red-500" />
+              </div>
+            );
+          })()}
 
           {/* Event columns */}
           {columns.map((col, i) => {
@@ -242,7 +270,7 @@ export default function TimeGrid({
               <div
                 key={i}
                 className={`flex-1 relative ${i < columns.length - 1 ? "border-r border-gray-200 dark:border-gray-700/50" : ""}`}
-                style={{ height: `${totalHeight}px` }}
+                style={{ height: `${totalHeight}px`, overflowX: "hidden" }}
 
                 onClick={() => clearPreview()}
                 onDoubleClick={(e) => {
@@ -265,6 +293,7 @@ export default function TimeGrid({
                     key={item.event.id}
                     event={item.event}
                     calendarColor={col.calendarColors?.[item.event.calendarId ?? ""] ?? undefined}
+                    columnDate={columnDates?.[i]}
                     top={item.top}
                     height={item.height}
                     left={item.left}
@@ -274,7 +303,7 @@ export default function TimeGrid({
                 ))}
                 {preview && preview.colIndex === i && (
                   <div
-                    className="absolute left-0 right-0 rounded-lg bg-blue-500/20 border-2 border-blue-500/40 border-dashed pointer-events-none z-5"
+                    className={`absolute left-0 right-0 rounded-lg bg-blue-500/20 border-2 border-blue-500/40 border-dashed pointer-events-none z-5 ${preview.exiting ? "animate-preview-out" : "animate-preview-in"}`}
                     style={{
                       top: `${preview.top + 1}px`,
                       height: `${preview.height - 2}px`,

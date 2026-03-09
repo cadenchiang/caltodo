@@ -52,6 +52,22 @@ export default function GCalEventCreateModal({ open, onClose, onCreated, default
   const locationSuggestions = useLocationAutocomplete(location, locationFocused);
   const locationRef = useRef<HTMLDivElement>(null);
 
+  /** Animation state: "entering" | "visible" | "exiting" | "hidden" */
+  const [animState, setAnimState] = useState<"entering" | "visible" | "exiting" | "hidden">(open ? "entering" : "hidden");
+
+  // Open → animate in
+  useEffect(() => {
+    if (open) {
+      setAnimState("entering");
+      const t = setTimeout(() => setAnimState("visible"), 250);
+      return () => clearTimeout(t);
+    } else if (animState === "visible" || animState === "entering") {
+      setAnimState("exiting");
+      const t = setTimeout(() => setAnimState("hidden"), 180);
+      return () => clearTimeout(t);
+    }
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+
   /** Close location dropdown on outside click. */
   const handleLocationBlur = useCallback((e: MouseEvent) => {
     if (locationRef.current && !locationRef.current.contains(e.target as Node)) {
@@ -81,9 +97,14 @@ export default function GCalEventCreateModal({ open, onClose, onCreated, default
     }
   }, [open, defaultDate, defaultStartTime, defaultEndTime]);
 
-  /** Close the modal. */
+  /** Close the modal with exit animation. */
   function handleClose() {
-    onClose();
+    if (animState === "exiting" || animState === "hidden") return;
+    setAnimState("exiting");
+    setTimeout(() => {
+      setAnimState("hidden");
+      onClose();
+    }, 180);
   }
 
   // Close on escape
@@ -152,8 +173,13 @@ export default function GCalEventCreateModal({ open, onClose, onCreated, default
         return;
       }
 
-      onCreated();
-      onClose();
+      setAnimState("exiting");
+      setTimeout(() => {
+        setAnimState("hidden");
+        onCreated();
+        onClose();
+      }, 180);
+      return;
     } catch {
       setError("Failed to create event");
     } finally {
@@ -161,17 +187,25 @@ export default function GCalEventCreateModal({ open, onClose, onCreated, default
     }
   }
 
+  if (animState === "hidden" && !open) return null;
+
   return createPortal(
-    <div style={!open ? { display: 'none' } : undefined}>
+    <div>
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center pt-[18vh] bg-black/40"
+      className={`fixed inset-0 z-50 flex items-start justify-center pt-[18vh] bg-black/40 ${
+        animState === "entering" ? "animate-event-modal-backdrop-in" :
+        animState === "exiting" ? "animate-event-modal-backdrop-out" : ""
+      }`}
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) handleClose();
       }}
     >
       <div
         ref={ref}
-        className="relative bg-card rounded-2xl border border-border shadow-2xl w-[540px] max-w-[95vw] max-h-[90vh] overflow-y-auto"
+        className={`relative bg-card rounded-2xl border border-border shadow-2xl w-[540px] max-w-[95vw] max-h-[90vh] overflow-y-auto ${
+          animState === "entering" ? "animate-event-modal-card-in" :
+          animState === "exiting" ? "animate-event-modal-card-out" : ""
+        }`}
         onMouseDown={(e) => e.stopPropagation()}
       >
         {/* Close button — exact same as TaskCreateModal */}

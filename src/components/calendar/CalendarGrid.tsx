@@ -18,6 +18,8 @@ interface CalendarGridProps {
   tasks: Task[];
   pendingInvites?: PendingInvite[];
   gcalEvents?: GCalEvent[];
+  /** Map of calendarId → backgroundColor from Google. */
+  calendarColors?: Record<string, string>;
   /** Current calendar mode — "assignments" uses bigger task bars, no events. */
   calendarMode?: "assignments" | "calendar";
   addingDate?: string | null;
@@ -41,6 +43,7 @@ export default function CalendarGrid({
   tasks,
   pendingInvites = [],
   gcalEvents = [],
+  calendarColors = {},
   calendarMode = "calendar",
   addingDate,
   selectedDate,
@@ -116,6 +119,7 @@ export default function CalendarGrid({
               tasks={tasksByDate[dateStr] ?? []}
               pendingInvites={invitesByDate[dateStr] ?? []}
               gcalEvents={eventsByDate[dateStr] ?? []}
+              calendarColors={calendarColors}
               assignmentsMode={calendarMode === "assignments"}
               addingDate={addingDate}
               isLastCol={(i + 1) % 7 === 0}

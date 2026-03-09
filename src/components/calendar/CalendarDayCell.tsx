@@ -16,6 +16,8 @@ interface CalendarDayCellProps {
   tasks: Task[];
   pendingInvites?: PendingInvite[];
   gcalEvents?: GCalEvent[];
+  /** Map of calendarId → backgroundColor from Google. */
+  calendarColors?: Record<string, string>;
   addingDate?: string | null;
   isLastCol?: boolean;
   isSelected?: boolean;
@@ -55,6 +57,7 @@ export default function CalendarDayCell({
   tasks,
   pendingInvites = [],
   gcalEvents = [],
+  calendarColors = {},
   addingDate,
   isLastCol,
   isSelected,
@@ -249,7 +252,7 @@ export default function CalendarDayCell({
             ))}
             <div className={isPast ? "opacity-40" : ""}>
               {visibleEvents.map((event) => (
-                <CalendarGCalItem key={event.id} event={event} />
+                <CalendarGCalItem key={event.id} event={event} calendarColor={calendarColors[event.calendarId ?? ""]} />
               ))}
             </div>
             {overflow > 0 && (

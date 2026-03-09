@@ -147,6 +147,7 @@ export default function TaskPreviewPopover({
   return createPortal(
     <div
       ref={ref}
+      data-task-preview-popover
       role="dialog"
       aria-label={`Preview: ${task.title}`}
       className={`fixed z-[9999] rounded-2xl shadow-2xl border border-border bg-popover transition-[opacity,transform] duration-150 ease-out ${

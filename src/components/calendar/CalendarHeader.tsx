@@ -330,15 +330,15 @@ export default function CalendarHeader({
         )}
 
         {/* View mode: Month / Week / Day */}
-        <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden bg-transparent">
+        <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800">
           {VIEW_MODES.map((mode) => (
             <button
               key={mode}
               onClick={() => onViewModeChange(mode)}
-              className={`px-2.5 py-1 md:px-4 md:py-1.5 text-xs md:text-sm font-medium capitalize transition-all duration-200 ease-out ${
+              className={`px-2.5 py-1 md:px-4 md:py-1.5 text-xs md:text-sm font-semibold capitalize transition-all duration-200 ease-out ${
                 viewMode === mode
-                  ? "bg-white dark:bg-white text-gray-900 shadow-sm"
-                  : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10"
+                  ? "bg-white dark:bg-white text-black shadow-sm"
+                  : "text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-black/5 dark:hover:bg-white/10"
               }`}
             >
               {mode}

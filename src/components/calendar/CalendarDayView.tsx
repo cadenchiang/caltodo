@@ -14,9 +14,13 @@ interface CalendarDayViewProps {
   tasks: Task[];
   pendingInvites?: PendingInvite[];
   gcalEvents?: GCalEvent[];
+  /** Map of calendarId → backgroundColor from Google. */
+  calendarColors?: Record<string, string>;
   onAddClick: (date: string, rect: DOMRect) => void;
   onTaskClick: (task: Task, rect: DOMRect) => void;
   onEventCreate?: (date: string, startTime: string, endTime: string) => void;
+  /** Incremented when create modal closes, to animate-out the preview block. */
+  clearPreviewSignal?: number;
 }
 
 /**
@@ -34,9 +38,11 @@ export default function CalendarDayView({
   tasks,
   pendingInvites = [],
   gcalEvents = [],
+  calendarColors = {},
   onAddClick,
   onTaskClick,
   onEventCreate,
+  clearPreviewSignal,
 }: CalendarDayViewProps) {
   const dateStr = format(currentDate, "yyyy-MM-dd");
   const dayTasks = tasks.filter((t) => t.due_date === dateStr);
@@ -63,7 +69,8 @@ export default function CalendarDayView({
   // Build time grid column
   const timeGridColumns = useMemo(() => [{
     events: timedEvents,
-  }], [timedEvents]);
+    calendarColors,
+  }], [timedEvents, calendarColors]);
 
   return (
     <div className="overflow-hidden bg-card flex flex-col h-full relative">
@@ -83,7 +90,7 @@ export default function CalendarDayView({
               />
             ))}
             {allDayEvents.map((event) => (
-              <CalendarGCalItem key={event.id} event={event} />
+              <CalendarGCalItem key={event.id} event={event} calendarColor={calendarColors[event.calendarId ?? ""]} />
             ))}
           </div>
         </div>
@@ -93,7 +100,7 @@ export default function CalendarDayView({
       <TimeGrid
         columns={timeGridColumns}
         columnDates={[dateStr]}
-        rowHeight={60}
+        rowHeight={48}
         showCurrentTime={true}
         onTimeDoubleClick={onEventCreate ? (date, hour, minute) => {
           const start = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
@@ -101,6 +108,7 @@ export default function CalendarDayView({
           const end = `${String(endH).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
           onEventCreate(date, start, end);
         } : undefined}
+        clearPreviewSignal={clearPreviewSignal}
       />
     </div>
   );

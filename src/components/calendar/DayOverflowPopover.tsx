@@ -44,7 +44,11 @@ export default function DayOverflowPopover({
   // Close on outside click or Escape
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
-      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (popoverRef.current && !popoverRef.current.contains(target)) {
+        // Don't close if click landed inside a task preview popover
+        const preview = document.querySelector("[data-task-preview-popover]");
+        if (preview && preview.contains(target)) return;
         onClose();
       }
     };

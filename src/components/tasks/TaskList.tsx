@@ -479,7 +479,7 @@ export default function TaskList({
   const archivedToShow = showAllArchived ? archived : archived.slice(0, ITEMS_PER_SECTION);
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col flex-1 min-h-0">
       {/* Requests section (pending invites) — shown above active tasks */}
       {pendingInvites.length > 0 && (
         <div className="mt-1">
@@ -818,25 +818,43 @@ export default function TaskList({
         </div>
       )}
 
-      {/* Archive section — completed tasks older than 7 days */}
+      {/* Archive section — completed tasks older than 7 days, subtle at bottom */}
       {archived.length > 0 && (
-        <div className="mt-1">
+        <div className="mt-auto pt-4 border-t border-border/40">
           <div
-            className="flex items-center mx-2 pl-2.5 pr-1 py-1.5 rounded-lg hover:bg-accent transition-colors group cursor-pointer"
+            className="flex items-center mx-2 pl-2.5 pr-1 py-1 rounded-lg hover:bg-accent/50 transition-colors group cursor-pointer"
             onClick={() => setArchiveExpanded(!archiveExpanded)}
           >
-            <Archive
-              size={12}
-              className="shrink-0 text-secondary-foreground"
+            <ChevronRight
+              size={10}
+              className={`shrink-0 text-muted-foreground/50 transition-transform duration-200 ${
+                archiveExpanded ? "rotate-90" : ""
+              }`}
             />
-            <span className="text-sm font-semibold text-foreground ml-1.5">Archive</span>
-            <span className="text-xs text-subtle-foreground ml-1.5">{archived.length}</span>
+            <Archive size={10} className="shrink-0 text-muted-foreground/50 ml-0.5" />
+            <span className="text-xs font-medium text-muted-foreground/70 ml-1">Archive</span>
+            <span className="text-[10px] text-muted-foreground/40 ml-1">{archived.length}</span>
+            {archiveExpanded && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // Delete all archived tasks
+                  for (const task of archived) {
+                    onDelete(task.id);
+                  }
+                }}
+                className="ml-auto text-[10px] font-medium text-muted-foreground/50 hover:text-red-500 transition-colors px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100"
+              >
+                Clear all
+              </button>
+            )}
           </div>
           {archiveExpanded && (
-            <>
+            <div className="opacity-60">
               {archivedToShow.map((task, i) => (
                 <div key={task.id} className="cv-auto-task">
-                  {i > 0 && <div className="mx-12 h-px bg-border" />}
+                  {i > 0 && <div className="mx-12 h-px bg-border/50" />}
                   <TaskItem
                     task={task}
                     isSelected={selectedTaskId === task.id}
@@ -849,12 +867,12 @@ export default function TaskList({
               {archived.length > ITEMS_PER_SECTION && (
                 <button
                   onClick={() => setShowAllArchived(!showAllArchived)}
-                  className="px-8 py-2 text-xs text-subtle-foreground hover:text-secondary-foreground transition-colors w-full text-left"
+                  className="px-8 py-2 text-[10px] text-muted-foreground/40 hover:text-muted-foreground/60 transition-colors w-full text-left"
                 >
                   {showAllArchived ? "Show less" : `+${archived.length - ITEMS_PER_SECTION} more`}
                 </button>
               )}
-            </>
+            </div>
           )}
         </div>
       )}
