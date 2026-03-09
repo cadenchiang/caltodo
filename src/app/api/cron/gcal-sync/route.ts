@@ -70,11 +70,11 @@ export async function GET(request: NextRequest) {
 
       const calendarId = resolveCalendarId(user.google_calendar_id);
 
-      // Renew channel if expiring within 24 hours
+      // Register channel if missing, or renew if expiring within 24 hours
       const channelExpiry = user.gcal_channel_expiration
         ? new Date(user.gcal_channel_expiration).getTime()
         : 0;
-      if (channelExpiry > 0 && channelExpiry - now < oneDayMs) {
+      if (channelExpiry === 0 || channelExpiry - now < oneDayMs) {
         const result = await renewWatchChannel(supabase, user.user_id, accessToken, calendarId);
         if (result) renewed++;
       }

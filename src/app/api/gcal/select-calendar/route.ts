@@ -9,6 +9,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getValidAccessToken } from "@/lib/gcal/token-manager";
+import { renewWatchChannel } from "@/lib/gcal/watch-manager";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
 
@@ -67,6 +68,24 @@ export async function POST(request: Request) {
     userId: user.id,
     calendarIds: body.calendarIds,
   });
+
+  // Register a push notification channel for the primary calendar
+  // so Google sends real-time webhooks when events change (even when app is closed).
+  const primaryCalendarId = body.calendarIds[0] || "primary";
+  const watchResult = await renewWatchChannel(supabase, user.id, accessToken, primaryCalendarId);
+  if (watchResult) {
+    logger.info("POST /api/gcal/select-calendar: watch channel registered", {
+      userId: user.id,
+      calendarId: primaryCalendarId,
+      channelId: watchResult.channelId,
+      expiration: watchResult.expiration,
+    });
+  } else {
+    logger.warn("POST /api/gcal/select-calendar: watch channel registration failed", {
+      userId: user.id,
+      calendarId: primaryCalendarId,
+    });
+  }
 
   return NextResponse.json({ calendarIds: body.calendarIds });
 }
