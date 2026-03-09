@@ -1,6 +1,7 @@
 "use client";
 
 import { createPortal } from "react-dom";
+import { AlertTriangle } from "lucide-react";
 
 interface Props {
   /** Whether the modal is visible. */
@@ -34,20 +35,25 @@ export default function GoogleAuthWarningModal({
         onClick={onCancel}
       />
       <div className="relative bg-card rounded-2xl border border-border shadow-2xl max-w-sm mx-4 p-6 animate-modal-in">
-        <div className="text-center">
-          <h2 className="text-lg font-semibold text-foreground mb-3">
-            Google Verification Notice
-          </h2>
-          <p className="text-sm text-muted-foreground mb-6 text-left leading-relaxed">
+        <div>
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-500/15 flex items-center justify-center shrink-0">
+              <AlertTriangle size={20} className="text-amber-500" />
+            </div>
+            <h2 className="text-lg font-semibold text-foreground">
+              Google Verification Notice
+            </h2>
+          </div>
+          <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
             You may see a warning that says &quot;Google hasn&apos;t verified
             this app.&quot; This is normal — Google&apos;s verification process
             takes time. Your data is safe.
-            <br />
-            <br />
+          </p>
+          <div className="text-sm text-muted-foreground mb-6 leading-relaxed bg-muted/50 rounded-xl px-4 py-3 border border-border/50">
             Click <span className="font-medium text-foreground">Advanced</span>{" "}
             → <span className="font-medium text-foreground">Go to CalTodo (unsafe)</span>{" "}
             to continue.
-          </p>
+          </div>
           <div className="space-y-2">
             <button
               type="button"
