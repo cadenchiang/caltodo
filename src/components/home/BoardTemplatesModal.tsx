@@ -1,7 +1,7 @@
 /**
  * Modal for choosing a board template.
- * Large modal with sidebar categories and visual board preview cards.
- * Applying a template replaces all widgets and board settings.
+ * Shows realistic 1:1 board previews with cover, emoji, title, and widget mockups.
+ * Includes a confirmation dialog before applying.
  *
  * @param open - Whether the modal is visible
  * @param onClose - Close callback
@@ -12,15 +12,15 @@
 
 import { useState, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { X, Check } from "lucide-react";
+import { X, AlertTriangle } from "lucide-react";
 import {
   BOARD_TEMPLATES,
   TEMPLATE_CATEGORIES,
   type BoardTemplate,
   type TemplateCategory,
 } from "@/lib/board-templates";
-import { WIDGET_REGISTRY } from "@/lib/widget-types";
 import { resolvePreset } from "@/lib/board-cover-presets";
+import TemplateWidgetMock from "./TemplateWidgetMock";
 
 interface BoardTemplatesModalProps {
   open: boolean;
@@ -28,70 +28,76 @@ interface BoardTemplatesModalProps {
   onApply: (template: BoardTemplate) => void;
 }
 
-/** Grid columns for the miniature widget layout preview. */
-const PREVIEW_COLS = 8;
+/** Grid columns matching the real dashboard. */
+const COLS = 8;
 /** Height of one grid unit in the preview (px). */
-const PREVIEW_UNIT = 18;
+const ROW_H = 32;
+/** Gap between widgets in the preview (px). */
+const GAP = 4;
 
 /**
- * Renders a miniature board preview showing the cover and widget grid layout.
+ * Renders a realistic board preview card: cover image, emoji, title, description,
+ * and a grid of widget mockups matching the actual template layout.
  *
- * @param template - The template to preview
+ * @param template - The board template to preview
  */
-function TemplatePreview({ template }: { template: BoardTemplate }) {
+function BoardPreview({ template }: { template: BoardTemplate }) {
   const { layout } = template;
   const lgLayout = layout.layouts.lg || [];
 
-  // Resolve cover background
   const coverStyle = useMemo(() => {
     const url = layout.coverImageUrl;
-    if (!url) return { background: "#e5e7eb" };
+    if (!url) return { background: "var(--muted)" };
     if (url.startsWith("preset:")) {
       const preset = resolvePreset(url);
-      if (preset.imageUrl) return { backgroundImage: `url(${preset.imageUrl})`, backgroundSize: "cover", backgroundPosition: `center ${layout.coverPositionY ?? 50}%` };
+      if (preset.imageUrl) return {
+        backgroundImage: `url(${preset.imageUrl})`,
+        backgroundSize: "cover",
+        backgroundPosition: `center ${layout.coverPositionY ?? 50}%`,
+      };
       if (preset.background) return { background: preset.background };
     }
     return { backgroundImage: `url(${url})`, backgroundSize: "cover", backgroundPosition: "center" };
   }, [layout.coverImageUrl, layout.coverPositionY]);
 
-  // Compute grid height from layout items
-  const maxY = lgLayout.reduce((max, item) => Math.max(max, (item.y || 0) + (item.h || 1)), 0);
-  const gridHeight = Math.max(maxY * PREVIEW_UNIT, PREVIEW_UNIT * 2);
+  const maxY = lgLayout.reduce((m, item) => Math.max(m, (item.y || 0) + (item.h || 1)), 0);
+  const gridHeight = Math.max(maxY * ROW_H + (maxY > 0 ? GAP * (maxY - 1) : 0), ROW_H);
+  const coverH = Math.min((layout.coverHeight || 200) * 0.35, 80);
 
   return (
-    <div className="w-full rounded-lg overflow-hidden border border-border/50 bg-card">
-      {/* Mini cover */}
-      <div className="w-full h-12 relative" style={coverStyle}>
-        {/* Emoji overlay */}
-        <div className="absolute -bottom-2 left-3 text-base leading-none bg-card rounded-md px-0.5">
-          {layout.boardEmoji || "\u{1F4D6}"}
-        </div>
+    <div className="w-full bg-card overflow-hidden">
+      <div className="w-full relative" style={{ ...coverStyle, height: coverH }} />
+      <div className="px-3 pt-1 pb-2">
+        <div className="text-sm leading-none -mt-2 mb-0.5">{layout.boardEmoji || "\u{1F4D6}"}</div>
+        <h4 className="text-[9px] font-semibold text-foreground leading-tight">
+          {layout.boardTitle || "My Board"}
+        </h4>
+        {layout.boardDescription && (
+          <p className="text-[6px] italic text-muted-foreground mt-0.5 leading-tight">
+            {layout.boardDescription}
+          </p>
+        )}
       </div>
-
-      {/* Mini widget grid */}
-      <div className="px-2 pt-4 pb-2 relative" style={{ height: `${gridHeight + 16}px` }}>
+      <div className="px-3 pb-3 relative" style={{ height: gridHeight }}>
         {lgLayout.map((item) => {
           const widget = layout.widgets.find((w) => w.id === item.i);
-          const reg = widget ? WIDGET_REGISTRY[widget.type as keyof typeof WIDGET_REGISTRY] : null;
-          const left = ((item.x || 0) / PREVIEW_COLS) * 100;
-          const width = ((item.w || 1) / PREVIEW_COLS) * 100;
-          const top = (item.y || 0) * PREVIEW_UNIT;
-          const height = (item.h || 1) * PREVIEW_UNIT;
-
+          if (!widget) return null;
+          const left = ((item.x || 0) / COLS) * 100;
+          const width = ((item.w || 1) / COLS) * 100;
+          const top = (item.y || 0) * (ROW_H + GAP);
+          const height = (item.h || 1) * ROW_H + ((item.h || 1) - 1) * GAP;
           return (
             <div
               key={item.i}
-              className="absolute rounded bg-muted/80 border border-border/40 flex items-center justify-center overflow-hidden"
+              className="absolute rounded-md bg-card border border-border/60 overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
               style={{
-                left: `calc(${left}% + 8px)`,
-                width: `calc(${width}% - 4px)`,
-                top: `${top + 16}px`,
-                height: `${height - 2}px`,
+                left: `calc(${left}% + 0px)`,
+                width: `calc(${width}% - ${GAP}px)`,
+                top,
+                height,
               }}
             >
-              <span className="text-[7px] font-medium text-muted-foreground truncate px-1">
-                {reg?.label || ""}
-              </span>
+              <TemplateWidgetMock type={widget.type} w={item.w || 1} h={item.h || 1} />
             </div>
           );
         })}
@@ -102,15 +108,15 @@ function TemplatePreview({ template }: { template: BoardTemplate }) {
 
 /**
  * Full-screen modal for browsing and applying board templates.
- * Features sidebar category navigation and visual board previews.
+ * Sidebar category navigation, realistic board previews, and confirmation dialog.
  *
  * @param open - Visibility flag
  * @param onClose - Called when modal is dismissed
  * @param onApply - Called with the selected template
  */
 export default function BoardTemplatesModal({ open, onClose, onApply }: BoardTemplatesModalProps) {
-  const [confirmId, setConfirmId] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<TemplateCategory | "all">("all");
+  const [confirmTemplate, setConfirmTemplate] = useState<BoardTemplate | null>(null);
 
   const filtered = useMemo(() => {
     if (activeCategory === "all") return BOARD_TEMPLATES;
@@ -119,34 +125,27 @@ export default function BoardTemplatesModal({ open, onClose, onApply }: BoardTem
 
   if (!open) return null;
 
-  function handleApply(template: BoardTemplate) {
-    if (confirmId === template.id) {
-      onApply(template);
-      setConfirmId(null);
-      onClose();
-    } else {
-      setConfirmId(template.id);
-    }
+  function handleConfirm() {
+    if (!confirmTemplate) return;
+    onApply(confirmTemplate);
+    setConfirmTemplate(null);
+    onClose();
   }
 
   return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 animate-event-modal-backdrop-in"
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget) {
-          setConfirmId(null);
-          onClose();
-        }
+        if (e.target === e.currentTarget) { setConfirmTemplate(null); onClose(); }
       }}
     >
       <div
-        className="relative bg-card rounded-2xl border border-border shadow-2xl w-[900px] max-w-[95vw] h-[80vh] max-h-[700px] overflow-hidden flex animate-event-modal-card-in"
+        className="relative bg-card rounded-2xl border border-border shadow-2xl w-[960px] max-w-[95vw] h-[85vh] max-h-[750px] overflow-hidden flex animate-event-modal-card-in"
         onMouseDown={(e) => e.stopPropagation()}
       >
         {/* Sidebar */}
-        <div className="w-48 shrink-0 border-r border-border bg-muted/30 p-4 flex flex-col gap-1">
-          <h2 className="text-lg font-semibold text-foreground mb-3 px-2">Templates</h2>
-
+        <div className="w-44 shrink-0 border-r border-border bg-muted/20 p-4 flex flex-col gap-0.5">
+          <h2 className="text-lg font-semibold text-foreground mb-4 px-2">Templates</h2>
           <button
             onClick={() => setActiveCategory("all")}
             className={`text-left text-sm px-3 py-2 rounded-lg transition-colors cursor-pointer ${
@@ -174,70 +173,31 @@ export default function BoardTemplatesModal({ open, onClose, onApply }: BoardTem
 
         {/* Main content */}
         <div className="flex-1 flex flex-col min-w-0">
-          {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
-            <div>
-              <p className="text-sm text-muted-foreground">
-                Choose a template to set up your board. This replaces your current layout.
-              </p>
-            </div>
+          <div className="flex items-center justify-between px-6 py-3 border-b border-border shrink-0">
+            <p className="text-sm text-muted-foreground">Choose a template to set up your board.</p>
             <button
-              onClick={() => { setConfirmId(null); onClose(); }}
-              className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-accent transition-colors duration-150 cursor-pointer shrink-0 ml-4"
+              onClick={() => { setConfirmTemplate(null); onClose(); }}
+              className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-accent transition-colors cursor-pointer shrink-0 ml-4"
               aria-label="Close"
             >
               <X size={18} />
             </button>
           </div>
 
-          {/* Template grid */}
           <div className="flex-1 overflow-y-auto p-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
               {filtered.map((template) => (
                 <button
                   key={template.id}
-                  onClick={() => handleApply(template)}
-                  className={`group relative text-left rounded-xl border transition-all duration-150 cursor-pointer hover:shadow-lg overflow-hidden ${
-                    confirmId === template.id
-                      ? "border-blue-500 ring-2 ring-blue-500/30"
-                      : "border-border hover:border-foreground/20"
-                  }`}
+                  onClick={() => setConfirmTemplate(template)}
+                  className="group text-left rounded-xl border border-border overflow-hidden transition-all duration-200 cursor-pointer hover:shadow-xl hover:border-foreground/15 hover:-translate-y-0.5 bg-muted/30"
                 >
-                  {/* Visual board preview */}
-                  <TemplatePreview template={template} />
-
-                  {/* Info section */}
-                  <div className="p-3 border-t border-border/50">
-                    <h3 className="text-sm font-semibold text-foreground mb-0.5">{template.name}</h3>
-                    <p className="text-[11px] text-muted-foreground leading-relaxed line-clamp-2">{template.description}</p>
-
-                    {/* Widget pills */}
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {template.previewWidgets.slice(0, 4).map((wType) => {
-                        const reg = WIDGET_REGISTRY[wType as keyof typeof WIDGET_REGISTRY];
-                        return (
-                          <span
-                            key={wType}
-                            className="inline-block px-1.5 py-0.5 text-[9px] font-medium rounded bg-muted text-muted-foreground"
-                          >
-                            {reg?.label || wType}
-                          </span>
-                        );
-                      })}
-                      {template.previewWidgets.length > 4 && (
-                        <span className="inline-block px-1.5 py-0.5 text-[9px] font-medium rounded bg-muted text-muted-foreground">
-                          +{template.previewWidgets.length - 4}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Confirm state */}
-                    {confirmId === template.id && (
-                      <div className="mt-2 flex items-center gap-1.5 text-xs font-medium text-blue-600 dark:text-blue-400">
-                        <Check size={12} />
-                        Click again to confirm
-                      </div>
-                    )}
+                  <BoardPreview template={template} />
+                  <div className="px-3 py-2.5 border-t border-border/50">
+                    <h3 className="text-xs font-semibold text-foreground">{template.name}</h3>
+                    <p className="text-[10px] text-muted-foreground leading-relaxed mt-0.5 line-clamp-1">
+                      {template.description}
+                    </p>
                   </div>
                 </button>
               ))}
@@ -245,6 +205,46 @@ export default function BoardTemplatesModal({ open, onClose, onApply }: BoardTem
           </div>
         </div>
       </div>
+
+      {/* Confirmation dialog */}
+      {confirmTemplate && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-event-modal-backdrop-in"
+          onMouseDown={(e) => { if (e.target === e.currentTarget) setConfirmTemplate(null); }}
+        >
+          <div
+            className="bg-card rounded-2xl border border-border shadow-2xl max-w-sm mx-4 p-6 animate-event-modal-card-in"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-500/15 flex items-center justify-center shrink-0">
+                <AlertTriangle size={20} className="text-amber-500" />
+              </div>
+              <h3 className="text-base font-semibold text-foreground">
+                Apply &ldquo;{confirmTemplate.name}&rdquo;?
+              </h3>
+            </div>
+            <p className="text-sm text-muted-foreground mb-5 leading-relaxed">
+              This will replace your current board layout, widgets, and cover with this template.
+              This action cannot be undone.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setConfirmTemplate(null)}
+                className="flex-1 px-4 py-2.5 rounded-xl text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirm}
+                className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 transition-colors cursor-pointer"
+              >
+                Apply Template
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>,
     document.body
   );

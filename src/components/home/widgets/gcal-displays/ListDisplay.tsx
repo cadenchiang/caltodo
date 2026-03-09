@@ -23,7 +23,7 @@ export default function ListDisplay({ events, calendarColors, fallbackColor, com
     return () => clearInterval(id);
   }, []);
 
-  const [selectedEvent, setSelectedEvent] = useState<{ event: typeof events[0]; color: string } | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<{ event: typeof events[0]; color: string; rect: DOMRect } | null>(null);
 
   const now = new Date();
   const todayKey = new Date().toDateString();
@@ -67,7 +67,7 @@ export default function ListDisplay({ events, calendarColors, fallbackColor, com
                   <button
                     key={event.id}
                     type="button"
-                    onClick={() => setSelectedEvent({ event, color })}
+                    onClick={(e) => setSelectedEvent({ event, color, rect: e.currentTarget.getBoundingClientRect() })}
                     className={`no-drag flex items-center gap-2 bg-muted/50 rounded-lg p-2 hover:bg-black/10 dark:hover:bg-white/15 transition-colors w-full text-left cursor-pointer ${
                       isPast ? "opacity-40" : ""
                     } ${selectedEvent?.event.id === event.id ? "bg-black/5 dark:bg-white/5" : ""}`}
@@ -105,6 +105,7 @@ export default function ListDisplay({ events, calendarColors, fallbackColor, com
         <EventDetailPopover
           event={selectedEvent.event}
           color={selectedEvent.color}
+          anchorRect={selectedEvent.rect}
           onClose={() => setSelectedEvent(null)}
         />
       )}

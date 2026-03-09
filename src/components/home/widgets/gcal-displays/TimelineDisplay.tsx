@@ -23,7 +23,7 @@ export default function TimelineDisplay({ events, calendarColors, fallbackColor 
     return () => clearInterval(id);
   }, []);
 
-  const [selectedEvent, setSelectedEvent] = useState<{ event: typeof events[0]; color: string } | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<{ event: typeof events[0]; color: string; rect: DOMRect } | null>(null);
 
   const now = new Date();
   const nextEventId = useMemo(
@@ -52,7 +52,7 @@ export default function TimelineDisplay({ events, calendarColors, fallbackColor 
             <button
               key={event.id}
               type="button"
-              onClick={() => setSelectedEvent({ event, color })}
+              onClick={(e) => setSelectedEvent({ event, color, rect: e.currentTarget.getBoundingClientRect() })}
               className={`no-drag relative flex items-start gap-3 w-full text-left py-1.5 pl-0 pr-1 hover:bg-black/5 dark:hover:bg-white/5 rounded transition-colors cursor-pointer ${
                 isPast ? "opacity-35" : ""
               } ${selectedEvent?.event.id === event.id ? "bg-black/5 dark:bg-white/5" : ""}`}
@@ -95,6 +95,7 @@ export default function TimelineDisplay({ events, calendarColors, fallbackColor 
         <EventDetailPopover
           event={selectedEvent.event}
           color={selectedEvent.color}
+          anchorRect={selectedEvent.rect}
           onClose={() => setSelectedEvent(null)}
         />
       )}

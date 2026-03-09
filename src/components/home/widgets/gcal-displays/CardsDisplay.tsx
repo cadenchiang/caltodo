@@ -24,7 +24,7 @@ export default function CardsDisplay({ events, calendarColors, fallbackColor }: 
     return () => clearInterval(id);
   }, []);
 
-  const [selectedEvent, setSelectedEvent] = useState<{ event: typeof events[0]; color: string } | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<{ event: typeof events[0]; color: string; rect: DOMRect } | null>(null);
 
   const now = new Date();
   const nextEventId = useMemo(
@@ -50,7 +50,7 @@ export default function CardsDisplay({ events, calendarColors, fallbackColor }: 
             <button
               key={event.id}
               type="button"
-              onClick={() => setSelectedEvent({ event, color })}
+              onClick={(e) => setSelectedEvent({ event, color, rect: e.currentTarget.getBoundingClientRect() })}
               className={`no-drag w-full text-left rounded-lg p-2 transition-all cursor-pointer hover:brightness-95 dark:hover:brightness-110 ${
                 isPast ? "opacity-35" : ""
               } ${selectedEvent?.event.id === event.id ? "brightness-90 dark:brightness-120" : ""}`}
@@ -89,6 +89,7 @@ export default function CardsDisplay({ events, calendarColors, fallbackColor }: 
         <EventDetailPopover
           event={selectedEvent.event}
           color={selectedEvent.color}
+          anchorRect={selectedEvent.rect}
           onClose={() => setSelectedEvent(null)}
         />
       )}

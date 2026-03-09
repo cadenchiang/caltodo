@@ -10,11 +10,16 @@
  * @param onClose - Callback to close the popover
  */
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useLayoutEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Calendar, MapPin, ExternalLink, X, FileText } from "lucide-react";
 import type { GCalEvent } from "@/lib/types";
 import { parseEventDate } from "./helpers";
+
+/** Popover width in px — matches GCalEventPopover. */
+const POPOVER_WIDTH = 448;
+/** Minimum gap from viewport edges. */
+const GAP = 6;
 
 /**
  * Formats a time range string for an event.
@@ -57,11 +62,57 @@ function stripHtml(html: string): string {
 interface EventDetailPopoverProps {
   event: GCalEvent;
   color: string;
+  /** Anchor rectangle for positioning the popover next to the clicked element. */
+  anchorRect?: DOMRect;
   onClose: () => void;
 }
 
-export default function EventDetailPopover({ event, color, onClose }: EventDetailPopoverProps) {
+/**
+ * Detail popover for a Google Calendar event inside the home widget.
+ * When anchorRect is provided, positions next to the anchor element.
+ * Falls back to centered layout if no anchor.
+ *
+ * @param event - The GCalEvent to display
+ * @param color - Accent color for the event dot
+ * @param anchorRect - DOMRect of the clicked element for positioning
+ * @param onClose - Callback to close the popover
+ */
+export default function EventDetailPopover({ event, color, anchorRect, onClose }: EventDetailPopoverProps) {
   const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
+
+  // Compute anchor-relative position
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el || !anchorRect) return;
+
+    const popoverHeight = el.scrollHeight;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const anchorCenterX = anchorRect.left + anchorRect.width / 2;
+
+    // Horizontal: place to right or left of anchor
+    let left: number;
+    if (anchorCenterX < vw / 2) {
+      left = anchorRect.right + GAP;
+    } else {
+      left = anchorRect.left - POPOVER_WIDTH - GAP;
+    }
+    left = Math.max(GAP, Math.min(left, vw - POPOVER_WIDTH - GAP));
+
+    // Vertical: blend between anchor top and viewport center
+    const anchorTop = anchorRect.top;
+    const centeredTop = (vh - popoverHeight) / 2;
+    const BLEND = 0.35;
+    let top = anchorTop + (centeredTop - anchorTop) * BLEND;
+
+    if (top + popoverHeight > vh - GAP) {
+      top = vh - popoverHeight - GAP;
+    }
+    top = Math.max(GAP, top);
+
+    setPos({ left, top });
+  }, [anchorRect]);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -82,11 +133,16 @@ export default function EventDetailPopover({ event, color, onClose }: EventDetai
   const description = event.description ? stripHtml(event.description) : null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-3">
-      <div className="absolute inset-0 bg-black/20" onClick={onClose} />
+    <div className="fixed inset-0 z-[60]" onClick={onClose}>
       <div
         ref={ref}
-        className="relative bg-popover rounded-lg shadow-2xl border border-border w-full max-w-[448px] overflow-hidden animate-in"
+        onClick={(e) => e.stopPropagation()}
+        className="absolute bg-popover rounded-lg shadow-2xl border border-border overflow-hidden animate-in"
+        style={
+          anchorRect && pos
+            ? { left: pos.left, top: pos.top, width: POPOVER_WIDTH }
+            : { left: "50%", top: "50%", transform: "translate(-50%, -50%)", width: POPOVER_WIDTH }
+        }
       >
         <div className="flex items-center justify-end gap-1 px-2 pt-2">
           <a

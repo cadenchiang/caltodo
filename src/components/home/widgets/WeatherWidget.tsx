@@ -313,7 +313,7 @@ export default function WeatherWidget({ config, editMode }: WeatherWidgetProps) 
 
   return (
     <>
-      <div ref={containerRef} className="h-full w-full">
+      <div ref={containerRef} className="h-full w-full rounded-xl transition-[filter] duration-200 hover:brightness-[0.92] dark:hover:brightness-[0.85]">
         <Display
           current={current}
           forecast={forecast}

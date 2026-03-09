@@ -23,7 +23,7 @@ export default function CompactDisplay({ events, calendarColors, fallbackColor }
     return () => clearInterval(id);
   }, []);
 
-  const [selectedEvent, setSelectedEvent] = useState<{ event: typeof events[0]; color: string } | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<{ event: typeof events[0]; color: string; rect: DOMRect } | null>(null);
 
   const now = new Date();
   const nextEventId = useMemo(
@@ -49,7 +49,7 @@ export default function CompactDisplay({ events, calendarColors, fallbackColor }
             <button
               key={event.id}
               type="button"
-              onClick={() => setSelectedEvent({ event, color })}
+              onClick={(e) => setSelectedEvent({ event, color, rect: e.currentTarget.getBoundingClientRect() })}
               className={`no-drag flex items-center gap-2 w-full text-left px-1 py-1 hover:bg-black/5 dark:hover:bg-white/5 rounded transition-colors cursor-pointer ${
                 isPast ? "opacity-35" : ""
               } ${selectedEvent?.event.id === event.id ? "bg-black/5 dark:bg-white/5" : ""}`}
@@ -80,6 +80,7 @@ export default function CompactDisplay({ events, calendarColors, fallbackColor }
         <EventDetailPopover
           event={selectedEvent.event}
           color={selectedEvent.color}
+          anchorRect={selectedEvent.rect}
           onClose={() => setSelectedEvent(null)}
         />
       )}
