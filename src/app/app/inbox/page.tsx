@@ -106,17 +106,23 @@ type SortMode = "date" | "class";
  */
 function sortByDate(tasks: Task[]): Task[] {
   return [...tasks].sort((a, b) => {
-    const aHasOrder = a.sort_order !== null && a.sort_order !== undefined;
-    const bHasOrder = b.sort_order !== null && b.sort_order !== undefined;
-
-    if (aHasOrder && bHasOrder) return a.sort_order! - b.sort_order!;
-    if (aHasOrder) return -1;
-    if (bHasOrder) return 1;
-
-    if (!a.due_date && !b.due_date) return 0;
+    // Primary sort: due date ascending (undated tasks first)
+    if (!a.due_date && !b.due_date) {
+      // Both undated: use sort_order as tiebreaker if available
+      const aOrd = a.sort_order ?? Infinity;
+      const bOrd = b.sort_order ?? Infinity;
+      return aOrd - bOrd;
+    }
     if (!a.due_date) return -1;
     if (!b.due_date) return 1;
-    return a.due_date.localeCompare(b.due_date);
+
+    const dateCmp = a.due_date.localeCompare(b.due_date);
+    if (dateCmp !== 0) return dateCmp;
+
+    // Same date: use sort_order as tiebreaker (null sort_order sorts last)
+    const aOrd = a.sort_order ?? Infinity;
+    const bOrd = b.sort_order ?? Infinity;
+    return aOrd - bOrd;
   });
 }
 

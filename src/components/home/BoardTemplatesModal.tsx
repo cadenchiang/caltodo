@@ -1,6 +1,7 @@
 /**
  * Modal for choosing a board template.
- * Shows realistic 1:1 board previews with cover, emoji, title, and widget mockups.
+ * Shows true 1:1 scaled board previews using actual widget components
+ * rendered at full size then CSS-scaled down.
  * Includes a confirmation dialog before applying.
  *
  * @param open - Whether the modal is visible
@@ -10,7 +11,7 @@
 
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { X, AlertTriangle } from "lucide-react";
 import {
@@ -20,7 +21,7 @@ import {
   type TemplateCategory,
 } from "@/lib/board-templates";
 import { resolvePreset } from "@/lib/board-cover-presets";
-import TemplateWidgetMock from "./TemplateWidgetMock";
+import { RenderWidget } from "./WidgetContainer";
 
 interface BoardTemplatesModalProps {
   open: boolean;
@@ -28,22 +29,39 @@ interface BoardTemplatesModalProps {
   onApply: (template: BoardTemplate) => void;
 }
 
-/** Grid columns matching the real dashboard. */
+/** Virtual board width matching the real dashboard at lg breakpoint. */
+const BOARD_W = 1200;
+/** Real row height from WidgetGrid. */
+const ROW_H = 120;
+/** Real grid gap from WidgetGrid. */
+const GRID_GAP = 10;
+/** Real grid columns at lg breakpoint. */
 const COLS = 8;
-/** Height of one grid unit in the preview (px). */
-const ROW_H = 32;
-/** Gap between widgets in the preview (px). */
-const GAP = 4;
 
 /**
- * Renders a realistic board preview card: cover image, emoji, title, description,
- * and a grid of widget mockups matching the actual template layout.
+ * Renders a 1:1 board preview by laying out the actual board at full size
+ * (BOARD_W px wide) inside an overflow-hidden container, then CSS-scaling it down
+ * to fit the preview card width. Widgets render real components via RenderWidget.
  *
  * @param template - The board template to preview
  */
 function BoardPreview({ template }: { template: BoardTemplate }) {
   const { layout } = template;
   const lgLayout = layout.layouts.lg || [];
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(0.3);
+
+  // Compute scale factor when container width is known
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect.width;
+      if (w && w > 0) setScale(w / BOARD_W);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   const coverStyle = useMemo(() => {
     const url = layout.coverImageUrl;
@@ -60,47 +78,62 @@ function BoardPreview({ template }: { template: BoardTemplate }) {
     return { backgroundImage: `url(${url})`, backgroundSize: "cover", backgroundPosition: "center" };
   }, [layout.coverImageUrl, layout.coverPositionY]);
 
+  const coverH = layout.coverHeight || 200;
   const maxY = lgLayout.reduce((m, item) => Math.max(m, (item.y || 0) + (item.h || 1)), 0);
-  const gridHeight = Math.max(maxY * ROW_H + (maxY > 0 ? GAP * (maxY - 1) : 0), ROW_H);
-  const coverH = Math.min((layout.coverHeight || 200) * 0.35, 80);
+  const gridH = maxY * ROW_H + (maxY > 0 ? GRID_GAP * (maxY - 1) : 0);
+  // Total height of the full-size board: cover + header area + grid + padding
+  const headerH = 60;
+  const totalH = coverH + headerH + gridH + 20;
+  const scaledH = totalH * scale;
 
   return (
-    <div className="w-full bg-card overflow-hidden">
-      <div className="w-full relative" style={{ ...coverStyle, height: coverH }} />
-      <div className="px-3 pt-1 pb-2">
-        <div className="text-sm leading-none -mt-2 mb-0.5">{layout.boardEmoji || "\u{1F4D6}"}</div>
-        <h4 className="text-[9px] font-semibold text-foreground leading-tight">
-          {layout.boardTitle || "My Board"}
-        </h4>
-        {layout.boardDescription && (
-          <p className="text-[6px] italic text-muted-foreground mt-0.5 leading-tight">
-            {layout.boardDescription}
-          </p>
-        )}
-      </div>
-      <div className="px-3 pb-3 relative" style={{ height: gridHeight }}>
-        {lgLayout.map((item) => {
-          const widget = layout.widgets.find((w) => w.id === item.i);
-          if (!widget) return null;
-          const left = ((item.x || 0) / COLS) * 100;
-          const width = ((item.w || 1) / COLS) * 100;
-          const top = (item.y || 0) * (ROW_H + GAP);
-          const height = (item.h || 1) * ROW_H + ((item.h || 1) - 1) * GAP;
-          return (
-            <div
-              key={item.i}
-              className="absolute rounded-md bg-card border border-border/60 overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
-              style={{
-                left: `calc(${left}% + 0px)`,
-                width: `calc(${width}% - ${GAP}px)`,
-                top,
-                height,
-              }}
-            >
-              <TemplateWidgetMock type={widget.type} w={item.w || 1} h={item.h || 1} />
-            </div>
-          );
-        })}
+    <div ref={containerRef} className="w-full overflow-hidden bg-background" style={{ height: scaledH }}>
+      <div
+        className="pointer-events-none select-none"
+        style={{
+          width: BOARD_W,
+          height: totalH,
+          transform: `scale(${scale})`,
+          transformOrigin: "top left",
+        }}
+      >
+        {/* Cover */}
+        <div className="w-full relative overflow-hidden" style={{ ...coverStyle, height: coverH }} />
+
+        {/* Board header */}
+        <div className="px-6 pt-2 pb-1">
+          <div className="text-2xl leading-none mb-1">{layout.boardEmoji || "\u{1F4D6}"}</div>
+          <h4 className="text-lg font-semibold text-foreground leading-tight">
+            {layout.boardTitle || "My Board"}
+          </h4>
+          {layout.boardDescription && (
+            <p className="text-sm italic text-muted-foreground mt-0.5 leading-tight">
+              {layout.boardDescription}
+            </p>
+          )}
+        </div>
+
+        {/* Widget grid — real dimensions */}
+        <div className="px-0 relative" style={{ height: gridH }}>
+          {lgLayout.map((item) => {
+            const widget = layout.widgets.find((w) => w.id === item.i);
+            if (!widget) return null;
+            const colW = (BOARD_W) / COLS;
+            const left = (item.x || 0) * colW + GRID_GAP / 2;
+            const width = (item.w || 1) * colW - GRID_GAP;
+            const top = (item.y || 0) * (ROW_H + GRID_GAP);
+            const height = (item.h || 1) * ROW_H + ((item.h || 1) - 1) * GRID_GAP;
+            return (
+              <div
+                key={item.i}
+                className="absolute rounded-2xl bg-card border border-border/60 overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.06)]"
+                style={{ left, width, top, height }}
+              >
+                <RenderWidget widget={widget} editMode={false} />
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
@@ -108,7 +141,7 @@ function BoardPreview({ template }: { template: BoardTemplate }) {
 
 /**
  * Full-screen modal for browsing and applying board templates.
- * Sidebar category navigation, realistic board previews, and confirmation dialog.
+ * Sidebar category navigation, 1:1 board previews, and confirmation dialog.
  *
  * @param open - Visibility flag
  * @param onClose - Called when modal is dismissed
@@ -140,7 +173,7 @@ export default function BoardTemplatesModal({ open, onClose, onApply }: BoardTem
       }}
     >
       <div
-        className="relative bg-card rounded-2xl border border-border shadow-2xl w-[960px] max-w-[95vw] h-[85vh] max-h-[750px] overflow-hidden flex animate-event-modal-card-in"
+        className="relative bg-card rounded-2xl border border-border shadow-2xl w-[1100px] max-w-[95vw] h-[85vh] max-h-[800px] overflow-hidden flex animate-event-modal-card-in"
         onMouseDown={(e) => e.stopPropagation()}
       >
         {/* Sidebar */}
@@ -185,7 +218,7 @@ export default function BoardTemplatesModal({ open, onClose, onApply }: BoardTem
           </div>
 
           <div className="flex-1 overflow-y-auto p-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+            <div className="flex flex-col gap-5">
               {filtered.map((template) => (
                 <button
                   key={template.id}
@@ -193,9 +226,9 @@ export default function BoardTemplatesModal({ open, onClose, onApply }: BoardTem
                   className="group text-left rounded-xl border border-border overflow-hidden transition-all duration-200 cursor-pointer hover:shadow-xl hover:border-foreground/15 hover:-translate-y-0.5 bg-muted/30"
                 >
                   <BoardPreview template={template} />
-                  <div className="px-3 py-2.5 border-t border-border/50">
-                    <h3 className="text-xs font-semibold text-foreground">{template.name}</h3>
-                    <p className="text-[10px] text-muted-foreground leading-relaxed mt-0.5 line-clamp-1">
+                  <div className="px-4 py-3 border-t border-border/50">
+                    <h3 className="text-sm font-semibold text-foreground">{template.name}</h3>
+                    <p className="text-xs text-muted-foreground leading-relaxed mt-0.5 line-clamp-1">
                       {template.description}
                     </p>
                   </div>

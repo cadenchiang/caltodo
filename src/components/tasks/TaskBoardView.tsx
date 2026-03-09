@@ -426,7 +426,7 @@ export default function TaskBoardView({
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
       onDragCancel={handleDragCancel}
-      autoScroll={false}
+      autoScroll={{ threshold: { x: 0.15, y: 0.15 }, interval: 5 }}
     >
       <SortableContext items={columnIds} strategy={horizontalListSortingStrategy}>
         <div className="flex overflow-x-auto gap-6 px-6 pb-6 h-full">

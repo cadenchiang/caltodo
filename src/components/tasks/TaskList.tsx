@@ -185,29 +185,31 @@ function groupByCourse(tasks: Task[]): [string, Task[]][] {
 }
 
 /**
- * Sorts tasks by sort_order first (manual drag order), then by due_date.
- * Tasks with a non-null sort_order come first, sorted ascending.
- * Tasks with null sort_order follow, sorted by due_date ascending (undated first).
+ * Sorts tasks by due_date ascending, with sort_order as a tiebreaker for same-date tasks.
+ * Undated tasks appear first. This ensures newly synced tasks always appear in
+ * chronological order rather than being pushed to the end.
  *
  * @param tasks - Array of tasks to sort
  * @returns New sorted array (does not mutate input)
  */
 function sortByDueDate(tasks: Task[]): Task[] {
   return [...tasks].sort((a, b) => {
-    const aHasOrder = a.sort_order !== null && a.sort_order !== undefined;
-    const bHasOrder = b.sort_order !== null && b.sort_order !== undefined;
-
-    // Both have sort_order: compare by sort_order
-    if (aHasOrder && bHasOrder) return a.sort_order! - b.sort_order!;
-    // Only one has sort_order: it comes first
-    if (aHasOrder) return -1;
-    if (bHasOrder) return 1;
-
-    // Neither has sort_order: fall back to due_date
-    if (!a.due_date && !b.due_date) return 0;
+    // Primary sort: due date ascending (undated tasks first)
+    if (!a.due_date && !b.due_date) {
+      const aOrd = a.sort_order ?? Infinity;
+      const bOrd = b.sort_order ?? Infinity;
+      return aOrd - bOrd;
+    }
     if (!a.due_date) return -1;
     if (!b.due_date) return 1;
-    return a.due_date.localeCompare(b.due_date);
+
+    const dateCmp = a.due_date.localeCompare(b.due_date);
+    if (dateCmp !== 0) return dateCmp;
+
+    // Same date: use sort_order as tiebreaker (null sort_order sorts last)
+    const aOrd = a.sort_order ?? Infinity;
+    const bOrd = b.sort_order ?? Infinity;
+    return aOrd - bOrd;
   });
 }
 
