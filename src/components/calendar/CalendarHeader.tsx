@@ -197,7 +197,7 @@ export default function CalendarHeader({
         )}
         <button
           onClick={onToday}
-          className="px-2.5 py-1 md:px-3.5 md:py-1.5 text-xs md:text-sm font-medium text-foreground rounded-lg border border-gray-300 dark:border-gray-500 hover:bg-black/5 dark:hover:bg-white/10 active:scale-95 transition-all shrink-0"
+          className="px-2.5 py-1 md:px-3.5 md:py-1.5 text-xs md:text-sm font-medium text-foreground rounded-lg border border-gray-300 dark:border-gray-500 hover:bg-black/5 dark:hover:bg-white/10 hover:scale-[1.04] active:scale-[0.96] transition-transform duration-150 shrink-0"
         >
           Today
         </button>
