@@ -164,7 +164,7 @@ export default function TasksTodayWidget({ config }: TasksTodayWidgetProps) {
                   key={task.id}
                   className={`group flex items-center gap-2 px-3 h-8 transition-colors duration-100 cursor-pointer hover:bg-black/10 dark:hover:bg-white/15 ${
                     task.is_completed ? "opacity-50" : ""
-                  }`}
+                  } ${previewTask?.id === task.id ? "bg-black/5 dark:bg-white/5" : ""}`}
                   onClick={(e) => handleTaskClick(task, e)}
                 >
                   {/* Checkbox */}

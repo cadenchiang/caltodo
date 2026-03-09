@@ -30,6 +30,14 @@ export type WidgetType =
   | "daily-reminders"
   | "courses";
 
+/** Category groupings for the widget gallery. */
+export type WidgetCategory =
+  | "popular"
+  | "productivity"
+  | "info"
+  | "media"
+  | "social";
+
 /** Configuration for a widget type: size constraints, display metadata. */
 export interface WidgetTypeConfig {
   type: WidgetType;
@@ -37,6 +45,8 @@ export interface WidgetTypeConfig {
   description: string;
   /** lucide-react icon name (resolved at render time). */
   iconName: string;
+  /** Gallery category for filtering. */
+  category: WidgetCategory;
   minW: number;
   minH: number;
   maxW: number;
@@ -60,6 +70,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     label: "Tasks",
     description: "Your tasks with completion count",
     iconName: "CheckSquare",
+    category: "popular",
     minW: 1, minH: 1, maxW: 4, maxH: 4,
     defaultW: 2, defaultH: 2,
   },
@@ -68,6 +79,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     label: "Clock",
     description: "Live time and date",
     iconName: "Clock",
+    category: "popular",
     minW: 2, minH: 2, maxW: 4, maxH: 3,
     defaultW: 2, defaultH: 2,
   },
@@ -76,6 +88,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     label: "Image",
     description: "Drag-and-drop image display",
     iconName: "ImageIcon",
+    category: "media",
     minW: 1, minH: 1, maxW: 6, maxH: 4,
     defaultW: 2, defaultH: 2,
   },
@@ -84,6 +97,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     label: "Class Progress",
     description: "Per-course completion bars",
     iconName: "GraduationCap",
+    category: "info",
     minW: 2, minH: 1, maxW: 4, maxH: 4,
     defaultW: 2, defaultH: 2,
   },
@@ -92,6 +106,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     label: "Google Calendar",
     description: "Upcoming events from Google Calendar",
     iconName: "Calendar",
+    category: "popular",
     minW: 1, minH: 1, maxW: 4, maxH: 4,
     defaultW: 2, defaultH: 2,
   },
@@ -100,6 +115,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     label: "Notes",
     description: "Quick inline notes",
     iconName: "FileText",
+    category: "productivity",
     minW: 1, minH: 1, maxW: 6, maxH: 4,
     defaultW: 2, defaultH: 2,
   },
@@ -108,6 +124,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     label: "Weather",
     description: "Current weather and forecast",
     iconName: "CloudSun",
+    category: "popular",
     minW: 1, minH: 1, maxW: 4, maxH: 4,
     defaultW: 2, defaultH: 2,
   },
@@ -116,6 +133,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     label: "Cal Chat",
     description: "Recent messages from Cal Chat",
     iconName: "MessagesSquare",
+    category: "social",
     minW: 1, minH: 1, maxW: 4, maxH: 4,
     defaultW: 2, defaultH: 2,
   },
@@ -124,6 +142,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     label: "Pomodoro",
     description: "Focus timer with work and break intervals",
     iconName: "Timer",
+    category: "popular",
     minW: 2, minH: 2, maxW: 4, maxH: 4,
     defaultW: 2, defaultH: 2,
   },
@@ -132,6 +151,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     label: "Countdown",
     description: "Days until your next deadline or event",
     iconName: "Hourglass",
+    category: "productivity",
     minW: 1, minH: 1, maxW: 4, maxH: 3,
     defaultW: 2, defaultH: 1,
   },
@@ -140,6 +160,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     label: "Quick Links",
     description: "Pinned bookmarks with favicons",
     iconName: "Link",
+    category: "productivity",
     minW: 1, minH: 1, maxW: 4, maxH: 4,
     defaultW: 2, defaultH: 2,
   },
@@ -148,6 +169,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     label: "Habit Tracker",
     description: "GitHub-style heatmap with streaks",
     iconName: "Flame",
+    category: "productivity",
     minW: 2, minH: 1, maxW: 4, maxH: 3,
     defaultW: 2, defaultH: 2,
   },
@@ -156,6 +178,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     label: "Quote",
     description: "Daily motivational quotes",
     iconName: "Quote",
+    category: "media",
     minW: 1, minH: 1, maxW: 4, maxH: 3,
     defaultW: 2, defaultH: 1,
   },
@@ -164,6 +187,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     label: "Stats",
     description: "Task completion metrics and trends",
     iconName: "BarChart3",
+    category: "info",
     minW: 1, minH: 1, maxW: 4, maxH: 3,
     defaultW: 2, defaultH: 1,
   },
@@ -172,6 +196,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     label: "Activity",
     description: "Weekly productivity heatmap",
     iconName: "Grid3X3",
+    category: "info",
     minW: 2, minH: 1, maxW: 4, maxH: 3,
     defaultW: 2, defaultH: 2,
   },
@@ -180,6 +205,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     label: "Sticker",
     description: "Decorative emoji or text",
     iconName: "Smile",
+    category: "media",
     minW: 1, minH: 1, maxW: 4, maxH: 4,
     defaultW: 1, defaultH: 1,
   },
@@ -188,6 +214,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     label: "Spotify",
     description: "Embed a track, album, or playlist",
     iconName: "Music",
+    category: "media",
     minW: 2, minH: 2, maxW: 4, maxH: 4,
     defaultW: 2, defaultH: 2,
   },
@@ -196,6 +223,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     label: "Mini Calendar",
     description: "Current month grid with today highlighted",
     iconName: "CalendarDays",
+    category: "info",
     minW: 1, minH: 1, maxW: 2, maxH: 2,
     defaultW: 1, defaultH: 1,
   },
@@ -204,6 +232,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     label: "Daily Reminders",
     description: "Checkbox list that resets each day",
     iconName: "ListChecks",
+    category: "productivity",
     minW: 1, minH: 1, maxW: 3, maxH: 3,
     defaultW: 1, defaultH: 2,
   },
@@ -212,6 +241,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     label: "Courses",
     description: "Course folders with task counts",
     iconName: "GraduationCap",
+    category: "info",
     minW: 2, minH: 2, maxW: 4, maxH: 4,
     defaultW: 2, defaultH: 2,
   },

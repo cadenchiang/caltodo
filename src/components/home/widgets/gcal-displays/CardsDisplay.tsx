@@ -53,7 +53,7 @@ export default function CardsDisplay({ events, calendarColors, fallbackColor }: 
               onClick={() => setSelectedEvent({ event, color })}
               className={`no-drag w-full text-left rounded-lg p-2 transition-all cursor-pointer hover:brightness-95 dark:hover:brightness-110 ${
                 isPast ? "opacity-35" : ""
-              }`}
+              } ${selectedEvent?.event.id === event.id ? "brightness-90 dark:brightness-120" : ""}`}
               style={{
                 backgroundColor: `color-mix(in srgb, ${color} 12%, transparent)`,
                 borderLeft: `3px solid ${color}`,

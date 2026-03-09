@@ -11,7 +11,7 @@
  * @param config - Widget configuration (weatherView, tempUnit, weatherDisplay)
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import useSWR from "swr";
 import { getWeatherIcon } from "./weather-icons";
 import { useCompactMode } from "@/hooks/useCompactMode";
@@ -108,11 +108,56 @@ export async function weatherFetcher(
   };
 }
 
+const WEATHER_CACHE_KEY = "weather-widget-cache";
+
+/**
+ * Reads cached weather data from localStorage.
+ *
+ * @returns Cached object with coords, weather data, and locationName, or null if not found/invalid
+ */
+function readWeatherCache(): {
+  coords: { lat: number; lon: number };
+  data: { current: CurrentWeather; forecast: DayForecast[]; locationName: string };
+} | null {
+  try {
+    const raw = localStorage.getItem(WEATHER_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed?.coords?.lat != null && parsed?.coords?.lon != null && parsed?.data?.current) {
+      return parsed;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Writes weather data + coords to localStorage for instant rendering on next mount.
+ *
+ * @param coords - Latitude/longitude used for the fetch
+ * @param data - Weather response data to cache
+ */
+function writeWeatherCache(
+  coords: { lat: number; lon: number },
+  data: { current: CurrentWeather; forecast: DayForecast[]; locationName: string }
+): void {
+  try {
+    localStorage.setItem(WEATHER_CACHE_KEY, JSON.stringify({ coords, data }));
+  } catch {
+    // localStorage full or unavailable — silently ignore
+  }
+}
+
 export default function WeatherWidget({ config, editMode }: WeatherWidgetProps) {
   const viewMode = (config?.weatherView || "today") as "today" | "week";
   const units = config?.tempUnit || "F";
   const displayId = config?.weatherDisplay || DEFAULT_WEATHER_DISPLAY;
-  const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
+
+  // Restore cached coords + data from localStorage for instant render
+  const cached = useMemo(() => readWeatherCache(), []);
+
+  const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(cached?.coords ?? null);
   const [geoError, setGeoError] = useState("");
   const [permDenied, setPermDenied] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
@@ -189,6 +234,10 @@ export default function WeatherWidget({ config, editMode }: WeatherWidgetProps) 
     revalidateOnFocus: false,
     dedupingInterval: 300000,
     refreshInterval: 900000,
+    fallbackData: cached?.data ?? undefined,
+    onSuccess: (freshData) => {
+      if (coords) writeWeatherCache(coords, freshData);
+    },
   });
 
   const current = data?.current ?? null;

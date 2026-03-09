@@ -59,7 +59,7 @@ export default function AgendaDisplay({ events, calendarColors, fallbackColor }:
               onClick={() => setSelectedEvent({ event, color })}
               className={`no-drag flex items-center gap-3 w-full text-left py-2 px-1 hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer ${
                 isPast ? "opacity-35" : ""
-              } ${idx > 0 ? "border-t border-border/50" : ""}`}
+              } ${idx > 0 ? "border-t border-border/50" : ""} ${selectedEvent?.event.id === event.id ? "bg-black/5 dark:bg-white/5" : ""}`}
             >
               {/* Time column */}
               <div className="w-8 shrink-0 text-center">

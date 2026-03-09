@@ -55,7 +55,7 @@ export default function TimelineDisplay({ events, calendarColors, fallbackColor 
               onClick={() => setSelectedEvent({ event, color })}
               className={`no-drag relative flex items-start gap-3 w-full text-left py-1.5 pl-0 pr-1 hover:bg-black/5 dark:hover:bg-white/5 rounded transition-colors cursor-pointer ${
                 isPast ? "opacity-35" : ""
-              }`}
+              } ${selectedEvent?.event.id === event.id ? "bg-black/5 dark:bg-white/5" : ""}`}
             >
               {/* Timeline dot */}
               <div className="relative z-10 mt-1 shrink-0">

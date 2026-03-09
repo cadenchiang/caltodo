@@ -70,7 +70,7 @@ export default function ListDisplay({ events, calendarColors, fallbackColor, com
                     onClick={() => setSelectedEvent({ event, color })}
                     className={`no-drag flex items-center gap-2 bg-muted/50 rounded-lg p-2 hover:bg-black/10 dark:hover:bg-white/15 transition-colors w-full text-left cursor-pointer ${
                       isPast ? "opacity-40" : ""
-                    }`}
+                    } ${selectedEvent?.event.id === event.id ? "bg-black/5 dark:bg-white/5" : ""}`}
                   >
                     <div
                       className="w-[3px] self-stretch rounded-full shrink-0"

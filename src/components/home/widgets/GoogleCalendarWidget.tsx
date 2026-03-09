@@ -78,6 +78,40 @@ export function getTimeRange(mode: ViewMode, customDays?: number): { timeMin: st
   return { timeMin: start.toISOString(), timeMax: end.toISOString() };
 }
 
+const GCAL_CACHE_PREFIX = "gcal-widget-cache:";
+
+/**
+ * Reads cached Google Calendar events from localStorage for instant rendering.
+ *
+ * @param key - The SWR key (API URL) used as the cache identifier
+ * @returns Cached API response object, or null if not found/invalid
+ */
+function readGCalCache(key: string): { events: GCalEvent[]; connected?: boolean } | null {
+  try {
+    const raw = localStorage.getItem(GCAL_CACHE_PREFIX + key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed && Array.isArray(parsed.events)) return parsed;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Writes Google Calendar API response to localStorage for instant rendering on next mount.
+ *
+ * @param key - The SWR key (API URL) used as the cache identifier
+ * @param data - The API response data to cache
+ */
+function writeGCalCache(key: string, data: { events: GCalEvent[]; connected?: boolean }): void {
+  try {
+    localStorage.setItem(GCAL_CACHE_PREFIX + key, JSON.stringify(data));
+  } catch {
+    // localStorage full or unavailable — silently ignore
+  }
+}
+
 interface GoogleCalendarWidgetProps {
   config: Record<string, string>;
   editMode?: boolean;
@@ -120,6 +154,9 @@ export default function GoogleCalendarWidget({ config, editMode, onUpdateConfig 
     return `/api/gcal/events?${params}`;
   }, [calendarIds, viewMode, config.customDays]);
 
+  // Read cached data for instant render while SWR revalidates in background
+  const cachedGcalData = useMemo(() => readGCalCache(swrKey), [swrKey]);
+
   const { data, isLoading } = useSWR(
     swrKey,
     async (url: string) => {
@@ -131,6 +168,10 @@ export default function GoogleCalendarWidget({ config, editMode, onUpdateConfig 
       revalidateOnFocus: true,
       dedupingInterval: 60000,
       refreshInterval: 300000,
+      fallbackData: cachedGcalData ?? undefined,
+      onSuccess: (freshData) => {
+        writeGCalCache(swrKey, freshData);
+      },
     }
   );
 

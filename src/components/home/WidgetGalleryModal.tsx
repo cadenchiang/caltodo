@@ -4,6 +4,7 @@
  * Modal showing available widget types to add to the dashboard.
  * Displays a grid of widget cards with live mini previews (the actual
  * widget components scaled down). Click to add, or drag to place.
+ * Includes search filtering and category tabs.
  *
  * @param open - Whether the modal is visible
  * @param onClose - Callback to close the modal
@@ -11,14 +12,19 @@
  * @param onDragStart - Callback when a widget card drag begins (for drag-to-place)
  */
 
-import React from "react";
+import React, { useState, useMemo } from "react";
 import {
   X, CheckSquare, Clock, ImageIcon, GraduationCap,
   Calendar, FileText, CloudSun, MessagesSquare, Timer, Hourglass,
-  Link, Flame, Quote, BarChart3, Grid3X3, Smile, Music,
+  Link, Flame, Quote, BarChart3, Grid3X3, Smile, Music, Search,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { WIDGET_REGISTRY, type WidgetType } from "@/lib/widget-types";
+import {
+  WIDGET_REGISTRY,
+  type WidgetType,
+  type WidgetCategory,
+  type WidgetTypeConfig,
+} from "@/lib/widget-types";
 import { RenderWidget } from "@/components/home/WidgetContainer";
 
 /** Maps widget type to its lucide-react icon for the gallery card label. */
@@ -30,9 +36,34 @@ const WIDGET_ICONS: Record<string, LucideIcon> = {
   quote: Quote, stats: BarChart3, "weekly-heatmap": Grid3X3, sticker: Smile, spotify: Music,
 };
 
+/** Category filter options for the gallery tabs. */
+const CATEGORY_TABS: { key: "all" | WidgetCategory; label: string }[] = [
+  { key: "all", label: "All" },
+  { key: "popular", label: "Popular" },
+  { key: "productivity", label: "Productivity" },
+  { key: "info", label: "Info" },
+  { key: "media", label: "Media" },
+  { key: "social", label: "Social" },
+];
+
+/**
+ * Sorts widgets: "popular" category first, then alphabetical by label.
+ *
+ * @param widgets - Array of widget configs to sort
+ * @returns New sorted array
+ */
+function sortWidgets(widgets: WidgetTypeConfig[]): WidgetTypeConfig[] {
+  return [...widgets].sort((a, b) => {
+    const aPopular = a.category === "popular" ? 0 : 1;
+    const bPopular = b.category === "popular" ? 0 : 1;
+    if (aPopular !== bPopular) return aPopular - bPopular;
+    return a.label.localeCompare(b.label);
+  });
+}
+
 /**
  * Renders the real widget component scaled down to fit the gallery thumbnail.
- * The widget is rendered at full size (320×240) inside a clipped container,
+ * The widget is rendered at full size (320x240) inside a clipped container,
  * then CSS-scaled to fill the thumbnail area. pointer-events-none prevents
  * interactions. Falls back to an empty box on error.
  *
@@ -56,7 +87,7 @@ function LivePreview({ type }: { type: WidgetType }) {
 }
 
 /**
- * Minimal error boundary — catches render errors from widgets that depend
+ * Minimal error boundary -- catches render errors from widgets that depend
  * on contexts not available inside the gallery (e.g. TaskContext).
  * Renders an empty placeholder on error.
  */
@@ -95,9 +126,26 @@ export default function WidgetGalleryModal({
   onAdd,
   onDragStart,
 }: WidgetGalleryModalProps) {
-  if (!open) return null;
+  const [search, setSearch] = useState("");
+  const [activeCategory, setActiveCategory] = useState<"all" | WidgetCategory>("all");
 
-  const widgetTypes = Object.values(WIDGET_REGISTRY);
+  const filteredWidgets = useMemo(() => {
+    const all = Object.values(WIDGET_REGISTRY);
+    const query = search.toLowerCase().trim();
+
+    const filtered = all.filter((w) => {
+      const matchesCategory = activeCategory === "all" || w.category === activeCategory;
+      const matchesSearch =
+        !query ||
+        w.label.toLowerCase().includes(query) ||
+        w.description.toLowerCase().includes(query);
+      return matchesCategory && matchesSearch;
+    });
+
+    return sortWidgets(filtered);
+  }, [search, activeCategory]);
+
+  if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -109,7 +157,7 @@ export default function WidgetGalleryModal({
 
       {/* Modal */}
       <div
-        className="relative w-full max-w-[640px] mx-4 animate-announce-card-in overflow-hidden flex flex-col bg-popover rounded-[12px] border border-foreground/[0.09] shadow-[0_0_0_1px_rgba(0,0,0,0.04),0_3px_6px_rgba(0,0,0,0.06),0_9px_24px_rgba(0,0,0,0.1)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_3px_6px_rgba(0,0,0,0.2),0_9px_24px_rgba(0,0,0,0.35)]"
+        className="relative w-full max-w-[800px] mx-4 animate-announce-card-in overflow-hidden flex flex-col bg-popover rounded-[12px] border border-foreground/[0.09] shadow-[0_0_0_1px_rgba(0,0,0,0.04),0_3px_6px_rgba(0,0,0,0.06),0_9px_24px_rgba(0,0,0,0.1)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_3px_6px_rgba(0,0,0,0.2),0_9px_24px_rgba(0,0,0,0.35)]"
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-foreground/[0.09]">
@@ -125,9 +173,48 @@ export default function WidgetGalleryModal({
           </button>
         </div>
 
-        {/* Widget grid — --preview-scale computed from thumbnail width / 320 */}
-        <div className="px-6 py-5 grid grid-cols-3 gap-4 max-h-[70vh] overflow-y-auto">
-          {widgetTypes.map((config) => (
+        {/* Search bar */}
+        <div className="px-6 pt-4">
+          <div className="relative">
+            <Search
+              size={14}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+            />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search widgets..."
+              className="w-full h-9 pl-9 pr-3 text-[13px] rounded-lg border border-foreground/[0.09] bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-foreground/20"
+            />
+          </div>
+        </div>
+
+        {/* Category tabs */}
+        <div className="px-6 pt-3 pb-1 flex gap-1.5 flex-wrap">
+          {CATEGORY_TABS.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveCategory(tab.key)}
+              className={`px-3 py-1.5 text-[12px] font-medium rounded-full transition-colors duration-150 ${
+                activeCategory === tab.key
+                  ? "bg-foreground text-background"
+                  : "bg-foreground/[0.06] text-muted-foreground hover:bg-foreground/[0.1]"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Widget grid */}
+        <div className="px-6 py-4 grid grid-cols-4 gap-4 max-h-[75vh] overflow-y-auto">
+          {filteredWidgets.length === 0 && (
+            <p className="col-span-4 text-center text-[13px] text-muted-foreground py-8">
+              No widgets match your search.
+            </p>
+          )}
+          {filteredWidgets.map((config) => (
             <div
               key={config.type}
               role="button"
@@ -146,7 +233,7 @@ export default function WidgetGalleryModal({
               }}
               className="widget-gallery-card flex flex-col text-left overflow-hidden rounded-lg border border-foreground/[0.09] bg-card cursor-grab active:cursor-grabbing"
             >
-              {/* Preview thumbnail — scale = container width / 320 ≈ 0.55 */}
+              {/* Preview thumbnail */}
               <div
                 className="aspect-[4/3] overflow-hidden bg-foreground/[0.02] rounded-t-lg"
                 style={{ "--preview-scale": 0.55 } as React.CSSProperties}
