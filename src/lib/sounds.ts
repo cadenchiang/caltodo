@@ -24,42 +24,59 @@ function getAudioContext(): AudioContext | null {
   return audioCtx;
 }
 
+/** Pre-decoded audio buffer for zero-latency playback via Web Audio API. */
+let taskCompleteBuffer: AudioBuffer | null = null;
+let bufferLoading = false;
+
 /**
- * Plays a satisfying "pop" sound when a task is completed.
- * Short rising tone with a soft harmonic — feels like checking something off.
+ * Fetches and decodes the task completion sound into a Web Audio buffer.
+ * Called lazily on first play; subsequent plays are instant.
+ */
+async function ensureBuffer(): Promise<AudioBuffer | null> {
+  const ctx = getAudioContext();
+  if (!ctx) return null;
+  if (taskCompleteBuffer) return taskCompleteBuffer;
+  if (bufferLoading) return null;
+  bufferLoading = true;
+  try {
+    const res = await fetch("/sounds/task-complete.mp3");
+    const arrayBuf = await res.arrayBuffer();
+    taskCompleteBuffer = await ctx.decodeAudioData(arrayBuf);
+    return taskCompleteBuffer;
+  } catch {
+    bufferLoading = false;
+    return null;
+  }
+}
+
+// Kick off preload as soon as module is imported (non-blocking)
+if (typeof window !== "undefined") {
+  ensureBuffer();
+}
+
+/**
+ * Plays the Apple Pay success "ding" sound when a task is completed.
+ * Uses Web Audio API with a pre-decoded buffer for instant playback.
  */
 export function playTaskComplete(): void {
   const ctx = getAudioContext();
   if (!ctx) return;
 
-  if (ctx.state === "suspended") {
-    ctx.resume().catch(() => {});
+  function play() {
+    if (!taskCompleteBuffer || !ctx) return;
+    const source = ctx.createBufferSource();
+    const gain = ctx.createGain();
+    source.buffer = taskCompleteBuffer;
+    gain.gain.value = 0.5;
+    source.connect(gain).connect(ctx.destination);
+    source.start(0);
   }
 
-  const now = ctx.currentTime;
-
-  // Main pop — bright rising tone
-  const osc1 = ctx.createOscillator();
-  const gain1 = ctx.createGain();
-  osc1.type = "sine";
-  osc1.frequency.setValueAtTime(600, now);
-  osc1.frequency.exponentialRampToValueAtTime(1200, now + 0.08);
-  gain1.gain.setValueAtTime(0.12, now);
-  gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
-  osc1.connect(gain1).connect(ctx.destination);
-  osc1.start(now);
-  osc1.stop(now + 0.15);
-
-  // Soft harmonic shimmer — adds warmth
-  const osc2 = ctx.createOscillator();
-  const gain2 = ctx.createGain();
-  osc2.type = "triangle";
-  osc2.frequency.setValueAtTime(1800, now + 0.03);
-  gain2.gain.setValueAtTime(0.04, now + 0.03);
-  gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
-  osc2.connect(gain2).connect(ctx.destination);
-  osc2.start(now + 0.03);
-  osc2.stop(now + 0.12);
+  if (ctx.state === "suspended") {
+    ctx.resume().then(play).catch(() => {});
+  } else {
+    play();
+  }
 }
 
 /**
