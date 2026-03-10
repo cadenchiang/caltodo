@@ -47,6 +47,8 @@ export interface WidgetTypeConfig {
   iconName: string;
   /** Gallery category for filtering. */
   category: WidgetCategory;
+  /** If true, hidden from the widget gallery (archived). */
+  hidden?: boolean;
   minW: number;
   minH: number;
   maxW: number;
@@ -134,6 +136,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     description: "Recent messages from Cal Chat",
     iconName: "MessagesSquare",
     category: "social",
+    hidden: true,
     minW: 1, minH: 1, maxW: 4, maxH: 4,
     defaultW: 2, defaultH: 2,
   },

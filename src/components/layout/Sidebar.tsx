@@ -9,7 +9,6 @@ import { SETTINGS_SECTIONS, SETTINGS_GROUPS, DEFAULT_SECTION, type SettingsSecti
 import SidebarNavItem, { navItemClasses } from "./SidebarNavItem";
 import ProfilePopup from "./ProfilePopup";
 import { useTheme } from "@/contexts/ThemeContext";
-import { useCalChatUnread } from "@/hooks/useCalChatUnread";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { useNotifications } from "@/contexts/NotificationContext";
 
@@ -67,7 +66,6 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
     window.addEventListener("profile-updated", handleProfileUpdate);
     return () => window.removeEventListener("profile-updated", handleProfileUpdate);
   }, []);
-  const hasCalChatUnread = useCalChatUnread();
   useOnboardingStatus();
   const { pendingInviteCount } = useNotifications();
 
@@ -173,7 +171,6 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
             {NAV_ITEMS.map((item) => {
               const isInbox = item.href === "/app/inbox";
               const isCalendar = item.href === "/app/calendar";
-              const isChat = item.href === "/app/discussions";
               const isNotes = item.href === "/app/notes";
               return (
                 <SidebarNavItem
@@ -183,11 +180,9 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
                   icon={isInbox ? inboxConfig.icon : item.icon}
                   badge={false}
                   badgeCount={
-                    isChat
-                      ? hasCalChatUnread
-                      : (isInbox || isCalendar) && pendingInviteCount > 0
-                        ? pendingInviteCount
-                        : undefined
+                    (isInbox || isCalendar) && pendingInviteCount > 0
+                      ? pendingInviteCount
+                      : undefined
                   }
                   badgeText={isNotes && notesIsNew ? "NEW" : undefined}
                   id={`tour-nav-${item.label.toLowerCase()}`}

@@ -15,7 +15,7 @@
 import React, { useState, useMemo } from "react";
 import {
   X, CheckSquare, Clock, ImageIcon, GraduationCap,
-  Calendar, FileText, CloudSun, MessagesSquare, Timer, Hourglass,
+  Calendar, FileText, CloudSun, Timer, Hourglass,
   Link, Flame, Quote, BarChart3, Grid3X3, Smile, Music, Search,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -31,7 +31,7 @@ import { RenderWidget } from "@/components/home/WidgetContainer";
 const WIDGET_ICONS: Record<string, LucideIcon> = {
   clock: Clock, "tasks-today": CheckSquare, "class-progress": GraduationCap,
   "google-calendar": Calendar, image: ImageIcon,
-  notes: FileText, weather: CloudSun, "cal-chat": MessagesSquare, pomodoro: Timer,
+  notes: FileText, weather: CloudSun, pomodoro: Timer,
   countdown: Hourglass, "quick-links": Link, "habit-tracker": Flame,
   quote: Quote, stats: BarChart3, "weekly-heatmap": Grid3X3, sticker: Smile, spotify: Music,
 };
@@ -171,6 +171,7 @@ export default function WidgetGalleryModal({
     const query = search.toLowerCase().trim();
 
     const filtered = all.filter((w) => {
+      if (w.hidden) return false;
       const matchesCategory = activeCategory === "all" || w.category === activeCategory;
       const matchesSearch =
         !query ||
