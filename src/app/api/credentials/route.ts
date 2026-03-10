@@ -14,7 +14,7 @@ import { isAllowedCanvasUrl } from "@/lib/canvas-url-validation";
 import type { IntegrationCredentials, CredentialsSavePayload, AdditionalCanvasAccount } from "@/lib/types";
 
 /** Base columns selected from integration_credentials (excludes additional_canvas_accounts for fallback). */
-const BASE_SELECT = "canvas_token, canvas_base_url, gradescope_email, gradescope_password_encrypted, last_synced_at, selected_canvas_courses, selected_gradescope_courses, selected_pensieve_courses, google_access_token_encrypted, google_calendar_id, google_email, google_photo_url, canvas_token_created_at, is_founding_member, pensieve_calendar_url, gradescope_auth_failed";
+const BASE_SELECT = "canvas_token, canvas_base_url, gradescope_email, gradescope_password_encrypted, last_synced_at, selected_canvas_courses, selected_gradescope_courses, selected_pensieve_courses, google_access_token_encrypted, google_calendar_id, google_email, google_photo_url, canvas_token_created_at, is_founding_member, pensieve_calendar_url, gradescope_auth_failed, email_digest_enabled, email_digest_hour, email_digest_address";
 
 /**
  * GET /api/credentials
@@ -93,6 +93,9 @@ export async function GET() {
     pensieve_calendar_url: data?.pensieve_calendar_url ?? null,
     additional_canvas_accounts: data?.additional_canvas_accounts ?? [],
     has_completed_onboarding: hasCompletedOnboarding,
+    email_digest_enabled: data?.email_digest_enabled ?? true,
+    email_digest_hour: data?.email_digest_hour ?? 15,
+    email_digest_address: data?.email_digest_address ?? null,
   };
 
   return NextResponse.json(credentials);
@@ -200,6 +203,15 @@ export async function PUT(request: Request) {
     }
     updateData.additional_canvas_accounts = body.additional_canvas_accounts;
   }
+  if (body.email_digest_enabled !== undefined) {
+    updateData.email_digest_enabled = body.email_digest_enabled;
+  }
+  if (body.email_digest_hour !== undefined) {
+    updateData.email_digest_hour = body.email_digest_hour;
+  }
+  if (body.email_digest_address !== undefined) {
+    updateData.email_digest_address = body.email_digest_address;
+  }
   // Only update password if explicitly provided (not null/undefined means "keep existing")
   if (body.gradescope_password !== undefined && body.gradescope_password !== null) {
     updateData.gradescope_password_encrypted = encrypt(body.gradescope_password);
@@ -295,6 +307,9 @@ export async function PUT(request: Request) {
     pensieve_calendar_url: updated?.pensieve_calendar_url ?? null,
     additional_canvas_accounts: updated?.additional_canvas_accounts ?? [],
     has_completed_onboarding: putHasCompletedOnboarding,
+    email_digest_enabled: updated?.email_digest_enabled ?? true,
+    email_digest_hour: updated?.email_digest_hour ?? 15,
+    email_digest_address: updated?.email_digest_address ?? null,
   };
 
   return NextResponse.json(credentials);

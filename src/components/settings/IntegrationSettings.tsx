@@ -60,6 +60,9 @@ const EMPTY_CREDENTIALS: IntegrationCredentials = {
   pensieve_calendar_url: null,
   additional_canvas_accounts: [],
   has_completed_onboarding: false,
+  email_digest_enabled: true,
+  email_digest_hour: 15,
+  email_digest_address: null,
 };
 
 /** Shared context so IntegrationSettings and IntegrationClasses use the same credentials state. */

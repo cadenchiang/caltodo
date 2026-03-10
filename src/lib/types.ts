@@ -137,6 +137,12 @@ export interface IntegrationCredentials {
   additional_canvas_accounts: AdditionalCanvasAccount[];
   /** Whether the user has completed onboarding (has at least one integration configured). */
   has_completed_onboarding: boolean;
+  /** Whether the user receives daily email digest notifications. */
+  email_digest_enabled: boolean;
+  /** Preferred hour (UTC) for daily digest email. Default 15 = 7 AM PST. */
+  email_digest_hour: number;
+  /** Email address to send the digest to (null = account email). */
+  email_digest_address: string | null;
 }
 
 /**
@@ -157,6 +163,9 @@ export interface CredentialsSavePayload {
   selected_pensieve_courses?: Array<{ id: string; name: string }> | null;
   pensieve_calendar_url?: string | null;
   additional_canvas_accounts?: AdditionalCanvasAccount[];
+  email_digest_enabled?: boolean;
+  email_digest_hour?: number;
+  email_digest_address?: string | null;
 }
 
 /**
