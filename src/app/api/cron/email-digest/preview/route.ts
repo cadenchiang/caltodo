@@ -74,7 +74,7 @@ export async function GET() {
     .order("due_date", { ascending: true });
 
   const allTasks = tasks || [];
-  const overdue = allTasks.filter((t) => t.due_date! < todayStr);
+  const overdue = allTasks.filter((t) => t.due_date && t.due_date < todayStr);
   const dueToday = allTasks.filter((t) => t.due_date === todayStr);
   const dueTomorrow = allTasks.filter((t) => t.due_date === tomorrowStr);
 

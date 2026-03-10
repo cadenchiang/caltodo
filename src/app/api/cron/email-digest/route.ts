@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
       }
 
       // Split into overdue, today, and tomorrow
-      const overdue = tasks.filter((t) => t.due_date! < todayStr);
+      const overdue = tasks.filter((t) => t.due_date && t.due_date < todayStr);
       const dueToday = tasks.filter((t) => t.due_date === todayStr);
       const dueTomorrow = tasks.filter((t) => t.due_date === tomorrowStr);
 
