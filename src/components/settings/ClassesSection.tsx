@@ -231,8 +231,9 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
     }
   }
 
-  /** Toggles a single course's selected state (prefixed ID). */
+  /** Toggles a single course's selected state (prefixed ID). Syllabus courses are locked. */
   function handleToggle(id: string) {
+    if (id.startsWith("syllabus-")) return;
     setSelectedIds((prev) => {
       const next = new Set(prev);
       next.has(id) ? next.delete(id) : next.add(id);
@@ -267,16 +268,10 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
     const newGsIds = new Set(newGsCourses.map((c) => c.id));
     const newPensieveIds = new Set(newPensieveCourses.map((c) => c.id));
 
-    // Include syllabus courses that were deselected
-    const removedSyllabusNames = syllabusCourses.filter(
-      (name) => !selectedIds.has(`syllabus-${name}`)
-    );
-
     const removedNames = [
       ...canvasSelected.filter((c) => !newCanvasIds.has(c.id)).map((c) => c.name),
       ...gsSelected.filter((c) => !newGsIds.has(c.id)).map((c) => c.name),
       ...pensieveSelected.filter((c) => !newPensieveIds.has(c.id)).map((c) => c.name),
-      ...removedSyllabusNames,
     ];
 
     const removedTaskCount = tasks.filter(
