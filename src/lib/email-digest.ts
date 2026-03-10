@@ -69,7 +69,7 @@ export async function sendDigestEmail(
       return false;
     }
 
-    logger.info("sendDigestEmail: sent", { email, totalCount });
+    logger.info("sendDigestEmail: sent", { email });
     return true;
   } catch (err) {
     logger.error("sendDigestEmail: unexpected error", {
