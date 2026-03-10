@@ -52,7 +52,7 @@ export default function Hero({ loggedIn }: HeroProps) {
             <span className="sm:hidden">{spotsRemaining} free lifetime spots left</span>
           </>
         ) : (
-          <span>exclusively for Berkeley students</span>
+          <span>exclusively for students</span>
         )}
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-1.5 opacity-60">
           <path d="M7 17L17 7" />
@@ -339,14 +339,18 @@ export default function Hero({ loggedIn }: HeroProps) {
             </>
           ) : (
             <>
-              <div className="px-6 pt-6 pb-3 sm:px-8 sm:pt-8 sm:pb-4">
-                <h3 className="text-xl sm:text-2xl font-semibold text-black leading-tight tracking-tight" style={{ fontFamily: '-apple-system, "SF Pro Display", BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' }}>
-                  why I built caltodo.
-                </h3>
-                <p className="text-xs sm:text-sm text-black/50 leading-relaxed mt-2 sm:mt-3">
-                  as a Berkeley student, I was constantly switching between bCourses, Gradescope, Pensive, and Google Calendar just to keep track of deadlines. I&apos;d miss assignments not because I didn&apos;t do the work, but because I forgot they existed. I built caltodo so no Berkeley student has to go through that again.
-                </p>
-                <p className="text-xs text-black/30 mt-3">— Caden</p>
+              <div className="px-6 pt-6 pb-5 sm:px-8 sm:pt-8 sm:pb-6">
+                <p className="text-[11px] sm:text-xs font-medium text-black/40 uppercase tracking-wider mb-3">From the founder</p>
+                <blockquote className="text-sm sm:text-base text-black/70 leading-relaxed" style={{ fontFamily: '-apple-system, "SF Pro Display", BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' }}>
+                  &ldquo;I was constantly switching between bCourses, Gradescope, Pensive, and Google Calendar just to keep track of deadlines. I&apos;d miss assignments not because I didn&apos;t do the work, but because I forgot they existed.&rdquo;
+                </blockquote>
+                <div className="flex items-center gap-2.5 mt-4">
+                  <div className="w-7 h-7 rounded-full bg-black/10 flex items-center justify-center text-[11px] font-semibold text-black/50">C</div>
+                  <div>
+                    <p className="text-xs font-medium text-black/70">Caden</p>
+                    <p className="text-[10px] text-black/35">founder, caltodo</p>
+                  </div>
+                </div>
               </div>
 
               <div className="px-6 pb-6 sm:px-8 sm:pb-8">
