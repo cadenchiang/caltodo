@@ -11,6 +11,7 @@ import { computeNextDueDate, shouldSpawnNext } from "@/lib/repeat";
 import { createTaskSnapshot, detectSyncChanges } from "@/lib/notification-helpers";
 import { showNewAssignmentsModal } from "@/components/ui/NewAssignmentsModal";
 import { readSyncStream } from "@/lib/gcal/read-sync-stream";
+import { playTaskComplete } from "@/lib/sounds";
 
 /** localStorage key and version for stale-while-revalidate task caching. */
 const CACHE_KEY = "caltodo_tasks_cache";
@@ -93,6 +94,8 @@ interface TaskContextValue {
   toggleComplete: (id: string) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
   deleteTasksBySource: (source: "canvas" | "gradescope" | "pensieve" | "syllabus") => Promise<void>;
+  /** Deletes all syllabus tasks for a specific course_name. */
+  deleteSyllabusTasksByCourse: (courseName: string) => Promise<void>;
   /** Bulk-imports syllabus-extracted assignments as tasks. */
   importSyllabusTasks: (tasks: Array<{
     title: string;
@@ -101,11 +104,15 @@ interface TaskContextValue {
     due_time?: string | null;
     course_name?: string | null;
     points_possible?: number | null;
-  }>) => Promise<void>;
+  }>, color?: string) => Promise<void>;
   /** Deletes all Canvas tasks whose external_id starts with the given prefix. */
   deleteTasksByExternalIdPrefix: (prefix: string) => Promise<void>;
   /** Deletes all tasks matching any of the given course names. Returns count deleted. */
   deleteTasksByCourseNames: (courseNames: string[]) => Promise<number>;
+  /** Soft-hides tasks by setting dismissed_at for given course names. Returns count hidden. */
+  dismissTasksByCourseNames: (courseNames: string[]) => Promise<number>;
+  /** Un-hides tasks by clearing dismissed_at for given course names. Returns count restored. */
+  undismissTasksByCourseNames: (courseNames: string[]) => Promise<number>;
   deleteAllTasks: () => Promise<void>;
   snoozeTask: (id: string, hours: number) => Promise<void>;
   unsnoozeTask: (id: string) => Promise<void>;
@@ -168,6 +175,13 @@ export function TaskProvider({ children }: { children: ReactNode }) {
    *
    * @param signal - Optional AbortSignal for clean cancellation
    */
+  /**
+   * Syncs unsynced tasks to GCal silently. Runs in the background without
+   * toasts or banners — sync failures are not auth failures and shouldn't
+   * prompt the user to reconnect. Only logs warnings on error.
+   *
+   * @param signal - Optional AbortSignal for clean cancellation
+   */
   const syncUnsyncedToGCal = useCallback(async (signal?: AbortSignal) => {
     try {
       const checkRes = await fetch("/api/gcal/unsynced-count", { signal });
@@ -179,29 +193,20 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       const contentType = syncRes.headers.get("Content-Type") ?? "";
 
       if (contentType.includes("application/json")) {
-        const result = await syncRes.json();
-        if (syncRes.ok && result.synced > 0) {
-          showToast(`Synced ${result.synced} task${result.synced === 1 ? "" : "s"} to Google Calendar.`);
-        }
+        // Silently consume JSON response — no toasts or banners
+        await syncRes.json();
         return;
       }
 
-      const finalResult = await readSyncStream(syncRes, {
+      await readSyncStream(syncRes, {
         onProgress: () => {},
         onDone: () => {},
       });
-
-      if (finalResult && finalResult.synced > 0) {
-        const msg = finalResult.synced === finalResult.total
-          ? `Synced ${finalResult.synced} task${finalResult.synced === 1 ? "" : "s"} to Google Calendar.`
-          : `Synced ${finalResult.synced} of ${finalResult.total} tasks to Google Calendar.`;
-        showToast(msg);
-      }
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return;
       console.warn("Post-sync GCal sync failed:", err);
     }
-  }, [showToast]);
+  }, []);
 
   const fetchTasks = useCallback(async (): Promise<Task[]> => {
     // Only show loading spinner if we have no cached data
@@ -476,6 +481,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     const task = tasks.find((t) => t.id === id);
     if (!task) return;
     const willComplete = !task.is_completed;
+    if (willComplete) playTaskComplete();
     trackEvent(willComplete ? "task_completed" : "task_uncompleted");
     await updateTask(id, {
       is_completed: willComplete,
@@ -689,6 +695,51 @@ export function TaskProvider({ children }: { children: ReactNode }) {
   }
 
   /**
+   * Deletes all syllabus tasks matching a specific course_name.
+   * Allows users to remove tasks from a single uploaded syllabus
+   * without affecting tasks from other syllabus uploads.
+   *
+   * @param courseName - The course_name to match for deletion
+   */
+  async function deleteSyllabusTasksByCourse(courseName: string) {
+    if (!userId) {
+      setError("Not authenticated. Please sign in again.");
+      return;
+    }
+
+    const previousTasks = [...tasks];
+    const matchingIds = tasks.filter(
+      (t) => t.source === "syllabus" && t.course_name === courseName
+    ).map((t) => t.id);
+    if (matchingIds.length === 0) return;
+
+    // Optimistic: remove matching tasks from local state
+    setTasks((prev) => {
+      const updated = prev.filter(
+        (t) => !(t.source === "syllabus" && t.course_name === courseName)
+      );
+      setCachedTasks(updated);
+      taskBaselineRef.current = updated;
+      return updated;
+    });
+
+    // Hard-delete from Supabase
+    const { error: deleteError } = await supabase
+      .from("tasks")
+      .delete()
+      .eq("user_id", userId)
+      .eq("source", "syllabus")
+      .eq("course_name", courseName);
+
+    if (deleteError) {
+      setError(deleteError.message);
+      setTasks(previousTasks);
+      setCachedTasks(previousTasks);
+      fetchTasks();
+    }
+  }
+
+  /**
    * Deletes all Canvas tasks whose external_id starts with the given prefix.
    * Used for disconnect cleanup of additional Canvas accounts, where external_ids
    * are namespaced as "<account_id>:<assignment_id>".
@@ -779,6 +830,81 @@ export function TaskProvider({ children }: { children: ReactNode }) {
   }
 
   /**
+   * Soft-hides tasks by setting dismissed_at for all tasks matching given course names.
+   * Optimistically removes from local state; reverts on error.
+   *
+   * @param courseNames - Array of course name strings to match
+   * @returns Number of tasks hidden (0 if none matched or on error)
+   */
+  async function dismissTasksByCourseNames(courseNames: string[]): Promise<number> {
+    if (!userId || courseNames.length === 0) return 0;
+
+    const matchingTasks = tasks.filter(
+      (t) => t.course_name && courseNames.includes(t.course_name)
+    );
+    if (matchingTasks.length === 0) return 0;
+
+    const count = matchingTasks.length;
+    const matchingIds = new Set(matchingTasks.map((t) => t.id));
+    const previousTasks = [...tasks];
+
+    // Optimistic: remove matching tasks from local state (they're "dismissed")
+    setTasks((prev) => {
+      const updated = prev.filter((t) => !matchingIds.has(t.id));
+      setCachedTasks(updated);
+      taskBaselineRef.current = updated;
+      return updated;
+    });
+
+    const { error: dismissError } = await supabase
+      .from("tasks")
+      .update({ dismissed_at: new Date().toISOString() })
+      .eq("user_id", userId)
+      .in("course_name", courseNames)
+      .is("dismissed_at", null);
+
+    if (dismissError) {
+      setError(dismissError.message);
+      setTasks(previousTasks);
+      setCachedTasks(previousTasks);
+      fetchTasks();
+      return 0;
+    }
+
+    return count;
+  }
+
+  /**
+   * Un-hides tasks by clearing dismissed_at for all tasks matching given course names.
+   * Re-fetches tasks from Supabase to restore them into local state.
+   *
+   * @param courseNames - Array of course name strings to match
+   * @returns Number of tasks restored (0 if none matched or on error)
+   */
+  async function undismissTasksByCourseNames(courseNames: string[]): Promise<number> {
+    if (!userId || courseNames.length === 0) return 0;
+
+    const { data, error: undismissError } = await supabase
+      .from("tasks")
+      .update({ dismissed_at: null })
+      .eq("user_id", userId)
+      .in("course_name", courseNames)
+      .not("dismissed_at", "is", null)
+      .select("id");
+
+    if (undismissError) {
+      setError(undismissError.message);
+      return 0;
+    }
+
+    const restoredCount = data?.length ?? 0;
+    if (restoredCount > 0) {
+      await fetchTasks();
+    }
+    return restoredCount;
+  }
+
+  /**
    * Bulk-imports syllabus-extracted assignments as tasks.
    * Generates external_id per task for dedup, upserts to Supabase with source="syllabus".
    *
@@ -791,7 +917,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     due_time?: string | null;
     course_name?: string | null;
     points_possible?: number | null;
-  }>) {
+  }>, color?: string) {
     if (!userId || syllabusTasks.length === 0) return;
 
     const rows = syllabusTasks.map((t) => {
@@ -811,7 +937,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
         due_time: t.due_time ?? null,
         source: "syllabus" as const,
         external_id: externalId,
-        color: "#8B5CF6",
+        color: color ?? "#8B5CF6",
         course_name: t.course_name ?? null,
         points_possible: t.points_possible ?? null,
         is_completed: false,
@@ -1049,9 +1175,12 @@ export function TaskProvider({ children }: { children: ReactNode }) {
         toggleComplete,
         deleteTask,
         deleteTasksBySource,
+        deleteSyllabusTasksByCourse,
         importSyllabusTasks,
         deleteTasksByExternalIdPrefix,
         deleteTasksByCourseNames,
+        dismissTasksByCourseNames,
+        undismissTasksByCourseNames,
         deleteAllTasks,
         snoozeTask,
         unsnoozeTask,

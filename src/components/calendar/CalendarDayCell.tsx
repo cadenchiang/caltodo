@@ -264,7 +264,7 @@ export default function CalendarDayCell({
                     onShowMore(dateStr, cellRef.current.getBoundingClientRect());
                   }
                 }}
-                className={`text-[10px] font-semibold hover:underline px-0.5 text-left transition-all ${isPast ? "text-foreground/40" : "text-foreground"}`}
+                className={`text-[10px] font-semibold hover:underline px-0.5 text-left transition-all -mt-0.5 ${isPast ? "text-foreground/40" : "text-foreground"}`}
               >
                 {overflow} more
               </button>

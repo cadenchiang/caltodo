@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { Upload, FileText } from "lucide-react";
 import { useTaskContext } from "@/contexts/TaskContext";
 import type { ExtractedAssignment } from "@/app/api/syllabus/extract/route";
@@ -17,24 +18,54 @@ interface SyllabusStepProps {
   saving: boolean;
   error: string | null;
   setError: (error: string | null) => void;
+  onPhaseChange?: (phase: "upload" | "extracting" | "preview") => void;
 }
 
 /** Maximum file size in bytes (10 MB). */
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const ACCEPTED_TYPES = ["application/pdf", "image/png", "image/jpeg", "image/webp"];
 
+/** Sample assignments for dev preview (loaded via ?mock=true query param). */
+const MOCK_ASSIGNMENTS: SelectableAssignment[] = [
+  { title: "Homework 1: Introduction to Algorithms", description: "Covers chapters 1-3", due_date: "2026-01-15", due_time: "23:59", points_possible: 100, selected: true },
+  { title: "Homework 2: Sorting & Searching", description: "Merge sort, quicksort, binary search", due_date: "2026-01-22", due_time: "23:59", points_possible: 100, selected: true },
+  { title: "Project 1: Data Structures", description: "Implement a balanced BST", due_date: "2026-02-05", due_time: "23:59", points_possible: 200, selected: true },
+  { title: "Midterm 1", description: null, due_date: "2026-02-12", due_time: "14:00", points_possible: 150, selected: true },
+  { title: "Homework 3: Graph Algorithms", description: "BFS, DFS, shortest paths", due_date: "2026-02-19", due_time: "23:59", points_possible: 100, selected: true },
+  { title: "Homework 4: Dynamic Programming", description: "Knapsack, LCS, edit distance", due_date: "2026-02-26", due_time: "23:59", points_possible: 100, selected: true },
+  { title: "Project 2: Network Flow", description: "Max flow / min cut implementation", due_date: "2026-03-12", due_time: "23:59", points_possible: 200, selected: true },
+  { title: "Homework 5: NP-Completeness", description: "Reductions and proofs", due_date: "2026-03-19", due_time: "23:59", points_possible: 100, selected: true },
+  { title: "Midterm 2", description: null, due_date: "2026-03-26", due_time: "14:00", points_possible: 150, selected: true },
+  { title: "Homework 6: Approximation Algorithms", description: "Vertex cover, TSP", due_date: "2026-04-02", due_time: "23:59", points_possible: 100, selected: true },
+  { title: "Homework 7: Randomized Algorithms", description: null, due_date: "2026-04-09", due_time: "23:59", points_possible: 100, selected: true },
+  { title: "Project 3: Final Project", description: "Open-ended algorithmic project", due_date: "2026-04-23", due_time: "23:59", points_possible: 300, selected: true },
+  { title: "Homework 8: Review Problems", description: "Comprehensive review", due_date: "2026-04-16", due_time: "23:59", points_possible: 100, selected: true },
+  { title: "Homework 9: Advanced Topics", description: "Streaming, online algorithms", due_date: null, due_time: null, points_possible: 100, selected: true },
+  { title: "Reading Quiz 1", description: null, due_date: "2026-01-10", due_time: "09:00", points_possible: 10, selected: false },
+  { title: "Reading Quiz 2", description: null, due_date: "2026-01-24", due_time: "09:00", points_possible: 10, selected: false },
+  { title: "Final Exam", description: "Comprehensive final", due_date: "2026-05-07", due_time: "10:00", points_possible: 250, selected: true },
+  { title: "Extra Credit: Research Paper Review", description: "Review a recent algorithms paper", due_date: null, due_time: null, points_possible: 50, selected: true },
+];
+
 /**
  * Syllabus upload and assignment extraction step.
  * Phases: upload → extracting (loading UI) → preview (editable list).
  */
-export default function SyllabusStep({ onNext, onSkip, error, setError }: SyllabusStepProps) {
+export default function SyllabusStep({ onNext, onSkip, error, setError, onPhaseChange }: SyllabusStepProps) {
   const { importSyllabusTasks } = useTaskContext();
+  const searchParams = useSearchParams();
 
   const [file, setFile] = useState<File | null>(null);
   const [fileDataUrl, setFileDataUrl] = useState<string | null>(null);
   const [fileBase64, setFileBase64] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [phase, setPhase] = useState<"upload" | "extracting" | "preview">("upload");
+  const [phase, setPhaseRaw] = useState<"upload" | "extracting" | "preview">("upload");
+
+  /** Sets phase and notifies parent. */
+  const setPhase = useCallback((p: "upload" | "extracting" | "preview") => {
+    setPhaseRaw(p);
+    onPhaseChange?.(p);
+  }, [onPhaseChange]);
   const [courseName, setCourseName] = useState<string | null>(null);
   const [assignments, setAssignments] = useState<SelectableAssignment[]>([]);
   const [progressPercent, setProgressPercent] = useState(0);
@@ -55,6 +86,17 @@ export default function SyllabusStep({ onNext, onSkip, error, setError }: Syllab
   }
 
   useEffect(() => () => clearExtractionIntervals(), []);
+
+  // Dev-only: load mock data via ?mock=true to preview UI without API call
+  useEffect(() => {
+    if (searchParams.get("mock") === "true" && phase === "upload") {
+      setFile(new File(["mock"], "CS170_Syllabus.pdf", { type: "application/pdf" }));
+      setCourseName("CS 170: Efficient Algorithms");
+      setAssignments(MOCK_ASSIGNMENTS);
+      setPhase("preview");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Prevent page leave during extraction
   useEffect(() => {
@@ -134,8 +176,12 @@ export default function SyllabusStep({ onNext, onSkip, error, setError }: Syllab
     }
   }
 
-  /** Imports selected assignments as tasks via TaskContext. */
-  async function handleImport() {
+  /**
+   * Imports selected assignments as tasks via TaskContext.
+   *
+   * @param color - Hex color string chosen by the user for these tasks
+   */
+  async function handleImport(color: string) {
     const selected = assignments.filter((a) => a.selected);
     if (selected.length === 0) return;
     setImporting(true);
@@ -149,7 +195,8 @@ export default function SyllabusStep({ onNext, onSkip, error, setError }: Syllab
           due_time: a.due_time,
           course_name: courseName,
           points_possible: a.points_possible,
-        }))
+        })),
+        color
       );
       await onNext({} as Record<string, never>);
     } catch (err) {
@@ -159,12 +206,13 @@ export default function SyllabusStep({ onNext, onSkip, error, setError }: Syllab
     }
   }
 
-  /** Returns the time estimate display string ("Almost done..." when close). */
+  /** Returns the elapsed time display string as a count-up timer. */
   function getTimeEstimateText(): string {
-    const remaining = Math.max(0, estimatedMsRef.current - (Date.now() - extractionStartRef.current));
-    const remainingSeconds = Math.ceil(remaining / 1_000);
-    if (progressPercent > 85 || remainingSeconds <= 5) return "Almost done...";
-    return `~${remainingSeconds} seconds remaining`;
+    const elapsed = Date.now() - extractionStartRef.current;
+    const elapsedSeconds = Math.floor(elapsed / 1_000);
+    if (elapsedSeconds < 1) return "0 seconds";
+    if (elapsedSeconds === 1) return "1 second";
+    return `${elapsedSeconds} seconds`;
   }
 
   // ---- Phase 3: Side-by-side preview ----
@@ -198,10 +246,15 @@ export default function SyllabusStep({ onNext, onSkip, error, setError }: Syllab
   // ---- Phase 1: Upload ----
   return (
     <div>
-      <h2 className="text-lg font-bold text-foreground mb-2 animate-drop-in">
-        upload a syllabus
-      </h2>
-      <p className="text-sm text-muted-foreground mb-6 animate-drop-in delay-100">
+      <div className="flex items-center justify-center gap-2 mb-4">
+        <div className="w-[22px] h-[22px] rounded bg-purple-100 dark:bg-purple-500/15 flex items-center justify-center shrink-0">
+          <FileText size={14} className="text-purple-500" />
+        </div>
+        <h2 className="text-lg font-bold text-foreground animate-drop-in">
+          Syllabus
+        </h2>
+      </div>
+      <p className="text-sm text-muted-foreground mb-6 animate-drop-in delay-100 text-center">
         Upload a PDF or screenshot of your course syllabus to automatically extract assignments.
       </p>
 
@@ -258,13 +311,6 @@ export default function SyllabusStep({ onNext, onSkip, error, setError }: Syllab
         className="w-full mt-6 px-4 py-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl font-semibold btn-elevated-primary disabled:opacity-50 animate-drop-in delay-200 cursor-pointer"
       >
         Extract Assignments
-      </button>
-
-      <button
-        onClick={onSkip}
-        className="w-full mt-3 px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-      >
-        skip
       </button>
     </div>
   );

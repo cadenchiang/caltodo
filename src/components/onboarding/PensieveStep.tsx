@@ -114,18 +114,12 @@ export default function PensieveStep({ onNext, onSkip, saving, error, setError, 
         />
       </div>
 
-      {/* Action buttons */}
-      <div className="flex gap-3 animate-drop-in delay-300">
-        <button
-          onClick={onSkip}
-          className="flex-1 px-4 py-2.5 text-sm text-muted-foreground rounded-xl bg-card btn-elevated-secondary"
-        >
-          skip
-        </button>
+      {/* Action button */}
+      <div className="animate-drop-in delay-300">
         <button
           onClick={handleSaveAndNext}
           disabled={saving}
-          className="flex-1 px-4 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2 btn-elevated-primary"
+          className="w-full px-4 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2 btn-elevated-primary"
         >
           {saving && <Loader2 size={14} className="animate-spin" />}
           {saving ? "saving..." : "save & next"}

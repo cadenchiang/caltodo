@@ -29,6 +29,8 @@ let globalUpdateProgress: ((progress: number) => void) | null = null;
 
 /** Whether a module-level background sync is currently in progress. */
 let moduleSyncInProgress = false;
+/** Whether the current module-level sync is silent (auto-sync). Silent syncs don't show a progress bar. */
+let moduleSyncSilent = false;
 /** Callback to notify the mounted component of sync state changes. */
 let onModuleSyncStateChange: ((syncing: boolean, progress: { synced: number; total: number } | null) => void) | null = null;
 /** Timestamp of the last auto-sync attempt. Used to enforce a cooldown so we don't retry endlessly on persistent failures. */
@@ -41,15 +43,30 @@ const AUTO_SYNC_COOLDOWN_MS = 5 * 60_000;
  * Survives component unmount so users can navigate away from the integrations tab.
  * Uses globalShowToast/globalUpdateProgress for toast notifications.
  */
-async function runBackgroundSync(): Promise<void> {
+/** Tracks consecutive sync failures to prevent endless retries. */
+let consecutiveSyncFailures = 0;
+const MAX_AUTO_SYNC_FAILURES = 1;
+
+/**
+ * Runs background sync of unsynced tasks to Google Calendar.
+ * When silent=true (auto-sync), suppresses toasts and emits a custom event on failure.
+ * When silent=false (manual), shows progress toasts.
+ *
+ * @param silent - If true, suppresses toast notifications (used for auto-sync)
+ */
+async function runBackgroundSync(silent = false): Promise<void> {
   if (moduleSyncInProgress) return;
   moduleSyncInProgress = true;
-  onModuleSyncStateChange?.(true, { synced: 0, total: 0 });
+  moduleSyncSilent = silent;
+  // Only notify UI for non-silent syncs — silent auto-syncs run invisibly
+  if (!silent) onModuleSyncStateChange?.(true, { synced: 0, total: 0 });
 
-  const toast = (msg: string, opts?: Record<string, unknown>) => globalShowToast?.(msg, opts as Parameters<NonNullable<typeof globalShowToast>>[1]);
-  const progress = (p: number) => globalUpdateProgress?.(p);
+  const toast = (msg: string, opts?: Record<string, unknown>) => {
+    if (!silent) globalShowToast?.(msg, opts as Parameters<NonNullable<typeof globalShowToast>>[1]);
+  };
+  const progress = (p: number) => { if (!silent) globalUpdateProgress?.(p); };
 
-  toast("Syncing missed tasks to Google Calendar...", { progress: 0 });
+  toast("Syncing tasks to Google Calendar...", { progress: 0 });
 
   try {
     const syncRes = await fetch("/api/gcal/initial-sync", { method: "POST" });
@@ -59,8 +76,10 @@ async function runBackgroundSync(): Promise<void> {
       const result = await syncRes.json();
       progress(100);
       if (syncRes.ok && result.synced === 0 && result.total === 0) {
+        consecutiveSyncFailures = 0;
         toast("All tasks are already synced.");
       } else if (!syncRes.ok) {
+        consecutiveSyncFailures++;
         toast(`Sync failed: ${result.error || syncRes.status}`);
       }
       return;
@@ -68,34 +87,42 @@ async function runBackgroundSync(): Promise<void> {
 
     const finalResult = await readSyncStream(syncRes, {
       onProgress: (synced, total) => {
-        onModuleSyncStateChange?.(true, { synced, total });
+        if (!silent) onModuleSyncStateChange?.(true, { synced, total });
         if (total > 0) progress(Math.round((synced / total) * 100));
       },
-      onDone: () => onModuleSyncStateChange?.(true, null),
+      onDone: () => { if (!silent) onModuleSyncStateChange?.(true, null); },
     });
 
     if (!finalResult) {
       progress(100);
+      consecutiveSyncFailures++;
       toast("Sync failed: no response stream.");
       return;
     }
 
     if (finalResult.synced > 0) {
+      consecutiveSyncFailures = 0;
       const msg = finalResult.synced === finalResult.total
         ? `Synced ${finalResult.synced} task${finalResult.synced === 1 ? "" : "s"} to Google Calendar.`
         : `Synced ${finalResult.synced} of ${finalResult.total} tasks to Google Calendar.`;
       toast(msg);
     } else if (finalResult.total > 0) {
-      toast(`Sync failed for all ${finalResult.total} tasks. Check your Google Calendar permissions.`);
+      consecutiveSyncFailures++;
+      if (!silent) {
+        toast(`Sync failed for all ${finalResult.total} tasks. Check your Google Calendar permissions.`);
+      }
     } else {
+      consecutiveSyncFailures = 0;
       toast("All tasks are already synced.");
     }
   } catch (err) {
     console.error("Background sync error:", err);
+    consecutiveSyncFailures++;
     progress(100);
     toast("Failed to sync tasks. Please try again.");
   } finally {
     moduleSyncInProgress = false;
+    moduleSyncSilent = false;
     onModuleSyncStateChange?.(false, null);
   }
 }
@@ -181,17 +208,24 @@ export default function GoogleCalendarSettings() {
     if (mountedRef.current) setter(value);
   }
 
-  // Check if existing token has write scope — prompt reconnect if read-only
+  // Check if existing token has write scope — prompt reconnect if read-only.
+  // Only checks once per session to avoid nagging after a successful reconnect.
   useEffect(() => {
     if (!connected || oauthConnecting) return;
+    try {
+      if (sessionStorage.getItem("gcal-scope-ok") === "1") return;
+    } catch { /* ignore */ }
     let cancelled = false;
     (async () => {
       try {
         const res = await fetch("/api/gcal/check-scope");
         if (!res.ok || cancelled) return;
         const data = await res.json();
-        if (!cancelled && mountedRef.current && data.needsReconnect) {
+        if (cancelled || !mountedRef.current) return;
+        if (data.needsReconnect) {
           setNeedsReconnect(true);
+        } else {
+          try { sessionStorage.setItem("gcal-scope-ok", "1"); } catch { /* ignore */ }
         }
       } catch { /* network error — ignore */ }
     })();
@@ -203,6 +237,7 @@ export default function GoogleCalendarSettings() {
   useEffect(() => {
     if (!connected || oauthConnecting || moduleSyncInProgress) return;
     if (Date.now() - lastAutoSyncAt < AUTO_SYNC_COOLDOWN_MS) return;
+    if (consecutiveSyncFailures >= MAX_AUTO_SYNC_FAILURES) return;
     let cancelled = false;
     (async () => {
       try {
@@ -211,18 +246,18 @@ export default function GoogleCalendarSettings() {
         const data = await res.json();
         if (!cancelled && mountedRef.current && data.count > 0 && !moduleSyncInProgress) {
           lastAutoSyncAt = Date.now();
-          setSyncing(true);
-          setSyncProgress({ synced: 0, total: 0 });
-          runBackgroundSync();
+          // Silent auto-sync — no progress bar, runs invisibly in background
+          runBackgroundSync(true);
         }
       } catch { /* network error — ignore silently */ }
     })();
     return () => { cancelled = true; };
   }, [connected, oauthConnecting]);
 
-  // Register module-level sync callback so sync survives navigation away
+  // Register module-level sync callback so sync survives navigation away.
+  // Only show progress bar for non-silent (user-initiated) syncs.
   useEffect(() => {
-    if (moduleSyncInProgress) {
+    if (moduleSyncInProgress && !moduleSyncSilent) {
       setSyncing(true);
     }
     onModuleSyncStateChange = (isSyncing, progress) => {
@@ -236,6 +271,8 @@ export default function GoogleCalendarSettings() {
 
   async function autoSetupCalendar() {
     setSyncing(true);
+    // Fresh OAuth means full scope — skip future scope checks this session
+    try { sessionStorage.setItem("gcal-scope-ok", "1"); } catch { /* ignore */ }
     toast("Setting up Google Calendar...", { progress: 0 });
     try {
       await refresh();
@@ -276,13 +313,16 @@ export default function GoogleCalendarSettings() {
         const contentType = syncRes.headers.get("Content-Type") ?? "";
         if (contentType.includes("application/json")) {
           const syncResult = await syncRes.json();
-          if (syncRes.ok && syncResult.synced === 0 && syncResult.total === 0) {
-            toast("Calendar created! No tasks with due dates to sync.", openAction);
-            window.open(gcalUrl, "_blank");
-          } else if (!syncRes.ok) {
+          if (!syncRes.ok) {
             toast(`Sync failed: ${syncResult.error || syncRes.status}`);
+          } else if (syncResult.synced > 0) {
+            const msg = syncResult.synced === syncResult.total
+              ? `Synced ${syncResult.synced} task${syncResult.synced === 1 ? "" : "s"} to Google Calendar.`
+              : `Synced ${syncResult.synced} of ${syncResult.total} tasks to Google Calendar.`;
+            toast(msg, openAction);
+          } else {
+            toast("Calendar created! No tasks with due dates to sync.", openAction);
           }
-          /* sync complete */
           return;
         }
         const finalResult = await readSyncStream(syncRes, {
@@ -298,18 +338,14 @@ export default function GoogleCalendarSettings() {
             ? `Synced ${finalResult.synced} task${finalResult.synced === 1 ? "" : "s"} to Google Calendar. New tasks will sync automatically.`
             : `Synced ${finalResult.synced} of ${finalResult.total} tasks to Google Calendar. New tasks will sync automatically.`;
           toast(msg, openAction);
-          window.open(gcalUrl, "_blank");
         } else if (finalResult && finalResult.total > 0 && finalResult.synced === 0) {
           toast(`Sync failed for all ${finalResult.total} tasks. Check your Google Calendar permissions.`);
         } else if (finalResult && finalResult.total === 0) {
           toast("Google Calendar connected! No tasks to sync yet — new tasks will sync automatically.", openAction);
-          window.open(gcalUrl, "_blank");
         }
         /* sync complete */
       } else {
         toast("Google Calendar connected! New tasks will sync automatically.", openAction);
-        /* sync complete */
-        window.open(gcalUrl, "_blank");
       }
     } catch (err) {
       console.error("Auto-setup calendar error:", err);
@@ -512,6 +548,7 @@ export default function GoogleCalendarSettings() {
             <button
               onClick={async () => {
                 setNeedsReconnect(false);
+                try { sessionStorage.removeItem("gcal-scope-ok"); } catch { /* ignore */ }
                 await handleDisconnect();
                 handleConnect();
               }}

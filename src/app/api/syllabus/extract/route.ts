@@ -61,13 +61,16 @@ Return a JSON object with this exact schema:
 }
 
 Rules:
-- Extract EVERY graded item: homework, labs, projects, exams, quizzes, midterms, finals, papers, presentations
-- Use YYYY-MM-DD format for dates. If only a weekday is given without a specific date, set due_date to null
+- Extract EVERY graded item: homework, labs, projects, exams, quizzes, midterms, finals, papers, presentations, participation, readings, responses, journal entries
+- Use YYYY-MM-DD format for dates. Try hard to find dates: check schedule tables, weekly breakdowns, course calendars, "Week of..." sections, and any date references near assignments
+- If a syllabus lists assignments by week number or week date range (e.g. "Week 3: Jan 27"), calculate the due date from that context (assume due at end of that week, Friday, unless stated otherwise)
+- If only a weekday is given (e.g. "due every Tuesday"), calculate specific dates based on the semester schedule
 - Use 24-hour HH:MM format for times. If no time specified, set due_time to null
 - If the year is not specified, assume the current academic year (2025-2026)
 - For spring semester courses, dates are typically January-May 2026
 - For fall semester courses, dates are typically August-December 2025
 - Include point values when listed
+- Number recurring assignments clearly (e.g. "Weekly Journal Writing #1", "Weekly Journal Writing #2") — do NOT collapse them into a single entry
 - Return an empty assignments array if no assignments are found
 - Return ONLY the JSON object, no additional text`;
 
@@ -179,10 +182,19 @@ export async function POST(request: Request) {
       );
     }
 
-    // Parse the JSON response — strip markdown code fences if present
+    // Parse the JSON response — extract JSON from markdown fences or raw text
     let jsonText = textBlock.text.trim();
-    if (jsonText.startsWith("```")) {
-      jsonText = jsonText.replace(/^```(?:json)?\s*/, "").replace(/\s*```$/, "");
+    // Strip markdown code fences (```json ... ``` or ``` ... ```)
+    const fenceMatch = jsonText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+    if (fenceMatch) {
+      jsonText = fenceMatch[1];
+    }
+    // If still not valid JSON, try to extract the first { ... } block
+    if (!jsonText.startsWith("{")) {
+      const braceMatch = jsonText.match(/\{[\s\S]*\}/);
+      if (braceMatch) {
+        jsonText = braceMatch[0];
+      }
     }
 
     let result: ExtractionResult;

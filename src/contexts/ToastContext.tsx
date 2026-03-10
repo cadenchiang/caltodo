@@ -101,9 +101,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       };
 
       setToasts((prev) => {
-        // Remove any completed progress toasts (progress === 100) immediately
+        // Remove any progress toasts — a new toast means the prior operation finished
         const filtered = prev.filter((t) => {
-          if (typeof t.progress === "number" && t.progress >= 100) {
+          if (typeof t.progress === "number") {
             clearTimer(t.id);
             return false;
           }

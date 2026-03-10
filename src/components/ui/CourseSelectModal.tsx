@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { X } from "lucide-react";
+import { X, Check } from "lucide-react";
 
 interface CourseItem<T extends string | number> {
   id: T;
@@ -40,79 +40,17 @@ interface CourseSelectModalProps<T extends string | number> {
   onDeselectAll: () => void;
 }
 
-/** Max rows that receive staggered entrance delay (avoids long delays on large lists). */
-const MAX_STAGGER = 8;
 /** Duration of the exit animation in ms. */
 const EXIT_DURATION = 200;
 
 /**
- * Renders a single course row with custom checkbox.
- *
- * @param course - The course item to render
- * @param checked - Whether the course is selected
- * @param index - Row index for stagger animation
- */
-function CourseRow<T extends string | number>({
-  course,
-  checked,
-  index,
-}: {
-  course: CourseItem<T>;
-  checked: boolean;
-  index: number;
-}) {
-  return (
-    <label
-      key={String(course.id)}
-      className="flex items-center gap-3 px-5 py-3 hover:bg-accent transition-colors cursor-pointer border-b border-border-subtle last:border-0 animate-row-fade-in"
-      style={{
-        animationDelay: index < MAX_STAGGER ? `${index * 40}ms` : `${MAX_STAGGER * 40}ms`,
-      }}
-    >
-      <div
-        className="w-[18px] h-[18px] rounded-full shrink-0 flex items-center justify-center transition-all duration-150"
-        style={{
-          backgroundColor: checked ? "#3b82f6" : "transparent",
-          border: checked ? "none" : "2px solid var(--input-border)",
-        }}
-      >
-        {checked && (
-          <svg
-            width="10"
-            height="8"
-            viewBox="0 0 10 8"
-            fill="none"
-            className="animate-[checkScale_0.2s_ease-out]"
-          >
-            <path
-              d="M1 4L3.5 6.5L9 1"
-              stroke="white"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        )}
-      </div>
-      <div className="flex-1 min-w-0">
-        <span className="text-sm text-foreground block truncate">{course.name}</span>
-        {course.subtitle && (
-          <span className="text-xs text-subtle-foreground block truncate">{course.subtitle}</span>
-        )}
-      </div>
-    </label>
-  );
-}
-
-/**
- * Full-screen animated course selection modal with optional grouped sections.
- * Features: backdrop fade, slide-up entrance, staggered course row fade-in,
- * smooth exit animation, and custom checkbox with animated fill + checkmark.
+ * Course selection modal with kanban-style multi-column layout.
+ * Each platform gets its own scrollable column. On mobile, columns stack vertically.
  *
  * @param open - Controls mount/unmount with enter/exit animation
  * @param onClose - Called after exit animation finishes
  * @param title - Header text
- * @param courses - Flat array of { id, name, subtitle? } (ignored if groups provided)
+ * @param courses - Flat array of courses (ignored if groups provided)
  * @param groups - Optional grouped sections with label, courses, and color
  * @param selectedIds - Set of selected course IDs
  * @param onToggle - Toggle handler for a single course
@@ -133,11 +71,9 @@ export default function CourseSelectModal<T extends string | number>({
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
 
-  // Compute total courses from groups or flat list
   const allCourses = groups ? groups.flatMap((g) => g.courses) : courses;
   const totalCount = allCourses.length;
 
-  // Mount -> make visible (triggers enter animation)
   useEffect(() => {
     if (open) {
       setMounted(true);
@@ -147,10 +83,6 @@ export default function CourseSelectModal<T extends string | number>({
     }
   }, [open]);
 
-  /**
-   * Handles exit: sets visible=false to trigger exit animation,
-   * then unmounts and calls onClose after animation duration.
-   */
   const handleClose = useCallback(() => {
     setVisible(false);
     const timer = setTimeout(() => {
@@ -160,7 +92,6 @@ export default function CourseSelectModal<T extends string | number>({
     return () => clearTimeout(timer);
   }, [onClose]);
 
-  // Close on Escape key
   useEffect(() => {
     if (!mounted) return;
     function onKeyDown(e: KeyboardEvent) {
@@ -173,24 +104,25 @@ export default function CourseSelectModal<T extends string | number>({
   if (!mounted) return null;
 
   const allSelected = totalCount > 0 && selectedIds.size === totalCount;
+  const activeGroups = groups?.filter((g) => g.courses.length > 0) ?? [];
 
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center">
-      {/* Backdrop with blur */}
+      {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-200 ease-out"
         style={{ opacity: visible ? 1 : 0 }}
         onClick={handleClose}
       />
 
-      {/* Full-screen modal on mobile, centered card on desktop */}
+      {/* Modal — wide on desktop */}
       <div
-        className={`relative bg-card w-full h-full sm:h-auto sm:max-w-lg sm:mx-4 sm:max-h-[80vh] flex flex-col sm:rounded-2xl sm:border sm:border-border shadow-2xl ${
-          visible ? "animate-modal-in" : "animate-modal-out"
-        }`}
+        className={`relative bg-card w-full h-full sm:h-[85vh] flex flex-col sm:rounded-2xl sm:border sm:border-border shadow-2xl ${
+          activeGroups.length > 1 ? "sm:max-w-4xl" : "sm:max-w-lg"
+        } sm:mx-4 ${visible ? "animate-modal-in" : "animate-modal-out"}`}
       >
         {/* Header */}
-        <div className="px-5 py-4 border-b border-border flex items-center justify-between shrink-0 sm:rounded-t-2xl">
+        <div className="px-5 py-3.5 border-b border-border flex items-center justify-between shrink-0 sm:rounded-t-2xl">
           <h3 className="text-sm font-semibold text-foreground">
             {title} ({selectedIds.size}/{totalCount})
           </h3>
@@ -198,13 +130,13 @@ export default function CourseSelectModal<T extends string | number>({
             <button
               type="button"
               onClick={allSelected ? onDeselectAll : onSelectAll}
-              className="text-xs text-blue-500 hover:text-blue-600 transition-colors"
+              className="text-xs text-blue-500 hover:text-blue-600 transition-colors cursor-pointer"
             >
               {allSelected ? "Deselect all" : "Select all"}
             </button>
             <button
               onClick={handleClose}
-              className="p-1 text-subtle-foreground hover:text-foreground transition-colors rounded-lg hover:bg-accent"
+              className="p-1 text-subtle-foreground hover:text-foreground transition-colors rounded-lg hover:bg-accent cursor-pointer"
               aria-label="Close"
             >
               <X size={16} />
@@ -212,80 +144,87 @@ export default function CourseSelectModal<T extends string | number>({
           </div>
         </div>
 
-        {/* Course list */}
-        <div className="flex-1 overflow-auto">
-          {groups ? (
-            // Grouped display with section headers
-            groups.map((group) => {
-              if (group.courses.length === 0) return null;
-              return (
-                <div key={group.label}>
-                  <div className="sticky top-0 z-10 bg-muted px-5 py-2 border-b border-border-subtle flex items-center gap-2">
-                    {group.color && (
-                      <span
-                        className="w-2 h-2 rounded-full shrink-0"
-                        style={{ backgroundColor: group.color }}
-                      />
-                    )}
-                    <span className="text-xs font-semibold text-foreground">
-                      {group.label}
-                    </span>
-                    <span className="text-xs text-subtle-foreground">
-                      ({group.courses.filter((c) => selectedIds.has(c.id)).length}/{group.courses.length})
-                    </span>
-                  </div>
-                  {group.courses.map((course, i) => (
-                    <label
-                      key={String(course.id)}
-                      className="flex items-center gap-3 px-5 py-3 hover:bg-accent transition-colors cursor-pointer border-b border-border-subtle last:border-0 animate-row-fade-in"
-                      style={{
-                        animationDelay: i < MAX_STAGGER ? `${i * 40}ms` : `${MAX_STAGGER * 40}ms`,
-                      }}
-                      onClick={() => onToggle(course.id)}
-                    >
-                      <div
-                        className="w-[18px] h-[18px] rounded-full shrink-0 flex items-center justify-center transition-all duration-150"
-                        style={{
-                          backgroundColor: selectedIds.has(course.id) ? "#3b82f6" : "transparent",
-                          border: selectedIds.has(course.id) ? "none" : "2px solid var(--input-border)",
-                        }}
-                      >
-                        {selectedIds.has(course.id) && (
-                          <svg
-                            width="10"
-                            height="8"
-                            viewBox="0 0 10 8"
-                            fill="none"
-                            className="animate-[checkScale_0.2s_ease-out]"
+        {/* Content — kanban columns on desktop, stacked on mobile */}
+        <div className="flex-1 overflow-auto sm:overflow-hidden min-h-0">
+          {activeGroups.length > 0 ? (
+            <div className="flex flex-col sm:flex-row h-full sm:gap-1 sm:px-1 sm:py-1">
+              {activeGroups.map((group) => {
+                const groupSelectedCount = group.courses.filter((c) => selectedIds.has(c.id)).length;
+                return (
+                  <div key={group.label} className="flex-1 flex flex-col min-w-0 sm:min-h-0 sm:overflow-hidden sm:rounded-xl sm:bg-muted/50">
+                    {/* Column header */}
+                    <div className="px-3 py-2 flex items-baseline gap-2 shrink-0">
+                      {group.color && (
+                        <span
+                          className="w-2.5 h-2.5 rounded-full shrink-0 self-center"
+                          style={{ backgroundColor: group.color }}
+                        />
+                      )}
+                      <span className="text-xs font-bold text-foreground leading-none">{group.label}</span>
+                      <span className="text-[11px] text-muted-foreground leading-none">
+                        {groupSelectedCount}/{group.courses.length}
+                      </span>
+                    </div>
+                    {/* Course list — scrolls per column */}
+                    <div className="flex-1 overflow-y-auto min-h-0 px-1 pb-1">
+                      {group.courses.map((course) => {
+                        const checked = selectedIds.has(course.id);
+                        return (
+                          <button
+                            key={String(course.id)}
+                            type="button"
+                            onClick={() => onToggle(course.id)}
+                            className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-left transition-colors cursor-pointer ${
+                              checked ? "bg-accent/60" : "hover:bg-accent/30"
+                            }`}
                           >
-                            <path
-                              d="M1 4L3.5 6.5L9 1"
-                              stroke="white"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          </svg>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <span className="text-sm text-foreground block truncate">{course.name}</span>
-                        {course.subtitle && (
-                          <span className="text-xs text-subtle-foreground block truncate">{course.subtitle}</span>
-                        )}
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              );
-            })
+                            <div
+                              className="w-4 h-4 rounded shrink-0 flex items-center justify-center transition-all duration-150"
+                              style={{
+                                backgroundColor: checked ? (group.color || "#3b82f6") : "transparent",
+                                border: checked ? "none" : "1.5px solid var(--input-border)",
+                              }}
+                            >
+                              {checked && <Check size={10} className="text-white" strokeWidth={3} />}
+                            </div>
+                            <span className={`text-[13px] truncate ${checked ? "text-foreground" : "text-muted-foreground"}`}>
+                              {course.name}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           ) : (
-            // Flat list (backward-compatible)
-            <>
-              {courses.map((course, i) => {
+            // Flat list fallback
+            <div>
+              {courses.map((course) => {
                 const checked = selectedIds.has(course.id);
                 return (
-                  <CourseRow key={String(course.id)} course={course} checked={checked} index={i} />
+                  <button
+                    key={String(course.id)}
+                    type="button"
+                    onClick={() => onToggle(course.id)}
+                    className={`w-full flex items-center gap-2.5 px-4 py-2 text-left transition-colors cursor-pointer ${
+                      checked ? "bg-accent/50" : "hover:bg-accent/30"
+                    }`}
+                  >
+                    <div
+                      className="w-4 h-4 rounded shrink-0 flex items-center justify-center transition-all duration-150"
+                      style={{
+                        backgroundColor: checked ? "#3b82f6" : "transparent",
+                        border: checked ? "none" : "1.5px solid var(--input-border)",
+                      }}
+                    >
+                      {checked && <Check size={10} className="text-white" strokeWidth={3} />}
+                    </div>
+                    <span className={`text-[13px] truncate ${checked ? "text-foreground" : "text-muted-foreground"}`}>
+                      {course.name}
+                    </span>
+                  </button>
                 );
               })}
               {courses.length === 0 && (
@@ -293,9 +232,9 @@ export default function CourseSelectModal<T extends string | number>({
                   No active courses found.
                 </div>
               )}
-            </>
+            </div>
           )}
-          {groups && allCourses.length === 0 && (
+          {activeGroups.length > 0 && allCourses.length === 0 && (
             <div className="px-5 py-8 text-sm text-subtle-foreground text-center">
               No active courses found.
             </div>
@@ -303,10 +242,10 @@ export default function CourseSelectModal<T extends string | number>({
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-4 border-t border-border shrink-0 sm:rounded-b-2xl">
+        <div className="px-5 py-3.5 border-t border-border shrink-0 sm:rounded-b-2xl">
           <button
             onClick={handleClose}
-            className="w-full px-4 py-2.5 rounded-xl text-sm font-medium bg-blue-500 text-white hover:bg-blue-600 transition-all"
+            className="w-full px-4 py-2 rounded-xl text-sm font-medium bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:opacity-90 transition-all cursor-pointer"
           >
             Done
           </button>

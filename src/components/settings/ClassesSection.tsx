@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Pencil, Loader2 } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 import { useTaskContext } from "@/contexts/TaskContext";
@@ -74,30 +74,43 @@ function setCachedTotals(totals: CourseTotals): void {
  */
 export default function ClassesSection({ credentials, onUpdate }: ClassesSectionProps) {
   const { showToast } = useToast();
-  const { tasks, fetchTasks, deleteTasksByCourseNames } = useTaskContext();
+  const { tasks, fetchTasks, dismissTasksByCourseNames, undismissTasksByCourseNames } = useTaskContext();
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [pendingChanges, setPendingChanges] = useState<PendingChanges | null>(null);
 
   // Unified courses for the modal (prefixed IDs)
-  const [canvasCourses, setCanvasCourses] = useState<Array<{ id: string; name: string; subtitle?: string }>>([]);
-  const [gseCourses, setGseCourses] = useState<Array<{ id: string; name: string; subtitle?: string }>>([]);
-  const [pensieveCourses, setPensieveCourses] = useState<Array<{ id: string; name: string; subtitle?: string }>>([]);
+  const [canvasCourses, setCanvasCourses] = useState<Array<{ id: string; name: string }>>([]);
+  const [gseCourses, setGseCourses] = useState<Array<{ id: string; name: string }>>([]);
+  const [pensieveCourses, setPensieveCourses] = useState<Array<{ id: string; name: string }>>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const canvasSelected = credentials.selected_canvas_courses ?? [];
   const gsSelected = credentials.selected_gradescope_courses ?? [];
   const pensieveSelected = credentials.selected_pensieve_courses ?? [];
-  const totalSelected = canvasSelected.length + gsSelected.length + pensieveSelected.length;
+
+  /** Unique course names from syllabus-imported tasks, sorted alphabetically. */
+  const syllabusCourses = useMemo(() => {
+    const names = new Set<string>();
+    for (const t of tasks) {
+      if (t.source === "syllabus" && t.course_name) {
+        names.add(t.course_name);
+      }
+    }
+    return Array.from(names).sort((a, b) => a.localeCompare(b));
+  }, [tasks]);
+
+  const hasSyllabus = syllabusCourses.length > 0;
+  const totalSelected = canvasSelected.length + gsSelected.length + pensieveSelected.length + syllabusCourses.length;
 
   const hasCanvas = !!credentials.canvas_token;
   const hasGradescope = !!credentials.gradescope_email;
   const hasPensieve = !!credentials.pensieve_calendar_url;
-  const platformCount = (hasCanvas ? 1 : 0) + (hasGradescope ? 1 : 0) + (hasPensieve ? 1 : 0);
+  const platformCount = (hasCanvas ? 1 : 0) + (hasGradescope ? 1 : 0) + (hasPensieve ? 1 : 0) + (hasSyllabus ? 1 : 0);
   const cachedTotals = getCachedTotals();
 
-  if (!hasCanvas && !hasGradescope && !hasPensieve && totalSelected === 0) {
+  if (!hasCanvas && !hasGradescope && !hasPensieve && !hasSyllabus && totalSelected === 0) {
     return null;
   }
 
@@ -110,9 +123,9 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
     setLoading(true);
     try {
       const promises: Promise<void>[] = [];
-      let fetchedCanvas: Array<{ id: string; name: string; subtitle?: string }> = [];
-      let fetchedGs: Array<{ id: string; name: string; subtitle?: string }> = [];
-      let fetchedPensieve: Array<{ id: string; name: string; subtitle?: string }> = [];
+      let fetchedCanvas: Array<{ id: string; name: string }> = [];
+      let fetchedGs: Array<{ id: string; name: string }> = [];
+      let fetchedPensieve: Array<{ id: string; name: string }> = [];
 
       if (hasCanvas) {
         promises.push(
@@ -125,10 +138,9 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
               return res.json();
             })
             .then((data) => {
-              fetchedCanvas = data.courses.map((c: { id: number; name: string; course_code: string }) => ({
+              fetchedCanvas = data.courses.map((c: { id: number; name: string }) => ({
                 id: `canvas-${c.id}`,
                 name: c.name,
-                subtitle: c.course_code,
               }));
             })
         );
@@ -149,10 +161,9 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
               return res.json();
             })
             .then((data) => {
-              fetchedGs = data.courses.map((c: { id: string; name: string; shortName: string }) => ({
+              fetchedGs = data.courses.map((c: { id: string; name: string }) => ({
                 id: `gs-${c.id}`,
                 name: c.name,
-                subtitle: c.shortName,
               }));
             })
         );
@@ -187,11 +198,25 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
         pensieve: fetchedPensieve.length,
       });
 
+      // Build syllabus courses for the modal (read-only, always selected)
+      const syllabusList = syllabusCourses.map((name) => ({
+        id: `syllabus-${name}`,
+        name,
+      }));
+
       const prevSelected = new Set<string>();
       canvasSelected.forEach((c) => prevSelected.add(`canvas-${c.id}`));
       gsSelected.forEach((c) => prevSelected.add(`gs-${c.id}`));
       pensieveSelected.forEach((c) => prevSelected.add(`pensieve-${c.id}`));
-      if (prevSelected.size === 0) {
+      // Syllabus courses are always selected (managed via Syllabus settings, not here)
+      syllabusList.forEach((c) => prevSelected.add(c.id));
+      if (prevSelected.size === syllabusList.length && prevSelected.size > 0) {
+        // Only syllabus courses exist — auto-select all fetched courses too
+        fetchedCanvas.forEach((c) => prevSelected.add(c.id));
+        fetchedGs.forEach((c) => prevSelected.add(c.id));
+        fetchedPensieve.forEach((c) => prevSelected.add(c.id));
+      } else if (prevSelected.size === syllabusList.length) {
+        // No previous selections at all — auto-select everything
         fetchedCanvas.forEach((c) => prevSelected.add(c.id));
         fetchedGs.forEach((c) => prevSelected.add(c.id));
         fetchedPensieve.forEach((c) => prevSelected.add(c.id));
@@ -241,10 +266,17 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
     const newCanvasIds = new Set(newCanvasCourses.map((c) => c.id));
     const newGsIds = new Set(newGsCourses.map((c) => c.id));
     const newPensieveIds = new Set(newPensieveCourses.map((c) => c.id));
+
+    // Include syllabus courses that were deselected
+    const removedSyllabusNames = syllabusCourses.filter(
+      (name) => !selectedIds.has(`syllabus-${name}`)
+    );
+
     const removedNames = [
       ...canvasSelected.filter((c) => !newCanvasIds.has(c.id)).map((c) => c.name),
       ...gsSelected.filter((c) => !newGsIds.has(c.id)).map((c) => c.name),
       ...pensieveSelected.filter((c) => !newPensieveIds.has(c.id)).map((c) => c.name),
+      ...removedSyllabusNames,
     ];
 
     const removedTaskCount = tasks.filter(
@@ -304,13 +336,20 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
       const updated: IntegrationCredentials = await res.json();
       onUpdate(updated);
 
-      // 2. Delete tasks for removed courses
-      let deletedCount = 0;
+      // 2. Hide tasks for removed courses (soft-dismiss, not delete)
+      let hiddenCount = 0;
       if (hasRemoved) {
-        deletedCount = await deleteTasksByCourseNames(removedNames);
+        hiddenCount = await dismissTasksByCourseNames(removedNames);
       }
 
-      // 3. Sync assignments for added courses
+      // 3. Restore previously hidden tasks for re-added courses
+      const reAddedNames = pendingChanges.addedNames;
+      let restoredCount = 0;
+      if (reAddedNames.length > 0) {
+        restoredCount = await undismissTasksByCourseNames(reAddedNames);
+      }
+
+      // 4. Sync assignments for added courses
       let syncedCount = 0;
       if (hasAdded) {
         const syncRes = await fetch("/api/assignments/sync", {
@@ -331,18 +370,20 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
         await fetchTasks();
       }
 
-      // 4. Build result toast
+      // 5. Build result toast
       const parts: string[] = [];
       if (syncedCount > 0) {
         const addedStr = pendingChanges.addedNames.join(", ");
         parts.push(`Synced ${syncedCount} ${syncedCount === 1 ? "task" : "tasks"} from ${addedStr}`);
+      } else if (restoredCount > 0) {
+        parts.push(`Restored ${restoredCount} ${restoredCount === 1 ? "task" : "tasks"} from ${reAddedNames.join(", ")}`);
       } else if (hasAdded) {
         parts.push(`No new tasks from ${pendingChanges.addedNames.join(", ")}`);
       }
-      if (deletedCount > 0) {
-        parts.push(`Removed ${deletedCount} ${deletedCount === 1 ? "task" : "tasks"} from ${removedNames.join(", ")}`);
+      if (hiddenCount > 0) {
+        parts.push(`Hidden ${hiddenCount} ${hiddenCount === 1 ? "task" : "tasks"} from ${removedNames.join(", ")}`);
       } else if (hasRemoved) {
-        parts.push(`Removed ${removedNames.join(", ")}`);
+        parts.push(`Hidden ${removedNames.join(", ")}`);
       }
 
       showToast(parts.join(". ") + ".", {
@@ -369,12 +410,14 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
     ? `from ${platformCount} platforms`
     : platformCount === 1 ? "from 1 platform" : "";
 
+  const syllabusModalCourses = syllabusCourses.map((name) => ({ id: `syllabus-${name}`, name }));
   const groups = [
     ...(canvasCourses.length > 0 ? [{ label: "bCourses", courses: canvasCourses, color: "#3b82f6" }] : []),
     ...(gseCourses.length > 0 ? [{ label: "Gradescope", courses: gseCourses, color: "#14b8a6" }] : []),
     ...(pensieveCourses.length > 0 ? [{ label: "Pensive", courses: pensieveCourses, color: "#8B5CF6" }] : []),
+    ...(syllabusModalCourses.length > 0 ? [{ label: "Syllabus", courses: syllabusModalCourses, color: "#7c3aed" }] : []),
   ];
-  const allModalCourses = [...canvasCourses, ...gseCourses, ...pensieveCourses];
+  const allModalCourses = [...canvasCourses, ...gseCourses, ...pensieveCourses, ...syllabusModalCourses];
 
   return (
     <div>
@@ -416,6 +459,14 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
               className="inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium bg-purple-50 dark:bg-purple-900/40 text-purple-700 dark:text-purple-200"
             >
               {c.name}
+            </span>
+          ))}
+          {syllabusCourses.map((name) => (
+            <span
+              key={`syllabus-${name}`}
+              className="inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium bg-violet-50 dark:bg-violet-900/40 text-violet-700 dark:text-violet-200"
+            >
+              {name}
             </span>
           ))}
         </div>

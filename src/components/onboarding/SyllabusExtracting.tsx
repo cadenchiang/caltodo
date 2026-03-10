@@ -43,7 +43,7 @@ export default function SyllabusExtracting({
   timeEstimate,
 }: SyllabusExtractingProps) {
   return (
-    <div className="flex flex-col items-center justify-center py-12 px-4">
+    <div className="flex-1 flex flex-col items-center justify-center py-12 px-4">
       <FileText
         size={48}
         className="text-purple-500 mb-6 animate-drop-in"

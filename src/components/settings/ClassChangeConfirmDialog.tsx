@@ -59,17 +59,17 @@ export default function ClassChangeConfirmDialog({
   let confirmClass: string;
 
   if (hasRemoved && !hasAdded) {
-    title = "Remove classes?";
-    confirmLabel = "Remove";
-    confirmClass = "bg-red-500 hover:bg-red-600";
+    title = "Hide classes?";
+    confirmLabel = "Hide";
+    confirmClass = "bg-gray-900 dark:bg-white dark:text-gray-900";
   } else if (hasAdded && !hasRemoved) {
     title = "Sync new classes?";
     confirmLabel = "Sync";
-    confirmClass = "bg-blue-500 hover:bg-blue-600";
+    confirmClass = "bg-gray-900 dark:bg-white dark:text-gray-900";
   } else {
     title = "Update classes?";
     confirmLabel = "Update";
-    confirmClass = "bg-blue-500 hover:bg-blue-600";
+    confirmClass = "bg-gray-900 dark:bg-white dark:text-gray-900";
   }
 
   return createPortal(
@@ -94,13 +94,13 @@ export default function ClassChangeConfirmDialog({
             {hasRemoved && (
               <p>
                 {removedTaskCount > 0
-                  ? `Delete ${removedTaskCount === 1 ? "1 task" : `${removedTaskCount} tasks`} from `
-                  : "Remove "}
+                  ? `Hide ${removedTaskCount === 1 ? "1 task" : `${removedTaskCount} tasks`} from `
+                  : "Hide "}
                 <span className="font-medium text-foreground">
                   {removedNames.join(", ")}
                 </span>
                 .
-                {removedTaskCount > 0 && " This cannot be undone."}
+                {removedTaskCount > 0 && " You can bring them back by re-selecting the course."}
               </p>
             )}
           </div>

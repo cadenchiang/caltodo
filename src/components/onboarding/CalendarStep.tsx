@@ -88,17 +88,11 @@ export default function CalendarStep({ onNext, onSkip }: CalendarStepProps) {
             </p>
           </div>
 
-          <div className="flex gap-3 animate-drop-in delay-300">
-            <button
-              onClick={onSkip}
-              className="flex-1 px-4 py-2.5 text-sm text-gray-400 rounded-xl bg-white btn-elevated-secondary"
-            >
-              skip
-            </button>
+          <div className="animate-drop-in delay-300">
             <button
               onClick={handleEnable}
               disabled={enabling}
-              className="flex-1 px-4 py-2.5 bg-gray-800 text-white rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2 btn-elevated-primary"
+              className="w-full px-4 py-2.5 bg-gray-800 text-white rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2 btn-elevated-primary"
             >
               {enabling && <Loader2 size={14} className="animate-spin" />}
               {enabling ? "enabling..." : "sync to Google Calendar"}

@@ -91,6 +91,9 @@ export default function OnboardingPage() {
   const setupParam = searchParams.get("setup");
   const isStandaloneSetup = setupParam !== null && VALID_SETUP_PLATFORMS.has(setupParam);
 
+  // Syllabus phase tracking for conditional layout
+  const [syllabusPhase, setSyllabusPhase] = useState<"upload" | "extracting" | "preview">("upload");
+
   const [currentStep, setCurrentStep] = useState<Step>("welcome");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -346,28 +349,33 @@ export default function OnboardingPage() {
 
   // ---- Standalone single-step setup mode rendering ----
   if (isStandaloneSetup) {
+    const isSyllabusPreview = setupParam === "syllabus" && syllabusPhase === "preview";
+    const isSyllabusExtracting = setupParam === "syllabus" && syllabusPhase === "extracting";
+
     return (
       <div className={`fixed inset-0 z-50 flex flex-col bg-background transition-opacity duration-75 ${standaloneExiting ? "opacity-0" : "opacity-100"}`}>
-        {/* Minimal header: back arrow + title */}
-        <div className="flex items-center gap-3 px-6 pt-5 pb-3">
-          <button
-            onClick={handleStandaloneSkip}
-            className="p-1 rounded-lg text-muted-foreground hover:text-foreground transition-colors"
-            aria-label="Back to settings"
-          >
-            <ChevronLeft size={20} />
-          </button>
-          <h1 className="text-lg font-semibold text-foreground">
-            Set up {SETUP_LABELS[setupParam]}
-          </h1>
-        </div>
+        {/* Minimal header: back arrow + title (hidden during extracting) */}
+        {!isSyllabusExtracting && (
+          <div className="flex items-center gap-3 px-6 pt-5 pb-3 shrink-0">
+            <button
+              onClick={handleStandaloneSkip}
+              className="p-1 rounded-lg text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="Back to settings"
+            >
+              <ChevronLeft size={20} />
+            </button>
+            <h1 className="text-lg font-semibold text-foreground">
+              Set up {SETUP_LABELS[setupParam]}
+            </h1>
+          </div>
+        )}
 
-        {/* Step content — vertically centered */}
-        <div className="flex-1 overflow-y-auto">
-          <div className="min-h-full flex items-center justify-center px-6 pt-4 pb-[20vh]">
-            <div className="w-full max-w-md">
-              <div className="animate-step-in">
-                {error && (
+        {/* Step content — layout varies by syllabus phase */}
+        <div className={`flex-1 ${isSyllabusPreview ? "overflow-hidden" : "overflow-y-auto"}`}>
+          <div className={`min-h-full flex items-center justify-center px-6 ${isSyllabusPreview ? "h-full pt-2 pb-4" : "pt-4 pb-[20vh]"}`}>
+            <div className={`w-full ${isSyllabusPreview ? "max-w-5xl h-full" : "max-w-md"}`}>
+              <div className={`animate-step-in ${isSyllabusPreview ? "h-full" : ""}`}>
+                {error && setupParam !== "syllabus" && (
                   <div className="bg-red-500/10 text-red-400 text-sm p-3 rounded-xl mb-4">
                     {error}
                   </div>
@@ -420,6 +428,7 @@ export default function OnboardingPage() {
                     saving={saving}
                     error={error}
                     setError={setError}
+                    onPhaseChange={setSyllabusPhase}
                   />
                 )}
               </div>
