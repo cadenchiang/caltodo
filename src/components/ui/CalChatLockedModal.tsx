@@ -110,7 +110,7 @@ export default function CalChatLockedModal({ open, onClose }: CalChatLockedModal
       <div className="fixed inset-0 z-[9999] flex items-center justify-center pointer-events-none">
         <div
           id="tour-calchat-page"
-          className="bg-popover rounded-2xl border border-border shadow-2xl w-full max-w-sm mx-4 p-6 pointer-events-auto animate-announce-card-in"
+          className="bg-popover rounded-2xl border border-border shadow-2xl w-full w-[calc(100%-2rem)] max-w-sm p-6 pointer-events-auto animate-announce-card-in"
           onClick={(e) => e.stopPropagation()}
         >
           {cardContent}
@@ -126,7 +126,7 @@ export default function CalChatLockedModal({ open, onClose }: CalChatLockedModal
     >
       <div
         id="tour-calchat-page"
-        className="bg-popover/80 rounded-2xl w-full max-w-sm mx-4 p-6 animate-announce-card-in"
+        className="bg-popover/80 rounded-2xl w-full w-[calc(100%-2rem)] max-w-sm p-6 animate-announce-card-in"
         onClick={(e) => e.stopPropagation()}
       >
         {cardContent}

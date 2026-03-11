@@ -162,7 +162,7 @@ export default function SyncClassesModal() {
       onClick={closeModal}
     >
       <div
-        className={`bg-popover rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden ${cardClass}`}
+        className={`bg-popover rounded-2xl shadow-2xl w-full w-[calc(100%-2rem)] max-w-md overflow-hidden ${cardClass}`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Sliding container — 200% wide, each page is w-1/2 (= card width) */}

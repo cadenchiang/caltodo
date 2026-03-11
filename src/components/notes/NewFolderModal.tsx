@@ -38,7 +38,7 @@ export default function NewFolderModal({ name, onChangeName, onCreate, onClose }
         className="absolute inset-0 bg-black/50 animate-announce-backdrop-in"
         onClick={onClose}
       />
-      <div className="relative bg-card rounded-2xl shadow-xl w-full max-w-sm mx-4 animate-announce-card-in overflow-hidden">
+      <div className="relative bg-card rounded-2xl shadow-xl w-full w-[calc(100%-2rem)] max-w-sm animate-announce-card-in overflow-hidden">
         <div className="flex items-center justify-between p-5 pb-4 border-b border-border">
           <div className="flex items-center gap-2.5">
             <FolderPlus size={20} className="text-blue-500" />

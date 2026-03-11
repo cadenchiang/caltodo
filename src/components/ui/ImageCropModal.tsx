@@ -128,7 +128,7 @@ export default function ImageCropModal({
       <div className="absolute inset-0 bg-black/50 animate-announce-backdrop-in" onClick={onClose} />
 
       {/* Card */}
-      <div className="relative bg-card rounded-2xl shadow-xl w-full max-w-sm mx-4 animate-announce-card-in overflow-hidden">
+      <div className="relative bg-card rounded-2xl shadow-xl w-full w-[calc(100%-2rem)] max-w-sm animate-announce-card-in overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border">
           <h2 className="text-base font-semibold text-foreground">Crop Image</h2>

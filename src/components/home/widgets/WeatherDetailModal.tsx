@@ -192,7 +192,7 @@ export default function WeatherDetailModal({
       />
 
       {/* Card */}
-      <div className="relative bg-popover rounded-2xl shadow-2xl border border-border w-full max-w-lg mx-4 animate-announce-card-in overflow-hidden max-h-[85vh] flex flex-col">
+      <div className="relative bg-popover rounded-2xl shadow-2xl border border-border w-full w-[calc(100%-2rem)] max-w-lg animate-announce-card-in overflow-hidden max-h-[85vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-3 border-b border-border shrink-0">
           <div className="flex items-center gap-1.5">

@@ -48,7 +48,7 @@ export default function DeleteNoteConfirmModal({
         className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-announce-backdrop-in"
         onClick={onCancel}
       />
-      <div className="relative bg-card rounded-2xl border border-border shadow-2xl max-w-sm mx-4 p-6 animate-announce-card-in">
+      <div className="relative bg-card rounded-2xl border border-border shadow-2xl w-[calc(100%-2rem)] max-w-sm p-6 animate-announce-card-in">
         <div className="text-center">
           <h2 className="text-lg font-semibold text-foreground mb-3">
             Delete {noteCount === 1 ? "note" : "notes"}?

@@ -108,7 +108,7 @@ export default function EmojiPicker({
         onClick={onClose}
       />
 
-      <div className="relative bg-popover rounded-2xl shadow-xl border border-border w-full max-w-sm mx-4 animate-announce-card-in overflow-hidden max-h-[80vh] flex flex-col">
+      <div className="relative bg-popover rounded-2xl shadow-xl border border-border w-full w-[calc(100%-2rem)] max-w-sm animate-announce-card-in overflow-hidden max-h-[80vh] flex flex-col">
         <div className="shrink-0 border-b border-border">
           {/* Header */}
           <div className="flex items-center justify-between p-4 pb-3">

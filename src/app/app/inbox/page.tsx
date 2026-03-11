@@ -1031,7 +1031,7 @@ export default function InboxPage() {
       {/* Sync class selection modal — portaled to escape transform stacking context */}
       {showSyncModal && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-md mx-4 flex flex-col animate-modal-in">
+          <div className="bg-card rounded-2xl border border-border shadow-2xl w-full w-[calc(100%-2rem)] max-w-md flex flex-col animate-modal-in">
             {/* Header */}
             <div className="px-5 py-4 border-b border-border flex items-center justify-between">
               <h3 className="text-sm font-semibold text-foreground">Sync Assignments</h3>

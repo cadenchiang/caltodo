@@ -497,16 +497,16 @@ export default function GoogleCalendarSettings() {
   return (
     <>
       <div className="rounded-2xl border border-border bg-card shadow-sm dark:shadow-none overflow-hidden">
-        <div className="flex items-center gap-3.5 px-4 py-3.5">
+        <div className="flex items-center gap-2.5 sm:gap-3.5 px-3 sm:px-4 py-3.5">
           {/* Logo */}
-          <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
-            <GoogleCalendarIcon size={20} />
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
+            <GoogleCalendarIcon size={18} />
           </div>
           {/* Text */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <p className="text-sm font-semibold text-foreground">Google Calendar</p>
-              <span className="text-[9px] font-medium text-blue-500 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 px-1.5 py-0.5 rounded-full leading-none">
+            <div className="flex items-center gap-1.5">
+              <p className="text-sm font-semibold text-foreground whitespace-nowrap">Google Calendar</p>
+              <span className="text-[9px] font-medium text-blue-500 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 px-1.5 py-0.5 rounded-full leading-none whitespace-nowrap">
                 Real-time
               </span>
             </div>

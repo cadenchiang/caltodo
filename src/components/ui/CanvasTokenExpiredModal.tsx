@@ -82,7 +82,7 @@ export default function CanvasTokenExpiredModal() {
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="bg-popover rounded-2xl border border-border shadow-2xl w-full max-w-sm mx-4 p-6 animate-modal-in">
+      <div className="bg-popover rounded-2xl border border-border shadow-2xl w-full w-[calc(100%-2rem)] max-w-sm p-6 animate-modal-in">
         <div className="flex justify-center mb-4">
           <div className="w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center">
             <AlertTriangle size={24} className="text-amber-500" />

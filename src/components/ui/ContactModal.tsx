@@ -97,7 +97,7 @@ export default function ContactModal({ open, onClose, userName, userEmail }: Con
       />
 
       {/* Modal */}
-      <div className="relative bg-card rounded-2xl border border-border shadow-2xl w-full max-w-md mx-4 animate-announce-card-in">
+      <div className="relative bg-card rounded-2xl border border-border shadow-2xl w-full w-[calc(100%-2rem)] max-w-md animate-announce-card-in">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <div className="flex items-center gap-2">

@@ -68,9 +68,9 @@ export default function AdditionalCanvasCard({ account, credentials, onUpdate }:
   }
 
   return (
-    <div className="rounded-2xl border border-border bg-card px-4 py-3.5 shadow-sm dark:shadow-none">
-      <div className="flex items-center gap-3.5">
-        <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
+    <div className="rounded-2xl border border-border bg-card px-3 sm:px-4 py-3.5 shadow-sm dark:shadow-none">
+      <div className="flex items-center gap-2.5 sm:gap-3.5">
+        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
           <img src="/canvas-logo.png" alt="" className="w-7 h-7 object-contain" />
         </div>
         <div className="flex-1 min-w-0">
@@ -102,7 +102,7 @@ export default function AdditionalCanvasCard({ account, credentials, onUpdate }:
       {showConfirm && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
-          <div className="relative bg-card rounded-2xl border border-border shadow-2xl max-w-sm mx-4 p-6 animate-modal-in">
+          <div className="relative bg-card rounded-2xl border border-border shadow-2xl w-[calc(100%-2rem)] max-w-sm p-6 animate-modal-in">
             <div className="text-center">
               <h2 className="text-lg font-semibold text-foreground mb-2">
                 Disconnect {account.label}?

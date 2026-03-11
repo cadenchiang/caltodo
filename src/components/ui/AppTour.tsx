@@ -657,7 +657,7 @@ export function TourStartDialog({ open, onClose }: TourStartDialogProps) {
       onClick={onClose}
     >
       <div
-        className="bg-popover rounded-2xl shadow-2xl w-full max-w-md mx-4 p-10 text-center animate-announce-card-in"
+        className="bg-popover rounded-2xl shadow-2xl w-full w-[calc(100%-2rem)] max-w-md p-10 text-center animate-announce-card-in"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Logo */}

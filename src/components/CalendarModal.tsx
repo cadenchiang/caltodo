@@ -66,7 +66,7 @@ export default function CalendarModal({ onClose }: CalendarModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-md mx-4 flex flex-col animate-in">
+      <div className="bg-card rounded-2xl border border-border shadow-2xl w-full w-[calc(100%-2rem)] max-w-md flex flex-col animate-in">
         {/* Header */}
         <div className="px-5 py-4 border-b border-border flex items-center justify-between">
           <div className="flex items-center gap-2">

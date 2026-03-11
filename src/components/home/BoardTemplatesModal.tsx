@@ -243,7 +243,7 @@ export default function BoardTemplatesModal({ open, onClose, onApply }: BoardTem
           onMouseDown={(e) => { if (e.target === e.currentTarget) setConfirmTemplate(null); }}
         >
           <div
-            className="bg-card rounded-2xl border border-border shadow-2xl max-w-sm mx-4 p-6 animate-event-modal-card-in"
+            className="bg-card rounded-2xl border border-border shadow-2xl w-[calc(100%-2rem)] max-w-sm p-6 animate-event-modal-card-in"
             onMouseDown={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-3 mb-3">

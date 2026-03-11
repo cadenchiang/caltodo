@@ -259,7 +259,7 @@ function CourseDetailModal({
         className="absolute inset-0 bg-black/50 animate-announce-backdrop-in"
         onClick={onClose}
       />
-      <div className="relative bg-popover rounded-2xl shadow-2xl border border-border w-full max-w-md mx-4 animate-announce-card-in overflow-hidden max-h-[80vh] flex flex-col">
+      <div className="relative bg-popover rounded-2xl shadow-2xl border border-border w-full w-[calc(100%-2rem)] max-w-md animate-announce-card-in overflow-hidden max-h-[80vh] flex flex-col">
         {/* Header with course color accent */}
         <div className="p-4 border-b border-border">
           <div className="flex items-center justify-between">

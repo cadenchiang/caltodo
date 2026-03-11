@@ -109,7 +109,7 @@ export default function IntegrationsWelcomeModal() {
       onClick={handleDismiss}
     >
       <div
-        className={`bg-popover rounded-2xl shadow-2xl w-full max-w-md mx-4 p-8 ${cardClass}`}
+        className={`bg-popover rounded-2xl shadow-2xl w-full w-[calc(100%-2rem)] max-w-md p-8 ${cardClass}`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Progress bar — single step */}

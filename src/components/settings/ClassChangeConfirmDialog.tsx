@@ -75,7 +75,7 @@ export default function ClassChangeConfirmDialog({
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
-      <div className="relative bg-card rounded-2xl border border-border shadow-2xl max-w-sm mx-4 p-6 animate-modal-in">
+      <div className="relative bg-card rounded-2xl border border-border shadow-2xl w-[calc(100%-2rem)] max-w-sm p-6 animate-modal-in">
         <div className="text-center">
           <h2 className="text-lg font-semibold text-foreground mb-3">
             {title}
