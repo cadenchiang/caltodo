@@ -14,7 +14,7 @@ import { isAllowedCanvasUrl } from "@/lib/canvas-url-validation";
 import type { IntegrationCredentials, CredentialsSavePayload, AdditionalCanvasAccount } from "@/lib/types";
 
 /** Base columns selected from integration_credentials (excludes additional_canvas_accounts for fallback). */
-const BASE_SELECT = "canvas_token, canvas_base_url, gradescope_email, gradescope_password_encrypted, last_synced_at, selected_canvas_courses, selected_gradescope_courses, selected_pensieve_courses, google_access_token_encrypted, google_calendar_id, google_email, google_photo_url, canvas_token_created_at, is_founding_member, pensieve_calendar_url, gradescope_auth_failed, email_digest_enabled, email_digest_hour, email_digest_address";
+const BASE_SELECT = "canvas_token, canvas_base_url, canvas_ical_url, gradescope_email, gradescope_password_encrypted, last_synced_at, selected_canvas_courses, selected_gradescope_courses, selected_pensieve_courses, google_access_token_encrypted, google_calendar_id, google_email, google_photo_url, canvas_token_created_at, is_founding_member, pensieve_calendar_url, gradescope_auth_failed, email_digest_enabled, email_digest_hour, email_digest_address";
 
 /**
  * GET /api/credentials
@@ -67,6 +67,7 @@ export async function GET() {
 
   const hasCompletedOnboarding = !!(
     data?.canvas_token ||
+    data?.canvas_ical_url ||
     data?.gradescope_password_encrypted ||
     data?.pensieve_calendar_url ||
     data?.last_synced_at ||
@@ -76,6 +77,7 @@ export async function GET() {
   const credentials: IntegrationCredentials = {
     canvas_token: data?.canvas_token ?? null,
     canvas_base_url: data?.canvas_base_url ?? "https://bcourses.berkeley.edu",
+    canvas_ical_url: data?.canvas_ical_url ?? null,
     canvas_token_expired: canvasTokenExpired,
     gradescope_email: data?.gradescope_email ?? null,
     has_gradescope_password: !!data?.gradescope_password_encrypted,
@@ -141,6 +143,9 @@ export async function PUT(request: Request) {
   }
   if (body.canvas_base_url !== undefined) {
     updateData.canvas_base_url = body.canvas_base_url;
+  }
+  if (body.canvas_ical_url !== undefined) {
+    updateData.canvas_ical_url = body.canvas_ical_url;
   }
   if (body.gradescope_email !== undefined) {
     updateData.gradescope_email = body.gradescope_email;
@@ -281,6 +286,7 @@ export async function PUT(request: Request) {
 
   const putHasCompletedOnboarding = !!(
     updated?.canvas_token ||
+    updated?.canvas_ical_url ||
     updated?.gradescope_password_encrypted ||
     updated?.pensieve_calendar_url ||
     updated?.last_synced_at ||
@@ -290,6 +296,7 @@ export async function PUT(request: Request) {
   const credentials: IntegrationCredentials = {
     canvas_token: updated?.canvas_token ?? null,
     canvas_base_url: updated?.canvas_base_url ?? "https://bcourses.berkeley.edu",
+    canvas_ical_url: updated?.canvas_ical_url ?? null,
     canvas_token_expired: putCanvasTokenExpired,
     gradescope_email: updated?.gradescope_email ?? null,
     has_gradescope_password: !!updated?.gradescope_password_encrypted,

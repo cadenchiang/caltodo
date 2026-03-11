@@ -43,6 +43,7 @@ function setCachedCredentials(creds: IntegrationCredentials): void {
 const EMPTY_CREDENTIALS: IntegrationCredentials = {
   canvas_token: null,
   canvas_base_url: "",
+  canvas_ical_url: null,
   canvas_token_expired: false,
   gradescope_email: null,
   has_gradescope_password: false,

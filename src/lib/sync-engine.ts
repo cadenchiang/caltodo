@@ -6,6 +6,7 @@
 
 import { SupabaseClient } from "@supabase/supabase-js";
 import { fetchAllCanvasAssignments, fetchCanvasAssignmentsForCourses, type NormalizedAssignment } from "@/lib/canvas-client";
+import { fetchCanvasICalAssignments } from "@/lib/canvas-ical-client";
 import { fetchAllGradescopeAssignments, fetchGradescopeAssignmentsForCourses } from "@/lib/gradescope-client";
 import { fetchPensieveAssignments, PENSIEVE_COLOR } from "@/lib/pensieve-client";
 import { decrypt } from "@/lib/crypto";
@@ -33,6 +34,7 @@ const GRADESCOPE_SYNC_COOLDOWN_MS = 60 * 60 * 1000;
 interface CredentialsRow {
   canvas_token: string | null;
   canvas_base_url: string;
+  canvas_ical_url: string | null;
   gradescope_email: string | null;
   gradescope_password_encrypted: string | null;
   gradescope_auth_failed: boolean;
@@ -80,7 +82,7 @@ export async function runSync(
   // Fetch credentials
   const { data: creds, error: credsError } = await supabase
     .from("integration_credentials")
-    .select("canvas_token, canvas_base_url, gradescope_email, gradescope_password_encrypted, gradescope_auth_failed, last_gradescope_synced_at, selected_canvas_courses, selected_gradescope_courses, selected_pensieve_courses, pensieve_calendar_url, additional_canvas_accounts")
+    .select("canvas_token, canvas_base_url, canvas_ical_url, gradescope_email, gradescope_password_encrypted, gradescope_auth_failed, last_gradescope_synced_at, selected_canvas_courses, selected_gradescope_courses, selected_pensieve_courses, pensieve_calendar_url, additional_canvas_accounts")
     .eq("user_id", userId)
     .single();
 
@@ -99,6 +101,7 @@ export async function runSync(
   logger.info("runSync: credentials loaded", {
     userId,
     hasCanvasToken: !!credentials.canvas_token,
+    hasCanvasIcal: !!credentials.canvas_ical_url,
     hasGradescopeEmail: !!credentials.gradescope_email,
     hasPensieveUrl: !!credentials.pensieve_calendar_url,
     platforms: platforms ?? "all",
@@ -196,23 +199,32 @@ async function syncCanvas(
   timezone: string,
   courseNameMap: Map<string, string> = new Map()
 ): Promise<SyncSourceResult> {
-  if (!creds.canvas_token) {
+  if (!creds.canvas_ical_url && !creds.canvas_token) {
     return { synced: 0, errors: [] };
   }
 
   try {
-    const selectedCourses = creds.selected_canvas_courses;
+    let assignments: NormalizedAssignment[];
 
-    // null = no selection made yet (first time), sync all courses
-    // [] = user explicitly deselected all courses, sync nothing
-    if (Array.isArray(selectedCourses) && selectedCourses.length === 0) {
-      logger.info("syncCanvas skipped: no courses selected", { userId });
+    if (creds.canvas_ical_url) {
+      // iCal feed path — no course selection needed, feed contains all assignments
+      assignments = await fetchCanvasICalAssignments(creds.canvas_ical_url);
+    } else if (creds.canvas_token) {
+      // API token path (legacy)
+      const selectedCourses = creds.selected_canvas_courses;
+
+      // [] = user explicitly deselected all courses, sync nothing
+      if (Array.isArray(selectedCourses) && selectedCourses.length === 0) {
+        logger.info("syncCanvas skipped: no courses selected", { userId });
+        return { synced: 0, errors: [] };
+      }
+
+      assignments = selectedCourses && selectedCourses.length > 0
+        ? await fetchCanvasAssignmentsForCourses(creds.canvas_token, creds.canvas_base_url, selectedCourses)
+        : await fetchAllCanvasAssignments(creds.canvas_token, creds.canvas_base_url);
+    } else {
       return { synced: 0, errors: [] };
     }
-
-    const assignments = selectedCourses && selectedCourses.length > 0
-      ? await fetchCanvasAssignmentsForCourses(creds.canvas_token, creds.canvas_base_url, selectedCourses)
-      : await fetchAllCanvasAssignments(creds.canvas_token, creds.canvas_base_url);
     // Apply canonical course names so cross-platform duplicates merge
     const merged = assignments.map((a) => ({
       ...a,
@@ -245,33 +257,41 @@ async function syncAdditionalCanvas(
   timezone: string,
   courseNameMap: Map<string, string> = new Map()
 ): Promise<SyncSourceResult> {
-  if (!account.token) {
+  if (!account.token && !account.ical_url) {
     return { synced: 0, errors: [] };
   }
 
-  // Defense-in-depth: validate URL before making any outbound request
-  if (!isAllowedCanvasUrl(account.base_url)) {
-    logger.warn("syncAdditionalCanvas: rejected disallowed base_url", {
-      userId,
-      accountId: account.id,
-      baseUrl: account.base_url,
-    });
-    return { synced: 0, errors: [`${account.label}: URL not allowed (${account.base_url})`] };
-  }
-
   try {
-    const selectedCourses = account.selected_courses;
+    let assignments: NormalizedAssignment[];
 
-    // null = no selection made yet (first time), sync all courses
-    // [] = user explicitly deselected all courses, sync nothing
-    if (Array.isArray(selectedCourses) && selectedCourses.length === 0) {
-      logger.info("syncAdditionalCanvas skipped: no courses selected", { userId, accountId: account.id });
+    if (account.ical_url) {
+      // iCal feed path
+      assignments = await fetchCanvasICalAssignments(account.ical_url);
+    } else if (account.token) {
+      // Defense-in-depth: validate URL before making any outbound request
+      if (!isAllowedCanvasUrl(account.base_url)) {
+        logger.warn("syncAdditionalCanvas: rejected disallowed base_url", {
+          userId,
+          accountId: account.id,
+          baseUrl: account.base_url,
+        });
+        return { synced: 0, errors: [`${account.label}: URL not allowed (${account.base_url})`] };
+      }
+
+      const selectedCourses = account.selected_courses;
+
+      // [] = user explicitly deselected all courses, sync nothing
+      if (Array.isArray(selectedCourses) && selectedCourses.length === 0) {
+        logger.info("syncAdditionalCanvas skipped: no courses selected", { userId, accountId: account.id });
+        return { synced: 0, errors: [] };
+      }
+
+      assignments = selectedCourses && selectedCourses.length > 0
+        ? await fetchCanvasAssignmentsForCourses(account.token, account.base_url, selectedCourses)
+        : await fetchAllCanvasAssignments(account.token, account.base_url);
+    } else {
       return { synced: 0, errors: [] };
     }
-
-    const assignments = selectedCourses && selectedCourses.length > 0
-      ? await fetchCanvasAssignmentsForCourses(account.token, account.base_url, selectedCourses)
-      : await fetchAllCanvasAssignments(account.token, account.base_url);
 
     // Namespace external_id to prevent collisions with primary bCourses
     // and apply canonical course names for cross-platform merging

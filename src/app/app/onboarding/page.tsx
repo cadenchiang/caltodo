@@ -183,9 +183,10 @@ export default function OnboardingPage() {
    * Handles Canvas step completion with token and selected courses.
    */
   async function handleCanvasNext(payload: {
-    canvas_token: string;
-    canvas_base_url: string;
-    selected_canvas_courses: Array<{ id: number; name: string }>;
+    canvas_token?: string;
+    canvas_base_url?: string;
+    canvas_ical_url?: string;
+    selected_canvas_courses?: Array<{ id: number; name: string }>;
   }): Promise<boolean> {
     const ok = await saveCredentials(payload);
     if (!ok) return false;
@@ -249,8 +250,9 @@ export default function OnboardingPage() {
   async function handleAddCanvasNext(payload: {
     label: string;
     base_url: string;
-    token: string;
-    selected_courses: Array<{ id: number; name: string }>;
+    token?: string;
+    ical_url?: string;
+    selected_courses?: Array<{ id: number; name: string }>;
   }): Promise<boolean> {
     setSaving(true);
     setError(null);
@@ -264,9 +266,10 @@ export default function OnboardingPage() {
         id: `canvas-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         label: payload.label,
         base_url: payload.base_url,
-        token: payload.token,
+        token: payload.token ?? "",
         token_created_at: new Date().toISOString(),
-        selected_courses: payload.selected_courses,
+        selected_courses: payload.selected_courses ?? null,
+        ical_url: payload.ical_url,
       };
 
       const updatedAccounts = [...(current.additional_canvas_accounts ?? []), newAccount];
@@ -311,9 +314,10 @@ export default function OnboardingPage() {
    * Standalone Canvas handler: saves credentials, then redirects to Settings.
    */
   async function handleStandaloneCanvasNext(payload: {
-    canvas_token: string;
-    canvas_base_url: string;
-    selected_canvas_courses: Array<{ id: number; name: string }>;
+    canvas_token?: string;
+    canvas_base_url?: string;
+    canvas_ical_url?: string;
+    selected_canvas_courses?: Array<{ id: number; name: string }>;
   }): Promise<boolean> {
     const ok = await saveCredentials(payload);
     if (!ok) return false;

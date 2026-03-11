@@ -108,6 +108,8 @@ export interface AdditionalCanvasAccount {
   token: string;
   token_created_at: string;
   selected_courses: Array<{ id: number; name: string }> | null;
+  /** iCal calendar feed URL (alternative to API token). */
+  ical_url?: string;
 }
 
 /**
@@ -117,6 +119,8 @@ export interface AdditionalCanvasAccount {
 export interface IntegrationCredentials {
   canvas_token: string | null;
   canvas_base_url: string;
+  /** Canvas iCal calendar feed URL (alternative to API token). */
+  canvas_ical_url: string | null;
   /** Whether the Canvas token has exceeded its 120-day lifetime. */
   canvas_token_expired: boolean;
   gradescope_email: string | null;
@@ -156,6 +160,7 @@ export interface IntegrationCredentials {
 export interface CredentialsSavePayload {
   canvas_token?: string | null;
   canvas_base_url?: string;
+  canvas_ical_url?: string | null;
   gradescope_email?: string | null;
   gradescope_password?: string | null;
   selected_canvas_courses?: Array<{ id: number; name: string }> | null;

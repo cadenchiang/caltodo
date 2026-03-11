@@ -5,11 +5,8 @@ import { Eye, EyeOff, Loader2, Play, X } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 
 /**
- * Instruction steps for generating a bCourses access token.
+ * Instruction steps for generating a bCourses access token (advanced mode).
  * Each step maps to a timestamp in the instruction video.
- *
- * @property label - Step description shown to the user
- * @property time - Video timestamp in seconds for this step
  */
 const TOKEN_STEPS: Array<{ label: string; time: number }> = [
   { label: "open bCourses settings", time: 0 },
@@ -27,20 +24,19 @@ interface CanvasCourse {
 
 interface CanvasStepProps {
   onNext: (payload: {
-    canvas_token: string;
-    canvas_base_url: string;
-    selected_canvas_courses: Array<{ id: number; name: string }>;
+    canvas_token?: string;
+    canvas_base_url?: string;
+    canvas_ical_url?: string;
+    selected_canvas_courses?: Array<{ id: number; name: string }>;
   }) => Promise<boolean>;
   onSkip: () => void;
   saving: boolean;
   error: string | null;
   setError: (error: string | null) => void;
-  /** Persisted draft state from a previous visit to this step. */
   initialToken?: string;
   initialBaseUrl?: string;
   initialCourses?: CanvasCourse[] | null;
   initialSelectedIds?: number[];
-  /** Called on unmount to persist draft state across step navigation. */
   onDraftChange?: (draft: { token: string; baseUrl: string; courses: CanvasCourse[] | null; selectedIds: number[] }) => void;
 }
 
@@ -48,7 +44,7 @@ interface CanvasStepProps {
  * Formats a timestamp in seconds to "M:SS" display format.
  *
  * @param seconds - Time in seconds
- * @returns Formatted string like "0:00", "0:15", "1:00"
+ * @returns Formatted string like "0:00", "0:15"
  */
 function formatTimestamp(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -57,20 +53,18 @@ function formatTimestamp(seconds: number): string {
 }
 
 /**
- * Canvas onboarding step with theme-aware styling.
- * Displays numbered instruction steps that transition to a side-by-side
- * layout with video timestamps when the tutorial video is expanded.
- *
- * Flow: enter token -> verify -> select courses -> save.
- *
- * @param onNext - Async callback to save credentials; returns true on success
- * @param onSkip - Callback to skip this step
- * @param saving - Whether a save operation is in progress
- * @param error - Current error message to display
- * @param setError - Callback to set/clear error messages
+ * Canvas onboarding step.
+ * Default: paste calendar feed URL (simple).
+ * Advanced: API token flow with course selection (for power users).
  */
 export default function CanvasStep({ onNext, onSkip, saving, error, setError, initialToken, initialBaseUrl, initialCourses, initialSelectedIds, onDraftChange }: CanvasStepProps) {
   const { showToast } = useToast();
+  const [mode, setMode] = useState<"ical" | "api">("ical");
+
+  // iCal state
+  const [icalUrl, setIcalUrl] = useState("");
+
+  // API token state (advanced)
   const [canvasToken, setCanvasToken] = useState(initialToken ?? "");
   const [canvasBaseUrl, setCanvasBaseUrl] = useState(initialBaseUrl ?? "https://bcourses.berkeley.edu");
   const [showToken, setShowToken] = useState(false);
@@ -87,13 +81,12 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
   useEffect(() => {
     draftRef.current = { token: canvasToken, baseUrl: canvasBaseUrl, courses, selectedIds: Array.from(selectedIds) };
   });
-  /** Reports draft state to parent on unmount so it persists across step navigation. */
   useEffect(() => {
     return () => { onDraftChange?.(draftRef.current); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /** Updates current playback time for step highlighting. Ends video at 28s. */
+  /** Updates current playback time for step highlighting. */
   const handleTimeUpdate = useCallback(() => {
     if (!videoRef.current) return;
     const v = videoRef.current;
@@ -108,8 +101,6 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
 
   /**
    * Determines which step is currently active based on video playback time.
-   *
-   * @returns Index of the active step, or -1 if video is not playing
    */
   function getActiveStepIndex(): number {
     if (!videoExpanded) return -1;
@@ -120,16 +111,35 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
   }
 
   /**
-   * Verifies the token by fetching courses from Canvas.
-   * On success, shows course list with all courses pre-checked.
+   * Saves the iCal feed URL and advances to next step.
    */
-  async function handleVerify() {
-    if (!canvasToken.trim()) {
-      showToast("Please enter your bCourses access token.");
+  async function handleICalSave() {
+    const url = icalUrl.trim();
+    if (!url) {
+      showToast("please paste your calendar feed URL.");
       return;
     }
 
-    // Client-side URL validation
+    // Basic validation
+    if (!url.startsWith("https://") || !url.endsWith(".ics")) {
+      setError("that doesn't look like a calendar feed URL. it should start with https:// and end with .ics");
+      return;
+    }
+
+    setError(null);
+    const ok = await onNext({ canvas_ical_url: url });
+    if (!ok) return;
+  }
+
+  /**
+   * Verifies the API token by fetching courses from Canvas.
+   */
+  async function handleVerify() {
+    if (!canvasToken.trim()) {
+      showToast("please enter your bCourses access token.");
+      return;
+    }
+
     const trimmedUrl = canvasBaseUrl.trim();
     if (!trimmedUrl.startsWith("https://")) {
       setError("Canvas URL must start with https://");
@@ -156,18 +166,13 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
       });
       const res = await fetch(`/api/canvas/courses?${params}`);
       if (!res.ok) {
-        if (res.status === 401) {
-          throw new Error("Invalid access token.");
-        }
-        if (res.status >= 500 && res.status < 600) {
-          throw new Error("Server error. Please try again later.");
-        }
+        if (res.status === 401) throw new Error("Invalid access token.");
+        if (res.status >= 500) throw new Error("Server error. Please try again later.");
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error || `Verification failed: ${res.status}`);
       }
       const data = await res.json();
-      const fetchedCourses: CanvasCourse[] = data.courses;
-      setCourses(fetchedCourses);
+      setCourses(data.courses);
       setSelectedIds(new Set());
     } catch (err) {
       if (err instanceof TypeError) {
@@ -186,17 +191,13 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
   function toggleCourse(id: number) {
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
+      next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
   }
 
   /**
-   * Saves credentials and selected courses, then advances to next step.
+   * Saves API credentials and selected courses.
    */
   async function handleSaveAndNext() {
     if (!courses) return;
@@ -221,8 +222,73 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
         <h2 className="text-lg font-bold text-foreground animate-drop-in">bCourses</h2>
       </div>
 
-      {!courses && (
+      {/* ===== iCal mode (default) ===== */}
+      {mode === "ical" && (
         <>
+          <div className="flex flex-col gap-1 mb-4 text-left animate-drop-in delay-100">
+            <div className="flex items-center gap-3 px-2 py-2">
+              <span className="w-7 h-7 rounded-full bg-foreground text-background flex items-center justify-center text-xs font-bold shrink-0">1</span>
+              <span className="text-sm font-medium text-foreground">
+                go to your{" "}
+                <a
+                  href="https://bcourses.berkeley.edu/calendar#view_name=month"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-500 underline"
+                >
+                  bCourses calendar
+                </a>
+              </span>
+            </div>
+            <div className="flex items-center gap-3 px-2 py-2">
+              <span className="w-7 h-7 rounded-full bg-foreground text-background flex items-center justify-center text-xs font-bold shrink-0">2</span>
+              <span className="text-sm font-medium text-foreground">click &quot;Calendar Feed&quot; at the bottom right</span>
+            </div>
+            <div className="flex items-center gap-3 px-2 py-2">
+              <span className="w-7 h-7 rounded-full bg-foreground text-background flex items-center justify-center text-xs font-bold shrink-0">3</span>
+              <span className="text-sm font-medium text-foreground">copy the feed URL and paste it below</span>
+            </div>
+          </div>
+
+          <div className="mb-5 animate-drop-in delay-200">
+            <input
+              type="url"
+              value={icalUrl}
+              onChange={(e) => setIcalUrl(e.target.value)}
+              placeholder="paste calendar feed URL"
+              autoComplete="off"
+              className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-foreground/50 transition-colors"
+            />
+          </div>
+
+          <div className="animate-drop-in delay-300">
+            <button
+              onClick={handleICalSave}
+              disabled={saving}
+              className="w-full px-4 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2 btn-elevated-primary"
+            >
+              {saving ? "saving..." : "connect"}
+            </button>
+          </div>
+
+          {/* Subtle advanced toggle */}
+          <button
+            type="button"
+            onClick={() => { setMode("api"); setError(null); }}
+            className="mt-4 text-[11px] text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+          >
+            use API key instead (advanced, more setup required)
+          </button>
+        </>
+      )}
+
+      {/* ===== API token mode (advanced) ===== */}
+      {mode === "api" && !courses && (
+        <>
+          <p className="text-xs text-muted-foreground mb-4 animate-drop-in">
+            this method requires generating an API token and has more setup steps.
+          </p>
+
           {/* Steps + video section */}
           <div className="animate-drop-in delay-100">
             {/* Expanded: side-by-side steps + video */}
@@ -236,7 +302,6 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
             >
               <div className="min-h-0 overflow-hidden">
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-8 mb-4">
-                  {/* Steps — stacked above on mobile, sidebar on desktop */}
                   <div className="sm:w-56 shrink-0 flex flex-col gap-1.5">
                     {TOKEN_STEPS.map((step, i) => {
                       const isActive = activeStep === i;
@@ -261,9 +326,7 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
                           </span>
                           <span
                             className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-                              isActive
-                                ? "bg-blue-500 text-white"
-                                : "bg-foreground text-background"
+                              isActive ? "bg-blue-500 text-white" : "bg-foreground text-background"
                             }`}
                           >
                             {i + 1}
@@ -272,12 +335,7 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
                             {i === 0 ? (
                               <>
                                 open{" "}
-                                <a
-                                  href="https://bcourses.berkeley.edu/profile/settings"
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-blue-500 underline"
-                                >
+                                <a href="https://bcourses.berkeley.edu/profile/settings" target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">
                                   bCourses settings
                                 </a>
                               </>
@@ -289,29 +347,15 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
                       );
                     })}
                   </div>
-
-                  {/* Video on the right */}
                   <div className="flex-1 min-w-0">
                     <div className="rounded-xl overflow-hidden shadow-lg">
-                      <video
-                        ref={videoRef}
-                        src="/bcourses-instructions.mp4"
-                        muted
-                        playsInline
-                        controls
-                        onTimeUpdate={handleTimeUpdate}
-                        className="w-full"
-                      />
+                      <video ref={videoRef} src="/bcourses-instructions.mp4" muted playsInline controls onTimeUpdate={handleTimeUpdate} className="w-full" />
                     </div>
                   </div>
                 </div>
-
                 <button
                   type="button"
-                  onClick={() => {
-                    setVideoExpanded(false);
-                    videoRef.current?.pause();
-                  }}
+                  onClick={() => { setVideoExpanded(false); videoRef.current?.pause(); }}
                   className="text-sm text-muted-foreground hover:text-foreground transition-colors mb-4 flex items-center gap-1 mx-auto"
                 >
                   <X size={14} />
@@ -320,7 +364,7 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
               </div>
             </div>
 
-            {/* Collapsed: big vertical numbered steps */}
+            {/* Collapsed: numbered steps */}
             <div
               className="grid overflow-hidden transition-[grid-template-rows,opacity] duration-500"
               style={{
@@ -341,12 +385,7 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
                           {i === 0 ? (
                             <>
                               Open{" "}
-                              <a
-                                href="https://bcourses.berkeley.edu/profile/settings"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-blue-500 underline"
-                              >
+                              <a href="https://bcourses.berkeley.edu/profile/settings" target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">
                                 bCourses Settings
                               </a>
                             </>
@@ -375,7 +414,6 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
                   ))}
                 </div>
 
-                {/* Watch video button */}
                 <button
                   type="button"
                   onClick={() => {
@@ -428,11 +466,20 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
               {verifying ? "verifying..." : "connect"}
             </button>
           </div>
+
+          {/* Back to simple mode */}
+          <button
+            type="button"
+            onClick={() => { setMode("ical"); setError(null); }}
+            className="mt-4 text-[11px] text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+          >
+            use calendar feed instead (easier)
+          </button>
         </>
       )}
 
-      {/* Course selection */}
-      {courses && (
+      {/* ===== Course selection (API mode only) ===== */}
+      {mode === "api" && courses && (
         <>
           <div className="mb-4">
             <div className="flex items-center justify-between mb-2">
