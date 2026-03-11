@@ -1,4 +1,4 @@
-import { RefreshCw, MessageCircle, Calendar, Link2, LayoutGrid } from "lucide-react";
+import { RefreshCw, StickyNote, Calendar, Link2, LayoutGrid } from "lucide-react";
 import { cn } from "@/lib/utils";
 import FadeIn from "@/components/landing/FadeIn";
 
@@ -14,11 +14,10 @@ const FEATURES = [
     className: "md:col-span-2",
   },
   {
-    icon: MessageCircle,
-    title: "Class Chat",
-    description: "Chat with classmates in real time, organized by course.",
+    icon: StickyNote,
+    title: "Notes",
+    description: "Jot down quick notes for any assignment or class.",
     className: "md:col-span-1",
-    badge: "NEW" as string | undefined,
   },
   {
     icon: Calendar,

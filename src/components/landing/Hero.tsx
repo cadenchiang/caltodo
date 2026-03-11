@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { RefreshCw, CalendarDays, LayoutGrid } from "lucide-react";
 import GoogleOneTap from "@/components/auth/GoogleOneTap";
@@ -22,6 +22,14 @@ interface HeroProps {
  */
 export default function Hero({ loggedIn }: HeroProps) {
   const [showSpotsModal, setShowSpotsModal] = useState(false);
+  const [userCount, setUserCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetch("/api/stats")
+      .then((res) => res.json())
+      .then((data) => setUserCount(data.count ?? null))
+      .catch(() => {});
+  }, []);
 
   const mockupRef = useRef<HTMLDivElement>(null);
 
@@ -35,7 +43,7 @@ export default function Hero({ loggedIn }: HeroProps) {
         onClick={() => setShowSpotsModal(true)}
         className="w-full bg-[#F5F5F7] text-[#1D1D1F] text-center text-xs py-1.5 tracking-wide hover:bg-[#E8E8ED] transition-colors cursor-pointer relative flex items-center justify-center"
       >
-        <span>exclusively for students</span>
+        <span>{userCount ? `trusted by ${userCount}+ students` : "exclusively for students"}</span>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-1.5 opacity-60">
           <path d="M7 17L17 7" />
           <path d="M7 7h10v10" />
@@ -199,7 +207,7 @@ export default function Hero({ loggedIn }: HeroProps) {
           {/* Three-step how it works */}
           <div className="w-full max-w-5xl mb-16 sm:mb-24 flex flex-col gap-8 sm:gap-10">
             {([
-              { step: "1", title: "Sync your classes", desc: "Connect bCourses, Gradescope, Pensive, and Google Calendar in one click.", img: "/step-sync.png", icon: RefreshCw },
+              { step: "1", title: "Sync your classes", desc: "Upload your assignments from all your platforms: bCourses, Gradescope, Pensive, and Google Calendar.", img: "/step-sync.png", icon: RefreshCw },
               { step: "2", title: "Manage your assignments", desc: "See every deadline on a single calendar — no more switching between tabs.", img: "/step-calendar.png", icon: CalendarDays },
               { step: "3", title: "Personalize your board", desc: "Build your perfect dashboard in under 5 minutes with drag-and-drop widgets and themes.", img: "/step-personalize.png", icon: LayoutGrid },
             ] as const).map((item, i) => {
@@ -268,46 +276,45 @@ export default function Hero({ loggedIn }: HeroProps) {
         onClick={() => setShowSpotsModal(false)}
       >
         <div
-          className={`bg-white rounded-3xl max-w-sm w-full mx-6 overflow-hidden shadow-2xl transition-all duration-300 ease-out relative ${
+          className={`bg-white rounded-2xl max-w-md w-full mx-4 p-8 shadow-2xl transition-all duration-300 ease-out ${
             showSpotsModal ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-95 translate-y-4"
           }`}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Close button */}
-          <button
-            onClick={() => setShowSpotsModal(false)}
-            className="absolute top-4 right-4 p-1.5 rounded-full bg-black/5 text-black/40 hover:bg-black/10 hover:text-black transition-all z-10"
-            aria-label="Close"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M18 6L6 18" />
-              <path d="M6 6l12 12" />
-            </svg>
-          </button>
+          {/* Progress bar */}
+          <div className="flex items-center justify-center gap-2 mb-8">
+            <div className="h-1 w-16 rounded-full bg-black" />
+          </div>
 
-          <div className="px-6 pt-6 pb-5 sm:px-8 sm:pt-8 sm:pb-6">
-                <p className="text-[11px] sm:text-xs font-medium text-black/40 uppercase tracking-wider mb-3">From the founder</p>
-                <blockquote className="text-sm sm:text-base text-black/70 leading-relaxed" style={{ fontFamily: '-apple-system, "SF Pro Display", BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' }}>
-                  &ldquo;I was constantly switching between bCourses, Gradescope, Pensive, and Google Calendar just to keep track of deadlines. I&apos;d miss assignments not because I didn&apos;t do the work, but because I forgot they existed.&rdquo;
-                </blockquote>
-                <div className="flex items-center gap-2.5 mt-4">
-                  <div className="w-7 h-7 rounded-full bg-black/10 flex items-center justify-center text-[11px] font-semibold text-black/50">C</div>
-                  <div>
-                    <p className="text-xs font-medium text-black/70">Caden</p>
-                    <p className="text-[10px] text-black/35">founder, caltodo</p>
-                  </div>
-                </div>
-              </div>
+          {/* Title */}
+          <h3 className="text-xl font-semibold text-black mb-2">
+            from the founder
+          </h3>
 
-              <div className="px-6 pb-6 sm:px-8 sm:pb-8">
-                <Link
-                  href="/login?signup=true"
-                  className="block w-full text-center px-5 py-2.5 sm:py-3 text-xs sm:text-sm font-medium rounded-xl bg-black text-white hover:bg-black/85 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
-                  onClick={() => setShowSpotsModal(false)}
-                >
-                  Get caltodo free
-                </Link>
-              </div>
+          {/* Quote */}
+          <p className="text-sm text-black/50 leading-relaxed mb-6">
+            &ldquo;I was constantly switching between bCourses, Gradescope, Pensive, and Google Calendar just to keep track of deadlines. I&apos;d miss assignments not because I didn&apos;t do the work, but because I forgot they existed.&rdquo;
+          </p>
+
+          {/* Author */}
+          <div className="flex items-center gap-2.5 mb-8">
+            <div className="w-7 h-7 rounded-full bg-black/10 flex items-center justify-center text-[11px] font-semibold text-black/50">C</div>
+            <div>
+              <p className="text-sm font-medium text-black/70">Caden</p>
+              <p className="text-xs text-black/35">founder, caltodo</p>
+            </div>
+          </div>
+
+          {/* CTA */}
+          <div className="flex justify-end">
+            <Link
+              href="/login?signup=true"
+              className="px-8 py-2.5 bg-black text-white rounded-full text-sm font-medium hover:opacity-90 transition-opacity active:scale-95"
+              onClick={() => setShowSpotsModal(false)}
+            >
+              get caltodo free &rarr;
+            </Link>
+          </div>
         </div>
       </div>
     </div>
