@@ -11,12 +11,12 @@ import { ToastProvider } from "@/contexts/ToastContext";
 export const metadata: Metadata = {
   title: "Log In - caltodo",
   description:
-    "log in to caltodo — the free assignment management platform for berkeley students. sync bcourses and gradescope deadlines in one place.",
+    "log in to caltodo. sync your classes, upload your syllabus, and manage every deadline in one place.",
   alternates: { canonical: "/login" },
   openGraph: {
     title: "Log In - caltodo",
     description:
-      "log in to caltodo — the free assignment management platform for berkeley students.",
+      "log in to caltodo. sync your classes and manage every deadline in one place.",
     url: "https://caltodo.me/login",
     images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "caltodo — your assignments, synced and organized" }],
   },

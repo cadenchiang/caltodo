@@ -12,28 +12,28 @@ const jsonLd = {
     {
       "@type": "Organization",
       "@id": "https://caltodo.me/#organization",
-      name: "CalTodo",
+      name: "caltodo",
       url: "https://caltodo.me",
       logo: "https://caltodo.me/logo.png",
       description:
-        "caltodo syncs your bcourses, gradescope, and pensive assignments into one dashboard. free assignment management platform for berkeley students.",
+        "sync your classes, upload your syllabus, and manage every deadline in one place. free for students.",
     },
     {
       "@type": "WebSite",
       "@id": "https://caltodo.me/#website",
       url: "https://caltodo.me",
-      name: "CalTodo",
+      name: "caltodo",
       publisher: { "@id": "https://caltodo.me/#organization" },
     },
     {
       "@type": "SoftwareApplication",
-      name: "CalTodo",
+      name: "caltodo",
       url: "https://caltodo.me",
       applicationCategory: "EducationalApplication",
       operatingSystem: "Web",
       offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
       description:
-        "free assignment management platform for berkeley students. syncs bcourses, gradescope, and pensive deadlines into one dashboard with google calendar integration.",
+        "sync your classes, upload your syllabus, and manage every deadline in one place. free for students.",
     },
   ],
 };

@@ -31,6 +31,11 @@ export default function Hero({ loggedIn }: HeroProps) {
       .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    document.body.style.overflow = showSpotsModal ? "hidden" : "";
+    return () => { document.body.style.overflow = ""; };
+  }, [showSpotsModal]);
+
   const mockupRef = useRef<HTMLDivElement>(null);
 
   return (
@@ -43,7 +48,7 @@ export default function Hero({ loggedIn }: HeroProps) {
         onClick={() => setShowSpotsModal(true)}
         className="w-full bg-[#F5F5F7] text-[#1D1D1F] text-center text-xs py-1.5 tracking-wide hover:bg-[#E8E8ED] transition-colors cursor-pointer relative flex items-center justify-center"
       >
-        <span>{userCount ? `trusted by ${userCount}+ students` : "exclusively for students"}</span>
+        <span>{userCount ? `trusted by ${userCount}+ other students` : "exclusively for students"}</span>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-1.5 opacity-60">
           <path d="M7 17L17 7" />
           <path d="M7 7h10v10" />
@@ -207,7 +212,7 @@ export default function Hero({ loggedIn }: HeroProps) {
           {/* Three-step how it works */}
           <div className="w-full max-w-5xl mb-16 sm:mb-24 flex flex-col gap-8 sm:gap-10">
             {([
-              { step: "1", title: "Sync your classes", desc: "Upload your assignments from all your platforms: bCourses, Gradescope, Pensive, and Google Calendar.", img: "/step-sync.png", icon: RefreshCw },
+              { step: "1", title: "Sync your classes", desc: "Upload your syllabus or sync your assignments from your other platforms.", img: "/step-sync.png", icon: RefreshCw },
               { step: "2", title: "Manage your assignments", desc: "See every deadline on a single calendar — no more switching between tabs.", img: "/step-calendar.png", icon: CalendarDays },
               { step: "3", title: "Personalize your board", desc: "Build your perfect dashboard in under 5 minutes with drag-and-drop widgets and themes.", img: "/step-personalize.png", icon: LayoutGrid },
             ] as const).map((item, i) => {
@@ -276,43 +281,48 @@ export default function Hero({ loggedIn }: HeroProps) {
         onClick={() => setShowSpotsModal(false)}
       >
         <div
-          className={`bg-white rounded-2xl max-w-md w-full mx-4 p-8 shadow-2xl transition-all duration-300 ease-out ${
+          className={`relative bg-white rounded-2xl max-w-md w-full mx-4 px-10 py-12 shadow-2xl transition-all duration-300 ease-out ${
             showSpotsModal ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-95 translate-y-4"
           }`}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Progress bar */}
-          <div className="flex items-center justify-center gap-2 mb-8">
-            <div className="h-1 w-16 rounded-full bg-black" />
+          {/* Close button */}
+          <button
+            onClick={() => setShowSpotsModal(false)}
+            className="absolute top-4 right-4 p-1.5 rounded-full bg-black/5 text-black/40 hover:bg-black/10 hover:text-black transition-all"
+            aria-label="Close"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 6L6 18" />
+              <path d="M6 6l12 12" />
+            </svg>
+          </button>
+
+          {/* Logo */}
+          <img src="/logo.png" alt="caltodo" className="h-12 mb-10" />
+
+          {/* Letter */}
+          <div className="space-y-4 text-[15px] leading-relaxed text-black/90 mb-8">
+            <p>deadlines shouldn&apos;t be something you have to hunt for.</p>
+            <p>i kept losing assignments across too many tabs and platforms, so i made something to fix that.</p>
+            <p className="font-medium text-black">one place for everything due. that&apos;s it.</p>
           </div>
 
-          {/* Title */}
-          <h3 className="text-xl font-semibold text-black mb-2">
-            from the founder
-          </h3>
-
-          {/* Quote */}
-          <p className="text-sm text-black/50 leading-relaxed mb-6">
-            &ldquo;I was constantly switching between bCourses, Gradescope, Pensive, and Google Calendar just to keep track of deadlines. I&apos;d miss assignments not because I didn&apos;t do the work, but because I forgot they existed.&rdquo;
-          </p>
-
-          {/* Author */}
-          <div className="flex items-center gap-2.5 mb-8">
-            <div className="w-7 h-7 rounded-full bg-black/10 flex items-center justify-center text-[11px] font-semibold text-black/50">C</div>
-            <div>
-              <p className="text-sm font-medium text-black/70">Caden</p>
-              <p className="text-xs text-black/35">founder, caltodo</p>
-            </div>
+          {/* Sign-off */}
+          <div className="mb-10">
+            <p className="text-sm text-black/90">cheers,</p>
+            <p className="text-sm font-semibold text-black underline underline-offset-2">caden</p>
+            <p className="text-xs text-black/90 mt-0.5">founder, caltodo</p>
           </div>
 
           {/* CTA */}
           <div className="flex justify-end">
             <Link
               href="/login?signup=true"
-              className="px-8 py-2.5 bg-black text-white rounded-full text-sm font-medium hover:opacity-90 transition-opacity active:scale-95"
+              className="inline-flex items-center gap-1.5 px-6 py-2.5 bg-[#0071E3] text-white rounded-full text-sm font-medium hover:scale-[1.05] active:scale-[0.97] transition-transform duration-200"
               onClick={() => setShowSpotsModal(false)}
             >
-              get caltodo free &rarr;
+              try it free &rarr;
             </Link>
           </div>
         </div>

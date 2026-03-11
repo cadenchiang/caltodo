@@ -26,19 +26,19 @@ const instrumentSerif = Instrument_Serif({
 
 export const metadata: Metadata = {
   title: {
-    default: "CalTodo",
-    template: "%s | CalTodo",
+    default: "caltodo",
+    template: "%s | caltodo",
   },
-  description: "caltodo syncs your bcourses, gradescope, and pensive assignments into one dashboard. free assignment management platform built for berkeley students — never miss a deadline again.",
-  keywords: ["caltodo", "cal todo", "berkeley", "assignment management", "bcourses", "gradescope", "pensive", "deadline tracker", "student planner"],
+  description: "sync your classes, upload your syllabus, and manage every deadline in one place. free for students.",
+  keywords: ["caltodo", "cal todo", "assignment management", "deadline tracker", "student planner", "syllabus upload", "class sync"],
   metadataBase: new URL("https://caltodo.me"),
   alternates: { canonical: "/" },
-  applicationName: "CalTodo",
+  applicationName: "caltodo",
   openGraph: {
-    title: "caltodo — assignment management platform for berkeley students",
-    description: "sync bcourses, gradescope, and pensive assignments into one dashboard. free for berkeley students.",
+    title: "caltodo",
+    description: "sync your classes, upload your syllabus, and manage every deadline in one place. free for students.",
     url: "https://caltodo.me",
-    siteName: "CalTodo",
+    siteName: "caltodo",
     type: "website",
     locale: "en_US",
     images: [
@@ -46,14 +46,14 @@ export const metadata: Metadata = {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "caltodo — assignment management platform for berkeley students",
+        alt: "caltodo — manage every deadline in one place",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "caltodo — assignment management platform for berkeley students",
-    description: "sync bcourses, gradescope, and pensive into one dashboard. free for berkeley students.",
+    title: "caltodo",
+    description: "sync your classes, upload your syllabus, and manage every deadline in one place. free for students.",
     images: ["/og-image.png"],
   },
   icons: {

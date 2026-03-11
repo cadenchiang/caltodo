@@ -18,6 +18,7 @@ const FEATURES = [
     title: "Notes",
     description: "Jot down quick notes for any assignment or class.",
     className: "md:col-span-1",
+    badge: "NEW" as string | undefined,
   },
   {
     icon: Calendar,
