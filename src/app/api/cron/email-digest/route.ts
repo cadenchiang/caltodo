@@ -50,12 +50,12 @@ export async function GET(request: NextRequest) {
 
   const prefsMap = new Map((prefs ?? []).map((r) => [r.user_id, r]));
 
-  // Filter to users whose preferred hour matches now (default 15 UTC = 7 AM PST)
+  // Filter to users whose preferred hour matches now (default 14 UTC = 7 AM PDT)
   const users = authData.users.filter((u) => {
     if (!u.email) return false;
     const pref = prefsMap.get(u.id);
     if (pref?.email_digest_enabled === false) return false;
-    const preferredHour = pref?.email_digest_hour ?? 15;
+    const preferredHour = pref?.email_digest_hour ?? 14;
     return preferredHour === currentHourUtc;
   });
   let sent = 0;

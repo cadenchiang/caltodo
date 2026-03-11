@@ -5,14 +5,6 @@ import { Loader2 } from "lucide-react";
 import { useCredentials } from "@/components/settings/IntegrationSettings";
 import { useToast } from "@/contexts/ToastContext";
 
-/** All 24 hour options: UTC value + PST display label. */
-const TIME_OPTIONS = Array.from({ length: 24 }, (_, i) => {
-  const hour12 = i % 12 || 12;
-  const ampm = i < 12 ? "AM" : "PM";
-  const utc = (i + 8) % 24;
-  return { utc, label: `${hour12}:00 ${ampm}` };
-});
-
 /**
  * Notifications settings section.
  * Toggle for daily email digest, with inline time and email editing.
@@ -23,8 +15,6 @@ export default function NotificationsSection() {
   const [saving, setSaving] = useState<string | null>(null);
 
   const digestEnabled = credentials?.email_digest_enabled ?? true;
-  const digestHour = credentials?.email_digest_hour ?? 15;
-  const digestAddress = credentials?.email_digest_address ?? "";
 
   /** Saves a partial credentials update. */
   async function save(field: string, payload: Record<string, unknown>, toast?: string) {
@@ -73,7 +63,7 @@ export default function NotificationsSection() {
           <div className="text-left">
             <p className="font-medium">Daily email digest</p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Receive a daily email with your upcoming assignments.
+              Receive a daily email at 7:00 AM with your upcoming assignments.
             </p>
           </div>
           <div
@@ -95,42 +85,6 @@ export default function NotificationsSection() {
           </div>
         </button>
 
-        {/* Time row */}
-        {digestEnabled && (
-          <div className="flex items-center justify-between gap-3 px-4 py-3 text-sm rounded-xl border border-border bg-card text-foreground">
-            <span>Send time</span>
-            <select
-              value={digestHour}
-              onChange={(e) => save("time", { email_digest_hour: Number(e.target.value) })}
-              disabled={saving === "time"}
-              className="bg-transparent text-sm text-foreground font-medium text-right cursor-pointer focus:outline-none disabled:opacity-60"
-            >
-              {TIME_OPTIONS.map((opt) => (
-                <option key={opt.utc} value={opt.utc}>{opt.label}</option>
-              ))}
-            </select>
-          </div>
-        )}
-
-        {/* Email row */}
-        {digestEnabled && (
-          <div className="flex items-center justify-between gap-3 px-4 py-3 text-sm rounded-xl border border-border bg-card text-foreground">
-            <span className="shrink-0">Send to</span>
-            <input
-              type="email"
-              defaultValue={digestAddress}
-              onBlur={(e) => {
-                const value = e.target.value.trim();
-                const current = credentials?.email_digest_address ?? "";
-                if (value !== current) {
-                  save("email", { email_digest_address: value || null });
-                }
-              }}
-              placeholder="Your account email"
-              className="bg-transparent text-sm text-foreground text-right w-full min-w-0 placeholder:text-muted-foreground focus:outline-none"
-            />
-          </div>
-        )}
       </div>
     </section>
   );
