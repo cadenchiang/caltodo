@@ -213,7 +213,7 @@ function buildDigestHtml(firstName: string, sections: DigestSections, appUrl: st
 
           <!-- CTA -->
           <a href="${appUrl}/app/inbox" style="display: block; text-align: center; background: #1a1a1a; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 10px; font-size: 14px; font-weight: 600; margin-top: 8px;">
-            Open CalTodo
+            View All Assignments
           </a>
         </div>
 

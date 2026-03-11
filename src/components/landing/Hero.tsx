@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
 import { RefreshCw, CalendarDays, LayoutGrid } from "lucide-react";
 import GoogleOneTap from "@/components/auth/GoogleOneTap";
@@ -21,18 +21,7 @@ interface HeroProps {
  * or profile picture + dashboard link for logged-in users.
  */
 export default function Hero({ loggedIn }: HeroProps) {
-  const [userCount, setUserCount] = useState<number | null>(null);
   const [showSpotsModal, setShowSpotsModal] = useState(false);
-
-  // Fetch user count for the spots counter
-  useEffect(() => {
-    fetch("/api/stats")
-      .then((res) => res.json())
-      .then((data) => setUserCount(data.count ?? 0))
-      .catch(() => setUserCount(0));
-  }, []);
-
-  const spotsRemaining = Math.max(0, 500 - (userCount ?? 326));
 
   const mockupRef = useRef<HTMLDivElement>(null);
 
@@ -46,14 +35,7 @@ export default function Hero({ loggedIn }: HeroProps) {
         onClick={() => setShowSpotsModal(true)}
         className="w-full bg-[#F5F5F7] text-[#1D1D1F] text-center text-xs py-1.5 tracking-wide hover:bg-[#E8E8ED] transition-colors cursor-pointer relative flex items-center justify-center"
       >
-        {spotsRemaining > 0 ? (
-          <>
-            <span className="hidden sm:inline">exclusively for students · {spotsRemaining} free lifetime spots remaining</span>
-            <span className="sm:hidden">{spotsRemaining} free lifetime spots left</span>
-          </>
-        ) : (
-          <span>exclusively for students</span>
-        )}
+        <span>exclusively for students</span>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-1.5 opacity-60">
           <path d="M7 17L17 7" />
           <path d="M7 7h10v10" />
@@ -303,43 +285,7 @@ export default function Hero({ loggedIn }: HeroProps) {
             </svg>
           </button>
 
-          {spotsRemaining > 0 ? (
-            <>
-              <div className="px-6 pt-6 pb-3 sm:px-8 sm:pt-8 sm:pb-4">
-                <h3 className="text-xl sm:text-2xl font-semibold text-black leading-tight tracking-tight" style={{ fontFamily: '-apple-system, "SF Pro Display", BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' }}>
-                  free for life. seriously.
-                </h3>
-                <p className="text-xs sm:text-sm text-black/40 leading-relaxed mt-2 sm:mt-3">
-                  the first 500 students get caltodo free forever. no credit card. no catches. just sign up.
-                </p>
-              </div>
-
-              <div className="px-6 pb-3 sm:px-8 sm:pb-4">
-                <div className="w-full h-1 rounded-full bg-black/5 overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-black/80"
-                    style={{ width: `${((userCount ?? 326) / 500) * 100}%` }}
-                  />
-                </div>
-                <div className="flex justify-between mt-1.5 sm:mt-2">
-                  <span className="text-[10px] sm:text-[11px] text-black/30">{userCount ?? 326} claimed</span>
-                  <span className="text-[10px] sm:text-[11px] text-black/30">500 total</span>
-                </div>
-              </div>
-
-              <div className="px-6 pb-6 sm:px-8 sm:pb-8">
-                <Link
-                  href="/login?signup=true"
-                  className="block w-full text-center px-5 py-2.5 sm:py-3 text-xs sm:text-sm font-medium rounded-xl bg-black text-white hover:bg-black/85 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
-                  onClick={() => setShowSpotsModal(false)}
-                >
-                  Get caltodo free
-                </Link>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="px-6 pt-6 pb-5 sm:px-8 sm:pt-8 sm:pb-6">
+          <div className="px-6 pt-6 pb-5 sm:px-8 sm:pt-8 sm:pb-6">
                 <p className="text-[11px] sm:text-xs font-medium text-black/40 uppercase tracking-wider mb-3">From the founder</p>
                 <blockquote className="text-sm sm:text-base text-black/70 leading-relaxed" style={{ fontFamily: '-apple-system, "SF Pro Display", BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' }}>
                   &ldquo;I was constantly switching between bCourses, Gradescope, Pensive, and Google Calendar just to keep track of deadlines. I&apos;d miss assignments not because I didn&apos;t do the work, but because I forgot they existed.&rdquo;
@@ -362,8 +308,6 @@ export default function Hero({ loggedIn }: HeroProps) {
                   Get caltodo free
                 </Link>
               </div>
-            </>
-          )}
         </div>
       </div>
     </div>
