@@ -29,7 +29,7 @@ export const metadata: Metadata = {
 export default function LoginPage() {
   return (
     <ToastProvider>
-      <div className="h-dvh overflow-hidden flex flex-col items-center justify-start pt-[30vh] px-4 bg-white force-light">
+      <div className="h-dvh overflow-hidden flex flex-col items-center justify-center px-4 bg-white force-light">
         <div className="w-full max-w-sm">
           <div className="flex justify-center mb-6">
             <img
