@@ -55,8 +55,8 @@ export async function middleware(request: NextRequest) {
     return redirectResponse;
   }
 
-  // Redirect authenticated users away from login page
-  if (user && pathname === "/login") {
+  // Redirect authenticated users away from landing/login to home
+  if (user && (pathname === "/" || pathname === "/login")) {
     const url = request.nextUrl.clone();
     url.pathname = "/app/home";
     const redirectResponse = NextResponse.redirect(url);
