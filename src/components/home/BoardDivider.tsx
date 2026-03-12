@@ -18,6 +18,7 @@ import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { X, Plus } from "lucide-react";
 import ColorPickerPanel from "@/components/ui/ColorPickerPanel";
+import { useTheme } from "@/contexts/ThemeContext";
 
 interface BoardDividerProps {
   color: string;
@@ -36,6 +37,7 @@ export default function BoardDivider({
   editMode,
   onChange,
 }: BoardDividerProps) {
+  const { colorTheme } = useTheme();
   const [modalOpen, setModalOpen] = useState(false);
   const [draftColor, setDraftColor] = useState(color);
   const [draftThickness, setDraftThickness] = useState(thickness);
@@ -55,7 +57,7 @@ export default function BoardDivider({
     setModalOpen(false);
   }
 
-  const displayColor = color || undefined;
+  const displayColor = colorTheme ? undefined : (color || undefined);
 
   // Hidden state: show add button on hover in edit mode
   if (!visible) {
@@ -172,23 +174,25 @@ export default function BoardDivider({
                 />
               </div>
 
-              {/* Color — uses shared ColorPickerPanel */}
-              <div className="px-4 pb-3">
-                <label className="text-xs font-medium text-muted-foreground mb-2 block">Color</label>
-                <ColorPickerPanel
-                  value={draftColor || "#888888"}
-                  onChange={setDraftColor}
-                />
-                {draftColor && (
-                  <button
-                    type="button"
-                    onClick={() => setDraftColor("")}
-                    className="text-[10px] text-muted-foreground hover:text-foreground transition-colors mt-2"
-                  >
-                    Reset to default
-                  </button>
-                )}
-              </div>
+              {/* Color — hidden when a color theme is active */}
+              {!colorTheme && (
+                <div className="px-4 pb-3">
+                  <label className="text-xs font-medium text-muted-foreground mb-2 block">Color</label>
+                  <ColorPickerPanel
+                    value={draftColor || "#888888"}
+                    onChange={setDraftColor}
+                  />
+                  {draftColor && (
+                    <button
+                      type="button"
+                      onClick={() => setDraftColor("")}
+                      className="text-[10px] text-muted-foreground hover:text-foreground transition-colors mt-2"
+                    >
+                      Reset to default
+                    </button>
+                  )}
+                </div>
+              )}
 
               {/* Thickness — slider + numeric display */}
               <div className="px-4 pb-3">

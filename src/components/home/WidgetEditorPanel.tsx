@@ -19,6 +19,7 @@ import { useDiscussionBoards } from "@/hooks/useDiscussionBoards";
 import FontPicker from "@/components/ui/FontPicker";
 import SegmentedControl from "@/components/ui/SegmentedControl";
 import ColorPickerPopover from "@/components/ui/ColorPickerPopover";
+import { useTheme } from "@/contexts/ThemeContext";
 import CalendarPicker from "@/components/home/CalendarPicker";
 import ClockFacePicker from "@/components/home/ClockFacePicker";
 import WeatherDisplayPicker from "@/components/home/WeatherDisplayPicker";
@@ -119,6 +120,7 @@ export default function WidgetEditorPanel({
   savedImages, onAddSavedImage,
 }: Props) {
   const { boards } = useDiscussionBoards();
+  const { colorTheme } = useTheme();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const [isClosing, setIsClosing] = useState(false);
@@ -208,8 +210,10 @@ export default function WidgetEditorPanel({
 
   function handleDone() {
     const init = initialConfigRef.current;
-    if (init.bgColor && !localConfig.bgColor && onApplyBgResetToAll) { setConfirmOverlay("bgReset"); return; }
-    if ((localConfig.textColor || "") !== (init.textColor || "") && onApplyTextColorToAll) { setConfirmOverlay("textColor"); return; }
+    if (!colorTheme) {
+      if (init.bgColor && !localConfig.bgColor && onApplyBgResetToAll) { setConfirmOverlay("bgReset"); return; }
+      if ((localConfig.textColor || "") !== (init.textColor || "") && onApplyTextColorToAll) { setConfirmOverlay("textColor"); return; }
+    }
     if ((localConfig.widgetBorder || "true") !== (init.widgetBorder || "true") && onApplyBorderToAll) { setConfirmOverlay("border"); return; }
     triggerClose();
   }
@@ -431,11 +435,14 @@ export default function WidgetEditorPanel({
           </button>
         </div>
         <div><label className="block text-sm font-medium text-foreground mb-1.5">Border</label><SegmentedControl options={[{ value: "true", label: "Show" }, { value: "false", label: "Hide" }]} value={localConfig.widgetBorder ?? "true"} onChange={(v) => updateField("widgetBorder", v)} /></div>
-        <div className="flex items-end justify-center gap-5">
-          <ColorPickerPopover label="Text" value={localConfig.textColor || ""} onChange={(v) => updateField("textColor", v)} layout="compact" defaultValue="var(--foreground)" />
-          <ColorPickerPopover label="Background" value={localConfig.bgColor || ""} onChange={(v) => updateField("bgColor", v)} layout="compact" />
-          <ColorPickerPopover label="Accent" value={localConfig.accentColor || ""} onChange={(v) => updateField("accentColor", v)} layout="compact" defaultValue={WIDGET_ACCENT_DEFAULTS[widget.type]} onApplyToAll={onApplyAccentToAll} />
-        </div>
+        {/* Color pickers — hidden when a color theme is active (theme controls colors) */}
+        {!colorTheme && (
+          <div className="flex items-end justify-center gap-5">
+            <ColorPickerPopover label="Text" value={localConfig.textColor || ""} onChange={(v) => updateField("textColor", v)} layout="compact" defaultValue="var(--foreground)" />
+            <ColorPickerPopover label="Background" value={localConfig.bgColor || ""} onChange={(v) => updateField("bgColor", v)} layout="compact" />
+            <ColorPickerPopover label="Accent" value={localConfig.accentColor || ""} onChange={(v) => updateField("accentColor", v)} layout="compact" defaultValue={WIDGET_ACCENT_DEFAULTS[widget.type]} onApplyToAll={onApplyAccentToAll} />
+          </div>
+        )}
         <div><label className="block text-sm font-medium text-foreground mb-1.5">Font (all widgets)</label><FontPicker value={localConfig.fontFamily || ""} onChange={(v) => { updateField("fontFamily", v); onApplyFontToAll?.(v); }} /></div>
 
       </div>

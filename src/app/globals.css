@@ -655,6 +655,321 @@
 .dark.theme-midnight *::-webkit-scrollbar-thumb { background: rgba(58, 108, 240, 0.15); }
 .dark.theme-midnight *::-webkit-scrollbar-thumb:hover { background: rgba(58, 108, 240, 0.3); }
 
+/* ── Matcha theme overrides — warm sage green, cozy study cafe ── */
+.theme-matcha {
+  --background: #F7F5F0;
+  --card: #ffffff;
+  --popover: #ffffff;
+  --muted: #edeae2;
+  --accent: #edeae2;
+  --input-bg: rgba(255, 255, 255, 0.6);
+  --input-bg-focus: rgba(255, 255, 255, 0.8);
+  --foreground: #2a2a22;
+  --secondary-foreground: #4a4a38;
+  --muted-foreground: #6a6a55;
+  --subtle-foreground: #9a9a85;
+  --border: #d4d0c4;
+  --input-border: #c0baa8;
+  --border-subtle: #edeae2;
+  --ring: #7C9A6E;
+  --nav-active-bg: rgba(124, 154, 110, 0.1);
+  --sidebar-border-color: #d4d0c4;
+}
+.dark.theme-matcha {
+  --background: #1A2118;
+  --card: #222c1f;
+  --popover: #2a3526;
+  --muted: #2a3526;
+  --accent: rgba(124, 154, 110, 0.08);
+  --input-bg: rgba(124, 154, 110, 0.06);
+  --input-bg-focus: rgba(124, 154, 110, 0.12);
+  --foreground: #d8e0d0;
+  --secondary-foreground: #b0c0a0;
+  --muted-foreground: #7a9068;
+  --subtle-foreground: #4a5e40;
+  --border: #324028;
+  --input-border: #3e5034;
+  --border-subtle: #324028;
+  --ring: #4a7040;
+  --nav-active-bg: rgba(124, 154, 110, 0.08);
+  --sidebar-border-color: #324028;
+}
+.theme-matcha {
+  --color-blue-50: #f4f6f0;
+  --color-blue-100: #e4eadc;
+  --color-blue-200: #c4d4b0;
+  --color-blue-300: #9cb880;
+  --color-blue-400: #7C9A6E;
+  --color-blue-500: #6a8858;
+  --color-blue-600: #567044;
+  --color-blue-700: #425834;
+  --color-blue-800: #304024;
+  --color-blue-900: #202c18;
+  --color-blue-950: #121a0e;
+}
+.theme-matcha .glass-strong { background: #F7F5F0; }
+.dark.theme-matcha .glass-strong { background: #1A2118; }
+.theme-matcha .glass { background: rgba(247, 245, 240, 0.65); }
+.dark.theme-matcha .glass { background: rgba(26, 33, 24, 0.75); }
+.theme-matcha * { scrollbar-color: rgba(124, 154, 110, 0.25) transparent; }
+.dark.theme-matcha * { scrollbar-color: rgba(124, 154, 110, 0.2) transparent; }
+.theme-matcha *::-webkit-scrollbar-thumb { background: rgba(124, 154, 110, 0.25); }
+.theme-matcha *::-webkit-scrollbar-thumb:hover { background: rgba(124, 154, 110, 0.4); }
+.dark.theme-matcha *::-webkit-scrollbar-thumb { background: rgba(124, 154, 110, 0.2); }
+.dark.theme-matcha *::-webkit-scrollbar-thumb:hover { background: rgba(124, 154, 110, 0.35); }
+
+/* ── Dracula theme overrides — bold gothic purple with pink accents ── */
+.theme-dracula {
+  --background: #F8F8F2;
+  --card: #ffffff;
+  --popover: #ffffff;
+  --muted: #eeeee8;
+  --accent: #eeeee8;
+  --input-bg: rgba(255, 255, 255, 0.6);
+  --input-bg-focus: rgba(255, 255, 255, 0.8);
+  --foreground: #282A36;
+  --secondary-foreground: #44475a;
+  --muted-foreground: #6272a4;
+  --subtle-foreground: #8892b8;
+  --border: #d0d0e0;
+  --input-border: #b8b8d0;
+  --border-subtle: #eeeee8;
+  --ring: #BD93F9;
+  --nav-active-bg: rgba(189, 147, 249, 0.1);
+  --sidebar-border-color: #d0d0e0;
+}
+.dark.theme-dracula {
+  --background: #282A36;
+  --card: #343746;
+  --popover: #3c3f58;
+  --muted: #3c3f58;
+  --accent: rgba(189, 147, 249, 0.08);
+  --input-bg: rgba(189, 147, 249, 0.06);
+  --input-bg-focus: rgba(189, 147, 249, 0.12);
+  --foreground: #F8F8F2;
+  --secondary-foreground: #d0d0c8;
+  --muted-foreground: #6272a4;
+  --subtle-foreground: #4a5480;
+  --border: #44475a;
+  --input-border: #555870;
+  --border-subtle: #44475a;
+  --ring: #7c5cba;
+  --nav-active-bg: rgba(189, 147, 249, 0.08);
+  --sidebar-border-color: #44475a;
+}
+.theme-dracula {
+  --color-blue-50: #f5f0ff;
+  --color-blue-100: #e8dcfe;
+  --color-blue-200: #d4b8fc;
+  --color-blue-300: #BD93F9;
+  --color-blue-400: #a878f0;
+  --color-blue-500: #9060e0;
+  --color-blue-600: #7548c0;
+  --color-blue-700: #5a3498;
+  --color-blue-800: #402470;
+  --color-blue-900: #2a1850;
+  --color-blue-950: #180e30;
+}
+.theme-dracula .glass-strong { background: #F8F8F2; }
+.dark.theme-dracula .glass-strong { background: #282A36; }
+.theme-dracula .glass { background: rgba(248, 248, 242, 0.65); }
+.dark.theme-dracula .glass { background: rgba(40, 42, 54, 0.8); }
+.theme-dracula * { scrollbar-color: rgba(189, 147, 249, 0.25) transparent; }
+.dark.theme-dracula * { scrollbar-color: rgba(189, 147, 249, 0.2) transparent; }
+.theme-dracula *::-webkit-scrollbar-thumb { background: rgba(189, 147, 249, 0.25); }
+.theme-dracula *::-webkit-scrollbar-thumb:hover { background: rgba(189, 147, 249, 0.4); }
+.dark.theme-dracula *::-webkit-scrollbar-thumb { background: rgba(189, 147, 249, 0.2); }
+.dark.theme-dracula *::-webkit-scrollbar-thumb:hover { background: rgba(189, 147, 249, 0.35); }
+
+/* ── Cyber theme overrides — neon cyberpunk with cyan and magenta ── */
+.theme-cyber {
+  --background: #E8F4F5;
+  --card: #ffffff;
+  --popover: #ffffff;
+  --muted: #d8eef0;
+  --accent: #d8eef0;
+  --input-bg: rgba(255, 255, 255, 0.6);
+  --input-bg-focus: rgba(255, 255, 255, 0.8);
+  --foreground: #0a1a1c;
+  --secondary-foreground: #1a3a3e;
+  --muted-foreground: #3a6068;
+  --subtle-foreground: #6a9098;
+  --border: #b0d8dc;
+  --input-border: #88c0c8;
+  --border-subtle: #d8eef0;
+  --ring: #0ABDC6;
+  --nav-active-bg: rgba(10, 189, 198, 0.1);
+  --sidebar-border-color: #b0d8dc;
+}
+.dark.theme-cyber {
+  --background: #0B0C10;
+  --card: #12141c;
+  --popover: #1a1c28;
+  --muted: #1a1c28;
+  --accent: rgba(10, 189, 198, 0.08);
+  --input-bg: rgba(10, 189, 198, 0.06);
+  --input-bg-focus: rgba(10, 189, 198, 0.12);
+  --foreground: #c8f0f2;
+  --secondary-foreground: #88d0d4;
+  --muted-foreground: #4a8a90;
+  --subtle-foreground: #2a5558;
+  --border: #1a2e30;
+  --input-border: #264042;
+  --border-subtle: #1a2e30;
+  --ring: #088088;
+  --nav-active-bg: rgba(10, 189, 198, 0.08);
+  --sidebar-border-color: #1a2e30;
+}
+.theme-cyber {
+  --color-blue-50: #e8f8fa;
+  --color-blue-100: #c8f0f4;
+  --color-blue-200: #80e0e8;
+  --color-blue-300: #40d0da;
+  --color-blue-400: #0ABDC6;
+  --color-blue-500: #08a0a8;
+  --color-blue-600: #068088;
+  --color-blue-700: #046068;
+  --color-blue-800: #024048;
+  --color-blue-900: #012a30;
+  --color-blue-950: #001618;
+}
+.theme-cyber .glass-strong { background: #E8F4F5; }
+.dark.theme-cyber .glass-strong { background: #0B0C10; }
+.theme-cyber .glass { background: rgba(232, 244, 245, 0.65); }
+.dark.theme-cyber .glass { background: rgba(11, 12, 16, 0.8); }
+.theme-cyber * { scrollbar-color: rgba(10, 189, 198, 0.25) transparent; }
+.dark.theme-cyber * { scrollbar-color: rgba(10, 189, 198, 0.2) transparent; }
+.theme-cyber *::-webkit-scrollbar-thumb { background: rgba(10, 189, 198, 0.25); }
+.theme-cyber *::-webkit-scrollbar-thumb:hover { background: rgba(10, 189, 198, 0.4); }
+.dark.theme-cyber *::-webkit-scrollbar-thumb { background: rgba(10, 189, 198, 0.2); }
+.dark.theme-cyber *::-webkit-scrollbar-thumb:hover { background: rgba(10, 189, 198, 0.35); }
+
+/* ── Sandstone theme overrides — warm elevated neutrals, terracotta accents ── */
+.theme-sandstone {
+  --background: #FAF6F1;
+  --card: #ffffff;
+  --popover: #ffffff;
+  --muted: #f0ebe2;
+  --accent: #f0ebe2;
+  --input-bg: rgba(255, 255, 255, 0.6);
+  --input-bg-focus: rgba(255, 255, 255, 0.8);
+  --foreground: #2a2218;
+  --secondary-foreground: #4a3e30;
+  --muted-foreground: #7a6a55;
+  --subtle-foreground: #a09480;
+  --border: #ddd4c4;
+  --input-border: #c8baa4;
+  --border-subtle: #f0ebe2;
+  --ring: #C4956A;
+  --nav-active-bg: rgba(196, 149, 106, 0.1);
+  --sidebar-border-color: #ddd4c4;
+}
+.dark.theme-sandstone {
+  --background: #1F1A15;
+  --card: #28221c;
+  --popover: #322a22;
+  --muted: #322a22;
+  --accent: rgba(196, 149, 106, 0.08);
+  --input-bg: rgba(196, 149, 106, 0.06);
+  --input-bg-focus: rgba(196, 149, 106, 0.12);
+  --foreground: #e8ddd0;
+  --secondary-foreground: #c4b09a;
+  --muted-foreground: #8a7460;
+  --subtle-foreground: #5a4a38;
+  --border: #3a3028;
+  --input-border: #4a3e32;
+  --border-subtle: #3a3028;
+  --ring: #8a6440;
+  --nav-active-bg: rgba(196, 149, 106, 0.08);
+  --sidebar-border-color: #3a3028;
+}
+.theme-sandstone {
+  --color-blue-50: #faf6f0;
+  --color-blue-100: #f0e8d8;
+  --color-blue-200: #e0cca8;
+  --color-blue-300: #d0ae80;
+  --color-blue-400: #C4956A;
+  --color-blue-500: #a87c54;
+  --color-blue-600: #886440;
+  --color-blue-700: #684c30;
+  --color-blue-800: #4a3622;
+  --color-blue-900: #302416;
+  --color-blue-950: #1a140c;
+}
+.theme-sandstone .glass-strong { background: #FAF6F1; }
+.dark.theme-sandstone .glass-strong { background: #1F1A15; }
+.theme-sandstone .glass { background: rgba(250, 246, 241, 0.65); }
+.dark.theme-sandstone .glass { background: rgba(31, 26, 21, 0.75); }
+.theme-sandstone * { scrollbar-color: rgba(196, 149, 106, 0.25) transparent; }
+.dark.theme-sandstone * { scrollbar-color: rgba(196, 149, 106, 0.2) transparent; }
+.theme-sandstone *::-webkit-scrollbar-thumb { background: rgba(196, 149, 106, 0.25); }
+.theme-sandstone *::-webkit-scrollbar-thumb:hover { background: rgba(196, 149, 106, 0.4); }
+.dark.theme-sandstone *::-webkit-scrollbar-thumb { background: rgba(196, 149, 106, 0.2); }
+.dark.theme-sandstone *::-webkit-scrollbar-thumb:hover { background: rgba(196, 149, 106, 0.35); }
+
+/* ── Tokyo Night theme overrides — deep city blues with muted accents ── */
+.theme-tokyo-night {
+  --background: #D5D6DB;
+  --card: #e0e2e8;
+  --popover: #e0e2e8;
+  --muted: #cbced8;
+  --accent: #cbced8;
+  --input-bg: rgba(224, 226, 232, 0.7);
+  --input-bg-focus: rgba(224, 226, 232, 0.9);
+  --foreground: #1A1B26;
+  --secondary-foreground: #2a2c3a;
+  --muted-foreground: #4a4e68;
+  --subtle-foreground: #7a7e98;
+  --border: #b8bcc8;
+  --input-border: #a0a4b4;
+  --border-subtle: #cbced8;
+  --ring: #7AA2F7;
+  --nav-active-bg: rgba(122, 162, 247, 0.12);
+  --sidebar-border-color: #b8bcc8;
+}
+.dark.theme-tokyo-night {
+  --background: #1A1B26;
+  --card: #24283b;
+  --popover: #2a2e48;
+  --muted: #2a2e48;
+  --accent: rgba(122, 162, 247, 0.08);
+  --input-bg: rgba(122, 162, 247, 0.06);
+  --input-bg-focus: rgba(122, 162, 247, 0.12);
+  --foreground: #c0caf5;
+  --secondary-foreground: #a9b1d6;
+  --muted-foreground: #565f89;
+  --subtle-foreground: #3b4261;
+  --border: #33385a;
+  --input-border: #414868;
+  --border-subtle: #33385a;
+  --ring: #4a6cc0;
+  --nav-active-bg: rgba(122, 162, 247, 0.08);
+  --sidebar-border-color: #33385a;
+}
+.theme-tokyo-night {
+  --color-blue-50: #e8eef8;
+  --color-blue-100: #d0dcf4;
+  --color-blue-200: #a8c0f0;
+  --color-blue-300: #7AA2F7;
+  --color-blue-400: #6088e0;
+  --color-blue-500: #4870c8;
+  --color-blue-600: #3858a0;
+  --color-blue-700: #2a4480;
+  --color-blue-800: #1e3060;
+  --color-blue-900: #142040;
+  --color-blue-950: #0a1028;
+}
+.theme-tokyo-night .glass-strong { background: #D5D6DB; }
+.dark.theme-tokyo-night .glass-strong { background: #1A1B26; }
+.theme-tokyo-night .glass { background: rgba(213, 214, 219, 0.7); }
+.dark.theme-tokyo-night .glass { background: rgba(26, 27, 38, 0.8); }
+.theme-tokyo-night * { scrollbar-color: rgba(122, 162, 247, 0.25) transparent; }
+.dark.theme-tokyo-night * { scrollbar-color: rgba(122, 162, 247, 0.2) transparent; }
+.theme-tokyo-night *::-webkit-scrollbar-thumb { background: rgba(122, 162, 247, 0.25); }
+.theme-tokyo-night *::-webkit-scrollbar-thumb:hover { background: rgba(122, 162, 247, 0.4); }
+.dark.theme-tokyo-night *::-webkit-scrollbar-thumb { background: rgba(122, 162, 247, 0.2); }
+.dark.theme-tokyo-night *::-webkit-scrollbar-thumb:hover { background: rgba(122, 162, 247, 0.35); }
+
 /* Shake animation for wrong code entry */
 @keyframes shake {
   0%, 100% { transform: translateX(0); }

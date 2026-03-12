@@ -16,6 +16,7 @@ import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import FontPicker from "@/components/ui/FontPicker";
+import { useTheme } from "@/contexts/ThemeContext";
 
 
 /** Title size options with display labels and Tailwind classes. */
@@ -47,6 +48,7 @@ export default function BoardTitle({
   onTitleChange,
   onTitleConfigChange,
 }: BoardTitleProps) {
+  const { colorTheme } = useTheme();
   const [modalOpen, setModalOpen] = useState(false);
   const [localTitle, setLocalTitle] = useState(title);
   const [localFont, setLocalFont] = useState(titleConfig?.fontFamily || "");
@@ -69,10 +71,10 @@ export default function BoardTitle({
     setModalOpen(false);
   }
 
-  /** Use system font when no custom font is configured. */
+  /** Use system font when no custom font is configured. Skip custom color when theme is active. */
   const titleStyle: React.CSSProperties = {
     fontFamily: titleConfig?.fontFamily || undefined,
-    color: titleConfig?.textColor || undefined,
+    color: colorTheme ? undefined : (titleConfig?.textColor || undefined),
   };
 
   const sizeClass = TITLE_SIZES.find((s) => s.value === (titleConfig?.fontSize || "lg"))?.className ?? "text-3xl md:text-4xl";
@@ -148,34 +150,36 @@ export default function BoardTitle({
                 </div>
               </div>
 
-              {/* Color — color wheel + hex input */}
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">Color</label>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="color"
-                    value={localColor || "#000000"}
-                    onChange={(e) => setLocalColor(e.target.value)}
-                    className="w-10 h-10 rounded-lg border border-border cursor-pointer bg-transparent p-0.5"
-                  />
-                  <input
-                    type="text"
-                    value={localColor}
-                    onChange={(e) => setLocalColor(e.target.value)}
-                    placeholder="#000000"
-                    className="flex-1 px-3 py-2 rounded-lg border border-input-border bg-card text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring font-mono"
-                  />
-                  {localColor && (
-                    <button
-                      type="button"
-                      onClick={() => setLocalColor("")}
-                      className="text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0"
-                    >
-                      Reset
-                    </button>
-                  )}
+              {/* Color — hidden when a color theme is active */}
+              {!colorTheme && (
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">Color</label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="color"
+                      value={localColor || "#000000"}
+                      onChange={(e) => setLocalColor(e.target.value)}
+                      className="w-10 h-10 rounded-lg border border-border cursor-pointer bg-transparent p-0.5"
+                    />
+                    <input
+                      type="text"
+                      value={localColor}
+                      onChange={(e) => setLocalColor(e.target.value)}
+                      placeholder="#000000"
+                      className="flex-1 px-3 py-2 rounded-lg border border-input-border bg-card text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring font-mono"
+                    />
+                    {localColor && (
+                      <button
+                        type="button"
+                        onClick={() => setLocalColor("")}
+                        className="text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                      >
+                        Reset
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Preview */}
               <div className="p-3 rounded-lg bg-muted overflow-hidden">

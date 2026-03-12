@@ -22,6 +22,7 @@ import BoardTemplatesModal from "@/components/home/BoardTemplatesModal";
 import { ICON_SIZES } from "@/components/home/emoji-picker-data";
 import { useWidgetLayout } from "@/hooks/useWidgetLayout";
 import { useToast } from "@/contexts/ToastContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import type { WidgetType, WidgetInstance } from "@/lib/widget-types";
 
 export default function HomePage() {
@@ -61,6 +62,7 @@ export default function HomePage() {
     applyTemplate,
   } = useWidgetLayout();
 
+  const { colorTheme } = useTheme();
   const { showToast } = useToast();
   const [editMode, setEditMode] = useState(false);
   const [galleryOpen, setGalleryOpen] = useState(false);
@@ -74,6 +76,17 @@ export default function HomePage() {
   /** Live widget rect for the spotlight overlay (updates on scroll/resize). */
   const [spotlightRect, setSpotlightRect] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
   const spotlightRafRef = useRef(0);
+
+  // When a color theme is activated, permanently clear custom widget/title/divider colors
+  const prevThemeRef = useRef(colorTheme);
+  useEffect(() => {
+    if (colorTheme && colorTheme !== prevThemeRef.current && hydrated) {
+      updateAllWidgetConfigs({ textColor: "", bgColor: "", accentColor: "" });
+      setTitleConfig(titleFontFamily, "", titleFontSize);
+      setDividerConfig("", dividerThickness, dividerText, dividerVisible);
+    }
+    prevThemeRef.current = colorTheme;
+  }, [colorTheme, hydrated, updateAllWidgetConfigs, setTitleConfig, setDividerConfig, titleFontFamily, titleFontSize, dividerThickness, dividerText, dividerVisible]);
 
   // Listen for tour-controlled edit mode toggle (fired by AppTour click animations)
   useEffect(() => {

@@ -15,6 +15,7 @@
 
 import { useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useTheme } from "@/contexts/ThemeContext";
 import type { WidgetInstance } from "@/lib/widget-types";
 import ClockWidget from "@/components/home/widgets/ClockWidget";
 import TasksTodayWidget from "@/components/home/widgets/TasksTodayWidget";
@@ -123,6 +124,7 @@ export default function WidgetContainer({
   isSelected,
 }: WidgetContainerProps) {
   const router = useRouter();
+  const { colorTheme } = useTheme();
   const containerRef = useRef<HTMLDivElement>(null);
   const clickTarget = CLICK_TARGETS[widget.type];
   const isClickable = !editMode && !!clickTarget;
@@ -166,11 +168,12 @@ export default function WidgetContainer({
     }
   }
 
-  // Read style config
-  const bgColor = widget.config.bgColor || undefined;
-  const textColor = widget.config.textColor || undefined;
+  // Read style config — skip custom colors when a color theme is active
+  const hasTheme = !!colorTheme;
+  const bgColor = hasTheme ? undefined : (widget.config.bgColor || undefined);
+  const textColor = hasTheme ? undefined : (widget.config.textColor || undefined);
   const fontFamily = widget.config.fontFamily || undefined;
-  const accentColor = widget.config.accentColor || undefined;
+  const accentColor = hasTheme ? undefined : (widget.config.accentColor || undefined);
   const fontWeight = widget.config.textBold === "true" ? "700" : undefined;
   const fontStyle = widget.config.textItalic === "true" ? ("italic" as const) : undefined;
 
