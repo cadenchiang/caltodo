@@ -158,7 +158,7 @@ export default function CalendarPage() {
 
   return (
     <PageTransition>
-      <div className="h-[calc(100%+80px)] flex flex-col overflow-hidden -m-4 -mb-16 md:-m-10 md:-mb-10 bg-background">
+      <div className="absolute inset-0 flex flex-col overflow-hidden bg-background">
         {error && (
           <div className="px-4 md:px-10 shrink-0 pt-2">
             <div className="bg-red-400/10 text-red-500 text-sm p-4 rounded-2xl">
