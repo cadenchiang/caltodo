@@ -35,11 +35,8 @@ export const DEFAULT_APPEARANCE: FolderAppearance = {
   value: "#d6d3d1",
 };
 
-/** Default appearance for the General folder — shows Campanile panorama. */
-const GENERAL_DEFAULT_APPEARANCE: FolderAppearance = {
-  type: "image",
-  value: "/campanile-panorama.jpg",
-};
+/** Default appearance for the General folder — matches other folders. */
+const GENERAL_DEFAULT_APPEARANCE: FolderAppearance = DEFAULT_APPEARANCE;
 
 /** State for the currently editing folder panel. */
 interface EditingFolder {

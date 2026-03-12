@@ -48,7 +48,7 @@ export default function Hero({ loggedIn }: HeroProps) {
         onClick={() => setShowSpotsModal(true)}
         className="w-full bg-[#F5F5F7] text-[#1D1D1F] text-center text-xs py-1.5 tracking-wide hover:bg-[#E8E8ED] transition-colors cursor-pointer relative flex items-center justify-center"
       >
-        <span>{userCount ? `trusted by ${userCount}+ other students` : "exclusively for students"}</span>
+        <span>{userCount ? `trusted by ${userCount} students` : "trusted by students"}</span>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-1.5 opacity-60">
           <path d="M7 17L17 7" />
           <path d="M7 7h10v10" />
