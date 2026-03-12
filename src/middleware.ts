@@ -56,7 +56,8 @@ export async function middleware(request: NextRequest) {
   }
 
   // Redirect authenticated users away from landing/login to home
-  if (user && (pathname === "/" || pathname === "/login")) {
+  // Skip redirect if ?landing=1 is present (e.g. sidebar logo click)
+  if (user && (pathname === "/" || pathname === "/login") && !request.nextUrl.searchParams.has("landing")) {
     const url = request.nextUrl.clone();
     url.pathname = "/app/home";
     const redirectResponse = NextResponse.redirect(url);

@@ -112,7 +112,7 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
     >
       <div>
         <div className="mb-6 px-3 pt-1">
-          <a href="/" className="block hover:opacity-80 transition-opacity">
+          <a href="/?landing=1" className="block hover:opacity-80 transition-opacity">
             {isMiffy ? (
               <img
                 src={isDark ? "/logo-miffy-dark.png" : "/logo-miffy.png"}
