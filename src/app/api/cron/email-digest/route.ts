@@ -18,11 +18,11 @@ import type { User } from "@supabase/supabase-js";
 /** Users per page when fetching from Supabase Auth. */
 const PAGE_SIZE = 1000;
 
-/** Send emails in parallel batches of this size (Resend allows ~10/sec). */
-const BATCH_SIZE = 8;
+/** Send emails in parallel batches (Resend Pro allows ~10/sec). */
+const BATCH_SIZE = 10;
 
 /** Small delay between batches to respect rate limits. */
-const BATCH_DELAY_MS = 50;
+const BATCH_DELAY_MS = 30;
 
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
