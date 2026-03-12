@@ -55,10 +55,10 @@ export default function AddCanvasStep({ onNext, onSkip, saving, error, setError 
 
   // iCal state
   const [icalUrl, setIcalUrl] = useState("");
-  const [icalBaseUrl, setIcalBaseUrl] = useState("");
+  const [icalBaseHost, setIcalBaseHost] = useState("");
 
   // API token state
-  const [baseUrl, setBaseUrl] = useState("");
+  const [baseHost, setBaseHost] = useState("");
   const [token, setToken] = useState("");
   const [showToken, setShowToken] = useState(false);
   const [verifying, setVerifying] = useState(false);
@@ -108,10 +108,10 @@ export default function AddCanvasStep({ onNext, onSkip, saving, error, setError 
    */
   async function handleICalSave() {
     const url = icalUrl.trim();
-    const base = icalBaseUrl.trim();
+    const host = icalBaseHost.trim().replace(/^https?:\/\//, "").replace(/\/+$/, "");
 
-    if (!base) {
-      showToast("please enter the Canvas base URL.");
+    if (!host) {
+      showToast("please enter the Canvas domain.");
       return;
     }
     if (!url) {
@@ -123,6 +123,7 @@ export default function AddCanvasStep({ onNext, onSkip, saving, error, setError 
       return;
     }
 
+    const base = `https://${host}`;
     setError(null);
     await onNext({
       label: deriveLabel(base),
@@ -135,8 +136,9 @@ export default function AddCanvasStep({ onNext, onSkip, saving, error, setError 
    * Verifies the API token by fetching courses.
    */
   async function handleVerify() {
-    if (!baseUrl.trim()) {
-      showToast("please enter the Canvas base URL.");
+    const host = baseHost.trim().replace(/^https?:\/\//, "").replace(/\/+$/, "");
+    if (!host) {
+      showToast("please enter the Canvas domain.");
       return;
     }
     if (!token.trim()) {
@@ -144,13 +146,14 @@ export default function AddCanvasStep({ onNext, onSkip, saving, error, setError 
       return;
     }
 
+    const fullBaseUrl = `https://${host}`;
     setVerifying(true);
     setError(null);
 
     try {
       const params = new URLSearchParams({
         token: token.trim(),
-        base_url: baseUrl.trim(),
+        base_url: fullBaseUrl,
       });
       const res = await fetch(`/api/canvas/courses?${params}`);
       if (!res.ok) {
@@ -177,13 +180,15 @@ export default function AddCanvasStep({ onNext, onSkip, saving, error, setError 
 
   async function handleSaveAndNext() {
     if (!courses) return;
+    const host = baseHost.trim().replace(/^https?:\/\//, "").replace(/\/+$/, "");
+    const fullBaseUrl = `https://${host}`;
     const selected = courses
       .filter((c) => selectedIds.has(c.id))
       .map((c) => ({ id: c.id, name: c.name }));
 
     await onNext({
-      label: deriveLabel(baseUrl),
-      base_url: baseUrl.trim(),
+      label: deriveLabel(fullBaseUrl),
+      base_url: fullBaseUrl,
       token: token.trim(),
       selected_courses: selected,
     });
@@ -217,14 +222,17 @@ export default function AddCanvasStep({ onNext, onSkip, saving, error, setError 
           </div>
 
           <div className="mb-3 animate-drop-in delay-200">
-            <input
-              type="text"
-              value={icalBaseUrl}
-              onChange={(e) => setIcalBaseUrl(e.target.value)}
-              placeholder="base URL (e.g. https://canvas.stanford.edu)"
-              autoComplete="off"
-              className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-foreground/50 transition-colors"
-            />
+            <div className="flex items-center rounded-xl border border-border bg-card overflow-hidden focus-within:border-foreground/50 transition-colors">
+              <span className="pl-3 py-2.5 text-sm text-foreground/50 select-none shrink-0 bg-muted/50 pr-2 border-r border-border">https://</span>
+              <input
+                type="text"
+                value={icalBaseHost}
+                onChange={(e) => setIcalBaseHost(e.target.value)}
+                placeholder="canvas.stanford.edu"
+                autoComplete="off"
+                className="flex-1 px-1.5 py-2.5 bg-transparent text-sm text-foreground placeholder-muted-foreground focus:outline-none"
+              />
+            </div>
           </div>
 
           <div className="mb-5 animate-drop-in delay-200">
@@ -401,16 +409,19 @@ export default function AddCanvasStep({ onNext, onSkip, saving, error, setError 
           </div>
 
           <div className="mb-3 animate-drop-in delay-200">
-            <input
-              type="text"
-              value={baseUrl}
-              onChange={(e) => setBaseUrl(e.target.value)}
-              placeholder="base URL (e.g. https://canvas.stanford.edu)"
-              autoComplete="new-password"
-              name="canvas-add-url-nofill"
-              data-1p-ignore
-              className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-foreground/50 transition-colors"
-            />
+            <div className="flex items-center rounded-xl border border-border bg-card overflow-hidden focus-within:border-foreground/50 transition-colors">
+              <span className="pl-3 py-2.5 text-sm text-foreground/50 select-none shrink-0 bg-muted/50 pr-2 border-r border-border">https://</span>
+              <input
+                type="text"
+                value={baseHost}
+                onChange={(e) => setBaseHost(e.target.value)}
+                placeholder="canvas.stanford.edu"
+                autoComplete="new-password"
+                name="canvas-add-url-nofill"
+                data-1p-ignore
+                className="flex-1 px-1.5 py-2.5 bg-transparent text-sm text-foreground placeholder-muted-foreground focus:outline-none"
+              />
+            </div>
           </div>
 
           <div className="mb-5 animate-drop-in delay-200">

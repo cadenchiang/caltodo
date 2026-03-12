@@ -29,8 +29,8 @@ export default function CanvasSettings({ credentials, onUpdate }: CanvasSettings
   const { tasks, deleteTasksBySource } = useTaskContext();
   const [disconnecting, setDisconnecting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const isConnected = Boolean(credentials.canvas_token);
-  const isExpired = isConnected && credentials.canvas_token_expired;
+  const isConnected = Boolean(credentials.canvas_token) || Boolean(credentials.canvas_ical_url);
+  const isExpired = Boolean(credentials.canvas_token) && credentials.canvas_token_expired;
   const sourceTaskCount = tasks.filter((t) => t.source === "canvas").length;
 
   /**
@@ -44,7 +44,7 @@ export default function CanvasSettings({ credentials, onUpdate }: CanvasSettings
       const res = await fetch("/api/credentials", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ canvas_token: null }),
+        body: JSON.stringify({ canvas_token: null, canvas_ical_url: null }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
