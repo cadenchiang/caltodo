@@ -120,7 +120,7 @@ export default function GCalAnnouncementModal() {
           className="mb-4 animate-drop-in"
           style={{ animationDelay: "100ms" }}
         >
-          <GoogleCalendarLogo />
+          <img src="/gcal-logo.png" alt="Google Calendar" width={40} height={40} />
         </div>
 
         {/* Title */}

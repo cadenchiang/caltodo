@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Check, Lock } from "lucide-react";
+import { Check } from "lucide-react";
 import ThemeToggle from "@/components/layout/ThemeToggle";
 import { useTheme } from "@/contexts/ThemeContext";
 import type { ColorTheme } from "@/contexts/ThemeContext";
@@ -132,7 +132,6 @@ export default function AppearanceSection() {
   const [codeInput, setCodeInput] = useState("");
   const [error, setError] = useState(false);
   const [shaking, setShaking] = useState(false);
-  const [showUnlockFor, setShowUnlockFor] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Load unlocked themes from localStorage on mount
@@ -155,7 +154,6 @@ export default function AppearanceSection() {
       setColorTheme(themeId as ColorTheme);
       setCodeInput("");
       setError(false);
-      setShowUnlockFor(null);
     } else {
       setError(true);
       setShaking(true);
@@ -169,15 +167,9 @@ export default function AppearanceSection() {
    * @param theme - The theme option that was clicked
    */
   const handleThemeClick = useCallback((theme: ThemeOption) => {
-    if (theme.locked && !unlockedThemes.includes(theme.id)) {
-      setShowUnlockFor(showUnlockFor === theme.id ? null : theme.id);
-      setCodeInput("");
-      setError(false);
-      return;
-    }
     const next: ColorTheme = colorTheme === theme.id ? null : theme.id;
     setColorTheme(next);
-  }, [colorTheme, unlockedThemes, showUnlockFor, setColorTheme]);
+  }, [colorTheme, setColorTheme]);
 
   return (
     <section>
@@ -224,111 +216,94 @@ export default function AppearanceSection() {
             )}
           </button>
 
-          {THEME_OPTIONS.map((theme) => {
+          {THEME_OPTIONS.filter((theme) => !theme.locked || unlockedThemes.includes(theme.id)).map((theme) => {
             const isActive = colorTheme === theme.id;
-            const isLocked = theme.locked && !unlockedThemes.includes(theme.id);
-            const showingUnlock = showUnlockFor === theme.id;
 
             return (
-              <div key={theme.id} className="flex flex-col gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => handleThemeClick(theme)}
-                  aria-label={
-                    isLocked
-                      ? `Unlock ${theme.name} theme`
-                      : isActive
-                        ? `Deactivate ${theme.name} theme`
-                        : `Activate ${theme.name} theme`
-                  }
-                  className={cn(
-                    "relative flex flex-col items-start gap-2 rounded-xl border p-3 transition-all duration-200 cursor-pointer text-left",
-                    "hover:border-input-border",
-                    isActive
-                      ? "border-ring bg-accent ring-1 ring-ring"
-                      : "border-border bg-card"
-                  )}
-                >
-                  {/* Swatch row */}
-                  <div className="flex items-center gap-1.5">
-                    {theme.swatches.map((color, i) => (
-                      <span
-                        key={i}
-                        className="w-4 h-4 rounded-full border border-black/10 dark:border-white/10"
-                        style={{ backgroundColor: color }}
-                      />
-                    ))}
-                  </div>
-
-                  {/* Name + description */}
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs font-medium text-foreground">{theme.name}</span>
-                      {isLocked && <Lock size={10} className="text-muted-foreground" />}
-                    </div>
-                    <p className="text-[10px] text-muted-foreground leading-tight">
-                      {isLocked ? "Enter code to unlock" : theme.description}
-                    </p>
-                  </div>
-
-                  {/* Active checkmark */}
-                  {isActive && (
-                    <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-ring flex items-center justify-center">
-                      <Check size={12} className="text-white" />
-                    </div>
-                  )}
-                </button>
-
-                {/* Unlock input (only for locked themes) */}
-                {isLocked && showingUnlock && (
-                  <div className={cn("flex items-center gap-1.5 px-1", shaking && "animate-shake")}>
-                    <input
-                      ref={inputRef}
-                      type="text"
-                      value={codeInput}
-                      onChange={(e) => {
-                        setCodeInput(e.target.value);
-                        if (error) setError(false);
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") handleUnlock(theme.id);
-                      }}
-                      placeholder="Enter code"
-                      autoFocus
-                      className={cn(
-                        "h-7 flex-1 min-w-0 rounded-md border px-2 text-xs bg-background text-foreground",
-                        "placeholder:text-subtle-foreground",
-                        "focus:outline-none focus:ring-1 focus:ring-ring",
-                        error
-                          ? "border-red-400 dark:border-red-500"
-                          : "border-input-border"
-                      )}
+              <button
+                key={theme.id}
+                type="button"
+                onClick={() => handleThemeClick(theme)}
+                aria-label={isActive ? `Deactivate ${theme.name} theme` : `Activate ${theme.name} theme`}
+                className={cn(
+                  "relative flex flex-col items-start gap-2 rounded-xl border p-3 transition-all duration-200 cursor-pointer text-left",
+                  "hover:border-input-border",
+                  isActive
+                    ? "border-ring bg-accent ring-1 ring-ring"
+                    : "border-border bg-card"
+                )}
+              >
+                <div className="flex items-center gap-1.5">
+                  {theme.swatches.map((color, i) => (
+                    <span
+                      key={i}
+                      className="w-4 h-4 rounded-full border border-black/10 dark:border-white/10"
+                      style={{ backgroundColor: color }}
                     />
-                    <button
-                      type="button"
-                      onClick={() => handleUnlock(theme.id)}
-                      aria-label="Unlock theme"
-                      className={cn(
-                        "h-7 px-2.5 shrink-0 rounded-md flex items-center justify-center text-xs font-medium",
-                        "bg-accent text-foreground hover:bg-muted",
-                        "transition-colors duration-150"
-                      )}
-                    >
-                      Unlock
-                    </button>
+                  ))}
+                </div>
+                <div className="min-w-0">
+                  <span className="text-xs font-medium text-foreground">{theme.name}</span>
+                  <p className="text-[10px] text-muted-foreground leading-tight">{theme.description}</p>
+                </div>
+                {isActive && (
+                  <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-ring flex items-center justify-center">
+                    <Check size={12} className="text-white" />
                   </div>
                 )}
-
-                {/* Error message for unlock */}
-                {isLocked && showingUnlock && error && (
-                  <p className="text-[11px] text-red-500 dark:text-red-400 pl-1">
-                    Wrong code. Try again.
-                  </p>
-                )}
-              </div>
+              </button>
             );
           })}
         </div>
+
+        {/* Theme code unlock bar — only show if there are locked themes not yet unlocked */}
+        {THEME_OPTIONS.some((t) => t.locked && !unlockedThemes.includes(t.id)) && (
+          <div className="mt-4">
+            <div className={cn("flex items-center gap-2", shaking && "animate-shake")}>
+              <input
+                ref={inputRef}
+                type="text"
+                value={codeInput}
+                onChange={(e) => {
+                  setCodeInput(e.target.value);
+                  if (error) setError(false);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    const locked = THEME_OPTIONS.find((t) => t.locked && !unlockedThemes.includes(t.id));
+                    if (locked) handleUnlock(locked.id);
+                  }
+                }}
+                placeholder="Have a theme code?"
+                className={cn(
+                  "h-8 flex-1 min-w-0 rounded-lg border px-3 text-xs bg-background text-foreground",
+                  "placeholder:text-muted-foreground",
+                  "focus:outline-none focus:ring-1 focus:ring-ring",
+                  error ? "border-red-400 dark:border-red-500" : "border-input-border"
+                )}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const locked = THEME_OPTIONS.find((t) => t.locked && !unlockedThemes.includes(t.id));
+                  if (locked) handleUnlock(locked.id);
+                }}
+                className={cn(
+                  "h-8 px-4 shrink-0 rounded-lg text-xs font-medium",
+                  "bg-accent text-foreground hover:bg-muted border border-input-border",
+                  "transition-colors duration-150"
+                )}
+              >
+                Redeem
+              </button>
+            </div>
+            {error && (
+              <p className="text-[11px] text-red-500 dark:text-red-400 mt-1.5 pl-1">
+                Invalid code. Try again.
+              </p>
+            )}
+          </div>
+        )}
       </div>
     </section>
   );
