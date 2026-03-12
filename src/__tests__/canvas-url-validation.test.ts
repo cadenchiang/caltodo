@@ -18,20 +18,30 @@ describe("isAllowedCanvasUrl", () => {
     expect(isAllowedCanvasUrl("https://myschool.instructure.com")).toBe(true);
   });
 
-  it("rejects arbitrary .edu domains", () => {
-    expect(isAllowedCanvasUrl("https://evil.edu")).toBe(false);
+  it("allows any public HTTPS .edu domain", () => {
+    expect(isAllowedCanvasUrl("https://canvas.ucsd.edu")).toBe(true);
+    expect(isAllowedCanvasUrl("https://canvas.stanford.edu")).toBe(true);
+    expect(isAllowedCanvasUrl("https://some-random.edu")).toBe(true);
+  });
+
+  it("allows any public HTTPS domain", () => {
+    expect(isAllowedCanvasUrl("https://canvas.example.com")).toBe(true);
   });
 
   it("rejects HTTP (non-HTTPS)", () => {
     expect(isAllowedCanvasUrl("http://bcourses.berkeley.edu")).toBe(false);
   });
 
-  it("rejects attacker.com", () => {
-    expect(isAllowedCanvasUrl("https://attacker.com")).toBe(false);
+  it("rejects localhost", () => {
+    expect(isAllowedCanvasUrl("https://localhost")).toBe(false);
+    expect(isAllowedCanvasUrl("https://0.0.0.0")).toBe(false);
   });
 
-  it("rejects instructure.com.evil.com (subdomain impersonation)", () => {
-    expect(isAllowedCanvasUrl("https://instructure.com.evil.com")).toBe(false);
+  it("rejects private IP ranges", () => {
+    expect(isAllowedCanvasUrl("https://127.0.0.1")).toBe(false);
+    expect(isAllowedCanvasUrl("https://10.0.0.1")).toBe(false);
+    expect(isAllowedCanvasUrl("https://192.168.1.1")).toBe(false);
+    expect(isAllowedCanvasUrl("https://172.16.0.1")).toBe(false);
   });
 
   it("rejects invalid URLs", () => {

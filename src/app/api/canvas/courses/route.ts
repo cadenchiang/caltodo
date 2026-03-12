@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
         baseUrl: queryBaseUrl,
       });
       return NextResponse.json(
-        { error: "Invalid Canvas base URL. Only bcourses.berkeley.edu and *.instructure.com are allowed." },
+        { error: "Invalid Canvas base URL. Please use an HTTPS URL." },
         { status: 400 }
       );
     }

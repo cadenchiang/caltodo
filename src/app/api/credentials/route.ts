@@ -200,7 +200,7 @@ export async function PUT(request: Request) {
             baseUrl: account.base_url,
           });
           return NextResponse.json(
-            { error: `Invalid Canvas base URL: ${account.base_url}. Only bcourses.berkeley.edu and *.instructure.com are allowed.` },
+            { error: `Invalid Canvas base URL: ${account.base_url}. Please use an HTTPS URL.` },
             { status: 400 }
           );
         }
