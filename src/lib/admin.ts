@@ -9,7 +9,7 @@ import { logger } from "@/lib/logger";
  * The email address of the application administrator.
  * Used by isAdmin() to gate access to /app/admin and /api/admin/* routes.
  */
-export const ADMIN_EMAIL = "cadenchiang@berkeley.edu";
+export const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? "";
 
 /**
  * Checks whether a given email belongs to the admin user.

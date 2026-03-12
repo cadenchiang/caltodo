@@ -822,7 +822,7 @@ export default function TaskList({
 
       {/* Archive section — completed tasks older than 7 days, subtle at bottom */}
       {archived.length > 0 && (
-        <div className="mt-auto pt-4 border-t border-border/40">
+        <div className="mt-2 pt-2">
           <div
             className="flex items-center mx-2 pl-2.5 pr-1 py-1 rounded-lg hover:bg-accent/50 transition-colors group cursor-pointer"
             onClick={() => setArchiveExpanded(!archiveExpanded)}

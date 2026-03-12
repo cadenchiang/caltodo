@@ -17,6 +17,7 @@ import {
   TaskTagsRow,
   TaskDescriptionRow,
 } from "./shared/TaskDetailRows";
+import { ClipboardList } from "lucide-react";
 
 interface TaskDetailPanelProps {
   /** The selected task, or null for empty state. */
@@ -48,8 +49,10 @@ export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: Tas
   if (!task) {
     return (
       <div className="flex-1 h-full border-l border-border flex flex-col items-center justify-center p-5 gap-3">
-        {isMiffy && (
+        {isMiffy ? (
           <img src="/miffy/miffy-snoopy.png" alt="" className="w-32 h-auto opacity-60 select-none pointer-events-none" draggable={false} />
+        ) : (
+          <ClipboardList size={48} strokeWidth={1.2} className="text-muted-foreground/30" />
         )}
         <p className="text-sm text-muted-foreground">Select a task to view details</p>
       </div>

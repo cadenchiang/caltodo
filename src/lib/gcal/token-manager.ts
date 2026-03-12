@@ -13,8 +13,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 /** Buffer before token expiry to trigger preemptive refresh (5 minutes). */
 const EXPIRY_BUFFER_MS = 5 * 60 * 1000;
 
-/** Module-level mutex to prevent concurrent token refreshes. */
-let refreshPromise: Promise<{ accessToken: string; expiresIn: number } | null> | null = null;
+/** Per-user mutex map to prevent concurrent token refreshes for the same user. */
+const refreshPromises = new Map<string, Promise<{ accessToken: string; expiresIn: number } | null>>();
 
 /** Google OAuth2 token endpoint. */
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
@@ -106,12 +106,15 @@ export async function getValidAccessToken(
   // Token expired or near expiry — refresh it (with mutex to prevent concurrent refreshes)
   logger.info("getValidAccessToken: refreshing expired token", { userId });
   const refreshToken = decrypt(data.google_refresh_token_encrypted);
-  if (!refreshPromise) {
-    refreshPromise = refreshAccessToken(refreshToken).finally(() => {
-      refreshPromise = null;
-    });
+  if (!refreshPromises.has(userId)) {
+    refreshPromises.set(
+      userId,
+      refreshAccessToken(refreshToken).finally(() => {
+        refreshPromises.delete(userId);
+      })
+    );
   }
-  const refreshed = await refreshPromise;
+  const refreshed = await refreshPromises.get(userId)!;
 
   if (!refreshed) {
     // Refresh failed — user likely revoked access. Clear tokens.

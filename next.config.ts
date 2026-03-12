@@ -23,6 +23,21 @@ const nextConfig: NextConfig = {
   // Required for PostHog proxy to work with middleware
   skipMiddlewareUrlNormalize: true,
 
+  // Security headers applied to all routes.
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "X-DNS-Prefetch-Control", value: "on" },
+        ],
+      },
+    ];
+  },
+
   // Proxy PostHog requests through our domain to bypass ad blockers.
   // Requests to /a/* are forwarded to us.i.posthog.com.
   async rewrites() {

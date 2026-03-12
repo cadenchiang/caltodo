@@ -218,23 +218,33 @@ async function lookupUserByEmail(
   adminClient: ReturnType<typeof createAdminClient>,
   email: string
 ): Promise<{ id: string; email: string; full_name: string | null; avatar_url: string | null } | null> {
-  const { data, error } = await adminClient.auth.admin.listUsers({
-    page: 1,
-    perPage: 1000,
-  });
+  let page = 1;
+  const perPage = 1000;
 
-  if (error || !data?.users) return null;
+  while (true) {
+    const { data, error } = await adminClient.auth.admin.listUsers({
+      page,
+      perPage,
+    });
 
-  const match = data.users.find(
-    (u) => u.email?.toLowerCase() === email.toLowerCase()
-  );
+    if (error || !data?.users) return null;
 
-  if (!match) return null;
+    const match = data.users.find(
+      (u) => u.email?.toLowerCase() === email.toLowerCase()
+    );
 
-  return {
-    id: match.id,
-    email: match.email ?? email,
-    full_name: (match.user_metadata?.full_name as string) ?? null,
-    avatar_url: (match.user_metadata?.avatar_url as string) ?? null,
-  };
+    if (match) {
+      return {
+        id: match.id,
+        email: match.email ?? email,
+        full_name: (match.user_metadata?.full_name as string) ?? null,
+        avatar_url: (match.user_metadata?.avatar_url as string) ?? null,
+      };
+    }
+
+    if (data.users.length < perPage) break;
+    page++;
+  }
+
+  return null;
 }
