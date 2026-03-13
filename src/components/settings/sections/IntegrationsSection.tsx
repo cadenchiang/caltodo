@@ -52,7 +52,7 @@ const ADD_OPTIONS: Array<{
   {
     id: "canvas-add",
     label: "Canvas",
-    description: "Connect another Canvas instance",
+    description: "Sync all your Canvas assignments",
     logo: <img src="/canvas-logo.png" alt="" className="w-5 h-5 object-contain" />,
     route: "/app/onboarding?setup=canvas-add",
   },

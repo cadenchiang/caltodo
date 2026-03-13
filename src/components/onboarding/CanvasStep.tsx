@@ -257,7 +257,7 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
               onChange={(e) => setIcalUrl(e.target.value)}
               placeholder="paste calendar feed URL"
               autoComplete="off"
-              className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-foreground/50 transition-colors"
+              className="w-full px-3 py-2.5 rounded-xl border border-foreground/20 bg-card text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-foreground/50 transition-colors"
             />
           </div>
 
@@ -444,7 +444,7 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
                 placeholder="paste access token"
                 autoComplete="off"
                 name="canvas-token-nofill"
-                className="w-full px-3 py-2.5 pr-10 rounded-xl border border-border bg-card text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-foreground/50 transition-colors"
+                className="w-full px-3 py-2.5 pr-10 rounded-xl border border-foreground/20 bg-card text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-foreground/50 transition-colors"
               />
               <button
                 type="button"

@@ -110,7 +110,7 @@ export default function PensieveStep({ onNext, onSkip, saving, error, setError, 
           placeholder="https://api.pensieve.co/api/calendar/...ics"
           autoComplete="off"
           name="pensieve-url-nofill"
-          className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-foreground/50 transition-colors"
+          className="w-full px-3 py-2.5 rounded-xl border border-foreground/20 bg-card text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-foreground/50 transition-colors"
         />
       </div>
 

@@ -40,7 +40,7 @@ const SETUP_LABELS: Record<string, string> = {
   canvas: "bCourses",
   gradescope: "Gradescope",
   pensieve: "Pensive",
-  "canvas-add": "Add Canvas Account",
+  "canvas-add": "Canvas",
   syllabus: "Syllabus",
 };
 

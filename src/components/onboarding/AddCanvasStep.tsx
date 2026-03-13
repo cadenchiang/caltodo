@@ -202,9 +202,8 @@ export default function AddCanvasStep({ onNext, onSkip, saving, error, setError 
     <div className="text-center">
       <div className="flex items-center justify-center gap-2 mb-4">
         <img src="/canvas-logo.png" alt="Canvas" width={22} height={22} className="shrink-0 object-contain" />
-        <h2 className="text-lg font-bold text-foreground animate-drop-in">Add Canvas Account</h2>
+        <h2 className="text-lg font-bold text-foreground animate-drop-in">Canvas</h2>
       </div>
-
       {/* ===== iCal mode (default) ===== */}
       {mode === "ical" && (
         <>
@@ -230,7 +229,7 @@ export default function AddCanvasStep({ onNext, onSkip, saving, error, setError 
               onChange={(e) => setIcalUrl(e.target.value)}
               placeholder="paste calendar feed URL"
               autoComplete="off"
-              className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-foreground/50 transition-colors"
+              className="w-full px-3 py-2.5 rounded-xl border border-foreground/20 bg-card text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-foreground/50 transition-colors"
             />
           </div>
 
@@ -422,7 +421,7 @@ export default function AddCanvasStep({ onNext, onSkip, saving, error, setError 
                 autoComplete="new-password"
                 name="canvas-add-token-nofill"
                 data-1p-ignore
-                className="w-full px-3 py-2.5 pr-10 rounded-xl border border-border bg-card text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-foreground/50 transition-colors"
+                className="w-full px-3 py-2.5 pr-10 rounded-xl border border-foreground/20 bg-card text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-foreground/50 transition-colors"
               />
               <button
                 type="button"
