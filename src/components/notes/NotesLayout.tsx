@@ -388,7 +388,7 @@ export default function NotesLayout({
           />
         </Suspense>
       )}
-      <div suppressHydrationWarning className="h-full" style={{ display: hideGrid ? "none" : undefined }}>
+      <div id="tour-notes-page" suppressHydrationWarning className="h-full" style={{ display: hideGrid ? "none" : undefined }}>
         <NotesFolderGrid
           key={gridRefreshKey}
           initialCourses={initialCourses}

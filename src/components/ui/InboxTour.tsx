@@ -9,7 +9,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Home, Pencil, Plus, ClipboardList, PlusCircle, Search, LayoutGrid, CalendarDays, MessageSquare } from "lucide-react";
+import { Home, Pencil, Plus, ClipboardList, PlusCircle, Search, LayoutGrid, CalendarDays, StickyNote } from "lucide-react";
 import { TourProvider, TourStartDialog, useTour, type TourStep } from "./AppTour";
 
 /** localStorage key set by onboarding to trigger the tour. */
@@ -107,7 +107,7 @@ const TOUR_STEPS: TourStep[] = [
     onEnter: () => setTourViewMode("board"),
     onExit: () => setTourViewMode("list"),
   },
-  // ── Calendar & CalChat Steps (8-9) ──
+  // ── Calendar & Notes Steps (8-9) ──
   {
     targetId: "tour-calendar-grid",
     title: "Calendar",
@@ -118,13 +118,13 @@ const TOUR_STEPS: TourStep[] = [
     clickTargetId: "tour-nav-calendar",
   },
   {
-    targetId: "tour-calchat-page",
-    title: "CalChat",
-    icon: <MessageSquare size={ICON_SIZE} />,
-    description: "Message your classmates anonymously, organized by course.",
-    position: "right",
-    route: "/app/discussions",
-    clickTargetId: "tour-nav-calchat",
+    targetId: "tour-notes-page",
+    title: "Notes",
+    icon: <StickyNote size={ICON_SIZE} />,
+    description: "Take class notes with a rich text editor. Organized by course, always in sync.",
+    position: "top",
+    route: "/app/notes",
+    clickTargetId: "tour-nav-notes",
   },
 ];
 
