@@ -160,10 +160,14 @@ export default function CalendarPage() {
     <PageTransition>
       <div className="absolute inset-0 flex flex-col overflow-hidden bg-background">
         {error && (
-          <div className="px-4 md:px-10 shrink-0 pt-2">
-            <div className="bg-red-400/10 text-red-500 text-sm p-4 rounded-2xl">
-              Error loading tasks: {error}
-            </div>
+          <div className="flex flex-col items-center justify-center py-8 px-4 text-center shrink-0">
+            <p className="text-sm text-muted-foreground mb-4">{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 text-sm font-medium rounded-lg bg-gray-900 text-white dark:bg-white dark:text-gray-900 hover:opacity-90 transition-opacity"
+            >
+              Refresh
+            </button>
           </div>
         )}
 

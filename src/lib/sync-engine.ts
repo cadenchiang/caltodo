@@ -24,13 +24,6 @@ const CANVAS_COLOR = "#3B82F6";
 /** Default color for Gradescope assignments (green). */
 const GRADESCOPE_COLOR = "#10B981";
 
-/**
- * Minimum time between Gradescope login attempts (1 hour).
- * Gradescope uses password-based auth, so frequent logins trigger
- * their security system to send password reset emails.
- */
-const GRADESCOPE_SYNC_COOLDOWN_MS = 60 * 60 * 1000;
-
 interface CredentialsRow {
   canvas_token: string | null;
   canvas_base_url: string;
@@ -345,18 +338,6 @@ async function syncGradescope(
   if (creds.gradescope_auth_failed) {
     logger.info("syncGradescope skipped: auth previously failed", { userId });
     return { synced: 0, errors: ["Gradescope login failed. Please update your password in Settings."] };
-  }
-
-  // Enforce 1-hour cooldown between Gradescope logins (unless forced by manual sync).
-  // Gradescope uses password auth, so frequent logins trigger security emails.
-  if (!force && creds.last_gradescope_synced_at) {
-    const lastSync = new Date(creds.last_gradescope_synced_at).getTime();
-    const elapsed = Date.now() - lastSync;
-    if (elapsed < GRADESCOPE_SYNC_COOLDOWN_MS) {
-      const minutesLeft = Math.ceil((GRADESCOPE_SYNC_COOLDOWN_MS - elapsed) / 60_000);
-      logger.info("syncGradescope skipped: cooldown active", { userId, minutesLeft });
-      return { synced: 0, errors: [`Gradescope sync on cooldown. Next sync available in ${minutesLeft} minute${minutesLeft === 1 ? "" : "s"}.`] };
-    }
   }
 
   try {

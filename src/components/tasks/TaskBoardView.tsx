@@ -381,8 +381,14 @@ export default function TaskBoardView({
 
   if (error) {
     return (
-      <div className="bg-red-50 dark:bg-red-900/20 text-red-500 text-sm p-4 rounded-xl mx-4">
-        Error loading tasks: {error}
+      <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+        <p className="text-sm text-muted-foreground mb-4">{error}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 text-sm font-medium rounded-lg bg-gray-900 text-white dark:bg-white dark:text-gray-900 hover:opacity-90 transition-opacity"
+        >
+          Refresh
+        </button>
       </div>
     );
   }
