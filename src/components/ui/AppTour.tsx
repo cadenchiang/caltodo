@@ -207,6 +207,7 @@ export function TourProvider({ children, steps, onComplete }: TourProviderProps)
   const updatePosition = useCallback(() => {
     if (currentStep < 0 || currentStep >= steps.length) return;
     if (isClickAnimating) return;
+    if (navigating) return;
     const step = steps[currentStep];
     const el = document.getElementById(step.targetId);
     if (!el) return;
@@ -217,9 +218,20 @@ export function TourProvider({ children, steps, onComplete }: TourProviderProps)
         rect = unionRects(rect, secondaryEl.getBoundingClientRect());
       }
     }
-    setTargetRect(rect);
-    setCardPos(computeCardPosition(rect, step.position));
-  }, [currentStep, steps, isClickAnimating]);
+    // Apply the same clamping as activateStep to prevent full-screen highlights
+    let clamped = new DOMRect(
+      rect.x,
+      Math.max(rect.y, 0),
+      rect.width,
+      Math.min(rect.bottom, window.innerHeight) - Math.max(rect.y, 0),
+    );
+    const maxH = window.innerHeight * 0.6;
+    if (clamped.height > maxH) {
+      clamped = new DOMRect(clamped.x, clamped.y, clamped.width, maxH);
+    }
+    setTargetRect(clamped);
+    setCardPos(computeCardPosition(clamped, step.position));
+  }, [currentStep, steps, isClickAnimating, navigating]);
 
   /**
    * Navigates to the step's route (if needed), waits for the target element,
@@ -317,7 +329,18 @@ export function TourProvider({ children, steps, onComplete }: TourProviderProps)
 
       // Position on the final target without scrolling — the click sequence
       // already ensured the relevant area is in view
-      const settledRect = finalEl.getBoundingClientRect();
+      let settledRect = finalEl.getBoundingClientRect();
+      // Clamp to visible viewport and cap height
+      settledRect = new DOMRect(
+        settledRect.x,
+        Math.max(settledRect.y, 0),
+        settledRect.width,
+        Math.min(settledRect.bottom, window.innerHeight) - Math.max(settledRect.y, 0),
+      );
+      const maxH = window.innerHeight * 0.6;
+      if (settledRect.height > maxH) {
+        settledRect = new DOMRect(settledRect.x, settledRect.y, settledRect.width, maxH);
+      }
       setTargetRect(settledRect);
       setCardPos(computeCardPosition(settledRect, step.position));
       setIsClickAnimating(false);
