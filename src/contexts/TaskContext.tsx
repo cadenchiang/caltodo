@@ -1082,7 +1082,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       if (result.gradescope.synced > 0) parts.push(`${result.gradescope.synced} from Gradescope`);
       if (result.pensieve.synced > 0) parts.push(`${result.pensieve.synced} from Pensieve`);
       const syncErrors = [...result.canvas.errors, ...result.gradescope.errors, ...result.pensieve.errors];
-      let toastMsg = parts.length > 0 ? `Synced ${parts.join(", ")}. Assignments will sync automatically every time you open the app.` : "No new assignments found. Assignments will sync automatically every time you open the app.";
+      let toastMsg = parts.length > 0 ? `Synced ${parts.join(", ")}.` : "No new assignments found.";
       if (syncErrors.length > 0) {
         toastMsg += ` ${syncErrors.map(m => m.replace(/Go to Settings to add them\.?/, "")).join(". ").trim()}`;
       }

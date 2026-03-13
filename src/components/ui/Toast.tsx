@@ -44,7 +44,7 @@ export default function Toast({
         dismissing ? "animate-toast-out" : "animate-toast-in"
       }`}
     >
-      <span>{message}</span>
+      <span className="truncate min-w-0">{message}</span>
 
       {action && (
         <button
