@@ -55,7 +55,6 @@ export default function AddCanvasStep({ onNext, onSkip, saving, error, setError 
 
   // iCal state
   const [icalUrl, setIcalUrl] = useState("");
-  const [icalBaseHost, setIcalBaseHost] = useState("");
 
   // API token state
   const [baseHost, setBaseHost] = useState("");
@@ -108,12 +107,7 @@ export default function AddCanvasStep({ onNext, onSkip, saving, error, setError 
    */
   async function handleICalSave() {
     const url = icalUrl.trim();
-    const host = icalBaseHost.trim().replace(/^https?:\/\//, "").replace(/\/+$/, "");
 
-    if (!host) {
-      showToast("please enter the Canvas domain.");
-      return;
-    }
     if (!url) {
       showToast("please paste your calendar feed URL.");
       return;
@@ -123,7 +117,15 @@ export default function AddCanvasStep({ onNext, onSkip, saving, error, setError 
       return;
     }
 
-    const base = `https://${host}`;
+    let base: string;
+    try {
+      const parsed = new URL(url);
+      base = `${parsed.protocol}//${parsed.hostname}`;
+    } catch {
+      setError("couldn't parse the URL. please check it and try again.");
+      return;
+    }
+
     setError(null);
     await onNext({
       label: deriveLabel(base),
@@ -217,21 +219,7 @@ export default function AddCanvasStep({ onNext, onSkip, saving, error, setError 
             </div>
             <div className="flex items-center gap-3 px-2 py-2">
               <span className="w-7 h-7 rounded-full bg-foreground text-background flex items-center justify-center text-xs font-bold shrink-0">3</span>
-              <span className="text-sm font-medium text-foreground">copy the feed URL and paste it below</span>
-            </div>
-          </div>
-
-          <div className="mb-3 animate-drop-in delay-200">
-            <div className="flex items-center rounded-xl border border-border bg-card overflow-hidden focus-within:border-foreground/50 transition-colors">
-              <span className="pl-3 py-2.5 text-sm text-foreground/50 select-none shrink-0 bg-muted/50 pr-2 border-r border-border">https://</span>
-              <input
-                type="text"
-                value={icalBaseHost}
-                onChange={(e) => setIcalBaseHost(e.target.value)}
-                placeholder="canvas.stanford.edu"
-                autoComplete="off"
-                className="flex-1 px-1.5 py-2.5 bg-transparent text-sm text-foreground placeholder-muted-foreground focus:outline-none"
-              />
+              <span className="text-sm font-medium text-foreground">copy and paste the URL below</span>
             </div>
           </div>
 
