@@ -27,12 +27,10 @@ export default function LoginForm() {
   const searchParams = useSearchParams();
   const { handleGoogleSignIn, error: oauthError } = useGoogleSignIn();
   const [error, setError] = useState<string | null>(null);
-  const [inAppBrowser, setInAppBrowser] = useState(false);
+  const [inAppBrowser, setInAppBrowser] = useState(() =>
+    typeof navigator !== "undefined" ? isMobileInAppBrowser() : false
+  );
   const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    setInAppBrowser(isMobileInAppBrowser());
-  }, []);
 
   useEffect(() => {
     if (oauthError) setError(oauthError);
