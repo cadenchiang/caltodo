@@ -49,6 +49,8 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
   const [courses, setCourses] = useState<GradescopeCourse[] | null>(initialCourses ?? null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set(initialSelectedIds ?? []));
   const [showMergeModal, setShowMergeModal] = useState(false);
+  /** Whether the last verification attempt returned 401 (wrong password / SSO user). */
+  const [authFailed, setAuthFailed] = useState(false);
   /** Gradescope courses that overlap with already-selected Canvas courses. */
   const [overlappingCourses, setOverlappingCourses] = useState<GradescopeCourse[]>([]);
   /** Tracks the timestamp of the last verification attempt for rate limiting. */
@@ -84,6 +86,7 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
 
     setVerifying(true);
     setError(null);
+    setAuthFailed(false);
 
     try {
       const res = await fetch("/api/gradescope/courses", {
@@ -93,9 +96,7 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
       });
       if (!res.ok) {
         if (res.status === 401) {
-          // Show empty courses list to display the password reset suggestion
-          // (SSO users won't have a Gradescope-specific password)
-          setCourses([]);
+          setAuthFailed(true);
           return;
         }
         if (res.status >= 500 && res.status < 600) {
@@ -239,6 +240,29 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
               {verifying ? "verifying..." : "connect"}
             </button>
           </div>
+
+          {authFailed && (
+            <div className="mt-4 rounded-xl border border-border p-4 text-center animate-drop-in">
+              <p className="text-sm text-foreground font-medium mb-2">
+                invalid email or password
+              </p>
+              <p className="text-xs text-muted-foreground leading-relaxed mb-3">
+                if you normally sign in to Gradescope with Google or your school&apos;s SSO, your password
+                won&apos;t work here. you need a Gradescope-specific password.
+              </p>
+              <a
+                href="https://www.gradescope.com/reset_password"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center px-4 py-2 rounded-xl text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 hover:bg-blue-100 dark:hover:bg-blue-500/20 transition-colors"
+              >
+                reset Gradescope password
+              </a>
+              <p className="text-[11px] text-muted-foreground/60 mt-2">
+                then come back and try again with the new password.
+              </p>
+            </div>
+          )}
         </>
       )}
 

@@ -387,7 +387,7 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
                     no courses found in your calendar feed.
                   </p>
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    this usually means no assignments have been posted yet. you can continue and courses will appear after your first sync.
+                    this usually means no assignments have been posted yet. you can continue and select courses later in Settings &gt; Classes.
                   </p>
                 </div>
               )}
