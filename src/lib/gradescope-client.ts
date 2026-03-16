@@ -99,7 +99,7 @@ export async function gradescopeLogin(
   if (loginRes.status !== 302) {
     throw new Error(
       "Gradescope login failed. Check your email and password. " +
-      "Note: CalNet SSO accounts must set a Gradescope-specific password via 'Forgot Password'."
+      "If you sign in with Google or SSO, you'll need to reset your Gradescope password first."
     );
   }
 

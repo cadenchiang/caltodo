@@ -67,7 +67,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ courses });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    const isAuthError = message.toLowerCase().includes("login failed");
     logger.error("POST /api/gradescope/courses failed", { userId: user.id, error: message });
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(
+      { error: message },
+      { status: isAuthError ? 401 : 500 }
+    );
   }
 }

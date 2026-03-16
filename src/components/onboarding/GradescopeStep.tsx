@@ -283,21 +283,23 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
               ))}
               {courses.length === 0 && (
                 <div className="px-3 py-4 text-center">
-                  <p className="text-sm text-muted-foreground mb-2">
-                    no active courses found.
+                  <p className="text-sm text-foreground font-medium mb-2">
+                    no courses found — your password may not have worked.
                   </p>
-                  <p className="text-xs text-muted-foreground/70 leading-relaxed">
-                    if you normally sign in with Google or your school&apos;s SSO, you may not have a Gradescope password set.
-                    try{" "}
-                    <a
-                      href="https://www.gradescope.com/reset_password"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-500 underline"
-                    >
-                      resetting your Gradescope password
-                    </a>
-                    {" "}and trying again.
+                  <p className="text-xs text-muted-foreground leading-relaxed mb-3">
+                    if you normally sign in to Gradescope with Google or your school&apos;s SSO, your password
+                    won&apos;t work here. you need a Gradescope-specific password.
+                  </p>
+                  <a
+                    href="https://www.gradescope.com/reset_password"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center px-4 py-2 rounded-xl text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 hover:bg-blue-100 dark:hover:bg-blue-500/20 transition-colors"
+                  >
+                    reset Gradescope password
+                  </a>
+                  <p className="text-[11px] text-muted-foreground/60 mt-2">
+                    then come back and try again with the new password.
                   </p>
                 </div>
               )}
