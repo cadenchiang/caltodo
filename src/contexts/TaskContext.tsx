@@ -1085,7 +1085,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       if (result.gradescope.synced > 0) parts.push(`${result.gradescope.synced} from Gradescope`);
       if (result.pensieve.synced > 0) parts.push(`${result.pensieve.synced} from Pensieve`);
       const syncErrors = [...result.canvas.errors, ...result.gradescope.errors, ...result.pensieve.errors];
-      let toastMsg = parts.length > 0 ? `Synced ${parts.join(", ")}.` : "No new assignments found.";
+      let toastMsg = parts.length > 0 ? `Synced ${parts.join(", ")}. All tasks are up to date.` : "All tasks are up to date — no new assignments found.";
       if (syncErrors.length > 0) {
         toastMsg += ` ${syncErrors.map(m => m.replace(/Go to Settings to add them\.?/, "")).join(". ").trim()}`;
       }

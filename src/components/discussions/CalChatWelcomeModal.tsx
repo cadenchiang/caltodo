@@ -60,6 +60,7 @@ export default function CalChatWelcomeModal() {
 
   useEffect(() => {
     if (isTourActive || !hasCompletedOnboarding || isAlreadyAccepted()) return;
+    acceptedThisSession = true; // Prevent re-show on dependency changes
     setVisible(true);
   }, [isTourActive, hasCompletedOnboarding]);
 

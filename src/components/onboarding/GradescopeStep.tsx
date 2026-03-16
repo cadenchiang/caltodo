@@ -93,7 +93,10 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
       });
       if (!res.ok) {
         if (res.status === 401) {
-          throw new Error("Invalid email or password.");
+          // Show empty courses list to display the password reset suggestion
+          // (SSO users won't have a Gradescope-specific password)
+          setCourses([]);
+          return;
         }
         if (res.status >= 500 && res.status < 600) {
           throw new Error("Server error. Please try again later.");

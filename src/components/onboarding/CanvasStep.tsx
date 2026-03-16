@@ -163,9 +163,9 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
       }
       const data = await res.json();
       if (data.courses.length === 0) {
-        // No courses found — save without selection
-        const ok = await onNext({ canvas_ical_url: url });
-        if (!ok) return;
+        // No courses yet — still show the (empty) course selection screen
+        // so the user knows what happened instead of silently skipping
+        setIcalCourses([]);
         return;
       }
       setIcalCourses(data.courses);
@@ -381,6 +381,16 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
                   <span className="text-sm text-foreground truncate">{course.name}</span>
                 </label>
               ))}
+              {icalCourses.length === 0 && (
+                <div className="px-3 py-4 text-center">
+                  <p className="text-sm text-foreground font-medium mb-2">
+                    no courses found in your calendar feed.
+                  </p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    this usually means no assignments have been posted yet. you can continue and courses will appear after your first sync.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
