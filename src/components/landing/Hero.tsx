@@ -13,6 +13,8 @@ import TestimonialSection from "@/components/landing/TestimonialSection";
 interface HeroProps {
   /** When true, Login/CTA buttons link to /app/home instead of /login. */
   loggedIn?: boolean;
+  /** Server-fetched user count for immediate render. */
+  initialUserCount?: number;
 }
 
 /**
@@ -20,16 +22,9 @@ interface HeroProps {
  * Shows login/signup buttons for unauthenticated users,
  * or profile picture + dashboard link for logged-in users.
  */
-export default function Hero({ loggedIn }: HeroProps) {
+export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
   const [showSpotsModal, setShowSpotsModal] = useState(false);
-  const [userCount, setUserCount] = useState<number | null>(null);
-
-  useEffect(() => {
-    fetch("/api/stats")
-      .then((res) => res.json())
-      .then((data) => setUserCount(data.count ?? null))
-      .catch(() => {});
-  }, []);
+  const userCount = initialUserCount ?? null;
 
   useEffect(() => {
     document.body.style.overflow = showSpotsModal ? "hidden" : "";
