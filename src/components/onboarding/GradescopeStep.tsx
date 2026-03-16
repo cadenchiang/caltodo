@@ -287,7 +287,7 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
                     no active courses found.
                   </p>
                   <p className="text-xs text-muted-foreground/70 leading-relaxed">
-                    if you use CalNet to sign in, your Gradescope password may differ from your CalNet password.
+                    if you normally sign in with Google or your school&apos;s SSO, you may not have a Gradescope password set.
                     try{" "}
                     <a
                       href="https://www.gradescope.com/reset_password"
