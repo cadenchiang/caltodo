@@ -92,7 +92,12 @@ export function parseICalEvents(icsText: string): NormalizedAssignment[] {
     if (description) {
       const lateDueMatch = description.match(/late\s*due[:\s]+(\S+)/i);
       if (lateDueMatch) {
-        lateDueDate = lateDueMatch[1];
+        const candidate = lateDueMatch[1];
+        // Validate it looks like a date (ISO format or iCal YYYYMMDD/YYYYMMDDTHHmmss)
+        const isValidDate =
+          /^\d{4}-\d{2}-\d{2}/.test(candidate) ||
+          /^\d{8}(T\d{6}Z?)?$/.test(candidate);
+        lateDueDate = isValidDate ? candidate : null;
       }
     }
 
@@ -209,8 +214,17 @@ function extractCourseName(summary: string, description: string | null): string 
   const colonIdx = summary.indexOf(":");
   if (colonIdx > 0 && colonIdx < summary.length - 1) {
     const prefix = summary.slice(0, colonIdx).trim();
-    // Only use as course name if it looks like a course (not too long, not a URL prefix)
-    if (prefix.length > 0 && prefix.length < 40 && !prefix.includes("//")) {
+    // Only use as course name if it looks like a course code (contains a number
+    // or matches common patterns like "CS 61A", "MATH 54", "EECS 16B").
+    // This prevents greedy extraction where "Homework: Part 1" yields "Homework".
+    const looksLikeCourseCode = /\d/.test(prefix) ||
+      /^[A-Z]{2,6}\s+\d/i.test(prefix);
+    if (
+      looksLikeCourseCode &&
+      prefix.length > 0 &&
+      prefix.length < 40 &&
+      !prefix.includes("//")
+    ) {
       return unescapeICalText(prefix);
     }
   }

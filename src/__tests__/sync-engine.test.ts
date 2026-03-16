@@ -64,13 +64,14 @@ function createMockSupabase(credentialsData: Record<string, unknown> | null = nu
     eq: vi.fn().mockReturnValue({ error: null }),
   });
 
-  // Chainable mock for auto-complete update (tasks.update().eq().eq().eq().eq())
+  // Chainable mock for auto-complete update (tasks.update().eq().eq().eq().eq().in())
   const tasksAutoCompleteMock = vi.fn().mockImplementation(() => {
     const chain = {
       eq: vi.fn().mockReturnThis(),
+      in: vi.fn().mockReturnThis(),
     };
-    // Final .eq() resolves the chain
     chain.eq.mockReturnValue(chain);
+    chain.in.mockReturnValue(chain);
     // Make the chain thenable so await resolves it
     (chain as any).then = (resolve: (v: { error: null }) => void) => {
       resolve({ error: null });
@@ -91,7 +92,9 @@ function createMockSupabase(credentialsData: Record<string, unknown> | null = nu
               }),
             }),
           }),
-          update: updateMock,
+          update: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({ error: null }),
+          }),
         };
       }
       if (table === "tasks") {
@@ -126,6 +129,7 @@ describe("runSync", () => {
     const supabase = createMockSupabase({
       canvas_token: "canvas-token-123",
       canvas_base_url: "https://bcourses.berkeley.edu",
+      canvas_token_created_at: new Date().toISOString(),
       gradescope_email: null,
       gradescope_password_encrypted: null,
     });
@@ -199,6 +203,7 @@ describe("runSync", () => {
     const supabase = createMockSupabase({
       canvas_token: "bad-token",
       canvas_base_url: "https://bcourses.berkeley.edu",
+      canvas_token_created_at: new Date().toISOString(),
       gradescope_email: "user@berkeley.edu",
       gradescope_password_encrypted: "encrypted-pw",
     });
@@ -229,6 +234,7 @@ describe("runSync", () => {
     const supabase = createMockSupabase({
       canvas_token: "good-token",
       canvas_base_url: "https://bcourses.berkeley.edu",
+      canvas_token_created_at: new Date().toISOString(),
       gradescope_email: "user@berkeley.edu",
       gradescope_password_encrypted: "encrypted-pw",
     });
@@ -271,6 +277,7 @@ describe("runSync", () => {
     const supabase = createMockSupabase({
       canvas_token: "canvas-token-123",
       canvas_base_url: "https://bcourses.berkeley.edu",
+      canvas_token_created_at: new Date().toISOString(),
       gradescope_email: null,
       gradescope_password_encrypted: null,
     });

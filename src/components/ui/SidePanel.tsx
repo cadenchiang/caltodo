@@ -111,7 +111,9 @@ export default function SidePanel({
     ? `fixed bottom-0 left-0 right-0 z-[52] max-h-[60vh] bg-popover border-t border-border rounded-t-2xl shadow-2xl flex flex-col ${animClass}`
     : `fixed z-[52] bg-popover border border-border rounded-2xl shadow-2xl flex flex-col max-h-[85vh] ${animClass}`;
 
-  const panelStyle = isMobile ? undefined : position;
+  const panelStyle = isMobile
+    ? { paddingBottom: "env(safe-area-inset-bottom, 0px)" }
+    : position;
 
   return (
     <div

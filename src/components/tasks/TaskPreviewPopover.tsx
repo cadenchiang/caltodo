@@ -78,13 +78,18 @@ export default function TaskPreviewPopover({
   }, [onClose]);
 
   useEffect(() => {
-    function handleMouseDown(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
+    function handlePointerDown(e: MouseEvent | TouchEvent) {
+      const target = "touches" in e ? e.touches[0]?.target : e.target;
+      if (ref.current && target && !ref.current.contains(target as Node)) {
         onClose();
       }
     }
-    document.addEventListener("mousedown", handleMouseDown);
-    return () => document.removeEventListener("mousedown", handleMouseDown);
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("touchstart", handlePointerDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("touchstart", handlePointerDown);
+    };
   }, [onClose]);
 
   const [pos, setPos] = useState({ left: -9999, top: -9999 });
@@ -144,23 +149,35 @@ export default function TaskPreviewPopover({
       ? getRepeatLabel(task.repeat_interval, task.repeat_unit)
       : null;
 
+  const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
+
   return createPortal(
-    <div
-      ref={ref}
-      data-task-preview-popover
-      role="dialog"
-      aria-label={`Preview: ${task.title}`}
-      className={`fixed z-[9999] rounded-2xl shadow-2xl border border-border bg-popover transition-[opacity,transform] duration-150 ease-out ${
-        visible ? "opacity-100 scale-100" : "opacity-0 scale-95"
-      }`}
-      style={{
-        left: pos.left,
-        top: pos.top,
-        width: POPOVER_WIDTH,
-        maxHeight: POPOVER_MAX_HEIGHT,
-        overflowY: "auto",
-      }}
-    >
+    <>
+      {/* Transparent backdrop for easy mobile dismissal */}
+      {isMobile && (
+        <div
+          className="fixed inset-0 z-[9998]"
+          onClick={onClose}
+          onTouchStart={onClose}
+        />
+      )}
+      <div
+        ref={ref}
+        data-task-preview-popover
+        role="dialog"
+        aria-label={`Preview: ${task.title}`}
+        className={`fixed z-[9999] rounded-2xl shadow-2xl border border-border bg-popover transition-[opacity,transform] duration-150 ease-out ${
+          visible ? "opacity-100 scale-100" : "opacity-0 scale-95"
+        }`}
+        style={{
+          left: isMobile ? 12 : pos.left,
+          top: isMobile ? undefined : pos.top,
+          bottom: isMobile ? 12 : undefined,
+          width: isMobile ? "calc(100vw - 24px)" : POPOVER_WIDTH,
+          maxHeight: isMobile ? "70vh" : POPOVER_MAX_HEIGHT,
+          overflowY: "auto",
+        }}
+      >
       {/* Header action buttons */}
       <TaskActionBar
         onEdit={() => onEdit(task)}
@@ -202,7 +219,8 @@ export default function TaskPreviewPopover({
         {/* Description row */}
         <TaskDescriptionRow description={task.description} lineClamp={3} />
       </div>
-    </div>,
+    </div>
+    </>,
     document.body,
   );
 }

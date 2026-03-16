@@ -14,7 +14,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 const EXPIRY_BUFFER_MS = 5 * 60 * 1000;
 
 /** Per-user mutex map to prevent concurrent token refreshes for the same user. */
-const refreshPromises = new Map<string, Promise<{ accessToken: string; expiresIn: number } | null>>();
+const refreshPromises = new Map<string, Promise<{ accessToken: string; expiresIn: number; refreshToken?: string } | null>>();
 
 /** Google OAuth2 token endpoint. */
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
@@ -37,7 +37,7 @@ interface GoogleTokenResponse {
  */
 export async function refreshAccessToken(
   refreshToken: string
-): Promise<{ accessToken: string; expiresIn: number } | null> {
+): Promise<{ accessToken: string; expiresIn: number; refreshToken?: string } | null> {
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
 
@@ -67,7 +67,11 @@ export async function refreshAccessToken(
   }
 
   const data: GoogleTokenResponse = await res.json();
-  return { accessToken: data.access_token, expiresIn: data.expires_in };
+  return {
+    accessToken: data.access_token,
+    expiresIn: data.expires_in,
+    ...(data.refresh_token ? { refreshToken: data.refresh_token } : {}),
+  };
 }
 
 /**
@@ -130,14 +134,18 @@ export async function getValidAccessToken(
     return null;
   }
 
-  // Save refreshed token
+  // Save refreshed token (and new refresh token if Google rotated it)
   const newExpiresAt = new Date(now + refreshed.expiresIn * 1000).toISOString();
+  const updatePayload: Record<string, string> = {
+    google_access_token_encrypted: encrypt(refreshed.accessToken),
+    google_token_expires_at: newExpiresAt,
+  };
+  if (refreshed.refreshToken) {
+    updatePayload.google_refresh_token_encrypted = encrypt(refreshed.refreshToken);
+  }
   await supabase
     .from("integration_credentials")
-    .update({
-      google_access_token_encrypted: encrypt(refreshed.accessToken),
-      google_token_expires_at: newExpiresAt,
-    })
+    .update(updatePayload)
     .eq("user_id", userId);
 
   return refreshed.accessToken;

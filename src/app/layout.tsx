@@ -5,7 +5,11 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import SWRProvider from "@/components/SWRProvider";
 import PostHogProvider from "@/components/PostHogProvider";
 import ChunkErrorRecovery from "@/components/ChunkErrorRecovery";
+import { validateEnv } from "@/lib/env-check";
 import "./globals.css";
+
+// Run env validation once at module load (server-side only)
+validateEnv();
 
 const geistSans = Geist({
   variable: "--font-geist-sans",

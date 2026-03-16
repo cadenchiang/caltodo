@@ -16,16 +16,14 @@ import { rateLimit } from "@/lib/rate-limit";
 import type { Task } from "@/lib/types";
 
 export async function GET(request: NextRequest) {
-  // Rate limit by IP since this endpoint uses token auth, not session cookies
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-  const { allowed } = rateLimit(`calendar-feed:${ip}`, 10, 60_000);
+  // Rate limit by token value to prevent abuse per-feed
+  const token = request.nextUrl.searchParams.get("token") || "unknown";
+  const { allowed } = rateLimit(`calendar-feed:${token}`, 10, 60_000);
   if (!allowed) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
 
-  const token = request.nextUrl.searchParams.get("token");
-
-  if (!token) {
+  if (token === "unknown") {
     logger.warn("GET /api/calendar/feed — missing token param");
     return NextResponse.json({ error: "Missing token parameter" }, { status: 400 });
   }

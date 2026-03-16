@@ -295,15 +295,15 @@ export function TaskProvider({ children }: { children: ReactNode }) {
           body: JSON.stringify({ timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
           signal: abortController.signal,
         });
-        if (!mounted) return;
+        if (!mounted || abortController.signal.aborted) return;
         if (res.ok) {
           const result: SyncResult = await res.json();
-          if (!mounted) return;
+          if (!mounted || abortController.signal.aborted) return;
           setSyncResult(result);
           setLastSyncedAt(result.last_synced_at);
 
           const freshTasks = await fetchTasks();
-          if (!mounted) return;
+          if (!mounted || abortController.signal.aborted) return;
 
           // Only emit notifications after the first sync establishes a reliable baseline
           if (snapshot) {
@@ -1031,6 +1031,9 @@ export function TaskProvider({ children }: { children: ReactNode }) {
    * Manages a simulated progress bar during the sync.
    */
   async function triggerSync(courseOverrides?: { canvas_courses?: Array<{ id: number; name: string }>; gradescope_courses?: Array<{ id: string; name: string }> }, platforms?: Array<"canvas" | "gradescope" | "pensieve">) {
+    // Abort any in-flight auto-sync to prevent race condition where both
+    // auto-sync and manual sync update taskBaselineRef concurrently
+    autoSyncAbortRef.current?.abort();
     setSyncing(true);
     setError(null);
     setSyncResult(null);

@@ -26,6 +26,7 @@ const GRADESCOPE_COLOR = "#10B981";
 
 interface CredentialsRow {
   canvas_token: string | null;
+  canvas_token_created_at: string | null;
   canvas_base_url: string;
   canvas_ical_url: string | null;
   gradescope_email: string | null;
@@ -75,7 +76,7 @@ export async function runSync(
   // Fetch credentials
   const { data: creds, error: credsError } = await supabase
     .from("integration_credentials")
-    .select("canvas_token, canvas_base_url, canvas_ical_url, gradescope_email, gradescope_password_encrypted, gradescope_auth_failed, last_gradescope_synced_at, selected_canvas_courses, selected_gradescope_courses, selected_pensieve_courses, pensieve_calendar_url, additional_canvas_accounts")
+    .select("canvas_token, canvas_token_created_at, canvas_base_url, canvas_ical_url, gradescope_email, gradescope_password_encrypted, gradescope_auth_failed, last_gradescope_synced_at, selected_canvas_courses, selected_gradescope_courses, selected_pensieve_courses, pensieve_calendar_url, additional_canvas_accounts")
     .eq("user_id", userId)
     .single();
 
@@ -196,6 +197,16 @@ async function syncCanvas(
     return { synced: 0, errors: [] };
   }
 
+  // Check if Canvas API token has expired (120-day lifespan)
+  if (creds.canvas_token && creds.canvas_token_created_at) {
+    const TOKEN_LIFESPAN_MS = 120 * 24 * 60 * 60 * 1000; // 120 days
+    const createdAt = new Date(creds.canvas_token_created_at).getTime();
+    if (createdAt + TOKEN_LIFESPAN_MS < Date.now()) {
+      logger.warn("syncCanvas: canvas token expired", { userId });
+      return { synced: 0, errors: ["bCourses token expired. Reconnect in Settings."] };
+    }
+  }
+
   try {
     let assignments: NormalizedAssignment[];
 
@@ -234,8 +245,8 @@ async function syncCanvas(
       ...a,
       course_name: getCanonicalName(a.course_name, courseNameMap),
     }));
-    const synced = await upsertAssignments(supabase, userId, "canvas", merged, timezone);
-    return { synced, errors: [] };
+    const result = await upsertAssignments(supabase, userId, "canvas", merged, timezone);
+    return { synced: result.synced, errors: result.errors };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     logger.error("syncCanvas failed", { userId, error: message });
@@ -305,14 +316,14 @@ async function syncAdditionalCanvas(
       course_name: getCanonicalName(a.course_name, courseNameMap),
     }));
 
-    const synced = await upsertAssignments(supabase, userId, "canvas", namespacedAssignments, timezone);
+    const result = await upsertAssignments(supabase, userId, "canvas", namespacedAssignments, timezone);
     logger.info("syncAdditionalCanvas complete", {
       userId,
       accountId: account.id,
       label: account.label,
-      synced,
+      synced: result.synced,
     });
-    return { synced, errors: [] };
+    return { synced: result.synced, errors: result.errors };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     logger.error("syncAdditionalCanvas failed", { userId, accountId: account.id, error: message });
@@ -365,12 +376,19 @@ async function syncGradescope(
     const assignments = selectedCourses && selectedCourses.length > 0
       ? await fetchGradescopeAssignmentsForCourses(creds.gradescope_email, password, selectedCourses)
       : await fetchAllGradescopeAssignments(creds.gradescope_email, password);
+
+    // Login succeeded — clear any previous auth failure flag before processing
+    await supabase
+      .from("integration_credentials")
+      .update({ gradescope_auth_failed: false })
+      .eq("user_id", userId);
+
     // Apply canonical course names for cross-platform merging
     const merged = assignments.map((a) => ({
       ...a,
       course_name: getCanonicalName(a.course_name, courseNameMap),
     }));
-    const synced = await upsertAssignments(supabase, userId, "gradescope", merged, timezone);
+    const result = await upsertAssignments(supabase, userId, "gradescope", merged, timezone);
 
     // Update last Gradescope sync timestamp on success and clear auth failure flag
     await supabase
@@ -378,7 +396,7 @@ async function syncGradescope(
       .update({ last_gradescope_synced_at: new Date().toISOString(), gradescope_auth_failed: false })
       .eq("user_id", userId);
 
-    return { synced, errors: [] };
+    return { synced: result.synced, errors: result.errors };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     logger.error("syncGradescope failed", { userId, error: message });
@@ -445,9 +463,9 @@ async function syncPensieve(
       ...a,
       course_name: getCanonicalName(a.course_name, courseNameMap),
     }));
-    const synced = await upsertAssignments(supabase, userId, "pensieve", merged, timezone);
-    logger.info("syncPensieve: upserted", { userId, synced });
-    return { synced, errors: [] };
+    const result = await upsertAssignments(supabase, userId, "pensieve", merged, timezone);
+    logger.info("syncPensieve: upserted", { userId, synced: result.synced });
+    return { synced: result.synced, errors: result.errors };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     logger.error("syncPensieve failed", { userId, error: message });
@@ -509,7 +527,7 @@ export function toLocalTimeString(isoString: string | null, tz: string): string 
  * @param source - Assignment source ("canvas" or "gradescope")
  * @param assignments - Normalized assignments to upsert
  * @param timezone - IANA timezone for date/time conversion
- * @returns Number of successfully upserted assignments
+ * @returns Object with count of successfully upserted assignments and any errors
  */
 async function upsertAssignments(
   supabase: SupabaseClient,
@@ -517,11 +535,13 @@ async function upsertAssignments(
   source: "canvas" | "gradescope" | "pensieve",
   assignments: NormalizedAssignment[],
   timezone: string
-): Promise<number> {
+): Promise<{ synced: number; errors: string[] }> {
   let totalUpserted = 0;
+  let failedBatches = 0;
   const colorMap = { canvas: CANVAS_COLOR, gradescope: GRADESCOPE_COLOR, pensieve: PENSIEVE_COLOR };
   const color = colorMap[source];
   const syncStartTime = new Date().toISOString();
+  const upsertedExternalIds: string[] = [];
 
   for (let i = 0; i < assignments.length; i += UPSERT_BATCH_SIZE) {
     const batch = assignments.slice(i, i + UPSERT_BATCH_SIZE);
@@ -543,8 +563,6 @@ async function upsertAssignments(
       // Clear dismissed_at so previously deleted tasks reappear on resync.
       // If the assignment exists on the source platform, it should show in caltodo.
       dismissed_at: null,
-      // Clear snoozed_until so re-synced tasks are not permanently hidden.
-      snoozed_until: null,
     }));
 
     const { error } = await supabase
@@ -552,6 +570,7 @@ async function upsertAssignments(
       .upsert(rows, { onConflict: "user_id,source,external_id" });
 
     if (error) {
+      failedBatches++;
       logger.error("upsertAssignments batch failed", {
         source,
         batchStart: i,
@@ -559,25 +578,37 @@ async function upsertAssignments(
       });
     } else {
       totalUpserted += batch.length;
+      upsertedExternalIds.push(...batch.map((a) => a.external_id));
     }
   }
 
-  // Auto-complete all submitted assignments that aren't yet marked complete.
-  // Removed created_at filter so assignments submitted between syncs get auto-completed.
-  const { error: autoCompleteError } = await supabase
-    .from("tasks")
-    .update({ is_completed: true, completed_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-    .eq("user_id", userId)
-    .eq("source", source)
-    .eq("is_submitted", true)
-    .eq("is_completed", false);
+  const errors: string[] = [];
 
-  if (autoCompleteError) {
-    logger.error("upsertAssignments auto-complete failed", {
-      source,
-      error: autoCompleteError.message,
-    });
+  if (failedBatches > 0) {
+    const totalBatches = Math.ceil(assignments.length / UPSERT_BATCH_SIZE);
+    errors.push(`${failedBatches} of ${totalBatches} ${source} upsert batches failed`);
   }
 
-  return totalUpserted;
+  // Auto-complete submitted assignments that aren't yet marked complete.
+  // Only targets tasks that were part of the current sync batch to avoid
+  // affecting tasks from other syncs or manual entries.
+  if (upsertedExternalIds.length > 0) {
+    const { error: autoCompleteError } = await supabase
+      .from("tasks")
+      .update({ is_completed: true, completed_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .eq("user_id", userId)
+      .eq("source", source)
+      .eq("is_submitted", true)
+      .eq("is_completed", false)
+      .in("external_id", upsertedExternalIds);
+
+    if (autoCompleteError) {
+      logger.error("upsertAssignments auto-complete failed", {
+        source,
+        error: autoCompleteError.message,
+      });
+    }
+  }
+
+  return { synced: totalUpserted, errors };
 }

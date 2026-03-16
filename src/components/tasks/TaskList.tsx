@@ -257,6 +257,7 @@ export default function TaskList({
   const [showAllCompleted, setShowAllCompleted] = useState(false);
   const [archiveExpanded, setArchiveExpanded] = useState(false);
   const [showAllArchived, setShowAllArchived] = useState(false);
+  const [confirmClearArchive, setConfirmClearArchive] = useState(false);
   /** Ticks every 60s when Hidden section is expanded to refresh countdowns. */
   const [countdownTick, setCountdownTick] = useState(0);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
@@ -847,14 +848,25 @@ export default function TaskList({
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  // Delete all archived tasks
+                  if (!confirmClearArchive) {
+                    setConfirmClearArchive(true);
+                    // Auto-reset after 3 seconds if not confirmed
+                    setTimeout(() => setConfirmClearArchive(false), 3000);
+                    return;
+                  }
+                  // Second click — actually delete
+                  setConfirmClearArchive(false);
                   for (const task of archived) {
                     onDelete(task.id);
                   }
                 }}
-                className="ml-auto text-[10px] font-medium text-muted-foreground/50 hover:text-red-500 transition-colors px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100"
+                className={`ml-auto text-[10px] font-medium transition-colors px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 ${
+                  confirmClearArchive
+                    ? "text-red-500 opacity-100"
+                    : "text-muted-foreground/50 hover:text-red-500"
+                }`}
               >
-                Clear all
+                {confirmClearArchive ? `Delete ${archived.length} tasks?` : "Clear all"}
               </button>
             )}
           </div>

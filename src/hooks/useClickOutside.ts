@@ -18,8 +18,9 @@ export default function useClickOutside(
   useEffect(() => {
     if (!enabled) return;
 
-    function handleClick(event: MouseEvent) {
-      const target = event.target as Node;
+    function handleClick(event: MouseEvent | TouchEvent) {
+      const target = ("touches" in event ? event.touches[0]?.target : event.target) as Node | null;
+      if (!target) return;
 
       if (ref.current && !ref.current.contains(target)) {
         // Skip if click landed inside any excluded ref (e.g. the trigger button)
@@ -30,8 +31,12 @@ export default function useClickOutside(
       }
     }
 
-    // Use mousedown so the popup closes before other click handlers fire
+    // Use mousedown + touchstart so popups close on both desktop and mobile
     document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
+    document.addEventListener("touchstart", handleClick);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("touchstart", handleClick);
+    };
   }, [ref, handler, enabled, excludeRefs]);
 }

@@ -40,6 +40,8 @@ export default function Toast({
 
   return (
     <div
+      role="status"
+      aria-live="polite"
       className={`pointer-events-auto relative flex items-center gap-3 rounded-full px-5 py-3 text-sm text-white shadow-lg backdrop-blur-md bg-neutral-800/90 dark:bg-neutral-900/90 overflow-hidden max-w-[calc(100vw-2rem)] ${
         dismissing ? "animate-toast-out" : "animate-toast-in"
       }`}
