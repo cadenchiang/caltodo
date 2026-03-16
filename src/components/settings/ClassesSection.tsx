@@ -104,7 +104,9 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
   const hasSyllabus = syllabusCourses.length > 0;
   const totalSelected = canvasSelected.length + gsSelected.length + pensieveSelected.length + syllabusCourses.length;
 
-  const hasCanvas = !!credentials.canvas_token;
+  const hasCanvas = !!credentials.canvas_token || !!credentials.canvas_ical_url;
+  const hasCanvasToken = !!credentials.canvas_token;
+  const hasCanvasIcal = !!credentials.canvas_ical_url;
   const hasGradescope = !!credentials.gradescope_email;
   const hasPensieve = !!credentials.pensieve_calendar_url;
   const platformCount = (hasCanvas ? 1 : 0) + (hasGradescope ? 1 : 0) + (hasPensieve ? 1 : 0) + (hasSyllabus ? 1 : 0);
@@ -127,7 +129,7 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
       let fetchedGs: Array<{ id: string; name: string }> = [];
       let fetchedPensieve: Array<{ id: string; name: string }> = [];
 
-      if (hasCanvas) {
+      if (hasCanvasToken) {
         promises.push(
           fetch("/api/canvas/courses")
             .then(async (res) => {
@@ -140,6 +142,27 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
             .then((data) => {
               fetchedCanvas = data.courses.map((c: { id: number; name: string }) => ({
                 id: `canvas-${c.id}`,
+                name: c.name,
+              }));
+            })
+        );
+      } else if (hasCanvasIcal) {
+        promises.push(
+          fetch("/api/canvas/ical-preview", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url: credentials.canvas_ical_url }),
+          })
+            .then(async (res) => {
+              if (!res.ok) {
+                const body = await res.json().catch(() => ({}));
+                throw new Error(body.error || "Failed to load bCourses courses");
+              }
+              return res.json();
+            })
+            .then((data) => {
+              fetchedCanvas = data.courses.map((c: { name: string }) => ({
+                id: `canvas-${c.name}`,
                 name: c.name,
               }));
             })
@@ -205,7 +228,12 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
       }));
 
       const prevSelected = new Set<string>();
-      canvasSelected.forEach((c) => prevSelected.add(`canvas-${c.id}`));
+      // For iCal courses (id=0), match by name; for API-token courses, match by numeric ID
+      if (hasCanvasIcal) {
+        canvasSelected.forEach((c) => prevSelected.add(`canvas-${c.name}`));
+      } else {
+        canvasSelected.forEach((c) => prevSelected.add(`canvas-${c.id}`));
+      }
       gsSelected.forEach((c) => prevSelected.add(`gs-${c.id}`));
       pensieveSelected.forEach((c) => prevSelected.add(`pensieve-${c.id}`));
       // Syllabus courses are always selected (managed via Syllabus settings, not here)
@@ -249,7 +277,11 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
   function handleModalDone() {
     const newCanvasCourses = canvasCourses
       .filter((c) => selectedIds.has(c.id))
-      .map((c) => ({ id: parseInt(c.id.replace("canvas-", ""), 10), name: c.name }));
+      .map((c) => {
+        const rawId = c.id.replace("canvas-", "");
+        const numericId = parseInt(rawId, 10);
+        return { id: isNaN(numericId) ? 0 : numericId, name: c.name };
+      });
     const newGsCourses = gseCourses
       .filter((c) => selectedIds.has(c.id))
       .map((c) => ({ id: c.id.replace("gs-", ""), name: c.name }));
@@ -257,19 +289,20 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
       .filter((c) => selectedIds.has(c.id))
       .map((c) => ({ id: c.id.replace("pensieve-", ""), name: c.name }));
 
-    const oldCanvasIds = new Set(canvasSelected.map((c) => c.id));
+    // Use name-based comparison (works for both API-token and iCal courses)
+    const oldCanvasNames = new Set(canvasSelected.map((c) => c.name));
     const oldGsIds = new Set(gsSelected.map((c) => c.id));
     const oldPensieveIds = new Set(pensieveSelected.map((c) => c.id));
-    const addedCanvasCourses = newCanvasCourses.filter((c) => !oldCanvasIds.has(c.id));
+    const addedCanvasCourses = newCanvasCourses.filter((c) => !oldCanvasNames.has(c.name));
     const addedGsCourses = newGsCourses.filter((c) => !oldGsIds.has(c.id));
     const addedPensieveCourses = newPensieveCourses.filter((c) => !oldPensieveIds.has(c.id));
 
-    const newCanvasIds = new Set(newCanvasCourses.map((c) => c.id));
+    const newCanvasNames = new Set(newCanvasCourses.map((c) => c.name));
     const newGsIds = new Set(newGsCourses.map((c) => c.id));
     const newPensieveIds = new Set(newPensieveCourses.map((c) => c.id));
 
     const removedNames = [
-      ...canvasSelected.filter((c) => !newCanvasIds.has(c.id)).map((c) => c.name),
+      ...canvasSelected.filter((c) => !newCanvasNames.has(c.name)).map((c) => c.name),
       ...gsSelected.filter((c) => !newGsIds.has(c.id)).map((c) => c.name),
       ...pensieveSelected.filter((c) => !newPensieveIds.has(c.id)).map((c) => c.name),
     ];
@@ -432,9 +465,9 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
 
       {totalSelected > 0 ? (
         <div className="flex flex-col gap-2">
-          {canvasSelected.map((c) => (
+          {canvasSelected.map((c, i) => (
             <span
-              key={`canvas-${c.id}`}
+              key={`canvas-${c.id}-${i}`}
               className="inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-200"
             >
               {c.name}

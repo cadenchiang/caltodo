@@ -1103,11 +1103,15 @@ export function TaskProvider({ children }: { children: ReactNode }) {
 
       // Sync any newly imported tasks (with due dates) to GCal
       syncUnsyncedToGCal();
+
+      // Notify IntegrationProvider to refresh credentials (updates Classes tab)
+      window.dispatchEvent(new CustomEvent("credentials-changed"));
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       trackEvent("sync_failed", { error: message });
       setError(message);
-      // Don't show sync errors in notifications — they're noisy from auto-sync
+      clearInterval(progressInterval);
+      showToast(`Sync failed: ${message}`, { duration: 6_000 });
     } finally {
       clearInterval(progressInterval);
       setSyncing(false);

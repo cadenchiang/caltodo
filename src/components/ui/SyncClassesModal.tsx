@@ -61,13 +61,18 @@ export default function SyncClassesModal() {
     return () => clearTimeout(timer);
   }, [redoActive, pathname]);
 
-  // Standard show logic for first-time users (shows on /app/home or /app/inbox)
+  // Standard show logic for first-time users (shows on /app/home or /app/inbox).
+  // When loading, waits up to 400ms for the API to respond before showing.
+  // Once loading finishes, shows immediately if onboarding is not complete.
   useEffect(() => {
     if (redoActive) return; // redo has its own path
     if (!pathname?.startsWith("/app/inbox") && !pathname?.startsWith("/app/home")) return;
-    if (loading) return;
     if (dismissedThisSession) return;
-    if (hasCompletedOnboarding) return;
+    if (hasCompletedOnboarding) {
+      // API confirmed onboarding is done — hide if it was shown prematurely
+      if (visible) setVisible(false);
+      return;
+    }
 
     try {
       if (localStorage.getItem(DISMISS_KEY) === "true") {
@@ -82,8 +87,16 @@ export default function SyncClassesModal() {
       return;
     }
 
-    setVisible(true);
-  }, [pathname, loading, hasCompletedOnboarding, redoActive]);
+    if (!loading) {
+      // API responded — show immediately
+      setVisible(true);
+      return;
+    }
+
+    // API still loading — show after a short timeout so new users aren't waiting
+    const timer = setTimeout(() => setVisible(true), 400);
+    return () => clearTimeout(timer);
+  }, [pathname, loading, hasCompletedOnboarding, redoActive, visible]);
 
   /**
    * Closes the modal with exit animation, persists dismissal,

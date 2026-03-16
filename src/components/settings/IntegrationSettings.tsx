@@ -124,6 +124,15 @@ export function IntegrationProvider({ children }: { children: React.ReactNode })
     fetchCredentials();
   }, [fetchCredentials]);
 
+  // Re-fetch credentials when sync completes (updates Classes tab in real-time)
+  useEffect(() => {
+    function handleCredentialsChanged() {
+      fetchCredentials();
+    }
+    window.addEventListener("credentials-changed", handleCredentialsChanged);
+    return () => window.removeEventListener("credentials-changed", handleCredentialsChanged);
+  }, [fetchCredentials]);
+
   function handleUpdate(updated: IntegrationCredentials) {
     setCredentials(updated);
     setCachedCredentials(updated);

@@ -282,8 +282,23 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
                 </label>
               ))}
               {courses.length === 0 && (
-                <div className="px-3 py-4 text-sm text-muted-foreground text-center">
-                  no active courses found.
+                <div className="px-3 py-4 text-center">
+                  <p className="text-sm text-muted-foreground mb-2">
+                    no active courses found.
+                  </p>
+                  <p className="text-xs text-muted-foreground/70 leading-relaxed">
+                    if you use CalNet to sign in, your Gradescope password may differ from your CalNet password.
+                    try{" "}
+                    <a
+                      href="https://www.gradescope.com/reset_password"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-500 underline"
+                    >
+                      resetting your Gradescope password
+                    </a>
+                    {" "}and trying again.
+                  </p>
                 </div>
               )}
             </div>

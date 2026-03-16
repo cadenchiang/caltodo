@@ -200,8 +200,19 @@ async function syncCanvas(
     let assignments: NormalizedAssignment[];
 
     if (creds.canvas_ical_url) {
-      // iCal feed path — no course selection needed, feed contains all assignments
-      assignments = await fetchCanvasICalAssignments(creds.canvas_ical_url);
+      // iCal feed path — filter by selected courses if set
+      const selectedCourses = creds.selected_canvas_courses;
+      if (Array.isArray(selectedCourses) && selectedCourses.length === 0) {
+        logger.info("syncCanvas skipped: no courses selected (iCal)", { userId });
+        return { synced: 0, errors: [] };
+      }
+      const allIcalAssignments = await fetchCanvasICalAssignments(creds.canvas_ical_url);
+      if (selectedCourses && selectedCourses.length > 0) {
+        const selectedNames = new Set(selectedCourses.map((c) => c.name));
+        assignments = allIcalAssignments.filter((a) => selectedNames.has(a.course_name));
+      } else {
+        assignments = allIcalAssignments;
+      }
     } else if (creds.canvas_token) {
       // API token path (legacy)
       const selectedCourses = creds.selected_canvas_courses;

@@ -211,10 +211,11 @@ export default function OnboardingPage() {
   }
 
   /**
-   * Handles Pensieve step completion with calendar URL.
+   * Handles Pensieve step completion with calendar URL and optional course selection.
    */
   async function handlePensieveNext(payload: {
     pensieve_calendar_url: string;
+    selected_pensieve_courses?: Array<{ id: string; name: string }>;
   }): Promise<boolean> {
     const ok = await saveCredentials(payload);
     if (!ok) return false;
@@ -344,6 +345,7 @@ export default function OnboardingPage() {
    */
   async function handleStandalonePensieveNext(payload: {
     pensieve_calendar_url: string;
+    selected_pensieve_courses?: Array<{ id: string; name: string }>;
   }): Promise<boolean> {
     const ok = await saveCredentials(payload);
     if (!ok) return false;

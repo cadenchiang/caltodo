@@ -22,6 +22,10 @@ interface CanvasCourse {
   course_code: string;
 }
 
+interface ICalCourse {
+  name: string;
+}
+
 interface CanvasStepProps {
   onNext: (payload: {
     canvas_token?: string;
@@ -63,6 +67,9 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
 
   // iCal state
   const [icalUrl, setIcalUrl] = useState("");
+  const [icalCourses, setIcalCourses] = useState<ICalCourse[] | null>(null);
+  const [icalSelectedNames, setIcalSelectedNames] = useState<Set<string>>(new Set());
+  const [icalLoading, setIcalLoading] = useState(false);
 
   // API token state (advanced)
   const [canvasToken, setCanvasToken] = useState(initialToken ?? "");
@@ -111,7 +118,8 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
   }
 
   /**
-   * Saves the iCal feed URL and advances to next step.
+   * Fetches course names from the iCal feed for course selection.
+   * If courses are already loaded, saves selected courses and advances.
    */
   async function handleICalSave() {
     const url = icalUrl.trim();
@@ -127,8 +135,61 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
     }
 
     setError(null);
-    const ok = await onNext({ canvas_ical_url: url });
-    if (!ok) return;
+
+    // If courses already loaded, save selection and advance
+    if (icalCourses) {
+      const selected = icalCourses
+        .filter((c) => icalSelectedNames.has(c.name))
+        .map((c) => ({ id: 0, name: c.name }));
+      const ok = await onNext({
+        canvas_ical_url: url,
+        selected_canvas_courses: selected,
+      });
+      if (!ok) return;
+      return;
+    }
+
+    // Fetch course preview from the iCal feed
+    setIcalLoading(true);
+    try {
+      const res = await fetch("/api/canvas/ical-preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Failed to load feed: ${res.status}`);
+      }
+      const data = await res.json();
+      if (data.courses.length === 0) {
+        // No courses found — save without selection
+        const ok = await onNext({ canvas_ical_url: url });
+        if (!ok) return;
+        return;
+      }
+      setIcalCourses(data.courses);
+      setIcalSelectedNames(new Set(data.courses.map((c: ICalCourse) => c.name)));
+    } catch (err) {
+      if (err instanceof TypeError) {
+        setError("Network error. Check your connection.");
+      } else {
+        setError(err instanceof Error ? err.message : String(err));
+      }
+    } finally {
+      setIcalLoading(false);
+    }
+  }
+
+  /**
+   * Toggles an iCal course's selected state by name.
+   */
+  function toggleIcalCourse(name: string) {
+    setIcalSelectedNames((prev) => {
+      const next = new Set(prev);
+      next.has(name) ? next.delete(name) : next.add(name);
+      return next;
+    });
   }
 
   /**
@@ -222,8 +283,8 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
         <h2 className="text-lg font-bold text-foreground animate-drop-in">bCourses</h2>
       </div>
 
-      {/* ===== iCal mode (default) ===== */}
-      {mode === "ical" && (
+      {/* ===== iCal mode (default) — URL input ===== */}
+      {mode === "ical" && !icalCourses && (
         <>
           <div className="flex flex-col gap-1 mb-4 text-left animate-drop-in delay-100">
             <div className="flex items-center gap-3 px-2 py-2">
@@ -264,10 +325,11 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
           <div className="animate-drop-in delay-300">
             <button
               onClick={handleICalSave}
-              disabled={saving}
+              disabled={saving || icalLoading}
               className="w-full px-4 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2 btn-elevated-primary"
             >
-              {saving ? "saving..." : "connect"}
+              {icalLoading && <Loader2 size={14} className="animate-spin" />}
+              {icalLoading ? "loading courses..." : saving ? "saving..." : "connect"}
             </button>
           </div>
 
@@ -278,6 +340,56 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
             className="mt-4 text-[11px] text-muted-foreground/50 hover:text-muted-foreground transition-colors"
           >
             use API key instead (advanced, more setup required)
+          </button>
+        </>
+      )}
+
+      {/* ===== iCal mode — course selection ===== */}
+      {mode === "ical" && icalCourses && (
+        <>
+          <div className="mb-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-medium text-muted-foreground">
+                select courses to sync ({icalSelectedNames.size}/{icalCourses.length})
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  if (icalSelectedNames.size === icalCourses.length) {
+                    setIcalSelectedNames(new Set());
+                  } else {
+                    setIcalSelectedNames(new Set(icalCourses.map((c) => c.name)));
+                  }
+                }}
+                className="text-xs text-blue-400 hover:text-blue-300 transition-colors duration-100"
+              >
+                {icalSelectedNames.size === icalCourses.length ? "deselect all" : "select all"}
+              </button>
+            </div>
+            <div className="max-h-80 overflow-auto rounded-xl border border-border">
+              {icalCourses.map((course) => (
+                <label
+                  key={course.name}
+                  className="flex items-center gap-3 px-3 py-2.5 hover:bg-accent transition-colors duration-100 cursor-pointer border-b border-border last:border-0"
+                >
+                  <input
+                    type="checkbox"
+                    checked={icalSelectedNames.has(course.name)}
+                    onChange={() => toggleIcalCourse(course.name)}
+                    className="w-4 h-4 rounded accent-foreground"
+                  />
+                  <span className="text-sm text-foreground truncate">{course.name}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <button
+            onClick={handleICalSave}
+            disabled={saving}
+            className="w-full px-4 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-sm font-semibold disabled:opacity-50 btn-elevated-primary"
+          >
+            {saving ? "saving..." : icalSelectedNames.size > 0 ? "save & next" : "next"}
           </button>
         </>
       )}
