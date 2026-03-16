@@ -244,7 +244,7 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
           {authFailed && (
             <div className="mt-4 rounded-xl border border-border p-4 text-center animate-drop-in">
               <p className="text-sm text-foreground font-medium mb-2">
-                invalid email or password
+                don&apos;t see your classes?
               </p>
               <p className="text-xs text-muted-foreground leading-relaxed mb-3">
                 if you normally sign in to Gradescope with Google or your school&apos;s SSO, your password
@@ -311,7 +311,7 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
               {courses.length === 0 && (
                 <div className="px-3 py-4 text-center">
                   <p className="text-sm text-foreground font-medium mb-2">
-                    no courses found — your password may not have worked.
+                    don&apos;t see your classes?
                   </p>
                   <p className="text-xs text-muted-foreground leading-relaxed mb-3">
                     if you normally sign in to Gradescope with Google or your school&apos;s SSO, your password
