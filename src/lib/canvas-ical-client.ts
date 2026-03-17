@@ -9,6 +9,10 @@
 
 import { logger } from "@/lib/logger";
 import type { NormalizedAssignment } from "@/lib/canvas-client";
+import {
+  extractPropertyWithTzid,
+  parseDueDateWithTzid,
+} from "@/lib/ical-date-utils";
 
 /** Timeout in milliseconds for fetching the Canvas iCal feed. */
 const FETCH_TIMEOUT_MS = 15_000;
@@ -66,14 +70,18 @@ export function parseCanvasICalEvents(
 
     const uid = extractProperty(unfolded, "UID");
     const summary = extractProperty(unfolded, "SUMMARY");
-    const dtstart = extractProperty(unfolded, "DTSTART");
-    const dtend = extractProperty(unfolded, "DTEND");
+    const dtstart = extractPropertyWithTzid(unfolded, "DTSTART");
+    const dtend = extractPropertyWithTzid(unfolded, "DTEND");
     const description = extractProperty(unfolded, "DESCRIPTION");
     const url = extractProperty(unfolded, "URL");
 
     if (!uid || !summary) continue;
 
-    const dueDate = parseDueDate(dtend || dtstart);
+    const endOrStart = dtend ?? dtstart;
+    const dueDate = parseDueDateWithTzid(
+      endOrStart?.value ?? null,
+      endOrStart?.tzid ?? null
+    );
     const { title, courseName } = parseCanvasSummary(summary);
 
     // Extract external_id from UID (e.g. "event-assignment-8999055" → "8999055")
@@ -125,33 +133,6 @@ function extractProperty(block: string, property: string): string | null {
   const regex = new RegExp(`^${property}(?:;[^:]*)?:(.*)$`, "m");
   const match = block.match(regex);
   return match ? match[1].trim() : null;
-}
-
-/**
- * Parses a due date from iCal date/datetime formats.
- *
- * @param raw - Raw iCal date string
- * @returns ISO 8601 date string or null if unparseable
- */
-function parseDueDate(raw: string | null): string | null {
-  if (!raw) return null;
-
-  if (/^\d{8}$/.test(raw)) {
-    const y = raw.slice(0, 4);
-    const m = raw.slice(4, 6);
-    const d = raw.slice(6, 8);
-    return `${y}-${m}-${d}T00:00:00Z`;
-  }
-
-  const dtMatch = raw.match(
-    /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z?$/
-  );
-  if (dtMatch) {
-    const [, y, mo, d, h, mi, s] = dtMatch;
-    return `${y}-${mo}-${d}T${h}:${mi}:${s}Z`;
-  }
-
-  return null;
 }
 
 /**

@@ -1,0 +1,161 @@
+/**
+ * Shared iCal date/time parsing utilities.
+ * Handles TZID-qualified datetimes by converting local times to UTC.
+ * Used by canvas-ical-client.ts and pensieve-client.ts.
+ */
+
+import { logger } from "@/lib/logger";
+
+/**
+ * Result of extracting a property that may include a TZID parameter.
+ */
+export interface PropertyWithTzid {
+  value: string;
+  tzid: string | null;
+}
+
+/**
+ * Extracts a property value along with its TZID parameter from an unfolded
+ * iCal VEVENT block. Used for DTSTART/DTEND which may specify a timezone.
+ *
+ * @param block - Unfolded iCal text block
+ * @param property - Property name to extract (e.g. "DTSTART", "DTEND")
+ * @returns Object with value and tzid, or null if property not found
+ */
+export function extractPropertyWithTzid(
+  block: string,
+  property: string
+): PropertyWithTzid | null {
+  const regex = new RegExp(`^${property}((?:;[^:]*)?):(.*)$`, "m");
+  const match = block.match(regex);
+  if (!match) return null;
+
+  const params = match[1];
+  const value = match[2].trim();
+
+  const tzidMatch = params.match(/;TZID=([^;:]+)/i);
+  const tzid = tzidMatch ? tzidMatch[1] : null;
+
+  return { value, tzid };
+}
+
+/**
+ * Parses a due date from iCal date/datetime formats. When a TZID is provided,
+ * converts the local time to UTC. Without TZID, times ending in Z are treated
+ * as UTC; times without Z are assumed UTC (legacy fallback).
+ *
+ * @param raw - Raw iCal date string (YYYYMMDD or YYYYMMDDTHHmmss with optional Z)
+ * @param tzid - IANA timezone identifier from TZID parameter, or null
+ * @returns ISO 8601 UTC date string or null if unparseable
+ */
+export function parseDueDateWithTzid(
+  raw: string | null,
+  tzid: string | null
+): string | null {
+  if (!raw) return null;
+
+  // DATE format: YYYYMMDD (all-day event, no timezone conversion needed)
+  if (/^\d{8}$/.test(raw)) {
+    const y = raw.slice(0, 4);
+    const m = raw.slice(4, 6);
+    const d = raw.slice(6, 8);
+    return `${y}-${m}-${d}T00:00:00Z`;
+  }
+
+  // DATETIME format: YYYYMMDDTHHmmss with optional Z suffix
+  const dtMatch = raw.match(
+    /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})(Z?)$/
+  );
+  if (!dtMatch) return null;
+
+  const [, y, mo, d, h, mi, s, zSuffix] = dtMatch;
+
+  // If already UTC (has Z suffix) or no TZID, treat as UTC
+  if (zSuffix === "Z" || !tzid) {
+    return `${y}-${mo}-${d}T${h}:${mi}:${s}Z`;
+  }
+
+  // TZID present: convert local time in that timezone to UTC
+  return localToUtc(
+    Number(y),
+    Number(mo),
+    Number(d),
+    Number(h),
+    Number(mi),
+    Number(s),
+    tzid
+  );
+}
+
+/**
+ * Converts a local datetime in a given IANA timezone to a UTC ISO 8601 string.
+ * Uses Intl.DateTimeFormat to determine the correct UTC offset (handles DST).
+ *
+ * @param y - Year
+ * @param mo - Month (1-12)
+ * @param d - Day
+ * @param h - Hour (0-23)
+ * @param mi - Minute
+ * @param s - Second
+ * @param tzid - IANA timezone identifier (e.g. "America/Los_Angeles")
+ * @returns ISO 8601 UTC string, or null if the timezone is invalid
+ */
+function localToUtc(
+  y: number,
+  mo: number,
+  d: number,
+  h: number,
+  mi: number,
+  s: number,
+  tzid: string
+): string | null {
+  try {
+    // Build a UTC Date from the local components as an initial guess
+    const guessUtc = new Date(Date.UTC(y, mo - 1, d, h, mi, s));
+
+    // Determine what local time that UTC instant maps to in the given timezone
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: tzid,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    });
+    const parts = formatter.formatToParts(guessUtc);
+    const get = (type: string) =>
+      Number(parts.find((p) => p.type === type)?.value ?? "0");
+
+    const localH = get("hour");
+    const localMi = get("minute");
+    const localS = get("second");
+    const localD = get("day");
+    const localMo = get("month");
+    const localY = get("year");
+
+    // Compute offset: difference between the local components we want and what
+    // the guess mapped to. Adjust the guess by that delta.
+    const wantMs = Date.UTC(y, mo - 1, d, h, mi, s);
+    const gotLocalMs = Date.UTC(
+      localY,
+      localMo - 1,
+      localD,
+      localH,
+      localMi,
+      localS
+    );
+    const offsetMs = gotLocalMs - guessUtc.getTime();
+
+    // The correct UTC time is: wanted_local - offset
+    const correctUtc = new Date(wantMs - offsetMs);
+    return correctUtc.toISOString().replace(/\.\d{3}Z$/, "Z");
+  } catch (err) {
+    logger.warn("localToUtc: invalid timezone, falling back to UTC", {
+      tzid,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return `${String(y).padStart(4, "0")}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}T${String(h).padStart(2, "0")}:${String(mi).padStart(2, "0")}:${String(s).padStart(2, "0")}Z`;
+  }
+}

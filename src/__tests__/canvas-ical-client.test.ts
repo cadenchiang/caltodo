@@ -112,4 +112,51 @@ END:VEVENT
 END:VCALENDAR`;
     expect(parseCanvasICalEvents(bad)).toEqual([]);
   });
+
+  it("should convert TZID-qualified datetimes to UTC", () => {
+    const ical = `BEGIN:VCALENDAR
+BEGIN:VEVENT
+DTSTART;TZID=America/Los_Angeles:20260320T235900
+DTEND;TZID=America/Los_Angeles:20260320T235900
+DTSTAMP:20260320T000000Z
+UID:event-assignment-1234567
+SUMMARY:Homework 5 [CS 61A SP26]
+END:VEVENT
+END:VCALENDAR`;
+    const events = parseCanvasICalEvents(ical);
+    expect(events).toHaveLength(1);
+    // March 20, 2026 11:59 PM PDT = March 21, 2026 06:59 AM UTC (PDT is UTC-7)
+    expect(events[0].due_date).toBe("2026-03-21T06:59:00Z");
+  });
+
+  it("should convert TZID=America/New_York datetimes to UTC", () => {
+    const ical = `BEGIN:VCALENDAR
+BEGIN:VEVENT
+DTSTART;TZID=America/New_York:20260320T235900
+DTEND;TZID=America/New_York:20260320T235900
+DTSTAMP:20260320T000000Z
+UID:event-assignment-7654321
+SUMMARY:Essay 3 [ENGL 101]
+END:VEVENT
+END:VCALENDAR`;
+    const events = parseCanvasICalEvents(ical);
+    expect(events).toHaveLength(1);
+    // March 20, 2026 11:59 PM EDT = March 21, 2026 03:59 AM UTC (EDT is UTC-4)
+    expect(events[0].due_date).toBe("2026-03-21T03:59:00Z");
+  });
+
+  it("should still handle UTC Z-suffixed datetimes correctly", () => {
+    const ical = `BEGIN:VCALENDAR
+BEGIN:VEVENT
+DTSTART:20260320T235900Z
+DTEND:20260320T235900Z
+DTSTAMP:20260320T000000Z
+UID:event-assignment-1111111
+SUMMARY:Quiz 1 [MATH 53]
+END:VEVENT
+END:VCALENDAR`;
+    const events = parseCanvasICalEvents(ical);
+    expect(events).toHaveLength(1);
+    expect(events[0].due_date).toBe("2026-03-20T23:59:00Z");
+  });
 });

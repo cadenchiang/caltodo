@@ -6,6 +6,10 @@
 
 import { logger } from "@/lib/logger";
 import type { NormalizedAssignment } from "@/lib/canvas-client";
+import {
+  extractPropertyWithTzid,
+  parseDueDateWithTzid,
+} from "@/lib/ical-date-utils";
 
 /** Timeout in milliseconds for fetching the Pensieve iCal feed. */
 const FETCH_TIMEOUT_MS = 15_000;
@@ -63,8 +67,8 @@ export function parseICalEvents(icsText: string): NormalizedAssignment[] {
 
     const uid = extractProperty(unfolded, "UID");
     const summary = extractProperty(unfolded, "SUMMARY");
-    const dtstart = extractProperty(unfolded, "DTSTART");
-    const dtend = extractProperty(unfolded, "DTEND");
+    const dtstart = extractPropertyWithTzid(unfolded, "DTSTART");
+    const dtend = extractPropertyWithTzid(unfolded, "DTEND");
     const description = extractProperty(unfolded, "DESCRIPTION");
     const url = extractProperty(unfolded, "URL");
     const status = extractProperty(unfolded, "STATUS");
@@ -85,7 +89,11 @@ export function parseICalEvents(icsText: string): NormalizedAssignment[] {
     }
 
     // Parse the due date from DTSTART or DTEND
-    const dueDate = parseDueDate(dtend || dtstart);
+    const endOrStart = dtend ?? dtstart;
+    const dueDate = parseDueDateWithTzid(
+      endOrStart?.value ?? null,
+      endOrStart?.tzid ?? null
+    );
 
     // Extract late_due_date from description before cleaning
     let lateDueDate: string | null = null;
@@ -173,33 +181,6 @@ function extractProperty(block: string, property: string): string | null {
   return match ? match[1].trim() : null;
 }
 
-/**
- * Parses a due date from iCal date/datetime formats.
- * Supports: YYYYMMDD, YYYYMMDDTHHmmssZ, YYYYMMDDTHHmmss
- *
- * @param raw - Raw iCal date string
- * @returns ISO 8601 date string or null if unparseable
- */
-function parseDueDate(raw: string | null): string | null {
-  if (!raw) return null;
-
-  // DATE format: YYYYMMDD
-  if (/^\d{8}$/.test(raw)) {
-    const y = raw.slice(0, 4);
-    const m = raw.slice(4, 6);
-    const d = raw.slice(6, 8);
-    return `${y}-${m}-${d}T00:00:00Z`;
-  }
-
-  // DATETIME format: YYYYMMDDTHHmmss or YYYYMMDDTHHmmssZ
-  const dtMatch = raw.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z?$/);
-  if (dtMatch) {
-    const [, y, mo, d, h, mi, s] = dtMatch;
-    return `${y}-${mo}-${d}T${h}:${mi}:${s}Z`;
-  }
-
-  return null;
-}
 
 /**
  * Attempts to extract a course name from the event summary or description.
