@@ -43,7 +43,7 @@ const testimonials: Testimonial[] = [
     stars: 5,
     avatar: "",
     content:
-      "The class chat feature is a game changer. Being able to message classmates right next to my assignments makes studying so much easier.",
+      "Having all my Canvas and Gradescope deadlines in one place is a game changer. I never miss an assignment anymore and the calendar view makes planning my week so much easier.",
   },
   {
     name: "Jason Liu",
