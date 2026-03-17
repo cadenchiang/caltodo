@@ -62,6 +62,17 @@ export default function TaskPreviewPopover({
   const ref = useRef<HTMLDivElement>(null);
   const { colorTheme } = useTheme();
   const [visible, setVisible] = useState(false);
+  const closingRef = useRef(false);
+
+  /**
+   * Triggers the close animation, then calls onClose after it completes.
+   */
+  const animateClose = () => {
+    if (closingRef.current) return;
+    closingRef.current = true;
+    setVisible(false);
+    setTimeout(onClose, 150);
+  };
 
   useEffect(() => {
     requestAnimationFrame(() => {
@@ -71,7 +82,7 @@ export default function TaskPreviewPopover({
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") animateClose();
     }
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
@@ -81,7 +92,7 @@ export default function TaskPreviewPopover({
     function handlePointerDown(e: MouseEvent | TouchEvent) {
       const target = "touches" in e ? e.touches[0]?.target : e.target;
       if (ref.current && target && !ref.current.contains(target as Node)) {
-        onClose();
+        animateClose();
       }
     }
     document.addEventListener("mousedown", handlePointerDown);
@@ -95,9 +106,9 @@ export default function TaskPreviewPopover({
   const [pos, setPos] = useState({ left: -9999, top: -9999 });
 
   /**
-   * Positions the popover near the anchor but biased towards the viewport
-   * center, so it adapts based on where the anchor is on screen rather
-   * than always appearing immediately adjacent.
+   * Positions the popover adjacent to the anchor element.
+   * Vertically aligns the popover top with the anchor top, then clamps
+   * to keep it within the viewport.
    */
   useLayoutEffect(() => {
     const el = ref.current;
@@ -119,11 +130,8 @@ export default function TaskPreviewPopover({
     }
     left = Math.max(GAP, Math.min(left, vw - POPOVER_WIDTH - GAP));
 
-    // Vertical: blend between anchor-aligned and viewport-centered
-    const anchorTop = anchorRect.top;
-    const centeredTop = (vh - popoverHeight) / 2;
-    const BLEND = 0.35; // 35% pull towards center
-    let top = anchorTop + (centeredTop - anchorTop) * BLEND;
+    // Vertical: align popover top with anchor top, then clamp to viewport
+    let top = anchorRect.top;
 
     // Clamp to viewport
     if (top + popoverHeight > vh - GAP) {
@@ -157,8 +165,8 @@ export default function TaskPreviewPopover({
       {isMobile && (
         <div
           className="fixed inset-0 z-[9998]"
-          onClick={onClose}
-          onTouchStart={onClose}
+          onClick={animateClose}
+          onTouchStart={animateClose}
         />
       )}
       <div
@@ -182,7 +190,7 @@ export default function TaskPreviewPopover({
       <TaskActionBar
         onEdit={() => onEdit(task)}
         onDelete={() => onDelete(task.id)}
-        onClose={onClose}
+        onClose={animateClose}
         sourceUrl={task.source_url}
       />
 

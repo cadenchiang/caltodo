@@ -210,6 +210,7 @@ export default function CalendarPage() {
                 onDaySelect={setSelectedDate}
                 onTaskClick={modals.handleTaskClick}
                 onShowMore={modals.handleShowMore}
+                activeTaskId={modals.previewTask?.id ?? null}
               />
             ) : viewMode === "week" ? (
               calendarMode === "assignments" ? (
@@ -219,6 +220,7 @@ export default function CalendarPage() {
                   pendingInvites={pendingInvites}
                   onDayClick={modals.handleDayClick}
                   onTaskClick={modals.handleTaskClick}
+                  activeTaskId={modals.previewTask?.id ?? null}
                 />
               ) : (
                 <CalendarWeekView
@@ -232,6 +234,7 @@ export default function CalendarPage() {
                   onTaskClick={modals.handleTaskClick}
                   onEventCreate={modals.handleTimeGridCreate}
                   clearPreviewSignal={clearPreviewSignal}
+                  activeTaskId={modals.previewTask?.id ?? null}
                 />
               )
             ) : (
@@ -242,6 +245,7 @@ export default function CalendarPage() {
                   pendingInvites={pendingInvites}
                   onAddClick={modals.handleDayClick}
                   onTaskClick={modals.handleTaskClick}
+                  activeTaskId={modals.previewTask?.id ?? null}
                 />
               ) : (
                 <CalendarDayView
@@ -254,6 +258,7 @@ export default function CalendarPage() {
                   onTaskClick={modals.handleTaskClick}
                   onEventCreate={modals.handleTimeGridCreate}
                   clearPreviewSignal={clearPreviewSignal}
+                  activeTaskId={modals.previewTask?.id ?? null}
                 />
               )
             )}

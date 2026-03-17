@@ -25,6 +25,8 @@ interface CalendarWeekViewProps {
   onEventCreate?: (date: string, startTime: string, endTime: string) => void;
   /** Incremented when create modal closes, to animate-out the preview block. */
   clearPreviewSignal?: number;
+  /** ID of the task whose popover is currently open (stays highlighted). */
+  activeTaskId?: string | null;
 }
 
 /**
@@ -48,6 +50,7 @@ export default function CalendarWeekView({
   onTaskClick,
   onEventCreate,
   clearPreviewSignal,
+  activeTaskId,
 }: CalendarWeekViewProps) {
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -168,7 +171,7 @@ export default function CalendarWeekView({
                 }}
               >
                 {dayTasks.map((task) => (
-                  <CalendarTaskBar key={task.id} task={task} onClick={onTaskClick} />
+                  <CalendarTaskBar key={task.id} task={task} onClick={onTaskClick} isActive={task.id === activeTaskId} />
                 ))}
                 {dayInvites.map((invite) => (
                   <CalendarTaskBar

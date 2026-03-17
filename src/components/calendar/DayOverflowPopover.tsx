@@ -16,6 +16,8 @@ interface DayOverflowPopoverProps {
   anchorRect: DOMRect;
   onClose: () => void;
   onTaskClick: (task: Task, rect: DOMRect) => void;
+  /** ID of the task whose popover is currently open (stays highlighted). */
+  activeTaskId?: string | null;
 }
 
 /**
@@ -38,6 +40,7 @@ export default function DayOverflowPopover({
   anchorRect,
   onClose,
   onTaskClick,
+  activeTaskId,
 }: DayOverflowPopoverProps) {
   const popoverRef = useRef<HTMLDivElement>(null);
 
@@ -109,7 +112,7 @@ export default function DayOverflowPopover({
       {/* Items list */}
       <div className="p-2 flex flex-col gap-0.5 overflow-y-auto" style={{ maxHeight: popoverMaxHeight - 40 }}>
         {tasks.map((task) => (
-          <CalendarTaskBar key={task.id} task={task} onClick={onTaskClick} />
+          <CalendarTaskBar key={task.id} task={task} onClick={onTaskClick} isActive={task.id === activeTaskId} />
         ))}
         {pendingInvites.map((invite) => (
           <CalendarTaskBar

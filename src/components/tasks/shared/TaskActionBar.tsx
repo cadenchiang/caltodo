@@ -71,13 +71,13 @@ export default function TaskActionBar({
             </button>
           </Tooltip>
           {menuOpen && (
-            <div className="absolute right-0 top-full mt-1 w-48 rounded-xl border border-border bg-popover shadow-lg py-1 z-10">
+            <div className="absolute right-0 top-full mt-1 w-48 rounded-xl border border-border bg-popover shadow-lg p-1 z-10">
               {sourceUrl && (
                 <a
                   href={sourceUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-accent transition-colors"
+                  className="flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-accent rounded-lg transition-colors"
                   onClick={() => setMenuOpen(false)}
                 >
                   <ExternalLink size={14} className="text-muted-foreground" />
@@ -90,7 +90,7 @@ export default function TaskActionBar({
                     setMenuOpen(false);
                     onDelete();
                   }}
-                  className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-500 hover:bg-red-500/10 transition-colors"
+                  className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
                 >
                   <Trash2 size={14} />
                   Delete task

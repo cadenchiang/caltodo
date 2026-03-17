@@ -12,6 +12,8 @@ interface AssignmentsDayViewProps {
   pendingInvites?: PendingInvite[];
   onAddClick: (date: string, rect: DOMRect) => void;
   onTaskClick: (task: Task, rect: DOMRect) => void;
+  /** ID of the task whose popover is currently open (stays highlighted). */
+  activeTaskId?: string | null;
 }
 
 /**
@@ -29,6 +31,7 @@ export default function AssignmentsDayView({
   pendingInvites = [],
   onAddClick,
   onTaskClick,
+  activeTaskId,
 }: AssignmentsDayViewProps) {
   const dateStr = format(currentDate, "yyyy-MM-dd");
   const dayTasks = tasks.filter((t) => t.due_date === dateStr);
@@ -56,7 +59,7 @@ export default function AssignmentsDayView({
             </p>
           )}
           {dayTasks.map((task) => (
-            <CalendarTaskBar key={task.id} task={task} onClick={onTaskClick} />
+            <CalendarTaskBar key={task.id} task={task} onClick={onTaskClick} isActive={task.id === activeTaskId} />
           ))}
           {dayInvites.map((invite) => (
             <CalendarTaskBar

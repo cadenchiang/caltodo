@@ -29,6 +29,8 @@ interface CalendarDayCellProps {
   onShowMore?: (date: string, rect: DOMRect) => void;
   /** When true, hides events and uses bigger task bars. */
   assignmentsMode?: boolean;
+  /** ID of the task whose popover is currently open (stays highlighted). */
+  activeTaskId?: string | null;
 }
 
 /** Approximate heights in px for layout calculations. */
@@ -67,6 +69,7 @@ export default function CalendarDayCell({
   onTaskClick,
   onShowMore,
   assignmentsMode = false,
+  activeTaskId,
 }: CalendarDayCellProps) {
   const { colorTheme } = useTheme();
   const [isMobile, setIsMobile] = useState(false);
@@ -239,7 +242,7 @@ export default function CalendarDayCell({
           {/* Task bars + GCal events */}
           <div className="flex flex-col gap-px">
             {visibleTasks.map((task) => (
-              <CalendarTaskBar key={task.id} task={task} onClick={onTaskClick} compact={!assignmentsMode} />
+              <CalendarTaskBar key={task.id} task={task} onClick={onTaskClick} compact={!assignmentsMode} isActive={task.id === activeTaskId} />
             ))}
             {visibleInvites.map((invite) => (
               <CalendarTaskBar

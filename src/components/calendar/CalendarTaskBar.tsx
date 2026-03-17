@@ -13,6 +13,8 @@ interface CalendarTaskBarProps {
   isPending?: boolean;
   /** When true, uses compact 16px height (month view). Default false = 24px (week/day). */
   compact?: boolean;
+  /** When true, the task bar stays in its hover/highlighted state (popover is open). */
+  isActive?: boolean;
 }
 
 /**
@@ -55,10 +57,11 @@ function truncateTitle(title: string, max: number): string {
  * @param onClick - Callback when clicked (opens popover with full details)
  * @param isPending - When true, renders as a dashed outline bar for pending invites
  */
-export default function CalendarTaskBar({ task, onClick, isPending, compact = false }: CalendarTaskBarProps) {
+export default function CalendarTaskBar({ task, onClick, isPending, compact = false, isActive = false }: CalendarTaskBarProps) {
   const { colorTheme } = useTheme();
   const [hovered, setHovered] = useState(false);
   const color = getThemeColor(task.color, colorTheme);
+  const highlighted = hovered || isActive;
 
   return (
     <button
@@ -76,7 +79,7 @@ export default function CalendarTaskBar({ task, onClick, isPending, compact = fa
         border: `1px dashed ${hexToRgba(color, 0.4)}`,
         borderLeftWidth: "2px",
       } : {
-        backgroundColor: hexToRgba(color, hovered ? 0.18 : 0.1),
+        backgroundColor: hexToRgba(color, highlighted ? 0.18 : 0.1),
         borderLeft: `2px solid ${color}`,
       }}
       title={isPending ? `Pending invite: ${task.title}` : task.title}

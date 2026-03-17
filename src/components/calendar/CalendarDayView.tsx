@@ -21,6 +21,8 @@ interface CalendarDayViewProps {
   onEventCreate?: (date: string, startTime: string, endTime: string) => void;
   /** Incremented when create modal closes, to animate-out the preview block. */
   clearPreviewSignal?: number;
+  /** ID of the task whose popover is currently open (stays highlighted). */
+  activeTaskId?: string | null;
 }
 
 /**
@@ -43,6 +45,7 @@ export default function CalendarDayView({
   onTaskClick,
   onEventCreate,
   clearPreviewSignal,
+  activeTaskId,
 }: CalendarDayViewProps) {
   const dateStr = format(currentDate, "yyyy-MM-dd");
   const dayTasks = tasks.filter((t) => t.due_date === dateStr);
@@ -79,7 +82,7 @@ export default function CalendarDayView({
         <div className="shrink-0 border-b border-gray-300 dark:border-gray-500 p-3 md:p-4">
           <div className="flex flex-col gap-1 max-w-xl">
             {dayTasks.map((task) => (
-              <CalendarTaskBar key={task.id} task={task} onClick={onTaskClick} />
+              <CalendarTaskBar key={task.id} task={task} onClick={onTaskClick} isActive={task.id === activeTaskId} />
             ))}
             {dayInvites.map((invite) => (
               <CalendarTaskBar
