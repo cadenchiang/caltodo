@@ -22,6 +22,22 @@ interface CanvasCourse {
   course_code: string;
 }
 
+/**
+ * Generates a stable positive numeric ID from a course name string.
+ * Used for iCal courses which don't have a Canvas numeric ID.
+ * Uses a simple hash (djb2) to produce a unique, deterministic number.
+ *
+ * @param name - Course name string
+ * @returns Positive 32-bit integer derived from the name
+ */
+function stableIdFromName(name: string): number {
+  let hash = 5381;
+  for (let i = 0; i < name.length; i++) {
+    hash = ((hash << 5) + hash + name.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash);
+}
+
 interface ICalCourse {
   name: string;
 }
@@ -140,7 +156,7 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
     if (icalCourses) {
       const selected = icalCourses
         .filter((c) => icalSelectedNames.has(c.name))
-        .map((c) => ({ id: 0, name: c.name }));
+        .map((c) => ({ id: stableIdFromName(c.name), name: c.name }));
       const ok = await onNext({
         canvas_ical_url: url,
         selected_canvas_courses: selected,

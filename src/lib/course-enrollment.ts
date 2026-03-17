@@ -143,19 +143,27 @@ export function gatherEnrollableCourses(credentials: {
   selected_canvas_courses?: Array<{ id: number; name: string }> | null;
   selected_gradescope_courses?: Array<{ id: string; name: string }> | null;
   selected_pensieve_courses?: Array<{ id: string; name: string }> | null;
+  canvas_ical_url?: string | null;
   additional_canvas_accounts?: Array<{
     id: string;
     selected_courses: Array<{ id: number; name: string }> | null;
+    ical_url?: string | null;
   }>;
 }): EnrollableCourse[] {
   const courses: EnrollableCourse[] = [];
+  const isIcal = !!credentials.canvas_ical_url;
 
   // Canvas primary account courses
   if (credentials.selected_canvas_courses) {
     for (const c of credentials.selected_canvas_courses) {
+      // iCal courses store id: 0 (no Canvas numeric ID available).
+      // Use a stable hash of the name so each course gets a unique external_id.
+      const externalId = isIcal || c.id === 0
+        ? `ical-${stableIdFromName(c.name)}`
+        : String(c.id);
       courses.push({
         source: "canvas",
-        external_id: String(c.id),
+        external_id: externalId,
         name: c.name,
       });
     }
@@ -187,10 +195,14 @@ export function gatherEnrollableCourses(credentials: {
   if (credentials.additional_canvas_accounts) {
     for (const account of credentials.additional_canvas_accounts) {
       if (account.selected_courses) {
+        const accountIsIcal = !!account.ical_url;
         for (const c of account.selected_courses) {
+          const externalId = accountIsIcal || c.id === 0
+            ? `${account.id}:ical-${stableIdFromName(c.name)}`
+            : `${account.id}:${String(c.id)}`;
           courses.push({
             source: "canvas",
-            external_id: `${account.id}:${String(c.id)}`,
+            external_id: externalId,
             name: c.name,
           });
         }
@@ -199,4 +211,20 @@ export function gatherEnrollableCourses(credentials: {
   }
 
   return courses;
+}
+
+/**
+ * Generates a stable positive numeric ID from a course name string.
+ * Used for iCal courses which don't have a Canvas numeric course ID.
+ * Uses djb2 hash to produce a unique, deterministic number.
+ *
+ * @param name - Course name string
+ * @returns Positive 32-bit integer derived from the name
+ */
+function stableIdFromName(name: string): number {
+  let hash = 5381;
+  for (let i = 0; i < name.length; i++) {
+    hash = ((hash << 5) + hash + name.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash);
 }
