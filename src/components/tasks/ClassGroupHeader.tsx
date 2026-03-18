@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { ChevronRight, MoreVertical, Pencil, Palette, RotateCcw, Trash2 } from "lucide-react";
+import { ChevronRight, MoreVertical, Pencil, Palette, RotateCcw, Trash2, Plus } from "lucide-react";
 import { TASK_COLORS } from "@/lib/constants";
 
 interface ClassGroupHeaderProps {
@@ -26,6 +26,8 @@ interface ClassGroupHeaderProps {
   onColorChange?: (courseName: string, color: string) => void;
   /** Callback to delete all tasks in this class. */
   onDeleteClass?: (courseName: string) => void;
+  /** Callback to add a new task pre-filled with this class. */
+  onAddTask?: (courseName: string) => void;
 }
 
 /**
@@ -46,6 +48,7 @@ export default function ClassGroupHeader({
   onResetName,
   onColorChange,
   onDeleteClass,
+  onAddTask,
 }: ClassGroupHeaderProps) {
   const [showMenu, setShowMenu] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -129,13 +132,30 @@ export default function ClassGroupHeader({
           className="text-sm font-semibold text-foreground bg-transparent border-b border-blue-500 outline-none min-w-0 ml-0.5 py-0 flex-1"
         />
       ) : (
-        <span className="text-sm font-semibold text-foreground ml-0.5 truncate">
+        <button
+          onClick={onToggle}
+          className="text-sm font-semibold text-foreground ml-0.5 truncate text-left hover:opacity-80 transition-opacity"
+        >
           {displayName}
-        </span>
+        </button>
       )}
 
+      {/* Spacer to push count + actions to far right */}
+      <div className="flex-1" />
+
       {/* Task count */}
-      <span className="text-xs text-subtle-foreground ml-1.5 shrink-0">{count}</span>
+      <span className="text-xs text-subtle-foreground mr-1 shrink-0">{count}</span>
+
+      {/* Add task to this class */}
+      {onAddTask && (
+        <button
+          onClick={() => onAddTask(groupName)}
+          className="p-1 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+          title="Add task to this class"
+        >
+          <Plus size={14} />
+        </button>
+      )}
 
       {/* 3-dot menu button */}
       <button
@@ -145,7 +165,7 @@ export default function ClassGroupHeader({
           setShowColorGrid(false);
           setShowDeleteConfirm(false);
         }}
-        className="ml-1 p-1 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+        className="p-1 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors opacity-0 group-hover:opacity-100"
         title="Group options"
       >
         <MoreVertical size={14} />

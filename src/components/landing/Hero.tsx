@@ -7,6 +7,7 @@ import GoogleOneTap from "@/components/auth/GoogleOneTap";
 import BentoFeatures from "@/components/landing/BentoFeatures";
 import FadeIn from "@/components/landing/FadeIn";
 import FeatureHighlight from "@/components/landing/FeatureHighlight";
+import StatsSection from "@/components/landing/StatsSection";
 import TestimonialSection from "@/components/landing/TestimonialSection";
 
 
@@ -232,6 +233,10 @@ export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
             })}
           </div>
         </div>
+      </div>
+
+      <div className="w-full bg-[#FCFCFD]">
+        <StatsSection />
       </div>
 
       <FeatureHighlight />

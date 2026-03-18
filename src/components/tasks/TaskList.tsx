@@ -130,6 +130,8 @@ interface TaskListProps {
   onColorChange?: (courseName: string, color: string) => void;
   /** Callback to delete all tasks in a class. */
   onDeleteClass?: (courseName: string) => void;
+  /** Callback to add a task pre-filled with a specific class. */
+  onAddTaskToClass?: (courseName: string) => void;
   /** Pending task invitations to show in the "Requests" collapsible section. */
   pendingInvites?: PendingInvite[];
   /** Callback when user accepts or declines an invite. */
@@ -243,6 +245,7 @@ export default function TaskList({
   onReorder,
   onColorChange,
   onDeleteClass,
+  onAddTaskToClass,
   pendingInvites = [],
   onRespondInvite,
   onAcceptAllInvites,
@@ -594,7 +597,7 @@ export default function TaskList({
           {activeGroups.map(([groupName, groupTasks], groupIdx) => {
             const isCollapsed = collapsedGroups.has(groupName);
             return (
-              <div key={groupName} className={groupIdx > 0 ? "mt-4 border-t border-border pt-1" : ""}>
+              <div key={groupName} className={groupIdx > 0 ? "mt-6" : ""}>
                 <ClassGroupHeader
                   groupName={groupName}
                   displayName={aliases.get(groupName) || groupName}
@@ -606,6 +609,7 @@ export default function TaskList({
                   onResetName={resetGroupName}
                   onColorChange={onColorChange}
                   onDeleteClass={onDeleteClass}
+                  onAddTask={onAddTaskToClass}
                 />
                 {!isCollapsed && (
                   <>

@@ -364,6 +364,7 @@ export default function InboxPage() {
   const [boardAnchorRect, setBoardAnchorRect] = useState<DOMRect | null>(null);
   const [boardModalTask, setBoardModalTask] = useState<Task | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [addModalCourseName, setAddModalCourseName] = useState<string | null>(null);
 
   // Keep selected task in sync with context after updates (desktop detail panel)
   const currentSelectedTask = selectedTask
@@ -844,8 +845,9 @@ export default function InboxPage() {
           {/* Header add-task modal */}
           <TaskCreateModal
             open={showAddModal}
-            onClose={() => setShowAddModal(false)}
-            onAdd={(task) => { addTask(task); setShowAddModal(false); }}
+            onClose={() => { setShowAddModal(false); setAddModalCourseName(null); }}
+            onAdd={(task) => { addTask(task); setShowAddModal(false); setAddModalCourseName(null); }}
+            defaultCourseName={addModalCourseName}
           />
 
           <div id="tour-task-list" className="flex-1 overflow-auto animate-stagger stagger-2">
@@ -886,6 +888,10 @@ export default function InboxPage() {
                     for (const t of matching) {
                       await deleteTask(t.id);
                     }
+                  }}
+                  onAddTaskToClass={(courseName) => {
+                    setAddModalCourseName(courseName);
+                    setShowAddModal(true);
                   }}
                   pendingInvites={pendingInvites}
                   onRespondInvite={handleRespondInvite}

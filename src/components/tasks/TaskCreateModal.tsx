@@ -38,6 +38,8 @@ interface TaskCreateModalProps {
   defaultDate?: string | null;
   /** Pre-fill due time in "HH:MM" 24h format (from time grid double-click). */
   defaultTime?: string | null;
+  /** Pre-fill the course/class name. */
+  defaultCourseName?: string | null;
   editTask?: Task | null;
   onSave?: (id: string, updates: TaskUpdate) => void;
   onDelete?: (id: string) => void;
@@ -57,7 +59,7 @@ interface TaskCreateModalProps {
  * @param props - See TaskCreateModalProps
  */
 export default function TaskCreateModal({
-  open, onClose, onAdd, defaultDate, defaultTime, editTask, onSave, onDelete, onSaveColorForClass, createTypeToggle, keepMounted,
+  open, onClose, onAdd, defaultDate, defaultTime, defaultCourseName, editTask, onSave, onDelete, onSaveColorForClass, createTypeToggle, keepMounted,
 }: TaskCreateModalProps) {
   const { availableTags, availableCourses, courseColors } = useTaskContext();
   const { colorTheme } = useTheme();
@@ -76,7 +78,7 @@ export default function TaskCreateModal({
   const [repeatUnit, setRepeatUnit] = useState<RepeatUnit | null>(null);
   const [repeatEndDate, setRepeatEndDate] = useState<string | null>(null);
   const [repeatEndCount, setRepeatEndCount] = useState<number | null>(null);
-  const [courseName, setCourseName] = useState<string | null>(null);
+  const [courseName, setCourseName] = useState<string | null>(defaultCourseName ?? null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [closing, setClosing] = useState(false);
   const [datePickerPos, setDatePickerPos] = useState({ top: 0, left: 0 });
@@ -133,13 +135,14 @@ export default function TaskCreateModal({
     if (open) setTimeout(() => titleRef.current?.focus(), 100);
   }, [open]);
 
-  // Set defaultDate and defaultTime in create mode
+  // Set defaultDate, defaultTime, and defaultCourseName in create mode
   useEffect(() => {
     if (open && !editTask) {
       setDueDate(defaultDate ?? null);
       setDueTime(defaultTime ?? null);
+      setCourseName(defaultCourseName ?? null);
     }
-  }, [defaultDate, defaultTime, open, editTask]);
+  }, [defaultDate, defaultTime, defaultCourseName, open, editTask]);
 
   // Pre-fill fields in edit mode
   useEffect(() => {
@@ -168,7 +171,7 @@ export default function TaskCreateModal({
     setDueTime(null);
     setColor(DEFAULT_TASK_COLOR);
     setTags([]);
-    setCourseName(null);
+    setCourseName(defaultCourseName ?? null);
     setRepeatInterval(null);
     setRepeatUnit(null);
     setRepeatEndDate(null);
