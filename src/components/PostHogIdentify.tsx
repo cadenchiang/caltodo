@@ -27,8 +27,9 @@ export default function PostHogIdentify({
   useEffect(() => {
     if (!userId) return;
 
-    // Exclude the app owner from analytics to avoid skewing results
-    if (email === ADMIN_EMAIL) {
+    // Exclude the app owner from analytics to avoid skewing results.
+    // Hardcoded because ADMIN_EMAIL is a server-side env var unavailable on the client.
+    if (email === "cadenchiang@berkeley.edu") {
       posthog.opt_out_capturing();
       return;
     }
