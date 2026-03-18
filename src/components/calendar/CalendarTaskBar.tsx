@@ -71,16 +71,25 @@ export default function CalendarTaskBar({ task, onClick, isPending, compact = fa
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className={`w-full text-left flex items-center gap-0.5 rounded transition-all overflow-hidden hover:-translate-y-px hover:shadow-sm ${compact ? "px-1 py-0 h-[16px]" : "px-1.5 py-0.5 h-[22px]"} ${
+      className={`w-full text-left flex items-center gap-0.5 rounded overflow-hidden ${compact ? "px-1 py-0 h-[16px]" : "px-1.5 py-0.5 h-[22px]"} ${
         task.is_completed ? "opacity-50" : ""
       } ${isPending ? "opacity-50" : ""}`}
-      style={isPending ? {
-        backgroundColor: "transparent",
-        border: `1px dashed ${hexToRgba(color, 0.4)}`,
-        borderLeftWidth: "2px",
-      } : {
-        backgroundColor: hexToRgba(color, highlighted ? 0.18 : 0.1),
-        borderLeft: `2px solid ${color}`,
+      style={{
+        transition: "transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease, background-color 0.15s ease",
+        transform: isActive ? "scale(1.04)" : hovered ? "translateY(-1px)" : "none",
+        boxShadow: isActive
+          ? `0 4px 16px ${hexToRgba(color, 0.25)}, 0 2px 6px rgba(0,0,0,0.08)`
+          : hovered ? "0 1px 3px rgba(0,0,0,0.06)" : "none",
+        zIndex: isActive ? 20 : "auto",
+        position: isActive ? "relative" : undefined,
+        ...(isPending ? {
+          backgroundColor: "transparent",
+          border: `1px dashed ${hexToRgba(color, 0.4)}`,
+          borderLeftWidth: "2px",
+        } : {
+          backgroundColor: hexToRgba(color, isActive ? 0.22 : highlighted ? 0.18 : 0.1),
+          borderLeft: `2px solid ${color}`,
+        }),
       }}
       title={isPending ? `Pending invite: ${task.title}` : task.title}
     >

@@ -92,7 +92,9 @@ export default function TaskPreviewPopover({
     function handlePointerDown(e: MouseEvent | TouchEvent) {
       const target = "touches" in e ? e.touches[0]?.target : e.target;
       if (ref.current && target && !ref.current.contains(target as Node)) {
-        animateClose();
+        // Close immediately (no animation delay) so clicking another task
+        // can set the new preview without it being wiped by a delayed close.
+        onClose();
       }
     }
     document.addEventListener("mousedown", handlePointerDown);
