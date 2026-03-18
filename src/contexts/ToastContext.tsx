@@ -151,17 +151,32 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={{ showToast, updateToastProgress }}>
       {children}
-      <div className="fixed bottom-36 md:bottom-6 left-0 right-0 z-[200] flex flex-col items-center gap-2 pointer-events-none px-4">
-        {toasts.map((toast) => (
-          <Toast
-            key={toast.id}
-            message={toast.message}
-            action={toast.action}
-            progress={toast.progress}
-            dismissing={toast.dismissing}
-            onDismiss={() => dismissToast(toast.id)}
-          />
-        ))}
+      <div className="fixed bottom-36 md:bottom-6 left-0 right-0 z-[200] flex justify-center pointer-events-none px-4">
+        <div className="relative grid [&>*]:col-start-1 [&>*]:row-start-1 items-end">
+          {toasts.map((toast, i) => {
+            const depth = toasts.length - 1 - i;
+            return (
+              <div
+                key={toast.id}
+                className="transition-all duration-300 ease-out"
+                style={{
+                  transform: `translateY(${depth * -6}px) scale(${1 - depth * 0.035})`,
+                  zIndex: 100 - depth,
+                  opacity: Math.max(0.5, 1 - depth * 0.12),
+                  transformOrigin: "center bottom",
+                }}
+              >
+                <Toast
+                  message={toast.message}
+                  action={toast.action}
+                  progress={toast.progress}
+                  dismissing={toast.dismissing}
+                  onDismiss={() => dismissToast(toast.id)}
+                />
+              </div>
+            );
+          })}
+        </div>
       </div>
     </ToastContext.Provider>
   );

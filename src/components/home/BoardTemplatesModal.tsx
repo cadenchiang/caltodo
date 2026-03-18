@@ -220,16 +220,19 @@ export default function BoardTemplatesModal({ open, onClose, onApply }: BoardTem
           <div className="flex-1 overflow-y-auto p-6">
             <div className="grid grid-cols-2 gap-5">
               {filtered.map((template) => (
-                <button
+                <div
                   key={template.id}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => setConfirmTemplate(template)}
+                  onKeyDown={(e) => { if (e.key === "Enter") setConfirmTemplate(template); }}
                   className="group text-left rounded-xl border border-border overflow-hidden transition-all duration-200 cursor-pointer hover:shadow-xl hover:border-foreground/15 hover:-translate-y-0.5 bg-muted/30"
                 >
                   <BoardPreview template={template} />
                   <div className="px-4 py-2.5 border-t border-border/50">
                     <h3 className="text-sm font-semibold text-foreground">{template.name}</h3>
                   </div>
-                </button>
+                </div>
               ))}
             </div>
           </div>

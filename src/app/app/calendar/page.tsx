@@ -44,7 +44,7 @@ export default function CalendarPage() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [calendarMode, setCalendarMode] = useState<CalendarMode>("assignments");
 
-  const { tasks, loading, error, addTask, updateTask, deleteTask, toggleComplete } = useTaskContext();
+  const { tasks, error, addTask, updateTask, deleteTask, toggleComplete } = useTaskContext();
   const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
 
   const modals = useCalendarModals();
@@ -158,7 +158,7 @@ export default function CalendarPage() {
 
   return (
     <PageTransition>
-      <div className="absolute inset-0 flex flex-col overflow-hidden bg-background">
+      <div className="h-full flex flex-col overflow-hidden -m-4 -mb-16 md:-m-10 md:-mb-10 bg-background">
         {error && (
           <div className="flex flex-col items-center justify-center py-8 px-4 text-center shrink-0">
             <p className="text-sm text-muted-foreground mb-4">{error}</p>
@@ -172,7 +172,7 @@ export default function CalendarPage() {
         )}
 
         <div className="flex flex-col flex-1 min-h-0 overflow-hidden bg-background">
-          <div className="px-2.5 py-2 md:px-4 md:py-3 shrink-0">
+          <div className="px-2.5 py-2 md:px-4 md:py-3 shrink-0 animate-stagger stagger-1">
             <CalendarHeader
               currentMonth={currentDate}
               title={title}
@@ -188,15 +188,8 @@ export default function CalendarPage() {
             />
           </div>
 
-          <div className="flex-1 min-h-0 flex flex-col overflow-y-auto md:mx-4 md:rounded-2xl md:border md:border-gray-200/80 md:dark:border-gray-700/50 md:overflow-hidden bg-white dark:bg-[#141414]">
-            {loading ? (
-              <div className="flex-1 flex items-center justify-center h-full">
-                <div className="flex flex-col items-center gap-2">
-                  <div className="w-5 h-5 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
-                  <p className="text-sm text-muted-foreground">Loading calendar...</p>
-                </div>
-              </div>
-            ) : viewMode === "month" ? (
+          <div className="flex-1 min-h-0 flex flex-col overflow-y-auto md:mx-4 md:rounded-2xl md:border md:border-gray-200/80 md:dark:border-gray-700/50 md:overflow-hidden bg-white dark:bg-[#141414] animate-stagger stagger-2">
+            {viewMode === "month" ? (
               <CalendarGrid
                 currentMonth={currentDate}
                 tasks={visibleTasks}

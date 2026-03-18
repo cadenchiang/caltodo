@@ -74,7 +74,6 @@ export default function CalendarDayCell({
   const { colorTheme } = useTheme();
   const [isMobile, setIsMobile] = useState(false);
   const [hovered, setHovered] = useState(false);
-  const [maxItems, setMaxItems] = useState(5);
   const cellRef = useRef<HTMLDivElement>(null);
   const isCurrentMonth = isSameMonth(day, currentMonth);
   const isToday = isSameDay(day, new Date());
@@ -90,7 +89,11 @@ export default function CalendarDayCell({
 
   const headerH = weekdayLabel ? HEADER_HEIGHT_WITH_LABEL : HEADER_HEIGHT;
 
-  // Dynamically compute how many items fit in the cell
+  // Dynamically compute how many items fit in the cell.
+  // Start with Infinity (show all) so there's no reflow flash — the ResizeObserver
+  // fires within the same frame and constrains to the actual available space.
+  const [maxItems, setMaxItems] = useState(Infinity);
+
   useEffect(() => {
     const el = cellRef.current;
     if (!el || isMobile) return;

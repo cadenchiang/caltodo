@@ -173,7 +173,9 @@ export default function WeatherWidget({ config, editMode }: WeatherWidgetProps) 
       setPermDenied(false);
 
       try {
-        if (navigator.permissions) {
+        // Skip permission pre-check on retry — go straight to getCurrentPosition
+        // so the browser can re-prompt if the user has reset permissions.
+        if (retryCount === 0 && navigator.permissions) {
           try {
             const status = await navigator.permissions.query({
               name: "geolocation",

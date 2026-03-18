@@ -5,7 +5,7 @@
  * Features an SVG circular progress ring, MM:SS countdown,
  * session counter, and Play/Pause/Reset/Skip controls.
  *
- * Timer state is ephemeral — resets on page refresh.
+ * Timer state is persisted to localStorage — survives page refresh and navigation.
  *
  * @param config - Widget config with workMinutes and breakMinutes
  * @param onUpdateConfig - Callback to persist config changes
@@ -39,6 +39,44 @@ function formatTime(totalSeconds: number): string {
 }
 
 const TOTAL_SESSIONS = 4;
+const POMO_STORAGE_KEY = "caltodo_pomodoro_state";
+
+interface PersistedPomoState {
+  phase: Phase;
+  secondsLeft: number;
+  running: boolean;
+  completedSessions: number;
+  /** Wall-clock timestamp (ms) when state was saved — used to compute elapsed time on restore. */
+  savedAt: number;
+}
+
+/**
+ * Reads persisted Pomodoro state from localStorage.
+ * If the timer was running when saved, adjusts secondsLeft by elapsed time.
+ *
+ * @returns Restored state or null if not available
+ */
+function readPersistedState(): PersistedPomoState | null {
+  try {
+    const raw = localStorage.getItem(POMO_STORAGE_KEY);
+    if (!raw) return null;
+    const state: PersistedPomoState = JSON.parse(raw);
+    if (state.running && state.savedAt) {
+      const elapsed = Math.floor((Date.now() - state.savedAt) / 1000);
+      state.secondsLeft = Math.max(0, state.secondsLeft - elapsed);
+    }
+    return state;
+  } catch { return null; }
+}
+
+/**
+ * Writes Pomodoro state to localStorage for persistence across page refreshes.
+ */
+function writePersistedState(state: Omit<PersistedPomoState, "savedAt">): void {
+  try {
+    localStorage.setItem(POMO_STORAGE_KEY, JSON.stringify({ ...state, savedAt: Date.now() }));
+  } catch { /* non-critical */ }
+}
 
 /**
  * Plays a mechanical clock tick sound using noise burst + resonant filter.
@@ -135,10 +173,10 @@ export default function PomodoroWidget({
   const breakMinutes = Number(config?.breakMinutes) || 5;
   const { containerRef, compact } = useCompactMode(180);
 
-  const [phase, setPhase] = useState<Phase>("work");
-  const [secondsLeft, setSecondsLeft] = useState(workMinutes * 60);
-  const [running, setRunning] = useState(false);
-  const [completedSessions, setCompletedSessions] = useState(0);
+  const [phase, setPhase] = useState<Phase>(() => readPersistedState()?.phase ?? "work");
+  const [secondsLeft, setSecondsLeft] = useState(() => readPersistedState()?.secondsLeft ?? workMinutes * 60);
+  const [running, setRunning] = useState(() => readPersistedState()?.running ?? false);
+  const [completedSessions, setCompletedSessions] = useState(() => readPersistedState()?.completedSessions ?? 0);
 
   /** Total seconds for the current phase (used for progress calculation). */
   const totalForPhase = phase === "work" ? workMinutes * 60 : breakMinutes * 60;
@@ -223,6 +261,11 @@ export default function PomodoroWidget({
   useEffect(() => {
     if (!running) document.title = "CalTodo";
   }, [running]);
+
+  /** Persist timer state to localStorage on every change. */
+  useEffect(() => {
+    writePersistedState({ phase, secondsLeft, running, completedSessions });
+  }, [phase, secondsLeft, running, completedSessions]);
 
   /** Toggle play/pause. Plays click sound on start. Requests notification permission on first start. */
   function handlePlayPause() {

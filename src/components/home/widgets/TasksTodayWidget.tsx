@@ -127,16 +127,19 @@ export default function TasksTodayWidget({ config }: TasksTodayWidgetProps) {
             <span className="text-xs text-muted-foreground tabular-nums">
               {completedCount}/{totalCount}
             </span>
-            <button
+            <span
+              role="button"
+              tabIndex={0}
               onClick={(e) => {
                 e.stopPropagation();
                 setShowAddModal(true);
               }}
-              className="no-drag w-5 h-5 flex items-center justify-center rounded text-foreground hover:bg-muted transition-colors"
+              onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); setShowAddModal(true); } }}
+              className="no-drag w-5 h-5 flex items-center justify-center rounded text-foreground hover:bg-muted transition-colors cursor-pointer"
               aria-label="Add task"
             >
               <Plus size={14} />
-            </button>
+            </span>
           </div>
         }
       />

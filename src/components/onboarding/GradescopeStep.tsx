@@ -1,8 +1,50 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Eye, EyeOff, Loader2, Merge, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff, Loader2, Merge, ShieldCheck, ChevronDown } from "lucide-react";
 import { extractCourseCode } from "@/lib/course-name-merge";
+
+/**
+ * Collapsible help text for SSO/password issues.
+ * Blue clickable link that expands to show explanation and reset link.
+ */
+function AuthHelpDropdown() {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="mt-3 animate-drop-in">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="text-sm font-medium text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 transition-colors flex items-center gap-1 mx-auto"
+      >
+        don&apos;t see your classes?
+        <ChevronDown
+          size={14}
+          className={`transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+      {open && (
+        <div className="mt-3 text-center animate-drop-in">
+          <p className="text-xs text-muted-foreground leading-relaxed mb-3">
+            if you normally sign in to Gradescope with Google or your school&apos;s SSO, your password
+            won&apos;t work here. you need a Gradescope-specific password.
+          </p>
+          <a
+            href="https://www.gradescope.com/reset_password"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center px-4 py-2 rounded-xl text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 hover:bg-blue-100 dark:hover:bg-blue-500/20 transition-colors"
+          >
+            reset Gradescope password
+          </a>
+          <p className="text-[11px] text-muted-foreground/60 mt-2">
+            then come back and try again with the new password.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface GradescopeCourse {
   id: string;
@@ -242,26 +284,7 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
           </div>
 
           {authFailed && (
-            <div className="mt-4 rounded-xl border border-border p-4 text-center animate-drop-in">
-              <p className="text-sm text-foreground font-medium mb-2">
-                don&apos;t see your classes?
-              </p>
-              <p className="text-xs text-muted-foreground leading-relaxed mb-3">
-                if you normally sign in to Gradescope with Google or your school&apos;s SSO, your password
-                won&apos;t work here. you need a Gradescope-specific password.
-              </p>
-              <a
-                href="https://www.gradescope.com/reset_password"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center px-4 py-2 rounded-xl text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 hover:bg-blue-100 dark:hover:bg-blue-500/20 transition-colors"
-              >
-                reset Gradescope password
-              </a>
-              <p className="text-[11px] text-muted-foreground/60 mt-2">
-                then come back and try again with the new password.
-              </p>
-            </div>
+            <AuthHelpDropdown />
           )}
         </>
       )}
@@ -309,25 +332,8 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
                 </label>
               ))}
               {courses.length === 0 && (
-                <div className="px-3 py-4 text-center">
-                  <p className="text-sm text-foreground font-medium mb-2">
-                    don&apos;t see your classes?
-                  </p>
-                  <p className="text-xs text-muted-foreground leading-relaxed mb-3">
-                    if you normally sign in to Gradescope with Google or your school&apos;s SSO, your password
-                    won&apos;t work here. you need a Gradescope-specific password.
-                  </p>
-                  <a
-                    href="https://www.gradescope.com/reset_password"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center px-4 py-2 rounded-xl text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 hover:bg-blue-100 dark:hover:bg-blue-500/20 transition-colors"
-                  >
-                    reset Gradescope password
-                  </a>
-                  <p className="text-[11px] text-muted-foreground/60 mt-2">
-                    then come back and try again with the new password.
-                  </p>
+                <div className="px-3 py-4">
+                  <AuthHelpDropdown />
                 </div>
               )}
             </div>

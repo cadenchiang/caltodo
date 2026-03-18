@@ -1274,14 +1274,14 @@ body {
   100% { transform: translateX(300%); }
 }
 
-/* Page transition — subtle fade-in on tab switch */
+/* Page transition — barely perceptible on tab switch */
 @keyframes pageIn {
-  from { opacity: 0; }
+  from { opacity: 0.96; }
   to { opacity: 1; }
 }
 
 .animate-page-in {
-  animation: pageIn 250ms ease-out both;
+  animation: pageIn 120ms ease-out both;
 }
 
 /* Staggered section entrance — used inside pages */
