@@ -1,35 +1,35 @@
 import Foundation
 
 /// CalTodo task model matching the shared TypeScript `Task` interface.
-/// Uses snake_case JSON keys via `CodingKeys` for Supabase/API compatibility.
+/// All fields are optional-safe to handle any nulls from the API.
 ///
 /// - SeeAlso: `packages/shared/src/types.ts` for the source-of-truth schema.
 struct CalTask: Codable, Identifiable, Equatable, Sendable {
     let id: String
-    let userId: String
+    let userId: String?
     var title: String
-    var description: String
+    var description: String?
     var dueDate: String?
     var dueTime: String?
-    var isCompleted: Bool
-    var color: String
-    let createdAt: String
-    var updatedAt: String
-    var source: TaskSource?
+    var isCompleted: Bool?
+    var color: String?
+    let createdAt: String?
+    var updatedAt: String?
+    var source: String?
     var externalId: String?
     var courseName: String?
     var sourceUrl: String?
     var pointsPossible: Double?
-    var isSubmitted: Bool
+    var isSubmitted: Bool?
     var googleEventId: String?
     var dismissedAt: String?
     var repeatInterval: Int?
-    var repeatUnit: RepeatUnit?
+    var repeatUnit: String?
     var repeatEndDate: String?
     var repeatEndCount: Int?
     var lateDueDate: String?
     var completedAt: String?
-    var tags: [String]
+    var tags: [String]?
     var snoozedUntil: String?
     var sortOrder: Int?
 
@@ -64,12 +64,28 @@ struct CalTask: Codable, Identifiable, Equatable, Sendable {
 
     /// The task's display color, defaulting to blue if not set.
     var displayColor: String {
-        color.isEmpty ? "#3B82F6" : color
+        (color ?? "").isEmpty ? "#3B82F6" : color!
+    }
+
+    /// Whether the task is marked complete (safe unwrap).
+    var completed: Bool {
+        isCompleted ?? false
     }
 
     /// Whether this task has a recurrence pattern.
     var isRecurring: Bool {
         repeatInterval != nil && repeatUnit != nil
+    }
+
+    /// Safe tags access.
+    var tagList: [String] {
+        tags ?? []
+    }
+
+    /// Task source as enum if valid.
+    var taskSource: TaskSource? {
+        guard let source else { return nil }
+        return TaskSource(rawValue: source)
     }
 }
 

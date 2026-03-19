@@ -47,6 +47,9 @@ enum AppColors {
     /// Input field border — slightly heavier.
     static let inputBorder = Color(light: Color(hex: "#E5E7EB"), dark: Color(hex: "#525252"))
 
+    /// Thin divider/separator color.
+    static let separator = Color(light: Color(hex: "#F3F4F6"), dark: Color(hex: "#2C2C2E"))
+
     // MARK: - Semantic Colors
 
     /// Primary blue — default task color, links, CTAs.

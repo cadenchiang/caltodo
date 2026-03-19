@@ -1,121 +1,141 @@
 import SwiftUI
 
 /// Inbox screen showing active and completed tasks.
-/// Card-based layout with pull-to-refresh, collapsible completed section.
+/// Flat list style matching Apple Reminders — no card wrapping.
+/// Collapsible completed section with chevron animation.
 struct InboxView: View {
     @EnvironmentObject var taskStore: TaskStore
+
     @State private var showCompleted = false
+    @State private var selectedTask: CalTask? = nil
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 12) {
-                if let error = taskStore.errorMessage {
-                    errorBanner(error)
+            VStack(alignment: .leading, spacing: 0) {
+                errorBanner
+
+                // Active section
+                SectionHeaderView(
+                    title: "active",
+                    count: taskStore.activeTasks.count
+                )
+
+                if taskStore.activeTasks.isEmpty {
+                    EmptyStateView(
+                        icon: "tray",
+                        message: "no active tasks"
+                    )
+                } else {
+                    activeTaskList
                 }
-                activeCard
-                completedCard
+
+                // Completed section (collapsible)
+                if !taskStore.completedTasks.isEmpty {
+                    SectionHeaderView(
+                        title: "completed",
+                        count: taskStore.completedTasks.count,
+                        isCollapsible: true,
+                        isExpanded: $showCompleted
+                    )
+
+                    if showCompleted {
+                        completedTaskList
+                    }
+                }
             }
-            .padding(.horizontal, 16)
             .padding(.vertical, 8)
         }
-        .background(AppColors.secondaryBackground)
-        .refreshable {
-            await taskStore.fetchTasks()
+        .background(AppColors.background)
+        .refreshable { await taskStore.fetchTasks() }
+        .sheet(item: $selectedTask) { task in
+            TaskDetailSheet(
+                task: task,
+                onToggle: { id in
+                    Task { await taskStore.toggleComplete(taskId: id) }
+                },
+                onDismiss: { selectedTask = nil }
+            )
+            .presentationDetents([.medium, .large])
         }
-        .navigationTitle("inbox")
-        .navigationBarTitleDisplayMode(.large)
-        .overlay {
-            if taskStore.isLoading && taskStore.tasks.isEmpty {
-                ProgressView().scaleEffect(1.2)
-            }
-        }
-    }
-
-    // MARK: - Active Card
-
-    private var activeCard: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            SectionHeaderView(title: "active", count: taskStore.activeTasks.count)
-
-            if taskStore.activeTasks.isEmpty && !taskStore.isLoading {
-                EmptyStateView(icon: "tray", message: "no active tasks")
-            } else {
-                ForEach(taskStore.activeTasks) { task in
-                    TaskItemView(task: task) { id in
-                        Task { await taskStore.toggleComplete(taskId: id) }
-                    }
-                    if task.id != taskStore.activeTasks.last?.id {
-                        Divider().padding(.leading, 42)
-                    }
-                }
-            }
-        }
-        .padding(.vertical, 4)
-        .background(AppColors.card)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-    }
-
-    // MARK: - Completed Card
-
-    private var completedCard: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Button {
-                HapticManager.light()
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    showCompleted.toggle()
-                }
-            } label: {
-                HStack(spacing: 8) {
-                    Text("completed")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(AppColors.secondaryForeground)
-
-                    Text("\(taskStore.completedTasks.count)")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(AppColors.mutedForeground)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(AppColors.tertiaryBackground)
-                        .clipShape(Capsule())
-
-                    Spacer()
-
-                    Image(systemName: showCompleted ? "chevron.up" : "chevron.down")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(AppColors.mutedForeground)
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-
-            if showCompleted {
-                ForEach(taskStore.completedTasks) { task in
-                    TaskItemView(task: task) { id in
-                        Task { await taskStore.toggleComplete(taskId: id) }
-                    }
-                    if task.id != taskStore.completedTasks.last?.id {
-                        Divider().padding(.leading, 42)
-                    }
-                }
-            }
-        }
-        .padding(.vertical, 4)
-        .background(AppColors.card)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
     }
 
     // MARK: - Error Banner
 
-    private func errorBanner(_ message: String) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: "exclamationmark.triangle").font(.caption).foregroundStyle(AppColors.red400)
-            Text(message).font(.caption).foregroundStyle(AppColors.red400)
-            Spacer()
+    /// Subtle red error banner shown when taskStore has an error.
+    @ViewBuilder
+    private var errorBanner: some View {
+        if let error = taskStore.errorMessage {
+            HStack(spacing: 8) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 12))
+                    .foregroundStyle(AppColors.red500)
+
+                Text(error.lowercased())
+                    .font(.system(size: 13))
+                    .foregroundStyle(AppColors.red500)
+
+                Spacer()
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(AppColors.red500.opacity(0.08))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .padding(.horizontal, 16)
+            .padding(.bottom, 8)
         }
-        .padding(12)
-        .background(AppColors.red500.opacity(0.1))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+
+    // MARK: - Active Task List
+
+    /// Flat list of active tasks with thin dividers aligned past the checkbox.
+    private var activeTaskList: some View {
+        VStack(spacing: 0) {
+            ForEach(
+                Array(taskStore.activeTasks.enumerated()),
+                id: \.element.id
+            ) { index, task in
+                TaskItemView(
+                    task: task,
+                    onToggle: { id in
+                        Task { await taskStore.toggleComplete(taskId: id) }
+                    },
+                    onTap: { selectedTask = task }
+                )
+
+                if index < taskStore.activeTasks.count - 1 {
+                    Rectangle()
+                        .fill(AppColors.separator)
+                        .frame(height: 1)
+                        .padding(.leading, 52)
+                }
+            }
+        }
+    }
+
+    // MARK: - Completed Task List
+
+    /// Flat list of completed tasks with thin dividers.
+    private var completedTaskList: some View {
+        VStack(spacing: 0) {
+            ForEach(
+                Array(taskStore.completedTasks.enumerated()),
+                id: \.element.id
+            ) { index, task in
+                TaskItemView(
+                    task: task,
+                    onToggle: { id in
+                        Task { await taskStore.toggleComplete(taskId: id) }
+                    },
+                    onTap: { selectedTask = task }
+                )
+
+                if index < taskStore.completedTasks.count - 1 {
+                    Rectangle()
+                        .fill(AppColors.separator)
+                        .frame(height: 1)
+                        .padding(.leading, 52)
+                }
+            }
+        }
     }
 }

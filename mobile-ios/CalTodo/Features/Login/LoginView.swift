@@ -75,7 +75,7 @@ struct LoginView: View {
                     .frame(maxWidth: .infinity)
                     .frame(height: 50)
                     .background(.black)
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
                 .disabled(authManager.isLoading)
                 .opacity(buttonVisible ? 1 : 0)
@@ -91,6 +91,7 @@ struct LoginView: View {
         .onAppear { startAnimations() }
     }
 
+    /// Triggers staggered entrance animations for logo, title, subtitle, and button.
     private func startAnimations() {
         withAnimation(.easeOut(duration: 1.0)) { iconVisible = true }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {

@@ -10,27 +10,29 @@ struct CalTodoApp: App {
     @StateObject private var taskStore: TaskStore
     @State private var onboardingComplete = UserDefaults.standard.bool(forKey: "onboarding_completed")
     @State private var isReady = false
+    @AppStorage("appearance") private var appearance = "system"
+
+    /// Converts the appearance string to a SwiftUI ColorScheme.
+    private var colorScheme: ColorScheme? {
+        switch appearance {
+        case "light": return .light
+        case "dark": return .dark
+        default: return nil
+        }
+    }
 
     init() {
-        let urlString = Configuration.supabaseURL
-        let anonKey = Configuration.supabaseAnonKey
-
-        print("[CalTodoApp] SUPABASE_URL = '\(urlString)'")
-        print("[CalTodoApp] SUPABASE_ANON_KEY = '\(anonKey.prefix(20))...'")
-        print("[CalTodoApp] API_BASE_URL = '\(Configuration.apiBaseURL)'")
-
-        guard let url = URL(string: urlString) else {
-            fatalError("[CalTodoApp] Invalid SUPABASE_URL: '\(urlString)'. Check Config.xcconfig.")
+        guard let url = URL(string: Configuration.supabaseURL) else {
+            fatalError("Invalid SUPABASE_URL. Check Config.xcconfig.")
         }
 
         let client = SupabaseClient(
             supabaseURL: url,
-            supabaseKey: anonKey
+            supabaseKey: Configuration.supabaseAnonKey
         )
         let auth = AuthManager(client: client)
         _authManager = StateObject(wrappedValue: auth)
         _taskStore = StateObject(wrappedValue: TaskStore(authManager: auth))
-        print("[CalTodoApp] Init complete")
     }
 
     var body: some Scene {
@@ -54,19 +56,13 @@ struct CalTodoApp: App {
             }
             .environmentObject(authManager)
             .environmentObject(taskStore)
+            .preferredColorScheme(colorScheme)
             .onOpenURL { url in
                 AppLogger.auth.info("Received deep link: \(url.absoluteString)")
             }
             .task {
-                print("[CalTodoApp] Checking session...")
                 await authManager.checkExistingSession()
-                print("[CalTodoApp] Session check done, isAuthenticated=\(authManager.isAuthenticated)")
                 isReady = true
-            }
-            .onReceive(authManager.$isAuthenticated) { isAuth in
-                if isAuth {
-                    Task { await taskStore.fetchTasks() }
-                }
             }
         }
     }
@@ -98,11 +94,13 @@ enum Configuration {
     }()
 
     /// Base URL for CalTodo API, constructed from API_HOST in Config.xcconfig.
+    /// Uses http:// for localhost, https:// for production hosts.
     static let apiBaseURL: String = {
         guard let host = Bundle.main.object(forInfoDictionaryKey: "API_HOST") as? String,
               !host.isEmpty else {
             fatalError("Missing API_HOST in Info.plist. Add it via Config.xcconfig.")
         }
-        return "https://\(host)"
+        let scheme = host.hasPrefix("localhost") ? "http" : "https"
+        return "\(scheme)://\(host)"
     }()
 }

@@ -60,6 +60,8 @@ targets:
         SUPABASE_HOST: $(SUPABASE_HOST)
         SUPABASE_ANON_KEY: $(SUPABASE_ANON_KEY)
         API_HOST: $(API_HOST)
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
 
   CalTodoTests:
     type: bundle.unit-test

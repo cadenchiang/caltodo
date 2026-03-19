@@ -95,7 +95,7 @@ export function RenderWidget({
     case "habit-tracker":
       return <HabitTrackerWidget config={widget.config} onUpdateConfig={onUpdateConfig} />;
     case "quote":
-      return <QuoteWidget config={widget.config} />;
+      return <QuoteWidget config={widget.config} onUpdateConfig={onUpdateConfig} />;
     case "stats":
       return <StatsWidget config={widget.config} />;
     case "weekly-heatmap":

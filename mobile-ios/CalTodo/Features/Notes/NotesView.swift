@@ -4,15 +4,11 @@ import SwiftUI
 /// Will support task notes and descriptions in a future phase.
 struct NotesView: View {
     var body: some View {
-        VStack(spacing: 16) {
-            EmptyStateView(
-                icon: "note.text",
-                message: "Notes coming soon"
-            )
-        }
+        EmptyStateView(
+            icon: "note.text",
+            message: "notes coming soon"
+        )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(AppColors.secondaryBackground)
-        .navigationTitle("notes")
-        .navigationBarTitleDisplayMode(.large)
+        .background(AppColors.background)
     }
 }

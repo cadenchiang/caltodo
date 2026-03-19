@@ -14,18 +14,11 @@ final class APIClient: Sendable {
     private let getToken: @Sendable () -> String?
 
     /// JSON decoder configured for snake_case API responses.
-    private static let decoder: JSONDecoder = {
-        let decoder = JSONDecoder()
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
-        return decoder
-    }()
+    /// JSON decoder — no key strategy needed since CalTask has explicit CodingKeys.
+    private static let decoder = JSONDecoder()
 
-    /// JSON encoder for request bodies.
-    private static let encoder: JSONEncoder = {
-        let encoder = JSONEncoder()
-        encoder.keyEncodingStrategy = .convertToSnakeCase
-        return encoder
-    }()
+    /// JSON encoder — no key strategy needed since models have explicit CodingKeys.
+    private static let encoder = JSONEncoder()
 
     /// Creates an API client with the given base URL and token provider.
     ///
@@ -47,6 +40,11 @@ final class APIClient: Sendable {
     /// - Throws: `APIError` on failure.
     func getTasks() async throws -> [CalTask] {
         return try await request(path: "/api/mobile/tasks", method: "GET")
+    }
+
+    /// Fetches integration connection status.
+    func getCredentials() async throws -> IntegrationStatus {
+        return try await request(path: "/api/mobile/credentials", method: "GET")
     }
 
     /// Creates a new task.
@@ -135,6 +133,11 @@ final class APIClient: Sendable {
         do {
             return try Self.decoder.decode(T.self, from: data)
         } catch {
+            // Print detailed decoding error for debugging
+            if let jsonStr = String(data: data.prefix(500), encoding: .utf8) {
+                print("[APIClient] Raw JSON (first 500 chars): \(jsonStr)")
+            }
+            print("[APIClient] Decode error detail: \(error)")
             AppLogger.api.error("Decoding error for \(method) \(path): \(error.localizedDescription)")
             throw APIError.decodingError(underlying: error)
         }

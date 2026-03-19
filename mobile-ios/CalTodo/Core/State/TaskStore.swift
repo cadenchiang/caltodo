@@ -20,14 +20,17 @@ final class TaskStore: ObservableObject {
     /// Human-readable error message from the last failed operation, or nil.
     @Published var errorMessage: String?
 
+    /// Integration connection status from the API.
+    @Published var integrations: IntegrationStatus?
+
     /// Active (non-completed) tasks.
     var activeTasks: [CalTask] {
-        tasks.filter { !$0.isCompleted }
+        tasks.filter { !$0.completed }
     }
 
     /// Completed tasks.
     var completedTasks: [CalTask] {
-        tasks.filter { $0.isCompleted }
+        tasks.filter { $0.completed }
     }
 
     /// Tasks due today.
@@ -90,6 +93,19 @@ final class TaskStore: ObservableObject {
         isLoading = false
     }
 
+    // MARK: - Fetch Credentials
+
+    /// Fetches integration connection status from the API.
+    @MainActor
+    func fetchCredentials() async {
+        do {
+            integrations = try await apiClient.getCredentials()
+            AppLogger.tasks.info("Fetched integration status")
+        } catch {
+            AppLogger.tasks.error("Credentials fetch failed: \(error.localizedDescription)")
+        }
+    }
+
     // MARK: - Toggle Complete
 
     /// Toggles a task's completion state with optimistic update.
@@ -101,7 +117,7 @@ final class TaskStore: ObservableObject {
         }
 
         let previousState = tasks[index]
-        let newCompleted = !previousState.isCompleted
+        let newCompleted = !(previousState.isCompleted ?? false)
         let completedAt = newCompleted ? ISO8601DateFormatter().string(from: Date()) : nil
 
         tasks[index].isCompleted = newCompleted
@@ -166,11 +182,11 @@ final class TaskStore: ObservableObject {
     // MARK: - Private Helpers
 
     private func sortTasks(_ a: CalTask, _ b: CalTask) -> Bool {
-        if a.isCompleted != b.isCompleted { return !a.isCompleted }
+        if a.completed != b.completed { return !a.completed }
         if let aOrder = a.sortOrder, let bOrder = b.sortOrder {
             return aOrder < bOrder
         }
-        return a.createdAt > b.createdAt
+        return (a.createdAt ?? "") > (b.createdAt ?? "")
     }
 
     private func handleError(_ error: APIError, context: String) {

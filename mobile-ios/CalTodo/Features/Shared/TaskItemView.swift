@@ -1,124 +1,121 @@
 import SwiftUI
 
-/// Reusable task row matching the web app's TaskItem design.
-/// Displays checkbox (colored), title, tag badge, repeat icon,
-/// source badge, and color-coded due date.
+/// Clean two-line task row matching the web app's flat list design.
+/// Shows colored checkbox, title, due date, optional course name, and recurrence icon.
 ///
-/// Styling: 44pt height, 16pt horizontal padding, 60% opacity when completed.
-/// Checkbox: 16x16pt, 4pt corner radius, colored border/fill.
-/// Font sizes match web app: 14pt title, 9pt tags, 11pt due date.
-///
-/// - SeeAlso: `mobile/src/components/TaskItem.tsx` for React Native equivalent.
+/// - Parameters:
+///   - task: The CalTask to display.
+///   - onToggle: Called with the task ID when the checkbox is tapped.
+///   - onTap: Called when the row body is tapped (for detail sheet).
 struct TaskItemView: View {
     let task: CalTask
-    let onToggle: (String) -> Void
-    var onTap: ((String) -> Void)?
+    var onToggle: ((String) -> Void)? = nil
+    var onTap: (() -> Void)? = nil
 
     var body: some View {
-        HStack(spacing: 0) {
+        HStack(alignment: .center, spacing: 12) {
             checkboxView
-                .padding(.trailing, 10)
 
-            titleAndTags
+            VStack(alignment: .leading, spacing: 2) {
+                titleText
+                dueDateRow
+            }
 
             Spacer(minLength: 4)
 
-            trailingBadges
+            if task.isRecurring {
+                Image(systemName: "repeat")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(AppColors.purple400)
+            }
         }
-        .frame(height: 44)
         .padding(.horizontal, 16)
+        .padding(.vertical, 12)
         .contentShape(Rectangle())
-        .onTapGesture { onTap?(task.id) }
-        .opacity(task.isCompleted ? 0.6 : 1)
+        .onTapGesture { onTap?() }
+        .opacity(task.completed ? 0.5 : 1.0)
     }
 
     // MARK: - Checkbox
 
+    /// 20x20 rounded checkbox. Filled with task color + white checkmark when completed.
     private var checkboxView: some View {
         Button {
             HapticManager.light()
-            onToggle(task.id)
+            onToggle?(task.id)
         } label: {
             ZStack {
-                RoundedRectangle(cornerRadius: 4)
-                    .stroke(Color(hex: task.displayColor), lineWidth: task.isCompleted ? 0 : 1)
-                    .background(
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(task.isCompleted ? Color(hex: task.displayColor) : .clear)
-                    )
-                    .frame(width: 16, height: 16)
+                RoundedRectangle(cornerRadius: 5)
+                    .stroke(Color(hex: task.displayColor), lineWidth: 1.5)
+                    .frame(width: 20, height: 20)
 
-                if task.isCompleted {
+                if task.completed {
+                    RoundedRectangle(cornerRadius: 5)
+                        .fill(Color(hex: task.displayColor))
+                        .frame(width: 20, height: 20)
+
                     Image(systemName: "checkmark")
-                        .font(.system(size: 9, weight: .bold))
+                        .font(.system(size: 11, weight: .bold))
                         .foregroundStyle(.white)
                 }
             }
+            .animation(.easeInOut(duration: 0.2), value: task.completed)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(task.isCompleted ? "Mark incomplete" : "Mark complete")
+        .frame(width: 44, height: 44)
     }
 
-    // MARK: - Title & Tags
+    // MARK: - Title
 
-    private var titleAndTags: some View {
-        HStack(spacing: 6) {
-            Text(task.title)
-                .font(.system(size: 14))
-                .foregroundStyle(task.isCompleted ? AppColors.mutedForeground : AppColors.foreground)
+    /// Task title with strikethrough when completed.
+    private var titleText: some View {
+        Text(task.title)
+            .font(.system(size: 15, weight: .medium))
+            .foregroundStyle(AppColors.foreground)
+            .strikethrough(task.completed)
+            .lineLimit(1)
+            .truncationMode(.tail)
+    }
+
+    // MARK: - Due Date Row
+
+    /// Due date label, color-coded. Optional course name after a dot separator.
+    @ViewBuilder
+    private var dueDateRow: some View {
+        let info = DateFormatting.dueDateInfo(
+            dueDate: task.dueDate,
+            dueTime: task.dueTime
+        )
+        if let info = info {
+            HStack(spacing: 4) {
+                Text(info.dateLabel)
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color(hex: info.colorHex))
+
+                if let time = info.timeLabel {
+                    Text("·")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Color(hex: info.colorHex))
+                    Text(time)
+                        .font(.system(size: 12))
+                        .foregroundStyle(Color(hex: info.colorHex))
+                }
+
+                if let course = task.courseName, !course.isEmpty {
+                    Text("·")
+                        .font(.system(size: 12))
+                        .foregroundStyle(AppColors.subtleForeground)
+                    Text(course)
+                        .font(.system(size: 12))
+                        .foregroundStyle(AppColors.subtleForeground)
+                        .lineLimit(1)
+                }
+            }
+        } else if let course = task.courseName, !course.isEmpty {
+            Text(course)
+                .font(.system(size: 12))
+                .foregroundStyle(AppColors.subtleForeground)
                 .lineLimit(1)
-
-            if !task.tags.isEmpty {
-                Text(task.tags.count == 1 ? task.tags[0] : "\(task.tags.count) tags")
-                    .font(.system(size: 9, weight: .medium))
-                    .foregroundStyle(AppColors.blue500)
-                    .padding(.horizontal, 4)
-                    .padding(.vertical, 1)
-                    .background(Color(hex: "#EFF6FF"))
-                    .clipShape(RoundedRectangle(cornerRadius: 3))
-            }
-        }
-    }
-
-    // MARK: - Trailing Badges
-
-    private var trailingBadges: some View {
-        HStack(spacing: 6) {
-            if task.isRecurring {
-                Image(systemName: "repeat")
-                    .font(.system(size: 10))
-                    .foregroundStyle(AppColors.purple400)
-            }
-
-            if let source = task.source {
-                let badge = TaskColors.sourceBadge(for: source)
-                Text(badge.label)
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(badge.text)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(badge.bg)
-                    .clipShape(Capsule())
-            }
-
-            if let info = DateFormatting.dueDateInfo(dueDate: task.dueDate, dueTime: task.dueTime) {
-                dueDateLabel(info: info)
-            }
-        }
-    }
-
-    private func dueDateLabel(info: DueDateInfo) -> some View {
-        HStack(spacing: 2) {
-            if let time = info.timeLabel {
-                Text(time)
-                    .font(.system(size: 11))
-                    .foregroundStyle(AppColors.mutedForeground.opacity(0.6))
-            }
-            Text(info.dateLabel)
-                .font(.system(size: 11))
-                .foregroundStyle(
-                    task.isCompleted ? AppColors.subtleForeground : Color(hex: info.colorHex)
-                )
         }
     }
 }
