@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Login screen with branded caltodo design.
-/// Animated entrance inspired by Sleep Tracker's welcome step.
+/// Bear cube logo, Google "G" image button, animated entrance.
 struct LoginView: View {
     @EnvironmentObject var authManager: AuthManager
 
@@ -15,16 +15,11 @@ struct LoginView: View {
             Spacer()
 
             VStack(spacing: 0) {
-                // Logo
-                Image(systemName: "checkmark.square.fill")
-                    .font(.system(size: 64, weight: .thin))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [AppColors.blue500, AppColors.blue400],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+                // Bear cube logo
+                Image("Logo")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 80, height: 80)
                     .opacity(iconVisible ? 1 : 0)
                     .scaleEffect(iconVisible ? 1 : 0.8)
                     .padding(.bottom, 24)
@@ -58,7 +53,7 @@ struct LoginView: View {
                         .padding(.bottom, 16)
                 }
 
-                // Google OAuth button
+                // Google OAuth button with actual Google G logo
                 Button {
                     HapticManager.medium()
                     Task { await authManager.signInWithGoogle() }
@@ -67,9 +62,10 @@ struct LoginView: View {
                         if authManager.isLoading {
                             ProgressView().tint(.white)
                         } else {
-                            Image(systemName: "g.circle.fill")
-                                .font(.system(size: 18))
-                                .foregroundStyle(.white)
+                            Image("GoogleLogo")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 18, height: 18)
                             Text("continue with google")
                                 .font(.subheadline)
                                 .fontWeight(.semibold)
@@ -84,12 +80,6 @@ struct LoginView: View {
                 .disabled(authManager.isLoading)
                 .opacity(buttonVisible ? 1 : 0)
                 .offset(y: buttonVisible ? 0 : 20)
-
-                // Footer
-                Text("free for students")
-                    .font(.caption2)
-                    .foregroundStyle(AppColors.subtleForeground)
-                    .padding(.top, 24)
             }
             .frame(maxWidth: 340)
             .padding(.horizontal, 32)

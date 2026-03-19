@@ -50,10 +50,6 @@ vi.mock("@/lib/gcal/calendar-attendees", () => ({
   removeAttendeeFromEvent: vi.fn().mockResolvedValue(true),
 }));
 
-vi.mock("@/lib/email", () => ({
-  sendInviteEmail: vi.fn().mockResolvedValue(true),
-}));
-
 // ── Helpers ────────────────────────────────────────────
 
 const INVITER_ID = "user-111";

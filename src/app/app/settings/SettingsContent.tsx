@@ -8,7 +8,7 @@ import PageTransition from "@/components/ui/PageTransition";
 import IntegrationsSection from "@/components/settings/sections/IntegrationsSection";
 import ClassesSectionWrapper from "@/components/settings/sections/ClassesSectionWrapper";
 import AppearanceSection from "@/components/settings/sections/AppearanceSection";
-import NotificationsSection from "@/components/settings/sections/NotificationsSection";
+
 import AdvancedSection from "@/components/settings/sections/AdvancedSection";
 import {
   SETTINGS_SECTIONS,
@@ -29,8 +29,6 @@ function renderSection(sectionId: SettingsSectionId) {
       return <IntegrationsSection />;
     case "classes":
       return <ClassesSectionWrapper />;
-    case "notifications":
-      return <NotificationsSection />;
     case "appearance":
       return <AppearanceSection />;
     case "advanced":

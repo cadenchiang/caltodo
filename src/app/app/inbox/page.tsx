@@ -14,7 +14,7 @@ import TaskCreateModal from "@/components/tasks/TaskCreateModal";
 import TaskPreviewPopover from "@/components/tasks/TaskPreviewPopover";
 import PageTransition from "@/components/ui/PageTransition";
 import type { Task, PendingInvite } from "@/lib/types";
-import { useNotifications } from "@/contexts/NotificationContext";
+
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { trackEvent } from "@/lib/analytics";
 
@@ -207,7 +207,6 @@ export default function InboxPage() {
 
   const inboxRouter = useRouter();
   const searchParams = useSearchParams();
-  const { setPendingInviteCount } = useNotifications();
   const { hasCompletedOnboarding, loading: onboardingLoading } = useOnboardingStatus({ skipCache: true });
   const [syncBadgeDismissed, setSyncBadgeDismissed] = useState(true);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -266,14 +265,13 @@ export default function InboxPage() {
         if (res.ok) {
           const data = await res.json();
           setPendingInvites(data.invites ?? []);
-          setPendingInviteCount(data.invites?.length ?? 0);
         }
       } catch {
         // Non-critical — requests section will just be empty
       }
     }
     fetchPendingInvites();
-  }, [setPendingInviteCount]);
+  }, []);
 
   /**
    * Handles accepting or declining a task invite.
@@ -294,8 +292,6 @@ export default function InboxPage() {
       if (res.ok) {
         setPendingInvites((prev) => {
           const updated = prev.filter((i) => i.shareId !== shareId);
-          // Defer cross-component state update to avoid setState-during-render
-          queueMicrotask(() => setPendingInviteCount(updated.length));
           return updated;
         });
 
@@ -309,7 +305,7 @@ export default function InboxPage() {
     } catch {
       // Non-critical — user can retry
     }
-  }, [setPendingInviteCount, fetchTasks]);
+  }, [fetchTasks]);
 
   /**
    * Accepts all pending invites at once by firing accept for each.
@@ -320,8 +316,6 @@ export default function InboxPage() {
 
     // Clear the list immediately for instant UI feedback
     setPendingInvites([]);
-    queueMicrotask(() => setPendingInviteCount(0));
-
     // Fire all accept calls in parallel
     await Promise.allSettled(
       invites.map((invite) =>
@@ -336,7 +330,7 @@ export default function InboxPage() {
     // Refetch tasks so accepted ones appear
     await new Promise((r) => setTimeout(r, 300));
     await fetchTasks();
-  }, [pendingInvites, setPendingInviteCount, fetchTasks]);
+  }, [pendingInvites, fetchTasks]);
 
   // Auto-select task from ?task= query param (e.g. from notification click-through)
   const taskParamHandled = useRef(false);

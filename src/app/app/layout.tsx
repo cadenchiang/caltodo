@@ -5,10 +5,10 @@ import Sidebar from "@/components/layout/Sidebar";
 import MobileTabBar from "@/components/layout/MobileTabBar";
 import { TaskProvider } from "@/contexts/TaskContext";
 import { ToastProvider } from "@/contexts/ToastContext";
-import { NotificationProvider } from "@/contexts/NotificationContext";
+
 import { PresenceProvider } from "@/contexts/PresenceContext";
 import InboxTour from "@/components/ui/InboxTour";
-import NotificationCenter from "@/components/ui/NotificationCenter";
+
 import GettingStartedWidget from "@/components/ui/GettingStartedWidget";
 import CanvasTokenExpiredModal from "@/components/ui/CanvasTokenExpiredModal";
 import CalChatAnnouncementModal from "@/components/ui/CalChatAnnouncementModal";
@@ -53,7 +53,6 @@ export default async function AppLayout({
       <PostHogIdentify userId={session.user.id} email={email} fullName={fullName} />
       <PostHogPageView />
       <ToastProvider>
-        <NotificationProvider>
           <PresenceProvider>
           <TaskProvider>
             <InboxTour>
@@ -62,7 +61,7 @@ export default async function AppLayout({
               {children}
             </main>
             <MobileTabBar />
-            <NotificationCenter />
+
             <GettingStartedWidget />
             <CanvasTokenExpiredModal />
             <CalChatAnnouncementModal />
@@ -72,7 +71,6 @@ export default async function AppLayout({
             </InboxTour>
           </TaskProvider>
           </PresenceProvider>
-        </NotificationProvider>
       </ToastProvider>
     </div>
   );

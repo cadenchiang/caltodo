@@ -19,7 +19,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { sendInviteEmail } from "@/lib/email";
+
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
 
@@ -126,14 +126,6 @@ export async function POST(request: NextRequest) {
       shareId: deferredShare.id,
       taskId,
       inviteeEmail: trimmedEmail,
-    });
-
-    // Fire-and-forget: send invite email via Resend
-    const inviterName = (user.user_metadata?.full_name as string) ?? user.email ?? "Someone";
-    sendInviteEmail(trimmedEmail, inviterName, task.title).catch((err) => {
-      logger.warn("POST /api/tasks/invite: email send failed (non-blocking)", {
-        error: err instanceof Error ? err.message : String(err),
-      });
     });
 
     return NextResponse.json({

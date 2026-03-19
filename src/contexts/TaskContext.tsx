@@ -4,11 +4,11 @@ import { createContext, useContext, useState, useEffect, useLayoutEffect, useCal
 import { Undo2, Eye } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/contexts/ToastContext";
-import { useNotifications } from "@/contexts/NotificationContext";
+
 import type { Task, TaskInsert, TaskUpdate, SyncResult } from "@/lib/types";
 import { trackEvent } from "@/lib/analytics";
 import { computeNextDueDate, shouldSpawnNext } from "@/lib/repeat";
-import { createTaskSnapshot, detectSyncChanges } from "@/lib/notification-helpers";
+
 import { showNewAssignmentsModal } from "@/components/ui/NewAssignmentsModal";
 import { readSyncStream } from "@/lib/gcal/read-sync-stream";
 import { playTaskComplete } from "@/lib/sounds";
@@ -133,7 +133,6 @@ const TaskContext = createContext<TaskContextValue | null>(null);
  */
 export function TaskProvider({ children }: { children: ReactNode }) {
   const { showToast, updateToastProgress } = useToast();
-  const { addNotification } = useNotifications();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -272,9 +271,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
 
     /**
      * Runs sync silently if enough time has passed since the last sync.
-     * Uses taskBaselineRef for a reliable snapshot instead of the stale
-     * `tasks` state from the closure. Skips notification generation on
-     * the first sync after mount (baseline is unreliable at that point).
+     * Skips change detection on the first sync after mount.
      */
     async function autoSync() {
       const now = Date.now();
@@ -285,10 +282,6 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       isFirstAutoSyncRef.current = false;
 
       try {
-        const snapshot = shouldNotify
-          ? createTaskSnapshot(taskBaselineRef.current)
-          : null;
-
         const res = await fetch("/api/assignments/sync", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -305,17 +298,12 @@ export function TaskProvider({ children }: { children: ReactNode }) {
           const freshTasks = await fetchTasks();
           if (!mounted || abortController.signal.aborted) return;
 
-          // Only emit notifications after the first sync establishes a reliable baseline
-          if (snapshot) {
-            const changes = detectSyncChanges(snapshot, freshTasks);
-            for (const change of changes) {
-              addNotification(change.type, change.title, change.description, change.taskId);
-            }
-
-            // Show a toast popup when new assignments are discovered
-            const newAssignments = changes.filter((c) => c.type === "new_assignment");
+          // Show a toast popup when new assignments are discovered
+          if (shouldNotify) {
+            const beforeIds = new Set(taskBaselineRef.current.map((t) => t.id));
+            const newAssignments = freshTasks.filter((t) => !beforeIds.has(t.id) && t.source);
             if (newAssignments.length > 0) {
-              const ids = newAssignments.map((c) => c.taskId);
+              const ids = newAssignments.map((t) => t.id);
               const msg = newAssignments.length === 1
                 ? "1 new assignment found"
                 : `${newAssignments.length} new assignments found`;
@@ -355,7 +343,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       abortController.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [syncing, fetchTasks, addNotification, syncUnsyncedToGCal]);
+  }, [syncing, fetchTasks, syncUnsyncedToGCal]);
 
   /**
    * Adds a task with optimistic UI: immediately shows in the list with a temp ID,
@@ -520,11 +508,6 @@ export function TaskProvider({ children }: { children: ReactNode }) {
           repeat_end_count: nextEndCount,
         });
         trackEvent("repeat_task_spawned");
-        addNotification(
-          "repeat_spawned",
-          `Next: ${task.title}`,
-          `due ${nextDueDate}`,
-        );
       }
     }
 
@@ -1047,8 +1030,6 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       updateToastProgress(currentProgress);
     }, 500);
 
-    const snapshot = createTaskSnapshot(taskBaselineRef.current);
-
     try {
       const res = await fetch("/api/assignments/sync", {
         method: "POST",
@@ -1098,11 +1079,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       });
 
       // Refresh tasks list after sync to include new assignments
-      const freshTasks = await fetchTasks();
-      const changes = detectSyncChanges(snapshot, freshTasks);
-      for (const change of changes) {
-        addNotification(change.type, change.title, change.description, change.taskId);
-      }
+      await fetchTasks();
 
       // Sync any newly imported tasks (with due dates) to GCal
       syncUnsyncedToGCal();

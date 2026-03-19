@@ -82,7 +82,7 @@
 		F15256EA415096E2051C1CFF /* AppColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppColors.swift; sourceTree = "<group>"; };
 		F4593EC98098ADD83834D914 /* CalTodoApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalTodoApp.swift; sourceTree = "<group>"; };
 		FF62382CF615AD80C901B792 /* TaskInsert.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskInsert.swift; sourceTree = "<group>"; };
-		"TEMP_7624CCDF-C297-4409-A27D-1C0F600E2B83" /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
+		"TEMP_94DC1D18-5BA4-4567-AFFC-4C9E538106EB" /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -303,10 +303,10 @@
 			path = CalTodo;
 			sourceTree = "<group>";
 		};
-		"TEMP_C38AB867-D639-47C1-9AAC-6BAB6430B619" /* mobile-ios */ = {
+		"TEMP_1B9C8047-761F-4C86-9F3D-82D0592AD2E4" /* mobile-ios */ = {
 			isa = PBXGroup;
 			children = (
-				"TEMP_7624CCDF-C297-4409-A27D-1C0F600E2B83" /* Config.xcconfig */,
+				"TEMP_94DC1D18-5BA4-4567-AFFC-4C9E538106EB" /* Config.xcconfig */,
 			);
 			path = "mobile-ios";
 			sourceTree = "<group>";
@@ -500,7 +500,7 @@
 		};
 		BBC27ED2527B31013AB189B5 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = "TEMP_7624CCDF-C297-4409-A27D-1C0F600E2B83" /* Config.xcconfig */;
+			baseConfigurationReference = "TEMP_94DC1D18-5BA4-4567-AFFC-4C9E538106EB" /* Config.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -557,7 +557,7 @@
 		};
 		CA779C97F6352E61D0A894B0 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = "TEMP_7624CCDF-C297-4409-A27D-1C0F600E2B83" /* Config.xcconfig */;
+			baseConfigurationReference = "TEMP_94DC1D18-5BA4-4567-AFFC-4C9E538106EB" /* Config.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;

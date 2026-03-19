@@ -10,7 +10,7 @@ import SidebarNavItem, { navItemClasses } from "./SidebarNavItem";
 import ProfilePopup from "./ProfilePopup";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
-import { useNotifications } from "@/contexts/NotificationContext";
+
 
 /** Filter configuration mapping for dynamic sidebar label. */
 const FILTER_CONFIG: Record<string, { label: string; icon: typeof Inbox }> = {
@@ -67,7 +67,6 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
     return () => window.removeEventListener("profile-updated", handleProfileUpdate);
   }, []);
   useOnboardingStatus();
-  const { pendingInviteCount } = useNotifications();
 
   // Track whether user has visited Notes at least once
   const [notesIsNew, setNotesIsNew] = useState(false);
@@ -179,11 +178,7 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
                   href={item.href}
                   icon={isInbox ? inboxConfig.icon : item.icon}
                   badge={false}
-                  badgeCount={
-                    (isInbox || isCalendar) && pendingInviteCount > 0
-                      ? pendingInviteCount
-                      : undefined
-                  }
+                  badgeCount={undefined}
                   badgeText={isNotes && notesIsNew ? "NEW" : undefined}
                   id={`tour-nav-${item.label.toLowerCase()}`}
                   imageSrc={undefined}

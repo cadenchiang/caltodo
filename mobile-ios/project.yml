@@ -57,9 +57,9 @@ targets:
           - CFBundleURLSchemes:
               - caltodo
             CFBundleURLName: com.caltodo.app
-        SUPABASE_URL: $(SUPABASE_URL)
+        SUPABASE_HOST: $(SUPABASE_HOST)
         SUPABASE_ANON_KEY: $(SUPABASE_ANON_KEY)
-        API_BASE_URL: $(API_BASE_URL)
+        API_HOST: $(API_HOST)
 
   CalTodoTests:
     type: bundle.unit-test

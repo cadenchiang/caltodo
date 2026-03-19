@@ -4,34 +4,47 @@ import Supabase
 /// Entry point for the CalTodo iOS app.
 /// Configures the Supabase client, injects environment objects,
 /// and routes between LoginView and MainTabView based on auth state.
-///
-/// URL scheme `caltodo://` is configured in Info.plist for OAuth callbacks.
 @main
 struct CalTodoApp: App {
-    /// Manages auth state, Google OAuth, and session persistence.
     @StateObject private var authManager: AuthManager
-
-    /// Manages task data, CRUD operations, and optimistic updates.
     @StateObject private var taskStore: TaskStore
-
-    /// Whether onboarding has been completed (persisted in UserDefaults).
     @State private var onboardingComplete = UserDefaults.standard.bool(forKey: "onboarding_completed")
+    @State private var isReady = false
 
     init() {
+        let urlString = Configuration.supabaseURL
+        let anonKey = Configuration.supabaseAnonKey
+
+        print("[CalTodoApp] SUPABASE_URL = '\(urlString)'")
+        print("[CalTodoApp] SUPABASE_ANON_KEY = '\(anonKey.prefix(20))...'")
+        print("[CalTodoApp] API_BASE_URL = '\(Configuration.apiBaseURL)'")
+
+        guard let url = URL(string: urlString) else {
+            fatalError("[CalTodoApp] Invalid SUPABASE_URL: '\(urlString)'. Check Config.xcconfig.")
+        }
+
         let client = SupabaseClient(
-            supabaseURL: URL(string: Configuration.supabaseURL)!,
-            supabaseKey: Configuration.supabaseAnonKey
+            supabaseURL: url,
+            supabaseKey: anonKey
         )
         let auth = AuthManager(client: client)
         _authManager = StateObject(wrappedValue: auth)
         _taskStore = StateObject(wrappedValue: TaskStore(authManager: auth))
-        AppLogger.app.info("CalTodoApp initialized")
+        print("[CalTodoApp] Init complete")
     }
 
     var body: some Scene {
         WindowGroup {
             Group {
-                if !authManager.isAuthenticated {
+                if !isReady {
+                    // Show loading while checking session
+                    VStack(spacing: 16) {
+                        ProgressView()
+                        Text("loading...")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                } else if !authManager.isAuthenticated {
                     LoginView()
                 } else if !onboardingComplete {
                     OnboardingView(isComplete: $onboardingComplete)
@@ -45,7 +58,10 @@ struct CalTodoApp: App {
                 AppLogger.auth.info("Received deep link: \(url.absoluteString)")
             }
             .task {
+                print("[CalTodoApp] Checking session...")
                 await authManager.checkExistingSession()
+                print("[CalTodoApp] Session check done, isAuthenticated=\(authManager.isAuthenticated)")
+                isReady = true
             }
             .onReceive(authManager.$isAuthenticated) { isAuth in
                 if isAuth {
@@ -62,13 +78,14 @@ struct CalTodoApp: App {
 ///
 /// - Important: Never commit actual keys to source control.
 enum Configuration {
-    /// Supabase project URL (e.g. "https://xxx.supabase.co").
+    /// Supabase project URL, constructed from SUPABASE_HOST in Config.xcconfig.
+    /// xcconfig treats // as comments, so we store host-only and prepend https://.
     static let supabaseURL: String = {
-        guard let value = Bundle.main.object(forInfoDictionaryKey: "SUPABASE_URL") as? String,
-              !value.isEmpty else {
-            fatalError("Missing SUPABASE_URL in Info.plist. Add it via Config.xcconfig.")
+        guard let host = Bundle.main.object(forInfoDictionaryKey: "SUPABASE_HOST") as? String,
+              !host.isEmpty else {
+            fatalError("Missing SUPABASE_HOST in Info.plist. Add it via Config.xcconfig.")
         }
-        return value
+        return "https://\(host)"
     }()
 
     /// Supabase anonymous key for client-side auth.
@@ -80,12 +97,12 @@ enum Configuration {
         return value
     }()
 
-    /// Base URL for CalTodo API (e.g. "https://caltodo.vercel.app").
+    /// Base URL for CalTodo API, constructed from API_HOST in Config.xcconfig.
     static let apiBaseURL: String = {
-        guard let value = Bundle.main.object(forInfoDictionaryKey: "API_BASE_URL") as? String,
-              !value.isEmpty else {
-            fatalError("Missing API_BASE_URL in Info.plist. Add it via Config.xcconfig.")
+        guard let host = Bundle.main.object(forInfoDictionaryKey: "API_HOST") as? String,
+              !host.isEmpty else {
+            fatalError("Missing API_HOST in Info.plist. Add it via Config.xcconfig.")
         }
-        return value
+        return "https://\(host)"
     }()
 }
