@@ -78,13 +78,10 @@ export default function GradescopeSettings({ credentials, onUpdate }: Gradescope
         {isConnected ? (
           isAuthFailed ? (
             <button
-              onClick={() => {
-                handleDisconnect();
-                router.push("/app/onboarding?setup=gradescope");
-              }}
+              onClick={() => router.push("/app/onboarding?setup=gradescope")}
               className="text-xs font-semibold text-red-500 dark:text-red-400 px-3 py-1 rounded-lg border border-red-300 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors shrink-0 cursor-pointer"
             >
-              Login Failed — Reconnect
+              Login Failed — Retry
             </button>
           ) : (
             <button

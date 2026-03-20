@@ -99,6 +99,7 @@ export function IntegrationProvider({ children }: { children: React.ReactNode })
   const [loading, setLoading] = useState(true);
 
   const fetchCredentials = useCallback(async () => {
+    setLoading(true);
     try {
       const res = await fetch("/api/credentials");
       if (res.ok) {
@@ -114,13 +115,13 @@ export function IntegrationProvider({ children }: { children: React.ReactNode })
   }, []);
 
   useEffect(() => {
-    // Hydrate from localStorage cache first for instant render
+    // Hydrate from localStorage cache for instant render, but keep loading=true
+    // until API responds to avoid flickering between stale and fresh state
     const cached = getCachedCredentials();
     if (cached) {
       setCredentials(cached);
-      setLoading(false);
     }
-    // Then fetch fresh data from API
+    // Fetch fresh data — loading stays true until this completes
     fetchCredentials();
   }, [fetchCredentials]);
 

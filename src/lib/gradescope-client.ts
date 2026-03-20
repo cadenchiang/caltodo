@@ -90,6 +90,7 @@ export async function gradescopeLogin(
     body: new URLSearchParams({
       "session[email]": email,
       "session[password]": password,
+      "session[remember_me]": "1",
       authenticity_token: csrfToken,
     }).toString(),
     redirect: "manual",

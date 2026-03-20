@@ -115,6 +115,21 @@ export default function OnboardingPage() {
 
   const pensieveDraftRef = useRef<{ url: string }>({ url: "" });
 
+  // Pre-fill Gradescope email when retrying from settings (standalone mode)
+  const [standaloneGradescopeEmail, setStandaloneGradescopeEmail] = useState("");
+  useEffect(() => {
+    if (setupParam === "gradescope") {
+      fetch("/api/credentials")
+        .then((r) => r.ok ? r.json() : null)
+        .then((data) => {
+          if (data?.gradescope_email) {
+            setStandaloneGradescopeEmail(data.gradescope_email);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [setupParam]);
+
   const handleCanvasDraft = useCallback((d: typeof canvasDraftRef.current) => { canvasDraftRef.current = d; }, []);
   const handleGradescopeDraft = useCallback((d: typeof gradescopeDraftRef.current) => { gradescopeDraftRef.current = d; }, []);
   const handlePensieveDraft = useCallback((d: typeof pensieveDraftRef.current) => { pensieveDraftRef.current = d; }, []);
@@ -404,6 +419,7 @@ export default function OnboardingPage() {
                     saving={saving}
                     error={error}
                     setError={setError}
+                    initialEmail={standaloneGradescopeEmail}
                   />
                 )}
 
