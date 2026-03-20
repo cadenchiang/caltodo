@@ -19,8 +19,11 @@
 		3FFCA6A7000C7504FB098182 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 350C54A8FE75BCFFAE757214 /* HomeView.swift */; };
 		4241CBCE8F727AC9EFC0B4DC /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3BFDE083C232D385849B3C1 /* SettingsView.swift */; };
 		52CEEF508BE8141866BDA82A /* ProfileSheetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A40442A5C4F19E7C28E73E7 /* ProfileSheetView.swift */; };
+		6499AED289D0146EDF74D1AE /* ThemeDefinitionsExtra.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8B11D247726B7FC49E57036 /* ThemeDefinitionsExtra.swift */; };
+		655A7866EDB1765D13F0D548 /* TaskCreateSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 910BAC2B619D5374693D6703 /* TaskCreateSheet.swift */; };
 		7CAC30CD7925A8D8ADF7187B /* TaskInsert.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF62382CF615AD80C901B792 /* TaskInsert.swift */; };
 		7DD202C0E11EA96AC1C20BF1 /* DateFormatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D455644E885D4CF4773196C /* DateFormatting.swift */; };
+		7F869DC758A96F468407E63F /* ThemeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AEE032406654B0826FC87E7 /* ThemeManager.swift */; };
 		801FC265A9178F474C7C2813 /* EmptyStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F7E4F7F21B0BF4C367C4840 /* EmptyStateView.swift */; };
 		808C06EA6411ACD60ECEF48A /* Logger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72AFBA7B3C53A1C6A372BE7F /* Logger.swift */; };
 		83D6905A39C537A3BF2CB26B /* TaskModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83DA31985975BB2C978791F3 /* TaskModelTests.swift */; };
@@ -30,6 +33,7 @@
 		9CF0B61E14C5448B9388CC68 /* CalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6287F484BDCBAC3E16BE2F54 /* CalendarView.swift */; };
 		9D45A01440BD6934895C5692 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 805C759670A8D4851591EE55 /* APIClient.swift */; };
 		9E23A0FD9CE1BEABAFF566FC /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BB40A39D41D0B4A9CFB7A4B /* OnboardingView.swift */; };
+		A611CC49F827636A40006F21 /* ThemePickerGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = D487F1EBE6B179FFBDDB6335 /* ThemePickerGrid.swift */; };
 		AAE824605A92BA00D1884459 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34DF541745C6E19E4648A01A /* MainTabView.swift */; };
 		AE8762F0AE98F2FA35444C7A /* OnboardingStepViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE849A4BD8683931B5ABE862 /* OnboardingStepViews.swift */; };
 		B37366FEA49F7888D3CD85A3 /* TaskColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21D0E13496755EC2D9B1B027 /* TaskColors.swift */; };
@@ -40,6 +44,8 @@
 		ED83C25EBB4A3A99C5D2C179 /* IntegrationStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = E90661F65A4AA28513D6F285 /* IntegrationStatus.swift */; };
 		F5733BBBD0D1F1B0ABC2CD6F /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = F5D9D63EE0A230CD23E347CE /* Supabase */; };
 		FB72EBFA73A4E8E444872220 /* TaskDetailSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72CF755DA55B1E8ED14304CC /* TaskDetailSheet.swift */; };
+		FC1A2B3D4E5F6A7890BCDE01 /* ToastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC1A2B3D4E5F6A7890BCDE02 /* ToastView.swift */; };
+		FBFE5B7040DB074BEB0C353E /* ThemeDefinitions.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC98DEA18B47931CDB5D54FD /* ThemeDefinitions.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -55,6 +61,7 @@
 /* Begin PBXFileReference section */
 		065AE3788AE9CB0665FE9A73 /* APIError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIError.swift; sourceTree = "<group>"; };
 		21D0E13496755EC2D9B1B027 /* TaskColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskColors.swift; sourceTree = "<group>"; };
+		2AEE032406654B0826FC87E7 /* ThemeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeManager.swift; sourceTree = "<group>"; };
 		2BB40A39D41D0B4A9CFB7A4B /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		34DF541745C6E19E4648A01A /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
 		350C54A8FE75BCFFAE757214 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
@@ -70,6 +77,7 @@
 		72AFBA7B3C53A1C6A372BE7F /* Logger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logger.swift; sourceTree = "<group>"; };
 		72C70800B810B6E9C79DA2DA /* AuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthManager.swift; sourceTree = "<group>"; };
 		72CF755DA55B1E8ED14304CC /* TaskDetailSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskDetailSheet.swift; sourceTree = "<group>"; };
+		FC1A2B3D4E5F6A7890BCDE02 /* ToastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastView.swift; sourceTree = "<group>"; };
 		751DC70D57ED4BB97989D510 /* CalTodoTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = CalTodoTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		788774181B1470CD488E7B80 /* DateFormattingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateFormattingTests.swift; sourceTree = "<group>"; };
 		7ADD23B44BABEA093ACD686A /* InboxView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxView.swift; sourceTree = "<group>"; };
@@ -77,18 +85,22 @@
 		805C759670A8D4851591EE55 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
 		83DA31985975BB2C978791F3 /* TaskModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskModelTests.swift; sourceTree = "<group>"; };
 		8D455644E885D4CF4773196C /* DateFormatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateFormatting.swift; sourceTree = "<group>"; };
+		910BAC2B619D5374693D6703 /* TaskCreateSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskCreateSheet.swift; sourceTree = "<group>"; };
 		94E84AC3474305CFB4561C9F /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
+		B8B11D247726B7FC49E57036 /* ThemeDefinitionsExtra.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeDefinitionsExtra.swift; sourceTree = "<group>"; };
 		BE849A4BD8683931B5ABE862 /* OnboardingStepViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingStepViews.swift; sourceTree = "<group>"; };
 		C3BFDE083C232D385849B3C1 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		C83FBFDE5219EEC50EE8AFBD /* CalTodo.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = CalTodo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C88C4476AD2A422135D2E628 /* SectionHeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SectionHeaderView.swift; sourceTree = "<group>"; };
 		CD9138A7B561CB5DA586A657 /* TaskStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskStore.swift; sourceTree = "<group>"; };
+		D487F1EBE6B179FFBDDB6335 /* ThemePickerGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemePickerGrid.swift; sourceTree = "<group>"; };
 		DF9643984E0503068EF74920 /* APIClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClientTests.swift; sourceTree = "<group>"; };
 		E90661F65A4AA28513D6F285 /* IntegrationStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntegrationStatus.swift; sourceTree = "<group>"; };
 		F15256EA415096E2051C1CFF /* AppColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppColors.swift; sourceTree = "<group>"; };
 		F4593EC98098ADD83834D914 /* CalTodoApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalTodoApp.swift; sourceTree = "<group>"; };
+		FC98DEA18B47931CDB5D54FD /* ThemeDefinitions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeDefinitions.swift; sourceTree = "<group>"; };
 		FF62382CF615AD80C901B792 /* TaskInsert.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskInsert.swift; sourceTree = "<group>"; };
-		"TEMP_D8AF8996-5F9B-478F-923C-EA37CD307DBE" /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
+		"TEMP_C8E9ADBC-2F41-4B4D-8CFC-6C047D0ACA66" /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -127,6 +139,7 @@
 			isa = PBXGroup;
 			children = (
 				C3BFDE083C232D385849B3C1 /* SettingsView.swift */,
+				D487F1EBE6B179FFBDDB6335 /* ThemePickerGrid.swift */,
 			);
 			path = Settings;
 			sourceTree = "<group>";
@@ -195,6 +208,9 @@
 				F15256EA415096E2051C1CFF /* AppColors.swift */,
 				6CCD5CE281036F0C470418DD /* HapticManager.swift */,
 				21D0E13496755EC2D9B1B027 /* TaskColors.swift */,
+				FC98DEA18B47931CDB5D54FD /* ThemeDefinitions.swift */,
+				B8B11D247726B7FC49E57036 /* ThemeDefinitionsExtra.swift */,
+				2AEE032406654B0826FC87E7 /* ThemeManager.swift */,
 			);
 			path = Design;
 			sourceTree = "<group>";
@@ -248,8 +264,10 @@
 			children = (
 				3F7E4F7F21B0BF4C367C4840 /* EmptyStateView.swift */,
 				C88C4476AD2A422135D2E628 /* SectionHeaderView.swift */,
+				910BAC2B619D5374693D6703 /* TaskCreateSheet.swift */,
 				72CF755DA55B1E8ED14304CC /* TaskDetailSheet.swift */,
 				693E1814F5C454DAC3788F81 /* TaskItemView.swift */,
+				FC1A2B3D4E5F6A7890BCDE02 /* ToastView.swift */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -320,10 +338,10 @@
 			path = CalTodo;
 			sourceTree = "<group>";
 		};
-		"TEMP_7CA475D9-6845-4D7A-9185-AE9E0A190727" /* mobile-ios */ = {
+		"TEMP_DD137BE1-7961-4119-91DF-8E80A488C327" /* mobile-ios */ = {
 			isa = PBXGroup;
 			children = (
-				"TEMP_D8AF8996-5F9B-478F-923C-EA37CD307DBE" /* Config.xcconfig */,
+				"TEMP_C8E9ADBC-2F41-4B4D-8CFC-6C047D0ACA66" /* Config.xcconfig */,
 			);
 			path = "mobile-ios";
 			sourceTree = "<group>";
@@ -455,11 +473,17 @@
 				4241CBCE8F727AC9EFC0B4DC /* SettingsView.swift in Sources */,
 				EA3D440AE06692E0C24E5EEF /* Task.swift in Sources */,
 				B37366FEA49F7888D3CD85A3 /* TaskColors.swift in Sources */,
+				655A7866EDB1765D13F0D548 /* TaskCreateSheet.swift in Sources */,
 				FB72EBFA73A4E8E444872220 /* TaskDetailSheet.swift in Sources */,
+				FC1A2B3D4E5F6A7890BCDE01 /* ToastView.swift in Sources */,
 				7CAC30CD7925A8D8ADF7187B /* TaskInsert.swift in Sources */,
 				1772E89C8C79688C89EFAADD /* TaskItemView.swift in Sources */,
 				8B3AF68F8FA3A80947A37225 /* TaskStore.swift in Sources */,
 				B58FFE2A280A8B787688EE9C /* TaskUpdate.swift in Sources */,
+				FBFE5B7040DB074BEB0C353E /* ThemeDefinitions.swift in Sources */,
+				6499AED289D0146EDF74D1AE /* ThemeDefinitionsExtra.swift in Sources */,
+				7F869DC758A96F468407E63F /* ThemeManager.swift in Sources */,
+				A611CC49F827636A40006F21 /* ThemePickerGrid.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -520,7 +544,7 @@
 		};
 		BBC27ED2527B31013AB189B5 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = "TEMP_D8AF8996-5F9B-478F-923C-EA37CD307DBE" /* Config.xcconfig */;
+			baseConfigurationReference = "TEMP_C8E9ADBC-2F41-4B4D-8CFC-6C047D0ACA66" /* Config.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -577,7 +601,7 @@
 		};
 		CA779C97F6352E61D0A894B0 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = "TEMP_D8AF8996-5F9B-478F-923C-EA37CD307DBE" /* Config.xcconfig */;
+			baseConfigurationReference = "TEMP_C8E9ADBC-2F41-4B4D-8CFC-6C047D0ACA66" /* Config.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
