@@ -8,7 +8,7 @@
  * @module QuoteWidget
  */
 
-import { useMemo, useState, useCallback, useRef } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { Pencil, RotateCcw } from "lucide-react";
 import { WidgetShell } from "./WidgetPrimitives";
 
@@ -67,7 +67,13 @@ export default function QuoteWidget({ config, onUpdateConfig }: QuoteWidgetProps
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState(customText);
   const [editAuthor, setEditAuthor] = useState(customAuthor);
-  const debounceRef = useRef<NodeJS.Timeout>();
+  const debounceRef = useRef<NodeJS.Timeout | undefined>(undefined);
+
+  // Sync edit fields when config changes externally
+  useEffect(() => {
+    setEditText(config?.customText || "");
+    setEditAuthor(config?.customAuthor || "");
+  }, [config?.customText, config?.customAuthor]);
 
   /** Daily-rotating quote from the curated list. */
   const dailyQuote = useMemo(() => {
@@ -101,6 +107,13 @@ export default function QuoteWidget({ config, onUpdateConfig }: QuoteWidgetProps
     },
     [config, onUpdateConfig]
   );
+
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
 
   /** Resets to daily-rotating quotes. */
   const resetToDaily = useCallback(() => {
