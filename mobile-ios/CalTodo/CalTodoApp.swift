@@ -8,6 +8,7 @@ import Supabase
 struct CalTodoApp: App {
     @StateObject private var authManager: AuthManager
     @StateObject private var taskStore: TaskStore
+    @StateObject private var toastManager = ToastManager()
     @State private var onboardingComplete = UserDefaults.standard.bool(forKey: "onboarding_completed")
     @State private var isReady = false
     @AppStorage("appearance") private var appearance = "system"
@@ -22,6 +23,13 @@ struct CalTodoApp: App {
     }
 
     init() {
+        // Glassy translucent tab bar
+        let tabBarAppearance = UITabBarAppearance()
+        tabBarAppearance.configureWithDefaultBackground()
+        tabBarAppearance.backgroundEffect = UIBlurEffect(style: .systemThinMaterial)
+        UITabBar.appearance().standardAppearance = tabBarAppearance
+        UITabBar.appearance().scrollEdgeAppearance = tabBarAppearance
+
         guard let url = URL(string: Configuration.supabaseURL) else {
             fatalError("Invalid SUPABASE_URL. Check Config.xcconfig.")
         }
@@ -56,11 +64,18 @@ struct CalTodoApp: App {
             }
             .environmentObject(authManager)
             .environmentObject(taskStore)
+            .environmentObject(toastManager)
+            .overlay(alignment: .bottom) {
+                ToastView()
+                    .environmentObject(toastManager)
+            }
             .preferredColorScheme(colorScheme)
+            .observeThemeColorScheme()
             .onOpenURL { url in
                 AppLogger.auth.info("Received deep link: \(url.absoluteString)")
             }
             .task {
+                taskStore.toastManager = toastManager
                 await authManager.checkExistingSession()
                 isReady = true
             }

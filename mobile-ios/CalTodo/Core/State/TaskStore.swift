@@ -23,9 +23,15 @@ final class TaskStore: ObservableObject {
     /// Integration connection status from the API.
     @Published var integrations: IntegrationStatus?
 
-    /// Active (non-completed) tasks.
+    /// Task IDs recently marked complete — kept in active list briefly for animation.
+    @Published var recentlyCompletedIds: Set<String> = []
+
+    /// Toast manager for undo notifications. Set by CalTodoApp after init.
+    weak var toastManager: ToastManager?
+
+    /// Active (non-completed) tasks, including recently completed for animation delay.
     var activeTasks: [CalTask] {
-        tasks.filter { !$0.completed }
+        tasks.filter { !$0.completed || recentlyCompletedIds.contains($0.id) }
     }
 
     /// Completed tasks.
@@ -109,6 +115,7 @@ final class TaskStore: ObservableObject {
     // MARK: - Toggle Complete
 
     /// Toggles a task's completion state with optimistic update.
+    /// When completing, shows undo toast and delays removal from active list for animation.
     @MainActor
     func toggleComplete(taskId: String) async {
         guard let index = tasks.firstIndex(where: { $0.id == taskId }) else {
@@ -124,6 +131,22 @@ final class TaskStore: ObservableObject {
         tasks[index].completedAt = completedAt
         AppLogger.tasks.info("Toggling task \(taskId) to completed=\(newCompleted)")
 
+        // Animation delay + undo toast when completing
+        if newCompleted {
+            recentlyCompletedIds.insert(taskId)
+            let taskTitle = previousState.title
+            toastManager?.showToast(message: "completed \"\(taskTitle)\"") { [weak self] in
+                guard let self else { return }
+                Task { @MainActor in
+                    await self.toggleComplete(taskId: taskId)
+                }
+            }
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(nanoseconds: 800_000_000)
+                self?.recentlyCompletedIds.remove(taskId)
+            }
+        }
+
         do {
             let updated = try await apiClient.updateTask(
                 id: taskId,
@@ -136,6 +159,7 @@ final class TaskStore: ObservableObject {
             if let idx = tasks.firstIndex(where: { $0.id == taskId }) {
                 tasks[idx] = previousState
             }
+            recentlyCompletedIds.remove(taskId)
             AppLogger.tasks.error("Toggle rollback for \(taskId): \(error.localizedDescription)")
             errorMessage = "Failed to update task. Change reverted."
         }
@@ -144,19 +168,26 @@ final class TaskStore: ObservableObject {
     // MARK: - Create
 
     /// Creates a new task via the API and adds it to the local list.
+    ///
+    /// - Parameter insert: The task fields to create.
+    /// - Returns: `true` if creation succeeded, `false` on error.
+    @discardableResult
     @MainActor
-    func createTask(_ insert: TaskInsert) async {
+    func createTask(_ insert: TaskInsert) async -> Bool {
         AppLogger.tasks.info("Creating task: \(insert.title)")
 
         do {
             let created = try await apiClient.createTask(insert)
             tasks.insert(created, at: 0)
             AppLogger.tasks.info("Created task \(created.id)")
+            return true
         } catch let error as APIError {
             handleError(error, context: "create")
+            return false
         } catch {
             errorMessage = "Failed to create task."
             AppLogger.tasks.error("Create failed: \(error.localizedDescription)")
+            return false
         }
     }
 
@@ -177,6 +208,42 @@ final class TaskStore: ObservableObject {
             AppLogger.tasks.error("Delete rollback for \(taskId): \(error.localizedDescription)")
             errorMessage = "Failed to delete task. Change reverted."
         }
+    }
+
+    // MARK: - Filtered & Sorted
+
+    /// Returns active tasks filtered by mode and sorted by the given sort key.
+    ///
+    /// - Parameters:
+    ///   - filter: "all", "today", or "7days".
+    ///   - sort: "date" or "class".
+    /// - Returns: Filtered and sorted array of active tasks.
+    func filteredTasks(filter: String, sort: String) -> [CalTask] {
+        var result = activeTasks
+
+        switch filter {
+        case "today":
+            let today = DateFormatting.todayString()
+            result = result.filter { $0.dueDate == today }
+        case "7days":
+            let today = DateFormatting.todayString()
+            let weekFromNow = DateFormatting.dateString(daysFromNow: 7)
+            result = result.filter { task in
+                guard let due = task.dueDate else { return false }
+                return due >= today && due <= weekFromNow
+            }
+        default:
+            break
+        }
+
+        switch sort {
+        case "class":
+            result.sort { ($0.courseName ?? "") < ($1.courseName ?? "") }
+        default:
+            result.sort { ($0.dueDate ?? "9999") < ($1.dueDate ?? "9999") }
+        }
+
+        return result
     }
 
     // MARK: - Private Helpers

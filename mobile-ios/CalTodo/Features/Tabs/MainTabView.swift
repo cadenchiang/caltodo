@@ -1,160 +1,106 @@
 import SwiftUI
 
-/// Main tab navigation with 5 icon-only tabs.
-/// Top bar: avatar button (left) for profile, ellipsis menu (right) for filter/sort/sync.
+/// Main tab navigation — each tab has its own NavigationStack.
+/// Inbox: large bold title + three-dot menu. Calendar/Settings: centered inline title. No profile in nav bar.
 struct MainTabView: View {
     @EnvironmentObject var authManager: AuthManager
     @EnvironmentObject var taskStore: TaskStore
 
     @State private var selectedTab = 0
-    @State private var showProfile = false
-    @State private var filterMode = "all"
-    @State private var sortMode = "date"
+    @AppStorage("inbox_filter") private var filterMode = "all"
+    @AppStorage("inbox_sort") private var sortMode = "date"
 
     var body: some View {
-        NavigationView {
-            TabView(selection: $selectedTab) {
+        TabView(selection: $selectedTab) {
+            // Home — no toolbar buttons
+            NavigationStack {
                 HomeView()
-                    .tag(0)
-                    .tabItem {
-                        Image(systemName: "house.fill")
-                    }
+            }
+            .tag(0)
+            .tabItem { Image(systemName: "house") }
 
+            // Inbox
+            NavigationStack {
                 InboxView()
-                    .tag(1)
-                    .tabItem {
-                        Image(systemName: "tray.fill")
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarLeading) { inboxTitleMenu }
+                        ToolbarItem(placement: .navigationBarTrailing) { sortMenuButton }
                     }
+            }
+            .tag(1)
+            .tabItem { Image(systemName: "tray") }
 
+            // Calendar
+            NavigationStack {
                 CalendarView()
-                    .tag(2)
-                    .tabItem {
-                        Image(systemName: "calendar")
-                    }
+            }
+            .tag(2)
+            .tabItem { Image(systemName: "tablecells") }
 
+            // Notes
+            NavigationStack {
                 NotesView()
-                    .tag(3)
-                    .tabItem {
-                        Image(systemName: "note.text")
-                    }
+                    .navigationTitle("notes")
+                    .navigationBarTitleDisplayMode(.inline)
+            }
+            .tag(3)
+            .tabItem { Image(systemName: "note.text") }
 
+            // Settings
+            NavigationStack {
                 SettingsView()
-                    .tag(4)
-                    .tabItem {
-                        Image(systemName: "gearshape.fill")
-                    }
+                    .navigationTitle("settings")
+                    .navigationBarTitleDisplayMode(.inline)
             }
-            .tint(AppColors.blue500)
-            .onChange(of: selectedTab) { _ in
-                HapticManager.selection()
-            }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    avatarButton
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    // Only show menu on Home (0) and Inbox (1)
-                    if selectedTab == 0 || selectedTab == 1 {
-                        menuButton
-                    }
-                }
-            }
+            .tag(4)
+            .tabItem { Image(systemName: "gearshape") }
         }
-        .navigationViewStyle(.stack)
+        .tint(AppColors.accent)
+        .onChange(of: selectedTab) { _ in HapticManager.selection() }
         .task {
-            if taskStore.tasks.isEmpty {
-                await taskStore.fetchTasks()
-            }
-            if taskStore.integrations == nil {
-                await taskStore.fetchCredentials()
-            }
-        }
-        .sheet(isPresented: $showProfile) {
-            ProfileSheetView()
-                .presentationDetents([.medium, .large])
+            if taskStore.tasks.isEmpty { await taskStore.fetchTasks() }
+            if taskStore.integrations == nil { await taskStore.fetchCredentials() }
         }
     }
 
-    // MARK: - Avatar Button
+    // MARK: - Inbox Title Dropdown
 
-    /// 28pt circle avatar that opens the profile sheet.
-    private var avatarButton: some View {
-        Button {
-            HapticManager.light()
-            showProfile = true
-        } label: {
-            if let url = authManager.avatarURL {
-                AsyncImage(url: url) { image in
-                    image.resizable()
-                        .aspectRatio(contentMode: .fill)
-                } placeholder: {
-                    avatarPlaceholder
-                }
-                .frame(width: 28, height: 28)
-                .clipShape(Circle())
-            } else {
-                avatarPlaceholder
-            }
+    private var filterLabel: String {
+        switch filterMode {
+        case "today": return "due today"
+        case "7days": return "7 days"
+        default: return "inbox"
         }
     }
 
-    /// Fallback avatar with initials.
-    private var avatarPlaceholder: some View {
-        Circle()
-            .fill(AppColors.tertiaryBackground)
-            .frame(width: 28, height: 28)
-            .overlay(
-                Text(initials)
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(AppColors.mutedForeground)
-            )
-    }
-
-    // MARK: - Three-dot Menu
-
-    /// Ellipsis menu with filter, sort, and sync options.
-    private var menuButton: some View {
+    /// Top-left dropdown title for Inbox — shows current filter, tap to change.
+    private var inboxTitleMenu: some View {
         Menu {
-            // Filter section
-            Section("filter") {
-                Button {
-                    filterMode = "all"
-                } label: {
-                    Label("all tasks", systemImage: filterMode == "all" ? "checkmark" : "")
-                }
-
-                Button {
-                    filterMode = "today"
-                } label: {
-                    Label("due today", systemImage: filterMode == "today" ? "checkmark" : "")
-                }
-
-                Button {
-                    filterMode = "7days"
-                } label: {
-                    Label("next 7 days", systemImage: filterMode == "7days" ? "checkmark" : "")
-                }
+            filterButton("all tasks", icon: "tray.fill", value: "all")
+            filterButton("due today", icon: "sun.max.fill", value: "today")
+            filterButton("next 7 days", icon: "calendar", value: "7days")
+        } label: {
+            HStack(spacing: 5) {
+                Text(filterLabel)
+                    .font(.system(size: 17, weight: .bold))
+                Text("\(taskStore.filteredTasks(filter: filterMode, sort: sortMode).count)")
+                    .font(.system(size: 13, weight: .regular))
+                    .foregroundColor(.secondary)
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundColor(.secondary)
             }
+            .foregroundColor(.primary)
+        }
+        .menuStyle(.borderlessButton)
+    }
 
-            // Sort section
-            Section("sort") {
-                Button {
-                    sortMode = "date"
-                } label: {
-                    Label("by date", systemImage: sortMode == "date" ? "checkmark" : "")
-                }
-
-                Button {
-                    sortMode = "class"
-                } label: {
-                    Label("by class", systemImage: sortMode == "class" ? "checkmark" : "")
-                }
-            }
-
+    /// Sort button for Inbox — top right.
+    private var sortMenuButton: some View {
+        Menu {
+            sortButton("by date", icon: "calendar.badge.clock", value: "date")
+            sortButton("by class", icon: "graduationcap.fill", value: "class")
             Divider()
-
-            // Sync
             Button {
                 HapticManager.medium()
                 Task { await taskStore.fetchTasks() }
@@ -169,15 +115,55 @@ struct MainTabView: View {
         }
     }
 
-    // MARK: - Helpers
+    // MARK: - Home Menu
 
-    /// User initials for the avatar placeholder.
-    private var initials: String {
-        let name = authManager.userName ?? ""
-        let parts = name.split(separator: " ")
-        if parts.count >= 2 {
-            return "\(parts[0].prefix(1))\(parts[1].prefix(1))".uppercased()
+    private var menuButton: some View {
+        Menu {
+            Section("filter") {
+                filterButton("all tasks", icon: "tray.fill", value: "all")
+                filterButton("due today", icon: "sun.max.fill", value: "today")
+                filterButton("next 7 days", icon: "calendar", value: "7days")
+            }
+            Section("sort") {
+                sortButton("by date", icon: "calendar.badge.clock", value: "date")
+                sortButton("by class", icon: "graduationcap.fill", value: "class")
+            }
+            Divider()
+            Button {
+                HapticManager.medium()
+                Task { await taskStore.fetchTasks() }
+            } label: {
+                Label("sync now", systemImage: "arrow.triangle.2.circlepath")
+            }
+        } label: {
+            Image(systemName: "ellipsis")
+                .font(.system(size: 16, weight: .medium))
+                .foregroundStyle(AppColors.foreground)
+                .frame(width: 28, height: 28)
         }
-        return String(name.prefix(2)).uppercased()
+    }
+
+    private func filterButton(_ title: String, icon: String, value: String) -> some View {
+        Button {
+            filterMode = value
+        } label: {
+            HStack {
+                Label(title, systemImage: icon)
+                Spacer()
+                if filterMode == value { Image(systemName: "checkmark") }
+            }
+        }
+    }
+
+    private func sortButton(_ title: String, icon: String, value: String) -> some View {
+        Button {
+            sortMode = value
+        } label: {
+            HStack {
+                Label(title, systemImage: icon)
+                Spacer()
+                if sortMode == value { Image(systemName: "checkmark") }
+            }
+        }
     }
 }

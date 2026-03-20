@@ -1,79 +1,95 @@
 import SwiftUI
 
-/// Task detail sheet matching the web app's detail panel.
-/// Presented as a .sheet with medium/large detents.
-/// Shows header with checkbox + title, then rows of task metadata.
+/// Premium task detail sheet with large header, generous spacing, and subtle dividers.
+/// Presented as a sheet with medium/large detents.
+///
+/// - Parameters:
+///   - task: The CalTask to display details for.
+///   - onToggle: Called with the task ID when the checkbox is tapped.
+///   - onDismiss: Called when the sheet should be dismissed.
 struct TaskDetailSheet: View {
     let task: CalTask
     var onToggle: ((String) -> Void)? = nil
     var onDismiss: (() -> Void)? = nil
 
+    @State private var checkScale: CGFloat = 1.0
+
     var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    headerSection
-                    divider
-                    detailRows
-                }
-                .padding(.top, 8)
-            }
-            .background(AppColors.background)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("done") {
-                        onDismiss?()
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                // Custom top bar — replaces NavigationView to eliminate excess spacing
+                HStack {
+                    Spacer()
+                    Button {
+                        HapticManager.light()
+                    } label: {
+                        Image(systemName: "square.and.pencil")
+                            .font(.system(size: 16, weight: .regular))
+                            .foregroundColor(.primary)
                     }
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(AppColors.blue500)
                 }
+                .padding(.horizontal, 20)
+                .padding(.top, 12)
+
+                headerSection
+                headerDivider
+                detailRows
             }
         }
+        .background(AppColors.background)
     }
 
     // MARK: - Header
 
-    /// Large checkbox + title side by side.
+    /// 24x24 checkbox with spring animation + 24pt semibold title, wrapping.
     private var headerSection: some View {
         HStack(alignment: .top, spacing: 12) {
             Button {
                 HapticManager.light()
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                    checkScale = 1.2
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                    withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
+                        checkScale = 1.0
+                    }
+                }
                 onToggle?(task.id)
             } label: {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 6)
-                        .stroke(Color(hex: task.displayColor), lineWidth: 2)
-                        .frame(width: 24, height: 24)
+                    RoundedRectangle(cornerRadius: 5)
+                        .stroke(Color(hex: task.displayColor), lineWidth: 1.5)
+                        .frame(width: 20, height: 20)
 
                     if task.completed {
-                        RoundedRectangle(cornerRadius: 6)
+                        RoundedRectangle(cornerRadius: 5)
                             .fill(Color(hex: task.displayColor))
-                            .frame(width: 24, height: 24)
+                            .frame(width: 20, height: 20)
 
                         Image(systemName: "checkmark")
-                            .font(.system(size: 13, weight: .bold))
+                            .font(.system(size: 11, weight: .bold))
                             .foregroundStyle(.white)
                     }
                 }
-                .animation(.easeInOut(duration: 0.2), value: task.completed)
+                .scaleEffect(checkScale)
             }
             .buttonStyle(.plain)
-            .padding(.top, 4)
+            .padding(.top, 3)
 
             Text(task.title)
-                .font(.system(size: 22, weight: .semibold))
+                .font(.system(size: 20, weight: .semibold))
                 .foregroundStyle(AppColors.foreground)
                 .strikethrough(task.completed)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(.horizontal, 20)
-        .padding(.vertical, 12)
+        .padding(.vertical, 10)
     }
 
     // MARK: - Divider
 
-    private var divider: some View {
+    /// Subtle 1pt divider below the header.
+    private var headerDivider: some View {
         Rectangle()
             .fill(AppColors.separator)
             .frame(height: 1)
@@ -82,9 +98,10 @@ struct TaskDetailSheet: View {
 
     // MARK: - Detail Rows
 
-    /// Metadata rows with icon + label + value pattern.
+    /// Metadata rows with icon + label on first line, value indented 40pt on second line.
+    /// 24pt spacing between rows.
     private var detailRows: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(alignment: .leading, spacing: 24) {
             // Due date
             if let info = DateFormatting.dueDateInfo(
                 dueDate: task.dueDate, dueTime: task.dueTime
@@ -94,7 +111,7 @@ struct TaskDetailSheet: View {
                     label: "due date",
                     valueView: AnyView(
                         Text(info.dateLabel)
-                            .font(.system(size: 15))
+                            .font(.system(size: 16))
                             .foregroundStyle(Color(hex: info.colorHex))
                     )
                 )
@@ -108,7 +125,7 @@ struct TaskDetailSheet: View {
                     label: "due time",
                     valueView: AnyView(
                         Text(formatted)
-                            .font(.system(size: 15))
+                            .font(.system(size: 16))
                             .foregroundStyle(AppColors.foreground)
                     )
                 )
@@ -118,15 +135,15 @@ struct TaskDetailSheet: View {
             if task.isRecurring {
                 let unit = task.repeatUnit ?? "day"
                 let interval = task.repeatInterval ?? 1
-                let label = interval == 1
+                let repeatLabel = interval == 1
                     ? "every \(unit)"
                     : "every \(interval) \(unit)s"
                 detailRow(
                     icon: "repeat",
                     label: "repeat",
                     valueView: AnyView(
-                        Text(label)
-                            .font(.system(size: 15))
+                        Text(repeatLabel)
+                            .font(.system(size: 16))
                             .foregroundStyle(AppColors.purple400)
                     )
                 )
@@ -139,7 +156,7 @@ struct TaskDetailSheet: View {
                     label: "class",
                     valueView: AnyView(
                         Text(course)
-                            .font(.system(size: 15))
+                            .font(.system(size: 16))
                             .foregroundStyle(AppColors.foreground)
                     )
                 )
@@ -161,7 +178,7 @@ struct TaskDetailSheet: View {
                     label: "description",
                     valueView: AnyView(
                         Text(desc)
-                            .font(.system(size: 15))
+                            .font(.system(size: 16))
                             .foregroundStyle(AppColors.secondaryForeground)
                             .fixedSize(horizontal: false, vertical: true)
                     )
@@ -177,7 +194,7 @@ struct TaskDetailSheet: View {
                     valueView: AnyView(
                         Link(destination: url) {
                             Text("open link")
-                                .font(.system(size: 15))
+                                .font(.system(size: 16))
                                 .foregroundStyle(AppColors.blue500)
                         }
                     )
@@ -185,36 +202,37 @@ struct TaskDetailSheet: View {
             }
         }
         .padding(.horizontal, 20)
-        .padding(.top, 20)
+        .padding(.top, 24)
     }
 
     // MARK: - Detail Row Helper
 
-    /// Renders a single detail row with icon, label, and value.
+    /// Renders a single detail row with icon + label on first line,
+    /// value indented 40pt on second line.
     ///
     /// - Parameters:
-    ///   - icon: SF Symbol name.
-    ///   - label: Row label text.
-    ///   - valueView: The value view to display.
+    ///   - icon: SF Symbol name (16pt, muted foreground, 24pt frame width).
+    ///   - label: Row label text (13pt, muted).
+    ///   - valueView: The value view to display indented below.
     private func detailRow(
         icon: String,
         label: String,
         valueView: AnyView
     ) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                Image(systemName: icon)
-                    .font(.system(size: 14))
-                    .foregroundStyle(AppColors.mutedForeground)
-                    .frame(width: 20)
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: icon)
+                .font(.system(size: 14))
+                .foregroundStyle(AppColors.mutedForeground)
+                .frame(width: 20, alignment: .center)
+                .padding(.top, 2)
 
+            VStack(alignment: .leading, spacing: 3) {
                 Text(label.lowercased())
-                    .font(.system(size: 13))
-                    .foregroundStyle(AppColors.mutedForeground)
-            }
+                    .font(.system(size: 12))
+                    .foregroundStyle(AppColors.subtleForeground)
 
-            valueView
-                .padding(.leading, 28)
+                valueView
+            }
         }
     }
 
@@ -228,7 +246,7 @@ struct TaskDetailSheet: View {
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(AppColors.blue500)
                     .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
+                    .padding(.vertical, 5)
                     .background(AppColors.blue500.opacity(0.1))
                     .clipShape(Capsule())
             }
@@ -243,6 +261,13 @@ struct TaskDetailSheet: View {
 private struct FlowLayout: Layout {
     var spacing: CGFloat = 6
 
+    /// Calculates the total size needed to lay out all subviews in a wrapping flow.
+    ///
+    /// - Parameters:
+    ///   - proposal: The proposed size from the parent.
+    ///   - subviews: The child subviews to lay out.
+    ///   - cache: Unused cache parameter.
+    /// - Returns: The total size required.
     func sizeThatFits(
         proposal: ProposedViewSize,
         subviews: Subviews,
@@ -252,6 +277,13 @@ private struct FlowLayout: Layout {
         return result.size
     }
 
+    /// Places all subviews at their calculated positions within the bounds.
+    ///
+    /// - Parameters:
+    ///   - bounds: The available bounds rectangle.
+    ///   - proposal: The proposed size from the parent.
+    ///   - subviews: The child subviews to place.
+    ///   - cache: Unused cache parameter.
     func placeSubviews(
         in bounds: CGRect,
         proposal: ProposedViewSize,
@@ -267,6 +299,12 @@ private struct FlowLayout: Layout {
         }
     }
 
+    /// Calculates origin points for each subview in a wrapping horizontal flow.
+    ///
+    /// - Parameters:
+    ///   - proposal: The proposed size from the parent.
+    ///   - subviews: The child subviews to arrange.
+    /// - Returns: Tuple of origin points and total size.
     private func arrange(
         proposal: ProposedViewSize,
         subviews: Subviews

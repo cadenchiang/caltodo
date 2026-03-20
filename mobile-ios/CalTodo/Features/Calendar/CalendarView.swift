@@ -7,50 +7,130 @@ struct CalendarView: View {
     @AppStorage("cal_view_mode") private var viewMode = "month"
     @State private var selectedDate = Date()
     @State private var selectedTask: CalTask? = nil
+    @State private var showCreateSheet = false
+
+    private var viewModeIcon: String {
+        switch viewMode {
+        case "week": return "calendar.day.timeline.left"
+        case "day": return "sun.max.fill"
+        default: return "calendar"
+        }
+    }
+
+    private var viewModeLabel: String {
+        switch viewMode {
+        case "week": return "week"
+        case "day": return "day"
+        default: return "month"
+        }
+    }
+
+    /// Navigation title based on current view mode and selected date.
+    private var navigationTitleText: String {
+        let cal = Calendar.current
+        let fmt = DateFormatter()
+        switch viewMode {
+        case "week":
+            let start = cal.date(
+                from: cal.dateComponents([.yearForWeekOfYear, .weekOfYear], from: selectedDate)
+            )!
+            let end = cal.date(byAdding: .day, value: 6, to: start)!
+            fmt.dateFormat = "MMM d"
+            let startStr = fmt.string(from: start).lowercased()
+            let endStr = fmt.string(from: end).lowercased()
+            return "\(startStr) – \(endStr)"
+        case "day":
+            fmt.dateFormat = "EEEE, MMM d"
+            return fmt.string(from: selectedDate).lowercased()
+        default:
+            fmt.dateFormat = "MMMM yyyy"
+            return fmt.string(from: selectedDate).lowercased()
+        }
+    }
 
     var body: some View {
-        VStack(spacing: 0) {
-            Picker("view", selection: $viewMode) {
-                Text("month").tag("month")
-                Text("week").tag("week")
-                Text("day").tag("day")
+        ZStack(alignment: .bottomTrailing) {
+            VStack(spacing: 0) {
+                switch viewMode {
+                case "month":
+                    MonthView(
+                        selectedDate: $selectedDate,
+                        selectedTask: $selectedTask,
+                        tasks: taskStore.activeTasks,
+                        onToggle: toggleTask
+                    )
+                case "week":
+                    WeekView(
+                        selectedDate: $selectedDate,
+                        selectedTask: $selectedTask,
+                        tasks: taskStore.activeTasks,
+                        onToggle: toggleTask
+                    )
+                case "day":
+                    DayView(
+                        selectedDate: $selectedDate,
+                        selectedTask: $selectedTask,
+                        tasks: taskStore.activeTasks,
+                        onToggle: toggleTask
+                    )
+                default:
+                    MonthView(
+                        selectedDate: $selectedDate,
+                        selectedTask: $selectedTask,
+                        tasks: taskStore.activeTasks,
+                        onToggle: toggleTask
+                    )
+                }
             }
-            .pickerStyle(.segmented)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
 
-            switch viewMode {
-            case "month":
-                MonthView(
-                    selectedDate: $selectedDate,
-                    selectedTask: $selectedTask,
-                    tasks: taskStore.activeTasks,
-                    onToggle: toggleTask
-                )
-            case "week":
-                WeekView(
-                    selectedDate: $selectedDate,
-                    selectedTask: $selectedTask,
-                    tasks: taskStore.activeTasks,
-                    onToggle: toggleTask
-                )
-            case "day":
-                DayView(
-                    selectedDate: $selectedDate,
-                    selectedTask: $selectedTask,
-                    tasks: taskStore.activeTasks,
-                    onToggle: toggleTask
-                )
-            default:
-                MonthView(
-                    selectedDate: $selectedDate,
-                    selectedTask: $selectedTask,
-                    tasks: taskStore.activeTasks,
-                    onToggle: toggleTask
-                )
+            Button {
+                HapticManager.medium()
+                showCreateSheet = true
+            } label: {
+                Image(systemName: "plus")
+                    .font(.system(size: 22, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 56, height: 56)
+                    .background(AppColors.accent)
+                    .clipShape(Circle())
+                    .shadow(color: AppColors.accent.opacity(0.3), radius: 8, x: 0, y: 4)
             }
+            .padding(.trailing, 20)
+            .padding(.bottom, 20)
         }
         .background(AppColors.background)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Menu {
+                    Button {
+                        viewMode = "month"
+                    } label: {
+                        Label("month", systemImage: "calendar")
+                    }
+                    Button {
+                        viewMode = "week"
+                    } label: {
+                        Label("week", systemImage: "calendar.day.timeline.left")
+                    }
+                    Button {
+                        viewMode = "day"
+                    } label: {
+                        Label("day", systemImage: "sun.max.fill")
+                    }
+                } label: {
+                    Image(systemName: viewModeIcon)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.primary)
+                }
+                .menuStyle(.borderlessButton)
+            }
+            ToolbarItem(placement: .principal) {
+                Text(navigationTitleText)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.primary)
+            }
+        }
         .sheet(item: $selectedTask) { task in
             TaskDetailSheet(
                 task: task,
@@ -60,6 +140,10 @@ struct CalendarView: View {
                 onDismiss: { selectedTask = nil }
             )
             .presentationDetents([.medium, .large])
+        }
+        .sheet(isPresented: $showCreateSheet) {
+            TaskCreateSheet(prefillDate: selectedDate)
+                .environmentObject(taskStore)
         }
     }
 
@@ -133,13 +217,6 @@ private struct MonthView: View {
                     .font(.system(size: 14, weight: .medium))
                     .foregroundStyle(AppColors.foreground)
             }
-
-            Spacer()
-
-            Text(selectedDate.formatted(.dateTime.month(.wide).year()))
-                .font(.subheadline)
-                .fontWeight(.semibold)
-                .foregroundStyle(AppColors.foreground)
 
             Spacer()
 
@@ -265,7 +342,7 @@ private struct DayCell: View {
             isToday ? AppColors.blue500.opacity(0.1) :
             Color.clear
         )
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .clipShape(Circle())
     }
 }
 
