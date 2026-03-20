@@ -2,8 +2,9 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { Home, Inbox, CalendarDays, StickyNote, Settings, Sun, CalendarRange } from "lucide-react";
+import { Home, Inbox, CalendarDays, StickyNote, Settings, Sun, CalendarRange, MessageSquare } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useCalChatUnread } from "@/hooks/useCalChatUnread";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 
 /**
@@ -15,6 +16,7 @@ import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 export default function MobileTabBar() {
   const pathname = usePathname();
   const [inboxFilter, setInboxFilter] = useState<string>("all");
+  const calChatUnreadCount = useCalChatUnread();
   useOnboardingStatus();
 
   // Hydrate inbox filter from localStorage after mount to avoid SSR mismatch
@@ -95,6 +97,13 @@ export default function MobileTabBar() {
       href: "/app/notes",
       icon: StickyNote,
       badge: false,
+    },
+    {
+      label: "CalChat",
+      href: "/app/discussions",
+      icon: MessageSquare,
+      badge: false,
+      badgeCount: calChatUnreadCount,
     },
     {
       label: "Settings",

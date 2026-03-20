@@ -218,7 +218,7 @@ export default function BoardTemplatesModal({ open, onClose, onApply }: BoardTem
           </div>
 
           <div className="flex-1 overflow-y-auto p-6">
-            <div className="grid grid-cols-2 gap-5">
+            <div className="flex flex-col gap-5">
               {filtered.map((template) => (
                 <div
                   key={template.id}

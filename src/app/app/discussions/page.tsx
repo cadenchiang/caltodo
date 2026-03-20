@@ -118,7 +118,7 @@ export default function DiscussionsPage() {
   // Show loading spinner as base content; overlay locked modal after delay
   return (
     <>
-      <div className="flex items-center justify-center h-full">
+      <div id="tour-calchat-page" className="flex items-center justify-center h-full">
         <div className="w-5 h-5 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
       </div>
       <CalChatLockedModal open={showLocked} onClose={() => router.push("/app/inbox")} />

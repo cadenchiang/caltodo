@@ -9,10 +9,10 @@ import FadeIn from "@/components/landing/FadeIn";
  */
 const SLIDES = [
   {
-    src: "/app-screenshot-notes.png",
-    alt: "caltodo notes feature with rich text editor",
-    title: "Notes",
-    description: "Take class notes with a full rich text editor, organized by course.",
+    src: "/chat-feature-preview.png",
+    alt: "caltodo class chat feature preview",
+    title: "Class Chat",
+    description: "Message classmates in real time, organized by course.",
     badge: "New",
   },
   {

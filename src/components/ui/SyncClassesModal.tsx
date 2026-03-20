@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
-import { BookOpen, Compass, ArrowLeft } from "lucide-react";
+import { BookOpen, Compass, MessageCircle, ArrowLeft } from "lucide-react";
 
 /** localStorage key to track dismissal of the welcome prompt. */
 const DISMISS_KEY = "caltodo_sync_dismissed";
@@ -271,7 +271,22 @@ export default function SyncClassesModal() {
                 </div>
               </button>
 
-              {/* Item 2: Take a tour */}
+              {/* Item 2: Chat with classmates */}
+              <button
+                type="button"
+                onClick={closeAndShowWidget}
+                className="w-full flex items-start gap-3.5 py-4 border-t border-border text-left hover:bg-accent -mx-2 px-2 rounded-lg transition-colors cursor-pointer"
+              >
+                <MessageCircle size={18} className="text-foreground shrink-0 mt-0.5" />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground">chat with classmates</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                    discuss assignments and share notes in class threads
+                  </p>
+                </div>
+              </button>
+
+              {/* Item 3: Take a tour */}
               <button
                 type="button"
                 onClick={handleTourClick}

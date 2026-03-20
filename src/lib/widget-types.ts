@@ -136,7 +136,6 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     description: "Recent messages from Cal Chat",
     iconName: "MessagesSquare",
     category: "social",
-    hidden: true,
     minW: 1, minH: 1, maxW: 4, maxH: 4,
     defaultW: 2, defaultH: 2,
   },
