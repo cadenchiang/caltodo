@@ -1,88 +1,61 @@
 import SwiftUI
 
-/// Calendar view with month, week, and day modes.
-/// Shows tasks on their due dates. Matches the desktop app's calendar page.
+/// TickTick-style calendar — gridlines, circle day indicator, inline expandable task panel.
 struct CalendarView: View {
     @EnvironmentObject var taskStore: TaskStore
     @AppStorage("cal_view_mode") private var viewMode = "month"
     @State private var selectedDate = Date()
     @State private var selectedTask: CalTask? = nil
     @State private var showCreateSheet = false
+    @State private var monthId = UUID()
 
-    private var viewModeIcon: String {
-        switch viewMode {
-        case "week": return "calendar.day.timeline.left"
-        case "day": return "sun.max.fill"
-        default: return "calendar"
-        }
-    }
-
-    private var viewModeLabel: String {
-        switch viewMode {
-        case "week": return "week"
-        case "day": return "day"
-        default: return "month"
-        }
-    }
-
-    /// Navigation title based on current view mode and selected date.
-    private var navigationTitleText: String {
-        let cal = Calendar.current
+    private var titleText: String {
         let fmt = DateFormatter()
-        switch viewMode {
-        case "week":
-            let start = cal.date(
-                from: cal.dateComponents([.yearForWeekOfYear, .weekOfYear], from: selectedDate)
-            )!
-            let end = cal.date(byAdding: .day, value: 6, to: start)!
-            fmt.dateFormat = "MMM d"
-            let startStr = fmt.string(from: start).lowercased()
-            let endStr = fmt.string(from: end).lowercased()
-            return "\(startStr) – \(endStr)"
-        case "day":
-            fmt.dateFormat = "EEEE, MMM d"
-            return fmt.string(from: selectedDate).lowercased()
-        default:
-            fmt.dateFormat = "MMMM yyyy"
-            return fmt.string(from: selectedDate).lowercased()
-        }
+        fmt.dateFormat = "MMMM yyyy"
+        return fmt.string(from: selectedDate)
     }
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
             VStack(spacing: 0) {
+                // Header: title + nav arrows
+                calendarHeader
+
+                // View mode tabs
+                viewModeTabs
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 16)
+
                 switch viewMode {
-                case "month":
-                    MonthView(
-                        selectedDate: $selectedDate,
-                        selectedTask: $selectedTask,
-                        tasks: taskStore.activeTasks,
-                        onToggle: toggleTask
-                    )
                 case "week":
-                    WeekView(
-                        selectedDate: $selectedDate,
-                        selectedTask: $selectedTask,
-                        tasks: taskStore.activeTasks,
-                        onToggle: toggleTask
-                    )
+                    WeekView(selectedDate: $selectedDate, selectedTask: $selectedTask,
+                             tasks: taskStore.activeTasks, onToggle: toggleTask)
                 case "day":
-                    DayView(
-                        selectedDate: $selectedDate,
-                        selectedTask: $selectedTask,
-                        tasks: taskStore.activeTasks,
-                        onToggle: toggleTask
-                    )
+                    DayView(selectedDate: $selectedDate, selectedTask: $selectedTask,
+                            tasks: taskStore.activeTasks, onToggle: toggleTask)
                 default:
-                    MonthView(
-                        selectedDate: $selectedDate,
-                        selectedTask: $selectedTask,
-                        tasks: taskStore.activeTasks,
-                        onToggle: toggleTask
-                    )
+                    TickTickMonthView(selectedDate: $selectedDate, selectedTask: $selectedTask,
+                                     tasks: taskStore.activeTasks, onToggle: toggleTask)
+                        .id(monthId)
                 }
             }
+            .gesture(
+                DragGesture(minimumDistance: 20).onEnded { value in
+                    if viewMode == "month" && abs(value.translation.width) > abs(value.translation.height) {
+                        if value.translation.width < -20 {
+                            withAnimation(.easeInOut(duration: 0.25)) { goToMonth(1) }
+                        } else if value.translation.width > 20 {
+                            withAnimation(.easeInOut(duration: 0.25)) { goToMonth(-1) }
+                        }
+                    }
+                }
+            )
+            .transition(.asymmetric(
+                insertion: .move(edge: .trailing),
+                removal: .move(edge: .leading)
+            ))
 
+            // FAB
             Button {
                 HapticManager.medium()
                 showCreateSheet = true
@@ -98,45 +71,12 @@ struct CalendarView: View {
             .padding(.trailing, 20)
             .padding(.bottom, 20)
         }
-        .background(AppColors.background)
+        .background(Color.black)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                Menu {
-                    Button {
-                        viewMode = "month"
-                    } label: {
-                        Label("month", systemImage: "calendar")
-                    }
-                    Button {
-                        viewMode = "week"
-                    } label: {
-                        Label("week", systemImage: "calendar.day.timeline.left")
-                    }
-                    Button {
-                        viewMode = "day"
-                    } label: {
-                        Label("day", systemImage: "sun.max.fill")
-                    }
-                } label: {
-                    Image(systemName: viewModeIcon)
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.primary)
-                }
-                .menuStyle(.borderlessButton)
-            }
-            ToolbarItem(placement: .principal) {
-                Text(navigationTitleText)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.primary)
-            }
-        }
         .sheet(item: $selectedTask) { task in
             TaskDetailSheet(
                 task: task,
-                onToggle: { id in
-                    Task { await taskStore.toggleComplete(taskId: id) }
-                },
+                onToggle: { id in Task { await taskStore.toggleComplete(taskId: id) } },
                 onDismiss: { selectedTask = nil }
             )
             .presentationDetents([.medium, .large])
@@ -147,154 +87,266 @@ struct CalendarView: View {
         }
     }
 
-    /// Toggles task completion from any sub-view.
-    private func toggleTask(_ id: String) {
-        Task { await taskStore.toggleComplete(taskId: id) }
-    }
-}
+    // MARK: - Header
 
-// MARK: - Month View
-
-private struct MonthView: View {
-    @Binding var selectedDate: Date
-    @Binding var selectedTask: CalTask?
-    let tasks: [CalTask]
-    let onToggle: (String) -> Void
-
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 0), count: 7)
-    private let weekdays = ["S", "M", "T", "W", "T", "F", "S"]
-
-    var body: some View {
-        ScrollView {
-            VStack(spacing: 12) {
-                monthHeader
-
-                LazyVGrid(columns: columns, spacing: 0) {
-                    ForEach(Array(weekdays.enumerated()), id: \.offset) { _, day in
-                        Text(day)
-                            .font(.caption2)
-                            .fontWeight(.medium)
-                            .foregroundStyle(AppColors.mutedForeground)
-                            .frame(height: 24)
-                    }
-                }
-                .padding(.horizontal, 8)
-
-                LazyVGrid(columns: columns, spacing: 4) {
-                    ForEach(daysInMonth(), id: \.self) { date in
-                        DayCell(
-                            date: date,
-                            isSelected: Calendar.current.isDate(date, inSameDayAs: selectedDate),
-                            isToday: Calendar.current.isDateInToday(date),
-                            isCurrentMonth: Calendar.current.isDate(
-                                date, equalTo: selectedDate, toGranularity: .month
-                            ),
-                            taskCount: tasksOnDate(date).count
-                        )
-                        .onTapGesture {
-                            HapticManager.light()
-                            selectedDate = date
-                        }
-                    }
-                }
-                .padding(.horizontal, 8)
-
-                selectedDateTasks
-            }
-            .padding(.vertical, 8)
-        }
-    }
-
-    private var monthHeader: some View {
+    private var calendarHeader: some View {
         HStack {
             Button {
                 HapticManager.light()
-                selectedDate = Calendar.current.date(
-                    byAdding: .month, value: -1, to: selectedDate
-                ) ?? selectedDate
+                goToMonth(-1)
             } label: {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(AppColors.foreground)
+                    .foregroundStyle(.white)
             }
+
+            Spacer()
+
+            Text(titleText)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(.white)
 
             Spacer()
 
             Button {
                 HapticManager.light()
-                selectedDate = Calendar.current.date(
-                    byAdding: .month, value: 1, to: selectedDate
-                ) ?? selectedDate
+                goToMonth(1)
             } label: {
                 Image(systemName: "chevron.right")
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(AppColors.foreground)
+                    .foregroundStyle(.white)
             }
         }
         .padding(.horizontal, 16)
+        .padding(.top, 12)
+        .padding(.bottom, 16)
     }
 
-    private var selectedDateTasks: some View {
-        let dayTasks = tasksOnDate(selectedDate)
-        return VStack(alignment: .leading, spacing: 0) {
-            SectionHeaderView(
-                title: selectedDate.formatted(
-                    .dateTime.weekday(.wide).month(.abbreviated).day()
-                ),
-                count: dayTasks.count
-            )
+    // MARK: - View Mode Tabs
 
-            if dayTasks.isEmpty {
-                EmptyStateView(icon: "calendar", message: "no tasks on this day")
-            } else {
-                VStack(spacing: 0) {
-                    ForEach(Array(dayTasks.enumerated()), id: \.element.id) { index, task in
-                        TaskItemView(
-                            task: task,
-                            onToggle: onToggle,
-                            onTap: { selectedTask = task }
-                        )
+    private var viewModeTabs: some View {
+        HStack(spacing: 0) {
+            tabButton("Month", mode: "month")
+            tabButton("Week", mode: "week")
+            tabButton("Day", mode: "day")
+        }
+        .padding(3)
+        .background(Color(hex: "#1C1C1E"))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
 
-                        if index < dayTasks.count - 1 {
-                            Rectangle()
-                                .fill(AppColors.separator)
-                                .frame(height: 1)
-                                .padding(.leading, 52)
-                        }
+    private func tabButton(_ label: String, mode: String) -> some View {
+        Button {
+            HapticManager.light()
+            withAnimation(.easeInOut(duration: 0.15)) { viewMode = mode }
+        } label: {
+            Text(label)
+                .font(.system(size: 13, weight: viewMode == mode ? .semibold : .regular))
+                .foregroundStyle(viewMode == mode ? .white : AppColors.mutedForeground)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 7)
+                .background(viewMode == mode ? Color(hex: "#2C2C2E") : Color.clear)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// Navigate to month, reset to 1st of that month.
+    private func goToMonth(_ offset: Int) {
+        let cal = Calendar.current
+        if let newMonth = cal.date(byAdding: .month, value: offset, to: selectedDate) {
+            let comps = cal.dateComponents([.year, .month], from: newMonth)
+            selectedDate = cal.date(from: comps) ?? newMonth
+            monthId = UUID()
+        }
+    }
+
+    private func toggleTask(_ id: String) {
+        Task { await taskStore.toggleComplete(taskId: id) }
+    }
+}
+
+// MARK: - TickTick-Style Month View
+
+private struct TickTickMonthView: View {
+    @Binding var selectedDate: Date
+    @Binding var selectedTask: CalTask?
+    let tasks: [CalTask]
+    let onToggle: (String) -> Void
+
+    private let weekdays = ["S", "M", "T", "W", "T", "F", "S"]
+    private let cal = Calendar.current
+
+    /// Which week row (0-5) the selected date falls in.
+    private var selectedWeekRow: Int {
+        let days = daysInMonth()
+        guard let idx = days.firstIndex(where: { cal.isDate($0, inSameDayAs: selectedDate) }) else { return -1 }
+        return idx / 7
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 0) {
+                // Weekday headers
+                weekdayHeader
+
+                // Calendar grid with inline expansion
+                let days = daysInMonth()
+                let weeks = stride(from: 0, to: days.count, by: 7).map { Array(days[$0..<min($0+7, days.count)]) }
+
+                ForEach(Array(weeks.enumerated()), id: \.offset) { weekIdx, week in
+                    // Week row
+                    weekRow(week)
+
+                    // Expandable task panel below selected week
+                    if weekIdx == selectedWeekRow {
+                        selectedDayPanel
+                            .transition(.opacity.combined(with: .move(edge: .top)))
                     }
                 }
             }
+            .padding(.horizontal, 0)
+            .animation(.easeInOut(duration: 0.2), value: selectedDate)
         }
-        .padding(.top, 8)
-        .background(AppColors.card)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .padding(.horizontal, 16)
     }
 
-    private func daysInMonth() -> [Date] {
-        let cal = Calendar.current
-        let range = cal.range(of: .day, in: .month, for: selectedDate) ?? 1..<31
-        let firstOfMonth = cal.date(
-            from: cal.dateComponents([.year, .month], from: selectedDate)
-        )!
-        let firstWeekday = cal.component(.weekday, from: firstOfMonth)
+    // MARK: - Weekday Header
 
+    private var weekdayHeader: some View {
+        HStack(spacing: 0) {
+            ForEach(weekdays, id: \.self) { day in
+                Text(day)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(Color(hex: "#8E8E93"))
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 32)
+            }
+        }
+        .padding(.horizontal, 12)
+    }
+
+    // MARK: - Week Row
+
+    private func weekRow(_ week: [Date]) -> some View {
+        HStack(spacing: 0) {
+            ForEach(week, id: \.self) { date in
+                dayCell(date)
+                    .onTapGesture {
+                        HapticManager.light()
+                        selectedDate = date
+                    }
+            }
+        }
+        .padding(.horizontal, 12)
+    }
+
+    // MARK: - Day Cell (spacious, clean)
+
+    private func dayCell(_ date: Date) -> some View {
+        let isToday = cal.isDateInToday(date)
+        let isSelected = cal.isDate(date, inSameDayAs: selectedDate)
+        let isCurrentMonth = cal.isDate(date, equalTo: selectedDate, toGranularity: .month)
+        let dayTasks = tasksOnDate(date)
+
+        return VStack(spacing: 6) {
+            // Day number with circle indicator
+            ZStack {
+                if isToday {
+                    Circle()
+                        .fill(AppColors.accent)
+                        .frame(width: 32, height: 32)
+                } else if isSelected {
+                    Circle()
+                        .fill(Color(hex: "#1C1C1E"))
+                        .frame(width: 32, height: 32)
+                }
+                Text("\(cal.component(.day, from: date))")
+                    .font(.system(size: 15, weight: isToday || isSelected ? .semibold : .regular))
+                    .foregroundStyle(
+                        isToday ? .white :
+                        isSelected ? AppColors.accent :
+                        isCurrentMonth ? .white :
+                        Color(hex: "#3A3A3C")
+                    )
+            }
+
+            // Task dots
+            if !dayTasks.isEmpty {
+                HStack(spacing: 3) {
+                    ForEach(dayTasks.prefix(3)) { task in
+                        Circle()
+                            .fill(Color(hex: task.displayColor))
+                            .frame(width: 5, height: 5)
+                            .opacity(isCurrentMonth ? 1 : 0.3)
+                    }
+                }
+            } else {
+                Spacer().frame(height: 5)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 62)
+    }
+
+    // MARK: - Selected Day Task Panel (expands below the week)
+
+    private var selectedDayPanel: some View {
+        let dayTasks = tasksOnDate(selectedDate)
+        let fmt = DateFormatter()
+        fmt.dateFormat = "EEEE, MMM d"
+
+        return VStack(alignment: .leading, spacing: 0) {
+            // Panel header
+            HStack {
+                Text(fmt.string(from: selectedDate))
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.white)
+                Spacer()
+                Text("\(dayTasks.count) tasks")
+                    .font(.system(size: 12))
+                    .foregroundStyle(AppColors.mutedForeground)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+
+            if dayTasks.isEmpty {
+                Text("No tasks")
+                    .font(.system(size: 13))
+                    .foregroundStyle(AppColors.subtleForeground)
+                    .padding(.horizontal, 14)
+                    .padding(.bottom, 12)
+            } else {
+                ForEach(dayTasks) { task in
+                    TaskItemView(
+                        task: task,
+                        onToggle: onToggle,
+                        onTap: { selectedTask = task }
+                    )
+                }
+                .padding(.bottom, 4)
+            }
+        }
+        .background(Color(hex: "#1C1C1E"))
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+    }
+
+    // MARK: - Helpers
+
+    private func daysInMonth() -> [Date] {
+        let range = cal.range(of: .day, in: .month, for: selectedDate) ?? 1..<31
+        let firstOfMonth = cal.date(from: cal.dateComponents([.year, .month], from: selectedDate))!
+        let firstWeekday = cal.component(.weekday, from: firstOfMonth)
         var days: [Date] = []
         for i in stride(from: firstWeekday - 1, through: 1, by: -1) {
-            if let d = cal.date(byAdding: .day, value: -i, to: firstOfMonth) {
-                days.append(d)
-            }
+            if let d = cal.date(byAdding: .day, value: -i, to: firstOfMonth) { days.append(d) }
         }
         for day in range {
-            if let d = cal.date(byAdding: .day, value: day - 1, to: firstOfMonth) {
-                days.append(d)
-            }
+            if let d = cal.date(byAdding: .day, value: day - 1, to: firstOfMonth) { days.append(d) }
         }
         while days.count < 42 {
-            if let last = days.last,
-               let d = cal.date(byAdding: .day, value: 1, to: last) {
-                days.append(d)
-            }
+            if let last = days.last, let d = cal.date(byAdding: .day, value: 1, to: last) { days.append(d) }
         }
         return days
     }
@@ -305,47 +357,6 @@ private struct MonthView: View {
     }
 }
 
-// MARK: - Day Cell
-
-private struct DayCell: View {
-    let date: Date
-    let isSelected: Bool
-    let isToday: Bool
-    let isCurrentMonth: Bool
-    let taskCount: Int
-
-    var body: some View {
-        VStack(spacing: 2) {
-            Text("\(Calendar.current.component(.day, from: date))")
-                .font(.system(size: 14, weight: isToday ? .bold : .regular))
-                .foregroundStyle(
-                    isSelected ? .white :
-                    isToday ? AppColors.blue500 :
-                    isCurrentMonth ? AppColors.foreground :
-                    AppColors.subtleForeground
-                )
-
-            if taskCount > 0 {
-                HStack(spacing: 2) {
-                    ForEach(0..<min(taskCount, 3), id: \.self) { _ in
-                        Circle()
-                            .fill(isSelected ? .white.opacity(0.8) : AppColors.blue500)
-                            .frame(width: 4, height: 4)
-                    }
-                }
-            }
-        }
-        .frame(height: 44)
-        .frame(maxWidth: .infinity)
-        .background(
-            isSelected ? AppColors.blue500 :
-            isToday ? AppColors.blue500.opacity(0.1) :
-            Color.clear
-        )
-        .clipShape(Circle())
-    }
-}
-
 // MARK: - Week View
 
 private struct WeekView: View {
@@ -353,118 +364,47 @@ private struct WeekView: View {
     @Binding var selectedTask: CalTask?
     let tasks: [CalTask]
     let onToggle: (String) -> Void
-
     var body: some View {
         ScrollView {
-            VStack(spacing: 12) {
-                HStack {
-                    Button {
-                        HapticManager.light()
-                        selectedDate = Calendar.current.date(
-                            byAdding: .weekOfYear, value: -1, to: selectedDate
-                        ) ?? selectedDate
-                    } label: {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundStyle(AppColors.foreground)
-                    }
-
-                    Spacer()
-
-                    Text(weekRangeText())
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(AppColors.foreground)
-
-                    Spacer()
-
-                    Button {
-                        HapticManager.light()
-                        selectedDate = Calendar.current.date(
-                            byAdding: .weekOfYear, value: 1, to: selectedDate
-                        ) ?? selectedDate
-                    } label: {
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundStyle(AppColors.foreground)
-                    }
-                }
-                .padding(.horizontal, 16)
-
+            VStack(spacing: 8) {
                 ForEach(weekDays(), id: \.self) { date in
                     let dayTasks = tasksOnDate(date)
                     VStack(alignment: .leading, spacing: 0) {
                         HStack(spacing: 8) {
                             Text(date.formatted(.dateTime.weekday(.abbreviated)))
-                                .font(.caption)
-                                .fontWeight(.semibold)
-                                .foregroundStyle(
-                                    Calendar.current.isDateInToday(date)
-                                        ? AppColors.blue500
-                                        : AppColors.secondaryForeground
-                                )
-
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(Calendar.current.isDateInToday(date) ? AppColors.accent : .white)
                             Text(date.formatted(.dateTime.day()))
-                                .font(.caption)
+                                .font(.system(size: 13))
                                 .foregroundStyle(AppColors.mutedForeground)
-
+                            Spacer()
                             if !dayTasks.isEmpty {
                                 Text("\(dayTasks.count)")
-                                    .font(.system(size: 10, weight: .medium))
+                                    .font(.system(size: 11))
                                     .foregroundStyle(AppColors.mutedForeground)
-                                    .padding(.horizontal, 5)
-                                    .padding(.vertical, 1)
-                                    .background(AppColors.tertiaryBackground)
-                                    .clipShape(Capsule())
                             }
-
-                            Spacer()
                         }
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 8)
-
+                        .padding(.horizontal, 14).padding(.vertical, 10)
                         ForEach(dayTasks) { task in
-                            TaskItemView(
-                                task: task,
-                                onToggle: onToggle,
-                                onTap: { selectedTask = task }
-                            )
+                            TaskItemView(task: task, onToggle: onToggle, onTap: { selectedTask = task })
                         }
-
                         if dayTasks.isEmpty {
-                            Text("no tasks")
-                                .font(.caption2)
-                                .foregroundStyle(AppColors.subtleForeground)
-                                .padding(.horizontal, 14)
-                                .padding(.bottom, 8)
+                            Text("No tasks").font(.system(size: 12)).foregroundStyle(AppColors.subtleForeground)
+                                .padding(.horizontal, 14).padding(.bottom, 10)
                         }
                     }
-                    .background(AppColors.card)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .padding(.horizontal, 16)
+                    .background(Color(hex: "#1C1C1E")).clipShape(RoundedRectangle(cornerRadius: 12)).padding(.horizontal, 12)
                 }
-            }
-            .padding(.vertical, 8)
+            }.padding(.vertical, 8)
         }
     }
-
     private func weekDays() -> [Date] {
         let cal = Calendar.current
-        let startOfWeek = cal.date(
-            from: cal.dateComponents([.yearForWeekOfYear, .weekOfYear], from: selectedDate)
-        )!
-        return (0..<7).compactMap { cal.date(byAdding: .day, value: $0, to: startOfWeek) }
+        let start = cal.date(from: cal.dateComponents([.yearForWeekOfYear, .weekOfYear], from: selectedDate))!
+        return (0..<7).compactMap { cal.date(byAdding: .day, value: $0, to: start) }
     }
-
-    private func weekRangeText() -> String {
-        let days = weekDays()
-        guard let first = days.first, let last = days.last else { return "" }
-        return "\(first.formatted(.dateTime.month(.abbreviated).day())) \u{2013} \(last.formatted(.dateTime.month(.abbreviated).day()))"
-    }
-
     private func tasksOnDate(_ date: Date) -> [CalTask] {
-        let dateStr = DateFormatting.formatDate(date)
-        return tasks.filter { $0.dueDate == dateStr }
+        return tasks.filter { $0.dueDate == DateFormatting.formatDate(date) }
     }
 }
 
@@ -475,100 +415,51 @@ private struct DayView: View {
     @Binding var selectedTask: CalTask?
     let tasks: [CalTask]
     let onToggle: (String) -> Void
-
     var body: some View {
         ScrollView {
             VStack(spacing: 12) {
                 HStack {
-                    Button {
-                        HapticManager.light()
-                        selectedDate = Calendar.current.date(
-                            byAdding: .day, value: -1, to: selectedDate
-                        ) ?? selectedDate
-                    } label: {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundStyle(AppColors.foreground)
+                    Button { HapticManager.light(); selectedDate = Calendar.current.date(byAdding: .day, value: -1, to: selectedDate) ?? selectedDate } label: {
+                        Image(systemName: "chevron.left").font(.system(size: 14, weight: .medium)).foregroundStyle(.white)
                     }
-
                     Spacer()
-
                     VStack(spacing: 2) {
-                        Text(selectedDate.formatted(.dateTime.weekday(.wide)))
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
-                            .foregroundStyle(AppColors.foreground)
-                        Text(selectedDate.formatted(.dateTime.month(.wide).day().year()))
-                            .font(.caption)
-                            .foregroundStyle(AppColors.mutedForeground)
+                        Text(selectedDate.formatted(.dateTime.weekday(.wide))).font(.system(size: 15, weight: .semibold)).foregroundStyle(.white)
+                        Text(selectedDate.formatted(.dateTime.month(.wide).day().year())).font(.system(size: 12)).foregroundStyle(AppColors.mutedForeground)
                     }
-
                     Spacer()
-
-                    Button {
-                        HapticManager.light()
-                        selectedDate = Calendar.current.date(
-                            byAdding: .day, value: 1, to: selectedDate
-                        ) ?? selectedDate
-                    } label: {
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundStyle(AppColors.foreground)
+                    Button { HapticManager.light(); selectedDate = Calendar.current.date(byAdding: .day, value: 1, to: selectedDate) ?? selectedDate } label: {
+                        Image(systemName: "chevron.right").font(.system(size: 14, weight: .medium)).foregroundStyle(.white)
                     }
-                }
-                .padding(.horizontal, 16)
+                }.padding(.horizontal, 16)
 
                 if !Calendar.current.isDateInToday(selectedDate) {
-                    Button {
-                        HapticManager.light()
-                        selectedDate = Date()
-                    } label: {
-                        Text("go to today")
-                            .font(.caption)
-                            .fontWeight(.medium)
-                            .foregroundStyle(AppColors.blue500)
+                    Button { HapticManager.light(); selectedDate = Date() } label: {
+                        Text("Go to Today").font(.system(size: 13, weight: .medium)).foregroundStyle(AppColors.accent)
                     }
                 }
 
                 let dayTasks = tasksOnDate(selectedDate)
                 VStack(alignment: .leading, spacing: 0) {
-                    SectionHeaderView(title: "tasks", count: dayTasks.count)
-
+                    HStack {
+                        Text("Tasks").font(.system(size: 15, weight: .semibold)).foregroundStyle(.white)
+                        Spacer()
+                        Text("\(dayTasks.count)").font(.system(size: 13)).foregroundStyle(AppColors.mutedForeground)
+                    }.padding(.horizontal, 14).padding(.vertical, 12)
                     if dayTasks.isEmpty {
-                        EmptyStateView(icon: "calendar", message: "no tasks on this day")
+                        Text("No tasks on this day").font(.system(size: 13)).foregroundStyle(AppColors.subtleForeground)
+                            .padding(.horizontal, 14).padding(.bottom, 12)
                     } else {
-                        VStack(spacing: 0) {
-                            ForEach(
-                                Array(dayTasks.enumerated()),
-                                id: \.element.id
-                            ) { index, task in
-                                TaskItemView(
-                                    task: task,
-                                    onToggle: onToggle,
-                                    onTap: { selectedTask = task }
-                                )
-
-                                if index < dayTasks.count - 1 {
-                                    Rectangle()
-                                        .fill(AppColors.separator)
-                                        .frame(height: 1)
-                                        .padding(.leading, 52)
-                                }
-                            }
+                        ForEach(dayTasks) { task in
+                            TaskItemView(task: task, onToggle: onToggle, onTap: { selectedTask = task })
                         }
                     }
                 }
-                .padding(.vertical, 4)
-                .background(AppColors.card)
-                .clipShape(RoundedRectangle(cornerRadius: 16))
-                .padding(.horizontal, 16)
-            }
-            .padding(.vertical, 8)
+                .background(Color(hex: "#1C1C1E")).clipShape(RoundedRectangle(cornerRadius: 14)).padding(.horizontal, 12)
+            }.padding(.vertical, 8)
         }
     }
-
     private func tasksOnDate(_ date: Date) -> [CalTask] {
-        let dateStr = DateFormatting.formatDate(date)
-        return tasks.filter { $0.dueDate == dateStr }
+        return tasks.filter { $0.dueDate == DateFormatting.formatDate(date) }
     }
 }

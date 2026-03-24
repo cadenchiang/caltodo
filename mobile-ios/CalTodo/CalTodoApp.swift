@@ -8,9 +8,11 @@ import Supabase
 struct CalTodoApp: App {
     @StateObject private var authManager: AuthManager
     @StateObject private var taskStore: TaskStore
+    @StateObject private var chatStore: ChatStore
     @StateObject private var toastManager = ToastManager()
     @State private var onboardingComplete = UserDefaults.standard.bool(forKey: "onboarding_completed")
     @State private var isReady = false
+    @State private var loadingProgress: Double = 0
     @AppStorage("appearance") private var appearance = "system"
 
     /// Converts the appearance string to a SwiftUI ColorScheme.
@@ -23,6 +25,18 @@ struct CalTodoApp: App {
     }
 
     init() {
+        // Register notification defaults so they work on first launch
+        UserDefaults.standard.register(defaults: [
+            "notif_task_reminders": true,
+            "notif_remind_30m": true,
+            "notif_remind_1d": true,
+            "notif_remind_morning": true,
+            "notif_overdue_alerts": true,
+            "notif_daily_summary": true,
+            "notif_calchat_messages": true,
+            "notif_calchat_mentions": true,
+        ])
+
         // Glassy translucent tab bar
         let tabBarAppearance = UITabBarAppearance()
         tabBarAppearance.configureWithDefaultBackground()
@@ -36,24 +50,38 @@ struct CalTodoApp: App {
 
         let client = SupabaseClient(
             supabaseURL: url,
-            supabaseKey: Configuration.supabaseAnonKey
+            supabaseKey: Configuration.supabaseAnonKey,
+            options: .init(auth: .init(autoRefreshToken: true))
         )
         let auth = AuthManager(client: client)
         _authManager = StateObject(wrappedValue: auth)
         _taskStore = StateObject(wrappedValue: TaskStore(authManager: auth))
+        _chatStore = StateObject(wrappedValue: ChatStore(authManager: auth))
     }
 
     var body: some Scene {
         WindowGroup {
             Group {
                 if !isReady {
-                    // Show loading while checking session
-                    VStack(spacing: 16) {
-                        ProgressView()
-                        Text("loading...")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                    ZStack {
+                        Color.black.ignoresSafeArea()
+                        VStack(spacing: 28) {
+                            Image("Logo")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 56, height: 56)
+                            // Progress bar that fills smoothly to 100%
+                            GeometryReader { geo in
+                                RoundedRectangle(cornerRadius: 2)
+                                    .fill(AppColors.accent)
+                                    .frame(width: geo.size.width * loadingProgress, height: 3)
+                            }
+                            .frame(width: 120, height: 3)
+                            .background(Color(hex: "#1C1C1E"))
+                            .clipShape(RoundedRectangle(cornerRadius: 2))
+                        }
                     }
+                    .transition(.opacity)
                 } else if !authManager.isAuthenticated {
                     LoginView()
                 } else if !onboardingComplete {
@@ -64,6 +92,7 @@ struct CalTodoApp: App {
             }
             .environmentObject(authManager)
             .environmentObject(taskStore)
+            .environmentObject(chatStore)
             .environmentObject(toastManager)
             .overlay(alignment: .bottom) {
                 ToastView()
@@ -76,8 +105,33 @@ struct CalTodoApp: App {
             }
             .task {
                 taskStore.toastManager = toastManager
+
+                // Animate progress: 0 → 60% while checking session
+                withAnimation(.easeOut(duration: 0.6)) { loadingProgress = 0.6 }
                 await authManager.checkExistingSession()
-                isReady = true
+
+                // 60% → 100%
+                withAnimation(.easeOut(duration: 0.4)) { loadingProgress = 1.0 }
+
+                // Auto-skip onboarding if we have cached tasks
+                if authManager.isAuthenticated && !onboardingComplete && !taskStore.tasks.isEmpty {
+                    UserDefaults.standard.set(true, forKey: "onboarding_completed")
+                    onboardingComplete = true
+                }
+
+                // Brief pause at 100% so user sees it complete
+                try? await Task.sleep(nanoseconds: 200_000_000)
+
+                // Fade out loading screen
+                withAnimation(.easeOut(duration: 0.3)) { isReady = true }
+
+                // Background refresh silently
+                if authManager.isAuthenticated {
+                    async let t: () = taskStore.fetchTasks()
+                    async let c: () = taskStore.fetchCredentials()
+                    async let b: () = chatStore.fetchBoards()
+                    _ = await (t, c, b)
+                }
             }
         }
     }

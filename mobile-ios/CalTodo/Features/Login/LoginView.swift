@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Login screen with branded caltodo design.
-/// Bear cube logo, Google "G" image button, animated entrance.
+/// Login screen matching the web's clean, snappy design.
+/// Logo, title, subtitle, Google sign-in button — fast staggered entrance.
 struct LoginView: View {
     @EnvironmentObject var authManager: AuthManager
 
@@ -15,30 +15,31 @@ struct LoginView: View {
             Spacer()
 
             VStack(spacing: 0) {
-                // Bear cube logo
+                // Logo
                 Image("Logo")
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-                    .frame(width: 80, height: 80)
+                    .frame(width: 56, height: 56)
                     .opacity(iconVisible ? 1 : 0)
-                    .scaleEffect(iconVisible ? 1 : 0.8)
+                    .scaleEffect(iconVisible ? 1 : 0.9)
                     .padding(.bottom, 24)
 
-                // Brand
-                Text("welcome to caltodo")
+                // Title
+                Text("Welcome to caltodo")
                     .font(.system(size: 28, weight: .bold))
                     .tracking(-0.5)
                     .foregroundStyle(AppColors.foreground)
                     .opacity(titleVisible ? 1 : 0)
-                    .offset(y: titleVisible ? 0 : 10)
+                    .offset(y: titleVisible ? 0 : -12)
                     .padding(.bottom, 8)
 
-                Text("all your deadlines, one calendar")
+                // Subtitle
+                Text("All your deadlines, one calendar")
                     .font(.subheadline)
                     .foregroundStyle(AppColors.mutedForeground)
                     .multilineTextAlignment(.center)
                     .opacity(subtitleVisible ? 1 : 0)
-                    .offset(y: subtitleVisible ? 0 : 10)
+                    .offset(y: subtitleVisible ? 0 : -12)
                     .padding(.bottom, 40)
 
                 // Error message
@@ -53,7 +54,7 @@ struct LoginView: View {
                         .padding(.bottom, 16)
                 }
 
-                // Google OAuth button with actual Google G logo
+                // Google OAuth button — matches web: black bg, Google G logo, white text
                 Button {
                     HapticManager.medium()
                     Task { await authManager.signInWithGoogle() }
@@ -66,20 +67,20 @@ struct LoginView: View {
                                 .resizable()
                                 .aspectRatio(contentMode: .fit)
                                 .frame(width: 18, height: 18)
-                            Text("continue with google")
-                                .font(.subheadline)
-                                .fontWeight(.semibold)
-                                .foregroundStyle(.white)
+                            Text("Continue with Google")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundStyle(AppColors.background)
                         }
                     }
                     .frame(maxWidth: .infinity)
-                    .frame(height: 50)
-                    .background(.black)
+                    .frame(height: 56)
+                    .background(AppColors.foreground)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
                 .disabled(authManager.isLoading)
                 .opacity(buttonVisible ? 1 : 0)
-                .offset(y: buttonVisible ? 0 : 20)
+                .offset(y: buttonVisible ? 0 : 12)
+                .scaleEffect(buttonVisible ? 1 : 0.97)
             }
             .frame(maxWidth: 340)
             .padding(.horizontal, 32)
@@ -91,17 +92,17 @@ struct LoginView: View {
         .onAppear { startAnimations() }
     }
 
-    /// Triggers staggered entrance animations for logo, title, subtitle, and button.
+    /// Fast staggered entrance — matches web's snappy drop-in (350-500ms).
     private func startAnimations() {
-        withAnimation(.easeOut(duration: 1.0)) { iconVisible = true }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-            withAnimation(.easeOut(duration: 0.8)) { titleVisible = true }
+        withAnimation(.easeOut(duration: 0.35)) { iconVisible = true }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            withAnimation(.easeOut(duration: 0.35)) { titleVisible = true }
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-            withAnimation(.easeOut(duration: 0.8)) { subtitleVisible = true }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            withAnimation(.easeOut(duration: 0.35)) { subtitleVisible = true }
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-            withAnimation(.easeOut(duration: 0.6)) { buttonVisible = true }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            withAnimation(.easeOut(duration: 0.35)) { buttonVisible = true }
         }
     }
 }

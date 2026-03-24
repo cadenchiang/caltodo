@@ -1,25 +1,51 @@
 import SwiftUI
 
-/// Home dashboard showing greeting, today's tasks, upcoming tasks, and stats.
-/// Flat layout with no card wrapping for greeting. Pull to refresh.
+/// Home dashboard — today's tasks and upcoming, with profile avatar in nav bar.
 struct HomeView: View {
     @EnvironmentObject var authManager: AuthManager
     @EnvironmentObject var taskStore: TaskStore
     @Environment(\.scenePhase) private var scenePhase
 
-    @State private var selectedTask: CalTask? = nil
+    @State private var selectedTask: CalTask?
+    @State private var showSettings = false
+    @State private var showCreateSheet = false
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                greetingSection
-                todaySection
-                upcomingSection
-                statsRow
+        ZStack(alignment: .bottomTrailing) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    todaySection
+                    upcomingSection
+                }
+                .padding(.top, 8)
+                .padding(.bottom, 80)
             }
-            .padding(.vertical, 16)
+            .background(AppColors.background)
+
+            // FAB
+            Button {
+                HapticManager.medium()
+                showCreateSheet = true
+            } label: {
+                Image(systemName: "plus")
+                    .font(.system(size: 22, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 56, height: 56)
+                    .background(AppColors.accent)
+                    .clipShape(Circle())
+                    .shadow(color: AppColors.accent.opacity(0.3), radius: 8, x: 0, y: 4)
+            }
+            .padding(.trailing, 20)
+            .padding(.bottom, 20)
         }
-        .background(AppColors.background)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button { showSettings = true } label: {
+                    profileAvatar
+                }
+            }
+        }
         .refreshable { await taskStore.fetchTasks() }
         .onChange(of: scenePhase) { newPhase in
             if newPhase == .active {
@@ -36,40 +62,55 @@ struct HomeView: View {
             )
             .presentationDetents([.medium, .large])
         }
+        .sheet(isPresented: $showCreateSheet) {
+            TaskCreateSheet()
+                .environmentObject(taskStore)
+        }
+        .sheet(isPresented: $showSettings) {
+            NavigationStack {
+                SettingsView()
+                    .navigationTitle("Settings")
+                    .navigationBarTitleDisplayMode(.inline)
+            }
+            .presentationDragIndicator(.visible)
+        }
     }
 
-    // MARK: - Greeting
+    // MARK: - Profile Avatar
 
-    /// "good morning," in light weight + first name in semibold blue.
-    /// Summary line below.
-    private var greetingSection: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 0) {
-                Text("\(DateFormatting.greeting()), ")
-                    .font(.system(size: 28, weight: .light, design: .rounded))
-                    .foregroundStyle(AppColors.foreground)
-
-                Text(firstName)
-                    .font(.system(size: 28, weight: .semibold, design: .rounded))
-                    .foregroundStyle(AppColors.blue500)
+    private var profileAvatar: some View {
+        ZStack {
+            if let url = authManager.avatarURL {
+                AsyncImage(url: url) { image in
+                    image.resizable().scaledToFill()
+                } placeholder: {
+                    initialCircle
+                }
+            } else {
+                initialCircle
             }
-
-            Text(summaryText)
-                .font(.system(size: 14))
-                .foregroundStyle(AppColors.mutedForeground)
         }
-        .padding(.horizontal, 20)
+        .frame(width: 32, height: 32)
+        .clipShape(Circle())
+    }
+
+    private var initialCircle: some View {
+        AppColors.muted
+            .overlay(
+                Text(String((authManager.userName ?? "").prefix(1)).uppercased())
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(AppColors.mutedForeground)
+            )
     }
 
     // MARK: - Due Today
 
-    /// Section header + task list for today's tasks.
     private var todaySection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            SectionHeaderView(title: "due today", count: taskStore.todayTasks.count)
+            SectionHeaderView(title: "Due Today", count: taskStore.todayTasks.count)
 
             if taskStore.todayTasks.isEmpty {
-                EmptyStateView(icon: "checkmark.circle", message: "nothing due today")
+                EmptyStateView(icon: "checkmark.circle", message: "Nothing due today")
             } else {
                 taskList(taskStore.todayTasks)
             }
@@ -78,141 +119,54 @@ struct HomeView: View {
 
     // MARK: - Upcoming
 
-    /// Section header + max 5 upcoming tasks. "view all" link if more.
     private var upcomingSection: some View {
         let upcoming = taskStore.upcomingTasks
-        let displayTasks = Array(upcoming.prefix(5))
+        let display = Array(upcoming.prefix(5))
 
         return VStack(alignment: .leading, spacing: 0) {
-            SectionHeaderView(title: "upcoming", count: upcoming.count)
+            SectionHeaderView(title: "Upcoming", count: upcoming.count)
 
-            if displayTasks.isEmpty {
-                EmptyStateView(
-                    icon: "calendar.badge.clock",
-                    message: "no upcoming tasks"
-                )
+            if display.isEmpty {
+                EmptyStateView(icon: "calendar.badge.clock", message: "No upcoming tasks")
             } else {
-                taskList(displayTasks)
+                taskList(display)
 
                 if upcoming.count > 5 {
                     HStack {
                         Spacer()
-                        Text("view all \u{2192}")
+                        Text("View All →")
                             .font(.system(size: 13, weight: .medium))
                             .foregroundStyle(AppColors.blue500)
                         Spacer()
                     }
-                    .padding(.vertical, 8)
+                    .padding(.vertical, 6)
                 }
             }
         }
-    }
-
-    // MARK: - Stats Row
-
-    /// Three equal stat cards: completed, active, overdue.
-    private var statsRow: some View {
-        HStack(spacing: 12) {
-            statCard(
-                icon: "checkmark.circle.fill",
-                iconColor: AppColors.green500,
-                value: taskStore.completedTasks.count,
-                label: "completed"
-            )
-            statCard(
-                icon: "circle.dotted",
-                iconColor: AppColors.blue500,
-                value: taskStore.activeTasks.count,
-                label: "active"
-            )
-            statCard(
-                icon: "exclamationmark.circle.fill",
-                iconColor: AppColors.red500,
-                value: overdueTasks.count,
-                label: "overdue"
-            )
-        }
-        .padding(.horizontal, 20)
     }
 
     // MARK: - Helpers
 
-    /// Renders a list of tasks with dividers between them.
-    ///
-    /// - Parameter tasks: Tasks to render.
-    /// - Returns: A VStack of TaskItemViews with dividers.
     private func taskList(_ tasks: [CalTask]) -> some View {
         VStack(spacing: 0) {
-            ForEach(Array(tasks.enumerated()), id: \.element.id) { index, task in
+            ForEach(tasks) { task in
                 TaskItemView(
                     task: task,
-                    onToggle: { id in
-                        Task { await taskStore.toggleComplete(taskId: id) }
-                    },
+                    onToggle: { id in Task { await taskStore.toggleComplete(taskId: id) } },
                     onTap: { selectedTask = task }
                 )
-
-                if index < tasks.count - 1 {
-                    Rectangle()
-                        .fill(AppColors.separator)
-                        .frame(height: 1)
-                        .padding(.leading, 52)
+                .swipeActions(edge: .trailing) {
+                    Button(role: .destructive) {
+                        Task { await taskStore.deleteTask(taskId: task.id) }
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
                 }
+                Rectangle()
+                    .fill(AppColors.separator)
+                    .frame(height: 0.5)
+                    .padding(.leading, 56)
             }
-        }
-    }
-
-    /// Single stat card with icon, number, and label.
-    private func statCard(
-        icon: String,
-        iconColor: Color,
-        value: Int,
-        label: String
-    ) -> some View {
-        VStack(spacing: 6) {
-            Image(systemName: icon)
-                .font(.system(size: 18))
-                .foregroundStyle(iconColor)
-
-            Text("\(value)")
-                .font(.system(size: 20, weight: .bold))
-                .foregroundStyle(AppColors.foreground)
-
-            Text(label)
-                .font(.system(size: 11))
-                .foregroundStyle(AppColors.mutedForeground)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 16)
-        .background(AppColors.card)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(AppColors.border, lineWidth: 1)
-        )
-    }
-
-    /// The user's first name extracted from their full name, lowercased.
-    private var firstName: String {
-        let name = authManager.userName ?? ""
-        let first = name.split(separator: " ").first.map(String.init) ?? name
-        return first.lowercased()
-    }
-
-    /// Summary text describing today's task count.
-    private var summaryText: String {
-        let count = taskStore.todayTasks.count
-        if count == 0 { return "you're all caught up!" }
-        if count == 1 { return "you have 1 task due today" }
-        return "you have \(count) tasks due today"
-    }
-
-    /// Tasks that are overdue (past due date, not completed).
-    private var overdueTasks: [CalTask] {
-        let today = DateFormatting.todayString()
-        return taskStore.activeTasks.filter { task in
-            guard let due = task.dueDate else { return false }
-            return due < today
         }
     }
 }

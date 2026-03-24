@@ -1,334 +1,327 @@
 import SwiftUI
 
-/// Premium task detail sheet with large header, generous spacing, and subtle dividers.
-/// Presented as a sheet with medium/large detents.
-///
-/// - Parameters:
-///   - task: The CalTask to display details for.
-///   - onToggle: Called with the task ID when the checkbox is tapped.
-///   - onDismiss: Called when the sheet should be dismissed.
+/// Task detail — view + edit mode. Three-dot menu for delete. Edit icon top-right.
 struct TaskDetailSheet: View {
     let task: CalTask
     var onToggle: ((String) -> Void)? = nil
     var onDismiss: (() -> Void)? = nil
 
+    @EnvironmentObject var taskStore: TaskStore
+    @Environment(\.dismiss) private var dismiss
     @State private var checkScale: CGFloat = 1.0
+    @State private var showFlash = false
+    @State private var isEditing = false
+    @State private var showDeleteConfirm = false
+
+    // Edit state
+    @State private var editTitle: String = ""
+    @State private var editDueDate: Date = Date()
+    @State private var editHasDueDate: Bool = false
+    @State private var editDescription: String = ""
+
+    private let iconWidth: CGFloat = 20
+    private let iconGap: CGFloat = 12
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                // Custom top bar — replaces NavigationView to eliminate excess spacing
-                HStack {
-                    Spacer()
-                    Button {
-                        HapticManager.light()
-                    } label: {
-                        Image(systemName: "square.and.pencil")
-                            .font(.system(size: 16, weight: .regular))
-                            .foregroundColor(.primary)
+        VStack(spacing: 0) {
+            // Top bar: drag indicator + edit/menu
+            topBar
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    if isEditing {
+                        editView
+                    } else {
+                        readView
                     }
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 12)
-
-                headerSection
-                headerDivider
-                detailRows
+                .padding(.bottom, 24)
             }
         }
-        .background(AppColors.background)
+        .background(showFlash ? AppColors.green500.opacity(0.06) : Color(hex: "#0A0A0A"))
+        .animation(.easeInOut(duration: 0.4), value: showFlash)
+        .onAppear {
+            editTitle = task.title
+            editDescription = task.description ?? ""
+            if let d = task.dueDate, !d.isEmpty {
+                let fmt = DateFormatter(); fmt.dateFormat = "yyyy-MM-dd"
+                editDueDate = fmt.date(from: d) ?? Date()
+                editHasDueDate = true
+            }
+        }
+        .alert("Delete Task?", isPresented: $showDeleteConfirm) {
+            Button("Cancel", role: .cancel) {}
+            Button("Delete", role: .destructive) {
+                Task { await taskStore.deleteTask(taskId: task.id) }
+                dismiss()
+            }
+        }
+    }
+
+    // MARK: - Top Bar
+
+    private var topBar: some View {
+        HStack {
+            // Drag indicator
+            Spacer()
+            RoundedRectangle(cornerRadius: 2.5)
+                .fill(Color(hex: "#3A3A3C"))
+                .frame(width: 36, height: 5)
+            Spacer()
+        }
+        .overlay(alignment: .trailing) {
+            HStack(spacing: 16) {
+                // Edit toggle
+                Button {
+                    HapticManager.light()
+                    if isEditing { saveEdits() }
+                    withAnimation(.easeInOut(duration: 0.15)) { isEditing.toggle() }
+                } label: {
+                    Image(systemName: isEditing ? "checkmark" : "pencil")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(isEditing ? AppColors.accent : .white)
+                }
+
+                // Three-dot menu
+                Menu {
+                    Button(role: .destructive) { showDeleteConfirm = true } label: {
+                        Label("Delete Task", systemImage: "trash")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(.white)
+                }
+            }
+            .padding(.trailing, 20)
+        }
+        .padding(.top, 12)
+        .padding(.bottom, 32)
+    }
+
+    // MARK: - Read View
+
+    private var readView: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            headerRow
+            dateTimeRow
+            repeatRow
+            if hasBelowContent { divider.padding(.vertical, 14) }
+            courseRow
+            tagsRow
+            descriptionRow
+            sourceLinkRow
+        }
+    }
+
+    private var hasBelowContent: Bool {
+        (task.courseName != nil && !(task.courseName ?? "").isEmpty)
+        || !task.tagList.isEmpty
+        || (task.description != nil && !(task.description ?? "").isEmpty)
+    }
+
+    // MARK: - Edit View
+
+    private var editView: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            // Title
+            TextField("Task title", text: $editTitle)
+                .font(.system(size: 22, weight: .semibold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 24)
+
+            Rectangle().fill(Color(hex: "#2C2C2E")).frame(height: 1).padding(.horizontal, 24)
+
+            // Due date toggle + picker
+            HStack(spacing: iconGap) {
+                Image(systemName: "calendar")
+                    .font(.system(size: 15)).foregroundStyle(AppColors.mutedForeground).frame(width: iconWidth)
+                Text("Due Date").font(.system(size: 15)).foregroundStyle(.white)
+                Spacer()
+                Toggle("", isOn: $editHasDueDate).labelsHidden().tint(AppColors.accent)
+            }
+            .padding(.horizontal, 24)
+
+            if editHasDueDate {
+                DatePicker("", selection: $editDueDate, displayedComponents: .date)
+                    .datePickerStyle(.graphical)
+                    .tint(AppColors.accent)
+                    .padding(.horizontal, 20)
+            }
+
+            // Description
+            HStack(alignment: .top, spacing: iconGap) {
+                Image(systemName: "text.alignleft")
+                    .font(.system(size: 15)).foregroundStyle(AppColors.mutedForeground).frame(width: iconWidth)
+                    .padding(.top, 8)
+                TextEditor(text: $editDescription)
+                    .font(.system(size: 15))
+                    .foregroundStyle(.white)
+                    .frame(minHeight: 80)
+                    .scrollContentBackground(.hidden)
+            }
+            .padding(.horizontal, 24)
+        }
+        .padding(.top, 8)
+    }
+
+    private func saveEdits() {
+        let fmt = DateFormatter(); fmt.dateFormat = "yyyy-MM-dd"
+        let dateStr = editHasDueDate ? fmt.string(from: editDueDate) : nil
+        let desc = editDescription.isEmpty ? nil : editDescription
+        Task {
+            let updates = TaskUpdate(
+                title: editTitle,
+                description: desc,
+                dueDate: dateStr
+            )
+            try? await taskStore.client.from("tasks")
+                .update(updates)
+                .eq("id", value: task.id)
+                .execute()
+            await taskStore.fetchTasks()
+        }
     }
 
     // MARK: - Header
 
-    /// 24x24 checkbox with spring animation + 24pt semibold title, wrapping.
-    private var headerSection: some View {
-        HStack(alignment: .top, spacing: 12) {
+    private var headerRow: some View {
+        HStack(alignment: .top, spacing: iconGap) {
             Button {
-                HapticManager.light()
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                    checkScale = 1.2
-                }
+                HapticManager.medium()
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) { checkScale = 1.2 }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                    withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
-                        checkScale = 1.0
-                    }
+                    withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) { checkScale = 1.0 }
+                }
+                if !(task.isCompleted ?? false) {
+                    showFlash = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { showFlash = false }
                 }
                 onToggle?(task.id)
             } label: {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 5)
+                    RoundedRectangle(cornerRadius: 4)
                         .stroke(Color(hex: task.displayColor), lineWidth: 1.5)
-                        .frame(width: 20, height: 20)
-
+                        .frame(width: iconWidth, height: iconWidth)
                     if task.completed {
-                        RoundedRectangle(cornerRadius: 5)
+                        RoundedRectangle(cornerRadius: 4)
                             .fill(Color(hex: task.displayColor))
-                            .frame(width: 20, height: 20)
-
+                            .frame(width: iconWidth, height: iconWidth)
                         Image(systemName: "checkmark")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(.white)
+                            .font(.system(size: 10, weight: .bold)).foregroundStyle(.white)
                     }
                 }
                 .scaleEffect(checkScale)
             }
             .buttonStyle(.plain)
-            .padding(.top, 3)
+            .frame(width: iconWidth, height: iconWidth)
+            .padding(.top, 4)
 
             Text(task.title)
-                .font(.system(size: 20, weight: .semibold))
-                .foregroundStyle(AppColors.foreground)
+                .font(.system(size: 22, weight: .semibold))
+                .foregroundStyle(.white)
                 .strikethrough(task.completed)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 10)
+        .padding(.horizontal, 24)
     }
 
-    // MARK: - Divider
-
-    /// Subtle 1pt divider below the header.
-    private var headerDivider: some View {
-        Rectangle()
-            .fill(AppColors.separator)
-            .frame(height: 1)
-            .padding(.horizontal, 20)
-    }
-
-    // MARK: - Detail Rows
-
-    /// Metadata rows with icon + label on first line, value indented 40pt on second line.
-    /// 24pt spacing between rows.
-    private var detailRows: some View {
-        VStack(alignment: .leading, spacing: 24) {
-            // Due date
-            if let info = DateFormatting.dueDateInfo(
-                dueDate: task.dueDate, dueTime: task.dueTime
-            ) {
-                detailRow(
-                    icon: "calendar",
-                    label: "due date",
-                    valueView: AnyView(
-                        Text(info.dateLabel)
-                            .font(.system(size: 16))
-                            .foregroundStyle(Color(hex: info.colorHex))
-                    )
-                )
+    @ViewBuilder private var dateTimeRow: some View {
+        if let info = DateFormatting.dueDateInfo(dueDate: task.dueDate, dueTime: task.dueTime) {
+            HStack(spacing: 4) {
+                Text(info.dateLabel)
+                if let time = info.timeLabel {
+                    Text("·").foregroundStyle(AppColors.mutedForeground)
+                    Text(time)
+                }
             }
-
-            // Due time
-            if let dueTime = task.dueTime,
-               let formatted = DateFormatting.formatTime12h(dueTime) {
-                detailRow(
-                    icon: "clock",
-                    label: "due time",
-                    valueView: AnyView(
-                        Text(formatted)
-                            .font(.system(size: 16))
-                            .foregroundStyle(AppColors.foreground)
-                    )
-                )
-            }
-
-            // Repeat
-            if task.isRecurring {
-                let unit = task.repeatUnit ?? "day"
-                let interval = task.repeatInterval ?? 1
-                let repeatLabel = interval == 1
-                    ? "every \(unit)"
-                    : "every \(interval) \(unit)s"
-                detailRow(
-                    icon: "repeat",
-                    label: "repeat",
-                    valueView: AnyView(
-                        Text(repeatLabel)
-                            .font(.system(size: 16))
-                            .foregroundStyle(AppColors.purple400)
-                    )
-                )
-            }
-
-            // Course
-            if let course = task.courseName, !course.isEmpty {
-                detailRow(
-                    icon: "graduationcap",
-                    label: "class",
-                    valueView: AnyView(
-                        Text(course)
-                            .font(.system(size: 16))
-                            .foregroundStyle(AppColors.foreground)
-                    )
-                )
-            }
-
-            // Tags
-            if !task.tagList.isEmpty {
-                detailRow(
-                    icon: "tag",
-                    label: "tags",
-                    valueView: AnyView(tagsView)
-                )
-            }
-
-            // Description
-            if let desc = task.description, !desc.isEmpty {
-                detailRow(
-                    icon: "text.alignleft",
-                    label: "description",
-                    valueView: AnyView(
-                        Text(desc)
-                            .font(.system(size: 16))
-                            .foregroundStyle(AppColors.secondaryForeground)
-                            .fixedSize(horizontal: false, vertical: true)
-                    )
-                )
-            }
-
-            // Source link
-            if let urlString = task.sourceUrl,
-               let url = URL(string: urlString) {
-                detailRow(
-                    icon: "link",
-                    label: "source",
-                    valueView: AnyView(
-                        Link(destination: url) {
-                            Text("open link")
-                                .font(.system(size: 16))
-                                .foregroundStyle(AppColors.blue500)
-                        }
-                    )
-                )
-            }
-        }
-        .padding(.horizontal, 20)
-        .padding(.top, 24)
-    }
-
-    // MARK: - Detail Row Helper
-
-    /// Renders a single detail row with icon + label on first line,
-    /// value indented 40pt on second line.
-    ///
-    /// - Parameters:
-    ///   - icon: SF Symbol name (16pt, muted foreground, 24pt frame width).
-    ///   - label: Row label text (13pt, muted).
-    ///   - valueView: The value view to display indented below.
-    private func detailRow(
-        icon: String,
-        label: String,
-        valueView: AnyView
-    ) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: icon)
-                .font(.system(size: 14))
-                .foregroundStyle(AppColors.mutedForeground)
-                .frame(width: 20, alignment: .center)
-                .padding(.top, 2)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(label.lowercased())
-                    .font(.system(size: 12))
-                    .foregroundStyle(AppColors.subtleForeground)
-
-                valueView
-            }
+            .font(.system(size: 14)).foregroundStyle(AppColors.secondaryForeground)
+            .padding(.leading, 24 + iconWidth + iconGap).padding(.top, 4)
         }
     }
 
-    // MARK: - Tags View
-
-    /// Horizontal wrap of tag capsules in blue.
-    private var tagsView: some View {
-        FlowLayout(spacing: 6) {
-            ForEach(task.tagList, id: \.self) { tag in
-                Text(tag)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(AppColors.blue500)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(AppColors.blue500.opacity(0.1))
-                    .clipShape(Capsule())
-            }
+    @ViewBuilder private var repeatRow: some View {
+        if task.isRecurring {
+            let unit = task.repeatUnit ?? "day"
+            let interval = task.repeatInterval ?? 1
+            Text(interval == 1 ? "Every \(unit)" : "Every \(interval) \(unit)s")
+                .font(.system(size: 14)).foregroundStyle(AppColors.secondaryForeground)
+                .padding(.leading, 24 + iconWidth + iconGap).padding(.top, 2)
         }
+    }
+
+    @ViewBuilder private var courseRow: some View {
+        if let course = task.courseName, !course.isEmpty {
+            iconRow(icon: "graduationcap", text: course)
+        }
+    }
+
+    @ViewBuilder private var tagsRow: some View {
+        if !task.tagList.isEmpty {
+            HStack(alignment: .top, spacing: iconGap) {
+                Image(systemName: "tag").font(.system(size: 15)).foregroundStyle(AppColors.secondaryForeground).frame(width: iconWidth)
+                FlowLayout(spacing: 6) {
+                    ForEach(task.tagList, id: \.self) { tag in
+                        Text(tag).font(.system(size: 12, weight: .medium)).foregroundStyle(AppColors.blue500)
+                            .padding(.horizontal, 10).padding(.vertical, 5)
+                            .background(AppColors.blue500.opacity(0.1)).clipShape(Capsule())
+                    }
+                }
+            }.padding(.horizontal, 24).padding(.vertical, 10)
+        }
+    }
+
+    @ViewBuilder private var descriptionRow: some View {
+        if let desc = task.description, !desc.isEmpty {
+            HStack(alignment: .top, spacing: iconGap) {
+                Image(systemName: "text.alignleft").font(.system(size: 15)).foregroundStyle(AppColors.secondaryForeground).frame(width: iconWidth)
+                Text(desc).font(.system(size: 14)).foregroundStyle(.white).fixedSize(horizontal: false, vertical: true)
+            }.padding(.horizontal, 24).padding(.vertical, 10)
+        }
+    }
+
+    @ViewBuilder private var sourceLinkRow: some View {
+        if let urlString = task.sourceUrl, let url = URL(string: urlString) {
+            Button { HapticManager.light(); UIApplication.shared.open(url) } label: {
+                HStack(spacing: iconGap) {
+                    Image(systemName: "link").font(.system(size: 15)).foregroundStyle(AppColors.secondaryForeground).frame(width: iconWidth)
+                    Text("Open Link").font(.system(size: 14)).foregroundStyle(AppColors.blue500)
+                }
+            }.padding(.horizontal, 24).padding(.vertical, 10)
+        }
+    }
+
+    private func iconRow(icon: String, text: String) -> some View {
+        HStack(spacing: iconGap) {
+            Image(systemName: icon).font(.system(size: 15)).foregroundStyle(AppColors.secondaryForeground).frame(width: iconWidth)
+            Text(text).font(.system(size: 14)).foregroundStyle(.white)
+        }.padding(.horizontal, 24).padding(.vertical, 10)
+    }
+
+    private var divider: some View {
+        Rectangle().fill(Color(hex: "#2C2C2E")).frame(height: 1).padding(.horizontal, 24)
     }
 }
 
 // MARK: - Flow Layout
-
-/// Simple horizontal flow layout for wrapping tags.
-/// Lays out children left-to-right, wrapping to the next line when needed.
 private struct FlowLayout: Layout {
     var spacing: CGFloat = 6
-
-    /// Calculates the total size needed to lay out all subviews in a wrapping flow.
-    ///
-    /// - Parameters:
-    ///   - proposal: The proposed size from the parent.
-    ///   - subviews: The child subviews to lay out.
-    ///   - cache: Unused cache parameter.
-    /// - Returns: The total size required.
-    func sizeThatFits(
-        proposal: ProposedViewSize,
-        subviews: Subviews,
-        cache: inout ()
-    ) -> CGSize {
-        let result = arrange(proposal: proposal, subviews: subviews)
-        return result.size
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        arrange(proposal: proposal, subviews: subviews).size
     }
-
-    /// Places all subviews at their calculated positions within the bounds.
-    ///
-    /// - Parameters:
-    ///   - bounds: The available bounds rectangle.
-    ///   - proposal: The proposed size from the parent.
-    ///   - subviews: The child subviews to place.
-    ///   - cache: Unused cache parameter.
-    func placeSubviews(
-        in bounds: CGRect,
-        proposal: ProposedViewSize,
-        subviews: Subviews,
-        cache: inout ()
-    ) {
-        let result = arrange(proposal: proposal, subviews: subviews)
-        for (index, origin) in result.origins.enumerated() {
-            subviews[index].place(
-                at: CGPoint(x: bounds.minX + origin.x, y: bounds.minY + origin.y),
-                proposal: .unspecified
-            )
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        for (i, o) in arrange(proposal: proposal, subviews: subviews).origins.enumerated() {
+            subviews[i].place(at: CGPoint(x: bounds.minX + o.x, y: bounds.minY + o.y), proposal: .unspecified)
         }
     }
-
-    /// Calculates origin points for each subview in a wrapping horizontal flow.
-    ///
-    /// - Parameters:
-    ///   - proposal: The proposed size from the parent.
-    ///   - subviews: The child subviews to arrange.
-    /// - Returns: Tuple of origin points and total size.
-    private func arrange(
-        proposal: ProposedViewSize,
-        subviews: Subviews
-    ) -> (origins: [CGPoint], size: CGSize) {
-        let maxWidth = proposal.width ?? .infinity
-        var origins: [CGPoint] = []
-        var x: CGFloat = 0
-        var y: CGFloat = 0
-        var rowHeight: CGFloat = 0
-        var maxX: CGFloat = 0
-
-        for subview in subviews {
-            let size = subview.sizeThatFits(.unspecified)
-            if x + size.width > maxWidth, x > 0 {
-                x = 0
-                y += rowHeight + spacing
-                rowHeight = 0
-            }
-            origins.append(CGPoint(x: x, y: y))
-            rowHeight = max(rowHeight, size.height)
-            x += size.width + spacing
-            maxX = max(maxX, x - spacing)
+    private func arrange(proposal: ProposedViewSize, subviews: Subviews) -> (origins: [CGPoint], size: CGSize) {
+        let mw = proposal.width ?? .infinity
+        var o: [CGPoint] = [], x: CGFloat = 0, y: CGFloat = 0, rh: CGFloat = 0, mx: CGFloat = 0
+        for s in subviews {
+            let sz = s.sizeThatFits(.unspecified)
+            if x + sz.width > mw, x > 0 { x = 0; y += rh + spacing; rh = 0 }
+            o.append(CGPoint(x: x, y: y)); rh = max(rh, sz.height); x += sz.width + spacing; mx = max(mx, x - spacing)
         }
-
-        return (origins, CGSize(width: maxX, height: y + rowHeight))
+        return (o, CGSize(width: mx, height: y + rh))
     }
 }

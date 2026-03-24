@@ -1,7 +1,9 @@
 import SwiftUI
 
-/// Main tab navigation — each tab has its own NavigationStack.
-/// Inbox: large bold title + three-dot menu. Calendar/Settings: centered inline title. No profile in nav bar.
+/// Main tab navigation matching the web's MobileTabBar.
+/// 6 tabs: Home, Inbox (dynamic label), Calendar, Notes, CalChat, Settings.
+/// Each tab shows an icon (20pt) with a text label (10pt) below.
+/// Active tab highlighted in blue-500.
 struct MainTabView: View {
     @EnvironmentObject var authManager: AuthManager
     @EnvironmentObject var taskStore: TaskStore
@@ -10,130 +12,150 @@ struct MainTabView: View {
     @AppStorage("inbox_filter") private var filterMode = "all"
     @AppStorage("inbox_sort") private var sortMode = "date"
 
+    @AppStorage("tab_calendar_visible") private var calendarVisible = true
+    @AppStorage("tab_calchat_visible") private var calChatVisible = true
+
+    /// Dynamic inbox tab label based on active filter (Title Case, matching web).
+    private var inboxLabel: String {
+        switch filterMode {
+        case "today": return "Today"
+        case "7days": return "7 Days"
+        default: return "Inbox"
+        }
+    }
+
+    /// Dynamic inbox tab icon based on active filter.
+    private var inboxIcon: String {
+        switch filterMode {
+        case "today": return "sun.max"
+        case "7days": return "calendar.badge.clock"
+        default: return "tray"
+        }
+    }
+
     var body: some View {
         TabView(selection: $selectedTab) {
-            // Home — no toolbar buttons
-            NavigationStack {
-                HomeView()
-            }
-            .tag(0)
-            .tabItem { Image(systemName: "house") }
-
-            // Inbox
             NavigationStack {
                 InboxView()
+                    .navigationTitle("Inbox")
+                    .navigationBarTitleDisplayMode(.large)
                     .toolbar {
-                        ToolbarItem(placement: .navigationBarLeading) { inboxTitleMenu }
-                        ToolbarItem(placement: .navigationBarTrailing) { sortMenuButton }
+                        ToolbarItem(placement: .navigationBarLeading) { menuButton }
+                        ToolbarItem(placement: .navigationBarTrailing) { profileButton }
                     }
             }
-            .tag(1)
+            .tag(0)
             .tabItem { Image(systemName: "tray") }
 
-            // Calendar
-            NavigationStack {
-                CalendarView()
+            if calendarVisible {
+                NavigationStack { CalendarView() }
+                    .tag(1)
+                    .tabItem { Image(systemName: "calendar") }
             }
-            .tag(2)
-            .tabItem { Image(systemName: "tablecells") }
 
-            // Notes
-            NavigationStack {
-                NotesView()
-                    .navigationTitle("notes")
-                    .navigationBarTitleDisplayMode(.inline)
+            if calChatVisible {
+                NavigationStack {
+                    CalChatView()
+                        .navigationBarTitleDisplayMode(.inline)
+                }
+                .tag(2)
+                .tabItem { Image(systemName: "bubble.left") }
             }
-            .tag(3)
-            .tabItem { Image(systemName: "note.text") }
-
-            // Settings
-            NavigationStack {
-                SettingsView()
-                    .navigationTitle("settings")
-                    .navigationBarTitleDisplayMode(.inline)
-            }
-            .tag(4)
-            .tabItem { Image(systemName: "gearshape") }
         }
         .tint(AppColors.accent)
         .onChange(of: selectedTab) { _ in HapticManager.selection() }
-        .task {
-            if taskStore.tasks.isEmpty { await taskStore.fetchTasks() }
-            if taskStore.integrations == nil { await taskStore.fetchCredentials() }
-        }
     }
 
     // MARK: - Inbox Title Dropdown
 
     private var filterLabel: String {
         switch filterMode {
-        case "today": return "due today"
-        case "7days": return "7 days"
-        default: return "inbox"
+        case "today": return "Today"
+        case "7days": return "Next 7 Days"
+        default: return "Inbox"
         }
     }
 
-    /// Top-left dropdown title for Inbox — shows current filter, tap to change.
-    private var inboxTitleMenu: some View {
+    @State private var showSettings = false
+
+    /// Hamburger menu — top left. Shows checkmark on active sort.
+    private var menuButton: some View {
         Menu {
-            filterButton("all tasks", icon: "tray.fill", value: "all")
-            filterButton("due today", icon: "sun.max.fill", value: "today")
-            filterButton("next 7 days", icon: "calendar", value: "7days")
-        } label: {
-            HStack(spacing: 5) {
-                Text(filterLabel)
-                    .font(.system(size: 17, weight: .bold))
-                Text("\(taskStore.filteredTasks(filter: filterMode, sort: sortMode).count)")
-                    .font(.system(size: 13, weight: .regular))
-                    .foregroundColor(.secondary)
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 9, weight: .bold))
-                    .foregroundColor(.secondary)
+            Section("Sort By") {
+                Button {
+                    sortMode = "date"
+                } label: {
+                    HStack {
+                        Label("By Date", systemImage: "calendar.badge.clock")
+                        if sortMode == "date" { Spacer(); Image(systemName: "checkmark") }
+                    }
+                }
+                Button {
+                    sortMode = "class"
+                } label: {
+                    HStack {
+                        Label("By Class", systemImage: "graduationcap.fill")
+                        if sortMode == "class" { Spacer(); Image(systemName: "checkmark") }
+                    }
+                }
             }
-            .foregroundColor(.primary)
+            Divider()
+            Button {
+                HapticManager.medium()
+                Task { await taskStore.fetchTasks() }
+            } label: {
+                Label("Sync Now", systemImage: "arrow.triangle.2.circlepath")
+            }
+        } label: {
+            Image(systemName: "line.3.horizontal")
+                .font(.system(size: 18, weight: .medium))
+                .foregroundStyle(.white)
         }
-        .menuStyle(.borderlessButton)
+    }
+
+    /// Profile picture — top right, opens settings. No background bubble.
+    private var profileButton: some View {
+        Button { showSettings = true } label: {
+            Group {
+                if let url = authManager.avatarURL {
+                    AsyncImage(url: url) { image in
+                        image.resizable().scaledToFill()
+                    } placeholder: {
+                        Image(systemName: "person.circle.fill")
+                            .font(.system(size: 26))
+                            .foregroundStyle(Color(hex: "#8E8E93"))
+                    }
+                    .frame(width: 28, height: 28)
+                    .clipShape(Circle())
+                } else {
+                    Image(systemName: "person.circle.fill")
+                        .font(.system(size: 26))
+                        .foregroundStyle(Color(hex: "#8E8E93"))
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .sheet(isPresented: $showSettings) {
+            NavigationStack {
+                SettingsView()
+                    .navigationTitle("Settings")
+                    .navigationBarTitleDisplayMode(.inline)
+            }
+            .presentationDragIndicator(.visible)
+        }
     }
 
     /// Sort button for Inbox — top right.
     private var sortMenuButton: some View {
         Menu {
-            sortButton("by date", icon: "calendar.badge.clock", value: "date")
-            sortButton("by class", icon: "graduationcap.fill", value: "class")
+            sortButton("By Date", icon: "calendar.badge.clock", value: "date")
+            sortButton("By Class", icon: "graduationcap.fill", value: "class")
             Divider()
             Button {
                 HapticManager.medium()
                 Task { await taskStore.fetchTasks() }
             } label: {
-                Label("sync now", systemImage: "arrow.triangle.2.circlepath")
-            }
-        } label: {
-            Image(systemName: "ellipsis")
-                .font(.system(size: 16, weight: .medium))
-                .foregroundStyle(AppColors.foreground)
-                .frame(width: 28, height: 28)
-        }
-    }
-
-    // MARK: - Home Menu
-
-    private var menuButton: some View {
-        Menu {
-            Section("filter") {
-                filterButton("all tasks", icon: "tray.fill", value: "all")
-                filterButton("due today", icon: "sun.max.fill", value: "today")
-                filterButton("next 7 days", icon: "calendar", value: "7days")
-            }
-            Section("sort") {
-                sortButton("by date", icon: "calendar.badge.clock", value: "date")
-                sortButton("by class", icon: "graduationcap.fill", value: "class")
-            }
-            Divider()
-            Button {
-                HapticManager.medium()
-                Task { await taskStore.fetchTasks() }
-            } label: {
-                Label("sync now", systemImage: "arrow.triangle.2.circlepath")
+                Label("Sync Now", systemImage: "arrow.triangle.2.circlepath")
             }
         } label: {
             Image(systemName: "ellipsis")

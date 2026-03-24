@@ -1,60 +1,78 @@
 import SwiftUI
 
 /// Color constants matching the CalTodo web app's CSS variable tokens.
-/// Uses adaptive light/dark pairs inspired by the Sleep Tracker's warm theme.
+/// Reads from ThemeManager.shared for theme-aware colors, with static
+/// fallbacks for semantic colors that don't change across themes.
 ///
-/// - SeeAlso: `mobile/src/lib/colors.ts` for the React Native equivalent.
+/// - SeeAlso: `ThemeManager` for the theme engine.
+/// - SeeAlso: `ThemeDefinitions.swift` for per-theme hex values.
 enum AppColors {
-    // MARK: - Backgrounds (Warm-tinted, matching Sleep Tracker pattern)
+    // MARK: - Theme-Aware Backgrounds
 
-    /// Primary background — warm-tinted white/near-black.
-    static let background = Color(light: Color(hex: "#FFFFFF"), dark: Color(hex: "#1C1C1E"))
+    /// Primary background — reads from the active theme.
+    static var background: Color { ThemeManager.shared.background }
 
     /// Card/elevated surface background.
-    static let card = Color(light: Color(hex: "#FFFFFF"), dark: Color(hex: "#2C2C2E"))
+    static var card: Color { ThemeManager.shared.card }
 
-    /// Secondary background for grouped content.
-    static let secondaryBackground = Color(light: Color(hex: "#F9FAFB"), dark: Color(hex: "#1C1C1E"))
+    /// Secondary background for grouped content (maps to muted).
+    static var secondaryBackground: Color { ThemeManager.shared.muted }
 
     /// Tertiary background for badges and chips.
-    static let tertiaryBackground = Color(light: Color(hex: "#F3F4F6"), dark: Color(hex: "#3A3A3C"))
+    static let tertiaryBackground = Color(
+        light: Color(hex: "#F3F4F6"),
+        dark: Color(hex: "#3A3A3C")
+    )
 
     /// Popover/dropdown background — always solid.
-    static let popover = Color(light: Color(hex: "#FFFFFF"), dark: Color(hex: "#262626"))
+    static var popover: Color { ThemeManager.shared.popover }
 
     /// Muted background for empty states and hover.
-    static let muted = Color(light: Color(hex: "#F9FAFB"), dark: Color(hex: "#262626"))
+    static var muted: Color { ThemeManager.shared.muted }
 
-    // MARK: - Foregrounds
+    // MARK: - Theme-Aware Foregrounds
 
     /// Primary text color.
-    static let foreground = Color(light: Color(hex: "#1F2937"), dark: Color(hex: "#F3F4F6"))
+    static var foreground: Color { ThemeManager.shared.foreground }
 
     /// Secondary text — section headers, subtitles.
-    static let secondaryForeground = Color(light: Color(hex: "#4B5563"), dark: Color(hex: "#D1D5DB"))
+    static var secondaryForeground: Color { ThemeManager.shared.secondaryForeground }
 
     /// Muted text — descriptions, captions.
-    static let mutedForeground = Color(light: Color(hex: "#6B7280"), dark: Color(hex: "#9CA3AF"))
+    static var mutedForeground: Color { ThemeManager.shared.mutedForeground }
 
     /// Subtle text — fine print, disabled states.
-    static let subtleForeground = Color(light: Color(hex: "#9CA3AF"), dark: Color(hex: "#6B7280"))
+    static var subtleForeground: Color { ThemeManager.shared.subtleForeground }
 
-    // MARK: - Borders
+    // MARK: - Theme-Aware Borders
 
     /// Primary border color.
-    static let border = Color(light: Color(hex: "#F3F4F6"), dark: Color(hex: "#404040"))
+    static var border: Color { ThemeManager.shared.border }
 
     /// Input field border — slightly heavier.
-    static let inputBorder = Color(light: Color(hex: "#E5E7EB"), dark: Color(hex: "#525252"))
+    static var inputBorder: Color { ThemeManager.shared.inputBorder }
 
     /// Thin divider/separator color.
-    static let separator = Color(light: Color(hex: "#F3F4F6"), dark: Color(hex: "#2C2C2E"))
+    static var separator: Color { ThemeManager.shared.separator }
 
-    // MARK: - Semantic Colors
+    // MARK: - Theme-Aware Accent (replaces blue500/blue400)
 
-    /// Primary blue — default task color, links, CTAs.
-    static let blue500 = Color(hex: "#3B82F6")
-    static let blue400 = Color(hex: "#60A5FA")
+    /// Primary accent — default task color, links, CTAs.
+    /// Replaces the hardcoded blue500 with the theme's accent color.
+    static var accent: Color { ThemeManager.shared.accent }
+
+    /// Lighter accent variant. Replaces the hardcoded blue400.
+    static var accentLight: Color { ThemeManager.shared.accentLight }
+
+    // MARK: - Legacy Aliases (for backward compatibility)
+
+    /// Primary blue — alias for accent. Existing code references this.
+    static var blue500: Color { ThemeManager.shared.accent }
+
+    /// Light blue — alias for accentLight. Existing code references this.
+    static var blue400: Color { ThemeManager.shared.accentLight }
+
+    // MARK: - Semantic Colors (theme-independent)
 
     /// Red — overdue, errors, destructive actions.
     static let red400 = Color(hex: "#F87171")

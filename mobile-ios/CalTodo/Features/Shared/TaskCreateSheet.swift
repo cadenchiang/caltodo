@@ -1,7 +1,10 @@
 import SwiftUI
 
-/// Full-width task creation sheet matching desktop's create modal.
-/// Fields: title (required), class, due date, due time, color, description.
+/// Task creation sheet matching the web's TaskCreateModal style.
+/// Rounded-2xl modal, large title input, clean field rows, blue save button.
+///
+/// - Parameters:
+///   - prefillDate: Optional pre-filled date (from calendar day tap).
 struct TaskCreateSheet: View {
     @EnvironmentObject var taskStore: TaskStore
     @Environment(\.dismiss) private var dismiss
@@ -23,14 +26,17 @@ struct TaskCreateSheet: View {
         NavigationView {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    // Title
+                    // Title — large, bold, matching web's 22px input
                     TextField("task title", text: $title)
-                        .font(.system(size: 20, weight: .semibold))
+                        .font(.system(size: 22, weight: .semibold))
                         .foregroundStyle(AppColors.foreground)
                         .padding(.horizontal, 20)
                         .padding(.top, 8)
 
-                    Divider().padding(.horizontal, 20)
+                    Rectangle()
+                        .fill(AppColors.separator)
+                        .frame(height: 1)
+                        .padding(.horizontal, 20)
 
                     // Color picker
                     colorRow
@@ -86,7 +92,7 @@ struct TaskCreateSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("cancel") { dismiss() }
+                    Button("Cancel") { dismiss() }
                         .font(.system(size: 15))
                         .foregroundStyle(AppColors.mutedForeground)
                 }
@@ -95,13 +101,21 @@ struct TaskCreateSheet: View {
                         saveTask()
                     } label: {
                         if isSaving {
-                            ProgressView().tint(AppColors.accent)
+                            ProgressView().tint(.white)
                         } else {
-                            Text("save")
+                            Text("Save")
                                 .font(.system(size: 15, weight: .semibold))
-                                .foregroundStyle(title.isEmpty ? AppColors.mutedForeground : AppColors.accent)
                         }
                     }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 6)
+                    .background(
+                        title.isEmpty
+                            ? AppColors.mutedForeground.opacity(0.3)
+                            : AppColors.accent
+                    )
+                    .clipShape(Capsule())
                     .disabled(title.isEmpty || isSaving)
                 }
             }
@@ -125,7 +139,7 @@ struct TaskCreateSheet: View {
                         .frame(width: 24, height: 24)
                         .overlay(
                             Circle()
-                                .stroke(Color.white, lineWidth: selectedColor == hex ? 2 : 0)
+                                .stroke(AppColors.background, lineWidth: selectedColor == hex ? 2 : 0)
                                 .shadow(radius: selectedColor == hex ? 2 : 0)
                         )
                         .onTapGesture {
@@ -170,7 +184,8 @@ struct TaskCreateSheet: View {
 
         let timeFormatter = DateFormatter()
         timeFormatter.dateFormat = "HH:mm"
-        let timeStr = (hasDueDate && hasDueTime) ? timeFormatter.string(from: dueTime) : nil
+        let timeStr = (hasDueDate && hasDueTime)
+            ? timeFormatter.string(from: dueTime) : nil
 
         let insert = TaskInsert(
             title: title,

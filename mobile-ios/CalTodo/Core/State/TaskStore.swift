@@ -1,51 +1,35 @@
 import Foundation
+import Combine
+import Supabase
 
 /// Central state manager for CalTodo tasks.
-/// Handles CRUD operations, optimistic updates with rollback,
-/// and pull-to-refresh. Uses `ObservableObject` for iOS 16+ compatibility.
-///
-/// Mirrors the React Native `useTasks` hook's optimistic update pattern:
-/// apply the change locally first, then sync with the server. On failure,
-/// roll back to the previous state.
+/// Uses direct Supabase queries with Row Level Security — the industry standard
+/// approach recommended by Supabase. No API middleman needed.
 final class TaskStore: ObservableObject {
 
     // MARK: - Public State
 
-    /// All tasks fetched from the API, sorted by sort_order then created_at.
     @Published var tasks: [CalTask] = []
-
-    /// Whether a fetch/refresh is in progress.
     @Published var isLoading = false
-
-    /// Human-readable error message from the last failed operation, or nil.
     @Published var errorMessage: String?
-
-    /// Integration connection status from the API.
     @Published var integrations: IntegrationStatus?
-
-    /// Task IDs recently marked complete — kept in active list briefly for animation.
     @Published var recentlyCompletedIds: Set<String> = []
 
-    /// Toast manager for undo notifications. Set by CalTodoApp after init.
     weak var toastManager: ToastManager?
 
-    /// Active (non-completed) tasks, including recently completed for animation delay.
     var activeTasks: [CalTask] {
         tasks.filter { !$0.completed || recentlyCompletedIds.contains($0.id) }
     }
 
-    /// Completed tasks.
     var completedTasks: [CalTask] {
         tasks.filter { $0.completed }
     }
 
-    /// Tasks due today.
     var todayTasks: [CalTask] {
         let today = DateFormatting.todayString()
         return activeTasks.filter { $0.dueDate == today }
     }
 
-    /// Upcoming tasks (due in the next 7 days, excluding today).
     var upcomingTasks: [CalTask] {
         let today = DateFormatting.todayString()
         let weekFromNow = DateFormatting.dateString(daysFromNow: 7)
@@ -59,40 +43,73 @@ final class TaskStore: ObservableObject {
 
     // MARK: - Private
 
-    private let apiClient: APIClient
+    let client: SupabaseClient
     private weak var authManager: AuthManager?
+    private var syncTimer: AnyCancellable?
 
     // MARK: - Init
 
-    /// Creates a TaskStore connected to the given AuthManager.
-    ///
-    /// - Parameter authManager: The auth manager providing access tokens.
     init(authManager: AuthManager) {
         self.authManager = authManager
-        self.apiClient = APIClient(
-            baseURL: Configuration.apiBaseURL,
-            getToken: { [weak authManager] in authManager?.accessToken }
-        )
+        self.client = authManager.client
+        loadCachedTasks()
+        startAutoSync()
         AppLogger.tasks.info("TaskStore initialized")
     }
 
-    // MARK: - Fetch
+    // MARK: - Auto-Sync (5-minute interval)
 
-    /// Fetches all tasks from the API. Used for initial load and pull-to-refresh.
+    private func startAutoSync() {
+        syncTimer = Timer.publish(every: 300, on: .main, in: .common)
+            .autoconnect()
+            .sink { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    await self?.fetchTasks()
+                }
+            }
+    }
+
+    // MARK: - Task Caching
+
+    private func loadCachedTasks() {
+        guard let data = UserDefaults.standard.data(forKey: "cached_tasks"),
+              let cached = try? JSONDecoder().decode([CalTask].self, from: data) else {
+            return
+        }
+        tasks = cached
+        AppLogger.tasks.info("Loaded \(cached.count) cached tasks")
+    }
+
+    private func saveTasks() {
+        if let data = try? JSONEncoder().encode(tasks) {
+            UserDefaults.standard.set(data, forKey: "cached_tasks")
+        }
+    }
+
+    // MARK: - Fetch Tasks (Direct Supabase)
+
     @MainActor
     func fetchTasks() async {
         isLoading = true
         errorMessage = nil
-        AppLogger.tasks.info("Fetching tasks")
+        AppLogger.tasks.info("Fetching tasks via Supabase")
 
         do {
-            let fetched = try await apiClient.getTasks()
+            let fetched: [CalTask] = try await client.from("tasks")
+                .select()
+                .is("dismissed_at", value: nil)
+                .order("created_at", ascending: false)
+                .execute()
+                .value
+
             tasks = fetched.sorted { sortTasks($0, $1) }
+            saveTasks()
+
+            // Reschedule notifications with user's multi-select preferences
+            NotificationManager.shared.rescheduleAllReminders(tasks: tasks)
             AppLogger.tasks.info("Fetched \(fetched.count) tasks")
-        } catch let error as APIError {
-            handleError(error, context: "fetch")
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = "Failed to load tasks"
             AppLogger.tasks.error("Fetch failed: \(error.localizedDescription)")
         }
 
@@ -101,11 +118,24 @@ final class TaskStore: ObservableObject {
 
     // MARK: - Fetch Credentials
 
-    /// Fetches integration connection status from the API.
     @MainActor
     func fetchCredentials() async {
         do {
-            integrations = try await apiClient.getCredentials()
+            let rows: [CredentialRow] = try await client.from("integration_credentials")
+                .select("canvas_token,canvas_ical_url,gradescope_email,google_access_token_encrypted,pensieve_calendar_url")
+                .limit(1)
+                .execute()
+                .value
+
+            if let row = rows.first {
+                integrations = IntegrationStatus(
+                    canvasConnected: (row.canvasToken != nil && !row.canvasToken!.isEmpty)
+                        || (row.canvasIcalUrl != nil && !row.canvasIcalUrl!.isEmpty),
+                    gradescopeConnected: row.gradescopeEmail != nil && !row.gradescopeEmail!.isEmpty,
+                    googleCalendarConnected: row.googleAccessTokenEncrypted != nil && !row.googleAccessTokenEncrypted!.isEmpty,
+                    pensieveConnected: row.pensieveCalendarUrl != nil && !row.pensieveCalendarUrl!.isEmpty
+                )
+            }
             AppLogger.tasks.info("Fetched integration status")
         } catch {
             AppLogger.tasks.error("Credentials fetch failed: \(error.localizedDescription)")
@@ -114,8 +144,6 @@ final class TaskStore: ObservableObject {
 
     // MARK: - Toggle Complete
 
-    /// Toggles a task's completion state with optimistic update.
-    /// When completing, shows undo toast and delays removal from active list for animation.
     @MainActor
     func toggleComplete(taskId: String) async {
         guard let index = tasks.firstIndex(where: { $0.id == taskId }) else {
@@ -129,13 +157,11 @@ final class TaskStore: ObservableObject {
 
         tasks[index].isCompleted = newCompleted
         tasks[index].completedAt = completedAt
-        AppLogger.tasks.info("Toggling task \(taskId) to completed=\(newCompleted)")
 
-        // Animation delay + undo toast when completing
         if newCompleted {
             recentlyCompletedIds.insert(taskId)
             let taskTitle = previousState.title
-            toastManager?.showToast(message: "completed \"\(taskTitle)\"") { [weak self] in
+            toastManager?.showToast(message: "Completed \"\(taskTitle)\"") { [weak self] in
                 guard let self else { return }
                 Task { @MainActor in
                     await self.toggleComplete(taskId: taskId)
@@ -148,42 +174,39 @@ final class TaskStore: ObservableObject {
         }
 
         do {
-            let updated = try await apiClient.updateTask(
-                id: taskId,
-                updates: TaskUpdate(isCompleted: newCompleted, completedAt: completedAt)
-            )
-            if let idx = tasks.firstIndex(where: { $0.id == taskId }) {
-                tasks[idx] = updated
-            }
+            let updates = TaskUpdate(isCompleted: newCompleted, completedAt: completedAt)
+            try await client.from("tasks")
+                .update(updates)
+                .eq("id", value: taskId)
+                .execute()
         } catch {
             if let idx = tasks.firstIndex(where: { $0.id == taskId }) {
                 tasks[idx] = previousState
             }
             recentlyCompletedIds.remove(taskId)
-            AppLogger.tasks.error("Toggle rollback for \(taskId): \(error.localizedDescription)")
+            AppLogger.tasks.error("Toggle rollback: \(error.localizedDescription)")
             errorMessage = "Failed to update task. Change reverted."
         }
     }
 
     // MARK: - Create
 
-    /// Creates a new task via the API and adds it to the local list.
-    ///
-    /// - Parameter insert: The task fields to create.
-    /// - Returns: `true` if creation succeeded, `false` on error.
     @discardableResult
     @MainActor
     func createTask(_ insert: TaskInsert) async -> Bool {
         AppLogger.tasks.info("Creating task: \(insert.title)")
 
         do {
-            let created = try await apiClient.createTask(insert)
+            let created: CalTask = try await client.from("tasks")
+                .insert(insert)
+                .select()
+                .single()
+                .execute()
+                .value
+
             tasks.insert(created, at: 0)
             AppLogger.tasks.info("Created task \(created.id)")
             return true
-        } catch let error as APIError {
-            handleError(error, context: "create")
-            return false
         } catch {
             errorMessage = "Failed to create task."
             AppLogger.tasks.error("Create failed: \(error.localizedDescription)")
@@ -191,9 +214,8 @@ final class TaskStore: ObservableObject {
         }
     }
 
-    // MARK: - Delete
+    // MARK: - Delete (soft-dismiss)
 
-    /// Deletes (soft-dismisses) a task with optimistic removal.
     @MainActor
     func deleteTask(taskId: String) async {
         guard let index = tasks.firstIndex(where: { $0.id == taskId }) else { return }
@@ -202,22 +224,19 @@ final class TaskStore: ObservableObject {
         AppLogger.tasks.info("Deleting task \(taskId)")
 
         do {
-            try await apiClient.deleteTask(id: taskId)
+            try await client.from("tasks")
+                .update(["dismissed_at": ISO8601DateFormatter().string(from: Date())])
+                .eq("id", value: taskId)
+                .execute()
         } catch {
             tasks.insert(removed, at: min(index, tasks.count))
-            AppLogger.tasks.error("Delete rollback for \(taskId): \(error.localizedDescription)")
+            AppLogger.tasks.error("Delete rollback: \(error.localizedDescription)")
             errorMessage = "Failed to delete task. Change reverted."
         }
     }
 
     // MARK: - Filtered & Sorted
 
-    /// Returns active tasks filtered by mode and sorted by the given sort key.
-    ///
-    /// - Parameters:
-    ///   - filter: "all", "today", or "7days".
-    ///   - sort: "date" or "class".
-    /// - Returns: Filtered and sorted array of active tasks.
     func filteredTasks(filter: String, sort: String) -> [CalTask] {
         var result = activeTasks
 
@@ -246,7 +265,7 @@ final class TaskStore: ObservableObject {
         return result
     }
 
-    // MARK: - Private Helpers
+    // MARK: - Private
 
     private func sortTasks(_ a: CalTask, _ b: CalTask) -> Bool {
         if a.completed != b.completed { return !a.completed }
@@ -255,14 +274,21 @@ final class TaskStore: ObservableObject {
         }
         return (a.createdAt ?? "") > (b.createdAt ?? "")
     }
+}
 
-    private func handleError(_ error: APIError, context: String) {
-        errorMessage = error.localizedDescription
-        AppLogger.tasks.error("\(context) error: \(error.localizedDescription)")
-        if error.requiresReauth {
-            Task { @MainActor in
-                await authManager?.signOut()
-            }
-        }
+/// Internal model for reading credential columns.
+private struct CredentialRow: Decodable {
+    let canvasToken: String?
+    let canvasIcalUrl: String?
+    let gradescopeEmail: String?
+    let googleAccessTokenEncrypted: String?
+    let pensieveCalendarUrl: String?
+
+    enum CodingKeys: String, CodingKey {
+        case canvasToken = "canvas_token"
+        case canvasIcalUrl = "canvas_ical_url"
+        case gradescopeEmail = "gradescope_email"
+        case googleAccessTokenEncrypted = "google_access_token_encrypted"
+        case pensieveCalendarUrl = "pensieve_calendar_url"
     }
 }
