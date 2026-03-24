@@ -21,7 +21,7 @@ struct TaskItemView: View {
                 Text(task.title)
                     .font(.system(size: 17))
                     .foregroundStyle(task.completed ? AppColors.mutedForeground : AppColors.foreground)
-                    .strikethrough(justCompleted || task.completed, color: AppColors.mutedForeground)
+                    .opacity(justCompleted || task.completed ? 0.6 : 1)
                     .lineLimit(1)
 
                 if task.isRecurring {

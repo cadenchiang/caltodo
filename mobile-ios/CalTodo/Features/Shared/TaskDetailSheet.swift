@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Task detail — view + edit mode. Three-dot menu for delete. Edit icon top-right.
+/// Task detail — read-only view with edit sheet. Three-dot menu for delete.
 struct TaskDetailSheet: View {
     @ObservedObject private var theme = ThemeManager.shared
     let task: CalTask
@@ -11,45 +11,32 @@ struct TaskDetailSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var checkScale: CGFloat = 1.0
     @State private var showFlash = false
-    @State private var isEditing = false
+    @State private var showEditSheet = false
     @State private var showDeleteConfirm = false
-
-    // Edit state
-    @State private var editTitle: String = ""
-    @State private var editDueDate: Date = Date()
-    @State private var editHasDueDate: Bool = false
-    @State private var editDescription: String = ""
 
     private let iconWidth: CGFloat = 20
     private let iconGap: CGFloat = 12
 
     var body: some View {
         VStack(spacing: 0) {
-            // Top bar: drag indicator + edit/menu
             topBar
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    if isEditing {
-                        editView
-                    } else {
-                        readView
-                    }
+                    headerRow
+                    dateTimeRow
+                    repeatRow
+                    divider.padding(.vertical, 14)
+                    courseRow
+                    tagsRow
+                    descriptionRow
+                    sourceLinkRow
                 }
                 .padding(.bottom, 24)
             }
         }
         .background(showFlash ? AppColors.green500.opacity(0.06) : AppColors.background)
         .animation(.easeInOut(duration: 0.4), value: showFlash)
-        .onAppear {
-            editTitle = task.title
-            editDescription = task.description ?? ""
-            if let d = task.dueDate, !d.isEmpty {
-                let fmt = DateFormatter(); fmt.dateFormat = "yyyy-MM-dd"
-                editDueDate = fmt.date(from: d) ?? Date()
-                editHasDueDate = true
-            }
-        }
         .alert("Delete Task?", isPresented: $showDeleteConfirm) {
             Button("Cancel", role: .cancel) {}
             Button("Delete", role: .destructive) {
@@ -57,51 +44,28 @@ struct TaskDetailSheet: View {
                 dismiss()
             }
         }
+        .sheet(isPresented: $showEditSheet) {
+            TaskEditSheet(task: task)
+                .environmentObject(taskStore)
+        }
     }
 
     // MARK: - Top Bar
 
     private var topBar: some View {
         HStack {
-            // Left: Cancel (only in edit mode)
-            if isEditing {
-                Button {
-                    HapticManager.light()
-                    // Revert edits
-                    editTitle = task.title
-                    editDescription = task.description ?? ""
-                    if let d = task.dueDate, !d.isEmpty {
-                        let fmt = DateFormatter(); fmt.dateFormat = "yyyy-MM-dd"
-                        editDueDate = fmt.date(from: d) ?? Date()
-                        editHasDueDate = true
-                    } else {
-                        editHasDueDate = false
-                    }
-                    withAnimation(.easeInOut(duration: 0.15)) { isEditing = false }
-                } label: {
-                    Text("Cancel")
-                        .font(.system(size: 15))
-                        .foregroundStyle(AppColors.mutedForeground)
-                }
-                .padding(.leading, 20)
-            }
-
             Spacer()
-
             HStack(spacing: 20) {
-                // Edit / Done button
                 Button {
                     HapticManager.light()
-                    if isEditing { saveEdits() }
-                    withAnimation(.easeInOut(duration: 0.15)) { isEditing.toggle() }
+                    showEditSheet = true
                 } label: {
-                    Text(isEditing ? "Done" : "Edit")
-                        .font(.system(size: 15, weight: isEditing ? .semibold : .regular))
+                    Text("Edit")
+                        .font(.system(size: 15))
                         .foregroundStyle(AppColors.accent)
                         .frame(minWidth: 44, minHeight: 44)
                 }
 
-                // Three-dot menu
                 Menu {
                     Button(role: .destructive) { showDeleteConfirm = true } label: {
                         Label("Delete Task", systemImage: "trash")
@@ -117,90 +81,6 @@ struct TaskDetailSheet: View {
         }
         .padding(.top, 16)
         .padding(.bottom, 24)
-    }
-
-    // MARK: - Read View
-
-    private var readView: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            headerRow
-            dateTimeRow
-            repeatRow
-            divider.padding(.vertical, 14)
-            courseRow
-            tagsRow
-            descriptionRow
-            sourceLinkRow
-        }
-    }
-
-    private var hasBelowContent: Bool {
-        (task.courseName != nil && !(task.courseName ?? "").isEmpty)
-        || !task.tagList.isEmpty
-        || (task.description != nil && !(task.description ?? "").isEmpty)
-    }
-
-    // MARK: - Edit View
-
-    private var editView: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Title
-            TextField("Task title", text: $editTitle)
-                .font(.system(size: 22, weight: .semibold))
-                .foregroundStyle(AppColors.foreground)
-                .padding(.horizontal, 24)
-
-            Rectangle().fill(AppColors.inputBorder).frame(height: 1).padding(.horizontal, 24)
-
-            // Due date toggle + picker
-            HStack(spacing: iconGap) {
-                Image(systemName: "calendar")
-                    .font(.system(size: 15)).foregroundStyle(AppColors.mutedForeground).frame(width: iconWidth)
-                Text("Due Date").font(.system(size: 15)).foregroundStyle(AppColors.foreground)
-                Spacer()
-                Toggle("", isOn: $editHasDueDate).labelsHidden().tint(AppColors.accent)
-            }
-            .padding(.horizontal, 24)
-
-            if editHasDueDate {
-                DatePicker("", selection: $editDueDate, displayedComponents: .date)
-                    .datePickerStyle(.graphical)
-                    .tint(AppColors.accent)
-                    .padding(.horizontal, 20)
-            }
-
-            // Description
-            HStack(alignment: .top, spacing: iconGap) {
-                Image(systemName: "text.alignleft")
-                    .font(.system(size: 15)).foregroundStyle(AppColors.mutedForeground).frame(width: iconWidth)
-                    .padding(.top, 8)
-                TextEditor(text: $editDescription)
-                    .font(.system(size: 15))
-                    .foregroundStyle(AppColors.foreground)
-                    .frame(minHeight: 80)
-                    .scrollContentBackground(.hidden)
-            }
-            .padding(.horizontal, 24)
-        }
-        .padding(.top, 8)
-    }
-
-    private func saveEdits() {
-        let fmt = DateFormatter(); fmt.dateFormat = "yyyy-MM-dd"
-        let dateStr = editHasDueDate ? fmt.string(from: editDueDate) : nil
-        let desc = editDescription.isEmpty ? nil : editDescription
-        Task {
-            let updates = TaskUpdate(
-                title: editTitle,
-                description: desc,
-                dueDate: dateStr
-            )
-            try? await taskStore.client.from("tasks")
-                .update(updates)
-                .eq("id", value: task.id)
-                .execute()
-            await taskStore.fetchTasks()
-        }
     }
 
     // MARK: - Header
@@ -228,7 +108,7 @@ struct TaskDetailSheet: View {
                             .fill(Color(hex: task.displayColor))
                             .frame(width: iconWidth, height: iconWidth)
                         Image(systemName: "checkmark")
-                            .font(.system(size: 10, weight: .bold)).foregroundStyle(AppColors.foreground)
+                            .font(.system(size: 10, weight: .bold)).foregroundStyle(.white)
                     }
                 }
                 .scaleEffect(checkScale)
@@ -240,7 +120,7 @@ struct TaskDetailSheet: View {
             Text(task.title)
                 .font(.system(size: 22, weight: .semibold))
                 .foregroundStyle(AppColors.foreground)
-                .strikethrough(task.completed)
+                .opacity(task.completed ? 0.6 : 1)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(.horizontal, 24)
@@ -320,6 +200,383 @@ struct TaskDetailSheet: View {
 
     private var divider: some View {
         Rectangle().fill(AppColors.inputBorder).frame(height: 1).padding(.horizontal, 24)
+    }
+}
+
+// MARK: - Edit Sheet (mirrors TaskCreateSheet layout)
+
+struct TaskEditSheet: View {
+    let task: CalTask
+    @EnvironmentObject var taskStore: TaskStore
+    @ObservedObject private var theme = ThemeManager.shared
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var title: String
+    @State private var courseName: String
+    @State private var dueDate: Date
+    @State private var hasDueDate: Bool
+    @State private var dueTime: Date
+    @State private var hasDueTime: Bool
+    @State private var description: String
+    @State private var selectedColor: String
+    @State private var isSaving = false
+    @State private var showCustomClass = false
+    @State private var showColorPicker = false
+    @State private var showDatePicker = false
+    @State private var showTimePicker = false
+    @State private var customColor = Color(hex: "#3B82F6")
+
+    init(task: CalTask) {
+        self.task = task
+        _title = State(initialValue: task.title)
+        _courseName = State(initialValue: task.courseName ?? "")
+        _selectedColor = State(initialValue: task.displayColor)
+        _description = State(initialValue: task.description ?? "")
+
+        let fmt = DateFormatter()
+        fmt.dateFormat = "yyyy-MM-dd"
+        if let d = task.dueDate, !d.isEmpty, let date = fmt.date(from: d) {
+            _dueDate = State(initialValue: date)
+            _hasDueDate = State(initialValue: true)
+        } else {
+            _dueDate = State(initialValue: Date())
+            _hasDueDate = State(initialValue: false)
+        }
+
+        let tfmt = DateFormatter()
+        tfmt.dateFormat = "HH:mm"
+        if let t = task.dueTime, !t.isEmpty, let time = tfmt.date(from: t) {
+            _dueTime = State(initialValue: time)
+            _hasDueTime = State(initialValue: true)
+        } else {
+            _dueTime = State(initialValue: Date())
+            _hasDueTime = State(initialValue: false)
+        }
+    }
+
+    private var existingCourses: [String] {
+        let names = Set(taskStore.tasks.compactMap { $0.courseName?.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty })
+        return names.sorted()
+    }
+
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    // Title
+                    TextField("What do you need to do?", text: $title)
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(AppColors.foreground)
+                        .padding(.horizontal, 20)
+                        .padding(.top, 16)
+                        .padding(.bottom, 16)
+
+                    editDivider
+
+                    // Color
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Color")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundStyle(AppColors.foreground)
+                            .padding(.horizontal, 20)
+
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 10) {
+                                ForEach(TaskColors.all, id: \.self) { hex in
+                                    Circle()
+                                        .fill(Color(hex: hex))
+                                        .frame(width: 28, height: 28)
+                                        .overlay(
+                                            Circle().stroke(.white, lineWidth: selectedColor == hex ? 2.5 : 0).frame(width: 20, height: 20)
+                                        )
+                                        .overlay(Circle().stroke(AppColors.border, lineWidth: 1))
+                                        .onTapGesture {
+                                            HapticManager.light()
+                                            selectedColor = hex
+                                        }
+                                }
+
+                                Button {
+                                    HapticManager.light()
+                                    showColorPicker = true
+                                } label: {
+                                    Circle()
+                                        .fill(AngularGradient(colors: [.red, .orange, .yellow, .green, .blue, .purple, .red], center: .center))
+                                        .frame(width: 28, height: 28)
+                                        .overlay(Image(systemName: "plus").font(.system(size: 12, weight: .bold)).foregroundStyle(.white))
+                                        .overlay(Circle().stroke(AppColors.border, lineWidth: 1))
+                                }
+                            }
+                            .padding(.horizontal, 20)
+                        }
+                    }
+                    .padding(.vertical, 16)
+
+                    editDivider
+
+                    // Class
+                    editFieldSection(icon: "graduationcap", label: "Class") {
+                        if showCustomClass {
+                            TextField("e.g. CS 61A", text: $courseName)
+                                .font(.system(size: 15))
+                                .foregroundStyle(AppColors.foreground)
+                                .multilineTextAlignment(.trailing)
+                        } else {
+                            Menu {
+                                ForEach(existingCourses, id: \.self) { course in
+                                    Button {
+                                        courseName = course
+                                    } label: {
+                                        if courseName == course {
+                                            Label(course, systemImage: "checkmark")
+                                        } else {
+                                            Text(course)
+                                        }
+                                    }
+                                }
+                                Divider()
+                                Button {
+                                    courseName = ""
+                                    showCustomClass = true
+                                } label: {
+                                    Label("New Class", systemImage: "plus")
+                                }
+                                if !courseName.isEmpty {
+                                    Divider()
+                                    Button(role: .destructive) { courseName = "" } label: {
+                                        Label("Clear", systemImage: "xmark")
+                                    }
+                                }
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Text(courseName.isEmpty ? "None" : courseName)
+                                        .font(.system(size: 15))
+                                        .foregroundStyle(courseName.isEmpty ? AppColors.subtleForeground : AppColors.foreground)
+                                    Image(systemName: "chevron.up.chevron.down")
+                                        .font(.system(size: 10))
+                                        .foregroundStyle(AppColors.subtleForeground)
+                                }
+                            }
+                        }
+                    }
+
+                    editDivider
+
+                    // Due date
+                    editFieldSection(icon: "calendar", label: "Due Date") {
+                        Button {
+                            if hasDueDate && !showDatePicker {
+                                showDatePicker = true
+                            } else if !hasDueDate {
+                                hasDueDate = true
+                                showDatePicker = true
+                            } else {
+                                showDatePicker = false
+                            }
+                        } label: {
+                            HStack(spacing: 4) {
+                                Text(hasDueDate ? dueDate.formatted(.dateTime.month(.abbreviated).day().year()) : "None")
+                                    .font(.system(size: 15))
+                                    .foregroundStyle(hasDueDate ? AppColors.foreground : AppColors.subtleForeground)
+                                Image(systemName: "chevron.up.chevron.down")
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(AppColors.subtleForeground)
+                            }
+                        }
+
+                        if hasDueDate {
+                            Button {
+                                hasDueDate = false
+                                showDatePicker = false
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.system(size: 16))
+                                    .foregroundStyle(AppColors.subtleForeground)
+                            }
+                        }
+                    }
+
+                    if showDatePicker {
+                        DatePicker("", selection: $dueDate, displayedComponents: .date)
+                            .datePickerStyle(.graphical)
+                            .tint(AppColors.accent)
+                            .padding(.horizontal, 16)
+                    }
+
+                    if hasDueDate {
+                        editDivider
+
+                        editFieldSection(icon: "clock", label: "Due Time") {
+                            Button {
+                                if hasDueTime && !showTimePicker {
+                                    showTimePicker = true
+                                } else if !hasDueTime {
+                                    hasDueTime = true
+                                    showTimePicker = true
+                                } else {
+                                    showTimePicker = false
+                                }
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Text(hasDueTime ? dueTime.formatted(.dateTime.hour().minute()) : "None")
+                                        .font(.system(size: 15))
+                                        .foregroundStyle(hasDueTime ? AppColors.foreground : AppColors.subtleForeground)
+                                    Image(systemName: "chevron.up.chevron.down")
+                                        .font(.system(size: 10))
+                                        .foregroundStyle(AppColors.subtleForeground)
+                                }
+                            }
+
+                            if hasDueTime {
+                                Button {
+                                    hasDueTime = false
+                                    showTimePicker = false
+                                } label: {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .font(.system(size: 16))
+                                        .foregroundStyle(AppColors.subtleForeground)
+                                }
+                            }
+                        }
+
+                        if showTimePicker {
+                            DatePicker("", selection: $dueTime, displayedComponents: .hourAndMinute)
+                                .labelsHidden()
+                                .padding(.horizontal, 20)
+                                .padding(.vertical, 8)
+                        }
+                    }
+
+                    editDivider
+
+                    // Notes
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 10) {
+                            Image(systemName: "text.alignleft").font(.system(size: 15)).foregroundStyle(AppColors.mutedForeground).frame(width: 22)
+                            Text("Notes").font(.system(size: 15, weight: .medium)).foregroundStyle(AppColors.foreground)
+                        }
+                        .padding(.horizontal, 20)
+
+                        TextEditor(text: $description)
+                            .font(.system(size: 15))
+                            .foregroundStyle(AppColors.foreground)
+                            .frame(minHeight: 80)
+                            .padding(.horizontal, 16)
+                            .scrollContentBackground(.hidden)
+                            .overlay(alignment: .topLeading) {
+                                if description.isEmpty {
+                                    Text("Add notes...")
+                                        .font(.system(size: 15))
+                                        .foregroundStyle(AppColors.subtleForeground)
+                                        .padding(.horizontal, 21)
+                                        .padding(.top, 8)
+                                        .allowsHitTesting(false)
+                                }
+                            }
+                    }
+                    .padding(.vertical, 16)
+                }
+                .padding(.bottom, 20)
+            }
+            .background(AppColors.background)
+            .navigationTitle("Edit Task")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") { dismiss() }
+                        .font(.system(size: 15))
+                        .foregroundStyle(AppColors.mutedForeground)
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button { saveEdits() } label: {
+                        Text("Save")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(title.isEmpty ? AppColors.mutedForeground : AppColors.accent)
+                    }
+                    .disabled(title.isEmpty || isSaving)
+                }
+            }
+        }
+        .presentationDragIndicator(.visible)
+        .sheet(isPresented: $showColorPicker) {
+            NavigationView {
+                VStack(spacing: 24) {
+                    ColorPicker("Pick a color", selection: $customColor, supportsOpacity: false)
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(AppColors.foreground)
+                        .padding(.horizontal, 20)
+                        .padding(.top, 20)
+                    Circle().fill(customColor).frame(width: 60, height: 60)
+                        .overlay(Circle().stroke(AppColors.border, lineWidth: 1))
+                    Spacer()
+                }
+                .background(AppColors.background)
+                .navigationTitle("Custom Color")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Button("Cancel") { showColorPicker = false }.foregroundStyle(AppColors.mutedForeground)
+                    }
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button("Done") {
+                            selectedColor = customColor.toHex()
+                            showColorPicker = false
+                        }
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(AppColors.accent)
+                    }
+                }
+            }
+            .presentationDetents([.medium])
+        }
+    }
+
+    private func editFieldSection<Content: View>(
+        icon: String, label: String, @ViewBuilder content: () -> Content
+    ) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon).font(.system(size: 15)).foregroundStyle(AppColors.mutedForeground).frame(width: 22)
+            Text(label).font(.system(size: 15, weight: .medium)).foregroundStyle(AppColors.foreground)
+            Spacer()
+            content()
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 14)
+    }
+
+    private var editDivider: some View {
+        Rectangle().fill(AppColors.separator).frame(height: 1).padding(.leading, 52)
+    }
+
+    private func saveEdits() {
+        isSaving = true
+        HapticManager.medium()
+
+        let fmt = DateFormatter()
+        fmt.dateFormat = "yyyy-MM-dd"
+        let dateStr = hasDueDate ? fmt.string(from: dueDate) : nil
+
+        let tfmt = DateFormatter()
+        tfmt.dateFormat = "HH:mm"
+        let timeStr = (hasDueDate && hasDueTime) ? tfmt.string(from: dueTime) : nil
+
+        let updates = TaskUpdate(
+            title: title,
+            description: description.isEmpty ? nil : description,
+            dueDate: dateStr,
+            dueTime: timeStr,
+            color: selectedColor,
+            courseName: courseName.isEmpty ? nil : courseName
+        )
+
+        Task {
+            try? await taskStore.client.from("tasks")
+                .update(updates)
+                .eq("id", value: task.id)
+                .execute()
+            await taskStore.fetchTasks()
+            dismiss()
+        }
     }
 }
 

@@ -11,6 +11,7 @@ struct TaskUpdate: Encodable {
     var dueTime: String?
     var isCompleted: Bool?
     var color: String?
+    var courseName: String?
     var tags: [String]?
     var dismissedAt: String?
     var repeatInterval: Int?
@@ -21,6 +22,7 @@ struct TaskUpdate: Encodable {
 
     enum CodingKeys: String, CodingKey {
         case title, description, color, tags
+        case courseName = "course_name"
         case dueDate = "due_date"
         case dueTime = "due_time"
         case isCompleted = "is_completed"

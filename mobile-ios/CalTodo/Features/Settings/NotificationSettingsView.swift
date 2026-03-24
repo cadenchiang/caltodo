@@ -67,14 +67,6 @@ struct NotificationSettingsView: View {
                     }
                 }
 
-                // CalChat
-                sectionCard(title: "CalChat", subtitle: "Discussion notifications") {
-                    VStack(spacing: 0) {
-                        toggleRow(icon: "bubble.left", label: "New Messages", isOn: $calChatMessages)
-                        divider
-                        toggleRow(icon: "at", label: "Mentions", desc: "When someone mentions you", isOn: $calChatMentions)
-                    }
-                }
                 // Test Notification
                 sectionCard(title: "Test", subtitle: "Make sure notifications work") {
                     Button {

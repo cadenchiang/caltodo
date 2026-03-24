@@ -14,7 +14,7 @@ struct MainTabView: View {
     @AppStorage("inbox_sort") private var sortMode = "date"
 
     @AppStorage("tab_calendar_visible") private var calendarVisible = true
-    @AppStorage("tab_calchat_visible") private var calChatVisible = true
+    @AppStorage("tab_calchat_visible") private var calChatVisible = false
 
     /// Dynamic inbox tab label based on active filter (Title Case, matching web).
     private var inboxLabel: String {

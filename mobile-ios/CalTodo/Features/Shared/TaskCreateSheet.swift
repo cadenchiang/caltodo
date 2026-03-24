@@ -21,6 +21,8 @@ struct TaskCreateSheet: View {
     @State private var isSaving = false
     @State private var showCustomClass = false
     @State private var showColorPicker = false
+    @State private var showDatePicker = false
+    @State private var showTimePicker = false
 
     var prefillDate: Date?
 
@@ -155,27 +157,83 @@ struct TaskCreateSheet: View {
 
                     // Due date
                     fieldSection(icon: "calendar", label: "Due Date") {
-                        Toggle("", isOn: $hasDueDate)
-                            .labelsHidden()
-                            .tint(AppColors.accent)
+                        Button {
+                            if hasDueDate && !showDatePicker {
+                                showDatePicker = true
+                            } else if !hasDueDate {
+                                hasDueDate = true
+                                showDatePicker = true
+                            } else {
+                                showDatePicker = false
+                            }
+                        } label: {
+                            HStack(spacing: 4) {
+                                Text(hasDueDate ? dueDate.formatted(.dateTime.month(.abbreviated).day().year()) : "None")
+                                    .font(.system(size: 15))
+                                    .foregroundStyle(hasDueDate ? AppColors.foreground : AppColors.subtleForeground)
+                                Image(systemName: "chevron.up.chevron.down")
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(AppColors.subtleForeground)
+                            }
+                        }
+
+                        if hasDueDate {
+                            Button {
+                                hasDueDate = false
+                                showDatePicker = false
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.system(size: 16))
+                                    .foregroundStyle(AppColors.subtleForeground)
+                            }
+                        }
                     }
 
-                    if hasDueDate {
+                    if showDatePicker {
                         DatePicker("", selection: $dueDate, displayedComponents: .date)
                             .datePickerStyle(.graphical)
                             .tint(AppColors.accent)
                             .padding(.horizontal, 16)
+                    }
 
+                    if hasDueDate {
                         divider
 
                         // Due time
                         fieldSection(icon: "clock", label: "Due Time") {
-                            Toggle("", isOn: $hasDueTime)
-                                .labelsHidden()
-                                .tint(AppColors.accent)
+                            Button {
+                                if hasDueTime && !showTimePicker {
+                                    showTimePicker = true
+                                } else if !hasDueTime {
+                                    hasDueTime = true
+                                    showTimePicker = true
+                                } else {
+                                    showTimePicker = false
+                                }
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Text(hasDueTime ? dueTime.formatted(.dateTime.hour().minute()) : "None")
+                                        .font(.system(size: 15))
+                                        .foregroundStyle(hasDueTime ? AppColors.foreground : AppColors.subtleForeground)
+                                    Image(systemName: "chevron.up.chevron.down")
+                                        .font(.system(size: 10))
+                                        .foregroundStyle(AppColors.subtleForeground)
+                                }
+                            }
+
+                            if hasDueTime {
+                                Button {
+                                    hasDueTime = false
+                                    showTimePicker = false
+                                } label: {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .font(.system(size: 16))
+                                        .foregroundStyle(AppColors.subtleForeground)
+                                }
+                            }
                         }
 
-                        if hasDueTime {
+                        if showTimePicker {
                             DatePicker("", selection: $dueTime, displayedComponents: .hourAndMinute)
                                 .labelsHidden()
                                 .padding(.horizontal, 20)
