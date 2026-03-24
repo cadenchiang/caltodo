@@ -3,6 +3,7 @@ import SwiftUI
 /// Inbox — tasks grouped by date or class. Native search. Pure black.
 struct InboxView: View {
     @EnvironmentObject var taskStore: TaskStore
+    @ObservedObject private var theme = ThemeManager.shared
     @Binding var searchText: String
 
     @AppStorage("inbox_sort") private var sortMode = "date"

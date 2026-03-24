@@ -49,6 +49,9 @@ final class ThemeManager: ObservableObject {
     @Published private(set) var accent: Color = Color(hex: "#3B82F6")
     @Published private(set) var accentLight: Color = Color(hex: "#60A5FA")
 
+    /// Increments on every theme change to force view updates.
+    @Published private(set) var themeVersion: Int = 0
+
     // MARK: - Init
 
     private init() {
@@ -86,6 +89,7 @@ final class ThemeManager: ObservableObject {
         separator = colors.separator
         accent = colors.accent
         accentLight = colors.accentLight
+        themeVersion += 1
     }
 }
 

@@ -64,9 +64,10 @@ struct LoginView: View {
                             ProgressView().tint(.white)
                         } else {
                             Image("GoogleLogo")
+                                .renderingMode(.original)
                                 .resizable()
                                 .aspectRatio(contentMode: .fit)
-                                .frame(width: 18, height: 18)
+                                .frame(width: 20, height: 20)
                             Text("Continue with Google")
                                 .font(.system(size: 15, weight: .semibold))
                                 .foregroundStyle(AppColors.background)

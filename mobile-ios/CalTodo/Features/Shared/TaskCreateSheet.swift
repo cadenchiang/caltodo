@@ -1,12 +1,12 @@
 import SwiftUI
 
-/// Task creation sheet matching the web's TaskCreateModal style.
-/// Rounded-2xl modal, large title input, clean field rows, blue save button.
+/// Task creation sheet. Clean, consistent UI with proper spacing.
 ///
 /// - Parameters:
 ///   - prefillDate: Optional pre-filled date (from calendar day tap).
 struct TaskCreateSheet: View {
     @EnvironmentObject var taskStore: TaskStore
+    @ObservedObject private var theme = ThemeManager.shared
     @Environment(\.dismiss) private var dismiss
 
     @State private var title = ""
@@ -17,78 +17,210 @@ struct TaskCreateSheet: View {
     @State private var hasDueTime = false
     @State private var description = ""
     @State private var selectedColor = "#3B82F6"
+    @State private var customColor = Color(hex: "#3B82F6")
     @State private var isSaving = false
+    @State private var showCustomClass = false
+    @State private var showColorPicker = false
 
-    /// Optional pre-filled date (from calendar day tap).
     var prefillDate: Date?
+
+    /// Unique course names from existing tasks, sorted alphabetically.
+    private var existingCourses: [String] {
+        let names = Set(taskStore.tasks.compactMap { $0.courseName?.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty })
+        return names.sorted()
+    }
 
     var body: some View {
         NavigationView {
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    // Title — large, bold, matching web's 22px input
-                    TextField("task title", text: $title)
-                        .font(.system(size: 22, weight: .semibold))
+                VStack(alignment: .leading, spacing: 0) {
+                    // Title input
+                    TextField("What do you need to do?", text: $title)
+                        .font(.system(size: 20, weight: .semibold))
                         .foregroundStyle(AppColors.foreground)
                         .padding(.horizontal, 20)
-                        .padding(.top, 8)
+                        .padding(.top, 16)
+                        .padding(.bottom, 16)
 
-                    Rectangle()
-                        .fill(AppColors.separator)
-                        .frame(height: 1)
-                        .padding(.horizontal, 20)
+                    divider
 
                     // Color picker
-                    colorRow
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Color")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundStyle(AppColors.foreground)
+                            .padding(.horizontal, 20)
+
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 10) {
+                                ForEach(TaskColors.all, id: \.self) { hex in
+                                    Circle()
+                                        .fill(Color(hex: hex))
+                                        .frame(width: 28, height: 28)
+                                        .overlay(
+                                            Circle()
+                                                .stroke(.white, lineWidth: selectedColor == hex ? 2.5 : 0)
+                                                .frame(width: 20, height: 20)
+                                        )
+                                        .overlay(
+                                            Circle()
+                                                .stroke(AppColors.border, lineWidth: 1)
+                                        )
+                                        .onTapGesture {
+                                            HapticManager.light()
+                                            selectedColor = hex
+                                        }
+                                }
+
+                                // Custom color button
+                                Button {
+                                    HapticManager.light()
+                                    showColorPicker = true
+                                } label: {
+                                    Circle()
+                                        .fill(
+                                            AngularGradient(
+                                                colors: [.red, .orange, .yellow, .green, .blue, .purple, .red],
+                                                center: .center
+                                            )
+                                        )
+                                        .frame(width: 28, height: 28)
+                                        .overlay(
+                                            Image(systemName: "plus")
+                                                .font(.system(size: 12, weight: .bold))
+                                                .foregroundStyle(.white)
+                                        )
+                                        .overlay(
+                                            Circle()
+                                                .stroke(AppColors.border, lineWidth: 1)
+                                        )
+                                }
+                            }
+                            .padding(.horizontal, 20)
+                        }
+                    }
+                    .padding(.vertical, 16)
+
+                    divider
 
                     // Class
-                    fieldRow(icon: "graduationcap", label: "class") {
-                        TextField("course name", text: $courseName)
-                            .font(.system(size: 15))
-                            .foregroundStyle(AppColors.foreground)
+                    fieldSection(icon: "graduationcap", label: "Class") {
+                        if showCustomClass {
+                            TextField("e.g. CS 61A", text: $courseName)
+                                .font(.system(size: 15))
+                                .foregroundStyle(AppColors.foreground)
+                                .multilineTextAlignment(.trailing)
+                        } else {
+                            Menu {
+                                ForEach(existingCourses, id: \.self) { course in
+                                    Button {
+                                        courseName = course
+                                    } label: {
+                                        if courseName == course {
+                                            Label(course, systemImage: "checkmark")
+                                        } else {
+                                            Text(course)
+                                        }
+                                    }
+                                }
+                                Divider()
+                                Button {
+                                    courseName = ""
+                                    showCustomClass = true
+                                } label: {
+                                    Label("New Class", systemImage: "plus")
+                                }
+                                if !courseName.isEmpty {
+                                    Divider()
+                                    Button(role: .destructive) {
+                                        courseName = ""
+                                    } label: {
+                                        Label("Clear", systemImage: "xmark")
+                                    }
+                                }
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Text(courseName.isEmpty ? "None" : courseName)
+                                        .font(.system(size: 15))
+                                        .foregroundStyle(courseName.isEmpty ? AppColors.subtleForeground : AppColors.foreground)
+                                    Image(systemName: "chevron.up.chevron.down")
+                                        .font(.system(size: 10))
+                                        .foregroundStyle(AppColors.subtleForeground)
+                                }
+                            }
+                        }
                     }
 
+                    divider
+
                     // Due date
-                    fieldRow(icon: "calendar", label: "due date") {
+                    fieldSection(icon: "calendar", label: "Due Date") {
                         Toggle("", isOn: $hasDueDate)
                             .labelsHidden()
                             .tint(AppColors.accent)
                     }
+
                     if hasDueDate {
                         DatePicker("", selection: $dueDate, displayedComponents: .date)
                             .datePickerStyle(.graphical)
                             .tint(AppColors.accent)
-                            .padding(.horizontal, 20)
-                    }
+                            .padding(.horizontal, 16)
 
-                    // Due time
-                    if hasDueDate {
-                        fieldRow(icon: "clock", label: "due time") {
+                        divider
+
+                        // Due time
+                        fieldSection(icon: "clock", label: "Due Time") {
                             Toggle("", isOn: $hasDueTime)
                                 .labelsHidden()
                                 .tint(AppColors.accent)
                         }
+
                         if hasDueTime {
                             DatePicker("", selection: $dueTime, displayedComponents: .hourAndMinute)
                                 .labelsHidden()
-                                .padding(.horizontal, 48)
+                                .padding(.horizontal, 20)
+                                .padding(.vertical, 8)
                         }
                     }
 
+                    divider
+
                     // Description
-                    fieldRow(icon: "text.alignleft", label: "description") {
-                        EmptyView()
-                    }
-                    TextEditor(text: $description)
-                        .font(.system(size: 15))
-                        .foregroundStyle(AppColors.foreground)
-                        .frame(minHeight: 60)
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 10) {
+                            Image(systemName: "text.alignleft")
+                                .font(.system(size: 15))
+                                .foregroundStyle(AppColors.mutedForeground)
+                                .frame(width: 22)
+                            Text("Notes")
+                                .font(.system(size: 15, weight: .medium))
+                                .foregroundStyle(AppColors.foreground)
+                        }
                         .padding(.horizontal, 20)
-                        .scrollContentBackground(.hidden)
+
+                        TextEditor(text: $description)
+                            .font(.system(size: 15))
+                            .foregroundStyle(AppColors.foreground)
+                            .frame(minHeight: 80)
+                            .padding(.horizontal, 16)
+                            .scrollContentBackground(.hidden)
+                            .overlay(alignment: .topLeading) {
+                                if description.isEmpty {
+                                    Text("Add notes...")
+                                        .font(.system(size: 15))
+                                        .foregroundStyle(AppColors.subtleForeground)
+                                        .padding(.horizontal, 21)
+                                        .padding(.top, 8)
+                                        .allowsHitTesting(false)
+                                }
+                            }
+                    }
+                    .padding(.vertical, 16)
                 }
                 .padding(.bottom, 20)
             }
             .background(AppColors.background)
+            .navigationTitle("New Task")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -100,75 +232,85 @@ struct TaskCreateSheet: View {
                     Button {
                         saveTask()
                     } label: {
-                        if isSaving {
-                            ProgressView().tint(.white)
-                        } else {
-                            Text("Save")
-                                .font(.system(size: 15, weight: .semibold))
-                        }
+                        Text("Save")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(title.isEmpty ? AppColors.mutedForeground : AppColors.accent)
                     }
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 6)
-                    .background(
-                        title.isEmpty
-                            ? AppColors.mutedForeground.opacity(0.3)
-                            : AppColors.accent
-                    )
-                    .clipShape(Capsule())
                     .disabled(title.isEmpty || isSaving)
                 }
             }
         }
+        .presentationDragIndicator(.visible)
         .onAppear {
             if let date = prefillDate {
                 dueDate = date
                 hasDueDate = true
             }
         }
-    }
+        .sheet(isPresented: $showColorPicker) {
+            NavigationView {
+                VStack(spacing: 24) {
+                    ColorPicker("Pick a color", selection: $customColor, supportsOpacity: false)
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(AppColors.foreground)
+                        .padding(.horizontal, 20)
+                        .padding(.top, 20)
 
-    // MARK: - Color Row
-
-    private var colorRow: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(TaskColors.all, id: \.self) { hex in
+                    // Preview
                     Circle()
-                        .fill(Color(hex: hex))
-                        .frame(width: 24, height: 24)
-                        .overlay(
-                            Circle()
-                                .stroke(AppColors.background, lineWidth: selectedColor == hex ? 2 : 0)
-                                .shadow(radius: selectedColor == hex ? 2 : 0)
-                        )
-                        .onTapGesture {
-                            HapticManager.light()
-                            selectedColor = hex
+                        .fill(customColor)
+                        .frame(width: 60, height: 60)
+                        .overlay(Circle().stroke(AppColors.border, lineWidth: 1))
+
+                    Spacer()
+                }
+                .background(AppColors.background)
+                .navigationTitle("Custom Color")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Button("Cancel") { showColorPicker = false }
+                            .foregroundStyle(AppColors.mutedForeground)
+                    }
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button("Done") {
+                            selectedColor = customColor.toHex()
+                            showColorPicker = false
                         }
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(AppColors.accent)
+                    }
                 }
             }
-            .padding(.horizontal, 20)
+            .presentationDetents([.medium])
         }
     }
 
-    // MARK: - Field Row
+    // MARK: - Field Section
 
-    private func fieldRow<Content: View>(
+    private func fieldSection<Content: View>(
         icon: String, label: String, @ViewBuilder content: () -> Content
     ) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
             Image(systemName: icon)
-                .font(.system(size: 14))
+                .font(.system(size: 15))
                 .foregroundStyle(AppColors.mutedForeground)
-                .frame(width: 20)
+                .frame(width: 22)
             Text(label)
-                .font(.system(size: 13))
-                .foregroundStyle(AppColors.mutedForeground)
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(AppColors.foreground)
             Spacer()
             content()
         }
         .padding(.horizontal, 20)
+        .padding(.vertical, 14)
+    }
+
+    private var divider: some View {
+        Rectangle()
+            .fill(AppColors.separator)
+            .frame(height: 1)
+            .padding(.leading, 52)
     }
 
     // MARK: - Save

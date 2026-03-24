@@ -3,17 +3,19 @@ import SwiftUI
 /// TickTick-style calendar — gridlines, circle day indicator, inline expandable task panel.
 struct CalendarView: View {
     @EnvironmentObject var taskStore: TaskStore
+    @ObservedObject private var theme = ThemeManager.shared
     @AppStorage("cal_view_mode") private var viewMode = "month"
-    @State private var selectedDate = Date()
+    @State private var displayMonth = Date()
+    @State private var selectedDate: Date? = Date()
     @State private var selectedTask: CalTask? = nil
     @State private var showCreateSheet = false
-    @State private var monthId = UUID()
-    @State private var swipeDirection: Edge = .trailing
+    @State private var dragOffset: CGFloat = 0
+    @State private var hasAutoSelected = false
 
     private var titleText: String {
         let fmt = DateFormatter()
         fmt.dateFormat = "MMMM yyyy"
-        return fmt.string(from: selectedDate)
+        return fmt.string(from: displayMonth)
     }
 
     var body: some View {
@@ -29,34 +31,57 @@ struct CalendarView: View {
 
                 switch viewMode {
                 case "week":
-                    WeekView(selectedDate: $selectedDate, selectedTask: $selectedTask,
-                             tasks: taskStore.activeTasks, onToggle: toggleTask)
+                    WeekView(selectedDate: Binding(
+                        get: { selectedDate ?? Date() },
+                        set: { selectedDate = $0 }
+                    ), selectedTask: $selectedTask, tasks: taskStore.activeTasks, onToggle: toggleTask)
                 case "day":
-                    DayView(selectedDate: $selectedDate, selectedTask: $selectedTask,
-                            tasks: taskStore.activeTasks, onToggle: toggleTask)
+                    DayView(selectedDate: Binding(
+                        get: { selectedDate ?? Date() },
+                        set: { selectedDate = $0 }
+                    ), selectedTask: $selectedTask, tasks: taskStore.activeTasks, onToggle: toggleTask)
                 default:
-                    TickTickMonthView(selectedDate: $selectedDate, selectedTask: $selectedTask,
-                                     tasks: taskStore.activeTasks, onToggle: toggleTask)
-                        .id(monthId)
-                        .transition(.asymmetric(
-                            insertion: .move(edge: swipeDirection),
-                            removal: .move(edge: swipeDirection == .trailing ? .leading : .trailing)
-                        ))
+                    TickTickMonthView(
+                        displayMonth: displayMonth,
+                        selectedDate: $selectedDate,
+                        selectedTask: $selectedTask,
+                        tasks: taskStore.activeTasks,
+                        onToggle: toggleTask
+                    )
+                    .offset(x: dragOffset)
+                    .highPriorityGesture(
+                        DragGesture(minimumDistance: 8)
+                            .onChanged { value in
+                                // Only track horizontal drags
+                                if abs(value.translation.width) > abs(value.translation.height) {
+                                    dragOffset = value.translation.width
+                                }
+                            }
+                            .onEnded { value in
+                                let velocity = value.predictedEndTranslation.width - value.translation.width
+                                let moved = value.translation.width
+                                // Trigger on distance OR velocity
+                                if moved < -30 || velocity < -100 {
+                                    withAnimation(.easeOut(duration: 0.15)) { dragOffset = -UIScreen.main.bounds.width }
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                                        goToMonth(1)
+                                        dragOffset = UIScreen.main.bounds.width
+                                        withAnimation(.easeOut(duration: 0.15)) { dragOffset = 0 }
+                                    }
+                                } else if moved > 30 || velocity > 100 {
+                                    withAnimation(.easeOut(duration: 0.15)) { dragOffset = UIScreen.main.bounds.width }
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                                        goToMonth(-1)
+                                        dragOffset = -UIScreen.main.bounds.width
+                                        withAnimation(.easeOut(duration: 0.15)) { dragOffset = 0 }
+                                    }
+                                } else {
+                                    withAnimation(.easeOut(duration: 0.1)) { dragOffset = 0 }
+                                }
+                            }
+                    )
                 }
             }
-            .gesture(
-                DragGesture(minimumDistance: 10).onEnded { value in
-                    if abs(value.translation.width) > abs(value.translation.height) && abs(value.translation.width) > 15 {
-                        if value.translation.width < 0 {
-                            swipeDirection = .trailing
-                            withAnimation(.easeInOut(duration: 0.3)) { goToMonth(1) }
-                        } else {
-                            swipeDirection = .leading
-                            withAnimation(.easeInOut(duration: 0.3)) { goToMonth(-1) }
-                        }
-                    }
-                }
-            )
 
             // FAB
             Button {
@@ -85,7 +110,7 @@ struct CalendarView: View {
             .presentationDetents([.medium, .large])
         }
         .sheet(isPresented: $showCreateSheet) {
-            TaskCreateSheet(prefillDate: selectedDate)
+            TaskCreateSheet(prefillDate: selectedDate ?? displayMonth)
                 .environmentObject(taskStore)
         }
     }
@@ -154,13 +179,12 @@ struct CalendarView: View {
         .buttonStyle(.plain)
     }
 
-    /// Navigate to month, reset to 1st of that month.
-    private func goToMonth(_ offset: Int) {
+    /// Navigate to month.
+    private func goToMonth(_ direction: Int) {
         let cal = Calendar.current
-        if let newMonth = cal.date(byAdding: .month, value: offset, to: selectedDate) {
-            let comps = cal.dateComponents([.year, .month], from: newMonth)
-            selectedDate = cal.date(from: comps) ?? newMonth
-            monthId = UUID()
+        if let newMonth = cal.date(byAdding: .month, value: direction, to: displayMonth) {
+            displayMonth = cal.date(from: cal.dateComponents([.year, .month], from: newMonth)) ?? newMonth
+            selectedDate = nil
         }
     }
 
@@ -172,16 +196,18 @@ struct CalendarView: View {
 // MARK: - TickTick-Style Month View
 
 private struct TickTickMonthView: View {
-    @Binding var selectedDate: Date
+    let displayMonth: Date
+    @Binding var selectedDate: Date?
     @Binding var selectedTask: CalTask?
     let tasks: [CalTask]
     let onToggle: (String) -> Void
 
-    private let weekdays = ["S", "M", "T", "W", "T", "F", "S"]
+    private let weekdays = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]
     private let cal = Calendar.current
 
     /// Which week row (0-5) the selected date falls in.
     private var selectedWeekRow: Int {
+        guard let selectedDate else { return -1 }
         let days = daysInMonth()
         guard let idx = days.firstIndex(where: { cal.isDate($0, inSameDayAs: selectedDate) }) else { return -1 }
         return idx / 7
@@ -247,8 +273,8 @@ private struct TickTickMonthView: View {
 
     private func dayCell(_ date: Date) -> some View {
         let isToday = cal.isDateInToday(date)
-        let isSelected = cal.isDate(date, inSameDayAs: selectedDate)
-        let isCurrentMonth = cal.isDate(date, equalTo: selectedDate, toGranularity: .month)
+        let isSelected = selectedDate.map { cal.isDate(date, inSameDayAs: $0) } ?? false
+        let isCurrentMonth = cal.isDate(date, equalTo: displayMonth, toGranularity: .month)
         let dayTasks = tasksOnDate(date)
 
         return VStack(spacing: 6) {
@@ -293,15 +319,18 @@ private struct TickTickMonthView: View {
 
     // MARK: - Selected Day Task Panel (expands below the week)
 
+    @ViewBuilder
     private var selectedDayPanel: some View {
-        let dayTasks = tasksOnDate(selectedDate)
-        let fmt = DateFormatter()
-        fmt.dateFormat = "EEEE, MMM d"
+        if let selectedDate {
+            let dayTasks = tasksOnDate(selectedDate)
+            let isToday = cal.isDateInToday(selectedDate)
+            let fmt = { let f = DateFormatter(); f.dateFormat = "EEEE, MMM d"; return f }()
+            let dateLabel = isToday ? "Today" : fmt.string(from: selectedDate)
 
-        return VStack(alignment: .leading, spacing: 0) {
-            // Panel header
-            HStack {
-                Text(fmt.string(from: selectedDate))
+            VStack(alignment: .leading, spacing: 0) {
+                // Panel header
+                HStack {
+                    Text(dateLabel)
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(AppColors.foreground)
                 Spacer()
@@ -329,26 +358,30 @@ private struct TickTickMonthView: View {
                 .padding(.bottom, 4)
             }
         }
-        .background(AppColors.card)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
+            .background(AppColors.card)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+        }
     }
 
     // MARK: - Helpers
 
     private func daysInMonth() -> [Date] {
-        let range = cal.range(of: .day, in: .month, for: selectedDate) ?? 1..<31
-        let firstOfMonth = cal.date(from: cal.dateComponents([.year, .month], from: selectedDate))!
+        let range = cal.range(of: .day, in: .month, for: displayMonth) ?? 1..<31
+        let firstOfMonth = cal.date(from: cal.dateComponents([.year, .month], from: displayMonth))!
         let firstWeekday = cal.component(.weekday, from: firstOfMonth)
         var days: [Date] = []
+        // Leading days from previous month
         for i in stride(from: firstWeekday - 1, through: 1, by: -1) {
             if let d = cal.date(byAdding: .day, value: -i, to: firstOfMonth) { days.append(d) }
         }
+        // Days in current month
         for day in range {
             if let d = cal.date(byAdding: .day, value: day - 1, to: firstOfMonth) { days.append(d) }
         }
-        while days.count < 42 {
+        // Only pad to fill the last row (up to next multiple of 7)
+        while days.count % 7 != 0 {
             if let last = days.last, let d = cal.date(byAdding: .day, value: 1, to: last) { days.append(d) }
         }
         return days
@@ -376,7 +409,7 @@ private struct WeekView: View {
                         HStack(spacing: 8) {
                             Text(date.formatted(.dateTime.weekday(.abbreviated)))
                                 .font(.system(size: 13, weight: .semibold))
-                                .foregroundStyle(Calendar.current.isDateInToday(date) ? AppColors.accent : .white)
+                                .foregroundStyle(Calendar.current.isDateInToday(date) ? AppColors.accent : AppColors.foreground)
                             Text(date.formatted(.dateTime.day()))
                                 .font(.system(size: 13))
                                 .foregroundStyle(AppColors.mutedForeground)

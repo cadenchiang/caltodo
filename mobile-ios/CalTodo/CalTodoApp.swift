@@ -70,7 +70,7 @@ struct CalTodoApp: App {
         let client = SupabaseClient(
             supabaseURL: url,
             supabaseKey: Configuration.supabaseAnonKey,
-            options: .init(auth: .init(autoRefreshToken: true))
+            options: .init(auth: .init(autoRefreshToken: true, emitLocalSessionAsInitialSession: true))
         )
         let auth = AuthManager(client: client)
         _authManager = StateObject(wrappedValue: auth)

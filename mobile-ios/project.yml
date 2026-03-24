@@ -1,6 +1,6 @@
 name: CalTodo
 options:
-  bundleIdPrefix: com.caltodo
+  bundleIdPrefix: com.cadenchiang.caltodo
   deploymentTarget:
     iOS: "16.0"
   xcodeVersion: "16.0"

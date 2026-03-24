@@ -291,13 +291,13 @@ struct SettingsView: View {
                 themeManager.isDarkMode = style == .dark
             }
         } label: {
-            HStack(spacing: 4) {
-                Image(systemName: icon).font(.system(size: 11))
-                Text(label).font(.system(size: 13, weight: appearance == val ? .semibold : .regular))
+            HStack(spacing: 6) {
+                Image(systemName: icon).font(.system(size: 13))
+                Text(label).font(.system(size: 14, weight: appearance == val ? .semibold : .medium))
             }
-            .foregroundStyle(appearance == val ? AppColors.foreground : AppColors.mutedForeground)
-            .frame(maxWidth: .infinity).padding(.vertical, 7)
-            .background(appearance == val ? AppColors.secondaryBackground : Color.clear)
+            .foregroundStyle(appearance == val ? .white : AppColors.mutedForeground)
+            .frame(maxWidth: .infinity).padding(.vertical, 9)
+            .background(appearance == val ? AppColors.accent : Color.clear)
             .clipShape(RoundedRectangle(cornerRadius: 8))
         }.buttonStyle(.plain)
     }

@@ -2,6 +2,7 @@ import SwiftUI
 
 /// Task row — checkbox on same line as title, date underneath.
 struct TaskItemView: View {
+    @ObservedObject private var theme = ThemeManager.shared
     let task: CalTask
     var onToggle: ((String) -> Void)?
     var onTap: (() -> Void)?

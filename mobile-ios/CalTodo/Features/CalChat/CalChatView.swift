@@ -3,6 +3,7 @@ import SwiftUI
 /// CalChat board list — iMessage-style with group avatars and member count.
 struct CalChatView: View {
     @EnvironmentObject var chatStore: ChatStore
+    @ObservedObject private var theme = ThemeManager.shared
 
     /// Deterministic gradient colors matching the web's GroupAvatar hash.
     private static let gradientPairs: [(Color, Color)] = [
@@ -68,6 +69,8 @@ struct CalChatView: View {
                 }
             }
             .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(AppColors.background)
             .environment(\.editMode, .constant(isEditMode ? .active : .inactive))
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {

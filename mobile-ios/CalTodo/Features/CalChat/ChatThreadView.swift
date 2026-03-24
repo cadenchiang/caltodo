@@ -2,6 +2,7 @@ import SwiftUI
 
 /// iMessage-style chat thread with proper input bar positioning.
 struct ChatThreadView: View {
+    @ObservedObject private var theme = ThemeManager.shared
     let courseId: String
     let courseName: String
     @EnvironmentObject var chatStore: ChatStore

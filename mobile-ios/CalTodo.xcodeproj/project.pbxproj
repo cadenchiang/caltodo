@@ -90,7 +90,7 @@
 		72AFBA7B3C53A1C6A372BE7F /* Logger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logger.swift; sourceTree = "<group>"; };
 		72C70800B810B6E9C79DA2DA /* AuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthManager.swift; sourceTree = "<group>"; };
 		72CF755DA55B1E8ED14304CC /* TaskDetailSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskDetailSheet.swift; sourceTree = "<group>"; };
-		751DC70D57ED4BB97989D510 /* CalTodoTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = CalTodoTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		751DC70D57ED4BB97989D510 /* CalTodoTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CalTodoTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		788774181B1470CD488E7B80 /* DateFormattingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateFormattingTests.swift; sourceTree = "<group>"; };
 		7ADD23B44BABEA093ACD686A /* InboxView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxView.swift; sourceTree = "<group>"; };
 		7BCB8ADB33BF180074A9033C /* Task.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Task.swift; sourceTree = "<group>"; };
@@ -105,7 +105,7 @@
 		B8B11D247726B7FC49E57036 /* ThemeDefinitionsExtra.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeDefinitionsExtra.swift; sourceTree = "<group>"; };
 		BE849A4BD8683931B5ABE862 /* OnboardingStepViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingStepViews.swift; sourceTree = "<group>"; };
 		C3BFDE083C232D385849B3C1 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
-		C83FBFDE5219EEC50EE8AFBD /* CalTodo.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = CalTodo.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C83FBFDE5219EEC50EE8AFBD /* CalTodo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CalTodo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C88C4476AD2A422135D2E628 /* SectionHeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SectionHeaderView.swift; sourceTree = "<group>"; };
 		CD9138A7B561CB5DA586A657 /* TaskStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskStore.swift; sourceTree = "<group>"; };
 		D487F1EBE6B179FFBDDB6335 /* ThemePickerGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemePickerGrid.swift; sourceTree = "<group>"; };
@@ -118,7 +118,7 @@
 		FC98DEA18B47931CDB5D54FD /* ThemeDefinitions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeDefinitions.swift; sourceTree = "<group>"; };
 		FF62382CF615AD80C901B792 /* TaskInsert.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskInsert.swift; sourceTree = "<group>"; };
 		FFDC6EDA4F8D66218651F5D6 /* NotificationDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationDelegate.swift; sourceTree = "<group>"; };
-		"TEMP_B8421889-8E4B-48D1-B1BC-FE2D8B106580" /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
+		"TEMP_D46810C5-3FCD-4E52-A451-60AD6DAF1CEE" /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -151,6 +151,7 @@
 				F96D7B74A35F3961DA6209F8 /* CalTodo */,
 				DB96775644C65A5596C4312D /* CalTodoTests */,
 				879B4524B17BA22E744E0852 /* Products */,
+				E076B2402F73486A00BB5EEB /* Recovered References */,
 			);
 			sourceTree = "<group>";
 		};
@@ -332,6 +333,14 @@
 			path = CalTodoTests;
 			sourceTree = "<group>";
 		};
+		E076B2402F73486A00BB5EEB /* Recovered References */ = {
+			isa = PBXGroup;
+			children = (
+				"TEMP_D46810C5-3FCD-4E52-A451-60AD6DAF1CEE" /* Config.xcconfig */,
+			);
+			name = "Recovered References";
+			sourceTree = "<group>";
+		};
 		E92EB784BE5714E4C1A2144B /* CalChat */ = {
 			isa = PBXGroup;
 			children = (
@@ -371,14 +380,6 @@
 				2A7EA10589965963C7B9E417 /* Utilities */,
 			);
 			path = CalTodo;
-			sourceTree = "<group>";
-		};
-		"TEMP_07F48A1D-3FBD-44C2-86A4-AD3854227F08" /* mobile-ios */ = {
-			isa = PBXGroup;
-			children = (
-				"TEMP_B8421889-8E4B-48D1-B1BC-FE2D8B106580" /* Config.xcconfig */,
-			);
-			path = "mobile-ios";
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -430,11 +431,6 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1600;
-				TargetAttributes = {
-					4F3DC5B5125F4A829603A113 = {
-						DevelopmentTeam = "";
-					};
-				};
 			};
 			buildConfigurationList = 404570950440063A95C957DF /* Build configuration list for PBXProject "CalTodo" */;
 			developmentRegion = en;
@@ -548,7 +544,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = J3BMT7MU7K;
 				INFOPLIST_FILE = CalTodo/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -556,7 +552,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.caltodo.app;
+				PRODUCT_BUNDLE_IDENTIFIER = com.cadenchiang.caltodo.app;
 				SDKROOT = iphoneos;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 5.9;
@@ -570,7 +566,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = J3BMT7MU7K;
 				INFOPLIST_FILE = CalTodo/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -578,7 +574,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.caltodo.app;
+				PRODUCT_BUNDLE_IDENTIFIER = com.cadenchiang.caltodo.app;
 				SDKROOT = iphoneos;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.9;
@@ -588,7 +584,7 @@
 		};
 		BBC27ED2527B31013AB189B5 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = "TEMP_B8421889-8E4B-48D1-B1BC-FE2D8B106580" /* Config.xcconfig */;
+			baseConfigurationReference = "TEMP_D46810C5-3FCD-4E52-A451-60AD6DAF1CEE" /* Config.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -645,7 +641,7 @@
 		};
 		CA779C97F6352E61D0A894B0 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = "TEMP_B8421889-8E4B-48D1-B1BC-FE2D8B106580" /* Config.xcconfig */;
+			baseConfigurationReference = "TEMP_D46810C5-3FCD-4E52-A451-60AD6DAF1CEE" /* Config.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;

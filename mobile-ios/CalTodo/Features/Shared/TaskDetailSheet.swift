@@ -2,6 +2,7 @@ import SwiftUI
 
 /// Task detail — view + edit mode. Three-dot menu for delete. Edit icon top-right.
 struct TaskDetailSheet: View {
+    @ObservedObject private var theme = ThemeManager.shared
     let task: CalTask
     var onToggle: ((String) -> Void)? = nil
     var onDismiss: (() -> Void)? = nil
@@ -62,17 +63,42 @@ struct TaskDetailSheet: View {
 
     private var topBar: some View {
         HStack {
+            // Left: Cancel (only in edit mode)
+            if isEditing {
+                Button {
+                    HapticManager.light()
+                    // Revert edits
+                    editTitle = task.title
+                    editDescription = task.description ?? ""
+                    if let d = task.dueDate, !d.isEmpty {
+                        let fmt = DateFormatter(); fmt.dateFormat = "yyyy-MM-dd"
+                        editDueDate = fmt.date(from: d) ?? Date()
+                        editHasDueDate = true
+                    } else {
+                        editHasDueDate = false
+                    }
+                    withAnimation(.easeInOut(duration: 0.15)) { isEditing = false }
+                } label: {
+                    Text("Cancel")
+                        .font(.system(size: 15))
+                        .foregroundStyle(AppColors.mutedForeground)
+                }
+                .padding(.leading, 20)
+            }
+
             Spacer()
-            HStack(spacing: 16) {
-                // Edit toggle
+
+            HStack(spacing: 20) {
+                // Edit / Done button
                 Button {
                     HapticManager.light()
                     if isEditing { saveEdits() }
                     withAnimation(.easeInOut(duration: 0.15)) { isEditing.toggle() }
                 } label: {
-                    Image(systemName: isEditing ? "checkmark" : "pencil")
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundStyle(isEditing ? AppColors.accent : AppColors.foreground)
+                    Text(isEditing ? "Done" : "Edit")
+                        .font(.system(size: 15, weight: isEditing ? .semibold : .regular))
+                        .foregroundStyle(AppColors.accent)
+                        .frame(minWidth: 44, minHeight: 44)
                 }
 
                 // Three-dot menu
@@ -82,14 +108,15 @@ struct TaskDetailSheet: View {
                     }
                 } label: {
                     Image(systemName: "ellipsis")
-                        .font(.system(size: 15, weight: .medium))
+                        .font(.system(size: 18, weight: .medium))
                         .foregroundStyle(AppColors.foreground)
+                        .frame(minWidth: 44, minHeight: 44)
                 }
             }
-            .padding(.trailing, 20)
+            .padding(.trailing, 16)
         }
-        .padding(.top, 20)
-        .padding(.bottom, 32)
+        .padding(.top, 16)
+        .padding(.bottom, 24)
     }
 
     // MARK: - Read View

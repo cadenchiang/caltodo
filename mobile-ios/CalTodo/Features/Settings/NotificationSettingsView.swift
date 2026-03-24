@@ -245,8 +245,8 @@ struct NotificationSettingsView: View {
             NotificationDelegate.shared.register()
 
             let content = UNMutableNotificationContent()
-            content.title = "CalTodo"
-            content.body = "Notifications are working!"
+            content.title = "caltodo"
+            content.body = "notifications are working!"
             content.sound = .default
 
             let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
