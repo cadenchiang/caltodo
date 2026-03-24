@@ -348,11 +348,11 @@ export default function CourseChatPage({ params }: PageProps) {
             <ArrowLeft size={18} className="text-muted-foreground" />
           </button>
           {isSystemCourse && (
-            <div className="w-7 h-7 rounded-full overflow-hidden shrink-0">
+            <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center shrink-0">
               <img
-                src="/cal-logo.webp"
-                alt=""
-                className="w-full h-full object-cover"
+                src="/logo.png"
+                alt="caltodo"
+                className="w-5 h-5 object-contain"
               />
             </div>
           )}

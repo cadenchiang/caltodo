@@ -85,11 +85,11 @@ function ChatRow({
     >
       <div className="relative shrink-0">
         {isSystem ? (
-          <div className="w-11 h-11 rounded-full overflow-hidden">
+          <div className="w-11 h-11 rounded-full bg-muted flex items-center justify-center">
             <img
-              src="/cal-logo.webp"
-              alt="calyak"
-              className="w-full h-full object-cover"
+              src="/logo.png"
+              alt="caltodo"
+              className="w-7 h-7 object-contain"
             />
           </div>
         ) : (
