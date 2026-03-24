@@ -7,7 +7,6 @@ import { TaskProvider } from "@/contexts/TaskContext";
 import { ToastProvider } from "@/contexts/ToastContext";
 
 import { PresenceProvider } from "@/contexts/PresenceContext";
-import InboxTour from "@/components/ui/InboxTour";
 
 import GettingStartedWidget from "@/components/ui/GettingStartedWidget";
 import CanvasTokenExpiredModal from "@/components/ui/CanvasTokenExpiredModal";
@@ -55,7 +54,6 @@ export default async function AppLayout({
       <ToastProvider>
           <PresenceProvider>
           <TaskProvider>
-            <InboxTour>
             <Sidebar avatarUrl={avatarUrl} fullName={fullName} email={email} />
             <main suppressHydrationWarning className="flex-1 overflow-hidden p-4 md:p-10 pb-16 md:pb-10 bg-background relative miffy-glow miffy-watermark">
               {children}
@@ -68,7 +66,6 @@ export default async function AppLayout({
             <SyncClassesModal />
             <GlobalChatNotifier />
             <NewAssignmentsModal />
-            </InboxTour>
           </TaskProvider>
           </PresenceProvider>
       </ToastProvider>

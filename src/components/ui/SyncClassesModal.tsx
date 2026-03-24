@@ -286,20 +286,6 @@ export default function SyncClassesModal() {
                 </div>
               </button>
 
-              {/* Item 3: Take a tour */}
-              <button
-                type="button"
-                onClick={handleTourClick}
-                className="w-full flex items-start gap-3.5 py-4 border-t border-border text-left hover:bg-accent -mx-2 px-2 rounded-lg transition-colors cursor-pointer"
-              >
-                <Compass size={18} className="text-foreground shrink-0 mt-0.5" />
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-foreground">take a tour</p>
-                  <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                    learn how to use your inbox, calendar, and more
-                  </p>
-                </div>
-              </button>
             </div>
 
             {/* CTA — right-aligned */}
