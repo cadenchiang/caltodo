@@ -3,15 +3,14 @@ import SwiftUI
 /// Inbox — tasks grouped by date or class. Native search. Pure black.
 struct InboxView: View {
     @EnvironmentObject var taskStore: TaskStore
+    @Binding var searchText: String
 
     @AppStorage("inbox_sort") private var sortMode = "date"
     @State private var showCompleted = false
     @State private var selectedTask: CalTask?
     @State private var showCreateSheet = false
-    @State private var searchText = ""
 
     @State private var collapsed: Set<String> = []
-    @State private var scrollOffset: CGFloat = 0
 
     private var today: String { DateFormatting.todayString() }
     private var weekEnd: String { DateFormatting.dateString(daysFromNow: 7) }
@@ -19,7 +18,17 @@ struct InboxView: View {
     private var filteredActive: [CalTask] {
         var tasks = taskStore.activeTasks
         if !searchText.isEmpty {
-            tasks = tasks.filter { $0.title.localizedCaseInsensitiveContains(searchText) }
+            let words = searchText.lowercased().split(separator: " ").map(String.init)
+            tasks = tasks.filter { task in
+                let haystack = [
+                    task.title,
+                    task.courseName ?? "",
+                    task.description ?? "",
+                    task.tagList.joined(separator: " "),
+                    task.dueDate ?? ""
+                ].joined(separator: " ").lowercased()
+                return words.allSatisfy { haystack.contains($0) }
+            }
         }
         return tasks
     }
@@ -38,38 +47,6 @@ struct InboxView: View {
         ZStack(alignment: .bottomTrailing) {
             ScrollView {
                 LazyVStack(spacing: 16) {
-                    // Scroll offset tracker
-                    GeometryReader { geo in
-                        Color.clear.preference(key: ScrollOffsetKey.self, value: geo.frame(in: .named("scroll")).minY)
-                    }
-                    .frame(height: 0)
-
-                    // Search — only at the very top
-                    if scrollOffset >= -10 || !searchText.isEmpty {
-                        HStack(spacing: 10) {
-                            Image(systemName: "magnifyingglass")
-                                .font(.system(size: 15))
-                                .foregroundStyle(Color(hex: "#636366"))
-                            TextField("Search", text: $searchText)
-                                .font(.system(size: 16))
-                                .foregroundStyle(.white)
-                                .textInputAutocapitalization(.never)
-                                .autocorrectionDisabled()
-                            if !searchText.isEmpty {
-                                Button { searchText = "" } label: {
-                                    Image(systemName: "xmark.circle.fill")
-                                        .font(.system(size: 14))
-                                        .foregroundStyle(Color(hex: "#636366"))
-                                }
-                            }
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 9)
-                        .background(Color(hex: "#1C1C1E"))
-                        .clipShape(Capsule())
-                        .padding(.horizontal, 16)
-                        .transition(.opacity.combined(with: .move(edge: .top)))
-                    }
                     if filteredActive.isEmpty && !taskStore.isLoading {
                         EmptyStateView(icon: "tray", message: "No Tasks")
                             .padding(.top, 40)
@@ -86,12 +63,7 @@ struct InboxView: View {
                 }
                 .padding(.bottom, 80)
             }
-            .coordinateSpace(name: "scroll")
-            .onPreferenceChange(ScrollOffsetKey.self) { value in
-                scrollOffset = value
-            }
-            .animation(.easeOut(duration: 0.15), value: scrollOffset >= -10)
-            .background(Color.black)
+            .background(AppColors.background)
             .refreshable { await taskStore.fetchTasks() }
             .overlay {
                 if taskStore.isLoading && taskStore.tasks.isEmpty {
@@ -153,7 +125,11 @@ struct InboxView: View {
             let cls = task.courseName ?? "No Class"
             byClass[cls, default: []].append(task)
         }
-        return byClass.sorted { $0.key < $1.key }.map { ($0.key, $0.value.sorted { ($0.dueDate ?? "") < ($1.dueDate ?? "") }) }
+        return byClass.sorted { a, b in
+            if a.key == "No Class" { return true }
+            if b.key == "No Class" { return false }
+            return a.key < b.key
+        }.map { ($0.key, $0.value.sorted { ($0.dueDate ?? "") < ($1.dueDate ?? "") }) }
     }
 
     // MARK: - Task Group Card
@@ -171,14 +147,16 @@ struct InboxView: View {
                 HStack {
                     Text(title)
                         .font(.system(size: 17, weight: .semibold))
-                        .foregroundStyle(.white)
-                    Spacer()
+                        .foregroundStyle(AppColors.foreground)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 8)
                     Text("\(tasks.count)")
                         .font(.system(size: 14))
-                        .foregroundStyle(.white.opacity(0.2))
+                        .foregroundStyle(AppColors.subtleForeground)
                     Image(systemName: "chevron.right")
                         .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.15))
+                        .foregroundStyle(AppColors.subtleForeground.opacity(0.5))
                         .rotationEffect(.degrees(isCollapsed ? 0 : 90))
                 }
                 .padding(.horizontal, 16)
@@ -199,7 +177,7 @@ struct InboxView: View {
                 .padding(.bottom, 10)
             }
         }
-        .background(Color(hex: "#1C1C1E"))
+        .background(AppColors.card)
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .padding(.horizontal, 12)
     }
@@ -215,14 +193,14 @@ struct InboxView: View {
                 HStack {
                     Text("Completed")
                         .font(.system(size: 17, weight: .semibold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(AppColors.foreground)
                     Spacer()
                     Text("\(taskStore.completedTasks.count)")
                         .font(.system(size: 14))
-                        .foregroundStyle(.white.opacity(0.2))
+                        .foregroundStyle(AppColors.subtleForeground)
                     Image(systemName: "chevron.right")
                         .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.15))
+                        .foregroundStyle(AppColors.subtleForeground.opacity(0.5))
                         .rotationEffect(.degrees(showCompleted ? 90 : 0))
                 }
                 .padding(.horizontal, 16)
@@ -242,13 +220,8 @@ struct InboxView: View {
                 .padding(.bottom, 10)
             }
         }
-        .background(Color(hex: "#1C1C1E"))
+        .background(AppColors.card)
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .padding(.horizontal, 12)
     }
-}
-
-private struct ScrollOffsetKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
 }

@@ -44,7 +44,7 @@ struct CalChatView: View {
                 boardList
             }
         }
-        .background(Color.black)
+        .background(AppColors.background)
         .task { await chatStore.fetchBoards() }
         .refreshable { await chatStore.refreshBoards() }
     }
@@ -52,26 +52,7 @@ struct CalChatView: View {
     @State private var isEditMode = false
 
     private var boardList: some View {
-        VStack(spacing: 0) {
-            // Title + edit button
-            HStack {
-                Text("CalChat")
-                    .font(.system(size: 28, weight: .bold))
-                    .foregroundStyle(.white)
-                Spacer()
-                Button {
-                    withAnimation { isEditMode.toggle() }
-                } label: {
-                    Text(isEditMode ? "Done" : "Edit")
-                        .font(.system(size: 15))
-                        .foregroundStyle(AppColors.accent)
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.top, 4)
-            .padding(.bottom, 8)
-
-            List {
+        List {
                 ForEach(chatStore.boards) { board in
                     NavigationLink {
                         ChatThreadView(courseId: board.course.id, courseName: board.course.name)
@@ -79,8 +60,8 @@ struct CalChatView: View {
                     } label: {
                         boardRow(board)
                     }
-                    .listRowBackground(Color.black)
-                    .listRowSeparatorTint(Color(hex: "#1C1C1E"))
+                    .listRowBackground(AppColors.background)
+                    .listRowSeparatorTint(AppColors.card)
                 }
                 .onMove { from, to in
                     chatStore.boards.move(fromOffsets: from, toOffset: to)
@@ -88,7 +69,17 @@ struct CalChatView: View {
             }
             .listStyle(.plain)
             .environment(\.editMode, .constant(isEditMode ? .active : .inactive))
-        }
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        withAnimation { isEditMode.toggle() }
+                    } label: {
+                        Text(isEditMode ? "Done" : "Edit")
+                            .font(.system(size: 15))
+                            .foregroundStyle(AppColors.accent)
+                    }
+                }
+            }
     }
 
     private func boardRow(_ board: DiscussionBoard) -> some View {
@@ -109,7 +100,7 @@ struct CalChatView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(board.course.name)
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(AppColors.foreground)
                     .lineLimit(1)
 
                 Text(board.memberCount > 0 ? "\(board.memberCount) members" : "Group Chat")
@@ -122,7 +113,7 @@ struct CalChatView: View {
 
             Image(systemName: "chevron.right")
                 .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(Color(hex: "#3A3A3C"))
+                .foregroundStyle(AppColors.border)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)

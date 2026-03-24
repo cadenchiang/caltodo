@@ -40,7 +40,7 @@ struct ChatThreadView: View {
             // Input bar
             inputBar
         }
-        .background(Color.black)
+        .background(AppColors.background)
         .navigationTitle(courseName)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .tabBar)
@@ -74,10 +74,10 @@ struct ChatThreadView: View {
 
                 Text(msg.body)
                     .font(.system(size: 16))
-                    .foregroundStyle(isOwn ? .white : .white)
+                    .foregroundStyle(isOwn ? .white : AppColors.foreground)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 9)
-                    .background(isOwn ? Color(hex: "#007AFF") : Color(hex: "#1C1C1E"))
+                    .background(isOwn ? AppColors.accent : AppColors.card)
                     .clipShape(RoundedRectangle(cornerRadius: 18))
 
                 if !isOwn { Spacer(minLength: 64) }
@@ -102,14 +102,14 @@ struct ChatThreadView: View {
                 .lineLimit(1...5)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
-                .background(Color(hex: "#1C1C1E"))
+                .background(AppColors.card)
                 .clipShape(RoundedRectangle(cornerRadius: 20))
 
             if !messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 Button(action: sendMessage) {
                     Image(systemName: "arrow.up.circle.fill")
                         .font(.system(size: 30))
-                        .foregroundStyle(Color(hex: "#007AFF"))
+                        .foregroundStyle(AppColors.accent)
                 }
                 .disabled(isSending)
                 .transition(.scale.combined(with: .opacity))
@@ -118,7 +118,7 @@ struct ChatThreadView: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
         .padding(.bottom, 2)
-        .background(Color.black)
+        .background(AppColors.background)
         .animation(.easeInOut(duration: 0.15), value: messageText.isEmpty)
     }
 

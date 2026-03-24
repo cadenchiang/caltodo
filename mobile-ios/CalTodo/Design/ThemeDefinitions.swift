@@ -58,7 +58,7 @@ enum ThemeCatalog {
     static let defaultTheme = ThemeDefinition(
         id: "default", displayName: "default",
         light: ThemeModeColors(
-            background: Color(hex: "#FFFFFF"), card: Color(hex: "#FFFFFF"),
+            background: Color(hex: "#F2F2F7"), card: Color(hex: "#FFFFFF"),
             popover: Color(hex: "#FFFFFF"), muted: Color(hex: "#F9FAFB"),
             foreground: Color(hex: "#1F2937"), secondaryForeground: Color(hex: "#4B5563"),
             mutedForeground: Color(hex: "#6B7280"), subtleForeground: Color(hex: "#9CA3AF"),

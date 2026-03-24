@@ -37,12 +37,31 @@ struct CalTodoApp: App {
             "notif_calchat_mentions": true,
         ])
 
+        // Allow notifications to show while app is in foreground
+        NotificationDelegate.shared.register()
+
         // Glassy translucent tab bar
         let tabBarAppearance = UITabBarAppearance()
         tabBarAppearance.configureWithDefaultBackground()
         tabBarAppearance.backgroundEffect = UIBlurEffect(style: .systemThinMaterial)
         UITabBar.appearance().standardAppearance = tabBarAppearance
         UITabBar.appearance().scrollEdgeAppearance = tabBarAppearance
+
+        // Smaller large navigation title (24pt instead of default 34pt)
+        let navAppearance = UINavigationBarAppearance()
+        navAppearance.configureWithDefaultBackground()
+        navAppearance.largeTitleTextAttributes = [
+            .font: UIFont.systemFont(ofSize: 28, weight: .bold)
+        ]
+        UINavigationBar.appearance().standardAppearance = navAppearance
+        UINavigationBar.appearance().scrollEdgeAppearance = navAppearance
+
+        // Smaller search bar font + subtle icon
+        UITextField.appearance(whenContainedInInstancesOf: [UISearchBar.self]).font = UIFont.systemFont(ofSize: 14)
+        UISearchBar.appearance().setImage(
+            UIImage(systemName: "magnifyingglass")?.withTintColor(.tertiaryLabel, renderingMode: .alwaysOriginal),
+            for: .search, state: .normal
+        )
 
         guard let url = URL(string: Configuration.supabaseURL) else {
             fatalError("Invalid SUPABASE_URL. Check Config.xcconfig.")

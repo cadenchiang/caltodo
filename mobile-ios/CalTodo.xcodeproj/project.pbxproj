@@ -15,12 +15,17 @@
 		1772E89C8C79688C89EFAADD /* TaskItemView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 693E1814F5C454DAC3788F81 /* TaskItemView.swift */; };
 		1D1E2200BABCF8DD6460E665 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94E84AC3474305CFB4561C9F /* LoginView.swift */; };
 		214E213F307BFE520D7CEC22 /* APIError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 065AE3788AE9CB0665FE9A73 /* APIError.swift */; };
+		3A328AD5513991920D9AF192 /* ChatThreadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97C887E448086C45408AE812 /* ChatThreadView.swift */; };
 		3FE3078306A9DC5B6F84A0A2 /* AuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72C70800B810B6E9C79DA2DA /* AuthManager.swift */; };
 		3FFCA6A7000C7504FB098182 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 350C54A8FE75BCFFAE757214 /* HomeView.swift */; };
 		4241CBCE8F727AC9EFC0B4DC /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3BFDE083C232D385849B3C1 /* SettingsView.swift */; };
+		43066E0CD8090F05B7F3C0EC /* CalChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 096E0BFE5DDE261CAC6C8373 /* CalChatView.swift */; };
+		47DBE3078B0FD0704DA27451 /* ChatMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80AB3CD26020291C710AE990 /* ChatMessage.swift */; };
 		52CEEF508BE8141866BDA82A /* ProfileSheetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A40442A5C4F19E7C28E73E7 /* ProfileSheetView.swift */; };
 		6499AED289D0146EDF74D1AE /* ThemeDefinitionsExtra.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8B11D247726B7FC49E57036 /* ThemeDefinitionsExtra.swift */; };
 		655A7866EDB1765D13F0D548 /* TaskCreateSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 910BAC2B619D5374693D6703 /* TaskCreateSheet.swift */; };
+		7582D2785054AD49219855ED /* TabBarSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98D3295D047CFE93B6513908 /* TabBarSettingsView.swift */; };
+		77B4F24CAB908632F5403865 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CDA38997650C2E53F9D4F95 /* NotificationManager.swift */; };
 		7CAC30CD7925A8D8ADF7187B /* TaskInsert.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF62382CF615AD80C901B792 /* TaskInsert.swift */; };
 		7DD202C0E11EA96AC1C20BF1 /* DateFormatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D455644E885D4CF4773196C /* DateFormatting.swift */; };
 		7F869DC758A96F468407E63F /* ThemeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AEE032406654B0826FC87E7 /* ThemeManager.swift */; };
@@ -39,21 +44,17 @@
 		B37366FEA49F7888D3CD85A3 /* TaskColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21D0E13496755EC2D9B1B027 /* TaskColors.swift */; };
 		B58FFE2A280A8B787688EE9C /* TaskUpdate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 595F5DBCB1C1FF4F5C7E1530 /* TaskUpdate.swift */; };
 		C5D1F9C5FA70CE75951E1665 /* HapticManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CCD5CE281036F0C470418DD /* HapticManager.swift */; };
+		C5E86E9F62EFF038B022BBB3 /* ChatStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AB8B4A4FEBA40DA3F87495D /* ChatStore.swift */; };
 		C947E90456C770DFD305858F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 5B5C6397679B400AC98F8A65 /* Assets.xcassets */; };
 		EA3D440AE06692E0C24E5EEF /* Task.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BCB8ADB33BF180074A9033C /* Task.swift */; };
+		EBE56E9D940845EECB7AD609 /* ToastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9CFF0D894770626370CD95E /* ToastView.swift */; };
 		ED83C25EBB4A3A99C5D2C179 /* IntegrationStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = E90661F65A4AA28513D6F285 /* IntegrationStatus.swift */; };
+		EF14B762E2DCE4A2E622A0D9 /* NotificationSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5DE37CAC1BD675A9C675E7D /* NotificationSettingsView.swift */; };
+		F2352549B09AAFCE6BEB9319 /* NotificationDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFDC6EDA4F8D66218651F5D6 /* NotificationDelegate.swift */; };
+		F5381A9ADE9EC766626C95AC /* AuthenticatedWebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FB2D32840DD0C0164335845 /* AuthenticatedWebView.swift */; };
 		F5733BBBD0D1F1B0ABC2CD6F /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = F5D9D63EE0A230CD23E347CE /* Supabase */; };
 		FB72EBFA73A4E8E444872220 /* TaskDetailSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72CF755DA55B1E8ED14304CC /* TaskDetailSheet.swift */; };
 		FBFE5B7040DB074BEB0C353E /* ThemeDefinitions.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC98DEA18B47931CDB5D54FD /* ThemeDefinitions.swift */; };
-		FC1A2B3D4E5F6A7890BCDE01 /* ToastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC1A2B3D4E5F6A7890BCDE02 /* ToastView.swift */; };
-		ACABB2EF4C4F47BE03D2A7F9 /* AuthenticatedWebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF49BF20019333D1CD12AC75 /* AuthenticatedWebView.swift */; };
-		1AC03A5FD94A9FCB6CBB4B0C /* CalChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B28AD4757733C22ADA1510 /* CalChatView.swift */; };
-		48C33CB855B6B830577ECB69 /* TabBarSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5BEECDEC530CF4491FAC4C5 /* TabBarSettingsView.swift */; };
-		523ADC9AEBEBC637D8476DD9 /* NotificationSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8F041A88869909E1E80C738 /* NotificationSettingsView.swift */; };
-		0B766BAC61582CB9711E20C8 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1ADB0F6C45DF0144279859D5 /* NotificationManager.swift */; };
-		7CB929B1A954AEFAF6C61056 /* ChatMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = D83C5EC791A2617C9C7FBE3E /* ChatMessage.swift */; };
-		C8919D15E9341A6B98B3A6CD /* ChatStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2001D3676B4C2F6600B12907 /* ChatStore.swift */; };
-		8695872A5DA00E09C20D0508 /* ChatThreadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C7CDE6374B1F21C241441FF /* ChatThreadView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -68,9 +69,13 @@
 
 /* Begin PBXFileReference section */
 		065AE3788AE9CB0665FE9A73 /* APIError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIError.swift; sourceTree = "<group>"; };
+		096E0BFE5DDE261CAC6C8373 /* CalChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalChatView.swift; sourceTree = "<group>"; };
+		1CDA38997650C2E53F9D4F95 /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
 		21D0E13496755EC2D9B1B027 /* TaskColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskColors.swift; sourceTree = "<group>"; };
+		2AB8B4A4FEBA40DA3F87495D /* ChatStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatStore.swift; sourceTree = "<group>"; };
 		2AEE032406654B0826FC87E7 /* ThemeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeManager.swift; sourceTree = "<group>"; };
 		2BB40A39D41D0B4A9CFB7A4B /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
+		2FB2D32840DD0C0164335845 /* AuthenticatedWebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthenticatedWebView.swift; sourceTree = "<group>"; };
 		34DF541745C6E19E4648A01A /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
 		350C54A8FE75BCFFAE757214 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		3F7E4F7F21B0BF4C367C4840 /* EmptyStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyStateView.swift; sourceTree = "<group>"; };
@@ -85,38 +90,35 @@
 		72AFBA7B3C53A1C6A372BE7F /* Logger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logger.swift; sourceTree = "<group>"; };
 		72C70800B810B6E9C79DA2DA /* AuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthManager.swift; sourceTree = "<group>"; };
 		72CF755DA55B1E8ED14304CC /* TaskDetailSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskDetailSheet.swift; sourceTree = "<group>"; };
-		751DC70D57ED4BB97989D510 /* CalTodoTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CalTodoTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		751DC70D57ED4BB97989D510 /* CalTodoTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = CalTodoTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		788774181B1470CD488E7B80 /* DateFormattingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateFormattingTests.swift; sourceTree = "<group>"; };
 		7ADD23B44BABEA093ACD686A /* InboxView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxView.swift; sourceTree = "<group>"; };
 		7BCB8ADB33BF180074A9033C /* Task.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Task.swift; sourceTree = "<group>"; };
 		805C759670A8D4851591EE55 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
+		80AB3CD26020291C710AE990 /* ChatMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatMessage.swift; sourceTree = "<group>"; };
 		83DA31985975BB2C978791F3 /* TaskModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskModelTests.swift; sourceTree = "<group>"; };
 		8D455644E885D4CF4773196C /* DateFormatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateFormatting.swift; sourceTree = "<group>"; };
 		910BAC2B619D5374693D6703 /* TaskCreateSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskCreateSheet.swift; sourceTree = "<group>"; };
 		94E84AC3474305CFB4561C9F /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
+		97C887E448086C45408AE812 /* ChatThreadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatThreadView.swift; sourceTree = "<group>"; };
+		98D3295D047CFE93B6513908 /* TabBarSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabBarSettingsView.swift; sourceTree = "<group>"; };
 		B8B11D247726B7FC49E57036 /* ThemeDefinitionsExtra.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeDefinitionsExtra.swift; sourceTree = "<group>"; };
 		BE849A4BD8683931B5ABE862 /* OnboardingStepViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingStepViews.swift; sourceTree = "<group>"; };
 		C3BFDE083C232D385849B3C1 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
-		C83FBFDE5219EEC50EE8AFBD /* CalTodo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CalTodo.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C83FBFDE5219EEC50EE8AFBD /* CalTodo.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = CalTodo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C88C4476AD2A422135D2E628 /* SectionHeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SectionHeaderView.swift; sourceTree = "<group>"; };
 		CD9138A7B561CB5DA586A657 /* TaskStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskStore.swift; sourceTree = "<group>"; };
 		D487F1EBE6B179FFBDDB6335 /* ThemePickerGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemePickerGrid.swift; sourceTree = "<group>"; };
+		D9CFF0D894770626370CD95E /* ToastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastView.swift; sourceTree = "<group>"; };
 		DF9643984E0503068EF74920 /* APIClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClientTests.swift; sourceTree = "<group>"; };
 		E90661F65A4AA28513D6F285 /* IntegrationStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntegrationStatus.swift; sourceTree = "<group>"; };
 		F15256EA415096E2051C1CFF /* AppColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppColors.swift; sourceTree = "<group>"; };
 		F4593EC98098ADD83834D914 /* CalTodoApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalTodoApp.swift; sourceTree = "<group>"; };
-		FC1A2B3D4E5F6A7890BCDE02 /* ToastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastView.swift; sourceTree = "<group>"; };
+		F5DE37CAC1BD675A9C675E7D /* NotificationSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationSettingsView.swift; sourceTree = "<group>"; };
 		FC98DEA18B47931CDB5D54FD /* ThemeDefinitions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeDefinitions.swift; sourceTree = "<group>"; };
 		FF62382CF615AD80C901B792 /* TaskInsert.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskInsert.swift; sourceTree = "<group>"; };
-		"TEMP_C8E9ADBC-2F41-4B4D-8CFC-6C047D0ACA66" /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
-		CF49BF20019333D1CD12AC75 /* AuthenticatedWebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthenticatedWebView.swift; sourceTree = "<group>"; };
-		E0B28AD4757733C22ADA1510 /* CalChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalChatView.swift; sourceTree = "<group>"; };
-		D5BEECDEC530CF4491FAC4C5 /* TabBarSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabBarSettingsView.swift; sourceTree = "<group>"; };
-		F8F041A88869909E1E80C738 /* NotificationSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationSettingsView.swift; sourceTree = "<group>"; };
-		1ADB0F6C45DF0144279859D5 /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
-		D83C5EC791A2617C9C7FBE3E /* ChatMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatMessage.swift; sourceTree = "<group>"; };
-		2001D3676B4C2F6600B12907 /* ChatStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatStore.swift; sourceTree = "<group>"; };
-		0C7CDE6374B1F21C241441FF /* ChatThreadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatThreadView.swift; sourceTree = "<group>"; };
+		FFDC6EDA4F8D66218651F5D6 /* NotificationDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationDelegate.swift; sourceTree = "<group>"; };
+		"TEMP_B8421889-8E4B-48D1-B1BC-FE2D8B106580" /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -134,8 +136,8 @@
 		117498F9EBCEE75E6E8FFC55 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				80AB3CD26020291C710AE990 /* ChatMessage.swift */,
 				E90661F65A4AA28513D6F285 /* IntegrationStatus.swift */,
-				D83C5EC791A2617C9C7FBE3E /* ChatMessage.swift */,
 				7BCB8ADB33BF180074A9033C /* Task.swift */,
 				FF62382CF615AD80C901B792 /* TaskInsert.swift */,
 				595F5DBCB1C1FF4F5C7E1530 /* TaskUpdate.swift */,
@@ -149,16 +151,15 @@
 				F96D7B74A35F3961DA6209F8 /* CalTodo */,
 				DB96775644C65A5596C4312D /* CalTodoTests */,
 				879B4524B17BA22E744E0852 /* Products */,
-				E0E307482F7263990059824C /* Recovered References */,
 			);
 			sourceTree = "<group>";
 		};
 		1BD7E1D79BAC579304E3F792 /* Settings */ = {
 			isa = PBXGroup;
 			children = (
-				D5BEECDEC530CF4491FAC4C5 /* TabBarSettingsView.swift */,
-				F8F041A88869909E1E80C738 /* NotificationSettingsView.swift */,
+				F5DE37CAC1BD675A9C675E7D /* NotificationSettingsView.swift */,
 				C3BFDE083C232D385849B3C1 /* SettingsView.swift */,
+				98D3295D047CFE93B6513908 /* TabBarSettingsView.swift */,
 				D487F1EBE6B179FFBDDB6335 /* ThemePickerGrid.swift */,
 			);
 			path = Settings;
@@ -169,7 +170,8 @@
 			children = (
 				8D455644E885D4CF4773196C /* DateFormatting.swift */,
 				72AFBA7B3C53A1C6A372BE7F /* Logger.swift */,
-				1ADB0F6C45DF0144279859D5 /* NotificationManager.swift */,
+				FFDC6EDA4F8D66218651F5D6 /* NotificationDelegate.swift */,
+				1CDA38997650C2E53F9D4F95 /* NotificationManager.swift */,
 			);
 			path = Utilities;
 			sourceTree = "<group>";
@@ -184,8 +186,8 @@
 		3A3A1071803A05450AD93452 /* Features */ = {
 			isa = PBXGroup;
 			children = (
+				E92EB784BE5714E4C1A2144B /* CalChat */,
 				64A5AA58B8BC1F1E2DEA9241 /* Calendar */,
-				AA11BB22CC33DD44EE55FF66 /* CalChat */,
 				6594F1BFD21390588FC6247D /* Home */,
 				8FD506324630DAC866FF014B /* Inbox */,
 				D81A73E1F48BB64EB806B566 /* Login */,
@@ -197,15 +199,6 @@
 				EB271AB25817A2C95A0DAC2A /* Tabs */,
 			);
 			path = Features;
-			sourceTree = "<group>";
-		};
-		AA11BB22CC33DD44EE55FF66 /* CalChat */ = {
-			isa = PBXGroup;
-			children = (
-				E0B28AD4757733C22ADA1510 /* CalChatView.swift */,
-				0C7CDE6374B1F21C241441FF /* ChatThreadView.swift */,
-			);
-			path = CalChat;
 			sourceTree = "<group>";
 		};
 		64A5AA58B8BC1F1E2DEA9241 /* Calendar */ = {
@@ -293,13 +286,13 @@
 		B8A36AEF73E9DDBBEA4F0062 /* Shared */ = {
 			isa = PBXGroup;
 			children = (
-				CF49BF20019333D1CD12AC75 /* AuthenticatedWebView.swift */,
+				2FB2D32840DD0C0164335845 /* AuthenticatedWebView.swift */,
 				3F7E4F7F21B0BF4C367C4840 /* EmptyStateView.swift */,
 				C88C4476AD2A422135D2E628 /* SectionHeaderView.swift */,
 				910BAC2B619D5374693D6703 /* TaskCreateSheet.swift */,
 				72CF755DA55B1E8ED14304CC /* TaskDetailSheet.swift */,
 				693E1814F5C454DAC3788F81 /* TaskItemView.swift */,
-				FC1A2B3D4E5F6A7890BCDE02 /* ToastView.swift */,
+				D9CFF0D894770626370CD95E /* ToastView.swift */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -339,12 +332,13 @@
 			path = CalTodoTests;
 			sourceTree = "<group>";
 		};
-		E0E307482F7263990059824C /* Recovered References */ = {
+		E92EB784BE5714E4C1A2144B /* CalChat */ = {
 			isa = PBXGroup;
 			children = (
-				"TEMP_C8E9ADBC-2F41-4B4D-8CFC-6C047D0ACA66" /* Config.xcconfig */,
+				096E0BFE5DDE261CAC6C8373 /* CalChatView.swift */,
+				97C887E448086C45408AE812 /* ChatThreadView.swift */,
 			);
-			name = "Recovered References";
+			path = CalChat;
 			sourceTree = "<group>";
 		};
 		EB271AB25817A2C95A0DAC2A /* Tabs */ = {
@@ -358,8 +352,8 @@
 		F4BAE200BF0EA23C84113B1F /* State */ = {
 			isa = PBXGroup;
 			children = (
+				2AB8B4A4FEBA40DA3F87495D /* ChatStore.swift */,
 				CD9138A7B561CB5DA586A657 /* TaskStore.swift */,
-				2001D3676B4C2F6600B12907 /* ChatStore.swift */,
 			);
 			path = State;
 			sourceTree = "<group>";
@@ -377,6 +371,14 @@
 				2A7EA10589965963C7B9E417 /* Utilities */,
 			);
 			path = CalTodo;
+			sourceTree = "<group>";
+		};
+		"TEMP_07F48A1D-3FBD-44C2-86A4-AD3854227F08" /* mobile-ios */ = {
+			isa = PBXGroup;
+			children = (
+				"TEMP_B8421889-8E4B-48D1-B1BC-FE2D8B106580" /* Config.xcconfig */,
+			);
+			path = "mobile-ios";
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -428,6 +430,11 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					4F3DC5B5125F4A829603A113 = {
+						DevelopmentTeam = "";
+					};
+				};
 			};
 			buildConfigurationList = 404570950440063A95C957DF /* Build configuration list for PBXProject "CalTodo" */;
 			developmentRegion = en;
@@ -478,20 +485,17 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				ACABB2EF4C4F47BE03D2A7F9 /* AuthenticatedWebView.swift in Sources */,
-				8695872A5DA00E09C20D0508 /* ChatThreadView.swift in Sources */,
-				C8919D15E9341A6B98B3A6CD /* ChatStore.swift in Sources */,
-				7CB929B1A954AEFAF6C61056 /* ChatMessage.swift in Sources */,
-				0B766BAC61582CB9711E20C8 /* NotificationManager.swift in Sources */,
-				523ADC9AEBEBC637D8476DD9 /* NotificationSettingsView.swift in Sources */,
-				48C33CB855B6B830577ECB69 /* TabBarSettingsView.swift in Sources */,
-				1AC03A5FD94A9FCB6CBB4B0C /* CalChatView.swift in Sources */,
 				9D45A01440BD6934895C5692 /* APIClient.swift in Sources */,
 				214E213F307BFE520D7CEC22 /* APIError.swift in Sources */,
 				8B811762E5A981F94EAAF189 /* AppColors.swift in Sources */,
 				3FE3078306A9DC5B6F84A0A2 /* AuthManager.swift in Sources */,
+				F5381A9ADE9EC766626C95AC /* AuthenticatedWebView.swift in Sources */,
+				43066E0CD8090F05B7F3C0EC /* CalChatView.swift in Sources */,
 				0AEE64D6007F81F9848E7A4D /* CalTodoApp.swift in Sources */,
 				9CF0B61E14C5448B9388CC68 /* CalendarView.swift in Sources */,
+				47DBE3078B0FD0704DA27451 /* ChatMessage.swift in Sources */,
+				C5E86E9F62EFF038B022BBB3 /* ChatStore.swift in Sources */,
+				3A328AD5513991920D9AF192 /* ChatThreadView.swift in Sources */,
 				7DD202C0E11EA96AC1C20BF1 /* DateFormatting.swift in Sources */,
 				801FC265A9178F474C7C2813 /* EmptyStateView.swift in Sources */,
 				C5D1F9C5FA70CE75951E1665 /* HapticManager.swift in Sources */,
@@ -502,16 +506,19 @@
 				1D1E2200BABCF8DD6460E665 /* LoginView.swift in Sources */,
 				AAE824605A92BA00D1884459 /* MainTabView.swift in Sources */,
 				8B14FBF72104F7AFC6ACB302 /* NotesView.swift in Sources */,
+				F2352549B09AAFCE6BEB9319 /* NotificationDelegate.swift in Sources */,
+				77B4F24CAB908632F5403865 /* NotificationManager.swift in Sources */,
+				EF14B762E2DCE4A2E622A0D9 /* NotificationSettingsView.swift in Sources */,
 				AE8762F0AE98F2FA35444C7A /* OnboardingStepViews.swift in Sources */,
 				9E23A0FD9CE1BEABAFF566FC /* OnboardingView.swift in Sources */,
 				52CEEF508BE8141866BDA82A /* ProfileSheetView.swift in Sources */,
 				0F08B947CAFB2399BB4B9D50 /* SectionHeaderView.swift in Sources */,
 				4241CBCE8F727AC9EFC0B4DC /* SettingsView.swift in Sources */,
+				7582D2785054AD49219855ED /* TabBarSettingsView.swift in Sources */,
 				EA3D440AE06692E0C24E5EEF /* Task.swift in Sources */,
 				B37366FEA49F7888D3CD85A3 /* TaskColors.swift in Sources */,
 				655A7866EDB1765D13F0D548 /* TaskCreateSheet.swift in Sources */,
 				FB72EBFA73A4E8E444872220 /* TaskDetailSheet.swift in Sources */,
-				FC1A2B3D4E5F6A7890BCDE01 /* ToastView.swift in Sources */,
 				7CAC30CD7925A8D8ADF7187B /* TaskInsert.swift in Sources */,
 				1772E89C8C79688C89EFAADD /* TaskItemView.swift in Sources */,
 				8B3AF68F8FA3A80947A37225 /* TaskStore.swift in Sources */,
@@ -520,6 +527,7 @@
 				6499AED289D0146EDF74D1AE /* ThemeDefinitionsExtra.swift in Sources */,
 				7F869DC758A96F468407E63F /* ThemeManager.swift in Sources */,
 				A611CC49F827636A40006F21 /* ThemePickerGrid.swift in Sources */,
+				EBE56E9D940845EECB7AD609 /* ToastView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -540,7 +548,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = J3BMT7MU7K;
+				DEVELOPMENT_TEAM = "";
 				INFOPLIST_FILE = CalTodo/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -548,7 +556,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.cadenchiang.caltodo;
+				PRODUCT_BUNDLE_IDENTIFIER = com.caltodo.app;
 				SDKROOT = iphoneos;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 5.9;
@@ -562,7 +570,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = J3BMT7MU7K;
+				DEVELOPMENT_TEAM = "";
 				INFOPLIST_FILE = CalTodo/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -570,7 +578,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.cadenchiang.caltodo;
+				PRODUCT_BUNDLE_IDENTIFIER = com.caltodo.app;
 				SDKROOT = iphoneos;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.9;
@@ -580,7 +588,7 @@
 		};
 		BBC27ED2527B31013AB189B5 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = "TEMP_C8E9ADBC-2F41-4B4D-8CFC-6C047D0ACA66" /* Config.xcconfig */;
+			baseConfigurationReference = "TEMP_B8421889-8E4B-48D1-B1BC-FE2D8B106580" /* Config.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -637,7 +645,7 @@
 		};
 		CA779C97F6352E61D0A894B0 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = "TEMP_C8E9ADBC-2F41-4B4D-8CFC-6C047D0ACA66" /* Config.xcconfig */;
+			baseConfigurationReference = "TEMP_B8421889-8E4B-48D1-B1BC-FE2D8B106580" /* Config.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -709,7 +717,7 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.cadenchiang.caltodo.tests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.caltodo.app.tests;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.9;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -727,7 +735,7 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.cadenchiang.caltodo.tests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.caltodo.app.tests;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.9;
 				TARGETED_DEVICE_FAMILY = "1,2";

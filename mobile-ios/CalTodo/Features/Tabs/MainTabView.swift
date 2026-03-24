@@ -9,6 +9,7 @@ struct MainTabView: View {
     @EnvironmentObject var taskStore: TaskStore
 
     @State private var selectedTab = 0
+    @State private var inboxSearchText = ""
     @AppStorage("inbox_filter") private var filterMode = "all"
     @AppStorage("inbox_sort") private var sortMode = "date"
 
@@ -36,9 +37,10 @@ struct MainTabView: View {
     var body: some View {
         TabView(selection: $selectedTab) {
             NavigationStack {
-                InboxView()
+                InboxView(searchText: $inboxSearchText)
                     .navigationTitle("Inbox")
                     .navigationBarTitleDisplayMode(.large)
+
                     .toolbar {
                         ToolbarItem(placement: .navigationBarLeading) { menuButton }
                         ToolbarItem(placement: .navigationBarTrailing) { profileButton }
@@ -56,10 +58,11 @@ struct MainTabView: View {
             if calChatVisible {
                 NavigationStack {
                     CalChatView()
-                        .navigationBarTitleDisplayMode(.inline)
+                        .navigationTitle("CalChat")
+                        .navigationBarTitleDisplayMode(.large)
                 }
                 .tag(2)
-                .tabItem { Image(systemName: "bubble.left") }
+                .tabItem { Image(systemName: "bubble.left.circle") }
             }
         }
         .tint(AppColors.accent)
@@ -78,38 +81,21 @@ struct MainTabView: View {
 
     @State private var showSettings = false
 
-    /// Hamburger menu — top left. Shows checkmark on active sort.
+    /// Hamburger menu — top left. Picker shows checkmark on active sort.
     private var menuButton: some View {
         Menu {
-            Section("Sort By") {
-                Button {
-                    sortMode = "date"
-                } label: {
-                    HStack {
-                        Label("By Date", systemImage: "calendar.badge.clock")
-                        if sortMode == "date" { Spacer(); Image(systemName: "checkmark") }
-                    }
-                }
-                Button {
-                    sortMode = "class"
-                } label: {
-                    HStack {
-                        Label("By Class", systemImage: "graduationcap.fill")
-                        if sortMode == "class" { Spacer(); Image(systemName: "checkmark") }
-                    }
-                }
-            }
-            Divider()
+            Picker(selection: $sortMode) {
+                Text("By Date").tag("date")
+                Text("By Class").tag("class")
+            } label: { Text("Sort By") }
             Button {
                 HapticManager.medium()
                 Task { await taskStore.fetchTasks() }
-            } label: {
-                Label("Sync Now", systemImage: "arrow.triangle.2.circlepath")
-            }
+            } label: { Text("Sync Now") }
         } label: {
             Image(systemName: "line.3.horizontal")
                 .font(.system(size: 18, weight: .medium))
-                .foregroundStyle(.white)
+                .foregroundStyle(AppColors.foreground)
         }
     }
 
@@ -122,15 +108,15 @@ struct MainTabView: View {
                         image.resizable().scaledToFill()
                     } placeholder: {
                         Image(systemName: "person.circle.fill")
-                            .font(.system(size: 26))
-                            .foregroundStyle(Color(hex: "#8E8E93"))
+                            .font(.system(size: 32))
+                            .foregroundStyle(AppColors.mutedForeground)
                     }
-                    .frame(width: 28, height: 28)
+                    .frame(width: 32, height: 32)
                     .clipShape(Circle())
                 } else {
                     Image(systemName: "person.circle.fill")
-                        .font(.system(size: 26))
-                        .foregroundStyle(Color(hex: "#8E8E93"))
+                        .font(.system(size: 32))
+                        .foregroundStyle(AppColors.mutedForeground)
                 }
             }
         }
@@ -141,6 +127,7 @@ struct MainTabView: View {
                     .navigationTitle("Settings")
                     .navigationBarTitleDisplayMode(.inline)
             }
+            .presentationDetents([.large])
             .presentationDragIndicator(.visible)
         }
     }

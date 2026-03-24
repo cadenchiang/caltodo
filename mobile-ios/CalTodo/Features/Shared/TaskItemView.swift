@@ -19,7 +19,7 @@ struct TaskItemView: View {
 
                 Text(task.title)
                     .font(.system(size: 17))
-                    .foregroundStyle(task.completed ? AppColors.mutedForeground : .white)
+                    .foregroundStyle(task.completed ? AppColors.mutedForeground : AppColors.foreground)
                     .strikethrough(justCompleted || task.completed, color: AppColors.mutedForeground)
                     .lineLimit(1)
 
@@ -105,8 +105,8 @@ struct TaskItemView: View {
                 Text(info.dateLabel)
                     .foregroundStyle(task.completed ? AppColors.subtleForeground : Color(hex: info.colorHex))
                 if let time = info.timeLabel {
-                    Text("·").foregroundStyle(Color(hex: "#8E8E93"))
-                    Text(time).foregroundStyle(Color(hex: "#8E8E93"))
+                    Text("·").foregroundStyle(AppColors.mutedForeground)
+                    Text(time).foregroundStyle(AppColors.mutedForeground)
                 }
             }
             .font(.system(size: 12))

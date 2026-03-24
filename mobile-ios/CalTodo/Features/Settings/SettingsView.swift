@@ -26,7 +26,7 @@ struct SettingsView: View {
             }
             .padding(.vertical, 16)
         }
-        .background(Color(hex: "#0A0A0A"))
+        .background(AppColors.background)
         .refreshable { await taskStore.fetchCredentials() }
         .alert("Disconnect?", isPresented: Binding(
             get: { showDisconnectConfirm != nil },
@@ -61,23 +61,23 @@ struct SettingsView: View {
                 AsyncImage(url: url) { image in
                     image.resizable().scaledToFill()
                 } placeholder: {
-                    Circle().fill(Color(hex: "#2C2C2E"))
+                    Circle().fill(AppColors.secondaryBackground)
                 }
                 .frame(width: 56, height: 56)
                 .clipShape(Circle())
             } else {
-                Circle().fill(Color(hex: "#2C2C2E"))
+                Circle().fill(AppColors.secondaryBackground)
                     .frame(width: 56, height: 56)
                     .overlay(
                         Text(String((authManager.userName ?? "").prefix(1)).uppercased())
                             .font(.system(size: 22, weight: .semibold))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(AppColors.foreground)
                     )
             }
             VStack(alignment: .leading, spacing: 3) {
                 Text(authManager.userName ?? "")
                     .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(AppColors.foreground)
                 Text(authManager.userEmail ?? "")
                     .font(.system(size: 13))
                     .foregroundStyle(AppColors.mutedForeground)
@@ -85,10 +85,10 @@ struct SettingsView: View {
             Spacer()
             Image(systemName: "chevron.right")
                 .font(.system(size: 13))
-                .foregroundStyle(Color(hex: "#3A3A3C"))
+                .foregroundStyle(AppColors.border)
         }
         .padding(16)
-        .background(Color(hex: "#1C1C1E"))
+        .background(AppColors.card)
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .padding(.horizontal, 16)
     }
@@ -101,7 +101,7 @@ struct SettingsView: View {
             HStack {
                 Text("Integrations")
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(AppColors.foreground)
                 Spacer()
                 Menu {
                     Button { showCanvasSetup = true } label: { Label("bCourses", image: "CanvasLogo") }
@@ -158,13 +158,13 @@ struct SettingsView: View {
                 Image(logo).resizable().aspectRatio(contentMode: .fit)
                     .frame(width: 20, height: 20)
                     .frame(width: 36, height: 36)
-                    .background(Color(hex: "#2C2C2E"))
+                    .background(AppColors.secondaryBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 10))
 
                 // Title + subtitle
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {
-                        Text(title).font(.system(size: 14, weight: .semibold)).foregroundStyle(.white)
+                        Text(title).font(.system(size: 14, weight: .semibold)).foregroundStyle(AppColors.foreground)
                         if let badge {
                             Text(badge)
                                 .font(.system(size: 9, weight: .medium))
@@ -188,7 +188,7 @@ struct SettingsView: View {
                     .clipShape(Capsule())
             }
             .padding(.horizontal, 14).padding(.vertical, 12)
-            .background(Color(hex: "#1C1C1E"))
+            .background(AppColors.card)
             .clipShape(RoundedRectangle(cornerRadius: 14))
         }
         .buttonStyle(.plain)
@@ -198,57 +198,57 @@ struct SettingsView: View {
 
     private var appearanceSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Appearance").font(.system(size: 16, weight: .semibold)).foregroundStyle(.white).padding(.horizontal, 20)
+            Text("Appearance").font(.system(size: 16, weight: .semibold)).foregroundStyle(AppColors.foreground).padding(.horizontal, 20)
             VStack(spacing: 0) {
                 appearanceToggle.padding(14)
                 divider
                 NavigationLink { ThemePickerPage(themeManager: themeManager) } label: {
                     HStack {
-                        Text("Theme").font(.system(size: 15)).foregroundStyle(.white)
+                        Text("Theme").font(.system(size: 15)).foregroundStyle(AppColors.foreground)
                         Spacer()
                         Text(themeManager.currentTheme.capitalized).font(.system(size: 13)).foregroundStyle(AppColors.mutedForeground)
-                        Image(systemName: "chevron.right").font(.system(size: 12)).foregroundStyle(Color(hex: "#3A3A3C"))
+                        Image(systemName: "chevron.right").font(.system(size: 12)).foregroundStyle(AppColors.border)
                     }.padding(.horizontal, 16).padding(.vertical, 14)
                 }
             }
-            .background(Color(hex: "#1C1C1E")).clipShape(RoundedRectangle(cornerRadius: 14)).padding(.horizontal, 16)
+            .background(AppColors.card).clipShape(RoundedRectangle(cornerRadius: 14)).padding(.horizontal, 16)
         }
     }
 
     private var tabBarSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Tab Bar").font(.system(size: 16, weight: .semibold)).foregroundStyle(.white).padding(.horizontal, 20)
+            Text("Tab Bar").font(.system(size: 16, weight: .semibold)).foregroundStyle(AppColors.foreground).padding(.horizontal, 20)
             NavigationLink { TabBarSettingsView() } label: {
                 HStack {
-                    Text("Customize Tabs").font(.system(size: 15)).foregroundStyle(.white)
+                    Text("Customize Tabs").font(.system(size: 15)).foregroundStyle(AppColors.foreground)
                     Spacer()
-                    Image(systemName: "chevron.right").font(.system(size: 12)).foregroundStyle(Color(hex: "#3A3A3C"))
+                    Image(systemName: "chevron.right").font(.system(size: 12)).foregroundStyle(AppColors.border)
                 }.padding(.horizontal, 16).padding(.vertical, 14)
             }
-            .background(Color(hex: "#1C1C1E")).clipShape(RoundedRectangle(cornerRadius: 14)).padding(.horizontal, 16)
+            .background(AppColors.card).clipShape(RoundedRectangle(cornerRadius: 14)).padding(.horizontal, 16)
         }
     }
 
     private var notificationsSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Notifications").font(.system(size: 16, weight: .semibold)).foregroundStyle(.white).padding(.horizontal, 20)
+            Text("Notifications").font(.system(size: 16, weight: .semibold)).foregroundStyle(AppColors.foreground).padding(.horizontal, 20)
             NavigationLink { NotificationSettingsView() } label: {
                 HStack {
-                    Text("Reminders & Alerts").font(.system(size: 15)).foregroundStyle(.white)
+                    Text("Reminders & Alerts").font(.system(size: 15)).foregroundStyle(AppColors.foreground)
                     Spacer()
-                    Image(systemName: "chevron.right").font(.system(size: 12)).foregroundStyle(Color(hex: "#3A3A3C"))
+                    Image(systemName: "chevron.right").font(.system(size: 12)).foregroundStyle(AppColors.border)
                 }.padding(.horizontal, 16).padding(.vertical, 14)
             }
-            .background(Color(hex: "#1C1C1E")).clipShape(RoundedRectangle(cornerRadius: 14)).padding(.horizontal, 16)
+            .background(AppColors.card).clipShape(RoundedRectangle(cornerRadius: 14)).padding(.horizontal, 16)
         }
     }
 
     private var accountSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Account").font(.system(size: 16, weight: .semibold)).foregroundStyle(.white).padding(.horizontal, 20)
+            Text("Account").font(.system(size: 16, weight: .semibold)).foregroundStyle(AppColors.foreground).padding(.horizontal, 20)
             VStack(spacing: 0) {
                 HStack {
-                    Text("Email").font(.system(size: 15)).foregroundStyle(.white)
+                    Text("Email").font(.system(size: 15)).foregroundStyle(AppColors.foreground)
                     Spacer()
                     Text(authManager.userEmail ?? "").font(.system(size: 13)).foregroundStyle(AppColors.mutedForeground)
                 }.padding(.horizontal, 16).padding(.vertical, 14)
@@ -263,7 +263,7 @@ struct SettingsView: View {
                     }.padding(.horizontal, 16).padding(.vertical, 14)
                 }
             }
-            .background(Color(hex: "#1C1C1E")).clipShape(RoundedRectangle(cornerRadius: 14)).padding(.horizontal, 16)
+            .background(AppColors.card).clipShape(RoundedRectangle(cornerRadius: 14)).padding(.horizontal, 16)
         }
     }
 
@@ -274,21 +274,30 @@ struct SettingsView: View {
             seg("Light", "sun.max.fill", "light")
             seg("Auto", "desktopcomputer", "system")
             seg("Dark", "moon.fill", "dark")
-        }.padding(3).background(Color(hex: "#2C2C2E")).clipShape(RoundedRectangle(cornerRadius: 10))
+        }.padding(3).background(AppColors.secondaryBackground).clipShape(RoundedRectangle(cornerRadius: 10))
     }
 
     private func seg(_ label: String, _ icon: String, _ val: String) -> some View {
         Button {
             HapticManager.light()
-            withAnimation(.easeInOut(duration: 0.15)) { appearance = val }
+            appearance = val
+            // Update ThemeManager immediately instead of waiting for system propagation
+            switch val {
+            case "light": themeManager.isDarkMode = false
+            case "dark": themeManager.isDarkMode = true
+            default:
+                // "system" — read current system appearance
+                let style = UIScreen.main.traitCollection.userInterfaceStyle
+                themeManager.isDarkMode = style == .dark
+            }
         } label: {
             HStack(spacing: 4) {
                 Image(systemName: icon).font(.system(size: 11))
                 Text(label).font(.system(size: 13, weight: appearance == val ? .semibold : .regular))
             }
-            .foregroundStyle(appearance == val ? .white : AppColors.mutedForeground)
+            .foregroundStyle(appearance == val ? AppColors.foreground : AppColors.mutedForeground)
             .frame(maxWidth: .infinity).padding(.vertical, 7)
-            .background(appearance == val ? Color(hex: "#3A3A3C") : Color.clear)
+            .background(appearance == val ? AppColors.secondaryBackground : Color.clear)
             .clipShape(RoundedRectangle(cornerRadius: 8))
         }.buttonStyle(.plain)
     }
@@ -322,7 +331,7 @@ struct SettingsView: View {
     }
 
     private var divider: some View {
-        Rectangle().fill(Color(hex: "#2C2C2E")).frame(height: 1).padding(.leading, 16)
+        Rectangle().fill(AppColors.secondaryBackground).frame(height: 1).padding(.leading, 16)
     }
 }
 
@@ -339,13 +348,13 @@ struct CanvasSetupSheet: View {
         NavigationView {
             VStack(alignment: .leading, spacing: 20) {
                 Text("Paste your bCourses calendar feed URL")
-                    .font(.system(size: 15)).foregroundStyle(.white).padding(.horizontal, 20).padding(.top, 16)
+                    .font(.system(size: 15)).foregroundStyle(AppColors.foreground).padding(.horizontal, 20).padding(.top, 16)
                 TextField("https://bcourses.berkeley.edu/feeds/...", text: $icalURL)
                     .font(.system(size: 14)).textInputAutocapitalization(.never).autocorrectionDisabled()
-                    .padding(12).background(Color(hex: "#1C1C1E")).clipShape(RoundedRectangle(cornerRadius: 10)).padding(.horizontal, 20)
+                    .padding(12).background(AppColors.card).clipShape(RoundedRectangle(cornerRadius: 10)).padding(.horizontal, 20)
                 Spacer()
             }
-            .background(Color(hex: "#0A0A0A"))
+            .background(AppColors.background)
             .navigationTitle("Connect bCourses").navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -381,19 +390,19 @@ struct GradescopeSetupSheet: View {
         NavigationView {
             VStack(alignment: .leading, spacing: 16) {
                 Text("Enter your Gradescope credentials")
-                    .font(.system(size: 15)).foregroundStyle(.white).padding(.horizontal, 20).padding(.top, 16)
+                    .font(.system(size: 15)).foregroundStyle(AppColors.foreground).padding(.horizontal, 20).padding(.top, 16)
                 TextField("Email", text: $email)
                     .textInputAutocapitalization(.never).autocorrectionDisabled().keyboardType(.emailAddress)
-                    .font(.system(size: 14)).padding(12).background(Color(hex: "#1C1C1E"))
+                    .font(.system(size: 14)).padding(12).background(AppColors.card)
                     .clipShape(RoundedRectangle(cornerRadius: 10)).padding(.horizontal, 20)
                 SecureField("Password", text: $password)
-                    .font(.system(size: 14)).padding(12).background(Color(hex: "#1C1C1E"))
+                    .font(.system(size: 14)).padding(12).background(AppColors.card)
                     .clipShape(RoundedRectangle(cornerRadius: 10)).padding(.horizontal, 20)
                 Text("Your password is encrypted with AES-256.")
                     .font(.system(size: 12)).foregroundStyle(AppColors.mutedForeground).padding(.horizontal, 20)
                 Spacer()
             }
-            .background(Color(hex: "#0A0A0A"))
+            .background(AppColors.background)
             .navigationTitle("Connect Gradescope").navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -428,13 +437,13 @@ struct PensieveSetupSheet: View {
         NavigationView {
             VStack(alignment: .leading, spacing: 20) {
                 Text("Paste your Pensieve calendar URL")
-                    .font(.system(size: 15)).foregroundStyle(.white).padding(.horizontal, 20).padding(.top, 16)
+                    .font(.system(size: 15)).foregroundStyle(AppColors.foreground).padding(.horizontal, 20).padding(.top, 16)
                 TextField("https://api.pensieve.co/api/calendar/...", text: $calendarURL)
                     .font(.system(size: 14)).textInputAutocapitalization(.never).autocorrectionDisabled()
-                    .padding(12).background(Color(hex: "#1C1C1E")).clipShape(RoundedRectangle(cornerRadius: 10)).padding(.horizontal, 20)
+                    .padding(12).background(AppColors.card).clipShape(RoundedRectangle(cornerRadius: 10)).padding(.horizontal, 20)
                 Spacer()
             }
-            .background(Color(hex: "#0A0A0A"))
+            .background(AppColors.background)
             .navigationTitle("Connect Pensieve").navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {

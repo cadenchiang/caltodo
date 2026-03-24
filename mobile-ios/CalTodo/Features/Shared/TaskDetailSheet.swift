@@ -38,7 +38,7 @@ struct TaskDetailSheet: View {
                 .padding(.bottom, 24)
             }
         }
-        .background(showFlash ? AppColors.green500.opacity(0.06) : Color(hex: "#0A0A0A"))
+        .background(showFlash ? AppColors.green500.opacity(0.06) : AppColors.background)
         .animation(.easeInOut(duration: 0.4), value: showFlash)
         .onAppear {
             editTitle = task.title
@@ -62,14 +62,7 @@ struct TaskDetailSheet: View {
 
     private var topBar: some View {
         HStack {
-            // Drag indicator
             Spacer()
-            RoundedRectangle(cornerRadius: 2.5)
-                .fill(Color(hex: "#3A3A3C"))
-                .frame(width: 36, height: 5)
-            Spacer()
-        }
-        .overlay(alignment: .trailing) {
             HStack(spacing: 16) {
                 // Edit toggle
                 Button {
@@ -79,7 +72,7 @@ struct TaskDetailSheet: View {
                 } label: {
                     Image(systemName: isEditing ? "checkmark" : "pencil")
                         .font(.system(size: 15, weight: .medium))
-                        .foregroundStyle(isEditing ? AppColors.accent : .white)
+                        .foregroundStyle(isEditing ? AppColors.accent : AppColors.foreground)
                 }
 
                 // Three-dot menu
@@ -90,12 +83,12 @@ struct TaskDetailSheet: View {
                 } label: {
                     Image(systemName: "ellipsis")
                         .font(.system(size: 15, weight: .medium))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(AppColors.foreground)
                 }
             }
             .padding(.trailing, 20)
         }
-        .padding(.top, 12)
+        .padding(.top, 20)
         .padding(.bottom, 32)
     }
 
@@ -106,7 +99,7 @@ struct TaskDetailSheet: View {
             headerRow
             dateTimeRow
             repeatRow
-            if hasBelowContent { divider.padding(.vertical, 14) }
+            divider.padding(.vertical, 14)
             courseRow
             tagsRow
             descriptionRow
@@ -127,16 +120,16 @@ struct TaskDetailSheet: View {
             // Title
             TextField("Task title", text: $editTitle)
                 .font(.system(size: 22, weight: .semibold))
-                .foregroundStyle(.white)
+                .foregroundStyle(AppColors.foreground)
                 .padding(.horizontal, 24)
 
-            Rectangle().fill(Color(hex: "#2C2C2E")).frame(height: 1).padding(.horizontal, 24)
+            Rectangle().fill(AppColors.inputBorder).frame(height: 1).padding(.horizontal, 24)
 
             // Due date toggle + picker
             HStack(spacing: iconGap) {
                 Image(systemName: "calendar")
                     .font(.system(size: 15)).foregroundStyle(AppColors.mutedForeground).frame(width: iconWidth)
-                Text("Due Date").font(.system(size: 15)).foregroundStyle(.white)
+                Text("Due Date").font(.system(size: 15)).foregroundStyle(AppColors.foreground)
                 Spacer()
                 Toggle("", isOn: $editHasDueDate).labelsHidden().tint(AppColors.accent)
             }
@@ -156,7 +149,7 @@ struct TaskDetailSheet: View {
                     .padding(.top, 8)
                 TextEditor(text: $editDescription)
                     .font(.system(size: 15))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(AppColors.foreground)
                     .frame(minHeight: 80)
                     .scrollContentBackground(.hidden)
             }
@@ -208,7 +201,7 @@ struct TaskDetailSheet: View {
                             .fill(Color(hex: task.displayColor))
                             .frame(width: iconWidth, height: iconWidth)
                         Image(systemName: "checkmark")
-                            .font(.system(size: 10, weight: .bold)).foregroundStyle(.white)
+                            .font(.system(size: 10, weight: .bold)).foregroundStyle(AppColors.foreground)
                     }
                 }
                 .scaleEffect(checkScale)
@@ -219,7 +212,7 @@ struct TaskDetailSheet: View {
 
             Text(task.title)
                 .font(.system(size: 22, weight: .semibold))
-                .foregroundStyle(.white)
+                .foregroundStyle(AppColors.foreground)
                 .strikethrough(task.completed)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -275,7 +268,7 @@ struct TaskDetailSheet: View {
         if let desc = task.description, !desc.isEmpty {
             HStack(alignment: .top, spacing: iconGap) {
                 Image(systemName: "text.alignleft").font(.system(size: 15)).foregroundStyle(AppColors.secondaryForeground).frame(width: iconWidth)
-                Text(desc).font(.system(size: 14)).foregroundStyle(.white).fixedSize(horizontal: false, vertical: true)
+                Text(desc).font(.system(size: 14)).foregroundStyle(AppColors.foreground).fixedSize(horizontal: false, vertical: true)
             }.padding(.horizontal, 24).padding(.vertical, 10)
         }
     }
@@ -294,12 +287,12 @@ struct TaskDetailSheet: View {
     private func iconRow(icon: String, text: String) -> some View {
         HStack(spacing: iconGap) {
             Image(systemName: icon).font(.system(size: 15)).foregroundStyle(AppColors.secondaryForeground).frame(width: iconWidth)
-            Text(text).font(.system(size: 14)).foregroundStyle(.white)
+            Text(text).font(.system(size: 14)).foregroundStyle(AppColors.foreground)
         }.padding(.horizontal, 24).padding(.vertical, 10)
     }
 
     private var divider: some View {
-        Rectangle().fill(Color(hex: "#2C2C2E")).frame(height: 1).padding(.horizontal, 24)
+        Rectangle().fill(AppColors.inputBorder).frame(height: 1).padding(.horizontal, 24)
     }
 }
 

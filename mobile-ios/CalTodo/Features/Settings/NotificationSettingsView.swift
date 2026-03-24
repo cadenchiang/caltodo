@@ -75,6 +75,27 @@ struct NotificationSettingsView: View {
                         toggleRow(icon: "at", label: "Mentions", desc: "When someone mentions you", isOn: $calChatMentions)
                     }
                 }
+                // Test Notification
+                sectionCard(title: "Test", subtitle: "Make sure notifications work") {
+                    Button {
+                        HapticManager.medium()
+                        sendTestNotification()
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: testSent ? "checkmark.circle.fill" : "bell.and.waves.left.and.right")
+                                .font(.system(size: 15))
+                                .foregroundStyle(testSent ? AppColors.green500 : AppColors.accent)
+                                .frame(width: 22)
+                            Text(testSent ? "Sent!" : "Send Test Notification")
+                                .font(.system(size: 15))
+                                .foregroundStyle(testSent ? AppColors.green500 : AppColors.accent)
+                            Spacer()
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 14)
+                        .animation(.easeInOut(duration: 0.2), value: testSent)
+                    }
+                }
             }
             .padding(.vertical, 16)
         }
@@ -131,10 +152,12 @@ struct NotificationSettingsView: View {
             ("30 min", $remind30m),
             ("1 hour", $remind1h),
             ("1 day", $remind1d),
-            ("Morning of", $remindMorning),
+            ("Morning", $remindMorning),
         ]
 
-        return HStack(spacing: 8) {
+        return LazyVGrid(columns: [
+            GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())
+        ], spacing: 8) {
             ForEach(Array(chips.enumerated()), id: \.offset) { _, chip in
                 Button {
                     HapticManager.light()
@@ -143,10 +166,10 @@ struct NotificationSettingsView: View {
                     Text(chip.label)
                         .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(chip.binding.wrappedValue ? .white : AppColors.foreground)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 7)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
                         .background(chip.binding.wrappedValue ? AppColors.accent : AppColors.muted)
-                        .clipShape(Capsule())
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
             }
         }
@@ -203,5 +226,39 @@ struct NotificationSettingsView: View {
 
     private var divider: some View {
         Rectangle().fill(AppColors.separator).frame(height: 1).padding(.leading, 50)
+    }
+
+    @State private var testSent = false
+
+    /// Sends a test local notification that fires in 1 second.
+    /// Temporarily sets up foreground delivery so it shows even while in-app.
+    private func sendTestNotification() {
+        Task {
+            // Ensure permission
+            let granted = await NotificationManager.shared.requestPermission()
+            guard granted else {
+                permissionGranted = false
+                return
+            }
+
+            // Enable foreground display
+            NotificationDelegate.shared.register()
+
+            let content = UNMutableNotificationContent()
+            content.title = "CalTodo"
+            content.body = "Notifications are working!"
+            content.sound = .default
+
+            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+            let request = UNNotificationRequest(identifier: "test-\(UUID().uuidString)", content: content, trigger: trigger)
+
+            do {
+                try await UNUserNotificationCenter.current().add(request)
+                testSent = true
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3) { testSent = false }
+            } catch {
+                AppLogger.app.error("Test notification failed: \(error.localizedDescription)")
+            }
+        }
     }
 }

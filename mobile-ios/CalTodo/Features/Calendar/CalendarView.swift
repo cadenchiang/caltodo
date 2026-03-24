@@ -8,6 +8,7 @@ struct CalendarView: View {
     @State private var selectedTask: CalTask? = nil
     @State private var showCreateSheet = false
     @State private var monthId = UUID()
+    @State private var swipeDirection: Edge = .trailing
 
     private var titleText: String {
         let fmt = DateFormatter()
@@ -37,23 +38,25 @@ struct CalendarView: View {
                     TickTickMonthView(selectedDate: $selectedDate, selectedTask: $selectedTask,
                                      tasks: taskStore.activeTasks, onToggle: toggleTask)
                         .id(monthId)
+                        .transition(.asymmetric(
+                            insertion: .move(edge: swipeDirection),
+                            removal: .move(edge: swipeDirection == .trailing ? .leading : .trailing)
+                        ))
                 }
             }
             .gesture(
-                DragGesture(minimumDistance: 20).onEnded { value in
-                    if viewMode == "month" && abs(value.translation.width) > abs(value.translation.height) {
-                        if value.translation.width < -20 {
-                            withAnimation(.easeInOut(duration: 0.25)) { goToMonth(1) }
-                        } else if value.translation.width > 20 {
-                            withAnimation(.easeInOut(duration: 0.25)) { goToMonth(-1) }
+                DragGesture(minimumDistance: 10).onEnded { value in
+                    if abs(value.translation.width) > abs(value.translation.height) && abs(value.translation.width) > 15 {
+                        if value.translation.width < 0 {
+                            swipeDirection = .trailing
+                            withAnimation(.easeInOut(duration: 0.3)) { goToMonth(1) }
+                        } else {
+                            swipeDirection = .leading
+                            withAnimation(.easeInOut(duration: 0.3)) { goToMonth(-1) }
                         }
                     }
                 }
             )
-            .transition(.asymmetric(
-                insertion: .move(edge: .trailing),
-                removal: .move(edge: .leading)
-            ))
 
             // FAB
             Button {
@@ -71,7 +74,7 @@ struct CalendarView: View {
             .padding(.trailing, 20)
             .padding(.bottom, 20)
         }
-        .background(Color.black)
+        .background(AppColors.background)
         .navigationBarTitleDisplayMode(.inline)
         .sheet(item: $selectedTask) { task in
             TaskDetailSheet(
@@ -97,14 +100,14 @@ struct CalendarView: View {
             } label: {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(AppColors.foreground)
             }
 
             Spacer()
 
             Text(titleText)
                 .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(.white)
+                .foregroundStyle(AppColors.foreground)
 
             Spacer()
 
@@ -114,7 +117,7 @@ struct CalendarView: View {
             } label: {
                 Image(systemName: "chevron.right")
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(AppColors.foreground)
             }
         }
         .padding(.horizontal, 16)
@@ -131,7 +134,7 @@ struct CalendarView: View {
             tabButton("Day", mode: "day")
         }
         .padding(3)
-        .background(Color(hex: "#1C1C1E"))
+        .background(AppColors.secondaryBackground)
         .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 
@@ -142,10 +145,10 @@ struct CalendarView: View {
         } label: {
             Text(label)
                 .font(.system(size: 13, weight: viewMode == mode ? .semibold : .regular))
-                .foregroundStyle(viewMode == mode ? .white : AppColors.mutedForeground)
+                .foregroundStyle(viewMode == mode ? AppColors.foreground : AppColors.mutedForeground)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 7)
-                .background(viewMode == mode ? Color(hex: "#2C2C2E") : Color.clear)
+                .background(viewMode == mode ? AppColors.card : Color.clear)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(.plain)
@@ -217,7 +220,7 @@ private struct TickTickMonthView: View {
             ForEach(weekdays, id: \.self) { day in
                 Text(day)
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(Color(hex: "#8E8E93"))
+                    .foregroundStyle(AppColors.mutedForeground)
                     .frame(maxWidth: .infinity)
                     .frame(height: 32)
             }
@@ -257,7 +260,7 @@ private struct TickTickMonthView: View {
                         .frame(width: 32, height: 32)
                 } else if isSelected {
                     Circle()
-                        .fill(Color(hex: "#1C1C1E"))
+                        .fill(AppColors.card)
                         .frame(width: 32, height: 32)
                 }
                 Text("\(cal.component(.day, from: date))")
@@ -265,8 +268,8 @@ private struct TickTickMonthView: View {
                     .foregroundStyle(
                         isToday ? .white :
                         isSelected ? AppColors.accent :
-                        isCurrentMonth ? .white :
-                        Color(hex: "#3A3A3C")
+                        isCurrentMonth ? AppColors.foreground :
+                        AppColors.subtleForeground
                     )
             }
 
@@ -300,7 +303,7 @@ private struct TickTickMonthView: View {
             HStack {
                 Text(fmt.string(from: selectedDate))
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(AppColors.foreground)
                 Spacer()
                 Text("\(dayTasks.count) tasks")
                     .font(.system(size: 12))
@@ -326,7 +329,7 @@ private struct TickTickMonthView: View {
                 .padding(.bottom, 4)
             }
         }
-        .background(Color(hex: "#1C1C1E"))
+        .background(AppColors.card)
         .clipShape(RoundedRectangle(cornerRadius: 14))
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
@@ -393,7 +396,7 @@ private struct WeekView: View {
                                 .padding(.horizontal, 14).padding(.bottom, 10)
                         }
                     }
-                    .background(Color(hex: "#1C1C1E")).clipShape(RoundedRectangle(cornerRadius: 12)).padding(.horizontal, 12)
+                    .background(AppColors.card).clipShape(RoundedRectangle(cornerRadius: 12)).padding(.horizontal, 12)
                 }
             }.padding(.vertical, 8)
         }
@@ -420,16 +423,16 @@ private struct DayView: View {
             VStack(spacing: 12) {
                 HStack {
                     Button { HapticManager.light(); selectedDate = Calendar.current.date(byAdding: .day, value: -1, to: selectedDate) ?? selectedDate } label: {
-                        Image(systemName: "chevron.left").font(.system(size: 14, weight: .medium)).foregroundStyle(.white)
+                        Image(systemName: "chevron.left").font(.system(size: 14, weight: .medium)).foregroundStyle(AppColors.foreground)
                     }
                     Spacer()
                     VStack(spacing: 2) {
-                        Text(selectedDate.formatted(.dateTime.weekday(.wide))).font(.system(size: 15, weight: .semibold)).foregroundStyle(.white)
+                        Text(selectedDate.formatted(.dateTime.weekday(.wide))).font(.system(size: 15, weight: .semibold)).foregroundStyle(AppColors.foreground)
                         Text(selectedDate.formatted(.dateTime.month(.wide).day().year())).font(.system(size: 12)).foregroundStyle(AppColors.mutedForeground)
                     }
                     Spacer()
                     Button { HapticManager.light(); selectedDate = Calendar.current.date(byAdding: .day, value: 1, to: selectedDate) ?? selectedDate } label: {
-                        Image(systemName: "chevron.right").font(.system(size: 14, weight: .medium)).foregroundStyle(.white)
+                        Image(systemName: "chevron.right").font(.system(size: 14, weight: .medium)).foregroundStyle(AppColors.foreground)
                     }
                 }.padding(.horizontal, 16)
 
@@ -442,7 +445,7 @@ private struct DayView: View {
                 let dayTasks = tasksOnDate(selectedDate)
                 VStack(alignment: .leading, spacing: 0) {
                     HStack {
-                        Text("Tasks").font(.system(size: 15, weight: .semibold)).foregroundStyle(.white)
+                        Text("Tasks").font(.system(size: 15, weight: .semibold)).foregroundStyle(AppColors.foreground)
                         Spacer()
                         Text("\(dayTasks.count)").font(.system(size: 13)).foregroundStyle(AppColors.mutedForeground)
                     }.padding(.horizontal, 14).padding(.vertical, 12)
@@ -455,7 +458,7 @@ private struct DayView: View {
                         }
                     }
                 }
-                .background(Color(hex: "#1C1C1E")).clipShape(RoundedRectangle(cornerRadius: 14)).padding(.horizontal, 12)
+                .background(AppColors.card).clipShape(RoundedRectangle(cornerRadius: 14)).padding(.horizontal, 12)
             }.padding(.vertical, 8)
         }
     }
