@@ -226,7 +226,7 @@ export default function BoardTemplatesModal({ open, onClose, onApply }: BoardTem
                   tabIndex={0}
                   onClick={() => setConfirmTemplate(template)}
                   onKeyDown={(e) => { if (e.key === "Enter") setConfirmTemplate(template); }}
-                  className="group text-left rounded-xl border border-border overflow-hidden transition-all duration-200 cursor-pointer hover:shadow-xl hover:border-foreground/15 hover:-translate-y-0.5 bg-muted/30 aspect-square flex flex-col"
+                  className="group text-left rounded-xl border border-border overflow-hidden transition-all duration-200 cursor-pointer hover:shadow-xl hover:border-foreground/15 hover:-translate-y-0.5 bg-muted/30 aspect-[16/10] flex flex-col"
                 >
                   <div className="flex-1 overflow-hidden">
                     <BoardPreview template={template} />
