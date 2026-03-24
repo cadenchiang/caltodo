@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { MessageCircle, EyeOff, ShieldCheck } from "lucide-react";
-import { useTour } from "@/components/ui/AppTour";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 
 /** localStorage key to permanently dismiss the CalChat welcome modal. */
@@ -51,7 +50,7 @@ function markAccepted(): void {
  * Once "true", the modal never shows again.
  */
 export default function CalChatWelcomeModal() {
-  const { isActive: isTourActive } = useTour();
+  const isTourActive = false; // Tour removed
   const { hasCompletedOnboarding } = useOnboardingStatus();
   const [visible, setVisible] = useState(false);
   const [exiting, setExiting] = useState(false);

@@ -218,7 +218,7 @@ export default function BoardTemplatesModal({ open, onClose, onApply }: BoardTem
           </div>
 
           <div className="flex-1 overflow-y-auto p-6">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-5">
               {filtered.map((template) => (
                 <div
                   key={template.id}
@@ -226,13 +226,14 @@ export default function BoardTemplatesModal({ open, onClose, onApply }: BoardTem
                   tabIndex={0}
                   onClick={() => setConfirmTemplate(template)}
                   onKeyDown={(e) => { if (e.key === "Enter") setConfirmTemplate(template); }}
-                  className="group text-left rounded-xl border border-border overflow-hidden transition-all duration-200 cursor-pointer hover:shadow-xl hover:border-foreground/15 hover:-translate-y-0.5 bg-muted/30 aspect-[16/10] flex flex-col"
+                  className="group text-left cursor-pointer"
                 >
-                  <div className="flex-1 overflow-hidden">
+                  <div className="rounded-xl border border-border overflow-hidden transition-all duration-200 bg-muted/30 group-hover:shadow-xl group-hover:border-foreground/15 group-hover:-translate-y-0.5">
                     <BoardPreview template={template} />
                   </div>
-                  <div className="px-3 py-2 border-t border-border/50">
-                    <h3 className="text-xs font-semibold text-foreground truncate">{template.name}</h3>
+                  <div className="mt-2 px-1">
+                    <h3 className="text-[13px] font-semibold text-foreground">{template.name}</h3>
+                    <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-1">{template.description}</p>
                   </div>
                 </div>
               ))}

@@ -3,7 +3,6 @@
 import { useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Lock } from "lucide-react";
-import { useTour } from "@/components/ui/AppTour";
 
 interface CalChatLockedModalProps {
   /** Whether the modal is currently visible. */
@@ -25,7 +24,7 @@ interface CalChatLockedModalProps {
  */
 export default function CalChatLockedModal({ open, onClose }: CalChatLockedModalProps) {
   const router = useRouter();
-  const { isActive: isTourActive } = useTour();
+  const isTourActive = false; // Tour removed
 
   /**
    * Navigates to Settings/Integrations to sync classes.

@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ChevronDown, Check } from "lucide-react";
-import { useTour } from "./AppTour";
 import { useTaskContext } from "@/contexts/TaskContext";
 
 /** localStorage keys for Getting Started widget state. */
@@ -60,7 +59,7 @@ function writeFlag(key: string, value: boolean): void {
 export default function GettingStartedWidget() {
   const pathname = usePathname();
   const router = useRouter();
-  const { isCompleted: tourDone } = useTour();
+  const tourDone = true; // Tour removed — always complete
   const { tasks } = useTaskContext();
 
   const [show, setShow] = useState(false);
