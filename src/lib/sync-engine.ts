@@ -9,6 +9,7 @@ import { fetchAllCanvasAssignments, fetchCanvasAssignmentsForCourses, fetchCanva
 import { fetchCanvasICalAssignments } from "@/lib/canvas-ical-client";
 import { fetchAllGradescopeAssignments, fetchGradescopeAssignmentsForCourses } from "@/lib/gradescope-client";
 import { fetchPensieveAssignments, PENSIEVE_COLOR } from "@/lib/pensieve-client";
+import { fetchBrightspaceAssignments } from "@/lib/brightspace-client";
 import { decrypt } from "@/lib/crypto";
 import { logger } from "@/lib/logger";
 import { isAllowedCanvasUrl } from "@/lib/canvas-url-validation";
@@ -37,6 +38,7 @@ interface CredentialsRow {
   selected_gradescope_courses: Array<{ id: string; name: string }> | null;
   selected_pensieve_courses: Array<{ id: string; name: string }> | null;
   pensieve_calendar_url: string | null;
+  brightspace_calendar_url: string | null;
   additional_canvas_accounts: AdditionalCanvasAccount[];
 }
 
@@ -50,7 +52,7 @@ export interface SyncCourseOverrides {
 }
 
 /** Which platforms to sync. When omitted, all platforms are synced. */
-export type SyncPlatform = "canvas" | "gradescope" | "pensieve";
+export type SyncPlatform = "canvas" | "gradescope" | "pensieve" | "brightspace";
 
 /**
  * Runs a full sync: fetches assignments from Canvas and Gradescope,
@@ -76,7 +78,7 @@ export async function runSync(
   // Fetch credentials
   const { data: creds, error: credsError } = await supabase
     .from("integration_credentials")
-    .select("canvas_token, canvas_token_created_at, canvas_base_url, canvas_ical_url, gradescope_email, gradescope_password_encrypted, gradescope_auth_failed, last_gradescope_synced_at, selected_canvas_courses, selected_gradescope_courses, selected_pensieve_courses, pensieve_calendar_url, additional_canvas_accounts")
+    .select("canvas_token, canvas_token_created_at, canvas_base_url, canvas_ical_url, gradescope_email, gradescope_password_encrypted, gradescope_auth_failed, last_gradescope_synced_at, selected_canvas_courses, selected_gradescope_courses, selected_pensieve_courses, pensieve_calendar_url, brightspace_calendar_url, additional_canvas_accounts")
     .eq("user_id", userId)
     .single();
 
@@ -116,7 +118,7 @@ export async function runSync(
 
   // Run syncs independently — only for requested platforms (default: all)
   const syncAll = !platforms || platforms.length === 0;
-  const [canvasResult, gradescopeResult, pensieveResult] = await Promise.all([
+  const [canvasResult, gradescopeResult, pensieveResult, brightspaceResult] = await Promise.all([
     syncAll || platforms!.includes("canvas")
       ? syncCanvas(supabase, userId, credentials, timezone, courseNameMap)
       : { synced: 0, errors: [] } as SyncSourceResult,
@@ -125,6 +127,9 @@ export async function runSync(
       : { synced: 0, errors: [] } as SyncSourceResult,
     syncAll || platforms!.includes("pensieve")
       ? syncPensieve(supabase, userId, credentials, timezone, courseNameMap)
+      : { synced: 0, errors: [] } as SyncSourceResult,
+    syncAll || platforms!.includes("brightspace")
+      ? syncBrightspace(supabase, userId, credentials, timezone, courseNameMap)
       : { synced: 0, errors: [] } as SyncSourceResult,
   ]);
 
@@ -153,6 +158,8 @@ export async function runSync(
     gradescopeErrors: gradescopeResult.errors.length,
     pensieveSynced: pensieveResult.synced,
     pensieveErrors: pensieveResult.errors.length,
+    brightspaceSynced: brightspaceResult.synced,
+    brightspaceErrors: brightspaceResult.errors.length,
   });
 
   // Auto-enroll user into discussion boards for their synced courses.
@@ -202,6 +209,7 @@ export async function runSync(
     canvas: canvasResult,
     gradescope: gradescopeResult,
     pensieve: pensieveResult,
+    brightspace: brightspaceResult,
     last_synced_at: now,
     ...(newCanvasCourses?.length ? { new_canvas_courses: newCanvasCourses } : {}),
   };
@@ -495,6 +503,44 @@ async function syncPensieve(
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     logger.error("syncPensieve failed", { userId, error: message });
+    return { synced: 0, errors: [message] };
+  }
+}
+
+/**
+ * Syncs assignments from Brightspace iCal calendar feed.
+ *
+ * @param supabase - Authenticated Supabase client
+ * @param userId - The user's ID
+ * @param creds - User's integration credentials
+ * @param timezone - IANA timezone for date/time conversion
+ * @returns Sync result with count and errors
+ */
+async function syncBrightspace(
+  supabase: SupabaseClient,
+  userId: string,
+  creds: CredentialsRow,
+  timezone: string,
+  courseNameMap: Map<string, string> = new Map()
+): Promise<SyncSourceResult> {
+  if (!creds.brightspace_calendar_url) {
+    return { synced: 0, errors: [] };
+  }
+
+  try {
+    logger.info("syncBrightspace: fetching assignments", { userId });
+    const assignments = await fetchBrightspaceAssignments(creds.brightspace_calendar_url);
+    logger.info("syncBrightspace: parsed assignments", { userId, count: assignments.length });
+
+    const merged = assignments.map((a) => ({
+      ...a,
+      course_name: getCanonicalName(a.course_name, courseNameMap),
+    }));
+    const result = await upsertAssignments(supabase, userId, "brightspace", merged, timezone);
+    return { synced: result.synced, errors: result.errors };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    logger.error("syncBrightspace failed", { userId, error: message });
     return { synced: 0, errors: [message] };
   }
 }

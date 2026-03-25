@@ -14,7 +14,7 @@ import { isAllowedCanvasUrl } from "@/lib/canvas-url-validation";
 import type { IntegrationCredentials, CredentialsSavePayload, AdditionalCanvasAccount } from "@/lib/types";
 
 /** Base columns selected from integration_credentials (excludes additional_canvas_accounts for fallback). */
-const BASE_SELECT = "canvas_token, canvas_base_url, canvas_ical_url, gradescope_email, gradescope_password_encrypted, last_synced_at, selected_canvas_courses, selected_gradescope_courses, selected_pensieve_courses, google_access_token_encrypted, google_calendar_id, google_email, google_photo_url, canvas_token_created_at, is_founding_member, pensieve_calendar_url, gradescope_auth_failed, email_digest_enabled, email_digest_hour, email_digest_address, dismissed_canvas_course_ids";
+const BASE_SELECT = "canvas_token, canvas_base_url, canvas_ical_url, gradescope_email, gradescope_password_encrypted, last_synced_at, selected_canvas_courses, selected_gradescope_courses, selected_pensieve_courses, google_access_token_encrypted, google_calendar_id, google_email, google_photo_url, canvas_token_created_at, is_founding_member, pensieve_calendar_url, brightspace_calendar_url, gradescope_auth_failed, email_digest_enabled, email_digest_hour, email_digest_address, dismissed_canvas_course_ids";
 
 /**
  * GET /api/credentials
@@ -70,6 +70,7 @@ export async function GET() {
     data?.canvas_ical_url ||
     data?.gradescope_password_encrypted ||
     data?.pensieve_calendar_url ||
+    data?.brightspace_calendar_url ||
     data?.last_synced_at ||
     data?.google_access_token_encrypted
   );
@@ -94,6 +95,7 @@ export async function GET() {
     canvas_token_created_at: data?.canvas_token_created_at ?? null,
     is_founding_member: data?.is_founding_member ?? false,
     pensieve_calendar_url: data?.pensieve_calendar_url ?? null,
+    brightspace_calendar_url: data?.brightspace_calendar_url ?? null,
     additional_canvas_accounts: data?.additional_canvas_accounts ?? [],
     has_completed_onboarding: hasCompletedOnboarding,
     email_digest_enabled: data?.email_digest_enabled ?? true,
@@ -189,6 +191,19 @@ export async function PUT(request: Request) {
       }
     }
     updateData.pensieve_calendar_url = body.pensieve_calendar_url;
+  }
+  if (body.brightspace_calendar_url !== undefined) {
+    if (body.brightspace_calendar_url) {
+      try {
+        const bUrl = new URL(body.brightspace_calendar_url);
+        if (bUrl.protocol !== "https:") {
+          return NextResponse.json({ error: "Brightspace URL must use HTTPS" }, { status: 400 });
+        }
+      } catch {
+        return NextResponse.json({ error: "Invalid Brightspace URL" }, { status: 400 });
+      }
+    }
+    updateData.brightspace_calendar_url = body.brightspace_calendar_url;
   }
   if (body.additional_canvas_accounts !== undefined) {
     // Validate each additional Canvas account URL against allowlist
@@ -293,6 +308,7 @@ export async function PUT(request: Request) {
     updated?.canvas_ical_url ||
     updated?.gradescope_password_encrypted ||
     updated?.pensieve_calendar_url ||
+    updated?.brightspace_calendar_url ||
     updated?.last_synced_at ||
     updated?.google_access_token_encrypted
   );
@@ -317,6 +333,7 @@ export async function PUT(request: Request) {
     canvas_token_created_at: updated?.canvas_token_created_at ?? null,
     is_founding_member: updated?.is_founding_member ?? false,
     pensieve_calendar_url: updated?.pensieve_calendar_url ?? null,
+    brightspace_calendar_url: updated?.brightspace_calendar_url ?? null,
     additional_canvas_accounts: updated?.additional_canvas_accounts ?? [],
     has_completed_onboarding: putHasCompletedOnboarding,
     email_digest_enabled: updated?.email_digest_enabled ?? true,

@@ -139,6 +139,7 @@ export interface IntegrationCredentials {
   canvas_token_created_at: string | null;
   is_founding_member: boolean;
   pensieve_calendar_url: string | null;
+  brightspace_calendar_url: string | null;
   additional_canvas_accounts: AdditionalCanvasAccount[];
   /** Whether the user has completed onboarding (has at least one integration configured). */
   has_completed_onboarding: boolean;
@@ -169,6 +170,7 @@ export interface CredentialsSavePayload {
   selected_pensieve_courses?: Array<{ id: string; name: string }> | null;
   dismissed_canvas_course_ids?: number[];
   pensieve_calendar_url?: string | null;
+  brightspace_calendar_url?: string | null;
   additional_canvas_accounts?: AdditionalCanvasAccount[];
   email_digest_enabled?: boolean;
   email_digest_hour?: number;
@@ -190,6 +192,7 @@ export interface SyncResult {
   canvas: SyncSourceResult;
   gradescope: SyncSourceResult;
   pensieve: SyncSourceResult;
+  brightspace: SyncSourceResult;
   last_synced_at: string;
   /** New Canvas courses detected that the user hasn't selected yet. */
   new_canvas_courses?: Array<{ id: number; name: string }>;

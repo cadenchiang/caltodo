@@ -60,6 +60,7 @@ const EMPTY_CREDENTIALS: IntegrationCredentials = {
   canvas_token_created_at: null,
   is_founding_member: false,
   pensieve_calendar_url: null,
+  brightspace_calendar_url: null,
   additional_canvas_accounts: [],
   has_completed_onboarding: false,
   email_digest_enabled: true,
