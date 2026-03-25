@@ -88,6 +88,7 @@ export async function runSync(
       canvas: { synced: 0, errors: ["No integration credentials configured. Go to Settings to add them."] },
       gradescope: { synced: 0, errors: [] },
       pensieve: { synced: 0, errors: [] },
+      brightspace: { synced: 0, errors: [] },
       last_synced_at: new Date().toISOString(),
     };
   }
@@ -604,13 +605,14 @@ export function toLocalTimeString(isoString: string | null, tz: string): string 
 async function upsertAssignments(
   supabase: SupabaseClient,
   userId: string,
-  source: "canvas" | "gradescope" | "pensieve",
+  source: "canvas" | "gradescope" | "pensieve" | "brightspace",
   assignments: NormalizedAssignment[],
   timezone: string
 ): Promise<{ synced: number; errors: string[] }> {
   let totalUpserted = 0;
   let failedBatches = 0;
-  const colorMap = { canvas: CANVAS_COLOR, gradescope: GRADESCOPE_COLOR, pensieve: PENSIEVE_COLOR };
+  const BRIGHTSPACE_COLOR = "#E87040"; // D2L orange
+  const colorMap = { canvas: CANVAS_COLOR, gradescope: GRADESCOPE_COLOR, pensieve: PENSIEVE_COLOR, brightspace: BRIGHTSPACE_COLOR };
   const color = colorMap[source];
   const syncStartTime = new Date().toISOString();
   const upsertedExternalIds: string[] = [];

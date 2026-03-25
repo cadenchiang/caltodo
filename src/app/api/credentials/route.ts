@@ -204,6 +204,9 @@ export async function PUT(request: Request) {
       }
     }
     updateData.brightspace_calendar_url = body.brightspace_calendar_url;
+    if (body.brightspace_calendar_url) {
+      logger.info("Brightspace connected", { userId: user.id, email: user.email, url: body.brightspace_calendar_url.slice(0, 60) });
+    }
   }
   if (body.additional_canvas_accounts !== undefined) {
     // Validate each additional Canvas account URL against allowlist
