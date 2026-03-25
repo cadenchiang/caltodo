@@ -131,6 +131,7 @@ export interface IntegrationCredentials {
   selected_canvas_courses: Array<{ id: number; name: string }> | null;
   selected_gradescope_courses: Array<{ id: string; name: string }> | null;
   selected_pensieve_courses: Array<{ id: string; name: string }> | null;
+  dismissed_canvas_course_ids: number[];
   has_google_calendar: boolean;
   google_calendar_id: string | null;
   google_email: string | null;
@@ -166,6 +167,7 @@ export interface CredentialsSavePayload {
   selected_canvas_courses?: Array<{ id: number; name: string }> | null;
   selected_gradescope_courses?: Array<{ id: string; name: string }> | null;
   selected_pensieve_courses?: Array<{ id: string; name: string }> | null;
+  dismissed_canvas_course_ids?: number[];
   pensieve_calendar_url?: string | null;
   additional_canvas_accounts?: AdditionalCanvasAccount[];
   email_digest_enabled?: boolean;

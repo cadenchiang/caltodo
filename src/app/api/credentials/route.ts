@@ -14,7 +14,7 @@ import { isAllowedCanvasUrl } from "@/lib/canvas-url-validation";
 import type { IntegrationCredentials, CredentialsSavePayload, AdditionalCanvasAccount } from "@/lib/types";
 
 /** Base columns selected from integration_credentials (excludes additional_canvas_accounts for fallback). */
-const BASE_SELECT = "canvas_token, canvas_base_url, canvas_ical_url, gradescope_email, gradescope_password_encrypted, last_synced_at, selected_canvas_courses, selected_gradescope_courses, selected_pensieve_courses, google_access_token_encrypted, google_calendar_id, google_email, google_photo_url, canvas_token_created_at, is_founding_member, pensieve_calendar_url, gradescope_auth_failed, email_digest_enabled, email_digest_hour, email_digest_address";
+const BASE_SELECT = "canvas_token, canvas_base_url, canvas_ical_url, gradescope_email, gradescope_password_encrypted, last_synced_at, selected_canvas_courses, selected_gradescope_courses, selected_pensieve_courses, google_access_token_encrypted, google_calendar_id, google_email, google_photo_url, canvas_token_created_at, is_founding_member, pensieve_calendar_url, gradescope_auth_failed, email_digest_enabled, email_digest_hour, email_digest_address, dismissed_canvas_course_ids";
 
 /**
  * GET /api/credentials
@@ -86,6 +86,7 @@ export async function GET() {
     selected_canvas_courses: data?.selected_canvas_courses ?? null,
     selected_gradescope_courses: data?.selected_gradescope_courses ?? null,
     selected_pensieve_courses: data?.selected_pensieve_courses ?? null,
+    dismissed_canvas_course_ids: data?.dismissed_canvas_course_ids ?? [],
     has_google_calendar: !!data?.google_access_token_encrypted,
     google_calendar_id: data?.google_calendar_id ?? null,
     google_email: data?.google_email ?? null,
@@ -152,6 +153,9 @@ export async function PUT(request: Request) {
   }
   if (body.selected_canvas_courses !== undefined) {
     updateData.selected_canvas_courses = body.selected_canvas_courses;
+  }
+  if (body.dismissed_canvas_course_ids !== undefined) {
+    updateData.dismissed_canvas_course_ids = body.dismissed_canvas_course_ids;
   }
   if (body.selected_gradescope_courses !== undefined) {
     updateData.selected_gradescope_courses = body.selected_gradescope_courses;
@@ -303,6 +307,7 @@ export async function PUT(request: Request) {
     gradescope_auth_failed: updated?.gradescope_auth_failed ?? false,
     last_synced_at: updated?.last_synced_at ?? null,
     selected_canvas_courses: updated?.selected_canvas_courses ?? null,
+    dismissed_canvas_course_ids: updated?.dismissed_canvas_course_ids ?? [],
     selected_gradescope_courses: updated?.selected_gradescope_courses ?? null,
     selected_pensieve_courses: updated?.selected_pensieve_courses ?? null,
     has_google_calendar: !!updated?.google_access_token_encrypted,

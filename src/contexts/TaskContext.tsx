@@ -317,47 +317,66 @@ export function TaskProvider({ children }: { children: ReactNode }) {
             }
           }
 
-          // Prompt user about new unselected Canvas courses
+          // Prompt user about new unselected Canvas courses (one-time per course, stored on account)
           if (result.new_canvas_courses && result.new_canvas_courses.length > 0) {
-            const newCourses = result.new_canvas_courses;
-            const names = newCourses.map((c) => c.name.replace(/\s*\(Spring 2026\)\s*/g, "").trim());
-            const msg = newCourses.length === 1
-              ? `New class found: ${names[0]}`
-              : `${newCourses.length} new classes found`;
-            showToast(msg, {
-              action: {
-                label: "Add",
-                icon: <Plus size={14} />,
-                onClick: async () => {
-                  try {
-                    // Fetch current selected courses and append new ones
-                    const credRes = await fetch("/api/credentials");
-                    if (!credRes.ok) return;
-                    const credData = await credRes.json();
-                    const current = credData.selected_canvas_courses || [];
-                    const updated = [...current, ...newCourses];
-                    await fetch("/api/credentials", {
-                      method: "PUT",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ selected_canvas_courses: updated }),
-                    });
-                    showToast(`Added ${newCourses.length} class${newCourses.length > 1 ? "es" : ""}. Syncing...`);
-                    // Trigger a resync to pull in assignments for the new courses
-                    fetch("/api/assignments/sync", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                        platforms: ["canvas"],
-                      }),
-                    });
-                  } catch {
-                    showToast("Failed to add classes. Try again in Settings.");
-                  }
+            // Fetch dismissed course IDs from credentials
+            let dismissedIds: number[] = [];
+            try {
+              const credCheck = await fetch("/api/credentials");
+              if (credCheck.ok) {
+                const credJson = await credCheck.json();
+                dismissedIds = credJson.dismissed_canvas_course_ids || [];
+              }
+            } catch { /* continue */ }
+            const dismissed = new Set(dismissedIds);
+            const unprompted = result.new_canvas_courses.filter((c) => !dismissed.has(c.id));
+
+            if (unprompted.length > 0) {
+              // Mark as dismissed so we never show again
+              const updatedDismissed = [...dismissedIds, ...unprompted.map((c) => c.id)];
+              fetch("/api/credentials", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ dismissed_canvas_course_ids: updatedDismissed }),
+              });
+
+              const names = unprompted.map((c) => c.name.replace(/\s*\(Spring 2026\)\s*/g, "").trim());
+              const msg = unprompted.length === 1
+                ? `New class detected: ${names[0]}`
+                : `${unprompted.length} new classes detected`;
+              showToast(msg, {
+                action: {
+                  label: "Add",
+                  icon: <Plus size={14} />,
+                  onClick: async () => {
+                    try {
+                      const credRes = await fetch("/api/credentials");
+                      if (!credRes.ok) return;
+                      const credData = await credRes.json();
+                      const current = credData.selected_canvas_courses || [];
+                      const updated = [...current, ...unprompted];
+                      await fetch("/api/credentials", {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ selected_canvas_courses: updated }),
+                      });
+                      showToast(`Added ${unprompted.length} class${unprompted.length > 1 ? "es" : ""}. Syncing...`);
+                      fetch("/api/assignments/sync", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                          platforms: ["canvas"],
+                        }),
+                      });
+                    } catch {
+                      showToast("Failed to add classes. Try again in Settings.");
+                    }
+                  },
                 },
-              },
-              duration: 15000, // Show for 15 seconds since it needs user action
-            });
+                duration: 600000, // Stay until user acts (10 min max)
+              });
+            }
           }
 
           // Sync any newly imported tasks (with due dates) to GCal
