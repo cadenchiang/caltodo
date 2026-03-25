@@ -5,7 +5,7 @@
  */
 
 import { SupabaseClient } from "@supabase/supabase-js";
-import { fetchAllCanvasAssignments, fetchCanvasAssignmentsForCourses, type NormalizedAssignment } from "@/lib/canvas-client";
+import { fetchAllCanvasAssignments, fetchCanvasAssignmentsForCourses, fetchCanvasCourses, type NormalizedAssignment } from "@/lib/canvas-client";
 import { fetchCanvasICalAssignments } from "@/lib/canvas-ical-client";
 import { fetchAllGradescopeAssignments, fetchGradescopeAssignmentsForCourses } from "@/lib/gradescope-client";
 import { fetchPensieveAssignments, PENSIEVE_COLOR } from "@/lib/pensieve-client";
@@ -175,11 +175,35 @@ export async function runSync(
     // Enrollment failure is non-blocking — sync results are still valid
   }
 
+  // Detect new Canvas courses the user hasn't selected yet
+  let newCanvasCourses: Array<{ id: number; name: string }> | undefined;
+  if (credentials.canvas_token && Array.isArray(credentials.selected_canvas_courses) && credentials.selected_canvas_courses.length > 0) {
+    try {
+      const allCourses = await fetchCanvasCourses(credentials.canvas_token, credentials.canvas_base_url);
+      const selectedIds = new Set(credentials.selected_canvas_courses.map((c) => c.id));
+      // Only flag current-term courses (Spring 2026 patterns)
+      const termPatterns = ["Spring 2026", "SP26", "Sp26", "S'26", "S26", "sp2026", "Sp2026"];
+      const unselected = allCourses.filter(
+        (c) => !selectedIds.has(c.id) && c.name && termPatterns.some((p) => c.name.includes(p))
+      );
+      if (unselected.length > 0) {
+        newCanvasCourses = unselected.map((c) => ({ id: c.id, name: c.name }));
+        logger.info("runSync: detected new unselected Canvas courses", {
+          userId,
+          courses: newCanvasCourses.map((c) => c.name),
+        });
+      }
+    } catch {
+      // Non-blocking — don't fail sync if course detection fails
+    }
+  }
+
   return {
     canvas: canvasResult,
     gradescope: gradescopeResult,
     pensieve: pensieveResult,
     last_synced_at: now,
+    ...(newCanvasCourses?.length ? { new_canvas_courses: newCanvasCourses } : {}),
   };
 }
 
@@ -225,7 +249,7 @@ async function syncCanvas(
         assignments = allIcalAssignments;
       }
     } else if (creds.canvas_token) {
-      // API token path (legacy)
+      // API token path
       const selectedCourses = creds.selected_canvas_courses;
 
       // [] = user explicitly deselected all courses, sync nothing
@@ -234,6 +258,8 @@ async function syncCanvas(
         return { synced: 0, errors: [] };
       }
 
+      // null = no selection made yet, sync ALL courses
+      // array with items = sync only selected courses
       assignments = selectedCourses && selectedCourses.length > 0
         ? await fetchCanvasAssignmentsForCourses(creds.canvas_token, creds.canvas_base_url, selectedCourses)
         : await fetchAllCanvasAssignments(creds.canvas_token, creds.canvas_base_url);

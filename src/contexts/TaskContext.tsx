@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef, type ReactNode } from "react";
-import { Undo2, Eye } from "lucide-react";
+import { Undo2, Eye, Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/contexts/ToastContext";
 
@@ -315,6 +315,49 @@ export function TaskProvider({ children }: { children: ReactNode }) {
                 },
               });
             }
+          }
+
+          // Prompt user about new unselected Canvas courses
+          if (result.new_canvas_courses && result.new_canvas_courses.length > 0) {
+            const newCourses = result.new_canvas_courses;
+            const names = newCourses.map((c) => c.name.replace(/\s*\(Spring 2026\)\s*/g, "").trim());
+            const msg = newCourses.length === 1
+              ? `New class found: ${names[0]}`
+              : `${newCourses.length} new classes found`;
+            showToast(msg, {
+              action: {
+                label: "Add",
+                icon: <Plus size={14} />,
+                onClick: async () => {
+                  try {
+                    // Fetch current selected courses and append new ones
+                    const credRes = await fetch("/api/credentials");
+                    if (!credRes.ok) return;
+                    const credData = await credRes.json();
+                    const current = credData.selected_canvas_courses || [];
+                    const updated = [...current, ...newCourses];
+                    await fetch("/api/credentials", {
+                      method: "PUT",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ selected_canvas_courses: updated }),
+                    });
+                    showToast(`Added ${newCourses.length} class${newCourses.length > 1 ? "es" : ""}. Syncing...`);
+                    // Trigger a resync to pull in assignments for the new courses
+                    fetch("/api/assignments/sync", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                        platforms: ["canvas"],
+                      }),
+                    });
+                  } catch {
+                    showToast("Failed to add classes. Try again in Settings.");
+                  }
+                },
+              },
+              duration: 15000, // Show for 15 seconds since it needs user action
+            });
           }
 
           // Sync any newly imported tasks (with due dates) to GCal

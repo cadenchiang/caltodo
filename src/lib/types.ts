@@ -189,6 +189,8 @@ export interface SyncResult {
   gradescope: SyncSourceResult;
   pensieve: SyncSourceResult;
   last_synced_at: string;
+  /** New Canvas courses detected that the user hasn't selected yet. */
+  new_canvas_courses?: Array<{ id: number; name: string }>;
 }
 
 /**
