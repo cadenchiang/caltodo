@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await supabase
     .from("integration_credentials")
-    .select("canvas_token, canvas_ical_url, gradescope_email, google_calendar_id, pensieve_calendar_url, has_completed_onboarding")
+    .select("canvas_token, canvas_ical_url, gradescope_email, google_calendar_id, pensieve_calendar_url")
     .eq("user_id", user.id)
     .maybeSingle();
 
@@ -38,6 +38,5 @@ export async function GET(req: NextRequest) {
     gradescope_connected: !!data?.gradescope_email,
     google_calendar_connected: !!data?.google_calendar_id,
     pensieve_connected: !!data?.pensieve_calendar_url,
-    has_completed_onboarding: data?.has_completed_onboarding ?? false,
   });
 }

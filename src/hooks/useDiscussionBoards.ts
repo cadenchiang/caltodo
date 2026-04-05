@@ -85,5 +85,15 @@ export function useDiscussionBoards() {
     fetchBoards();
   }, [fetchBoards]);
 
+  // Refetch when courses are added/removed in settings
+  useEffect(() => {
+    function handleCoursesChanged() {
+      try { sessionStorage.removeItem(CACHE_KEY); } catch { /* non-critical */ }
+      fetchBoards();
+    }
+    window.addEventListener("caltodo-courses-changed", handleCoursesChanged);
+    return () => window.removeEventListener("caltodo-courses-changed", handleCoursesChanged);
+  }, [fetchBoards]);
+
   return { boards, loading, error, refetch: fetchBoards };
 }

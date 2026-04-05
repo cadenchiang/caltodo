@@ -3,22 +3,14 @@
 import { useState, useEffect, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
+import { useDismissedModals } from "@/hooks/useDismissedModals";
 import { BookOpen, Compass, MessageCircle, ArrowLeft } from "lucide-react";
-
-/** localStorage key to track dismissal of the welcome prompt. */
-const DISMISS_KEY = "caltodo_sync_dismissed";
 
 /** localStorage key to check if tour has already been completed. */
 const TOUR_COMPLETED_KEY = "caltodo_tour_completed";
 
 /** localStorage key for the Getting Started widget visibility. */
 const GETTING_STARTED_VISIBLE_KEY = "caltodo_getting_started_visible";
-
-/**
- * Module-level flag to prevent re-showing the modal on component re-mounts
- * within the same page session.
- */
-let dismissedThisSession = false;
 
 /**
  * Two-screen setup wizard shown to new users on their first inbox visit.
@@ -29,15 +21,16 @@ let dismissedThisSession = false;
  * On final click, dismisses the modal and reveals the Getting Started widget.
  *
  * Show conditions:
- * - Only on `/app/inbox` route
+ * - Only on `/app/inbox` or `/app/home` route
  * - `hasCompletedOnboarding === false` OR redo is active
- * - Not previously dismissed (localStorage)
+ * - Not previously dismissed (server-persisted via dismissed_modals)
  * - Tour not already completed
  */
 export default function SyncClassesModal() {
   const pathname = usePathname();
   const router = useRouter();
   const { hasCompletedOnboarding, loading } = useOnboardingStatus();
+  const { isDismissed, dismiss, loaded: modalsLoaded } = useDismissedModals();
   const [visible, setVisible] = useState(false);
   const [exiting, setExiting] = useState(false);
   const [redoActive, setRedoActive] = useState(false);
@@ -46,7 +39,6 @@ export default function SyncClassesModal() {
   // Listen for redo-setup event — force-show the wizard on next inbox visit
   useEffect(() => {
     function handleReset() {
-      dismissedThisSession = false;
       setRedoActive(true);
     }
     window.addEventListener("caltodo-redo-setup", handleReset);
@@ -62,50 +54,33 @@ export default function SyncClassesModal() {
   }, [redoActive, pathname]);
 
   // Standard show logic for first-time users (shows on /app/home or /app/inbox).
-  // When loading, waits up to 400ms for the API to respond before showing.
-  // Once loading finishes, shows immediately if onboarding is not complete.
+  // Waits for both the onboarding API and dismissed modals to load before deciding.
   useEffect(() => {
     if (redoActive) return; // redo has its own path
     if (!pathname?.startsWith("/app/inbox") && !pathname?.startsWith("/app/home")) return;
-    if (dismissedThisSession) return;
+    if (loading || !modalsLoaded) return; // Wait for API before deciding
     if (hasCompletedOnboarding) {
-      // API confirmed onboarding is done — hide if it was shown prematurely
       if (visible) setVisible(false);
       return;
     }
+    if (isDismissed("sync_welcome")) return;
 
     try {
-      if (localStorage.getItem(DISMISS_KEY) === "true") {
-        dismissedThisSession = true;
-        return;
-      }
-      if (localStorage.getItem(TOUR_COMPLETED_KEY) === "true") {
-        dismissedThisSession = true;
-        return;
-      }
+      if (localStorage.getItem(TOUR_COMPLETED_KEY) === "true") return;
     } catch {
       return;
     }
 
-    if (!loading) {
-      // API responded — show immediately
-      setVisible(true);
-      return;
-    }
-
-    // API still loading — show after a short timeout so new users aren't waiting
-    const timer = setTimeout(() => setVisible(true), 400);
-    return () => clearTimeout(timer);
-  }, [pathname, loading, hasCompletedOnboarding, redoActive, visible]);
+    setVisible(true);
+  }, [pathname, loading, hasCompletedOnboarding, redoActive, visible, modalsLoaded, isDismissed]);
 
   /**
-   * Closes the modal with exit animation, persists dismissal,
+   * Closes the modal with exit animation, persists dismissal to server,
    * and shows the Getting Started widget.
    */
   const closeAndShowWidget = useCallback(() => {
-    dismissedThisSession = true;
+    dismiss("sync_welcome");
     try {
-      localStorage.setItem(DISMISS_KEY, "true");
       localStorage.removeItem("caltodo_redo_active");
       localStorage.setItem(GETTING_STARTED_VISIBLE_KEY, "true");
     } catch { /* non-critical */ }
@@ -117,7 +92,7 @@ export default function SyncClassesModal() {
       setScreen(1);
       window.dispatchEvent(new CustomEvent("caltodo-show-getting-started"));
     }, 120);
-  }, []);
+  }, [dismiss]);
 
   /**
    * Dismisses the modal, shows the widget, and navigates to integrations.
@@ -145,9 +120,8 @@ export default function SyncClassesModal() {
    * Closes the modal without showing the widget (backdrop click).
    */
   const closeModal = useCallback(() => {
-    dismissedThisSession = true;
+    dismiss("sync_welcome");
     try {
-      localStorage.setItem(DISMISS_KEY, "true");
       localStorage.removeItem("caltodo_redo_active");
     } catch { /* non-critical */ }
     setRedoActive(false);
@@ -157,7 +131,7 @@ export default function SyncClassesModal() {
       setExiting(false);
       setScreen(1);
     }, 120);
-  }, []);
+  }, [dismiss]);
 
   if (!visible) return null;
 

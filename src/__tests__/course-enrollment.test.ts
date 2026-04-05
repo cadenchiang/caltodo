@@ -102,6 +102,44 @@ describe("syncCourseEnrollments", () => {
     expect(result).toBe(0);
   });
 
+  it("should include deleted_at: null in membership rows to restore soft-deleted memberships", async () => {
+    const upsertSpy = vi.fn().mockReturnValue({ error: null });
+    const client = {
+      from: vi.fn((table: string) => {
+        if (table === "courses") {
+          return {
+            upsert: vi.fn().mockReturnValue({ error: null }),
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                  single: vi.fn().mockResolvedValue({
+                    data: { id: "course-uuid-1" },
+                    error: null,
+                  }),
+                }),
+              }),
+            }),
+          };
+        }
+        if (table === "course_memberships") {
+          return { upsert: upsertSpy };
+        }
+        return {};
+      }),
+    };
+
+    const courses: EnrollableCourse[] = [
+      { source: "canvas", external_id: "101", name: "CS 61A" },
+    ];
+
+    await syncCourseEnrollments(client as any, "user-1", courses);
+
+    expect(upsertSpy).toHaveBeenCalledWith(
+      [{ user_id: "user-1", course_id: "course-uuid-1", deleted_at: null }],
+      { onConflict: "user_id,course_id" }
+    );
+  });
+
   it("should return 0 when course ID lookup fails", async () => {
     const client = createMockAdminClient({
       selectData: null,

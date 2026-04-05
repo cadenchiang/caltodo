@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { BookOpen, ShieldCheck } from "lucide-react";
+import { useDismissedModals } from "@/hooks/useDismissedModals";
 
 /**
  * Inline Google Calendar logo SVG.
@@ -23,75 +24,39 @@ function GCalIcon({ size = 18 }: { size?: number }) {
   );
 }
 
-/** localStorage key to permanently dismiss the integrations welcome modal. */
-const WELCOME_KEY = "caltodo_integrations_welcome_seen";
-
-/**
- * Module-level flag to prevent re-showing the modal on component re-mounts
- * within the same page session.
- */
-let seenThisSession = false;
-
-/**
- * Checks if the integrations welcome has already been seen.
- *
- * @returns true if the modal should not be shown
- */
-function isAlreadySeen(): boolean {
-  if (seenThisSession) return true;
-  try {
-    return localStorage.getItem(WELCOME_KEY) === "true";
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Marks the integrations welcome as permanently seen in localStorage
- * and sets the module-level flag to prevent re-show on re-mount.
- */
-function markSeen(): void {
-  seenThisSession = true;
-  try {
-    localStorage.setItem(WELCOME_KEY, "true");
-  } catch {
-    /* non-critical */
-  }
-}
-
 /**
  * One-time welcome modal shown when a user first visits the integrations
  * settings section. Explains available platforms and highlights Google
  * Calendar Live Sync.
  *
- * **Tracking:** Uses localStorage key `caltodo_integrations_welcome_seen`.
- * Once "true", the modal never shows again.
+ * **Tracking:** Server-persisted via `dismissed_modals.integrations_welcome`
+ * with localStorage fallback for instant reads.
  */
 export default function IntegrationsWelcomeModal() {
+  const { isDismissed, dismiss, loaded } = useDismissedModals();
   const [visible, setVisible] = useState(false);
   const [exiting, setExiting] = useState(false);
 
   useEffect(() => {
-    if (isAlreadySeen()) return;
-    // Mark immediately to prevent duplicate mounts from showing twice
-    seenThisSession = true;
+    if (!loaded) return;
+    if (isDismissed("integrations_welcome")) return;
     const timer = setTimeout(() => {
       setVisible(true);
     }, 300);
     return () => clearTimeout(timer);
-  }, []);
+  }, [loaded, isDismissed]);
 
   /**
-   * Dismisses the modal with exit animation and marks as seen.
+   * Dismisses the modal with exit animation and persists to server.
    */
   const handleDismiss = useCallback(() => {
-    markSeen();
+    dismiss("integrations_welcome");
     setExiting(true);
     setTimeout(() => {
       setVisible(false);
       setExiting(false);
     }, 250);
-  }, []);
+  }, [dismiss]);
 
   if (!visible) return null;
 

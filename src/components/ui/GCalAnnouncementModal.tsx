@@ -4,42 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { CalendarSync, Settings, ChevronRight } from "lucide-react";
-
-/** localStorage key to permanently dismiss the Google Calendar announcement modal. */
-const GCAL_ANNOUNCE_KEY = "caltodo_gcal_announce_seen";
-
-/**
- * Module-level flag to prevent re-showing the modal on component re-mounts
- * within the same page session.
- */
-let seenThisSession = false;
-
-/**
- * Checks if the Google Calendar announcement has already been seen.
- *
- * @returns true if the modal should not be shown
- */
-function isAlreadySeen(): boolean {
-  if (seenThisSession) return true;
-  try {
-    return localStorage.getItem(GCAL_ANNOUNCE_KEY) === "true";
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Marks the Google Calendar announcement as permanently seen in localStorage
- * and sets the module-level flag to prevent re-show on re-mount.
- */
-function markSeen(): void {
-  seenThisSession = true;
-  try {
-    localStorage.setItem(GCAL_ANNOUNCE_KEY, "true");
-  } catch {
-    /* non-critical */
-  }
-}
+import { useDismissedModals } from "@/hooks/useDismissedModals";
 
 /**
  * Official Google Calendar SVG logo icon.
@@ -65,31 +30,32 @@ function GoogleCalendarLogo() {
  * One-time announcement modal shown on the calendar page to introduce
  * Google Calendar sync integration. Styled identically to NotesWelcomeModal.
  *
- * **Tracking:** Uses localStorage key `caltodo_gcal_announce_seen`.
- * Once "true", the modal never shows again.
+ * **Tracking:** Server-persisted via `dismissed_modals.gcal_announce`
+ * with localStorage fallback for instant reads.
  */
 export default function GCalAnnouncementModal() {
   const router = useRouter();
+  const { isDismissed, dismiss, loaded } = useDismissedModals();
   const [visible, setVisible] = useState(false);
   const [exiting, setExiting] = useState(false);
 
   useEffect(() => {
-    if (isAlreadySeen()) return;
-    seenThisSession = true;
+    if (!loaded) return;
+    if (isDismissed("gcal_announce")) return;
     setVisible(true);
-  }, []);
+  }, [loaded, isDismissed]);
 
   /**
-   * Dismisses the modal with exit animation and marks as seen.
+   * Dismisses the modal with exit animation and persists to server.
    */
   const handleDismiss = useCallback(() => {
-    markSeen();
+    dismiss("gcal_announce");
     setExiting(true);
     setTimeout(() => {
       setVisible(false);
       setExiting(false);
     }, 250);
-  }, []);
+  }, [dismiss]);
 
   if (!visible) return null;
 

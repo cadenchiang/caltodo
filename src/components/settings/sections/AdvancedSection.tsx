@@ -51,10 +51,18 @@ export default function AdvancedSection() {
       localStorage.removeItem("caltodo_integrations_welcome_seen");
       sessionStorage.removeItem("caltodo_onboarding_status");
     } catch { /* non-critical */ }
+    // Clear server-side modal dismissals
+    fetch("/api/credentials", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dismissed_modals: {} }),
+    }).catch(() => { /* non-critical */ });
+    // Notify mounted hooks to clear cached modal state
+    window.dispatchEvent(new CustomEvent("caltodo-reset-modals"));
     // Set redo flag so SyncClassesModal shows without overriding onboarding status
     // (keeps CalChat unlocked and prevents re-triggering announcements)
     localStorage.setItem("caltodo_redo_active", "true");
-    // Reset the module-level dismissal flag in SyncClassesModal
+    // Reset the SyncClassesModal redo path
     window.dispatchEvent(new CustomEvent("caltodo-redo-setup"));
     router.push("/app/inbox");
   }

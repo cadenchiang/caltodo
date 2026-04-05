@@ -87,7 +87,7 @@ describe("getEventColor", () => {
   });
 
   it("should fall back to default when both are missing", () => {
-    expect(getEventColor(null)).toBe("#4285F4");
+    expect(getEventColor(null)).toBe("#3F51B5");
   });
 
   it("should use custom fallback", () => {

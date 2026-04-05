@@ -617,9 +617,19 @@ async function upsertAssignments(
   const syncStartTime = new Date().toISOString();
   const upsertedExternalIds: string[] = [];
 
+  // Query existing external IDs so we can skip overwriting user-customized colors
+  const { data: existingTaskRows } = await supabase
+    .from("tasks")
+    .select("external_id")
+    .eq("user_id", userId)
+    .eq("source", source);
+  const existingIds = new Set(existingTaskRows?.map((r) => r.external_id) ?? []);
+
   for (let i = 0; i < assignments.length; i += UPSERT_BATCH_SIZE) {
     const batch = assignments.slice(i, i + UPSERT_BATCH_SIZE);
-    const rows = batch.map((a) => ({
+
+    // Build shared fields for each assignment (everything except color)
+    const baseRows = batch.map((a) => ({
       user_id: userId,
       source,
       external_id: a.external_id,
@@ -630,7 +640,6 @@ async function upsertAssignments(
       source_url: a.source_url,
       points_possible: a.points_possible != null && a.points_possible >= 0 ? a.points_possible : null,
       is_submitted: a.is_submitted ?? false,
-      color,
       late_due_date: a.late_due_date ? toLocalDateString(a.late_due_date, timezone) : null,
       description: a.description || "",
       updated_at: new Date().toISOString(),
@@ -639,17 +648,42 @@ async function upsertAssignments(
       dismissed_at: null,
     }));
 
-    const { error } = await supabase
-      .from("tasks")
-      .upsert(rows, { onConflict: "user_id,source,external_id" });
+    // Split into new (include color) vs existing (omit color to preserve user changes)
+    const newRows = baseRows
+      .filter((r) => !existingIds.has(r.external_id))
+      .map((r) => ({ ...r, color }));
+    const existingRows = baseRows.filter((r) => existingIds.has(r.external_id));
 
-    if (error) {
+    let batchFailed = false;
+
+    // Upsert new tasks (with default source color)
+    if (newRows.length > 0) {
+      const { error } = await supabase
+        .from("tasks")
+        .upsert(newRows, { onConflict: "user_id,source,external_id" });
+      if (error) {
+        batchFailed = true;
+        logger.error("upsertAssignments new-task batch failed", {
+          source, batchStart: i, error: error.message,
+        });
+      }
+    }
+
+    // Upsert existing tasks (without color — preserves user customizations)
+    if (existingRows.length > 0) {
+      const { error } = await supabase
+        .from("tasks")
+        .upsert(existingRows, { onConflict: "user_id,source,external_id" });
+      if (error) {
+        batchFailed = true;
+        logger.error("upsertAssignments existing-task batch failed", {
+          source, batchStart: i, error: error.message,
+        });
+      }
+    }
+
+    if (batchFailed) {
       failedBatches++;
-      logger.error("upsertAssignments batch failed", {
-        source,
-        batchStart: i,
-        error: error.message,
-      });
     } else {
       totalUpserted += batch.length;
       upsertedExternalIds.push(...batch.map((a) => a.external_id));

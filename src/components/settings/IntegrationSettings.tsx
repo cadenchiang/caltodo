@@ -66,6 +66,7 @@ const EMPTY_CREDENTIALS: IntegrationCredentials = {
   email_digest_enabled: true,
   email_digest_hour: 15,
   email_digest_address: null,
+  dismissed_modals: {},
 };
 
 /** Shared context so IntegrationSettings and IntegrationClasses use the same credentials state. */

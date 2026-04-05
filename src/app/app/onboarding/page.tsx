@@ -483,11 +483,27 @@ export default function OnboardingPage() {
   function handleSyncAndGo() {
     trackEvent("onboarding_completed");
     setExiting(true);
-    // New users completing onboarding should never see the Pensieve announcement
-    // or CalChat announcement (those are for pre-existing users only)
+    // New users completing onboarding should never see any welcome/announcement modals.
+    // Persist to server so dismiss state follows the account across devices.
+    const allDismissed = {
+      sync_welcome: true, notes_welcome: true, gcal_announce: true,
+      integrations_welcome: true, calchat_welcome: true,
+      pensieve_announced: true, calchat_announcement: true,
+    };
+    fetch("/api/credentials", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dismissed_modals: allDismissed }),
+    }).catch(() => { /* non-critical */ });
+    // Also set localStorage for instant local reads
     try {
       localStorage.setItem("caltodo_pensieve_announced", "true");
       localStorage.setItem("calchat_announcement_seen", "true");
+      localStorage.setItem("caltodo_sync_dismissed", "true");
+      localStorage.setItem("caltodo_notes_welcome_seen", "true");
+      localStorage.setItem("caltodo_gcal_announce_seen", "true");
+      localStorage.setItem("caltodo_integrations_welcome_seen", "true");
+      localStorage.setItem("calchat_welcome_accepted", "true");
     } catch {
       /* non-critical */
     }

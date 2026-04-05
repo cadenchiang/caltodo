@@ -104,15 +104,17 @@ export async function syncCourseEnrollments(
     return 0;
   }
 
-  // Upsert memberships — ignore conflicts (already enrolled)
+  // Upsert memberships — clear deleted_at on conflict so previously
+  // soft-deleted memberships are restored when the user re-syncs a course.
   const membershipRows = courseIds.map((courseId) => ({
     user_id: userId,
     course_id: courseId,
+    deleted_at: null,
   }));
 
   const { error: membershipError } = await adminClient
     .from("course_memberships")
-    .upsert(membershipRows, { onConflict: "user_id,course_id", ignoreDuplicates: true });
+    .upsert(membershipRows, { onConflict: "user_id,course_id" });
 
   if (membershipError) {
     logger.error("syncCourseEnrollments: membership upsert failed", {
@@ -190,6 +192,14 @@ export function gatherEnrollableCourses(credentials: {
       });
     }
   }
+
+  logger.info("gatherEnrollableCourses: collected platform courses", {
+    canvas: credentials.selected_canvas_courses?.length ?? 0,
+    gradescope: credentials.selected_gradescope_courses?.length ?? 0,
+    pensieve: credentials.selected_pensieve_courses?.length ?? 0,
+    isIcal,
+    totalSoFar: courses.length,
+  });
 
   // Additional Canvas accounts — namespace external_id with account ID
   if (credentials.additional_canvas_accounts) {

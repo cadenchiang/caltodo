@@ -101,6 +101,12 @@ function createMockSupabase(credentialsData: Record<string, unknown> | null = nu
         return {
           upsert: upsertMock,
           update: tasksAutoCompleteMock,
+          // select("external_id").eq(...).eq(...) for existing-task lookup
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+            }),
+          }),
         };
       }
       return {};
@@ -314,8 +320,8 @@ describe("runSync", () => {
     const tasksFromCalls = supabase.from.mock.calls.filter(
       (c: string[]) => c[0] === "tasks"
     );
-    // Should have 2 calls: one for upsert, one for auto-complete update
-    expect(tasksFromCalls.length).toBe(2);
+    // Should have 3 calls: select existing IDs, upsert new tasks, auto-complete update
+    expect(tasksFromCalls.length).toBe(3);
 
     // Verify the auto-complete mock was invoked with is_completed: true and updated_at
     const autoCompleteArg = supabase._tasksAutoCompleteMock.mock.calls[0][0];

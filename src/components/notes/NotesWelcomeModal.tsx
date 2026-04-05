@@ -4,49 +4,14 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { FolderOpen, FileText, Palette, ChevronRight } from "lucide-react";
-
-/** localStorage key to permanently dismiss the notes welcome modal. */
-const WELCOME_KEY = "caltodo_notes_welcome_seen";
-
-/**
- * Module-level flag to prevent re-showing the modal on component re-mounts
- * within the same page session.
- */
-let seenThisSession = false;
-
-/**
- * Checks if the notes welcome has already been seen.
- *
- * @returns true if the modal should not be shown
- */
-function isAlreadySeen(): boolean {
-  if (seenThisSession) return true;
-  try {
-    return localStorage.getItem(WELCOME_KEY) === "true";
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Marks the notes welcome as permanently seen in localStorage
- * and sets the module-level flag to prevent re-show on re-mount.
- */
-function markSeen(): void {
-  seenThisSession = true;
-  try {
-    localStorage.setItem(WELCOME_KEY, "true");
-  } catch {
-    /* non-critical */
-  }
-}
+import { useDismissedModals } from "@/hooks/useDismissedModals";
 
 /**
  * One-time welcome modal shown when a user first visits the Notes page.
  * Introduces folders, rich text editing, and customization features.
  *
- * **Tracking:** Uses localStorage key `caltodo_notes_welcome_seen`.
- * Once "true", the modal never shows again.
+ * **Tracking:** Server-persisted via `dismissed_modals.notes_welcome`
+ * with localStorage fallback for instant reads.
  */
 interface NotesWelcomeModalProps {
   /** Callback to create a new note (opens editor). */
@@ -55,26 +20,27 @@ interface NotesWelcomeModalProps {
 
 export default function NotesWelcomeModal({ onCreateNote }: NotesWelcomeModalProps) {
   const router = useRouter();
+  const { isDismissed, dismiss, loaded } = useDismissedModals();
   const [visible, setVisible] = useState(false);
   const [exiting, setExiting] = useState(false);
 
   useEffect(() => {
-    if (isAlreadySeen()) return;
-    seenThisSession = true;
+    if (!loaded) return;
+    if (isDismissed("notes_welcome")) return;
     setVisible(true);
-  }, []);
+  }, [loaded, isDismissed]);
 
   /**
-   * Dismisses the modal with exit animation and marks as seen.
+   * Dismisses the modal with exit animation and persists to server.
    */
   const handleDismiss = useCallback(() => {
-    markSeen();
+    dismiss("notes_welcome");
     setExiting(true);
     setTimeout(() => {
       setVisible(false);
       setExiting(false);
     }, 250);
-  }, []);
+  }, [dismiss]);
 
   if (!visible) return null;
 

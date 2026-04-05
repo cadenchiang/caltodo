@@ -4,76 +4,41 @@ import { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { MessageCircle, EyeOff, ShieldCheck } from "lucide-react";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
-
-/** localStorage key to permanently dismiss the CalChat welcome modal. */
-const WELCOME_KEY = "calchat_welcome_accepted";
-
-/**
- * Module-level flag to prevent re-showing the modal on component re-mounts
- * within the same page session (e.g. when switching chats).
- */
-let acceptedThisSession = false;
-
-/**
- * Checks if the CalChat welcome has already been accepted.
- *
- * @returns true if the modal should not be shown
- */
-function isAlreadyAccepted(): boolean {
-  if (acceptedThisSession) return true;
-  try {
-    return localStorage.getItem(WELCOME_KEY) === "true";
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Marks the CalChat welcome as permanently accepted in localStorage
- * and sets the module-level flag to prevent re-show on re-mount.
- */
-function markAccepted(): void {
-  acceptedThisSession = true;
-  try {
-    localStorage.setItem(WELCOME_KEY, "true");
-  } catch {
-    /* non-critical */
-  }
-}
+import { useDismissedModals } from "@/hooks/useDismissedModals";
 
 /**
  * One-time welcome modal shown on the user's first CalChat visit.
  * Explains that the chat supports anonymous messaging and sets
  * community standards. User must accept before using chat.
  *
- * **Tracking:** Uses localStorage key `calchat_welcome_accepted`.
- * Once "true", the modal never shows again.
+ * **Tracking:** Server-persisted via `dismissed_modals.calchat_welcome`
+ * with localStorage fallback for instant reads.
  */
 export default function CalChatWelcomeModal() {
-  const isTourActive = false; // Tour removed
   const { hasCompletedOnboarding } = useOnboardingStatus();
+  const { isDismissed, dismiss, loaded } = useDismissedModals();
   const [visible, setVisible] = useState(false);
   const [exiting, setExiting] = useState(false);
   const [respectChecked, setRespectChecked] = useState(false);
   const [trackingChecked, setTrackingChecked] = useState(false);
 
   useEffect(() => {
-    if (isTourActive || !hasCompletedOnboarding || isAlreadyAccepted()) return;
-    acceptedThisSession = true; // Prevent re-show on dependency changes
+    if (!loaded) return;
+    if (!hasCompletedOnboarding || isDismissed("calchat_welcome")) return;
     setVisible(true);
-  }, [isTourActive, hasCompletedOnboarding]);
+  }, [loaded, hasCompletedOnboarding, isDismissed]);
 
   /**
    * Accepts the community standards and dismisses the modal.
    */
   const handleAccept = useCallback(() => {
-    markAccepted();
+    dismiss("calchat_welcome");
     setExiting(true);
     setTimeout(() => {
       setVisible(false);
       setExiting(false);
     }, 250);
-  }, []);
+  }, [dismiss]);
 
   if (!visible) return null;
 

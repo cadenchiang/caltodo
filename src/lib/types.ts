@@ -113,6 +113,20 @@ export interface AdditionalCanvasAccount {
 }
 
 /**
+ * Server-persisted record of which welcome/announcement modals
+ * the user has dismissed. Stored as JSONB in integration_credentials.
+ */
+export interface DismissedModals {
+  sync_welcome?: boolean;
+  notes_welcome?: boolean;
+  gcal_announce?: boolean;
+  integrations_welcome?: boolean;
+  calchat_welcome?: boolean;
+  pensieve_announced?: boolean;
+  calchat_announcement?: boolean;
+}
+
+/**
  * Integration credentials as returned by the API.
  * Gradescope password is never returned — only a boolean flag.
  */
@@ -149,6 +163,8 @@ export interface IntegrationCredentials {
   email_digest_hour: number;
   /** Email address to send the digest to (null = account email). */
   email_digest_address: string | null;
+  /** Server-persisted record of dismissed welcome/announcement modals. */
+  dismissed_modals: DismissedModals;
 }
 
 /**
@@ -175,6 +191,7 @@ export interface CredentialsSavePayload {
   email_digest_enabled?: boolean;
   email_digest_hour?: number;
   email_digest_address?: string | null;
+  dismissed_modals?: DismissedModals;
 }
 
 /**

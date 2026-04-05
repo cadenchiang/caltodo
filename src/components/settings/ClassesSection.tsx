@@ -398,6 +398,10 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
         await fetchTasks();
       }
 
+      // 4b. Invalidate CalChat discussion boards cache so course list updates
+      try { sessionStorage.removeItem("discussion_boards_cache_v2"); } catch { /* non-critical */ }
+      window.dispatchEvent(new CustomEvent("caltodo-courses-changed"));
+
       // 5. Build result toast
       const parts: string[] = [];
       if (syncedCount > 0) {
