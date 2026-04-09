@@ -447,6 +447,8 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       tags: taskData.tags ?? [],
       snoozed_until: null,
       sort_order: null,
+      due_date_manually_edited_at: null,
+      due_time_manually_edited_at: null,
     };
 
     setTasks((prev) => {
@@ -505,9 +507,22 @@ export function TaskProvider({ children }: { children: ReactNode }) {
 
   async function updateTask(id: string, updates: TaskUpdate) {
     trackEvent("task_updated");
+    // When the user manually edits due_date / due_time on a synced task,
+    // stamp the corresponding manual-edit column so sync-engine.ts won't
+    // overwrite the change on the next Gradescope/Canvas/etc. sync.
+    // See migration 20260409000001 and upsertAssignments() for details.
+    const stampedUpdates: TaskUpdate = { ...updates };
+    const nowIso = new Date().toISOString();
+    if (Object.prototype.hasOwnProperty.call(updates, "due_date")) {
+      stampedUpdates.due_date_manually_edited_at = nowIso;
+    }
+    if (Object.prototype.hasOwnProperty.call(updates, "due_time")) {
+      stampedUpdates.due_time_manually_edited_at = nowIso;
+    }
+
     setTasks((prev) => {
       const updated = prev.map((t) =>
-        t.id === id ? { ...t, ...updates, updated_at: new Date().toISOString() } : t
+        t.id === id ? { ...t, ...stampedUpdates, updated_at: new Date().toISOString() } : t
       );
       setCachedTasks(updated);
       // Keep baseline in sync so detectSyncChanges doesn't fire false
@@ -518,7 +533,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
 
     const { error: updateError } = await supabase
       .from("tasks")
-      .update(updates)
+      .update(stampedUpdates)
       .eq("id", id);
 
     if (updateError) {
@@ -1008,6 +1023,8 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       tags: [],
       snoozed_until: null,
       sort_order: null,
+      due_date_manually_edited_at: null,
+      due_time_manually_edited_at: null,
     }));
 
     setTasks((prev) => {

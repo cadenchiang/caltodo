@@ -37,5 +37,7 @@ export function pendingInviteToPseudoTask(invite: PendingInvite): Task {
     tags: [],
     snoozed_until: null,
     sort_order: null,
+    due_date_manually_edited_at: null,
+    due_time_manually_edited_at: null,
   };
 }

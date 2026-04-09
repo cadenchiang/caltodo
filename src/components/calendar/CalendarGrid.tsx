@@ -30,6 +30,8 @@ interface CalendarGridProps {
   onShowMore?: (date: string, rect: DOMRect) => void;
   /** ID of the task whose popover is currently open (stays highlighted). */
   activeTaskId?: string | null;
+  /** Called when a task bar is dropped on a different day cell. */
+  onTaskDrop?: (taskId: string, newDate: string) => void;
 }
 
 /** Full labels for desktop, single-letter for mobile. */
@@ -54,6 +56,7 @@ export default function CalendarGrid({
   onTaskClick,
   onShowMore,
   activeTaskId,
+  onTaskDrop,
 }: CalendarGridProps) {
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
@@ -133,6 +136,7 @@ export default function CalendarGrid({
               onTaskClick={onTaskClick}
               onShowMore={onShowMore}
               activeTaskId={activeTaskId}
+              onTaskDrop={onTaskDrop}
             />
           );
         })}

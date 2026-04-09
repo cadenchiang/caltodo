@@ -31,6 +31,8 @@ interface CalendarDayCellProps {
   assignmentsMode?: boolean;
   /** ID of the task whose popover is currently open (stays highlighted). */
   activeTaskId?: string | null;
+  /** Called when a task is dropped on this cell (drag-and-drop reschedule). */
+  onTaskDrop?: (taskId: string, newDate: string) => void;
 }
 
 /** Approximate heights in px for layout calculations. */
@@ -70,10 +72,12 @@ export default function CalendarDayCell({
   onShowMore,
   assignmentsMode = false,
   activeTaskId,
+  onTaskDrop,
 }: CalendarDayCellProps) {
   const { colorTheme } = useTheme();
   const [isMobile, setIsMobile] = useState(false);
   const [hovered, setHovered] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
   const cellRef = useRef<HTMLDivElement>(null);
   const isCurrentMonth = isSameMonth(day, currentMonth);
   const isToday = isSameDay(day, new Date());
@@ -126,6 +130,42 @@ export default function CalendarDayCell({
   const dotTasks = tasks.slice(0, maxDots);
   const dotOverflow = tasks.length + effectiveEvents.length - maxDots;
 
+  /**
+   * Drag-over handler — prevents default to mark the cell as a valid drop
+   * target and shows a highlight ring. Only active when onTaskDrop is wired.
+   */
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    if (!onTaskDrop) return;
+    if (!e.dataTransfer.types.includes("application/x-caltodo-task-id")) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (!isDragOver) setIsDragOver(true);
+  };
+
+  /** Clear highlight when the dragged task leaves this cell. */
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    // relatedTarget can be null when leaving the window — always clear.
+    if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+      setIsDragOver(false);
+    }
+  };
+
+  /**
+   * Drop handler — resolves the dragged task id and asks the parent to
+   * reschedule it to this cell's date. Skips updates when the date is
+   * unchanged so we don't spam the network or stamp manual-edit columns.
+   */
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    if (!onTaskDrop) return;
+    e.preventDefault();
+    setIsDragOver(false);
+    const taskId = e.dataTransfer.getData("application/x-caltodo-task-id");
+    if (!taskId) return;
+    const dragged = tasks.find((t) => t.id === taskId);
+    if (dragged && dragged.due_date === dateStr) return;
+    onTaskDrop(taskId, dateStr);
+  };
+
   return (
     <div
       ref={cellRef}
@@ -137,9 +177,14 @@ export default function CalendarDayCell({
             : isSelected && isMobile
               ? "bg-gray-100 dark:bg-white/5"
               : "bg-card"
-      } hover:bg-black/[0.02] dark:hover:bg-white/[0.03]`}
+      } hover:bg-black/[0.02] dark:hover:bg-white/[0.03] ${
+        isDragOver ? "ring-2 ring-inset ring-[#007AFF] bg-[#007AFF]/5 dark:bg-[#007AFF]/10" : ""
+      }`}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
       onClick={() => onDaySelect(dateStr)}
       onDoubleClick={(e) => {
         const rect = new DOMRect(e.clientX - 40, e.clientY, 80, 1);

@@ -31,6 +31,10 @@ export interface Task {
   tags: string[];
   snoozed_until: string | null;
   sort_order: number | null;
+  /** Set when user manually edits due_date — sync engine won't overwrite. */
+  due_date_manually_edited_at: string | null;
+  /** Set when user manually edits due_time — sync engine won't overwrite. */
+  due_time_manually_edited_at: string | null;
 }
 
 /**
@@ -72,6 +76,10 @@ export interface TaskUpdate {
   snoozed_until?: string | null;
   sort_order?: number | null;
   course_name?: string | null;
+  /** Auto-stamped by TaskContext.updateTask when due_date is changed. */
+  due_date_manually_edited_at?: string | null;
+  /** Auto-stamped by TaskContext.updateTask when due_time is changed. */
+  due_time_manually_edited_at?: string | null;
 }
 
 /**

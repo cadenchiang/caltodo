@@ -279,6 +279,110 @@ describe("runSync", () => {
     expect(new Date(result.last_synced_at).getTime()).not.toBeNaN();
   });
 
+  it("should preserve user-edited due_date / due_time on existing tasks", async () => {
+    // Cause: Gradescope/Canvas resyncs were clobbering manual date edits.
+    // Context: tasks table now has *_manually_edited_at columns (migration
+    // 20260409000001) — when set, the upsert payload must omit those fields.
+    // Impact: drag-drop reschedules and manual edits survive future syncs.
+    const upsertMock = vi.fn().mockReturnValue({ error: null });
+
+    const tasksAutoCompleteMock = vi.fn().mockImplementation(() => {
+      const chain = {
+        eq: vi.fn().mockReturnThis(),
+        in: vi.fn().mockReturnThis(),
+      };
+      chain.eq.mockReturnValue(chain);
+      chain.in.mockReturnValue(chain);
+      (chain as any).then = (resolve: (v: { error: null }) => void) => {
+        resolve({ error: null });
+        return chain;
+      };
+      return chain;
+    });
+
+    // Custom select returning one existing task with due_date locked.
+    const selectChain = {
+      eq: vi.fn().mockReturnValue({
+        eq: vi.fn().mockResolvedValue({
+          data: [
+            {
+              external_id: "gs-locked",
+              due_date_manually_edited_at: "2026-04-08T12:00:00Z",
+              due_time_manually_edited_at: null,
+            },
+          ],
+          error: null,
+        }),
+      }),
+    };
+
+    const supabase = {
+      from: vi.fn((table: string) => {
+        if (table === "integration_credentials") {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                single: vi.fn().mockResolvedValue({
+                  data: {
+                    canvas_token: null,
+                    canvas_base_url: "https://bcourses.berkeley.edu",
+                    gradescope_email: "user@berkeley.edu",
+                    gradescope_password_encrypted: "encrypted-pw",
+                  },
+                  error: null,
+                }),
+              }),
+            }),
+            update: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({ error: null }),
+            }),
+          };
+        }
+        if (table === "tasks") {
+          return {
+            upsert: upsertMock,
+            update: tasksAutoCompleteMock,
+            select: vi.fn().mockReturnValue(selectChain),
+          };
+        }
+        return {};
+      }),
+    };
+
+    mockGradescopeFetch.mockResolvedValueOnce([
+      {
+        external_id: "gs-locked",
+        course_name: "CS 61A",
+        course_id: "123",
+        title: "Lab 1",
+        // Scraped (original) date — must NOT overwrite the user's manual edit.
+        due_date: "2026-03-10T23:59:00Z",
+        source_url: "https://www.gradescope.com/courses/123/assignments/1",
+        points_possible: null,
+      },
+    ]);
+
+    await runSync(supabase as any, "user-123");
+
+    // Locate the upsert call carrying the existing (locked) task.
+    const lockedCalls = upsertMock.mock.calls.filter((call) => {
+      const rows = call[0] as Array<Record<string, unknown>>;
+      return Array.isArray(rows) && rows.some((r) => r.external_id === "gs-locked");
+    });
+    expect(lockedCalls.length).toBe(1);
+
+    const lockedRow = (lockedCalls[0][0] as Array<Record<string, unknown>>).find(
+      (r) => r.external_id === "gs-locked"
+    )!;
+
+    // due_date column must be absent so Supabase leaves the existing value alone.
+    expect("due_date" in lockedRow).toBe(false);
+    // due_time wasn't locked, so it should still be present.
+    expect("due_time" in lockedRow).toBe(true);
+    // Other fields still update normally.
+    expect(lockedRow.title).toBe("Lab 1");
+  });
+
   it("should auto-complete newly synced submitted assignments", async () => {
     const supabase = createMockSupabase({
       canvas_token: "canvas-token-123",

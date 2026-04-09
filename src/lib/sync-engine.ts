@@ -617,13 +617,26 @@ async function upsertAssignments(
   const syncStartTime = new Date().toISOString();
   const upsertedExternalIds: string[] = [];
 
-  // Query existing external IDs so we can skip overwriting user-customized colors
+  // Query existing rows so we can:
+  //   1. Skip overwriting user-customized colors on existing tasks
+  //   2. Skip overwriting user-edited due_date / due_time
+  // See migration 20260409000001 for the manual-edit tracking columns.
   const { data: existingTaskRows } = await supabase
     .from("tasks")
-    .select("external_id")
+    .select("external_id, due_date_manually_edited_at, due_time_manually_edited_at")
     .eq("user_id", userId)
     .eq("source", source);
   const existingIds = new Set(existingTaskRows?.map((r) => r.external_id) ?? []);
+  const dueDateLockedIds = new Set(
+    (existingTaskRows ?? [])
+      .filter((r) => r.due_date_manually_edited_at != null)
+      .map((r) => r.external_id)
+  );
+  const dueTimeLockedIds = new Set(
+    (existingTaskRows ?? [])
+      .filter((r) => r.due_time_manually_edited_at != null)
+      .map((r) => r.external_id)
+  );
 
   for (let i = 0; i < assignments.length; i += UPSERT_BATCH_SIZE) {
     const batch = assignments.slice(i, i + UPSERT_BATCH_SIZE);
@@ -648,11 +661,26 @@ async function upsertAssignments(
       dismissed_at: null,
     }));
 
-    // Split into new (include color) vs existing (omit color to preserve user changes)
+    // Split into new (include color) vs existing (omit color to preserve user changes).
+    // For existing rows, also strip due_date / due_time when the user has
+    // manually edited them — sync must not clobber the user's own changes.
     const newRows = baseRows
       .filter((r) => !existingIds.has(r.external_id))
       .map((r) => ({ ...r, color }));
-    const existingRows = baseRows.filter((r) => existingIds.has(r.external_id));
+    const existingRows = baseRows
+      .filter((r) => existingIds.has(r.external_id))
+      .map((r) => {
+        const dateLocked = dueDateLockedIds.has(r.external_id);
+        const timeLocked = dueTimeLockedIds.has(r.external_id);
+        if (!dateLocked && !timeLocked) return r;
+        // Drop locked fields entirely so the upsert leaves them untouched.
+        const { due_date, due_time, ...rest } = r;
+        return {
+          ...rest,
+          ...(dateLocked ? {} : { due_date }),
+          ...(timeLocked ? {} : { due_time }),
+        };
+      });
 
     let batchFailed = false;
 
@@ -669,16 +697,30 @@ async function upsertAssignments(
       }
     }
 
-    // Upsert existing tasks (without color — preserves user customizations)
+    // Upsert existing tasks (without color — preserves user customizations).
+    // Group rows by their column shape so each upsert call has a uniform
+    // payload (Supabase upsert requires all rows to share the same columns).
     if (existingRows.length > 0) {
-      const { error } = await supabase
-        .from("tasks")
-        .upsert(existingRows, { onConflict: "user_id,source,external_id" });
-      if (error) {
-        batchFailed = true;
-        logger.error("upsertAssignments existing-task batch failed", {
-          source, batchStart: i, error: error.message,
-        });
+      const groups = new Map<string, typeof existingRows>();
+      for (const row of existingRows) {
+        const key = Object.keys(row).sort().join(",");
+        const group = groups.get(key) ?? [];
+        group.push(row);
+        groups.set(key, group);
+      }
+      for (const group of groups.values()) {
+        const { error } = await supabase
+          .from("tasks")
+          .upsert(group, { onConflict: "user_id,source,external_id" });
+        if (error) {
+          batchFailed = true;
+          logger.error("upsertAssignments existing-task batch failed", {
+            source,
+            batchStart: i,
+            groupSize: group.length,
+            error: error.message,
+          });
+        }
       }
     }
 

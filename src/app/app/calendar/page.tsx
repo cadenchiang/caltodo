@@ -204,6 +204,12 @@ export default function CalendarPage() {
                 onTaskClick={modals.handleTaskClick}
                 onShowMore={modals.handleShowMore}
                 activeTaskId={modals.previewTask?.id ?? null}
+                onTaskDrop={(taskId, newDate) => {
+                  // Manual drag-drop reschedule. updateTask auto-stamps
+                  // due_date_manually_edited_at so the next sync from
+                  // Gradescope/Canvas/etc. won't overwrite this change.
+                  void updateTask(taskId, { due_date: newDate });
+                }}
               />
             ) : viewMode === "week" ? (
               calendarMode === "assignments" ? (

@@ -63,15 +63,32 @@ export default function CalendarTaskBar({ task, onClick, isPending, compact = fa
   const color = getThemeColor(task.color, colorTheme);
   const highlighted = hovered || isActive;
 
+  // Pending invites can't be dragged — they aren't real tasks yet.
+  const draggable = !isPending;
+
+  /**
+   * Begin a drag for this task. Stores the task id in dataTransfer so the
+   * target day cell can resolve it on drop and call updateTask with the
+   * new due_date. See CalendarDayCell.handleDrop and calendar/page.tsx.
+   */
+  const handleDragStart = (e: React.DragEvent<HTMLButtonElement>) => {
+    if (!draggable) return;
+    e.stopPropagation();
+    e.dataTransfer.setData("application/x-caltodo-task-id", task.id);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
   return (
     <button
+      draggable={draggable}
+      onDragStart={handleDragStart}
       onClick={(e) => {
         e.stopPropagation();
         onClick(task, e.currentTarget.getBoundingClientRect());
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className={`w-full text-left flex items-center gap-0.5 rounded overflow-hidden ${compact ? "px-1 py-0 h-[16px]" : "px-1.5 py-0.5 h-[22px]"} ${
+      className={`w-full text-left flex items-center gap-0.5 rounded overflow-hidden ${draggable ? "cursor-grab active:cursor-grabbing" : ""} ${compact ? "px-1 py-0 h-[16px]" : "px-1.5 py-0.5 h-[22px]"} ${
         task.is_completed ? "opacity-50" : ""
       } ${isPending ? "opacity-50" : ""}`}
       style={{
