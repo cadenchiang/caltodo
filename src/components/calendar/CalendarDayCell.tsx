@@ -31,6 +31,8 @@ interface CalendarDayCellProps {
   assignmentsMode?: boolean;
   /** ID of the task whose popover is currently open (stays highlighted). */
   activeTaskId?: string | null;
+  /** ID of a task just dropped — its bar plays a brief drop-in animation. */
+  recentlyMovedTaskId?: string | null;
   /** Called when a task is dropped on this cell (drag-and-drop reschedule). */
   onTaskDrop?: (taskId: string, newDate: string) => void;
 }
@@ -72,6 +74,7 @@ export default function CalendarDayCell({
   onShowMore,
   assignmentsMode = false,
   activeTaskId,
+  recentlyMovedTaskId,
   onTaskDrop,
 }: CalendarDayCellProps) {
   const { colorTheme } = useTheme();
@@ -169,7 +172,7 @@ export default function CalendarDayCell({
   return (
     <div
       ref={cellRef}
-      className={`p-0.5 md:px-1 md:py-0.5 overflow-hidden ${isLastCol ? "" : "border-r"} border-b border-gray-200 dark:border-gray-700/50 transition-colors relative ${
+      className={`p-0.5 md:px-1 md:py-0.5 overflow-hidden ${isLastCol ? "" : "border-r"} border-b border-gray-200 dark:border-gray-700/50 transition-all duration-150 ease-out relative ${
         isPast
           ? "bg-gray-100 dark:bg-black/30"
           : !isCurrentMonth
@@ -178,7 +181,7 @@ export default function CalendarDayCell({
               ? "bg-gray-100 dark:bg-white/5"
               : "bg-card"
       } hover:bg-black/[0.02] dark:hover:bg-white/[0.03] ${
-        isDragOver ? "ring-2 ring-inset ring-[#007AFF] bg-[#007AFF]/5 dark:bg-[#007AFF]/10" : ""
+        isDragOver ? "ring-2 ring-inset ring-[#007AFF]/70 bg-[#007AFF]/5 dark:bg-[#007AFF]/10" : ""
       }`}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -290,7 +293,14 @@ export default function CalendarDayCell({
           {/* Task bars + GCal events */}
           <div className="flex flex-col gap-px">
             {visibleTasks.map((task) => (
-              <CalendarTaskBar key={task.id} task={task} onClick={onTaskClick} compact={!assignmentsMode} isActive={task.id === activeTaskId} />
+              <CalendarTaskBar
+                key={task.id}
+                task={task}
+                onClick={onTaskClick}
+                compact={!assignmentsMode}
+                isActive={task.id === activeTaskId}
+                justDropped={task.id === recentlyMovedTaskId}
+              />
             ))}
             {visibleInvites.map((invite) => (
               <CalendarTaskBar

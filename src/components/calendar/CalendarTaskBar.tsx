@@ -15,6 +15,8 @@ interface CalendarTaskBarProps {
   compact?: boolean;
   /** When true, the task bar stays in its hover/highlighted state (popover is open). */
   isActive?: boolean;
+  /** When true, plays a one-shot drop-in animation (used after drag-and-drop). */
+  justDropped?: boolean;
 }
 
 /**
@@ -57,9 +59,10 @@ function truncateTitle(title: string, max: number): string {
  * @param onClick - Callback when clicked (opens popover with full details)
  * @param isPending - When true, renders as a dashed outline bar for pending invites
  */
-export default function CalendarTaskBar({ task, onClick, isPending, compact = false, isActive = false }: CalendarTaskBarProps) {
+export default function CalendarTaskBar({ task, onClick, isPending, compact = false, isActive = false, justDropped = false }: CalendarTaskBarProps) {
   const { colorTheme } = useTheme();
   const [hovered, setHovered] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const color = getThemeColor(task.color, colorTheme);
   const highlighted = hovered || isActive;
 
@@ -69,34 +72,53 @@ export default function CalendarTaskBar({ task, onClick, isPending, compact = fa
   /**
    * Begin a drag for this task. Stores the task id in dataTransfer so the
    * target day cell can resolve it on drop and call updateTask with the
-   * new due_date. See CalendarDayCell.handleDrop and calendar/page.tsx.
+   * new due_date. Uses setDragImage to anchor the drag preview to the
+   * exact pickup point under the cursor (eliminates the default offset
+   * jump and produces a much smoother glide). See CalendarDayCell.handleDrop.
    */
   const handleDragStart = (e: React.DragEvent<HTMLButtonElement>) => {
     if (!draggable) return;
     e.stopPropagation();
     e.dataTransfer.setData("application/x-caltodo-task-id", task.id);
     e.dataTransfer.effectAllowed = "move";
+    // Anchor the drag image at the cursor's exact offset within the bar.
+    const rect = e.currentTarget.getBoundingClientRect();
+    e.dataTransfer.setDragImage(
+      e.currentTarget,
+      e.clientX - rect.left,
+      e.clientY - rect.top
+    );
+    // Defer state flip to next frame so the dragImage snapshot above is
+    // captured at full opacity (otherwise the drag preview itself would dim).
+    requestAnimationFrame(() => setIsDragging(true));
+  };
+
+  const handleDragEnd = () => {
+    setIsDragging(false);
   };
 
   return (
     <button
       draggable={draggable}
       onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
       onClick={(e) => {
         e.stopPropagation();
         onClick(task, e.currentTarget.getBoundingClientRect());
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className={`w-full text-left flex items-center gap-0.5 rounded overflow-hidden ${draggable ? "cursor-grab active:cursor-grabbing" : ""} ${compact ? "px-1 py-0 h-[16px]" : "px-1.5 py-0.5 h-[22px]"} ${
+      className={`w-full text-left flex items-center gap-0.5 rounded overflow-hidden ${compact ? "px-1 py-0 h-[16px]" : "px-1.5 py-0.5 h-[22px]"} ${
         task.is_completed ? "opacity-50" : ""
-      } ${isPending ? "opacity-50" : ""}`}
+      } ${isPending ? "opacity-50" : ""} ${justDropped ? "calendar-task-drop-in" : ""}`}
       style={{
-        transition: "transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease, background-color 0.15s ease",
-        transform: isActive ? "scale(1.04)" : hovered ? "translateY(-1px)" : "none",
+        transition:
+          "transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease, background-color 0.15s ease, opacity 0.18s ease",
+        transform: isActive ? "scale(1.04)" : hovered && !isDragging ? "translateY(-1px)" : "none",
         boxShadow: isActive
           ? `0 4px 16px ${hexToRgba(color, 0.25)}, 0 2px 6px rgba(0,0,0,0.08)`
-          : hovered ? "0 1px 3px rgba(0,0,0,0.06)" : "none",
+          : hovered && !isDragging ? "0 1px 3px rgba(0,0,0,0.06)" : "none",
+        opacity: isDragging ? 0.35 : undefined,
         zIndex: isActive ? 20 : "auto",
         position: isActive ? "relative" : undefined,
         ...(isPending ? {

@@ -2453,3 +2453,32 @@ input[type="range"].slider-blue::-moz-range-track {
   border-top: 1px solid var(--border);
   margin: 1.5rem 0;
 }
+
+/* Drop-in animation for a task bar that was just rescheduled via drag-and-drop.
+   Cause: native HTML5 drop is instantaneous which feels jarring.
+   Context: triggered by the `justDropped` prop on CalendarTaskBar.
+   Impact: a soft pop + fade-in plays once on the destination bar so the
+   move feels intentional and lands cleanly. */
+@keyframes calendar-task-drop-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.92);
+  }
+  60% {
+    transform: translateY(0) scale(1.03);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.calendar-task-drop-in {
+  animation: calendar-task-drop-in 380ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .calendar-task-drop-in {
+    animation: none;
+  }
+}

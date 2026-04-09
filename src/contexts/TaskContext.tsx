@@ -513,10 +513,18 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     // See migration 20260409000001 and upsertAssignments() for details.
     const stampedUpdates: TaskUpdate = { ...updates };
     const nowIso = new Date().toISOString();
-    if (Object.prototype.hasOwnProperty.call(updates, "due_date")) {
+    // Caller can pre-supply *_manually_edited_at to override the auto-stamp
+    // (e.g. an Undo action restoring the previous lock state).
+    if (
+      Object.prototype.hasOwnProperty.call(updates, "due_date") &&
+      !Object.prototype.hasOwnProperty.call(updates, "due_date_manually_edited_at")
+    ) {
       stampedUpdates.due_date_manually_edited_at = nowIso;
     }
-    if (Object.prototype.hasOwnProperty.call(updates, "due_time")) {
+    if (
+      Object.prototype.hasOwnProperty.call(updates, "due_time") &&
+      !Object.prototype.hasOwnProperty.call(updates, "due_time_manually_edited_at")
+    ) {
       stampedUpdates.due_time_manually_edited_at = nowIso;
     }
 

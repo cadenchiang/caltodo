@@ -15,6 +15,8 @@ import {
   endOfWeek,
 } from "date-fns";
 import { useTaskContext } from "@/contexts/TaskContext";
+import { useToast } from "@/contexts/ToastContext";
+import { parseISO } from "date-fns";
 import { expandRepeatingTasks, getRealTaskId } from "@/lib/expand-repeating-tasks";
 import { useGCalEvents } from "@/hooks/useGCalEvents";
 import { useCalendarModals } from "@/hooks/useCalendarModals";
@@ -45,7 +47,11 @@ export default function CalendarPage() {
   const [calendarMode, setCalendarMode] = useState<CalendarMode>("assignments");
 
   const { tasks, error, addTask, updateTask, deleteTask, toggleComplete } = useTaskContext();
+  const { showToast } = useToast();
   const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
+  /** ID of a task that was just dragged to a new day, used to play a brief
+   *  fade-in animation on the destination cell. Cleared after the animation. */
+  const [recentlyMovedTaskId, setRecentlyMovedTaskId] = useState<string | null>(null);
 
   const modals = useCalendarModals();
   const [clearPreviewSignal, setClearPreviewSignal] = useState(0);
@@ -204,11 +210,47 @@ export default function CalendarPage() {
                 onTaskClick={modals.handleTaskClick}
                 onShowMore={modals.handleShowMore}
                 activeTaskId={modals.previewTask?.id ?? null}
+                recentlyMovedTaskId={recentlyMovedTaskId}
                 onTaskDrop={(taskId, newDate) => {
                   // Manual drag-drop reschedule. updateTask auto-stamps
                   // due_date_manually_edited_at so the next sync from
                   // Gradescope/Canvas/etc. won't overwrite this change.
+                  const moved = tasks.find((t) => t.id === taskId);
+                  if (!moved) return;
+                  const previousDueDate = moved.due_date;
+                  const previousLock = moved.due_date_manually_edited_at;
                   void updateTask(taskId, { due_date: newDate });
+
+                  // Trigger the destination drop-in animation.
+                  setRecentlyMovedTaskId(taskId);
+                  setTimeout(() => {
+                    setRecentlyMovedTaskId((id) => (id === taskId ? null : id));
+                  }, 600);
+
+                  // Toast confirmation with Undo. Undo passes both the old
+                  // due_date and the old manual-edit lock so the prior state
+                  // is restored exactly (TaskContext.updateTask honors an
+                  // explicitly-supplied due_date_manually_edited_at).
+                  const formattedDate = (() => {
+                    try {
+                      return format(parseISO(newDate), "EEE, MMM d");
+                    } catch {
+                      return newDate;
+                    }
+                  })();
+                  const titlePreview =
+                    moved.title.length > 32 ? moved.title.slice(0, 32).trimEnd() + "…" : moved.title;
+                  showToast(`Moved “${titlePreview}” to ${formattedDate}`, {
+                    action: {
+                      label: "Undo",
+                      onClick: () => {
+                        void updateTask(taskId, {
+                          due_date: previousDueDate,
+                          due_date_manually_edited_at: previousLock,
+                        });
+                      },
+                    },
+                  });
                 }}
               />
             ) : viewMode === "week" ? (
