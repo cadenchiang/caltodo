@@ -68,7 +68,7 @@ export default function StatsSection() {
 
           {/* ── Left: 3 hr segmented bar ── */}
           <div className="relative flex flex-col items-center h-full">
-            <div className="relative flex-1 w-28 sm:w-44 mt-6">
+            <div className="relative flex-1 w-32 sm:w-44 mt-6">
               {/* Platform labels — desktop only, positioned at vertical center of each segment */}
               {(() => {
                 const total = PLATFORMS.reduce((s, p) => s + p.minutes, 0);
@@ -143,7 +143,7 @@ export default function StatsSection() {
                   {PLATFORMS.map((p, i) => (
                     <div
                       key={p.label}
-                      className={`w-full transition-all duration-200${i < PLATFORMS.length - 1 ? " border-b-[2px] border-black/40" : ""}`}
+                      className={`w-full flex items-center px-2.5 overflow-hidden transition-all duration-200${i < PLATFORMS.length - 1 ? " border-b-[2px] border-black/40" : ""}`}
                       style={{
                         flex: p.minutes,
                         backgroundColor: hoveredIndex === i
@@ -154,7 +154,19 @@ export default function StatsSection() {
                       }}
                       onMouseEnter={() => setHoveredIndex(i)}
                       onMouseLeave={() => setHoveredIndex(null)}
-                    />
+                    >
+                      <div className="flex items-center gap-2 sm:hidden w-full min-w-0">
+                        <div className="w-4 h-4 shrink-0 relative overflow-hidden rounded">
+                          <Image src={p.logo} alt={p.label} fill sizes="16px" className="object-cover" />
+                        </div>
+                        <span className="text-[10px] font-medium text-white/75 leading-tight truncate flex-1">
+                          {p.label}
+                        </span>
+                        <span className="text-[10px] text-white/40 leading-tight shrink-0">
+                          {p.minutes}m
+                        </span>
+                      </div>
+                    </div>
                   ))}
                 </motion.div>
               </div>
@@ -191,7 +203,7 @@ export default function StatsSection() {
               </div>
             </motion.div>
 
-            <div className="relative w-28 sm:w-44" style={{ height: `${(15 / 145) * 85}%` }}>
+            <div className="relative w-32 sm:w-44" style={{ height: `${(15 / 145) * 85}%` }}>
               {/* Caltodo logo — desktop only, right of bar */}
               <motion.div
                 initial={{ opacity: 0, x: 12 }}
@@ -228,30 +240,6 @@ export default function StatsSection() {
           </div>
         </div>
 
-        {/* ── Mobile platform list — shown below bars on small screens ── */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={inView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.4, delay: 0.8 }}
-          className="mt-8 flex flex-col gap-2 sm:hidden"
-        >
-          {PLATFORMS.map((p) => (
-            <div
-              key={p.label}
-              className="flex items-center gap-3 rounded-xl border border-white/[0.08] bg-white/[0.05] px-3.5 py-2.5"
-            >
-              <div className="w-[22px] h-[22px] shrink-0 relative overflow-hidden rounded">
-                <Image src={p.logo} alt={p.label} fill sizes="22px" className="object-cover" />
-              </div>
-              <span className="text-xs font-medium text-white/70 leading-tight flex-1">
-                {p.label}
-              </span>
-              <span className="text-[11px] text-white/30 leading-tight">
-                {p.minutes} min
-              </span>
-            </div>
-          ))}
-        </motion.div>
       </div>
     </section>
   );

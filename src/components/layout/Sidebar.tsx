@@ -11,6 +11,7 @@ import ProfilePopup from "./ProfilePopup";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useCalChatUnread } from "@/hooks/useCalChatUnread";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
+import { useDismissedModals } from "@/hooks/useDismissedModals";
 
 
 /** Filter configuration mapping for dynamic sidebar label. */
@@ -70,13 +71,10 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
   const hasCalChatUnread = useCalChatUnread();
   useOnboardingStatus();
 
-  // Track whether user has visited Notes at least once
-  const [notesIsNew, setNotesIsNew] = useState(false);
-  useEffect(() => {
-    try {
-      if (!localStorage.getItem("notes-visited")) setNotesIsNew(true);
-    } catch { /* ignore */ }
-  }, []);
+  // Track whether user has dismissed the notes welcome — server-persisted per account.
+  // Only show "NEW" badge until the account has seen/dismissed the notes welcome modal.
+  const { isDismissed: isModalDismissed, dismiss: dismissModal, loaded: modalsLoaded } = useDismissedModals();
+  const notesIsNew = modalsLoaded && !isModalDismissed("notes_welcome");
 
   // Derive active settings section directly from URL search params (single source of truth)
   const sectionParam = searchParams.get("section");
@@ -187,8 +185,7 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
                   imageSrc={undefined}
                   imageClassName={undefined}
                   onClick={isNotes && notesIsNew ? () => {
-                    setNotesIsNew(false);
-                    try { localStorage.setItem("notes-visited", "1"); } catch { /* ignore */ }
+                    dismissModal("notes_welcome");
                   } : undefined}
                 />
               );
