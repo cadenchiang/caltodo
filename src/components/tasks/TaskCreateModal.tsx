@@ -144,7 +144,10 @@ export default function TaskCreateModal({
     }
   }, [defaultDate, defaultTime, defaultCourseName, open, editTask]);
 
-  // Pre-fill fields in edit mode
+  // Pre-fill fields in edit mode. Depend on editTask?.id (stable), not the
+  // editTask object reference — otherwise TaskContext refetches (auto-sync
+  // every 5 min) emit a new object, this effect re-runs, and the user's
+  // in-progress edits (e.g. color pick) get clobbered by the DB values.
   useEffect(() => {
     if (open && editTask) {
       setTitle(editTask.title);
@@ -159,7 +162,8 @@ export default function TaskCreateModal({
       setRepeatEndDate(editTask.repeat_end_date);
       setRepeatEndCount(editTask.repeat_end_count);
     }
-  }, [open, editTask]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, editTask?.id]);
 
   /**
    * Resets all form fields to their initial state.
