@@ -8,6 +8,7 @@ import PageTransition from "@/components/ui/PageTransition";
 import IntegrationsSection from "@/components/settings/sections/IntegrationsSection";
 import ClassesSectionWrapper from "@/components/settings/sections/ClassesSectionWrapper";
 import AppearanceSection from "@/components/settings/sections/AppearanceSection";
+import NavigationSection from "@/components/settings/sections/NavigationSection";
 
 import AdvancedSection from "@/components/settings/sections/AdvancedSection";
 import {
@@ -31,6 +32,8 @@ function renderSection(sectionId: SettingsSectionId) {
       return <ClassesSectionWrapper />;
     case "appearance":
       return <AppearanceSection />;
+    case "navigation":
+      return <NavigationSection />;
     case "advanced":
       return <AdvancedSection />;
   }
@@ -94,7 +97,7 @@ export default function SettingsContent() {
                     </button>
                   </div>
                   <div className="flex-1 overflow-auto px-4 pt-2 pb-8">
-                    <div key={activeSection} className="max-w-2xl mx-auto animate-page-in">
+                    <div key={activeSection} className="max-w-2xl mx-auto animate-section-in">
                       {renderSection(activeSection)}
                     </div>
                   </div>
@@ -145,7 +148,7 @@ export default function SettingsContent() {
             {/* === DESKTOP VIEW === */}
             <div className="hidden md:flex flex-col h-full">
               <div className="flex-1 overflow-auto px-8 pt-20 pb-8">
-                <div key={activeSection ?? DEFAULT_SECTION} className="max-w-2xl mx-auto mr-auto ml-[15%] animate-page-in">
+                <div key={activeSection ?? DEFAULT_SECTION} className="max-w-2xl mx-auto mr-auto ml-[15%] animate-section-in">
                   {renderSection(activeSection ?? DEFAULT_SECTION)}
                 </div>
               </div>

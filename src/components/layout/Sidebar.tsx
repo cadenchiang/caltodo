@@ -12,6 +12,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { useCalChatUnread } from "@/hooks/useCalChatUnread";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { useDismissedModals } from "@/hooks/useDismissedModals";
+import { useHiddenNavItems } from "@/hooks/useHiddenNavItems";
 
 
 /** Filter configuration mapping for dynamic sidebar label. */
@@ -70,6 +71,7 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
   }, []);
   const hasCalChatUnread = useCalChatUnread();
   useOnboardingStatus();
+  const { isHidden: isNavItemHidden } = useHiddenNavItems();
 
   // Track whether user has dismissed the notes welcome — server-persisted per account.
   // Only show "NEW" badge until the account has seen/dismissed the notes welcome modal.
@@ -167,7 +169,7 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
           </div>
         ) : (
           <nav id="tour-sidebar-nav" className="flex flex-col gap-1">
-            {NAV_ITEMS.map((item) => {
+            {NAV_ITEMS.filter((item) => !isNavItemHidden(item.href)).map((item) => {
               const isInbox = item.href === "/app/inbox";
               const isCalendar = item.href === "/app/calendar";
               const isChat = item.href === "/app/discussions";
