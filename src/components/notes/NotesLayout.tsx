@@ -352,13 +352,41 @@ export default function NotesLayout({
           <div className="shrink-0 bg-background border-b border-border/40 h-[88px]" />
           <div className="flex-1 px-4 md:px-8">
             <div className="max-w-3xl my-6 mx-auto md:-translate-x-[104px]">
-              <div className="bg-background rounded-sm shadow-sm border border-border/30 px-8 md:px-14 py-12 min-h-[1056px]" />
+              <div className="bg-background rounded-sm shadow-sm border border-border/30 px-8 md:px-14 py-12 min-h-[1056px] space-y-4">
+                <div className="h-8 w-2/3 rounded bg-muted animate-pulse" />
+                <div className="h-4 w-1/2 rounded bg-muted animate-pulse" />
+                <div className="pt-6 space-y-3">
+                  <div className="h-3 w-full rounded bg-muted animate-pulse" />
+                  <div className="h-3 w-11/12 rounded bg-muted animate-pulse" />
+                  <div className="h-3 w-4/5 rounded bg-muted animate-pulse" />
+                </div>
+              </div>
             </div>
           </div>
         </div>
       )}
       {showEditor && (
-        <Suspense fallback={null}>
+        <Suspense
+          fallback={
+            <div className="fixed top-0 right-0 bottom-0 left-0 md:left-52 z-[35] flex flex-col bg-muted/50 dark:bg-neutral-900/50">
+              <div className="shrink-0 bg-background border-b border-border/40 h-[88px]" />
+              <div className="flex-1 px-4 md:px-8">
+                <div className="max-w-3xl my-6 mx-auto md:-translate-x-[104px]">
+                  <div className="bg-background rounded-sm shadow-sm border border-border/30 px-8 md:px-14 py-12 min-h-[1056px] space-y-4">
+                    <div className="h-8 w-2/3 rounded bg-muted animate-pulse" />
+                    <div className="h-4 w-1/2 rounded bg-muted animate-pulse" />
+                    <div className="pt-6 space-y-3">
+                      <div className="h-3 w-full rounded bg-muted animate-pulse" />
+                      <div className="h-3 w-11/12 rounded bg-muted animate-pulse" />
+                      <div className="h-3 w-4/5 rounded bg-muted animate-pulse" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          }
+        >
+          <div key={selectedNote.id} className="animate-section-in">
           <NoteEditor
             key={selectedNote.id}
             note={selectedNote}
@@ -386,9 +414,10 @@ export default function NotesLayout({
             onBack={handleBackFromEditor}
             saveError={error}
           />
+          </div>
         </Suspense>
       )}
-      <div id="tour-notes-page" suppressHydrationWarning className="h-full" style={{ display: hideGrid ? "none" : undefined }}>
+      <div id="tour-notes-page" suppressHydrationWarning className={`h-full ${hideGrid ? "" : "animate-section-in"}`} style={{ display: hideGrid ? "none" : undefined }}>
         <NotesFolderGrid
           key={gridRefreshKey}
           initialCourses={initialCourses}

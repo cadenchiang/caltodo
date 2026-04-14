@@ -44,9 +44,11 @@ function writeCache(boards: DiscussionBoard[]) {
  * @returns boards array, loading state, error state, and refetch function
  */
 export function useDiscussionBoards() {
-  // Always start with loading=true to match server render (no sessionStorage on server)
-  const [boards, setBoards] = useState<DiscussionBoard[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Hydrate from cache synchronously so the first paint has real data
+  // and we don't flash the skeleton for a frame on every mount.
+  // Lazy initializers only run on the client (this hook is "use client").
+  const [boards, setBoards] = useState<DiscussionBoard[]>(() => readCache() ?? []);
+  const [loading, setLoading] = useState<boolean>(() => readCache() === null);
   const [error, setError] = useState<string | null>(null);
 
   const fetchBoards = useCallback(async () => {
@@ -76,12 +78,7 @@ export function useDiscussionBoards() {
   }, []);
 
   useEffect(() => {
-    // Show cached data instantly, then revalidate
-    const cached = readCache();
-    if (cached) {
-      setBoards(cached);
-      setLoading(false);
-    }
+    // Initial state already hydrated from cache; just revalidate in background.
     fetchBoards();
   }, [fetchBoards]);
 

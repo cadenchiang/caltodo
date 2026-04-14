@@ -115,11 +115,51 @@ export default function DiscussionsPage() {
     }
   }, [onboardingLoading, hasCompletedOnboarding]);
 
-  // Show loading spinner as base content; overlay locked modal after delay
+  // Show ghost skeleton as base content; overlay locked modal after delay
   return (
     <>
-      <div id="tour-calchat-page" className="flex items-center justify-center h-full">
-        <div className="w-5 h-5 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
+      <div id="tour-calchat-page" className="absolute inset-0 flex">
+        {/* Sidebar skeleton — chat row placeholders */}
+        <div className="hidden md:flex w-72 shrink-0 border-r border-black/30 dark:border-white/20 flex-col">
+          <div className="px-4 pt-5 pb-3 shrink-0">
+            <div className="h-6 w-24 rounded bg-muted animate-pulse" />
+          </div>
+          <div className="flex-1 px-2 py-1.5 space-y-1">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3 px-3 py-2.5 animate-pulse">
+                <div className="w-11 h-11 rounded-full bg-muted shrink-0" />
+                <div className="flex-1 space-y-1.5">
+                  <div className="h-3.5 w-24 rounded bg-muted" />
+                  <div className="h-3 w-36 rounded bg-muted" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        {/* Center column skeleton — header + bubble placeholders */}
+        <div className="flex-1 min-w-0 flex flex-col">
+          <div className="flex items-center gap-3 px-4 pt-5 pb-3 border-b border-black/30 dark:border-white/20 shrink-0">
+            <div className="flex-1 space-y-1.5">
+              <div className="h-4 w-40 rounded bg-muted animate-pulse" />
+              <div className="h-2.5 w-24 rounded bg-muted animate-pulse" />
+            </div>
+          </div>
+          <div className="flex-1 overflow-hidden p-4 space-y-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div
+                key={i}
+                className={`flex gap-2 animate-pulse ${i % 3 === 0 ? "flex-row-reverse" : ""}`}
+              >
+                <div className="w-7 h-7 rounded-full bg-muted shrink-0" />
+                <div
+                  className={`rounded-2xl bg-muted ${
+                    i % 3 === 0 ? "w-40" : i % 2 === 0 ? "w-52" : "w-32"
+                  } h-9`}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
       <CalChatLockedModal open={showLocked} onClose={() => router.push("/app/inbox")} />
     </>

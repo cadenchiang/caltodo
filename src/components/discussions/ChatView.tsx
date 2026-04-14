@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo } from "react";
 import type { ChatMessage } from "@/lib/types";
 import type { ReactionsMap } from "@/hooks/useMessageReactions";
 import type { TypingUser } from "@/hooks/useTypingIndicator";
@@ -131,7 +131,6 @@ export default function ChatView({
       setShowScrollBtn(false);
       isNearBottomRef.current = true;
       prevMessageCountRef.current = messages.length;
-      hasInitialScrolled.current = false;
     }
     prevFirstMessageIdRef.current = firstId;
   }, [messages]);
@@ -191,24 +190,33 @@ export default function ChatView({
     return () => observer.disconnect();
   }, []);
 
-  // Initial scroll to bottom — only once when loading finishes.
-  // Uses double rAF to ensure the DOM has fully laid out before scrolling.
-  const hasInitialScrolled = useRef(false);
-  useEffect(() => {
-    if (!loading && messages.length > 0 && !hasInitialScrolled.current) {
-      hasInitialScrolled.current = true;
-      requestAnimationFrame(() => requestAnimationFrame(() => scrollToBottom()));
+  // Initial scroll to bottom — runs synchronously before paint so the user
+  // never sees the list at the top. The scroll container is visibility:hidden
+  // until this fires, then revealed. Tracks the first-message id so that
+  // switching chats re-anchors to the bottom of the new conversation.
+  const anchoredFirstMsgIdRef = useRef<string | null>(null);
+  const [scrollReady, setScrollReady] = useState(false);
+  useLayoutEffect(() => {
+    const firstId = messages[0]?.id ?? null;
+    if (messages.length === 0) {
+      anchoredFirstMsgIdRef.current = null;
+      setScrollReady(false);
+      return;
     }
-  }, [loading, scrollToBottom, messages.length]);
+    if (anchoredFirstMsgIdRef.current !== firstId && scrollRef.current) {
+      anchoredFirstMsgIdRef.current = firstId;
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      setScrollReady(true);
+    }
+  }, [messages]);
 
-  // After the initial API fetch completes, scroll again to ensure correct position.
-  // API data may differ from cache (different count or newer messages), so the
-  // scroll height can change after the first render from cache.
-  useEffect(() => {
-    if (initialFetchDone) {
-      requestAnimationFrame(() => requestAnimationFrame(() => scrollToBottom()));
+  // After the initial API fetch completes, re-anchor to bottom in case
+  // server returned different message count than cache.
+  useLayoutEffect(() => {
+    if (initialFetchDone && scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [initialFetchDone, scrollToBottom]);
+  }, [initialFetchDone]);
 
   /**
    * Scrolls to a specific message by ID with smooth animation and flash highlight.
@@ -511,6 +519,7 @@ export default function ChatView({
         ref={scrollRef}
         onScroll={handleScroll}
         className="absolute inset-0 overflow-y-auto px-3 pt-3 pb-0 scroll-smooth"
+        style={{ visibility: scrollReady || messages.length === 0 ? "visible" : "hidden" }}
       >
         <div className="flex flex-col">
 
@@ -607,41 +616,67 @@ export default function ChatView({
         </div>
       )}
 
-      {/* Glass bottom bar: typing indicator + reply + input — overlays scroll area */}
-      <div ref={bottomBarRef} className="absolute bottom-0 left-0 right-0 z-10">
-        {/* Reply preview bar */}
-        {replyTarget && (
-          <div className="flex items-center gap-2 px-5 py-2 border-t border-black/10 dark:border-white/10 bg-white/60 dark:bg-black/60 backdrop-blur-xl">
-            <div className="flex-1 min-w-0">
-              <span className="text-[11px] font-medium text-muted-foreground">
+      {/* Glass bottom bar: typing indicator + input — overlays scroll area.
+          Hidden in reply mode; the reply modal renders its own input below. */}
+      {!replyTarget && (
+        <div ref={bottomBarRef} className="absolute bottom-0 left-0 right-0 z-10">
+          <ChatInput
+            onSend={(body, files, anonymous) => {
+              onSend(body, files, anonymous);
+              onSendComplete?.();
+            }}
+            disabled={sending}
+            error={error}
+            onTyping={onTyping}
+          />
+        </div>
+      )}
+
+      {/* Reply mode: backdrop + highlighted message + dedicated input.
+          Click backdrop to dismiss. Backdrop blocks scroll on the chat below. */}
+      {replyTarget && (
+        <div
+          className="absolute inset-0 z-30 flex flex-col justify-center items-center px-4 bg-black/30 dark:bg-black/50 backdrop-blur-md"
+          onClick={() => setReplyTarget(null)}
+          role="dialog"
+          aria-label="Reply to message"
+        >
+          {/* Highlighted target message — stop click propagation so clicks
+              inside the bubble don't dismiss the modal */}
+          <div
+            className="max-w-md w-full mb-3"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-2 mb-1.5 px-1">
+              <span className="text-[11px] font-medium text-white/80">
                 Replying to {replyTarget.author_name ?? "Anonymous"}
               </span>
-              <p className="text-[12px] text-muted-foreground/70 truncate">
-                {replyTarget.body.slice(0, 80)}
+            </div>
+            <div className="rounded-2xl bg-white dark:bg-zinc-800 px-4 py-3 shadow-xl ring-1 ring-white/30 dark:ring-white/10">
+              <p className="text-sm text-foreground whitespace-pre-wrap break-words">
+                {replyTarget.body}
               </p>
             </div>
-            <button
-              onClick={() => setReplyTarget(null)}
-              className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:bg-accent transition-colors cursor-pointer shrink-0"
-              aria-label="Cancel reply"
-            >
-              <X size={12} />
-            </button>
           </div>
-        )}
 
-        {/* Input */}
-        <ChatInput
-          onSend={(body, files, anonymous) => {
-            onSend(body, files, anonymous, replyTarget?.id);
-            setReplyTarget(null);
-            onSendComplete?.();
-          }}
-          disabled={sending}
-          error={error}
-          onTyping={onTyping}
-        />
-      </div>
+          {/* Reply composer */}
+          <div
+            className="max-w-md w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <ChatInput
+              onSend={(body, files, anonymous) => {
+                onSend(body, files, anonymous, replyTarget.id);
+                setReplyTarget(null);
+                onSendComplete?.();
+              }}
+              disabled={sending}
+              error={error}
+              onTyping={onTyping}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Unsend confirmation modal */}
       <UnsendConfirmModal

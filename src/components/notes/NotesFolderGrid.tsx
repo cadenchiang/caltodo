@@ -641,7 +641,7 @@ export default function NotesFolderGrid({
   }
 
   return (
-    <div ref={folderGridRef} data-print-hide className={`h-full overflow-y-auto px-1 -mx-1 pb-12 ${skipAnimation ? "" : "animate-page-in"} relative select-none`} onClick={handleBackgroundClick} onMouseDown={onMarqueeMouseDown}>
+    <div ref={folderGridRef} data-print-hide className="h-full overflow-y-auto px-1 -mx-1 pb-12 relative select-none" onClick={handleBackgroundClick} onMouseDown={onMarqueeMouseDown}>
       {/* Header with actions */}
       <div className="flex items-center justify-between mb-6">
         <div>

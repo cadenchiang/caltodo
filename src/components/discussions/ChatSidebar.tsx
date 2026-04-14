@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { BellOff, Pin } from "lucide-react";
+import { BellOff, Pin, Users } from "lucide-react";
 import { useDiscussionBoards } from "@/hooks/useDiscussionBoards";
 import type { DiscussionBoard } from "@/lib/types";
 import GroupAvatar from "./GroupAvatar";
@@ -86,11 +86,7 @@ function ChatRow({
       <div className="relative shrink-0">
         {isSystem ? (
           <div className="w-11 h-11 rounded-full bg-muted flex items-center justify-center">
-            <img
-              src="/logo.png"
-              alt="caltodo"
-              className="w-7 h-7 object-contain"
-            />
+            <Users size={22} className="text-muted-foreground" />
           </div>
         ) : (
           <GroupAvatar initials={initials} name={board.course.name} size={44} />

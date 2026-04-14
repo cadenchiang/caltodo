@@ -35,8 +35,18 @@ export default function CalChatWidget({ config }: CalChatWidgetProps) {
 
   if (loading) {
     return (
-      <WidgetShell centered>
-        <div className="w-5 h-5 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin" />
+      <WidgetShell>
+        <div className="h-full w-full p-3 space-y-2.5">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-2.5 animate-pulse">
+              <div className="w-8 h-8 rounded-full bg-muted shrink-0" />
+              <div className="flex-1 space-y-1.5">
+                <div className="h-3 w-1/3 rounded bg-muted" />
+                <div className="h-2.5 w-2/3 rounded bg-muted" />
+              </div>
+            </div>
+          ))}
+        </div>
       </WidgetShell>
     );
   }

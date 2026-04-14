@@ -24,55 +24,6 @@ import { playMessageReceived } from "@/lib/sounds";
 
 const LAST_CHAT_KEY = "calchat_last_course";
 
-/**
- * Thin loading bar at the top that reflects actual load progress.
- * Quickly fills to ~80%, then completes when `done` becomes true.
- *
- * @param done - Set to true when loading finishes to fill to 100% and fade out
- */
-function LoadingBar({ done }: { done: boolean }) {
-  const [progress, setProgress] = useState(0);
-  const [visible, setVisible] = useState(true);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  useEffect(() => {
-    // Kick off to 20% immediately
-    setProgress(20);
-    setVisible(true);
-
-    // Creep toward 80% over time
-    intervalRef.current = setInterval(() => {
-      setProgress((p) => {
-        if (p >= 80) return p;
-        return p + (80 - p) * 0.1;
-      });
-    }, 200);
-
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (done) {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-      setProgress(100);
-      const timer = setTimeout(() => setVisible(false), 300);
-      return () => clearTimeout(timer);
-    }
-  }, [done]);
-
-  if (!visible) return null;
-
-  return (
-    <div className="absolute top-0 left-0 right-0 h-0.5 z-20 overflow-hidden">
-      <div
-        className="h-full bg-[#007AFF] origin-left transition-transform duration-300 ease-out"
-        style={{ transform: `scaleX(${progress / 100})` }}
-      />
-    </div>
-  );
-}
 
 /**
  * Course group chat page with three-column layout.
@@ -87,7 +38,7 @@ export default function CourseChatPage({ params }: PageProps) {
   const { courseId: initialCourseId } = use(params);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { hasCompletedOnboarding, loading: onboardingLoading } = useOnboardingStatus({ skipCache: true });
+  const { hasCompletedOnboarding, loading: onboardingLoading } = useOnboardingStatus();
   const initialName = searchParams.get("name") || "Chat";
 
   // Active chat managed as client state for instant switching
@@ -303,16 +254,52 @@ export default function CourseChatPage({ params }: PageProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages.length, initialFetchDone]);
 
-  // Show loading bar while chat data or user ID is loading
-  const isLoading = !ready || (loading && messages.length === 0);
-  const loadingDone = ready && !loading;
-
   // Block access while onboarding status is loading (prevents bypass via network throttle)
   // and when onboarding is confirmed incomplete
   if (onboardingLoading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="w-5 h-5 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
+      <div className="absolute inset-0 flex">
+        {/* Sidebar skeleton — hidden on mobile, visible on md+ */}
+        <div className="hidden md:flex w-72 shrink-0 border-r border-black/30 dark:border-white/20 flex-col">
+          <div className="px-4 pt-5 pb-3 shrink-0">
+            <div className="h-6 w-24 rounded bg-muted animate-pulse" />
+          </div>
+          <div className="flex-1 px-2 py-1.5 space-y-1">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3 px-3 py-2.5 animate-pulse">
+                <div className="w-8 h-8 rounded-full bg-muted shrink-0" />
+                <div className="flex-1 space-y-1.5">
+                  <div className="h-3 w-3/5 rounded bg-muted" />
+                  <div className="h-2.5 w-4/5 rounded bg-muted" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        {/* Chat skeleton — matches ChatView's loading state */}
+        <div className="flex-1 min-w-0 flex flex-col">
+          <div className="flex items-center gap-3 px-4 pt-5 pb-3 border-b border-black/30 dark:border-white/20 shrink-0">
+            <div className="flex-1 space-y-1.5">
+              <div className="h-4 w-40 rounded bg-muted animate-pulse" />
+              <div className="h-2.5 w-24 rounded bg-muted animate-pulse" />
+            </div>
+          </div>
+          <div className="flex-1 overflow-hidden p-4 space-y-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div
+                key={i}
+                className={`flex gap-2 animate-pulse ${i % 3 === 0 ? "flex-row-reverse" : ""}`}
+              >
+                <div className="w-7 h-7 rounded-full bg-muted shrink-0" />
+                <div
+                  className={`rounded-2xl bg-muted ${
+                    i % 3 === 0 ? "w-40" : i % 2 === 0 ? "w-52" : "w-32"
+                  } h-9`}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
@@ -337,10 +324,8 @@ export default function CourseChatPage({ params }: PageProps) {
 
       {/* Center: header + chat */}
       <div className="flex-1 min-w-0 flex flex-col relative">
-        {/* Loading bar */}
-        {isLoading && <LoadingBar done={loadingDone} />}
-
-        {/* Header bar */}
+        {/* Header bar — text updates in place on chat switch (no keyframe
+            animation, which previously flashed invisible for the 40ms delay). */}
         <div className="flex items-center gap-3 px-4 pt-5 pb-3 border-b border-black/30 dark:border-white/20 shrink-0">
           <button
             onClick={() => router.back()}
@@ -351,11 +336,7 @@ export default function CourseChatPage({ params }: PageProps) {
           </button>
           {isSystemCourse && (
             <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center shrink-0">
-              <img
-                src="/logo.png"
-                alt="caltodo"
-                className="w-5 h-5 object-contain"
-              />
+              <Users size={14} className="text-muted-foreground" />
             </div>
           )}
           <div className="flex-1 min-w-0">
@@ -379,7 +360,10 @@ export default function CourseChatPage({ params }: PageProps) {
           </button>
         </div>
 
-        {/* Chat area — wait for user ID before rendering to avoid flicker */}
+        {/* Chat area — wait for user ID before rendering to avoid flicker.
+            No key/animation here: useCourseChat already does stale-while-
+            revalidate via chatCache, so cached chats appear instantly and
+            ChatView has its own skeleton for first-time loads. */}
         <div className="flex-1 min-h-0 flex flex-col">
           {ready ? (
             <ChatView

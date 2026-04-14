@@ -2,10 +2,11 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { Home, Inbox, CalendarDays, NotebookPen, Settings, Sun, CalendarRange, MessageSquare } from "lucide-react";
+import { Home, Inbox, CalendarDays, NotebookPen, Settings, Sun, CalendarRange, Users } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useCalChatUnread } from "@/hooks/useCalChatUnread";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
+import { useHiddenNavItems } from "@/hooks/useHiddenNavItems";
 
 /**
  * Fixed bottom tab bar for mobile navigation (visible below md breakpoint).
@@ -18,6 +19,7 @@ export default function MobileTabBar() {
   const [inboxFilter, setInboxFilter] = useState<string>("all");
   const calChatUnreadCount = useCalChatUnread();
   useOnboardingStatus();
+  const { isHidden: isNavItemHidden } = useHiddenNavItems();
 
   // Hydrate inbox filter from localStorage after mount to avoid SSR mismatch
   useEffect(() => {
@@ -101,7 +103,7 @@ export default function MobileTabBar() {
     {
       label: "Chat",
       href: "/app/discussions",
-      icon: MessageSquare,
+      icon: Users,
       badge: false,
       badgeCount: calChatUnreadCount,
     },
@@ -120,7 +122,7 @@ export default function MobileTabBar() {
         className="flex items-center justify-around"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
-        {tabs.map((tab) => {
+        {tabs.filter((tab) => tab.href === "/app/settings" || !isNavItemHidden(tab.href)).map((tab) => {
           const isActive = pathname.startsWith(tab.href);
           const Icon = tab.icon;
           const isChat = tab.href === "/app/discussions";
