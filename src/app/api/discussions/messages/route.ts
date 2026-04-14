@@ -33,7 +33,7 @@ export async function GET(request: Request) {
   // Block access if user hasn't completed onboarding (synced at least one class)
   const onboarded = await hasCompletedOnboarding(supabase, user.id);
   if (!onboarded) {
-    return NextResponse.json({ error: "Complete onboarding to access CalChat" }, { status: 403 });
+    return NextResponse.json({ error: "Complete onboarding to access Chat" }, { status: 403 });
   }
 
   const { allowed } = rateLimit(`chat-messages:${user.id}`, 60, 60_000);
@@ -135,7 +135,7 @@ export async function POST(request: Request) {
   // Block access if user hasn't completed onboarding
   const onboarded = await hasCompletedOnboarding(supabase, user.id);
   if (!onboarded) {
-    return NextResponse.json({ error: "Complete onboarding to access CalChat" }, { status: 403 });
+    return NextResponse.json({ error: "Complete onboarding to access Chat" }, { status: 403 });
   }
 
   // Burst spam detection (escalating timeouts for rapid-fire messages)

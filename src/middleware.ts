@@ -33,10 +33,8 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // getSession() reads from cookies and triggers token refresh internally if needed.
-  // This ensures fresh tokens are written back to cookies via setAll.
-  await supabase.auth.getSession();
-
+  // getUser() authenticates via the Supabase Auth server and refreshes tokens.
+  // It's sufficient on its own — getSession() here was a redundant extra round-trip.
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -71,7 +69,9 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|a/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
-  ],
+  // Only run middleware on the auth-transition routes where a redirect is
+  // needed. /app/** routes are protected by the server layout's session
+  // check, so we skip the Supabase getUser() network call on every tab
+  // switch inside the app — that was ~100ms per nav.
+  matcher: ["/", "/login"],
 };

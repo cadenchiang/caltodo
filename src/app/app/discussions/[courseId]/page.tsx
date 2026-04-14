@@ -15,6 +15,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useDiscussionBoards } from "@/hooks/useDiscussionBoards";
 import CalChatWelcomeModal from "@/components/discussions/CalChatWelcomeModal";
 import CalChatLockedModal from "@/components/ui/CalChatLockedModal";
+import PageTransition from "@/components/ui/PageTransition";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { stripParentheses } from "@/lib/chat-utils";
 import { NAME_KEY_PREFIX, MUTE_KEY_PREFIX } from "@/lib/chat-actions";
@@ -323,8 +324,9 @@ export default function CourseChatPage({ params }: PageProps) {
   }
 
   return (
-    <div id="tour-calchat-page" className="absolute inset-0 flex">
-      <CalChatWelcomeModal />
+    <PageTransition>
+      <div id="tour-calchat-page" className="absolute inset-0 flex">
+        <CalChatWelcomeModal />
       {/* Chat list sidebar — hidden on mobile, visible on md+ */}
       <div className="hidden md:flex w-72 shrink-0 border-r border-black/30 dark:border-white/20 flex-col">
         <ChatSidebar
@@ -438,7 +440,8 @@ export default function CourseChatPage({ params }: PageProps) {
             />
           </div>
         )}
+        </div>
       </div>
-    </div>
+    </PageTransition>
   );
 }

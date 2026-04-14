@@ -33,8 +33,24 @@ const MAX_CUSTOM_IMAGES = 30;
  *
  * @returns Settings map, custom colors/images, and update functions
  */
+/**
+ * Synchronously reads cached folder settings so the first render already has
+ * appearance URLs. Without this, images flash in after the async fetch.
+ */
+function readCachedSettings(): SettingsMap {
+  if (typeof window === "undefined") return {};
+  try {
+    const cached = localStorage.getItem("notes_folder_settings_cache");
+    return cached ? (JSON.parse(cached) as SettingsMap) : {};
+  } catch {
+    return {};
+  }
+}
+
 export function useFolderSettings() {
-  const [settings, setSettings] = useState<SettingsMap>({});
+  // Hydrate synchronously from localStorage so folder images render on first
+  // paint instead of waiting for the Supabase round-trip.
+  const [settings, setSettings] = useState<SettingsMap>(readCachedSettings);
   const [customColors, setCustomColors] = useState<string[]>([]);
   const [customImages, setCustomImages] = useState<CustomImage[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -66,13 +82,8 @@ export function useFolderSettings() {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Hydrate from localStorage instantly, then fetch from Supabase + subscribe to Realtime
+  // Fetch from Supabase + subscribe to Realtime (localStorage already hydrated synchronously above)
   useEffect(() => {
-    try {
-      const cached = localStorage.getItem("notes_folder_settings_cache");
-      if (cached) setSettings(JSON.parse(cached));
-    } catch { /* ignore */ }
-
     let channel: ReturnType<typeof supabase.channel> | null = null;
 
     async function fetchAndSubscribe() {

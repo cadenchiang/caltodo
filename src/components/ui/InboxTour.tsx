@@ -119,7 +119,7 @@ const TOUR_STEPS: TourStep[] = [
   },
   {
     targetId: "tour-calchat-page",
-    title: "CalChat",
+    title: "Chat",
     icon: <MessageSquare size={ICON_SIZE} />,
     description: "Message your classmates anonymously, organized by course.",
     position: "right",

@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import NotesLayout from "@/components/notes/NotesLayout";
+import PageTransition from "@/components/ui/PageTransition";
 import { extractTextPreview } from "@/lib/notes-utils";
 import type { Course, Note } from "@/lib/types";
 
@@ -99,12 +100,14 @@ export default async function NotesPage({
   }
 
   return (
-    <NotesLayout
-      initialCourses={initialCourses}
-      initialNoteCounts={initialNoteCounts}
-      initialRecentNotes={initialRecentNotes}
-      initialNote={initialNote}
-      initialNoteFolder={params.folder ?? null}
-    />
+    <PageTransition>
+      <NotesLayout
+        initialCourses={initialCourses}
+        initialNoteCounts={initialNoteCounts}
+        initialRecentNotes={initialRecentNotes}
+        initialNote={initialNote}
+        initialNoteFolder={params.folder ?? null}
+      />
+    </PageTransition>
   );
 }

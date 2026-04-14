@@ -1229,37 +1229,101 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     return result;
   }, [tasks]);
 
+  // Keep the latest method implementations in a ref so we can expose
+  // stable-identity wrappers to consumers. Without this, the provider's value
+  // object would change on every render (method closures are recreated each
+  // render), causing every subscriber's memoized effects/callbacks to bust.
+  const methodsRef = useRef({
+    addTask,
+    updateTask,
+    toggleComplete,
+    deleteTask,
+    deleteTasksBySource,
+    deleteSyllabusTasksByCourse,
+    importSyllabusTasks,
+    deleteTasksByExternalIdPrefix,
+    deleteTasksByCourseNames,
+    dismissTasksByCourseNames,
+    undismissTasksByCourseNames,
+    deleteAllTasks,
+    snoozeTask,
+    unsnoozeTask,
+    reorderTasks,
+    triggerSync,
+    fetchTasks,
+  });
+  methodsRef.current = {
+    addTask,
+    updateTask,
+    toggleComplete,
+    deleteTask,
+    deleteTasksBySource,
+    deleteSyllabusTasksByCourse,
+    importSyllabusTasks,
+    deleteTasksByExternalIdPrefix,
+    deleteTasksByCourseNames,
+    dismissTasksByCourseNames,
+    undismissTasksByCourseNames,
+    deleteAllTasks,
+    snoozeTask,
+    unsnoozeTask,
+    reorderTasks,
+    triggerSync,
+    fetchTasks,
+  };
+
+  // Stable method wrappers — created once, always call the freshest impl via ref.
+  const stableMethods = useMemo(() => ({
+    addTask: ((...args) => methodsRef.current.addTask(...args)) as typeof addTask,
+    updateTask: ((...args) => methodsRef.current.updateTask(...args)) as typeof updateTask,
+    toggleComplete: ((...args) => methodsRef.current.toggleComplete(...args)) as typeof toggleComplete,
+    deleteTask: ((...args) => methodsRef.current.deleteTask(...args)) as typeof deleteTask,
+    deleteTasksBySource: ((...args) => methodsRef.current.deleteTasksBySource(...args)) as typeof deleteTasksBySource,
+    deleteSyllabusTasksByCourse: ((...args) => methodsRef.current.deleteSyllabusTasksByCourse(...args)) as typeof deleteSyllabusTasksByCourse,
+    importSyllabusTasks: ((...args) => methodsRef.current.importSyllabusTasks(...args)) as typeof importSyllabusTasks,
+    deleteTasksByExternalIdPrefix: ((...args) => methodsRef.current.deleteTasksByExternalIdPrefix(...args)) as typeof deleteTasksByExternalIdPrefix,
+    deleteTasksByCourseNames: ((...args) => methodsRef.current.deleteTasksByCourseNames(...args)) as typeof deleteTasksByCourseNames,
+    dismissTasksByCourseNames: ((...args) => methodsRef.current.dismissTasksByCourseNames(...args)) as typeof dismissTasksByCourseNames,
+    undismissTasksByCourseNames: ((...args) => methodsRef.current.undismissTasksByCourseNames(...args)) as typeof undismissTasksByCourseNames,
+    deleteAllTasks: ((...args) => methodsRef.current.deleteAllTasks(...args)) as typeof deleteAllTasks,
+    snoozeTask: ((...args) => methodsRef.current.snoozeTask(...args)) as typeof snoozeTask,
+    unsnoozeTask: ((...args) => methodsRef.current.unsnoozeTask(...args)) as typeof unsnoozeTask,
+    reorderTasks: ((...args) => methodsRef.current.reorderTasks(...args)) as typeof reorderTasks,
+    triggerSync: ((...args) => methodsRef.current.triggerSync(...args)) as typeof triggerSync,
+    fetchTasks: ((...args) => methodsRef.current.fetchTasks(...args)) as typeof fetchTasks,
+  }), []);
+
+  // Memoize the full context value so subscribers only re-render when state
+  // actually changes, not on every provider render.
+  const contextValue = useMemo(
+    () => ({
+      tasks,
+      loading,
+      error,
+      syncing,
+      lastSyncedAt,
+      syncResult,
+      availableTags,
+      availableCourses,
+      courseColors,
+      ...stableMethods,
+    }),
+    [
+      tasks,
+      loading,
+      error,
+      syncing,
+      lastSyncedAt,
+      syncResult,
+      availableTags,
+      availableCourses,
+      courseColors,
+      stableMethods,
+    ],
+  );
+
   return (
-    <TaskContext.Provider
-      value={{
-        tasks,
-        loading,
-        error,
-        syncing,
-        lastSyncedAt,
-        syncResult,
-        availableTags,
-        availableCourses,
-        courseColors,
-        addTask,
-        updateTask,
-        toggleComplete,
-        deleteTask,
-        deleteTasksBySource,
-        deleteSyllabusTasksByCourse,
-        importSyllabusTasks,
-        deleteTasksByExternalIdPrefix,
-        deleteTasksByCourseNames,
-        dismissTasksByCourseNames,
-        undismissTasksByCourseNames,
-        deleteAllTasks,
-        snoozeTask,
-        unsnoozeTask,
-        reorderTasks,
-        triggerSync,
-        fetchTasks,
-      }}
-    >
+    <TaskContext.Provider value={contextValue}>
       {children}
     </TaskContext.Provider>
   );

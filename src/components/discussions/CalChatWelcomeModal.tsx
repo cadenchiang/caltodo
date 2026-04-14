@@ -68,7 +68,7 @@ export default function CalChatWelcomeModal() {
           className="text-xl font-semibold text-foreground mb-2 animate-drop-in"
           style={{ animationDelay: "150ms" }}
         >
-          welcome to CalChat
+          welcome to Chat
         </h3>
 
         {/* Description */}

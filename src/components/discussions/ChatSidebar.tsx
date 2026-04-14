@@ -248,19 +248,30 @@ export default function ChatSidebar({
   }, [activeCourseId]);
 
   /**
-   * Checks if a board has unread messages by comparing last_message_at
-   * with the stored read_at timestamp.
+   * Checks if a board has unread messages by comparing last_message_at with
+   * the stored read_at timestamp. Also considers the user's own last-sent
+   * timestamp so messages the current user typed are never flagged unread,
+   * and applies a small clock-skew tolerance to avoid flicker when the
+   * server's last_message_at is a hair newer than the local read_at.
    */
+  const OWN_CLOCK_SKEW_MS = 5000;
   function isUnread(board: DiscussionBoard): boolean {
     // readUpdateTick is used to trigger re-evaluation
     void readUpdateTick;
     try {
-      const readAt = localStorage.getItem(READ_AT_PREFIX + board.course.id);
-      // Never opened this chat → treat as unread
-      if (!readAt) return true;
-      // No messages yet but user has visited → not unread
+      // No messages yet → nothing to be unread about
       if (!board.last_message_at) return false;
-      return new Date(board.last_message_at) > new Date(readAt);
+
+      const readAt = localStorage.getItem(READ_AT_PREFIX + board.course.id);
+      const lastSentRaw = localStorage.getItem(`calchat_last_sent_${board.course.id}`);
+      const readTime = readAt ? new Date(readAt).getTime() : 0;
+      const sentTime = lastSentRaw ? parseInt(lastSentRaw, 10) : 0;
+
+      // Never opened AND never sent → unread
+      if (!readTime && !sentTime) return true;
+
+      const lastMsg = new Date(board.last_message_at).getTime();
+      return lastMsg > Math.max(readTime, sentTime) + OWN_CLOCK_SKEW_MS;
     } catch {
       return false;
     }
@@ -277,7 +288,9 @@ export default function ChatSidebar({
     }
   }, [boards]);
 
-  // Sort boards: system first → pinned → unread → rest (stable order within groups)
+  // Sort boards: system first → pinned → rest (stable order within groups).
+  // Unread state intentionally does NOT affect order — reading or receiving a
+  // message should not shuffle the list position.
   const sortedBoards = useMemo(() => {
     return [...boards].sort((a, b) => {
       const aSystem = a.course.source === "system" ? 0 : 1;
@@ -286,12 +299,9 @@ export default function ChatSidebar({
       const aPinned = pinnedIds.has(a.course.id) ? 0 : 1;
       const bPinned = pinnedIds.has(b.course.id) ? 0 : 1;
       if (aPinned !== bPinned) return aPinned - bPinned;
-      const aUnread = isUnread(a) ? 0 : 1;
-      const bUnread = isUnread(b) ? 0 : 1;
-      return aUnread - bUnread;
+      return 0;
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [boards, pinnedIds, readUpdateTick]);
+  }, [boards, pinnedIds]);
 
   /**
    * Handles the leave group confirmation. Calls the API, then navigates

@@ -615,7 +615,7 @@ export default function ProfileSection() {
             <span className="text-sm text-foreground group relative cursor-default">
               <span className="font-bold">{ownKarma ?? "–"}</span> Karma
               <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1 rounded-lg bg-popover border border-border text-xs text-muted-foreground px-2.5 py-1.5 shadow-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
-                Total messages sent in CalChat
+                Total messages sent in Chat
               </span>
             </span>
           </div>
@@ -996,7 +996,7 @@ export default function ProfileSection() {
                     <span className="text-sm text-foreground group relative cursor-default">
                       <span className="font-bold">{viewingUserKarma}</span> Karma
                       <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1 rounded-lg bg-popover border border-border text-xs text-muted-foreground px-2.5 py-1.5 shadow-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
-                        Total messages sent in CalChat
+                        Total messages sent in Chat
                       </span>
                     </span>
                   </div>
