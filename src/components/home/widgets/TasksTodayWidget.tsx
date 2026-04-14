@@ -157,6 +157,7 @@ export default function TasksTodayWidget({ config }: TasksTodayWidgetProps) {
         <div className="flex-1 overflow-y-auto -mx-3">
           {filteredTasks
             .filter((t) => !hideCompleted || !t.is_completed)
+            .sort((a, b) => Number(a.is_completed) - Number(b.is_completed))
             .slice(0, 8)
             .map((task) => {
               const taskColor = getThemeColor(task.color, colorTheme);
