@@ -213,7 +213,7 @@ export default function UserProfileModal({ userId, onClose }: UserProfileModalPr
                   <p className="text-xs text-muted-foreground group relative cursor-default">
                     {karma} Karma
                     <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1 rounded-lg bg-popover border border-border text-xs text-muted-foreground px-2.5 py-1.5 shadow-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
-                      Total messages sent in CalChat
+                      Total messages sent in Chat
                     </span>
                   </p>
                 </div>

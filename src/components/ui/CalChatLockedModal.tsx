@@ -64,7 +64,7 @@ export default function CalChatLockedModal({ open, onClose }: CalChatLockedModal
         className="text-lg font-semibold text-foreground text-center mb-2 animate-drop-in"
         style={{ animationDelay: "220ms" }}
       >
-        CalChat is locked
+        Chat is locked
       </h3>
 
       {/* Description */}
@@ -72,7 +72,7 @@ export default function CalChatLockedModal({ open, onClose }: CalChatLockedModal
         className="text-sm text-muted-foreground text-center mb-5 animate-drop-in"
         style={{ animationDelay: "290ms" }}
       >
-        Sync your classes to unlock CalChat. Connect bCourses, Gradescope, or Pensive to get started.
+        Sync your classes to unlock Chat. Connect bCourses, Gradescope, or Pensive to get started.
       </p>
 
       {/* CTA button */}

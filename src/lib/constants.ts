@@ -9,7 +9,7 @@ export const NAV_ITEMS = [
   { label: "Inbox", href: "/app/inbox", icon: Inbox },
   { label: "Calendar", href: "/app/calendar", icon: CalendarDays },
   { label: "Notes", href: "/app/notes", icon: StickyNote },
-  { label: "CalChat", href: "/app/discussions", icon: MessageSquare },
+  { label: "Chat", href: "/app/discussions", icon: MessageSquare },
 ] as const;
 
 /**

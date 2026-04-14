@@ -99,7 +99,7 @@ export default function MobileTabBar() {
       badge: false,
     },
     {
-      label: "CalChat",
+      label: "Chat",
       href: "/app/discussions",
       icon: MessageSquare,
       badge: false,
@@ -128,6 +128,7 @@ export default function MobileTabBar() {
             <Link
               key={tab.href}
               href={tab.href}
+              prefetch
               onClick={undefined}
               className={`flex flex-col items-center justify-center min-h-[44px] min-w-[44px] flex-1 py-2 transition-colors relative ${
                 isActive

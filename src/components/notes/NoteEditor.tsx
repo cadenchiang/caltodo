@@ -15,7 +15,7 @@ import { Check, ChevronLeft, Folder, Printer, Trash2, Smile, Upload } from "luci
 import NoteEditorToolbar from "./NoteEditorToolbar";
 import ImageBubbleMenu from "./ImageBubbleMenu";
 import ResizableImage from "./ResizableImageExtension";
-import EmojiPicker from "@/components/home/EmojiPicker";
+const EmojiPicker = lazy(() => import("@/components/home/EmojiPicker"));
 import { LUCIDE_ICON_MAP, isFilledIcon } from "@/components/home/emoji-picker-data";
 import { uploadNoteImage } from "@/lib/upload-note-image";
 import { extractFirstLine } from "@/lib/notes-utils";
@@ -678,14 +678,18 @@ export default function NoteEditor({ note, folderLabel, folders, currentFolderId
         onCancel={() => setShowDeleteConfirm(false)}
       />
 
-      <EmojiPicker
-        open={showIconPicker}
-        onSelect={(icon) => {
-          onUpdate(noteIdRef.current, { icon });
-          setShowIconPicker(false);
-        }}
-        onClose={() => setShowIconPicker(false)}
-      />
+      {showIconPicker && (
+        <Suspense fallback={null}>
+          <EmojiPicker
+            open={showIconPicker}
+            onSelect={(icon) => {
+              onUpdate(noteIdRef.current, { icon });
+              setShowIconPicker(false);
+            }}
+            onClose={() => setShowIconPicker(false)}
+          />
+        </Suspense>
+      )}
 
       <Suspense fallback={showCanvasSubmit ? <CanvasModalSkeleton onClose={() => setShowCanvasSubmit(false)} /> : null}>
         <SubmitToCanvasModal

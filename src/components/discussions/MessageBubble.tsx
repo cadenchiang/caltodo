@@ -166,6 +166,8 @@ export default function MessageBubble({
             <img
               src={revealedAvatar ?? message.author_avatar ?? undefined}
               alt=""
+              loading="lazy"
+              decoding="async"
               referrerPolicy="no-referrer"
               className="w-6 h-6 rounded-full object-cover"
             />
