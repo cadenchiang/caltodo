@@ -37,23 +37,22 @@ export async function GET() {
     );
 
     if (!hasYak) {
-      const userEmail = user.email ?? "";
-      if (userEmail.toLowerCase().endsWith(".edu")) {
-        const admin = createAdminClient();
-        const { data: yakCourse } = await admin
-          .from("courses")
-          .select("id")
-          .eq("source", "system")
-          .eq("external_id", "caltodo-yak")
-          .single();
+      // Auto-enroll every authenticated user in CalYak, regardless of
+      // email domain. Previously .edu-gated; now open to all.
+      const admin = createAdminClient();
+      const { data: yakCourse } = await admin
+        .from("courses")
+        .select("id")
+        .eq("source", "system")
+        .eq("external_id", "caltodo-yak")
+        .single();
 
-        if (yakCourse) {
-          await admin.from("course_memberships").upsert(
-            { user_id: user.id, course_id: yakCourse.id },
-            { onConflict: "user_id,course_id" }
-          );
-          logger.info("Auto-enrolled user in calyak", { userId: user.id });
-        }
+      if (yakCourse) {
+        await admin.from("course_memberships").upsert(
+          { user_id: user.id, course_id: yakCourse.id },
+          { onConflict: "user_id,course_id" }
+        );
+        logger.info("Auto-enrolled user in calyak", { userId: user.id });
       }
     }
 

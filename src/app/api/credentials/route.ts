@@ -65,7 +65,7 @@ export async function GET() {
     canvasTokenExpired = now - createdAt > days120;
   }
 
-  const hasCompletedOnboarding = !!(
+  const credentialsOnboarded = !!(
     data?.canvas_token ||
     data?.canvas_ical_url ||
     data?.gradescope_password_encrypted ||
@@ -74,6 +74,29 @@ export async function GET() {
     data?.last_synced_at ||
     data?.google_access_token_encrypted
   );
+
+  // A user is also considered onboarded if they belong to any class, even
+  // without their own credentials configured — e.g. added by a classmate or
+  // already synced via a previous session. This prevents the Chat "locked"
+  // state from showing for users who clearly have classes.
+  let hasCourseMembership = false;
+  if (!credentialsOnboarded) {
+    const { count, error: membershipError } = await supabase
+      .from("course_memberships")
+      .select("course_id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .is("deleted_at", null);
+    if (membershipError) {
+      logger.warn("GET /api/credentials: course_memberships count failed", {
+        userId: user.id,
+        error: membershipError.message,
+      });
+    } else {
+      hasCourseMembership = (count ?? 0) > 0;
+    }
+  }
+
+  const hasCompletedOnboarding = credentialsOnboarded || hasCourseMembership;
 
   const credentials: IntegrationCredentials = {
     canvas_token: data?.canvas_token ?? null,
