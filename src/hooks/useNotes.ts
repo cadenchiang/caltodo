@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useLayoutEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { getCachedNotes, setCachedNotes } from "@/lib/notes-cache";
 import type { Note, NoteInsert, NoteUpdate } from "@/lib/types";
 
 /**
@@ -17,6 +18,28 @@ export function useNotes(courseId: string | "general" | null) {
   const [error, setError] = useState<string | null>(null);
   const supabase = createClient();
 
+  // Track whether the current courseId was hydrated from cache so we can
+  // skip the loading spinner when we already have a stale-but-usable copy.
+  const hydratedCourseIdRef = useRef<string | null>(null);
+
+  // Hydrate from localStorage BEFORE first paint when available.
+  // Runs synchronously on courseId change so the first render already
+  // has cached notes in state — no flash of empty list.
+  useLayoutEffect(() => {
+    if (courseId === null) {
+      hydratedCourseIdRef.current = null;
+      return;
+    }
+    const cached = getCachedNotes(courseId);
+    if (cached) {
+      setNotes(cached);
+      setLoading(false);
+      hydratedCourseIdRef.current = courseId;
+    } else {
+      hydratedCourseIdRef.current = null;
+    }
+  }, [courseId]);
+
   const fetchNotes = useCallback(async () => {
     if (courseId === null) {
       setNotes([]);
@@ -24,7 +47,10 @@ export function useNotes(courseId: string | "general" | null) {
       return;
     }
 
-    setLoading(true);
+    // Only show the spinner when we have no cached data to display.
+    if (hydratedCourseIdRef.current !== courseId) {
+      setLoading(true);
+    }
     setError(null);
 
     let query = supabase
@@ -51,9 +77,11 @@ export function useNotes(courseId: string | "general" | null) {
       return;
     }
 
-    setNotes(data ?? []);
+    const fresh = data ?? [];
+    setNotes(fresh);
+    setCachedNotes(courseId, fresh);
     setLoading(false);
-  }, [courseId]);
+  }, [courseId, supabase]);
 
   useEffect(() => {
     fetchNotes();
