@@ -173,24 +173,26 @@ export default function WeatherWidget({ config, editMode }: WeatherWidgetProps) 
       setPermDenied(false);
 
       try {
-        // Skip permission pre-check on retry — go straight to getCurrentPosition
-        // so the browser can re-prompt if the user has reset permissions.
-        if (retryCount === 0 && navigator.permissions) {
+        // Re-check permission state on every run (including retries). The
+        // Permissions API reflects live state, so if the user has unblocked
+        // via the lock icon, this will return "granted" or "prompt".
+        if (navigator.permissions) {
           try {
             const status = await navigator.permissions.query({
               name: "geolocation",
             });
             if (status.state === "denied") {
+              if (cancelled) return;
               setPermDenied(true);
-              throw new Error("PERMISSION_DENIED");
+              setGeoError(
+                retryCount > 0
+                  ? "Still blocked — unblock location in your browser, then retry"
+                  : "Location blocked — click the lock icon in your address bar"
+              );
+              return;
             }
-          } catch (permErr) {
-            if (
-              permErr instanceof Error &&
-              permErr.message === "PERMISSION_DENIED"
-            ) {
-              throw permErr;
-            }
+          } catch {
+            // Permissions API unavailable — fall through to getCurrentPosition
           }
         }
 
@@ -210,14 +212,13 @@ export default function WeatherWidget({ config, editMode }: WeatherWidgetProps) 
         const geoErr = err as { code?: number };
         if (geoErr?.code === 1) {
           setPermDenied(true);
-          setGeoError("Location blocked — enable in site settings");
+          setGeoError(
+            retryCount > 0
+              ? "Still blocked — unblock location in your browser, then retry"
+              : "Location blocked — click the lock icon in your address bar"
+          );
         } else if (geoErr?.code === 2 || geoErr?.code === 3) {
           setGeoError("Enable location access");
-        } else if (
-          err instanceof Error &&
-          err.message === "PERMISSION_DENIED"
-        ) {
-          setGeoError("Location blocked — enable in site settings");
         } else {
           setGeoError("Could not load weather");
         }
@@ -289,7 +290,7 @@ export default function WeatherWidget({ config, editMode }: WeatherWidgetProps) 
         {permDenied ? (
           <>
             <p className="text-xs text-muted-foreground mb-1">
-              Location blocked — click the lock icon in your address bar
+              {geoError}
             </p>
             <button
               type="button"

@@ -1,4 +1,4 @@
-import { Home, Inbox, CalendarDays, StickyNote, MessageSquare } from "lucide-react";
+import { Home, Inbox, CalendarDays, NotebookPen, MessageSquare } from "lucide-react";
 
 /**
  * Navigation items for the sidebar.
@@ -8,7 +8,7 @@ export const NAV_ITEMS = [
   { label: "Home", href: "/app/home", icon: Home },
   { label: "Inbox", href: "/app/inbox", icon: Inbox },
   { label: "Calendar", href: "/app/calendar", icon: CalendarDays },
-  { label: "Notes", href: "/app/notes", icon: StickyNote },
+  { label: "Notes", href: "/app/notes", icon: NotebookPen },
   { label: "Chat", href: "/app/discussions", icon: MessageSquare },
 ] as const;
 
