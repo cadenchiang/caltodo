@@ -295,8 +295,6 @@ export default function CalendarHeader({
                 <GCalIcon size={16} />
                 <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">Connect Google Calendar</span>
               </div>
-              {/* Notification dot */}
-              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[#007AFF] border-2 border-white dark:border-gray-900" />
             </a>
             <button
               onClick={(e) => {
