@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
+import { Plus } from "lucide-react";
 import { useTaskContext } from "@/contexts/TaskContext";
 import TaskList from "@/components/tasks/TaskList";
 import TaskDetailPanel from "@/components/tasks/TaskDetailPanel";
@@ -21,6 +22,7 @@ export default function TodayPage() {
   const [mobileEditTask, setMobileEditTask] = useState<Task | null>(null);
   const [mobileAnchorRect, setMobileAnchorRect] = useState<DOMRect | null>(null);
   const [mobileModalTask, setMobileModalTask] = useState<Task | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
 
   /**
    * Handles drag-and-drop reorder by mapping new ID order to sort_order values.
@@ -53,8 +55,17 @@ export default function TodayPage() {
     <PageTransition>
       <div className="flex h-full -m-4 md:-m-10">
         <div className="flex flex-col flex-1 min-w-0">
-          <div className="px-4 pt-4 pb-3 md:px-8 md:pt-8 md:pb-4 animate-stagger stagger-1">
+          <div className="px-4 pt-4 pb-3 md:px-8 md:pt-8 md:pb-4 animate-stagger stagger-1 flex items-center justify-between gap-3">
             <h1 className="text-xl font-bold text-foreground">Today</h1>
+            <button
+              type="button"
+              onClick={() => setShowAddModal(true)}
+              aria-label="Add task due today"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-xl bg-blue-500 text-white hover:bg-blue-600 transition-colors active:scale-[0.97]"
+            >
+              <Plus size={14} aria-hidden />
+              New task
+            </button>
           </div>
           <div className="flex-1 overflow-auto animate-stagger stagger-2">
             <TaskList
@@ -108,6 +119,14 @@ export default function TodayPage() {
           onToggle={toggleComplete}
         />
       )}
+
+      {/* Header "+ New task" modal — pre-fills due_date with today */}
+      <TaskCreateModal
+        open={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onAdd={(task) => { addTask(task); setShowAddModal(false); }}
+        defaultDate={today}
+      />
 
       {/* Mobile: full edit modal (opened from preview pencil) */}
       <TaskCreateModal
