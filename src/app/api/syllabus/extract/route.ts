@@ -115,6 +115,10 @@ export async function POST(request: Request) {
     );
   }
 
+  if (typeof file !== "string") {
+    return NextResponse.json({ error: "file must be a base64 string" }, { status: 400 });
+  }
+
   if (!ALLOWED_MIME_TYPES.has(mimeType)) {
     return NextResponse.json(
       { error: `Unsupported file type: ${mimeType}. Allowed: PDF, PNG, JPG, WebP` },
@@ -122,12 +126,23 @@ export async function POST(request: Request) {
     );
   }
 
-  // Validate file size (base64 is ~4/3 of original size)
+  // Guard against absurd raw-base64 payloads before doing any further work.
+  // A 10 MB decoded file is ~13.4 MB as base64; we cap the raw string at 14 MB
+  // to give a small buffer for data URL prefixes / whitespace.
+  const MAX_BASE64_LENGTH = Math.ceil((MAX_FILE_SIZE_BYTES * 4) / 3) + 1024 * 1024;
+  if (file.length > MAX_BASE64_LENGTH) {
+    return NextResponse.json(
+      { error: "File too large. Maximum size is 10 MB." },
+      { status: 413 }
+    );
+  }
+
+  // Validate decoded file size (base64 is ~4/3 of original size)
   const fileSizeBytes = Math.ceil((file.length * 3) / 4);
   if (fileSizeBytes > MAX_FILE_SIZE_BYTES) {
     return NextResponse.json(
       { error: "File too large. Maximum size is 10 MB." },
-      { status: 400 }
+      { status: 413 }
     );
   }
 

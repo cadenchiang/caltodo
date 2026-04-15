@@ -14,6 +14,7 @@ import TaskCreateModal from "@/components/tasks/TaskCreateModal";
 import TaskPreviewPopover from "@/components/tasks/TaskPreviewPopover";
 import PageTransition from "@/components/ui/PageTransition";
 import type { Task, PendingInvite } from "@/lib/types";
+import { usePendingInvites } from "@/hooks/usePendingInvites";
 
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { trackEvent } from "@/lib/analytics";
@@ -214,7 +215,7 @@ export default function InboxPage() {
   const [listPreviewRect, setListPreviewRect] = useState<DOMRect | null>(null);
   const [listModalTask, setListModalTask] = useState<Task | null>(null);
   const [filter, setFilterRaw] = useState<InboxFilter>("all");
-  const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
+  const { invites: pendingInvites, setInvites: setPendingInvites } = usePendingInvites();
 
   /** Sets filter, persists to localStorage, and dispatches event for sidebar. */
   const setFilter = useCallback((f: InboxFilter) => {
@@ -257,21 +258,8 @@ export default function InboxPage() {
     } catch { /* ignore */ }
   }, []);
 
-  // Fetch pending invites on mount
-  useEffect(() => {
-    async function fetchPendingInvites() {
-      try {
-        const res = await fetch("/api/tasks/invites/pending");
-        if (res.ok) {
-          const data = await res.json();
-          setPendingInvites(data.invites ?? []);
-        }
-      } catch {
-        // Non-critical — requests section will just be empty
-      }
-    }
-    fetchPendingInvites();
-  }, []);
+  // Pending invites now come from the shared SWR hook (usePendingInvites)
+  // so the Inbox and Calendar pages dedupe onto a single request.
 
   /**
    * Handles accepting or declining a task invite.

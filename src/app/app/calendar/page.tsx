@@ -34,6 +34,7 @@ import DayOverflowPopover from "@/components/calendar/DayOverflowPopover";
 import PageTransition from "@/components/ui/PageTransition";
 import GCalAnnouncementModal from "@/components/ui/GCalAnnouncementModal";
 import type { PendingInvite, GCalEvent } from "@/lib/types";
+import { usePendingInvites } from "@/hooks/usePendingInvites";
 import { getEventDateKey } from "@/lib/gcal/event-utils";
 
 const VIEW_MODE_KEY = "cal-view-mode";
@@ -48,7 +49,7 @@ export default function CalendarPage() {
 
   const { tasks, error, addTask, updateTask, deleteTask, toggleComplete } = useTaskContext();
   const { showToast } = useToast();
-  const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
+  const { invites: pendingInvites, setInvites: setPendingInvites } = usePendingInvites();
   /** ID of a task that was just dragged to a new day, used to play a brief
    *  fade-in animation on the destination cell. Cleared after the animation. */
   const [recentlyMovedTaskId, setRecentlyMovedTaskId] = useState<string | null>(null);
@@ -87,27 +88,22 @@ export default function CalendarPage() {
     };
   }, [currentDate, viewMode]);
 
-  // Always fetch events so they're cached and render instantly when switching modes
-  const { events: gcalEvents, calendarColors, mutate: refetchEvents } = useGCalEvents(timeMin, timeMax);
+  // Only fetch GCal events when the Calendar mode is actually visible — the
+  // Assignments mode never renders them, so fetching was burning a ~300ms
+  // round-trip on every load and mode switch. Switching *into* calendar mode
+  // triggers the fetch (SWR cache keeps subsequent switches instant).
+  const shouldFetchGcal = calendarMode === "calendar";
+  const { events: gcalEvents, calendarColors, mutate: refetchEvents } = useGCalEvents(
+    shouldFetchGcal ? timeMin : undefined,
+    shouldFetchGcal ? timeMax : undefined,
+  );
 
   /** Derive fresh task data from context so toggles reflect immediately. */
   const currentPreviewTask = modals.previewTask
     ? tasks.find((t) => t.id === getRealTaskId(modals.previewTask!.id)) ?? null
     : null;
 
-  // Fetch pending invites on mount
-  useEffect(() => {
-    async function fetchPendingInvites() {
-      try {
-        const res = await fetch("/api/tasks/invites/pending");
-        if (res.ok) {
-          const data = await res.json();
-          setPendingInvites(data.invites ?? []);
-        }
-      } catch { /* non-critical */ }
-    }
-    fetchPendingInvites();
-  }, []);
+  // Pending invites come from the shared SWR hook now.
 
   // Restore persisted view mode and calendar mode
   useEffect(() => {

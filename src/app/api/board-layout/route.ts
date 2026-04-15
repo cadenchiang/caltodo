@@ -89,8 +89,26 @@ async function upsertLayout(request: Request) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  if (!body || typeof body !== "object") {
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
     return NextResponse.json({ error: "Request body must be a JSON object" }, { status: 400 });
+  }
+
+  // Minimal shape check — reject obvious junk before it reaches JSONB.
+  // We don't validate every field because the PersistedLayout shape evolves;
+  // the client is authoritative for its own layout. But the server should
+  // refuse absurd payloads that would inflate the DB row.
+  const layout = body as Record<string, unknown>;
+  const MAX_LAYOUT_BYTES = 512 * 1024; // 512 KB — roomy for widget configs, fails closed on abuse
+  const serialized = JSON.stringify(layout);
+  if (serialized.length > MAX_LAYOUT_BYTES) {
+    logger.warn("PUT /api/board-layout rejected: payload too large", {
+      userId: user.id,
+      size: serialized.length,
+    });
+    return NextResponse.json({ error: "Layout payload too large" }, { status: 413 });
+  }
+  if (!Array.isArray(layout.widgets) || typeof layout.layouts !== "object" || layout.layouts === null) {
+    return NextResponse.json({ error: "Layout must contain widgets[] and layouts{}" }, { status: 400 });
   }
 
   try {
@@ -99,7 +117,7 @@ async function upsertLayout(request: Request) {
       .upsert(
         {
           user_id: user.id,
-          layout: body,
+          layout: layout,
           updated_at: new Date().toISOString(),
         },
         { onConflict: "user_id" }

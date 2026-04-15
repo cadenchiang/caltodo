@@ -135,7 +135,7 @@ describe("PUT /api/board-layout", () => {
 
   it("upserts layout and returns success", async () => {
     setupMocks({});
-    const layout = { version: 10, widgets: [], boardTitle: "My Board" };
+    const layout = { version: 10, widgets: [], layouts: { lg: [] }, boardTitle: "My Board" };
     const req = new Request("http://localhost/api/board-layout", {
       method: "PUT",
       body: JSON.stringify(layout),
@@ -160,7 +160,7 @@ describe("PUT /api/board-layout", () => {
     setupMocks({ upsertResult: { error: { message: "DB error" } } });
     const req = new Request("http://localhost/api/board-layout", {
       method: "PUT",
-      body: JSON.stringify({ boardTitle: "Test" }),
+      body: JSON.stringify({ widgets: [], layouts: {}, boardTitle: "Test" }),
       headers: { "Content-Type": "application/json" },
     });
     const res = await PUT(req);

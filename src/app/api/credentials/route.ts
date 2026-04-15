@@ -156,6 +156,46 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
+  // Basic shape + length validation. We don't check exhaustively (the client
+  // is authoritative for its fields) but reject obvious garbage.
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return NextResponse.json({ error: "Request body must be an object" }, { status: 400 });
+  }
+  const CANVAS_TOKEN_MAX = 256;
+  if (
+    body.canvas_token !== undefined &&
+    body.canvas_token !== null &&
+    (typeof body.canvas_token !== "string" ||
+      body.canvas_token.length === 0 ||
+      body.canvas_token.length > CANVAS_TOKEN_MAX ||
+      !/^[\w~.+/=-]+$/.test(body.canvas_token))
+  ) {
+    return NextResponse.json({ error: "canvas_token is malformed" }, { status: 400 });
+  }
+  if (
+    body.gradescope_email !== undefined &&
+    body.gradescope_email !== null &&
+    (typeof body.gradescope_email !== "string" ||
+      body.gradescope_email.length > 254 ||
+      !body.gradescope_email.includes("@"))
+  ) {
+    return NextResponse.json({ error: "gradescope_email is malformed" }, { status: 400 });
+  }
+  const URL_FIELDS = ["canvas_ical_url", "pensieve_calendar_url", "brightspace_calendar_url"] as const;
+  for (const field of URL_FIELDS) {
+    const value = (body as unknown as Record<string, unknown>)[field];
+    if (value !== undefined && value !== null) {
+      if (typeof value !== "string" || value.length > 2048) {
+        return NextResponse.json({ error: `${field} is malformed` }, { status: 400 });
+      }
+      try {
+        new URL(value);
+      } catch {
+        return NextResponse.json({ error: `${field} is not a valid URL` }, { status: 400 });
+      }
+    }
+  }
+
   // Build the update object
   const updateData: Record<string, unknown> = {
     user_id: user.id,
