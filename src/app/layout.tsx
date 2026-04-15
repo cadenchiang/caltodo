@@ -65,7 +65,7 @@ export const metadata: Metadata = {
       { url: "/icon-light.png", media: "(prefers-color-scheme: light)" },
       { url: "/icon-dark.png", media: "(prefers-color-scheme: dark)" },
     ],
-    apple: [{ url: "/apple-icon-miffy.png", sizes: "180x180" }],
+    apple: [{ url: "/apple-icon.png", sizes: "180x180" }],
   },
   appleWebApp: {
     capable: true,
