@@ -45,3 +45,10 @@ mobile/.expo/
 mobile/android/
 mobile/ios/
 mobile/dist/
+
+# serwist (PWA service worker — generated at build)
+/public/sw.js
+/public/sw.js.map
+/public/swe-worker-*.js
+/public/swe-worker-*.js.map
+.gstack/

@@ -1,7 +1,7 @@
-import { Plug, GraduationCap, Palette, Wrench, LayoutList, type LucideIcon } from "lucide-react";
+import { Plug, GraduationCap, Palette, Wrench, LayoutList, Bell, type LucideIcon } from "lucide-react";
 
 /** Valid settings section identifiers. */
-export type SettingsSectionId = "integrations" | "classes" | "appearance" | "navigation" | "advanced";
+export type SettingsSectionId = "integrations" | "classes" | "appearance" | "navigation" | "notifications" | "advanced";
 
 /** Group labels for organising settings sections. */
 export const SETTINGS_GROUPS = ["General", "System"] as const;
@@ -24,6 +24,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
   { id: "classes", label: "Classes", icon: GraduationCap, group: "General" },
   { id: "appearance", label: "Appearance", icon: Palette, group: "System" },
   { id: "navigation", label: "Navigation", icon: LayoutList, group: "System" },
+  { id: "notifications", label: "Notifications", icon: Bell, group: "System" },
   { id: "advanced", label: "Advanced", icon: Wrench, group: "System" },
 ];
 

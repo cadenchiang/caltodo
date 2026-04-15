@@ -7,25 +7,11 @@
 
 "use client";
 
-import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
-
 export default function PageTransition({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-  const [animKey, setAnimKey] = useState(0);
-  const isFirstRender = useRef(true);
-
-  useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      return;
-    }
-    setAnimKey((k) => k + 1);
-  }, [pathname]);
-
-  return (
-    <div key={animKey} className={animKey > 0 ? "animate-page-in h-full" : "h-full"}>
-      {children}
-    </div>
-  );
+  // No-op wrapper: previously remounted children via a `key` that bumped on
+  // every pathname change, which made clicking a sidebar item feel delayed
+  // because the old subtree had to unmount before the new page could paint.
+  // Rendering children directly lets Next.js' prefetched route paint in the
+  // next frame. CSS-only animations on individual pages are still fine.
+  return <div className="h-full">{children}</div>;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { createContext, useContext, useState, useEffect, useLayoutEffect, useCallback } from "react";
 import type { IntegrationCredentials } from "@/lib/types";
 import { useTaskContext } from "@/contexts/TaskContext";
 import CanvasSettings from "./CanvasSettings";
@@ -11,6 +11,15 @@ import AdditionalCanvasCard from "./AdditionalCanvasCard";
 import ClassesSection from "./ClassesSection";
 
 const CACHE_KEY = "caltodo_credentials_cache";
+
+/**
+ * `useLayoutEffect` runs synchronously after commit but before the browser
+ * paints, so cached state appears on the first frame (no flash). On the
+ * server it's a no-op — we fall back to `useEffect` to avoid the SSR
+ * warning.
+ */
+const useIsomorphicLayoutEffect =
+  typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 /**
  * Reads cached credentials from localStorage.
@@ -117,14 +126,17 @@ export function IntegrationProvider({ children }: { children: React.ReactNode })
     }
   }, []);
 
-  useEffect(() => {
-    // Hydrate from localStorage cache for instant render, but keep loading=true
-    // until API responds to avoid flickering between stale and fresh state
+  // Hydrate cached credentials synchronously before first paint so fields
+  // like the connected account email appear instantly rather than flashing
+  // blank for a frame.
+  useIsomorphicLayoutEffect(() => {
     const cached = getCachedCredentials();
-    if (cached) {
-      setCredentials(cached);
-    }
-    // Fetch fresh data — loading stays true until this completes
+    if (cached) setCredentials(cached);
+  }, []);
+
+  useEffect(() => {
+    // Refresh from the server in the background. The cached paint above
+    // already gave the user something to look at.
     fetchCredentials();
   }, [fetchCredentials]);
 

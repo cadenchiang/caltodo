@@ -9,6 +9,7 @@ import IntegrationsSection from "@/components/settings/sections/IntegrationsSect
 import ClassesSectionWrapper from "@/components/settings/sections/ClassesSectionWrapper";
 import AppearanceSection from "@/components/settings/sections/AppearanceSection";
 import NavigationSection from "@/components/settings/sections/NavigationSection";
+import NotificationsSection from "@/components/settings/sections/NotificationsSection";
 
 import AdvancedSection from "@/components/settings/sections/AdvancedSection";
 import {
@@ -34,6 +35,8 @@ function renderSection(sectionId: SettingsSectionId) {
       return <AppearanceSection />;
     case "navigation":
       return <NavigationSection />;
+    case "notifications":
+      return <NotificationsSection />;
     case "advanced":
       return <AdvancedSection />;
   }
