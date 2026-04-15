@@ -18,7 +18,8 @@ import CalChatWelcomeModal from "@/components/discussions/CalChatWelcomeModal";
 import CalChatLockedModal from "@/components/ui/CalChatLockedModal";
 import PageTransition from "@/components/ui/PageTransition";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
-import { stripParentheses } from "@/lib/chat-utils";
+import { stripParentheses, getInitials } from "@/lib/chat-utils";
+import GroupAvatar from "@/components/discussions/GroupAvatar";
 import { NAME_KEY_PREFIX, MUTE_KEY_PREFIX } from "@/lib/chat-actions";
 import { isAdmin as checkIsAdmin } from "@/lib/admin";
 import { playMessageReceived } from "@/lib/sounds";
@@ -342,9 +343,17 @@ export default function ChatPageClient({ initialCourseId, initialMessages }: Cha
           >
             <ArrowLeft size={18} className="text-muted-foreground" />
           </button>
-          {isSystemCourse && (
+          {isSystemCourse ? (
             <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center shrink-0">
               <Users size={14} className="text-muted-foreground" />
+            </div>
+          ) : (
+            <div className="shrink-0">
+              <GroupAvatar
+                initials={getInitials(displayName)}
+                name={displayName}
+                size={28}
+              />
             </div>
           )}
           <div className="flex-1 min-w-0">
