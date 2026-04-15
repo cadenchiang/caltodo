@@ -205,7 +205,9 @@ export default function ChatView({
     }
     if (anchoredFirstMsgIdRef.current !== firstId && scrollRef.current) {
       anchoredFirstMsgIdRef.current = firstId;
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      // Force instant (non-smooth) anchoring so the container doesn't visibly
+      // scroll from top to bottom when the scroll-smooth class is active.
+      scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "instant" as ScrollBehavior });
       setScrollReady(true);
     }
   }, [messages]);
@@ -214,7 +216,7 @@ export default function ChatView({
   // server returned different message count than cache.
   useLayoutEffect(() => {
     if (initialFetchDone && scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "instant" as ScrollBehavior });
     }
   }, [initialFetchDone]);
 

@@ -47,12 +47,29 @@ function readCachedSettings(): SettingsMap {
   }
 }
 
-export function useFolderSettings() {
-  // Hydrate synchronously from localStorage so folder images render on first
-  // paint instead of waiting for the Supabase round-trip.
-  const [settings, setSettings] = useState<SettingsMap>(readCachedSettings);
-  const [customColors, setCustomColors] = useState<string[]>([]);
-  const [customImages, setCustomImages] = useState<CustomImage[]>([]);
+/**
+ * Optional server-pre-fetched data passed from the /app/notes server
+ * component. When present, avoids the ~1s blank-folder-cover flash on
+ * a user's first ever visit (localStorage cache is empty on that path).
+ */
+export interface UseFolderSettingsSeed {
+  initialSettings?: SettingsMap;
+  initialCustomColors?: string[];
+  initialCustomImages?: CustomImage[];
+}
+
+export function useFolderSettings(seed: UseFolderSettingsSeed = {}) {
+  // Hydration priority: SSR seed → localStorage cache → empty object.
+  // Seeding from SSR guarantees first paint includes folder cover URLs
+  // even when the user has no prior localStorage entry.
+  const [settings, setSettings] = useState<SettingsMap>(() => {
+    if (seed.initialSettings && Object.keys(seed.initialSettings).length > 0) {
+      return seed.initialSettings;
+    }
+    return readCachedSettings();
+  });
+  const [customColors, setCustomColors] = useState<string[]>(seed.initialCustomColors ?? []);
+  const [customImages, setCustomImages] = useState<CustomImage[]>(seed.initialCustomImages ?? []);
   const [loaded, setLoaded] = useState(false);
   const supabase = createClient();
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);

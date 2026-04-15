@@ -3,6 +3,7 @@ import NotesLayout from "@/components/notes/NotesLayout";
 import PageTransition from "@/components/ui/PageTransition";
 import { extractTextPreview } from "@/lib/notes-utils";
 import type { Course, Note } from "@/lib/types";
+import type { FolderSetting, CustomImage } from "@/hooks/useFolderSettings";
 
 /**
  * Notes page. Fetches courses, note counts, and recent notes server-side.
@@ -24,9 +25,12 @@ export default async function NotesPage({
   let initialNoteCounts: Record<string, number> = {};
   let initialRecentNotes: Note[] = [];
   let initialNote: Note | null = null;
+  let initialFolderSettings: Record<string, FolderSetting> = {};
+  let initialCustomColors: string[] = [];
+  let initialCustomImages: CustomImage[] = [];
 
   if (user) {
-    // Build parallel fetches — always fetch courses, counts, recents
+    // Build parallel fetches — always fetch courses, counts, recents, and folder settings
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const fetches: PromiseLike<any>[] = [
       supabase
@@ -46,6 +50,11 @@ export default async function NotesPage({
         .is("deleted_at", null)
         .order("updated_at", { ascending: false })
         .limit(12),
+      supabase
+        .from("notes_folder_settings")
+        .select("settings, custom_colors, custom_images")
+        .eq("user_id", user.id)
+        .maybeSingle(),
     ];
 
     // If a note ID is in the URL, fetch it in parallel too
@@ -61,10 +70,11 @@ export default async function NotesPage({
     }
 
     const results = await Promise.all(fetches);
-    const [membershipsRes, notesRes, recentRes] = results as [
+    const [membershipsRes, notesRes, recentRes, folderSettingsRes] = results as [
       { data: Array<{ course_id: string; courses: unknown }> | null },
       { data: Array<{ id: string; course_id: string | null; title: string; content: unknown }> | null },
       { data: Note[] | null },
+      { data: { settings: unknown; custom_colors: unknown; custom_images: unknown } | null },
     ];
 
     if (membershipsRes.data) {
@@ -92,9 +102,15 @@ export default async function NotesPage({
       });
     }
 
-    // Extract the pre-fetched note if available
-    if (params.note && results[3]) {
-      const noteRes = results[3] as { data: Note | null };
+    if (folderSettingsRes?.data) {
+      initialFolderSettings = (folderSettingsRes.data.settings as Record<string, FolderSetting>) ?? {};
+      initialCustomColors = (folderSettingsRes.data.custom_colors as string[]) ?? [];
+      initialCustomImages = (folderSettingsRes.data.custom_images as CustomImage[]) ?? [];
+    }
+
+    // Extract the pre-fetched note if available (index 4 now that folder-settings took index 3)
+    if (params.note && results[4]) {
+      const noteRes = results[4] as { data: Note | null };
       initialNote = noteRes.data ?? null;
     }
   }
@@ -107,6 +123,9 @@ export default async function NotesPage({
         initialRecentNotes={initialRecentNotes}
         initialNote={initialNote}
         initialNoteFolder={params.folder ?? null}
+        initialFolderSettings={initialFolderSettings}
+        initialCustomColors={initialCustomColors}
+        initialCustomImages={initialCustomImages}
       />
     </PageTransition>
   );

@@ -26,16 +26,38 @@ const PAGE_SIZE = 50;
 /** Interval for flushing batched join events in system courses. */
 const JOIN_BATCH_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 
-export function useCourseChat(courseId: string, options?: { isSystemCourse?: boolean; isAdmin?: boolean }) {
+export function useCourseChat(
+  courseId: string,
+  options?: {
+    isSystemCourse?: boolean;
+    isAdmin?: boolean;
+    /**
+     * Server-pre-fetched messages for instant first paint at the chat bottom.
+     * Only applied when courseId matches the initial SSR courseId; consumers
+     * must pass undefined on subsequent room switches so the hook falls back
+     * to sessionStorage cache + API.
+     */
+     initialMessages?: ChatMessage[];
+  }
+) {
   const isSystemCourse = options?.isSystemCourse ?? false;
   const isAdminUser = options?.isAdmin ?? false;
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [loading, setLoading] = useState(true);
+  const initialMessages = options?.initialMessages;
+  const hasSeedRef = useRef(initialMessages && initialMessages.length > 0);
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    // Persist the SSR seed into the sessionStorage cache so a subsequent
+    // tab navigation (without SSR seed) still hydrates instantly.
+    if (initialMessages && initialMessages.length > 0) {
+      writeCache(courseId, initialMessages);
+    }
+    return initialMessages ?? [];
+  });
+  const [loading, setLoading] = useState(!hasSeedRef.current);
   const [error, setError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [sending, setSending] = useState(false);
   const [spamCooldownEnd, setSpamCooldownEnd] = useState<number>(0);
-  const [initialFetchDone, setInitialFetchDone] = useState(false);
+  const [initialFetchDone, setInitialFetchDone] = useState(hasSeedRef.current ?? false);
   const channelRef = useRef<RealtimeChannel | null>(null);
   const cooldownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const prevCourseIdRef = useRef(courseId);

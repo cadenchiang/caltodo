@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useRef, lazy, Suspense } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useNotes } from "@/hooks/useNotes";
-import { useFolderSettings } from "@/hooks/useFolderSettings";
+import { useFolderSettings, type FolderSetting, type CustomImage } from "@/hooks/useFolderSettings";
 import NotesFolderGrid from "./NotesFolderGrid";
 import type { FolderEntry } from "./NotesFolderGrid";
 import { extractTextPreview } from "@/lib/notes-utils";
@@ -26,6 +26,10 @@ interface NotesLayoutProps {
   initialNote: Note | null;
   /** Folder ID from URL params. */
   initialNoteFolder: string | null;
+  /** Server-fetched folder settings so cover images paint on first visit. */
+  initialFolderSettings?: Record<string, FolderSetting>;
+  initialCustomColors?: string[];
+  initialCustomImages?: CustomImage[];
 }
 
 /**
@@ -78,6 +82,9 @@ export default function NotesLayout({
   initialRecentNotes,
   initialNote,
   initialNoteFolder,
+  initialFolderSettings,
+  initialCustomColors,
+  initialCustomImages,
 }: NotesLayoutProps) {
   // If the server provided a note (via ?note=ID), start in editor mode immediately
   const hasServerNote = !!initialNote;
@@ -113,7 +120,11 @@ export default function NotesLayout({
     addCustomColor,
     customImages,
     addCustomImage,
-  } = useFolderSettings();
+  } = useFolderSettings({
+    initialSettings: initialFolderSettings,
+    initialCustomColors,
+    initialCustomImages,
+  });
 
   const { notes, loading, error, createNote, updateNote, deleteNote, deleteNotes, restoreNotes } = useNotes(
     selectedFolder?.id ?? null
