@@ -6,6 +6,7 @@ import Image from "next/image";
 import { Settings, LogOut, MessageCircle, User } from "lucide-react";
 import ContactModal from "@/components/ui/ContactModal";
 import EditProfileModal from "@/components/ui/EditProfileModal";
+import { clearLayoutCache } from "@/lib/board-layout-cache";
 
 interface ProfilePopupProps {
   avatarUrl: string | null;
@@ -75,6 +76,7 @@ export default function ProfilePopup({ avatarUrl, fullName, email }: ProfilePopu
     // Second click confirms
     setSigningOut(true);
     try {
+      clearLayoutCache();
       const res = await fetch("/auth/signout", { method: "POST" });
       if (!res.ok) {
         throw new Error(`Sign out failed (${res.status})`);

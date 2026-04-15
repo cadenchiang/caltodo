@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { RotateCcw, Trash2, Play, LogOut, UserX } from "lucide-react";
 import { useTaskContext } from "@/contexts/TaskContext";
 import { useToast } from "@/contexts/ToastContext";
+import { clearLayoutCache } from "@/lib/board-layout-cache";
 
 /**
  * Advanced settings section.
@@ -104,6 +105,7 @@ export default function AdvancedSection() {
       return;
     }
     setConfirmSignOut(false);
+    clearLayoutCache();
     await fetch("/auth/signout", { method: "POST" });
     router.push("/");
   }

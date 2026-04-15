@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { LogOut, UserX, Camera } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
+import { clearLayoutCache } from "@/lib/board-layout-cache";
 
 /**
  * Account settings section.
@@ -115,6 +116,7 @@ export default function AccountSection() {
       return;
     }
     setConfirmSignOut(false);
+    clearLayoutCache();
     await fetch("/auth/signout", { method: "POST" });
     router.push("/");
   }

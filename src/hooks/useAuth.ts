@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { clearLayoutCache } from "@/lib/board-layout-cache";
 
 /**
  * Hook providing auth-related actions.
@@ -12,6 +13,7 @@ export function useAuth() {
   const router = useRouter();
 
   async function signOut() {
+    clearLayoutCache();
     await fetch("/auth/signout", { method: "POST" });
     router.push("/");
   }

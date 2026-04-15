@@ -9,7 +9,7 @@
  * @module useWidgetLayout
  */
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useCallback, useRef } from "react";
 import type { Layout, LayoutItem, ResponsiveLayouts } from "react-grid-layout";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import {
@@ -82,6 +82,9 @@ export function useWidgetLayout() {
 
   /** Instance-level gate: prevents server saves before initial fetch completes. */
   const hydrationCompleteRef = useRef(false);
+
+  /** Current Supabase user id, stored in cache envelope for debuggability. Null until the async auth lookup resolves. */
+  const userIdRef = useRef<string | null>(null);
 
   // Register toast error handler for save failures
   const { showToast } = useToast();
@@ -178,7 +181,7 @@ export function useWidgetLayout() {
         savedImages: overrides.savedImages ?? savedImagesRef.current,
         updatedAt: Date.now(),
       };
-      writeLayoutCache(data);
+      writeLayoutCache(data, userIdRef.current ?? undefined);
       if (hydrationCompleteRef.current) {
         debouncedServerSave(data);
       }
@@ -186,13 +189,17 @@ export function useWidgetLayout() {
     []
   );
 
-  // Server-authoritative hydration: localStorage is a read-only cache for
-  // instant initial paint. The server is the single source of truth.
-  // localStorage never drives saves — only user actions do.
-  useEffect(() => {
+  // Server-authoritative hydration with instant cache paint.
+  //
+  // Uses useLayoutEffect so the synchronous cache read + applyLayout +
+  // setHydrated(true) commits BEFORE the browser paints. On repeat
+  // visits this eliminates the skeleton flash entirely. The async
+  // server fetch still runs after paint and overwrites cached state
+  // if the server has newer data (server always wins).
+  useLayoutEffect(() => {
     hydrationCompleteRef.current = false;
 
-    // Apply cached layout instantly for fast paint while server fetches
+    // Instant paint from cache (returns null on first visit / version bump)
     const localLayout = readPersistedLayout();
     if (localLayout) {
       applyLayout(localLayout);
@@ -208,7 +215,7 @@ export function useWidgetLayout() {
           ? new Date(serverUpdatedAt).getTime()
           : 0;
         applyLayout(serverLayout);
-        writeLayoutCache(serverLayout);
+        writeLayoutCache(serverLayout, userIdRef.current ?? undefined);
       }
       // If server has no data, keep defaults in state but do NOT save
       // them to the server. Only explicit user actions trigger saves.
@@ -231,6 +238,9 @@ export function useWidgetLayout() {
     async function subscribe() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+
+      // Capture user id so subsequent cache writes tag the envelope.
+      userIdRef.current = user.id;
 
       await ensureRealtimeAuth(supabase);
 
@@ -264,7 +274,7 @@ export function useWidgetLayout() {
             // Incoming layout is newer (from another device) — apply it
             incomingLayout.version = SCHEMA_VERSION;
             applyLayout(incomingLayout);
-            writeLayoutCache(incomingLayout);
+            writeLayoutCache(incomingLayout, userIdRef.current ?? undefined);
           }
         )
         .subscribe();

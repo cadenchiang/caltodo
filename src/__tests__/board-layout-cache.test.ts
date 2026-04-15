@@ -1,40 +1,47 @@
 /**
- * Tests for board-layout-cache.ts — localStorage read/write helpers.
- * Validates readPersistedLayout (null cases, migrations, type filtering)
- * and writeLayoutCache.
+ * Tests for board-layout-cache.ts — stale-while-revalidate localStorage
+ * cache powering instant first paint on /app/home.
+ *
+ * Covers: readPersistedLayout null paths (missing/corrupt/version mismatch),
+ * writeLayoutCache round-trip, clearLayoutCache removal, and quota-failure
+ * resilience on writes.
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { STORAGE_KEY, SCHEMA_VERSION } from "@/lib/board-layout-types";
-
-// Mock widget-types to control SUPPORTED_TYPES
-vi.mock("@/lib/widget-types", () => ({
-  WIDGET_REGISTRY: {
-    "task-list": { minW: 2, defaultW: 4, defaultH: 4, minH: 2 },
-    "clock": { minW: 1, defaultW: 2, defaultH: 2, minH: 1 },
-  },
-}));
-
-import { readPersistedLayout, writeLayoutCache } from "@/lib/board-layout-cache";
+import {
+  readPersistedLayout,
+  writeLayoutCache,
+  clearLayoutCache,
+} from "@/lib/board-layout-cache";
 import type { PersistedLayout } from "@/lib/board-layout-types";
 import type { WidgetType } from "@/lib/widget-types";
 
-// Mock localStorage for Node environment
+/** In-memory localStorage polyfill for Node test environment. */
 let store: Record<string, string> = {};
 const localStorageMock = {
   getItem: (key: string) => store[key] ?? null,
-  setItem: (key: string, value: string) => { store[key] = value; },
-  removeItem: (key: string) => { delete store[key]; },
-  clear: () => { store = {}; },
+  setItem: (key: string, value: string) => {
+    store[key] = value;
+  },
+  removeItem: (key: string) => {
+    delete store[key];
+  },
+  clear: () => {
+    store = {};
+  },
 };
-Object.defineProperty(globalThis, "localStorage", { value: localStorageMock, writable: true });
-// Satisfy `typeof window === "undefined"` guards in cache module
+Object.defineProperty(globalThis, "localStorage", {
+  value: localStorageMock,
+  writable: true,
+});
+// Satisfy `typeof window === "undefined"` guards in the cache module
 if (typeof globalThis.window === "undefined") {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (globalThis as any).window = globalThis;
 }
 
-/** Builds a minimal valid PersistedLayout at current schema version. */
+/** Builds a minimal valid PersistedLayout at the current schema version. */
 function buildLayout(overrides: Partial<PersistedLayout> = {}): PersistedLayout {
   return {
     version: SCHEMA_VERSION,
@@ -71,81 +78,96 @@ describe("readPersistedLayout", () => {
   });
 
   it("returns null when version does not match SCHEMA_VERSION", () => {
-    const data = buildLayout({ version: 999 });
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    const envelope = {
+      version: SCHEMA_VERSION + 1,
+      data: buildLayout(),
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(envelope));
+    expect(readPersistedLayout()).toBeNull();
+  });
+
+  it("returns null when envelope is missing the data field", () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ version: SCHEMA_VERSION })
+    );
     expect(readPersistedLayout()).toBeNull();
   });
 
   it("returns null when widgets is not an array", () => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: SCHEMA_VERSION, widgets: "bad", layouts: {} }));
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        version: SCHEMA_VERSION,
+        data: { widgets: "bad", layouts: {} },
+      })
+    );
     expect(readPersistedLayout()).toBeNull();
   });
 
-  it("reads a valid layout successfully", () => {
-    const data = buildLayout();
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  it("returns null when layouts is missing", () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        version: SCHEMA_VERSION,
+        data: { widgets: [] },
+      })
+    );
+    expect(readPersistedLayout()).toBeNull();
+  });
+
+  it("reads a valid layout round-trip", () => {
+    writeLayoutCache(buildLayout());
     const result = readPersistedLayout();
     expect(result).not.toBeNull();
     expect(result!.boardTitle).toBe("My Board");
-    expect(result!.widgets).toHaveLength(1);
-  });
-
-  it("filters out unsupported widget types", () => {
-    const data = buildLayout({
-      widgets: [
-        { id: "w1", type: "task-list" as WidgetType, config: {} },
-        { id: "w2", type: "removed-widget" as WidgetType, config: {} },
-      ],
-      layouts: {
-        lg: [
-          { i: "w1", x: 0, y: 0, w: 4, h: 4 },
-          { i: "w2", x: 4, y: 0, w: 2, h: 2 },
-        ],
-      },
-    });
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    const result = readPersistedLayout();
     expect(result!.widgets).toHaveLength(1);
     expect(result!.widgets[0].id).toBe("w1");
     expect(result!.layouts.lg).toHaveLength(1);
   });
 
-  it("sanitizes corrupted boardEmoji (plain ASCII)", () => {
-    const data = buildLayout({ boardEmoji: "xl" });
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    const result = readPersistedLayout();
-    expect(result!.boardEmoji).toBe("\u{1F4D6}");
-  });
-
-  it("preserves lucide: prefix emoji", () => {
-    const data = buildLayout({ boardEmoji: "lucide:star" });
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    const result = readPersistedLayout();
-    expect(result!.boardEmoji).toBe("lucide:star");
-  });
-
-  it("sanitizes boardDescription that looks like a URL", () => {
-    const data = buildLayout({ boardDescription: "https://evil.com" });
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    const result = readPersistedLayout();
-    expect(result!.boardDescription).toBe("The secret of getting ahead is getting started.");
+  it("preserves arbitrary boardEmoji values (no sanitization)", () => {
+    writeLayoutCache(buildLayout({ boardEmoji: "lucide:star" }));
+    expect(readPersistedLayout()!.boardEmoji).toBe("lucide:star");
   });
 });
 
 describe("writeLayoutCache", () => {
-  it("writes data to localStorage under STORAGE_KEY", () => {
-    const data = buildLayout();
-    writeLayoutCache(data);
+  it("writes the layout inside a versioned envelope", () => {
+    writeLayoutCache(buildLayout());
     const stored = localStorage.getItem(STORAGE_KEY);
     expect(stored).not.toBeNull();
     const parsed = JSON.parse(stored!);
-    expect(parsed.boardTitle).toBe("My Board");
+    expect(parsed.version).toBe(SCHEMA_VERSION);
+    expect(parsed.data.boardTitle).toBe("My Board");
   });
 
-  it("does not throw when localStorage is full", () => {
+  it("stores the optional userId on the envelope when provided", () => {
+    writeLayoutCache(buildLayout(), "user-abc");
+    const stored = localStorage.getItem(STORAGE_KEY);
+    const parsed = JSON.parse(stored!);
+    expect(parsed.userId).toBe("user-abc");
+  });
+
+  it("does not throw when localStorage.setItem fails (quota exceeded)", () => {
     const original = localStorageMock.setItem;
-    localStorageMock.setItem = () => { throw new Error("QuotaExceeded"); };
+    localStorageMock.setItem = () => {
+      throw new Error("QuotaExceeded");
+    };
     expect(() => writeLayoutCache(buildLayout())).not.toThrow();
     localStorageMock.setItem = original;
+  });
+});
+
+describe("clearLayoutCache", () => {
+  it("removes the stored layout", () => {
+    writeLayoutCache(buildLayout());
+    expect(localStorage.getItem(STORAGE_KEY)).not.toBeNull();
+    clearLayoutCache();
+    expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+  });
+
+  it("is a no-op when nothing is stored", () => {
+    expect(() => clearLayoutCache()).not.toThrow();
   });
 });
