@@ -55,7 +55,16 @@ export default async function AppLayout({
           <PresenceProvider>
           <TaskProvider>
             <Sidebar avatarUrl={avatarUrl} fullName={fullName} email={email} />
-            <main suppressHydrationWarning className="flex-1 overflow-hidden p-4 md:p-10 pb-16 md:pb-10 bg-background relative miffy-glow miffy-watermark">
+            <main
+              suppressHydrationWarning
+              className="flex-1 overflow-hidden px-4 md:px-10 pb-16 md:pb-10 bg-background relative miffy-glow miffy-watermark"
+              style={{
+                // Reserve space for the iOS status bar + home indicator when
+                // launched as a standalone PWA. In a regular browser
+                // env(safe-area-inset-*) is 0, so no visual change there.
+                paddingTop: "max(1rem, env(safe-area-inset-top))",
+              }}
+            >
               {children}
             </main>
             <MobileTabBar />

@@ -69,8 +69,11 @@ export const metadata: Metadata = {
   },
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
-    title: "CalTodo",
+    // "default" = white status bar with system-reserved space, so the
+    // app content sits below it instead of sliding under. Avoids the
+    // "page shifts up into the status bar" problem on installed PWAs.
+    statusBarStyle: "default",
+    title: "caltodo",
   },
 };
 
