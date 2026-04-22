@@ -1,5 +1,31 @@
 {
   "framework": "nextjs",
+  "functions": {
+    "src/app/api/**/*.ts": {
+      "memory": 256,
+      "maxDuration": 10
+    },
+    "src/app/api/syllabus/extract/route.ts": {
+      "memory": 512,
+      "maxDuration": 30
+    },
+    "src/app/api/nsfw-check/route.ts": {
+      "memory": 1024,
+      "maxDuration": 30
+    },
+    "src/app/api/cron/gcal-sync/route.ts": {
+      "memory": 512,
+      "maxDuration": 60
+    },
+    "src/app/api/cron/email-digest/route.ts": {
+      "memory": 512,
+      "maxDuration": 60
+    },
+    "src/app/api/cron/push-reminders/route.ts": {
+      "memory": 512,
+      "maxDuration": 60
+    }
+  },
   "crons": [
     {
       "path": "/api/cron/gcal-sync",
