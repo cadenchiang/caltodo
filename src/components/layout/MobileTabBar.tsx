@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { Home, Inbox, CalendarDays, NotebookPen, Settings, Sun, CalendarRange, Users } from "lucide-react";
+import { LayoutGrid, Inbox, CalendarDays, NotebookPen, Settings, Sun, CalendarRange, Users } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useCalChatUnread } from "@/hooks/useCalChatUnread";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
@@ -77,9 +77,9 @@ export default function MobileTabBar() {
     badgeCount?: number;
   }> = [
     {
-      label: "Home",
+      label: "Board",
       href: "/app/home",
-      icon: Home,
+      icon: LayoutGrid,
       badge: false,
     },
     {
