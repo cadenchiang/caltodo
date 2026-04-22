@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
-import { Analytics } from "@vercel/analytics/next";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import SWRProvider from "@/components/SWRProvider";
 import PostHogProvider from "@/components/PostHogProvider";
@@ -179,7 +178,6 @@ export default function RootLayout({
             </SWRProvider>
           </ThemeProvider>
         </PostHogProvider>
-        <Analytics />
       </body>
     </html>
   );

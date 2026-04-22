@@ -70,11 +70,11 @@ function clearCachedTasks(): void {
   }
 }
 
-/** How often auto-sync runs in milliseconds (5 minutes). */
-const AUTO_SYNC_INTERVAL_MS = 5 * 60 * 1000;
+/** How often auto-sync runs in milliseconds (15 minutes). */
+const AUTO_SYNC_INTERVAL_MS = 15 * 60 * 1000;
 
-/** Minimum time between auto-syncs to avoid rapid re-triggers (2 minutes). */
-const AUTO_SYNC_COOLDOWN_MS = 2 * 60 * 1000;
+/** Minimum time between auto-syncs to avoid rapid re-triggers (5 minutes). */
+const AUTO_SYNC_COOLDOWN_MS = 5 * 60 * 1000;
 
 interface TaskContextValue {
   tasks: Task[];
@@ -183,11 +183,10 @@ export function TaskProvider({ children }: { children: ReactNode }) {
    */
   const syncUnsyncedToGCal = useCallback(async (signal?: AbortSignal) => {
     try {
-      const checkRes = await fetch("/api/gcal/unsynced-count", { signal });
-      if (!checkRes.ok) return;
-      const checkData = await checkRes.json();
-      if (!checkData.connected || checkData.count === 0) return;
-
+      // Call initial-sync directly; it returns {synced: 0, reason: ...} fast
+      // when GCal is disconnected or there are no unsynced tasks, so the
+      // previous /api/gcal/unsynced-count pre-check was redundant — dropping
+      // it halves function invocations on every auto-sync.
       const syncRes = await fetch("/api/gcal/initial-sync", { method: "POST", signal });
       const contentType = syncRes.headers.get("Content-Type") ?? "";
 
