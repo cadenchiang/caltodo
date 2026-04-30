@@ -132,6 +132,7 @@ export default function MobileTabBar() {
               href={tab.href}
               prefetch
               onClick={undefined}
+              data-nav-href={tab.href}
               className={`flex flex-col items-center justify-center min-h-[44px] min-w-[44px] flex-1 py-2 transition-colors relative ${
                 isActive
                   ? "text-blue-500"

@@ -50,16 +50,27 @@ export function useHiddenNavItems() {
   const [hidden, setHidden] = useState<Set<string>>(() => readHidden());
 
   useEffect(() => {
+    // The pre-paint inline script in src/app/layout.tsx injects a
+    // <style id="caltodo-hidden-nav-style"> rule to hide nav items by
+    // data-nav-href before React mounts. Once we're hydrated, React's
+    // filter is the sole source of truth, so remove the style tag.
+    // Otherwise, toggling a previously-hidden item back on would leave
+    // the CSS rule hiding it.
+    const style = document.getElementById("caltodo-hidden-nav-style");
+    if (style) style.remove();
+
     function refresh() {
       setHidden(readHidden());
     }
+    function onStorage(e: StorageEvent) {
+      if (e.key === STORAGE_KEY) refresh();
+    }
     window.addEventListener(CHANGE_EVENT, refresh);
     // Sync across tabs
-    window.addEventListener("storage", (e) => {
-      if (e.key === STORAGE_KEY) refresh();
-    });
+    window.addEventListener("storage", onStorage);
     return () => {
       window.removeEventListener(CHANGE_EVENT, refresh);
+      window.removeEventListener("storage", onStorage);
     };
   }, []);
 

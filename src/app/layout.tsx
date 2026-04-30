@@ -150,6 +150,42 @@ const themeScript = `
 })();
 `;
 
+/**
+ * Inline script that runs before paint to prevent flash of hidden nav items.
+ * Reads the user's hidden-nav-href list from localStorage and injects a
+ * synchronous <style> rule that hides matching nav links via their
+ * data-nav-href attribute. Without this, SSR renders all nav items and they
+ * briefly flash visible before React hydrates and filters them out.
+ *
+ * The injected <style id="caltodo-hidden-nav-style"> tag is removed by
+ * useHiddenNavItems on mount, after which React's filter is the sole
+ * source of truth for nav visibility (so toggling a hidden item back on
+ * actually shows it).
+ */
+const hiddenNavScript = `
+(function() {
+  try {
+    var raw = localStorage.getItem("caltodo_hidden_nav_items");
+    if (!raw) return;
+    var arr = JSON.parse(raw);
+    if (!Array.isArray(arr) || arr.length === 0) return;
+    var sels = [];
+    for (var i = 0; i < arr.length; i++) {
+      var v = arr[i];
+      if (typeof v !== "string") continue;
+      // Only allow nav-style hrefs to prevent CSS injection via crafted localStorage values.
+      if (!/^\\/[A-Za-z0-9/_-]+$/.test(v)) continue;
+      sels.push('[data-nav-href="' + v + '"]');
+    }
+    if (!sels.length) return;
+    var style = document.createElement("style");
+    style.id = "caltodo-hidden-nav-style";
+    style.textContent = sels.join(",") + "{display:none !important;}";
+    document.head.appendChild(style);
+  } catch(e) {}
+})();
+`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -165,6 +201,7 @@ export default function RootLayout({
           rel="stylesheet"
         />
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <script dangerouslySetInnerHTML={{ __html: hiddenNavScript }} />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${instrumentSerif.variable} antialiased`}

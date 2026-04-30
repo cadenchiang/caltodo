@@ -72,6 +72,7 @@ export default function SidebarNavItem({ label, href, icon: Icon, badge, badgeCo
       href={href}
       prefetch={true}
       onClick={onClick}
+      data-nav-href={href}
       className={navItemClasses(isActive, isMiffy)}
     >
       {imageSrc ? (
