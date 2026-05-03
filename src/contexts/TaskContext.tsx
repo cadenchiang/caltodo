@@ -155,6 +155,12 @@ interface TaskContextValue {
   reorderTasks: (updates: Array<{ id: string; sort_order: number }>) => Promise<void>;
   triggerSync: (courseOverrides?: { canvas_courses?: Array<{ id: number; name: string }>; gradescope_courses?: Array<{ id: string; name: string }> }, platforms?: Array<"canvas" | "gradescope" | "pensieve">) => Promise<void>;
   fetchTasks: () => Promise<Task[]>;
+  /**
+   * Merges duplicate assignments into a single survivor task.
+   * Appends each duplicate's source link to the survivor's description and
+   * dismisses the duplicates so the sync engine won't resurrect them.
+   */
+  mergeDuplicates: (survivorId: string, duplicateIds: string[]) => Promise<void>;
 }
 
 const TaskContext = createContext<TaskContextValue | null>(null);
@@ -227,8 +233,24 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       const contentType = syncRes.headers.get("Content-Type") ?? "";
 
       if (contentType.includes("application/json")) {
-        // Silently consume JSON response — no toasts or banners
-        await syncRes.json();
+        const body = await syncRes.json().catch(() => ({}));
+        // Surface "needs calendar selection" once per session so users know
+        // why their assignments aren't appearing on Google Calendar.
+        // "not_connected" is intentional (user disconnected) — stay quiet.
+        if (
+          body?.needsCalendarSelection &&
+          typeof window !== "undefined" &&
+          !sessionStorage.getItem("gcal-needs-cal-toast-shown")
+        ) {
+          sessionStorage.setItem("gcal-needs-cal-toast-shown", "1");
+          showToast("Pick a Google Calendar to sync assignments to", {
+            duration: 10_000,
+            action: {
+              label: "Open settings",
+              onClick: () => { window.location.href = "/app/settings?section=integrations"; },
+            },
+          });
+        }
         return;
       }
 
@@ -240,7 +262,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       if (err instanceof DOMException && err.name === "AbortError") return;
       console.warn("Post-sync GCal sync failed:", err);
     }
-  }, []);
+  }, [showToast]);
 
   const fetchTasks = useCallback(async (): Promise<Task[]> => {
     // Only show loading spinner if we have no cached data
@@ -768,6 +790,41 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       setError(deleteError.message);
       fetchTasks();
     }
+  }
+
+  /**
+   * Merges duplicate assignments into a single survivor task.
+   * Appends each duplicate's source link to the survivor's description and
+   * dismisses the duplicates so the sync engine won't resurrect them.
+   *
+   * @param survivorId - ID of the task to keep
+   * @param duplicateIds - IDs of tasks to merge into the survivor (will be dismissed)
+   */
+  async function mergeDuplicates(survivorId: string, duplicateIds: string[]) {
+    if (duplicateIds.length === 0) return;
+    const survivor = tasks.find((t) => t.id === survivorId);
+    if (!survivor) return;
+
+    const dupes = tasks.filter((t) => duplicateIds.includes(t.id) && t.id !== survivorId);
+    if (dupes.length === 0) return;
+
+    const links = dupes
+      .filter((d) => d.source_url)
+      .map((d) => {
+        const sourceLabel = d.source ? d.source.charAt(0).toUpperCase() + d.source.slice(1) : "Other";
+        return `Also on ${sourceLabel}: ${d.source_url}`;
+      });
+
+    if (links.length > 0) {
+      const newDesc = [survivor.description, ...links].filter((s) => s && s.length > 0).join("\n\n");
+      await updateTask(survivor.id, { description: newDesc });
+    }
+
+    for (const d of dupes) {
+      await deleteTask(d.id);
+    }
+
+    trackEvent("duplicates_merged");
   }
 
   /**
@@ -1301,6 +1358,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     reorderTasks,
     triggerSync,
     fetchTasks,
+    mergeDuplicates,
   });
   methodsRef.current = {
     addTask,
@@ -1320,6 +1378,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     reorderTasks,
     triggerSync,
     fetchTasks,
+    mergeDuplicates,
   };
 
   // Stable method wrappers — created once, always call the freshest impl via ref.
@@ -1341,6 +1400,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     reorderTasks: ((...args) => methodsRef.current.reorderTasks(...args)) as typeof reorderTasks,
     triggerSync: ((...args) => methodsRef.current.triggerSync(...args)) as typeof triggerSync,
     fetchTasks: ((...args) => methodsRef.current.fetchTasks(...args)) as typeof fetchTasks,
+    mergeDuplicates: ((...args) => methodsRef.current.mergeDuplicates(...args)) as typeof mergeDuplicates,
   }), []);
 
   // Memoize the full context value so subscribers only re-render when state

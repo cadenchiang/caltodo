@@ -10,6 +10,7 @@ import type { Task, TaskUpdate } from "@/lib/types";
 import TaskCreateModal from "./TaskCreateModal";
 import TaskCheckbox from "./shared/TaskCheckbox";
 import TaskActionBar from "./shared/TaskActionBar";
+import TaskDuplicatesBanner from "./TaskDuplicatesBanner";
 import {
   TaskDateTimeLabel,
   TaskRepeatLabel,
@@ -120,6 +121,9 @@ export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: Tas
 
         {/* Description row */}
         <TaskDescriptionRow description={task.description} />
+
+        {/* Duplicate-assignment merge banner (renders nothing when no dupes) */}
+        <TaskDuplicatesBanner task={task} />
       </div>
 
       {/* Edit modal */}

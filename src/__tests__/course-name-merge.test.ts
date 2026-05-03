@@ -31,6 +31,21 @@ describe("extractCourseCode", () => {
     expect(extractCourseCode("ugba 101a-LEC-002")).toBe("UGBA 101A");
     expect(extractCourseCode("cs 188")).toBe("CS 188");
   });
+
+  it("extracts parenthesized course codes", () => {
+    expect(extractCourseCode("Calculus II (MATH 53)")).toBe("MATH 53");
+    expect(extractCourseCode("Intro to Artificial Intelligence (CS 188)")).toBe("CS 188");
+  });
+
+  it("extracts course codes after a separator", () => {
+    expect(extractCourseCode("Intro to AI - CS 188")).toBe("CS 188");
+    expect(extractCourseCode("Microeconomics: UGBA 101A")).toBe("UGBA 101A");
+    expect(extractCourseCode("Linear Algebra – MATH 54")).toBe("MATH 54");
+  });
+
+  it("extracts course codes at the end of the name", () => {
+    expect(extractCourseCode("Section 1 MATH 53")).toBe("MATH 53");
+  });
 });
 
 describe("buildCourseNameMap", () => {

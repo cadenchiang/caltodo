@@ -27,6 +27,7 @@ type AnalyticsEvent =
   | "task_updated"
   | "task_deleted"
   | "all_tasks_deleted"
+  | "duplicates_merged"
   // Sync
   | "sync_started"
   | "sync_completed"

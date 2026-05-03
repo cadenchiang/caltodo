@@ -13,24 +13,44 @@
 
 import { logger } from "@/lib/logger";
 
+/** Pattern for a single course code token (e.g. "UGBA 101A", "CS 188"). */
+const CODE_PATTERN = /[A-Z]{2,6}\s*\d{1,4}[A-Z]?/i;
+
 /**
  * Extracts the core course code from a platform-specific course name.
- * Handles common UC Berkeley patterns like:
- *   "UGBA 101A-LEC-002 Microeconomics..." → "UGBA 101A"
- *   "CS 188 - Introduction to AI"         → "CS 188"
- *   "EE 16A"                              → "EE 16A"
- *   "History and Culture of Afghanistan"   → null (no extractable code)
+ * Tries, in order:
+ *   1. Code at start:           "UGBA 101A-LEC-002 ..."   → "UGBA 101A"
+ *   2. Parenthesized code:      "Calculus II (MATH 53)"   → "MATH 53"
+ *   3. Code after a separator:  "Intro to AI - CS 188"    → "CS 188"
+ *   4. Code at the very end:    "Section 1 MATH 53"       → "MATH 53"
+ *
+ * Returns null when no code-shaped token is present
+ * (e.g. "History and Culture of Afghanistan").
  *
  * @param name - Raw course name from Canvas or Gradescope
  * @returns Extracted course code in uppercase, or null if no code pattern found
  */
 export function extractCourseCode(name: string): string | null {
-  // Match patterns like "UGBA 101A", "CS 188", "EE 16B", "MATH 53", "EECS 126"
-  // Optionally followed by section info like "-LEC-002" or " - Title"
-  const match = name.match(/^([A-Z]{2,6}\s*\d{1,4}[A-Z]?)\b/i);
-  if (!match) return null;
-  // Normalize: uppercase, collapse whitespace
-  return match[1].replace(/\s+/g, " ").trim().toUpperCase();
+  if (!name) return null;
+
+  const startMatch = name.match(new RegExp(`^(${CODE_PATTERN.source})\\b`, "i"));
+  if (startMatch) return normalizeCode(startMatch[1]);
+
+  const parenMatch = name.match(new RegExp(`\\((${CODE_PATTERN.source})\\)`, "i"));
+  if (parenMatch) return normalizeCode(parenMatch[1]);
+
+  const sepMatch = name.match(new RegExp(`[-–—:]\\s*(${CODE_PATTERN.source})\\b`, "i"));
+  if (sepMatch) return normalizeCode(sepMatch[1]);
+
+  const endMatch = name.match(new RegExp(`\\b(${CODE_PATTERN.source})\\s*$`, "i"));
+  if (endMatch) return normalizeCode(endMatch[1]);
+
+  return null;
+}
+
+/** Uppercases the code and collapses internal whitespace. */
+function normalizeCode(raw: string): string {
+  return raw.replace(/\s+/g, " ").trim().toUpperCase();
 }
 
 /**
