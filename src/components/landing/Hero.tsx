@@ -8,7 +8,6 @@ import BentoFeatures from "@/components/landing/BentoFeatures";
 import FadeIn from "@/components/landing/FadeIn";
 import FeatureHighlight from "@/components/landing/FeatureHighlight";
 import StatsSection from "@/components/landing/StatsSection";
-import TestimonialSection from "@/components/landing/TestimonialSection";
 
 
 interface HeroProps {
@@ -152,9 +151,9 @@ export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
 
           {/* Heading */}
           <h2 className="text-[36px] sm:text-[64px] leading-[0.95] sm:leading-[0.95] tracking-tight text-center text-black" style={{ fontFamily: '-apple-system, "SF Pro Display", BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' }}>
-            <span className="font-medium">Never miss a</span>
+            <span className="font-normal">Never miss a</span>
             <br />
-            <span className="font-medium">deadline again.</span>
+            <span className="font-normal">deadline again.</span>
           </h2>
 
           {/* Subtitle */}
@@ -248,8 +247,6 @@ export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
           </FadeIn>
         </div>
       </div>
-
-      <TestimonialSection />
 
       {/* Footer */}
       <footer className="bg-[#F5F5F7] px-6 sm:px-10 py-5">
