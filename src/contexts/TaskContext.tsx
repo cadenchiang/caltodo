@@ -76,6 +76,42 @@ const AUTO_SYNC_INTERVAL_MS = 30 * 60 * 1000;
 /** Minimum time between auto-syncs to avoid rapid re-triggers (10 minutes). */
 const AUTO_SYNC_COOLDOWN_MS = 10 * 60 * 1000;
 
+/**
+ * localStorage key for the last auto-sync timestamp. Persisting this across
+ * page loads prevents a fresh full sync every time the app mounts (which
+ * would otherwise hammer the sync API on every navigation/reload).
+ */
+const LAST_AUTO_SYNC_KEY = "caltodo_last_auto_sync_at";
+
+/**
+ * Reads the last auto-sync timestamp from localStorage.
+ *
+ * @returns Epoch ms of the last sync, or 0 if none / unavailable.
+ */
+function readLastAutoSync(): number {
+  if (typeof window === "undefined") return 0;
+  try {
+    const raw = localStorage.getItem(LAST_AUTO_SYNC_KEY);
+    if (!raw) return 0;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : 0;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Writes the last auto-sync timestamp to localStorage.
+ */
+function writeLastAutoSync(now: number): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(LAST_AUTO_SYNC_KEY, String(now));
+  } catch {
+    // Non-critical (quota, private mode, etc.)
+  }
+}
+
 interface TaskContextValue {
   tasks: Task[];
   loading: boolean;
@@ -259,7 +295,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
   // Auto-sync: runs on initial load (if stale) and every 5 minutes.
   // Uses AbortController to cleanly cancel in-flight requests on unmount/re-render.
   // Suppresses notifications on first sync to avoid false positives from empty baseline.
-  const lastAutoSyncRef = useRef<number>(0);
+  const lastAutoSyncRef = useRef<number>(readLastAutoSync());
   const autoSyncAbortRef = useRef<AbortController | null>(null);
   const isFirstAutoSyncRef = useRef(true);
 
@@ -278,6 +314,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       const now = Date.now();
       if (syncing || now - lastAutoSyncRef.current < AUTO_SYNC_COOLDOWN_MS) return;
       lastAutoSyncRef.current = now;
+      writeLastAutoSync(now);
 
       const shouldNotify = !isFirstAutoSyncRef.current && hasInitialFetchRef.current;
       isFirstAutoSyncRef.current = false;
