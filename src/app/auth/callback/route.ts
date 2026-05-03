@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { pickLandingPath } from "@/lib/landing-path";
 
 /**
  * OAuth callback route handler.
@@ -45,7 +46,7 @@ export async function GET(request: NextRequest) {
             .upsert({ user_id: user.id }, { onConflict: "user_id" });
           redirectTo.searchParams.set("welcome", "1");
         }
-        redirectTo.pathname = "/app/home";
+        redirectTo.pathname = pickLandingPath(user.user_metadata);
       } else {
         redirectTo.pathname = "/app/home";
       }

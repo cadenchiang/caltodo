@@ -1,10 +1,12 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { pickLandingPath } from "@/lib/landing-path";
 
 /**
  * Middleware for route protection and Supabase auth token refresh.
  * Redirects unauthenticated users from /app/* routes to /login.
- * Redirects authenticated users from /login to /app/home.
+ * Redirects authenticated users from /login to their first non-hidden
+ * nav item (Board by default, Inbox if Board is hidden, etc).
  *
  * @param request - The incoming Next.js request
  * @returns NextResponse with updated auth cookies
@@ -53,11 +55,11 @@ export async function middleware(request: NextRequest) {
     return redirectResponse;
   }
 
-  // Redirect authenticated users away from landing/login to home
-  // Skip redirect if ?landing=1 is present (e.g. sidebar logo click)
+  // Redirect authenticated users away from landing/login to their first
+  // non-hidden nav item. Skip if ?landing=1 is present (sidebar logo click).
   if (user && (pathname === "/" || pathname === "/login") && !request.nextUrl.searchParams.has("landing")) {
     const url = request.nextUrl.clone();
-    url.pathname = "/app/home";
+    url.pathname = pickLandingPath(user.user_metadata);
     const redirectResponse = NextResponse.redirect(url);
     supabaseResponse.cookies.getAll().forEach((cookie) => {
       redirectResponse.cookies.set(cookie.name, cookie.value, cookie);
