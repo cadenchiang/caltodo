@@ -1,0 +1,3 @@
+{
+  "/api/discussions/reactions/route": "app/api/discussions/reactions/route.js"
+}

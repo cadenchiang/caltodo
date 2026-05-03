@@ -155,7 +155,7 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
                     <button
                       key={section.id}
                       onClick={() => {
-                        router.push(`/app/settings?section=${section.id}`);
+                        router.replace(`/app/settings?section=${section.id}`, { scroll: false });
                       }}
                       className={`w-full cursor-pointer ${navItemClasses(isActive, isMiffy)}`}
                     >

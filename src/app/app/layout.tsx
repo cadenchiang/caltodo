@@ -8,10 +8,8 @@ import { ToastProvider } from "@/contexts/ToastContext";
 
 import { PresenceProvider } from "@/contexts/PresenceContext";
 
-import GettingStartedWidget from "@/components/ui/GettingStartedWidget";
 import CanvasTokenExpiredModal from "@/components/ui/CanvasTokenExpiredModal";
 import CalChatAnnouncementModal from "@/components/ui/CalChatAnnouncementModal";
-import SyncClassesModal from "@/components/ui/SyncClassesModal";
 import GlobalChatNotifier from "@/components/ui/GlobalChatNotifier";
 import NewAssignmentsModal from "@/components/ui/NewAssignmentsModal";
 import PostHogIdentify from "@/components/PostHogIdentify";
@@ -63,10 +61,8 @@ export default async function AppLayout({
             </main>
             <MobileTabBar />
 
-            <GettingStartedWidget />
             <CanvasTokenExpiredModal />
             <CalChatAnnouncementModal />
-            <SyncClassesModal />
             <GlobalChatNotifier />
             <NewAssignmentsModal />
           </TaskProvider>
