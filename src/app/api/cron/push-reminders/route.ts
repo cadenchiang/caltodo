@@ -38,6 +38,13 @@ const CONCURRENCY = 3;
 /** Drop dispatch-log rows older than this so the table doesn't grow forever. */
 const DISPATCH_TTL_DAYS = 30;
 
+/**
+ * Hard-delete completed tasks whose completed_at is older than this many
+ * days. Reduces Supabase storage and keeps the tasks table small. The 30-day
+ * window matches the indicator shown in the client's Archive section.
+ */
+const ARCHIVE_PURGE_DAYS = 30;
+
 interface TaskRow {
   id: string;
   user_id: string;
@@ -77,6 +84,31 @@ export async function GET(request: NextRequest) {
   // Cleanup stale dispatch rows in the background — cheap, runs every tick.
   const cutoff = new Date(now.getTime() - DISPATCH_TTL_DAYS * 24 * 60 * 60 * 1000).toISOString();
   void supabase.from("notification_dispatches").delete().lt("sent_at", cutoff);
+
+  // Purge old completed tasks (>30 days) to keep Supabase storage bounded.
+  // Runs as a fire-and-forget query so it never blocks the cron timeout.
+  // Errors are logged but non-fatal.
+  const archiveCutoff = new Date(
+    now.getTime() - ARCHIVE_PURGE_DAYS * 24 * 60 * 60 * 1000
+  ).toISOString();
+  void supabase
+    .from("tasks")
+    .delete()
+    .eq("is_completed", true)
+    .lt("completed_at", archiveCutoff)
+    .then(({ error, count }) => {
+      if (error) {
+        logger.error("cron/push-reminders: archive purge failed", {
+          error: error.message,
+          cutoff: archiveCutoff,
+        });
+      } else {
+        logger.info("cron/push-reminders: archive purge ok", {
+          deleted: count ?? 0,
+          cutoff: archiveCutoff,
+        });
+      }
+    });
 
   let sent = 0;
   let dropped = 0;

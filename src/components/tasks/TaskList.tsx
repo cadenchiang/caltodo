@@ -845,8 +845,19 @@ export default function TaskList({
               }`}
             />
             <Archive size={10} className="shrink-0 text-muted-foreground/50 ml-0.5" />
-            <span className="text-xs font-medium text-muted-foreground/70 ml-1">Archive</span>
+            <span
+              className="text-xs font-medium text-muted-foreground/70 ml-1"
+              title="Auto-cleared after 30 days to save storage"
+            >
+              Archive
+            </span>
             <span className="text-[10px] text-muted-foreground/40 ml-1">{archived.length}</span>
+            <span
+              className="text-[10px] text-muted-foreground/30 ml-1.5 hidden sm:inline"
+              title="Auto-cleared after 30 days to save storage"
+            >
+              · 30d
+            </span>
             {archiveExpanded && (
               <button
                 type="button"
