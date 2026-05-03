@@ -514,42 +514,6 @@ export function useWidgetLayout() {
     });
   }, [persistLayout]);
 
-  /**
-   * Applies a full PersistedLayout (e.g. from a template) and persists it.
-   * Generates fresh widget IDs so templates don't collide with existing data.
-   *
-   * @param template - The full layout to apply
-   */
-  const applyTemplate = useCallback((template: PersistedLayout) => {
-    // Generate fresh widget IDs
-    const idMap = new Map<string, string>();
-    const freshWidgets = template.widgets.map((w) => {
-      const newId = generateWidgetId();
-      idMap.set(w.id, newId);
-      return { ...w, id: newId };
-    });
-
-    // Remap layout item IDs
-    const freshLayouts: ResponsiveLayouts<string> = {};
-    for (const [bp, items] of Object.entries(template.layouts)) {
-      freshLayouts[bp] = (items as LayoutItem[]).map((item) => ({
-        ...item,
-        i: idMap.get(item.i) || item.i,
-      }));
-    }
-
-    const fresh: PersistedLayout = {
-      ...template,
-      widgets: freshWidgets,
-      layouts: freshLayouts,
-      version: SCHEMA_VERSION,
-      updatedAt: Date.now(),
-    };
-
-    applyLayout(fresh);
-    persistLayout(freshWidgets, freshLayouts, fresh);
-  }, [applyLayout, persistLayout]);
-
   return {
     widgets, layouts, hydrated,
     boardTitle, boardDescription, coverImageUrl, boardEmoji, iconSize,
@@ -562,6 +526,5 @@ export function useWidgetLayout() {
     setBoardEmoji, setIconSize, setTitleConfig, setCoverConfig,
     setDividerConfig,
     savedImages, addSavedImage,
-    applyTemplate,
   };
 }
