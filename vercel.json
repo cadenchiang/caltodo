@@ -17,10 +17,6 @@
       "memory": 512,
       "maxDuration": 60
     },
-    "src/app/api/cron/email-digest/route.ts": {
-      "memory": 512,
-      "maxDuration": 60
-    },
     "src/app/api/cron/push-reminders/route.ts": {
       "memory": 512,
       "maxDuration": 60
@@ -30,10 +26,6 @@
     {
       "path": "/api/cron/gcal-sync",
       "schedule": "0 4 * * *"
-    },
-    {
-      "path": "/api/cron/email-digest",
-      "schedule": "0 14 * * *"
     },
     {
       "path": "/api/cron/push-reminders",

@@ -70,11 +70,11 @@ function clearCachedTasks(): void {
   }
 }
 
-/** How often auto-sync runs in milliseconds (15 minutes). */
-const AUTO_SYNC_INTERVAL_MS = 15 * 60 * 1000;
+/** How often auto-sync runs in milliseconds (30 minutes). */
+const AUTO_SYNC_INTERVAL_MS = 30 * 60 * 1000;
 
-/** Minimum time between auto-syncs to avoid rapid re-triggers (5 minutes). */
-const AUTO_SYNC_COOLDOWN_MS = 5 * 60 * 1000;
+/** Minimum time between auto-syncs to avoid rapid re-triggers (10 minutes). */
+const AUTO_SYNC_COOLDOWN_MS = 10 * 60 * 1000;
 
 interface TaskContextValue {
   tasks: Task[];
@@ -273,6 +273,8 @@ export function TaskProvider({ children }: { children: ReactNode }) {
      * Skips change detection on the first sync after mount.
      */
     async function autoSync() {
+      // Skip when tab is not visible to save server CPU on idle/background tabs.
+      if (typeof document !== "undefined" && document.hidden) return;
       const now = Date.now();
       if (syncing || now - lastAutoSyncRef.current < AUTO_SYNC_COOLDOWN_MS) return;
       lastAutoSyncRef.current = now;
@@ -397,10 +399,22 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     // Set up periodic auto-sync
     const intervalTimer = setInterval(() => autoSync(), AUTO_SYNC_INTERVAL_MS);
 
+    // Sync when tab becomes visible again (respects the cooldown so it
+    // won't fire if the user just synced).
+    const onVisibilityChange = () => {
+      if (typeof document !== "undefined" && !document.hidden) autoSync();
+    };
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", onVisibilityChange);
+    }
+
     return () => {
       mounted = false;
       clearTimeout(mountTimer);
       clearInterval(intervalTimer);
+      if (typeof document !== "undefined") {
+        document.removeEventListener("visibilitychange", onVisibilityChange);
+      }
       abortController.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

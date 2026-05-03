@@ -151,9 +151,9 @@ export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
 
           {/* Heading */}
           <h2 className="text-[36px] sm:text-[64px] leading-[0.95] sm:leading-[0.95] tracking-tight text-center text-black" style={{ fontFamily: '-apple-system, "SF Pro Display", BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' }}>
-            <span className="font-normal">Never miss a</span>
+            <span className="font-medium">Never miss a</span>
             <br />
-            <span className="font-normal">deadline again.</span>
+            <span className="font-medium">deadline again.</span>
           </h2>
 
           {/* Subtitle */}
