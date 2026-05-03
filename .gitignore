@@ -15,7 +15,12 @@
 
 # next.js
 /.next/
+.next/
 /out/
+
+# Claude Code internal worktrees & caches
+.claude/worktrees/
+.claude/local/
 
 # production
 /build
