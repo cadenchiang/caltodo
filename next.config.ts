@@ -22,6 +22,17 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
 
+  // Force webpack to use in-memory cache instead of the pack-file cache.
+  // The default 'filesystem' cache (.next/cache/webpack/*.pack) was the
+  // source of nondeterministic Vercel build failures: 'Cannot read
+  // properties of undefined (reading length)' inside the pack-file
+  // deserialization path. Memory cache rebuilds fresh per process — the
+  // first compile takes the same time, but builds are reliable.
+  webpack: (config) => {
+    config.cache = { type: "memory" };
+    return config;
+  },
+
   images: {
     remotePatterns: [
       {
