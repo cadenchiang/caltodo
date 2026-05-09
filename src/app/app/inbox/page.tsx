@@ -620,7 +620,7 @@ export default function InboxPage() {
                     const Icon = current.icon;
                     return (
                       <>
-                        <Icon size={20} className="text-muted-foreground" />
+                        <Icon size={20} className="text-foreground" />
                         {current.label}
                       </>
                     );
