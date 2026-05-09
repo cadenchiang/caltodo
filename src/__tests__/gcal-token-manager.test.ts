@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { refreshAccessToken, getValidAccessToken, isGoogleCalendarConnected } from "@/lib/gcal/token-manager";
+import { refreshAccessToken, getValidAccessToken, isGoogleCalendarConnected, getCalendarId } from "@/lib/gcal/token-manager";
 
 // Set required env vars
 beforeEach(() => {
@@ -162,6 +162,84 @@ describe("getValidAccessToken", () => {
     expect(result).toBeNull();
     // Verify tokens were cleared
     expect(supabase.from).toHaveBeenCalled();
+  });
+});
+
+describe("getCalendarId", () => {
+  /**
+   * Builds a minimal mock Supabase client whose .single() resolves to the
+   * given row payload. Mirrors the shape used by getCalendarId.
+   */
+  function mockSupabase(row: { google_calendar_id: string | null } | null, dbError: { code: string; message: string } | null = null) {
+    return {
+      from: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({ data: row, error: dbError }),
+          }),
+        }),
+      }),
+    };
+  }
+
+  it("returns null when no row exists", async () => {
+    const supabase = mockSupabase(null);
+    const result = await getCalendarId(supabase as never, "user-123");
+    expect(result).toBeNull();
+  });
+
+  it("returns null when google_calendar_id is null", async () => {
+    const supabase = mockSupabase({ google_calendar_id: null });
+    const result = await getCalendarId(supabase as never, "user-123");
+    expect(result).toBeNull();
+  });
+
+  it("returns the stored value verbatim for legacy single-string format", async () => {
+    const supabase = mockSupabase({ google_calendar_id: "primary" });
+    const result = await getCalendarId(supabase as never, "user-123");
+    expect(result).toBe("primary");
+  });
+
+  it("returns the user's email-style legacy single-string format verbatim", async () => {
+    const supabase = mockSupabase({ google_calendar_id: "user@example.com" });
+    const result = await getCalendarId(supabase as never, "user-123");
+    expect(result).toBe("user@example.com");
+  });
+
+  it("parses JSON-array format and returns the first calendar ID", async () => {
+    const supabase = mockSupabase({ google_calendar_id: '["primary","work@example.com"]' });
+    const result = await getCalendarId(supabase as never, "user-123");
+    expect(result).toBe("primary");
+  });
+
+  it("parses single-element JSON array correctly", async () => {
+    const supabase = mockSupabase({ google_calendar_id: '["primary"]' });
+    const result = await getCalendarId(supabase as never, "user-123");
+    expect(result).toBe("primary");
+  });
+
+  it("returns null for empty JSON array", async () => {
+    const supabase = mockSupabase({ google_calendar_id: "[]" });
+    const result = await getCalendarId(supabase as never, "user-123");
+    expect(result).toBeNull();
+  });
+
+  it("returns null for malformed JSON starting with [", async () => {
+    const supabase = mockSupabase({ google_calendar_id: "[not-valid-json" });
+    const result = await getCalendarId(supabase as never, "user-123");
+    expect(result).toBeNull();
+  });
+
+  it("returns null when JSON array contains non-string first element", async () => {
+    const supabase = mockSupabase({ google_calendar_id: "[123,\"primary\"]" });
+    const result = await getCalendarId(supabase as never, "user-123");
+    expect(result).toBeNull();
+  });
+
+  it("returns null when JSON array first element is empty string", async () => {
+    const supabase = mockSupabase({ google_calendar_id: '["","primary"]' });
+    const result = await getCalendarId(supabase as never, "user-123");
+    expect(result).toBeNull();
   });
 });
 

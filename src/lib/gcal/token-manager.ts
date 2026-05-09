@@ -173,11 +173,16 @@ export async function isGoogleCalendarConnected(
 }
 
 /**
- * Fetches the stored Google Calendar ID for the user's dedicated "caltodo" calendar.
+ * Fetches the stored Google Calendar ID to write events to.
+ *
+ * The `google_calendar_id` column may hold either a single calendar ID
+ * (legacy format) or a JSON-encoded array of selected calendar IDs (new
+ * format from /api/gcal/select-calendar). For write operations we always
+ * target the first selected calendar (primary, sorted first by listAllCalendars).
  *
  * @param supabase - Authenticated Supabase client
  * @param userId - The user's UUID
- * @returns The stored calendar ID, or null if not set
+ * @returns The resolved calendar ID, or null if not set / unparseable empty array
  */
 export async function getCalendarId(
   supabase: SupabaseClient,
@@ -193,5 +198,24 @@ export async function getCalendarId(
     return null;
   }
 
-  return data.google_calendar_id as string;
+  const stored = data.google_calendar_id as string;
+
+  if (stored.startsWith("[")) {
+    try {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === "string" && parsed[0].trim()) {
+        return parsed[0];
+      }
+      logger.warn("getCalendarId: stored JSON array is empty or invalid", { userId });
+      return null;
+    } catch (err) {
+      logger.error("getCalendarId: failed to parse stored JSON", {
+        userId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return null;
+    }
+  }
+
+  return stored;
 }
