@@ -45,7 +45,11 @@ export default function CalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<CalendarViewMode>("month");
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [calendarMode, setCalendarMode] = useState<CalendarMode>("assignments");
+  // Calendar mode is locked to "assignments" — the GCal-events view + its
+  // toggle were removed per product decision; only assignments are shown.
+  // Typed as the open union (rather than the literal) so existing
+  // calendarMode === "calendar" branches still compile as dead code.
+  const calendarMode = "assignments" as CalendarMode;
 
   const { tasks, error, addTask, updateTask, deleteTask, toggleComplete } = useTaskContext();
   const { showToast } = useToast();
@@ -110,13 +114,14 @@ export default function CalendarPage() {
     try {
       const saved = localStorage.getItem(VIEW_MODE_KEY) as CalendarViewMode | null;
       if (saved && ["month", "week", "day"].includes(saved)) setViewMode(saved);
-      const savedMode = localStorage.getItem(CAL_MODE_KEY) as CalendarMode | null;
-      if (savedMode && ["assignments", "calendar"].includes(savedMode)) setCalendarMode(savedMode);
+      // Forget any prior calendar-mode preference now that the toggle is
+      // gone — keeps stale "calendar" values from making the page render
+      // with the dead GCal-events view if the constant is ever re-introduced.
+      localStorage.removeItem(CAL_MODE_KEY);
     } catch { /* ignore */ }
   }, []);
 
   const handleViewModeChange = (mode: CalendarViewMode) => { setViewMode(mode); try { localStorage.setItem(VIEW_MODE_KEY, mode); } catch {} };
-  const handleCalendarModeChange = (mode: CalendarMode) => { setCalendarMode(mode); try { localStorage.setItem(CAL_MODE_KEY, mode); } catch {} };
 
   // Filter tasks for the active view's date range, expanding repeating tasks
   const visibleTasks = useMemo(() => {
@@ -184,7 +189,6 @@ export default function CalendarPage() {
               onNext={() => navigate(1)}
               onToday={() => setCurrentDate(new Date())}
               calendarMode={calendarMode}
-              onCalendarModeChange={handleCalendarModeChange}
               onCalendarsChange={refetchEvents}
               onAddClick={modals.handleAddClick}
             />

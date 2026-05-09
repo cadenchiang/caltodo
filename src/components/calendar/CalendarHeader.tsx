@@ -316,16 +316,9 @@ export default function CalendarHeader({
         )}
       </div>
 
-      {/* Right: Settings gear + Add + View mode */}
+      {/* Right: Add + View mode (settings gear / view-mode toggle removed —
+          assignments mode is the only supported view). */}
       <div className="flex items-center gap-2 shrink-0">
-        {/* Calendar settings popover trigger */}
-        {onCalendarModeChange && (
-          <CalendarSettingsPopover
-            calendarMode={calendarMode}
-            onCalendarModeChange={onCalendarModeChange}
-            onCalendarsChange={onCalendarsChange}
-          />
-        )}
 
         {/* View mode: Month / Week / Day */}
         <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800">
