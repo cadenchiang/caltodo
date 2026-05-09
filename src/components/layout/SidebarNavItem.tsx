@@ -19,11 +19,15 @@ export const SIDEBAR_PILL_TRANSITION = { type: "spring" as const, stiffness: 500
  * the active item; sibling items render nothing.
  */
 export function SidebarActivePill() {
+  // The pill is `z-0` (not `-z-10`) so it sits in the same stacking context
+  // as the link content. The link's icon + label use `relative z-10` to
+  // paint above it. Negative z-index pushed the pill behind the sidebar's
+  // glass-strong background, making the active state invisible.
   return (
     <motion.span
       layoutId={SIDEBAR_PILL_LAYOUT_ID}
       transition={SIDEBAR_PILL_TRANSITION}
-      className="absolute inset-0 -z-10 rounded-xl"
+      className="absolute inset-0 z-0 rounded-xl"
       style={{ backgroundColor: "var(--nav-active-bg)" }}
       aria-hidden
     />
@@ -106,21 +110,21 @@ export default function SidebarNavItem({ label, href, icon: Icon, badge, badgeCo
     >
       {isActive && <SidebarActivePill />}
       {imageSrc ? (
-        <img src={imageSrc} alt="" className={`w-5 h-5 object-contain ${imageClassName ?? ""}`} />
+        <img src={imageSrc} alt="" className={`relative z-10 w-5 h-5 object-contain ${imageClassName ?? ""}`} />
       ) : (
-        <Icon key={label} size={16} />
+        <Icon key={label} size={16} className="relative z-10" />
       )}
-      <span>{label}</span>
+      <span className="relative z-10">{label}</span>
       {badge && (
-        <span className="ml-auto w-2.5 h-2.5 rounded-full bg-red-500 shrink-0" />
+        <span className="relative z-10 ml-auto w-2.5 h-2.5 rounded-full bg-red-500 shrink-0" />
       )}
       {badgeCount !== undefined && badgeCount > 0 && (
-        <span className="ml-auto min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center px-1 shrink-0">
+        <span className="relative z-10 ml-auto min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center px-1 shrink-0">
           {badgeCount > 99 ? "99+" : badgeCount}
         </span>
       )}
       {badgeText && (
-        <span className="ml-auto px-1.5 py-0.5 rounded-md bg-[#007AFF] text-white text-[9px] font-bold tracking-wide shrink-0">
+        <span className="relative z-10 ml-auto px-1.5 py-0.5 rounded-md bg-[#007AFF] text-white text-[9px] font-bold tracking-wide shrink-0">
           {badgeText}
         </span>
       )}

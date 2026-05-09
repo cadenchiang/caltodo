@@ -160,8 +160,8 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
                       className={`w-full cursor-pointer ${navItemClasses(isActive, isMiffy)}`}
                     >
                       {isActive && <SidebarActivePill />}
-                      <Icon size={16} className="shrink-0" />
-                      <span>{section.label}</span>
+                      <Icon size={16} className="relative z-10 shrink-0" />
+                      <span className="relative z-10">{section.label}</span>
                     </button>
                   );
                 })}
