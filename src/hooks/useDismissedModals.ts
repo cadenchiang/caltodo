@@ -15,6 +15,7 @@ const KEY_MAP: Record<keyof DismissedModals, string> = {
   calchat_welcome: "calchat_welcome_accepted",
   pensieve_announced: "caltodo_pensieve_announced",
   calchat_announcement: "calchat_announcement_seen",
+  notes_sunset: "caltodo_notes_sunset_seen",
 };
 
 /** Module-level cache so multiple hook consumers share state without re-fetching. */
@@ -157,6 +158,7 @@ export function useDismissedModals() {
       calchat_welcome: true,
       pensieve_announced: true,
       calchat_announcement: true,
+      notes_sunset: true,
     };
     setModals(all);
     cachedModals = all;

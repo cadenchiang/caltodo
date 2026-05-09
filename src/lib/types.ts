@@ -132,6 +132,8 @@ export interface DismissedModals {
   calchat_welcome?: boolean;
   pensieve_announced?: boolean;
   calchat_announcement?: boolean;
+  /** One-time announcement that the Notes feature is being sunset. */
+  notes_sunset?: boolean;
 }
 
 /**
