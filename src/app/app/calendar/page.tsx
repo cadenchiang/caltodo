@@ -179,7 +179,7 @@ export default function CalendarPage() {
         )}
 
         <div className="flex flex-col flex-1 min-h-0 overflow-hidden bg-background">
-          <div className="px-2.5 py-2 md:px-4 md:py-3 shrink-0 animate-stagger stagger-1">
+          <div className="px-2.5 py-2 md:px-4 md:py-3 shrink-0">
             <CalendarHeader
               currentMonth={currentDate}
               title={title}
@@ -194,7 +194,7 @@ export default function CalendarPage() {
             />
           </div>
 
-          <div className="flex-1 min-h-0 flex flex-col overflow-y-auto md:mx-4 md:rounded-2xl md:border md:border-gray-200/80 md:dark:border-gray-700/50 md:overflow-hidden bg-white dark:bg-[#141414] animate-stagger stagger-2">
+          <div className="flex-1 min-h-0 flex flex-col overflow-y-auto md:mx-4 md:rounded-2xl md:border md:border-gray-200/80 md:dark:border-gray-700/50 md:overflow-hidden bg-white dark:bg-[#141414]">
             {viewMode === "month" ? (
               <CalendarGrid
                 currentMonth={currentDate}
