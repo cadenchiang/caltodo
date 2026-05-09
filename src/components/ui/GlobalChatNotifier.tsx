@@ -229,13 +229,15 @@ export default function GlobalChatNotifier() {
       }
     });
 
-    // Re-check cache periodically for newly joined courses
+    // Re-check cache periodically for newly joined courses. 60s is rare enough
+    // to be invisible in CPU profiles but still picks up new courses within a
+    // minute of joining without needing a manual refresh.
     const interval = setInterval(() => {
       const latest = getCourseIdsFromCache();
       if (latest.length > subscribedIdsRef.current.size) {
         subscribeToBoards(latest, supabase);
       }
-    }, 15_000);
+    }, 60_000);
 
     return () => {
       clearInterval(interval);

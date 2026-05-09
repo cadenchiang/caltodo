@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, memo } from "react";
 import { createPortal } from "react-dom";
 import { Trash2, Repeat, MoreVertical, Clock, EyeOff } from "lucide-react";
 import type { Task } from "@/lib/types";
@@ -42,7 +42,7 @@ interface TaskItemProps {
  * @param onSelect - Callback when task is clicked to show detail panel
  * @param onDelete - Callback to delete the task
  */
-export default function TaskItem({ task, isSelected, onToggle, onSelect, onDelete }: TaskItemProps) {
+function TaskItemImpl({ task, isSelected, onToggle, onSelect, onDelete }: TaskItemProps) {
   const { snoozeTask } = useTaskContext();
   const { colorTheme } = useTheme();
   const isMiffy = colorTheme === "miffy";
@@ -57,7 +57,6 @@ export default function TaskItem({ task, isSelected, onToggle, onSelect, onDelet
   const [menuOpen, setMenuOpen] = useState(false);
   const [snoozeOpen, setSnoozeOpen] = useState(false);
   const [customHours, setCustomHours] = useState("");
-  const [confirmDelete, setConfirmDelete] = useState(false);
   const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const menuBtnRef = useRef<HTMLButtonElement>(null);
   const isOptimistic = task.id.startsWith("temp-");
@@ -87,12 +86,10 @@ export default function TaskItem({ task, isSelected, onToggle, onSelect, onDelet
   }
 
   function handleDelete() {
-    if (!confirmDelete) {
-      setConfirmDelete(true);
-      return;
-    }
+    // 1-click delete with optimistic UI; the toast that follows includes an
+    // Undo action (TaskContext.deleteTask), so the prior 2-click confirm was
+    // unnecessary friction.
     setMenuOpen(false);
-    setConfirmDelete(false);
     onDelete(task.id);
   }
 
@@ -236,10 +233,10 @@ export default function TaskItem({ task, isSelected, onToggle, onSelect, onDelet
             <button
               onClick={handleDelete}
               className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
-              aria-label={confirmDelete ? "Confirm delete task" : "Delete task"}
+              aria-label="Delete task"
             >
               <Trash2 size={14} />
-              {confirmDelete ? "Click to confirm" : "Delete task"}
+              Delete task
             </button>
           </div>
         </>,
@@ -248,3 +245,11 @@ export default function TaskItem({ task, isSelected, onToggle, onSelect, onDelet
     </>
   );
 }
+
+/**
+ * Memoized export. Re-renders only when one of {task, isSelected, onToggle,
+ * onSelect, onDelete} changes by reference. Parents passing inline arrow
+ * callbacks will defeat memoization — use useCallback.
+ */
+const TaskItem = memo(TaskItemImpl);
+export default TaskItem;

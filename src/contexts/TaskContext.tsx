@@ -765,6 +765,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
   async function deleteTask(id: string) {
     trackEvent("task_deleted");
     const taskToDelete = tasks.find((t) => t.id === id);
+    const previousIndex = tasks.findIndex((t) => t.id === id);
 
     setTasks((prev) => {
       const updated = prev.filter((t) => t.id !== id);
@@ -774,7 +775,45 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       return updated;
     });
 
-    const isSyncedTask = taskToDelete?.source && taskToDelete?.external_id;
+    const isSyncedTask = !!(taskToDelete?.source && taskToDelete?.external_id);
+
+    // Show an immediate, optimistic toast with Undo. Synced tasks restore by
+    // clearing dismissed_at (the row still exists). Manual tasks are
+    // re-inserted with the same id so any other UI references still work —
+    // Supabase will accept the same UUID since the original row was deleted.
+    if (taskToDelete) {
+      showToast("Task deleted", {
+        action: {
+          label: "Undo",
+          icon: <Undo2 size={14} />,
+          onClick: async () => {
+            // Restore in local state immediately at the original index
+            setTasks((prev) => {
+              if (prev.some((t) => t.id === taskToDelete.id)) return prev;
+              const restored = [...prev];
+              const insertAt = Math.min(Math.max(previousIndex, 0), restored.length);
+              restored.splice(insertAt, 0, { ...taskToDelete, dismissed_at: null });
+              setCachedTasks(restored);
+              taskBaselineRef.current = restored;
+              return restored;
+            });
+            if (isSyncedTask) {
+              await supabase
+                .from("tasks")
+                .update({ dismissed_at: null })
+                .eq("id", taskToDelete.id);
+            } else {
+              const { dismissed_at: _ignored, ...row } = taskToDelete;
+              const { error: insertError } = await supabase.from("tasks").insert(row);
+              if (insertError) {
+                setError(insertError.message);
+                fetchTasks();
+              }
+            }
+          },
+        },
+      });
+    }
 
     const { error: deleteError } = isSyncedTask
       ? await supabase

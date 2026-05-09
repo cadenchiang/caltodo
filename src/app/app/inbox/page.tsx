@@ -225,6 +225,21 @@ export default function InboxPage() {
     window.dispatchEvent(new CustomEvent("inbox-filter-change", { detail: f }));
   }, []);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+
+  /**
+   * Stable onSelect callback for task rows. Mobile (<768px) shows the
+   * preview popover anchored at the row; desktop opens the detail panel.
+   * Memoized so memo'd TaskItem instances don't re-render on every parent
+   * render just because of a new arrow-function identity.
+   */
+  const handleTaskSelect = useCallback((task: Task, anchorRect?: DOMRect) => {
+    if (typeof window !== "undefined" && window.innerWidth < 768 && anchorRect) {
+      setListPreviewTask(task);
+      setListPreviewRect(anchorRect);
+    } else {
+      setSelectedTask(task);
+    }
+  }, []);
   const [showSyncModal, setShowSyncModal] = useState(false);
   const [syncCourses, setSyncCourses] = useState<SelectedCourse[]>([]);
   const [loadingCourses, setLoadingCourses] = useState(false);
@@ -843,16 +858,7 @@ export default function InboxPage() {
                   sortMode={sortMode}
                   onAdd={addTask}
                   onToggle={toggleComplete}
-                  onSelect={(task, anchorRect) => {
-                    if (typeof window !== "undefined" && window.innerWidth < 768 && anchorRect) {
-                      // Mobile: show preview popover
-                      setListPreviewTask(task);
-                      setListPreviewRect(anchorRect);
-                    } else {
-                      // Desktop: show in detail panel
-                      setSelectedTask(task);
-                    }
-                  }}
+                  onSelect={handleTaskSelect}
                   onDelete={deleteTask}
                   onReorder={sortMode === "date" ? handleReorder : undefined}
                   onColorChange={async (courseName, color) => {
