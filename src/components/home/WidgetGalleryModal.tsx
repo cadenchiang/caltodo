@@ -277,7 +277,7 @@ export default function WidgetGalleryModal({
           )}
           {groupedWidgets.map((group) => (
             <div key={group.label}>
-              <h3 className="text-[12px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+              <h3 className="text-xs font-medium text-foreground mb-3">
                 {group.label}
               </h3>
               <div className="grid grid-cols-4 gap-3">

@@ -328,15 +328,18 @@ export default function HomePage() {
         {/* Empty state */}
         {widgets.length === 0 && !editMode && (
           <div className="flex-1 flex flex-col items-center justify-center text-center py-12">
-            <p className="text-sm text-muted-foreground mb-3">
-              Your dashboard is empty
+            <p className="text-base font-medium text-foreground mb-1.5">
+              Make this dashboard yours
+            </p>
+            <p className="text-sm text-muted-foreground mb-5 max-w-sm">
+              Add widgets to track upcoming work, calendar, weather, and more. Drag them anywhere on the board.
             </p>
             <button
               onClick={() => {
                 setEditMode(true);
                 setGalleryOpen(true);
               }}
-              className="flex items-center gap-1.5 px-4 py-2 text-sm rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors"
+              className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-xl bg-blue-500 text-white hover:bg-blue-600 transition-colors"
             >
               <Plus size={14} />
               Add Widgets
