@@ -91,10 +91,24 @@ export default function SettingsContent() {
     }
   }, [searchParams, router]);
 
-  // Track which sections the user has actually opened so we can keep them
-  // mounted after first visit. Switching back to a previously-visited section
-  // is then instant (no remount/refetch). Initial set seeds with the section
-  // we are about to render so first paint isn't a blank flicker.
+  // Tag the body while we're on /app/settings so the Miffy bottom-right
+  // watermark + bottom-left glow can be hidden via CSS. Settings already
+  // has its own visual rhythm and the watermark was crowding the right
+  // side of the page.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    document.body.dataset.route = "settings";
+    return () => {
+      delete document.body.dataset.route;
+    };
+  }, []);
+
+  // Track which sections are mounted. Initial set seeds with the active
+  // section so first paint isn't blank. After the initial render, we
+  // schedule the remaining sections to mount during idle time — by the
+  // time the user clicks any tab, all sections are already warm and the
+  // switch is just a CSS display toggle (no mount, no fetch, no relayout
+  // cost from a cold tree).
   const initialSection = activeSection ?? DEFAULT_SECTION;
   const [visitedSections, setVisitedSections] = useState<Set<SettingsSectionId>>(() => new Set([initialSection]));
   useEffect(() => {
@@ -106,6 +120,30 @@ export default function SettingsContent() {
       return next;
     });
   }, [activeSection]);
+
+  // Pre-mount the remaining sections in the background so subsequent tab
+  // switches feel instant. Uses requestIdleCallback when available so we
+  // don't compete with the user's first-paint work.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const allIds = SETTINGS_SECTIONS.map((s) => s.id);
+    const schedule = (window as unknown as { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number }).requestIdleCallback;
+    const run = () => {
+      setVisitedSections((prev) => {
+        if (prev.size >= allIds.length) return prev;
+        return new Set(allIds);
+      });
+    };
+    if (typeof schedule === "function") {
+      const handle = schedule(run, { timeout: 1500 });
+      return () => {
+        const cancel = (window as unknown as { cancelIdleCallback?: (h: number) => void }).cancelIdleCallback;
+        if (typeof cancel === "function") cancel(handle);
+      };
+    }
+    const t = setTimeout(run, 800);
+    return () => clearTimeout(t);
+  }, []);
 
   /** Navigate to a specific section (used by mobile list). */
   function goToSection(id: SettingsSectionId) {

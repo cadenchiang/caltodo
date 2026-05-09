@@ -9,8 +9,11 @@ import { useTheme } from "@/contexts/ThemeContext";
 /** Shared layoutId so the active pill animates between any two nav items. */
 export const SIDEBAR_PILL_LAYOUT_ID = "caltodo-sidebar-active-pill";
 
-/** Spring transition used by the active pill. Tuned for snappy but smooth feel. */
-export const SIDEBAR_PILL_TRANSITION = { type: "spring" as const, stiffness: 500, damping: 38, mass: 0.8 };
+/**
+ * Tween used by the active pill. A short ease-out feels instant — spring
+ * configurations were adding visible motion lag on tab switches.
+ */
+export const SIDEBAR_PILL_TRANSITION = { type: "tween" as const, ease: "easeOut" as const, duration: 0.18 };
 
 /**
  * Animated background pill for the active sidebar item. Shares a layoutId
