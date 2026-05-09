@@ -489,7 +489,7 @@ export default function GoogleCalendarSettings() {
       } catch {
         // Cross-origin — popup is still on Google domain, keep polling
       }
-    }, 300);
+    }, 1000);
   }
 
   const isConnectedOrConnecting = connected || oauthConnecting;
@@ -559,19 +559,9 @@ export default function GoogleCalendarSettings() {
           </div>
         )}
 
-        {/* Sync progress bar at bottom of card */}
-        {syncing && (
-          <div className="h-1 w-full bg-muted overflow-hidden">
-            {syncProgress && syncProgress.total > 0 ? (
-              <div
-                className="h-full bg-blue-500 transition-all duration-700 ease-out"
-                style={{ width: `${Math.round((syncProgress.synced / syncProgress.total) * 100)}%` }}
-              />
-            ) : (
-              <div className="h-full w-1/3 bg-blue-500 rounded-full animate-sync-bar" />
-            )}
-          </div>
-        )}
+        {/* Removed in-card sync progress bar — the bottom toast already
+            communicates progress with a percentage, so this strip was
+            redundant and cluttered the settings view. */}
       </div>
 
       <GoogleAuthWarningModal

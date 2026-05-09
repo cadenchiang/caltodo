@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { IntegrationProvider } from "@/components/settings/IntegrationSettings";
@@ -39,6 +39,30 @@ function renderSection(sectionId: SettingsSectionId) {
   }
 }
 
+/**
+ * Renders only sections the user has visited so far, keeping them
+ * mounted (hidden via display:none) when not active. After a section
+ * is visited once, switching back is instant — no remount cost.
+ *
+ * @param activeSection - The currently selected section ID
+ * @param visited - Set of section IDs that have been mounted at least once
+ */
+function StickyMountedSections({ activeSection, visited }: { activeSection: SettingsSectionId; visited: ReadonlySet<SettingsSectionId> }) {
+  return (
+    <>
+      {SETTINGS_SECTIONS.map((section) => {
+        if (!visited.has(section.id)) return null;
+        const isActive = section.id === activeSection;
+        return (
+          <div key={section.id} style={{ display: isActive ? "block" : "none" }}>
+            {renderSection(section.id)}
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
 /** Valid section IDs for type-guarding search params. */
 const VALID_SECTIONS = new Set<string>(SETTINGS_SECTIONS.map((s) => s.id));
 
@@ -66,6 +90,22 @@ export default function SettingsContent() {
       router.replace(url.pathname + url.search);
     }
   }, [searchParams, router]);
+
+  // Track which sections the user has actually opened so we can keep them
+  // mounted after first visit. Switching back to a previously-visited section
+  // is then instant (no remount/refetch). Initial set seeds with the section
+  // we are about to render so first paint isn't a blank flicker.
+  const initialSection = activeSection ?? DEFAULT_SECTION;
+  const [visitedSections, setVisitedSections] = useState<Set<SettingsSectionId>>(() => new Set([initialSection]));
+  useEffect(() => {
+    if (!activeSection) return;
+    setVisitedSections((prev) => {
+      if (prev.has(activeSection)) return prev;
+      const next = new Set(prev);
+      next.add(activeSection);
+      return next;
+    });
+  }, [activeSection]);
 
   /** Navigate to a specific section (used by mobile list). */
   function goToSection(id: SettingsSectionId) {
@@ -97,8 +137,8 @@ export default function SettingsContent() {
                     </button>
                   </div>
                   <div className="flex-1 overflow-auto px-4 pt-2 pb-8">
-                    <div key={activeSection} className="max-w-2xl mx-auto animate-section-in">
-                      {renderSection(activeSection)}
+                    <div className="max-w-2xl mx-auto animate-section-in">
+                      <StickyMountedSections activeSection={activeSection} visited={visitedSections} />
                     </div>
                   </div>
                 </>
@@ -149,7 +189,7 @@ export default function SettingsContent() {
             <div className="hidden md:flex flex-col h-full">
               <div className="flex-1 overflow-auto px-8 pt-20 pb-8">
                 <div className="max-w-2xl mx-auto mr-auto ml-[15%]">
-                  {renderSection(activeSection ?? DEFAULT_SECTION)}
+                  <StickyMountedSections activeSection={activeSection ?? DEFAULT_SECTION} visited={visitedSections} />
                 </div>
               </div>
             </div>
