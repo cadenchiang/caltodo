@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useRouter } from "next/navigation";
 import { Inbox, Sun, CalendarRange, ChevronLeft } from "lucide-react";
@@ -78,12 +78,25 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
   const { isDismissed: isModalDismissed, dismiss: dismissModal, loaded: modalsLoaded } = useDismissedModals();
   const notesIsNew = modalsLoaded && !isModalDismissed("notes_welcome");
 
-  // Derive active settings section directly from URL search params (single source of truth)
+  // Active settings section: URL is the source of truth, but we keep an
+  // optimistic local override that updates synchronously on click. Without
+  // this, the active pill would wait for the SettingsContent re-render to
+  // commit (since Next.js bundles all useSearchParams consumers in one
+  // pass), which feels laggy on click — a few hundred ms on slow tabs.
   const sectionParam = searchParams.get("section");
-  const activeSettingsSection: SettingsSectionId =
+  const activeFromUrl: SettingsSectionId =
     SETTINGS_SECTIONS.some((sec) => sec.id === sectionParam)
       ? (sectionParam as SettingsSectionId)
       : DEFAULT_SECTION;
+  const [optimisticSection, setOptimisticSection] = useState<SettingsSectionId | null>(null);
+  const [, startSectionTransition] = useTransition();
+  // Once the URL catches up to our optimistic value, drop the override.
+  useEffect(() => {
+    if (optimisticSection && optimisticSection === activeFromUrl) {
+      setOptimisticSection(null);
+    }
+  }, [activeFromUrl, optimisticSection]);
+  const activeSettingsSection: SettingsSectionId = optimisticSection ?? activeFromUrl;
 
   // Cache user profile to localStorage so ProfileSection can read it
   useEffect(() => {
@@ -155,7 +168,13 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
                     <button
                       key={section.id}
                       onClick={() => {
-                        router.replace(`/app/settings?section=${section.id}`, { scroll: false });
+                        // Move the pill synchronously (no waiting on URL),
+                        // then schedule the URL update + SettingsContent
+                        // re-render as a non-urgent transition.
+                        setOptimisticSection(section.id);
+                        startSectionTransition(() => {
+                          router.replace(`/app/settings?section=${section.id}`, { scroll: false });
+                        });
                       }}
                       className={`w-full cursor-pointer ${navItemClasses(isActive, isMiffy)}`}
                     >
