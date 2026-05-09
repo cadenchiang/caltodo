@@ -33,13 +33,6 @@ interface ThemeOption {
 /** All available themes displayed in the picker grid. */
 const THEME_OPTIONS: ThemeOption[] = [
   {
-    id: "ocean",
-    name: "Ocean",
-    description: "Deep blue-teal",
-    locked: false,
-    swatches: ["#5ba4c8", "#2e88b0", "#e0eff5", "#143e52"],
-  },
-  {
     id: "forest",
     name: "Forest",
     description: "Green-emerald earth",

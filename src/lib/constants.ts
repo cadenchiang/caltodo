@@ -102,20 +102,6 @@ const MIDNIGHT_COLOR_MAP: Record<string, string> = {
   "#D1D5DB": "#7080a0", // light gray fallback
 };
 
-/** Ocean theme — task colors leaned toward deep blue-teals. */
-const OCEAN_COLOR_MAP: Record<string, string> = {
-  "#9CA3AF": "#7aa0b8", // gray → muted ocean gray
-  "#3B82F6": "#2e88b0", // blue → ocean primary
-  "#EF4444": "#c45c5c", // red → coral red on water
-  "#10B981": "#3aa3a8", // green → seafoam teal
-  "#F59E0B": "#d8a85c", // amber → warm sun on water
-  "#8B5CF6": "#5e88c0", // violet → deep periwinkle
-  "#EC4899": "#c47090", // pink → reef pink
-  "#06B6D4": "#3aa8c8", // cyan → bright lagoon
-  "#F97316": "#d88040", // orange → sunset over sea
-  "#D1D5DB": "#a0bccc", // light gray fallback
-};
-
 /** Forest theme — earthy greens and muted woods. */
 const FOREST_COLOR_MAP: Record<string, string> = {
   "#9CA3AF": "#94a08c", // gray → moss gray
@@ -234,7 +220,6 @@ const THEME_COLOR_MAPS: Record<string, Record<string, string>> = {
   nord: NORD_COLOR_MAP,
   rosewood: ROSEWOOD_COLOR_MAP,
   midnight: MIDNIGHT_COLOR_MAP,
-  ocean: OCEAN_COLOR_MAP,
   forest: FOREST_COLOR_MAP,
   sunset: SUNSET_COLOR_MAP,
   lavender: LAVENDER_COLOR_MAP,

@@ -285,59 +285,6 @@ body[data-route="settings"] .miffy-glow::before {
   --color-blue-950: #3d1225;
 }
 
-/* ── Ocean theme overrides — deep blue-teal palette ── */
-.theme-ocean {
-  --background: #f0f7fa;
-  --card: #ffffff;
-  --popover: #ffffff;
-  --muted: #e0eff5;
-  --accent: #e0eff5;
-  --input-bg: rgba(255, 255, 255, 0.6);
-  --input-bg-focus: rgba(255, 255, 255, 0.8);
-  --foreground: #1a2c3a;
-  --secondary-foreground: #3a5568;
-  --muted-foreground: #5a7a8a;
-  --subtle-foreground: #8aa0b0;
-  --border: #c8dde8;
-  --input-border: #a8c8d8;
-  --border-subtle: #e0eff5;
-  --ring: #5ba4c8;
-  --nav-active-bg: rgba(91, 164, 200, 0.1);
-  --sidebar-border-color: #c8dde8;
-}
-.dark.theme-ocean {
-  --background: #0f1a22;
-  --card: #162530;
-  --popover: #1c2e3c;
-  --muted: #1c2e3c;
-  --accent: rgba(91, 164, 200, 0.08);
-  --input-bg: rgba(91, 164, 200, 0.06);
-  --input-bg-focus: rgba(91, 164, 200, 0.12);
-  --foreground: #d0e8f2;
-  --secondary-foreground: #a0c4d8;
-  --muted-foreground: #6a94aa;
-  --subtle-foreground: #4a6a7a;
-  --border: #2a4050;
-  --input-border: #3a5565;
-  --border-subtle: #2a4050;
-  --ring: #2a6080;
-  --nav-active-bg: rgba(91, 164, 200, 0.08);
-  --sidebar-border-color: #2a4050;
-}
-.theme-ocean {
-  --color-blue-50: #f0f7fa;
-  --color-blue-100: #dceef5;
-  --color-blue-200: #b0d8ea;
-  --color-blue-300: #7abfd8;
-  --color-blue-400: #4aa0c0;
-  --color-blue-500: #2e88b0;
-  --color-blue-600: #246e90;
-  --color-blue-700: #1c5670;
-  --color-blue-800: #143e52;
-  --color-blue-900: #0e2a38;
-  --color-blue-950: #081820;
-}
-
 /* ── Forest theme overrides — green-emerald earth tones ── */
 .theme-forest {
   --background: #f2f7f0;
@@ -1078,12 +1025,16 @@ body {
   background: rgba(30, 30, 30, 0.75);
 }
 
+/* Sidebar uses the page background so the chrome blends in seamlessly
+   with the main content area instead of standing out as a separate
+   panel. Per-theme overrides further down can still tweak this when a
+   theme wants explicit contrast. */
 .glass-strong {
-  background: #ffffff;
+  background: var(--background);
 }
 
 .dark .glass-strong {
-  background: #1c1c1e;
+  background: var(--background);
 }
 
 .glass-subtle {

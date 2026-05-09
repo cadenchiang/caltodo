@@ -18,7 +18,7 @@ export type ThemePreference = "light" | "dark" | "auto";
 export type ResolvedTheme = "light" | "dark";
 
 /** Available color theme IDs. null means the default (no color theme). */
-export type ColorTheme = "miffy" | "ocean" | "forest" | "sunset" | "lavender" | "nord" | "rosewood" | "midnight" | "matcha" | "dracula" | "cyber" | "sandstone" | "tokyo-night" | null;
+export type ColorTheme = "miffy" | "forest" | "sunset" | "lavender" | "nord" | "rosewood" | "midnight" | "matcha" | "dracula" | "cyber" | "sandstone" | "tokyo-night" | null;
 
 interface ThemeContextValue {
   /** The user's preference: "light", "dark", or "auto". */
@@ -64,7 +64,6 @@ export function resolveTheme(pref: ThemePreference): ResolvedTheme {
 /** All known color theme class names for easy removal. */
 const COLOR_THEME_CLASSES = [
   "theme-miffy",
-  "theme-ocean",
   "theme-forest",
   "theme-sunset",
   "theme-lavender",
@@ -151,7 +150,7 @@ function applyColorTheme(colorTheme: ColorTheme): void {
 
 /** Set of all valid color theme IDs for validation. */
 const VALID_COLOR_THEMES = new Set<string>([
-  "miffy", "ocean", "forest", "sunset", "lavender", "nord", "rosewood", "midnight",
+  "miffy", "forest", "sunset", "lavender", "nord", "rosewood", "midnight",
   "matcha", "dracula", "cyber", "sandstone", "tokyo-night",
 ]);
 
