@@ -288,13 +288,36 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       return [];
     }
 
-    const freshTasks = data ?? [];
-    setTasks(freshTasks);
-    setCachedTasks(freshTasks);
-    taskBaselineRef.current = freshTasks;
+    const freshTasks = (data ?? []) as Task[];
+
+    // Merge fresh server data with local state to avoid clobbering user
+    // changes that happened mid-fetch. If a local task has a newer
+    // updated_at than the fresh row, the local one wins — this is the
+    // race that caused completions to bounce back when the user toggled
+    // a task while /api/assignments/sync's follow-up fetchTasks() was
+    // already in flight (its query snapshot was taken before the user
+    // click landed in the DB). Optimistic temp- rows that don't yet
+    // exist on the server are also preserved.
+    const mergedTasks: Task[] = (() => {
+      const prev = taskBaselineRef.current;
+      if (!prev || prev.length === 0) return freshTasks;
+      const freshIds = new Set(freshTasks.map((t) => t.id));
+      const ts = (iso: string | null | undefined) => (iso ? new Date(iso).getTime() : 0);
+      const reconciled = freshTasks.map((fresh) => {
+        const local = prev.find((t) => t.id === fresh.id);
+        if (!local) return fresh;
+        return ts(local.updated_at) > ts(fresh.updated_at) ? local : fresh;
+      });
+      const tempLocals = prev.filter((t) => t.id.startsWith("temp-") && !freshIds.has(t.id));
+      return [...tempLocals, ...reconciled];
+    })();
+
+    setTasks(mergedTasks);
+    setCachedTasks(mergedTasks);
+    taskBaselineRef.current = mergedTasks;
     hasInitialFetchRef.current = true;
     setLoading(false);
-    return freshTasks;
+    return mergedTasks;
   }, []);
 
   const fetchLastSynced = useCallback(async () => {
