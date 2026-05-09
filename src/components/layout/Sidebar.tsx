@@ -122,7 +122,7 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
   return (
     <aside
       className="hidden md:flex glass-strong w-52 h-screen flex-col justify-between py-4 px-3 shrink-0 shadow-lg dark:shadow-black/30"
-      style={{ borderRight: colorTheme ? `1px solid var(--sidebar-border-color)` : undefined }}
+      style={{ borderRight: `1px solid var(--sidebar-border-color)` }}
     >
       <div>
         <div className="mb-6 px-3 pt-1">

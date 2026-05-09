@@ -28,9 +28,12 @@
   /* Interactive */
   --ring: #bfdbfe;
 
-  /* Sidebar / nav active states (no theme = transparent defaults) */
+  /* Sidebar / nav active states. The sidebar always renders with a 1px
+     right border keyed off this variable; using --border here keeps the
+     default (caltodo) theme's sidebar visually delimited like every
+     other theme, instead of leaving it edge-to-edge with the page. */
   --nav-active-bg: rgba(0, 0, 0, 0.04);
-  --sidebar-border-color: transparent;
+  --sidebar-border-color: var(--border);
 }
 
 .dark {
@@ -54,7 +57,7 @@
   --ring: #1e3a5f;
 
   --nav-active-bg: rgba(255, 255, 255, 0.06);
-  --sidebar-border-color: transparent;
+  --sidebar-border-color: var(--border);
 }
 
 /* ── Miffy pastel-pink theme overrides ── */
