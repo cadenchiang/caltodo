@@ -12,6 +12,7 @@ import CanvasTokenExpiredModal from "@/components/ui/CanvasTokenExpiredModal";
 import CalChatAnnouncementModal from "@/components/ui/CalChatAnnouncementModal";
 import GlobalChatNotifier from "@/components/ui/GlobalChatNotifier";
 import NewAssignmentsModal from "@/components/ui/NewAssignmentsModal";
+import HiddenRouteRedirect from "@/components/layout/HiddenRouteRedirect";
 import PostHogIdentify from "@/components/PostHogIdentify";
 import PostHogPageView from "@/components/PostHogPageView";
 
@@ -61,6 +62,7 @@ export default async function AppLayout({
             </main>
             <MobileTabBar />
 
+            <HiddenRouteRedirect />
             <CanvasTokenExpiredModal />
             <CalChatAnnouncementModal />
             <GlobalChatNotifier />

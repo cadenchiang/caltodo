@@ -45,6 +45,23 @@ export async function GET(request: NextRequest) {
             .from("integration_credentials")
             .upsert({ user_id: user.id }, { onConflict: "user_id" });
           redirectTo.searchParams.set("welcome", "1");
+
+          // Seed default hidden-nav preferences for new users.
+          // Notes and Board (Home) are opt-in: hidden by default. New users
+          // see only Inbox, Calendar, and Chat in their sidebar; they can
+          // re-enable the others from Settings → Navigation. Existing users
+          // are not affected because we only seed when integration_credentials
+          // didn't exist.
+          const existingHidden = (user.user_metadata as { hidden_nav_items?: unknown } | null)?.hidden_nav_items;
+          if (!Array.isArray(existingHidden)) {
+            const { error: seedError } = await supabase.auth.updateUser({
+              data: { hidden_nav_items: ["/app/home", "/app/notes"] },
+            });
+            if (seedError) {
+              // Non-critical: user can toggle these manually later.
+              console.warn("auth/callback: failed to seed hidden_nav_items", seedError.message);
+            }
+          }
         }
         redirectTo.pathname = pickLandingPath(user.user_metadata);
       } else {
