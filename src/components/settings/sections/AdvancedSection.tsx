@@ -2,23 +2,21 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { RotateCcw, Trash2, Play, LogOut, UserX } from "lucide-react";
+import { Trash2, LogOut, UserX } from "lucide-react";
 import { useTaskContext } from "@/contexts/TaskContext";
 import { useToast } from "@/contexts/ToastContext";
 import { clearLayoutCache } from "@/lib/board-layout-cache";
 
 /**
  * Advanced settings section.
- * Provides restart tutorial, redo setup wizard, delete-all-tasks,
- * sign out, and delete account actions with double-click confirmation
- * where destructive.
+ * Provides delete-all-tasks, sign out, and delete account actions with
+ * double-click confirmation on destructive ones.
  */
 export default function AdvancedSection() {
   const router = useRouter();
   const { tasks, deleteAllTasks } = useTaskContext();
   const { showToast } = useToast();
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [confirmRedo, setConfirmRedo] = useState(false);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
   const [confirmDeleteAccount, setConfirmDeleteAccount] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
@@ -26,56 +24,6 @@ export default function AdvancedSection() {
   useEffect(() => {
     router.prefetch("/app/inbox");
   }, [router]);
-
-  /**
-   * Handles redo setup wizard with double-click confirmation.
-   * Clears onboarding/tour/sync dismissal flags so the WelcomeModal
-   * appears again on inbox — recreating the first-login experience.
-   * First click shows confirmation text, second click executes.
-   * Resets after 3 seconds if not confirmed.
-   */
-  function handleRedoSetup() {
-    if (!confirmRedo) {
-      setConfirmRedo(true);
-      setTimeout(() => setConfirmRedo(false), 3000);
-      return;
-    }
-    setConfirmRedo(false);
-    try {
-      localStorage.removeItem("caltodo_sync_dismissed");
-      localStorage.removeItem("caltodo_sync_badge_dismissed");
-      localStorage.removeItem("caltodo_tour_completed");
-      localStorage.removeItem("caltodo_tour_pending");
-      localStorage.removeItem("caltodo_welcome_resume_tour");
-      localStorage.removeItem("caltodo_getting_started_visible");
-      localStorage.removeItem("caltodo_getting_started_collapsed");
-      localStorage.removeItem("caltodo_integrations_welcome_seen");
-      sessionStorage.removeItem("caltodo_onboarding_status");
-    } catch { /* non-critical */ }
-    // Clear server-side modal dismissals
-    fetch("/api/credentials", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ dismissed_modals: {} }),
-    }).catch(() => { /* non-critical */ });
-    // Notify mounted hooks to clear cached modal state
-    window.dispatchEvent(new CustomEvent("caltodo-reset-modals"));
-    // Set redo flag so SyncClassesModal shows without overriding onboarding status
-    // (keeps CalChat unlocked and prevents re-triggering announcements)
-    localStorage.setItem("caltodo_redo_active", "true");
-    // Reset the SyncClassesModal redo path
-    window.dispatchEvent(new CustomEvent("caltodo-redo-setup"));
-    router.push("/app/inbox");
-  }
-
-  /** Restarts the tour immediately — dispatches event, tour handles navigation. */
-  function handleRestartTour() {
-    try {
-      localStorage.removeItem("caltodo_tour_completed");
-      localStorage.removeItem("caltodo_tour_pending");
-    } catch { /* non-critical */ }
-    window.dispatchEvent(new CustomEvent("caltodo-restart-tour"));
-  }
 
   /**
    * Handles delete all tasks with double-click confirmation.
@@ -146,26 +94,6 @@ export default function AdvancedSection() {
         Data management and setup options.
       </p>
       <div className="flex flex-col gap-2">
-        <button
-          onClick={handleRestartTour}
-          className="w-full flex items-center gap-3 px-4 py-3 text-sm rounded-xl border border-border bg-card hover:bg-accent transition-colors text-foreground"
-        >
-          <Play size={15} />
-          Restart Tutorial
-        </button>
-
-        <button
-          onClick={handleRedoSetup}
-          className={`w-full flex items-center gap-3 px-4 py-3 text-sm rounded-xl border transition-colors ${
-            confirmRedo
-              ? "border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/30 text-amber-600 hover:bg-amber-100 dark:hover:bg-amber-900/50"
-              : "border-border bg-card hover:bg-accent text-foreground"
-          }`}
-        >
-          <RotateCcw size={15} />
-          {confirmRedo ? "Click again to redo setup" : "Redo Setup Wizard"}
-        </button>
-
         <button
           onClick={handleDeleteAll}
           disabled={tasks.length === 0}
