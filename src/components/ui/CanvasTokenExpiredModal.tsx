@@ -90,11 +90,11 @@ export default function CanvasTokenExpiredModal() {
         </div>
 
         <h3 className="text-lg font-semibold text-foreground text-center mb-2">
-          Your bCourses API key has expired
+          Your Canvas API key has expired
         </h3>
 
         <p className="text-sm text-muted-foreground text-center mb-6">
-          bCourses API keys expire after 120 days. Please generate a new one in Settings to continue syncing assignments.
+          Canvas API keys expire after 120 days. Please generate a new one in Settings to continue syncing assignments.
         </p>
 
         <div className="flex flex-col gap-2">

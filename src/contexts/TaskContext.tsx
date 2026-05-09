@@ -1323,7 +1323,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
 
       // Build and show sync result toast globally
       const parts: string[] = [];
-      if (result.canvas.synced > 0) parts.push(`${result.canvas.synced} from bCourses`);
+      if (result.canvas.synced > 0) parts.push(`${result.canvas.synced} from Canvas`);
       if (result.gradescope.synced > 0) parts.push(`${result.gradescope.synced} from Gradescope`);
       if (result.pensieve.synced > 0) parts.push(`${result.pensieve.synced} from Pensieve`);
       const syncErrors = [...result.canvas.errors, ...result.gradescope.errors, ...result.pensieve.errors];
@@ -1364,7 +1364,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
    * Used to populate the tag picker dropdown.
    */
   const availableTags = useMemo(() => {
-    const tagSet = new Set<string>(["bCourses", "Canvas", "Gradescope", "Pensive"]);
+    const tagSet = new Set<string>(["Canvas", "Gradescope", "Pensive"]);
     for (const t of tasks) {
       if (t.tags) {
         for (const tag of t.tags) tagSet.add(tag);

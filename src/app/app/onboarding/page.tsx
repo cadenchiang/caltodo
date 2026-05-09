@@ -19,7 +19,7 @@ type Platform = "canvas" | "gradescope" | "pensieve";
 const STEP_LABELS: Record<Step, string> = {
   welcome: "Welcome",
   platforms: "Platforms",
-  canvas: "bCourses",
+  canvas: "Canvas",
   gradescope: "Gradescope",
   pensieve: "Pensive",
   done: "Finish",
@@ -27,7 +27,7 @@ const STEP_LABELS: Record<Step, string> = {
 
 /** Platform options shown in the platform selection step. */
 const PLATFORM_OPTIONS: Array<{ id: Platform; label: string; description: string; logo: string }> = [
-  { id: "canvas", label: "bCourses", description: "Sync assignments from Canvas/bCourses", logo: "/bcourses-logo.png" },
+  { id: "canvas", label: "Canvas", description: "Sync assignments from your Canvas account", logo: "/canvas-logo.png" },
   { id: "gradescope", label: "Gradescope", description: "Sync deadlines from Gradescope", logo: "/gradescope-logo.png" },
   { id: "pensieve", label: "Pensive", description: "Sync CS/DS assignments from Pensive", logo: "/pensieve-logo.png" },
 ];
@@ -37,7 +37,7 @@ const VALID_SETUP_PLATFORMS = new Set<string>(["canvas", "gradescope", "pensieve
 
 /** Display labels for standalone setup mode header. */
 const SETUP_LABELS: Record<string, string> = {
-  canvas: "bCourses",
+  canvas: "Canvas",
   gradescope: "Gradescope",
   pensieve: "Pensive",
   "canvas-add": "Canvas",
@@ -593,7 +593,7 @@ export default function OnboardingPage() {
                   welcome to caltodo
                 </h1>
                 <p className="text-muted-foreground text-sm mb-3 animate-drop-in delay-100">
-                  connect your bCourses, Gradescope, and Pensive accounts to automatically sync your assignments.
+                  connect your Canvas, Gradescope, and Pensive accounts to automatically sync your assignments.
                 </p>
                 <p className="text-foreground text-sm font-semibold mb-8 animate-drop-in delay-150 text-center">
                   this takes about 5-10 minutes.

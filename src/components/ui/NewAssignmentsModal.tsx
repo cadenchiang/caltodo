@@ -72,7 +72,7 @@ export default function NewAssignmentsModal() {
 
   /** Maps source to a display label. */
   function sourceLabel(source: string | null): string {
-    if (source === "canvas") return "bCourses";
+    if (source === "canvas") return "Canvas";
     if (source === "gradescope") return "Gradescope";
     if (source === "pensieve") return "Pensive";
     return "";

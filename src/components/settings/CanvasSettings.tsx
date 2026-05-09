@@ -65,11 +65,11 @@ export default function CanvasSettings({ credentials, onUpdate }: CanvasSettings
     <div className="rounded-2xl border border-border bg-card px-3 sm:px-4 py-3.5 shadow-sm dark:shadow-none">
       <div className="flex items-center gap-2.5 sm:gap-3.5">
         <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
-          <img src="/bcourses-logo.png" alt="" loading="eager" decoding="sync" fetchPriority="high" className="w-5 h-5" />
+          <img src="/canvas-logo.png" alt="" loading="eager" decoding="sync" fetchPriority="high" className="w-7 h-7 object-contain" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-foreground">bCourses</p>
-          <p className="text-xs text-muted-foreground truncate">Canvas for Cal students</p>
+          <p className="text-sm font-semibold text-foreground">Canvas</p>
+          <p className="text-xs text-muted-foreground truncate">Sync assignments from your Canvas account</p>
         </div>
         {isConnected ? (
           isExpired ? (

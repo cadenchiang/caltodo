@@ -1053,7 +1053,7 @@ export default function InboxPage() {
                   <div>
                     <div className="px-5 pt-4 pb-2 flex items-center justify-between">
                       <p className="text-xs font-semibold text-foreground">
-                        bCourses
+                        Canvas
                       </p>
                       <button
                         onClick={() => toggleSourceCourses("canvas")}
