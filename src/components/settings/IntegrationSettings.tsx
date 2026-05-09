@@ -140,6 +140,24 @@ export function IntegrationProvider({ children }: { children: React.ReactNode })
     fetchCredentials();
   }, [fetchCredentials]);
 
+  // Warm the browser cache for every integration logo as soon as the
+  // provider mounts. Without this, each card's <img> request fires only
+  // when the card itself mounts, which produced a visibly staggered
+  // "popping in" effect across the integration list.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const logos = [
+      "/bcourses-logo.png",
+      "/gradescope-logo.png",
+      "/pensieve-logo.png",
+      "/canvas-logo.png",
+    ];
+    for (const src of logos) {
+      const img = new window.Image();
+      img.src = src;
+    }
+  }, []);
+
   // Re-fetch credentials when sync completes (updates Classes tab in real-time)
   useEffect(() => {
     function handleCredentialsChanged() {
