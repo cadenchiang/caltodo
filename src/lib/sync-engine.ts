@@ -281,6 +281,10 @@ async function syncCanvas(
       course_name: getCanonicalName(a.course_name, courseNameMap),
     }));
     const result = await upsertAssignments(supabase, userId, "canvas", merged, timezone);
+    // Dismiss tasks the user/teacher deleted on Canvas itself: any DB row
+    // whose course we just successfully synced but whose external_id wasn't
+    // in the fresh API response is no longer real.
+    await dismissMissingTasks(supabase, userId, "canvas", merged);
     return { synced: result.synced, errors: result.errors };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -352,6 +356,7 @@ async function syncAdditionalCanvas(
     }));
 
     const result = await upsertAssignments(supabase, userId, "canvas", namespacedAssignments, timezone);
+    await dismissMissingTasks(supabase, userId, "canvas", namespacedAssignments);
     logger.info("syncAdditionalCanvas complete", {
       userId,
       accountId: account.id,
@@ -424,6 +429,7 @@ async function syncGradescope(
       course_name: getCanonicalName(a.course_name, courseNameMap),
     }));
     const result = await upsertAssignments(supabase, userId, "gradescope", merged, timezone);
+    await dismissMissingTasks(supabase, userId, "gradescope", merged);
 
     // Update last Gradescope sync timestamp on success and clear auth failure flag
     await supabase
@@ -499,6 +505,7 @@ async function syncPensieve(
       course_name: getCanonicalName(a.course_name, courseNameMap),
     }));
     const result = await upsertAssignments(supabase, userId, "pensieve", merged, timezone);
+    await dismissMissingTasks(supabase, userId, "pensieve", merged);
     logger.info("syncPensieve: upserted", { userId, synced: result.synced });
     return { synced: result.synced, errors: result.errors };
   } catch (err) {
@@ -538,6 +545,7 @@ async function syncBrightspace(
       course_name: getCanonicalName(a.course_name, courseNameMap),
     }));
     const result = await upsertAssignments(supabase, userId, "brightspace", merged, timezone);
+    await dismissMissingTasks(supabase, userId, "brightspace", merged);
     return { synced: result.synced, errors: result.errors };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -761,4 +769,90 @@ async function upsertAssignments(
   }
 
   return { synced: totalUpserted, errors };
+}
+
+/**
+ * Soft-deletes (sets dismissed_at) tasks that exist in our DB for one of
+ * the courses we just synced but were NOT returned by the source platform
+ * — i.e. the assignment was deleted on Canvas/Gradescope/etc.
+ *
+ * Scope is intentionally narrow: only dismiss tasks whose course_name
+ * matches a course that appeared in this sync's response. We never dismiss
+ * tasks from courses that weren't in the response, because their absence
+ * just means the user didn't sync that course this time, not that the
+ * assignments are gone. Tasks the user has already dismissed are left
+ * alone, as are completed tasks (preserving history).
+ *
+ * @param supabase - Authenticated Supabase client
+ * @param userId - The user's ID
+ * @param source - The integration source we just synced
+ * @param syncedAssignments - Assignments returned by this sync (the ground truth)
+ */
+async function dismissMissingTasks(
+  supabase: SupabaseClient,
+  userId: string,
+  source: "canvas" | "gradescope" | "pensieve" | "brightspace",
+  syncedAssignments: NormalizedAssignment[]
+): Promise<void> {
+  // Nothing came back? Don't dismiss anything — could be a transient API
+  // failure or an empty selection rather than a real "everything deleted".
+  if (syncedAssignments.length === 0) return;
+
+  // Best-effort: never let a dismissal failure abort the surrounding sync.
+  // The next sync will retry; meanwhile the user has fresh upserts.
+  try {
+    const seenIds = new Set(syncedAssignments.map((a) => a.external_id));
+    const scopedCourses = new Set(syncedAssignments.map((a) => a.course_name));
+
+    const { data: existing, error } = await supabase
+      .from("tasks")
+      .select("id, external_id, course_name")
+      .eq("user_id", userId)
+      .eq("source", source)
+      .eq("is_completed", false)
+      .is("dismissed_at", null);
+
+    if (error) {
+      logger.error("dismissMissingTasks: failed to fetch existing tasks", {
+        userId,
+        source,
+        error: error.message,
+      });
+      return;
+    }
+
+    const toDismiss = (existing ?? [])
+      .filter((row) => row.course_name != null && scopedCourses.has(row.course_name))
+      .filter((row) => !seenIds.has(row.external_id))
+      .map((row) => row.id);
+
+    if (toDismiss.length === 0) return;
+
+    const { error: updateError } = await supabase
+      .from("tasks")
+      .update({ dismissed_at: new Date().toISOString() })
+      .in("id", toDismiss);
+
+    if (updateError) {
+      logger.error("dismissMissingTasks: dismiss update failed", {
+        userId,
+        source,
+        count: toDismiss.length,
+        error: updateError.message,
+      });
+      return;
+    }
+
+    logger.info("dismissMissingTasks: dismissed source-deleted tasks", {
+      userId,
+      source,
+      count: toDismiss.length,
+    });
+  } catch (err) {
+    logger.error("dismissMissingTasks: unexpected error", {
+      userId,
+      source,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
 }
