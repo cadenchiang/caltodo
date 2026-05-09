@@ -102,12 +102,147 @@ const MIDNIGHT_COLOR_MAP: Record<string, string> = {
   "#D1D5DB": "#7080a0", // light gray fallback
 };
 
+/** Ocean theme — task colors leaned toward deep blue-teals. */
+const OCEAN_COLOR_MAP: Record<string, string> = {
+  "#9CA3AF": "#7aa0b8", // gray → muted ocean gray
+  "#3B82F6": "#2e88b0", // blue → ocean primary
+  "#EF4444": "#c45c5c", // red → coral red on water
+  "#10B981": "#3aa3a8", // green → seafoam teal
+  "#F59E0B": "#d8a85c", // amber → warm sun on water
+  "#8B5CF6": "#5e88c0", // violet → deep periwinkle
+  "#EC4899": "#c47090", // pink → reef pink
+  "#06B6D4": "#3aa8c8", // cyan → bright lagoon
+  "#F97316": "#d88040", // orange → sunset over sea
+  "#D1D5DB": "#a0bccc", // light gray fallback
+};
+
+/** Forest theme — earthy greens and muted woods. */
+const FOREST_COLOR_MAP: Record<string, string> = {
+  "#9CA3AF": "#94a08c", // gray → moss gray
+  "#3B82F6": "#388038", // blue → forest primary green
+  "#EF4444": "#a64030", // red → autumn red
+  "#10B981": "#6b9a4a", // green → leafy green
+  "#F59E0B": "#c89a4a", // amber → bark gold
+  "#8B5CF6": "#7a5e94", // violet → wildflower violet
+  "#EC4899": "#c87090", // pink → wildflower pink
+  "#06B6D4": "#5aa890", // cyan → spring green
+  "#F97316": "#c4682a", // orange → autumn orange
+  "#D1D5DB": "#b8c0a8", // light gray fallback
+};
+
+/** Sunset theme — warm oranges and coral. */
+const SUNSET_COLOR_MAP: Record<string, string> = {
+  "#9CA3AF": "#b89888", // gray → warm taupe
+  "#3B82F6": "#d85828", // blue → sunset primary orange
+  "#EF4444": "#a83020", // red → ember red
+  "#10B981": "#d8a45c", // green → muted gold
+  "#F59E0B": "#e8a040", // amber → bright sunset
+  "#8B5CF6": "#a84860", // violet → dusky rose
+  "#EC4899": "#e07060", // pink → coral
+  "#06B6D4": "#d8a888", // cyan → sandstone
+  "#F97316": "#e87040", // orange → vivid sunset
+  "#D1D5DB": "#d8b8a0", // light gray fallback
+};
+
+/** Lavender theme — soft purples and violets. */
+const LAVENDER_COLOR_MAP: Record<string, string> = {
+  "#9CA3AF": "#a098b0", // gray → cool lilac gray
+  "#3B82F6": "#7248a8", // blue → lavender primary
+  "#EF4444": "#9a3868", // red → magenta plum
+  "#10B981": "#8888c8", // green → soft periwinkle
+  "#F59E0B": "#c8a8c8", // amber → pale orchid
+  "#8B5CF6": "#8a60c0", // violet → vibrant lavender
+  "#EC4899": "#b06090", // pink → muted orchid
+  "#06B6D4": "#a8a0d8", // cyan → pale lilac
+  "#F97316": "#c87890", // orange → dusty rose
+  "#D1D5DB": "#c8c0d8", // light gray fallback
+};
+
+/** Matcha theme — soft sage greens. */
+const MATCHA_COLOR_MAP: Record<string, string> = {
+  "#9CA3AF": "#a0a890", // gray → matcha gray
+  "#3B82F6": "#6a8858", // blue → matcha primary
+  "#EF4444": "#a86058", // red → muted clay red
+  "#10B981": "#7ca068", // green → bright sage
+  "#F59E0B": "#c8b078", // amber → light wheat
+  "#8B5CF6": "#888090", // violet → muted plum
+  "#EC4899": "#b88090", // pink → dusty rose
+  "#06B6D4": "#88a890", // cyan → mint sage
+  "#F97316": "#b08868", // orange → warm tan
+  "#D1D5DB": "#bcc4a8", // light gray fallback
+};
+
+/** Dracula theme — bold gothic purples. */
+const DRACULA_COLOR_MAP: Record<string, string> = {
+  "#9CA3AF": "#9098b8", // gray → cool gray
+  "#3B82F6": "#9060e0", // blue → dracula primary purple
+  "#EF4444": "#e04848", // red → bright vampire red
+  "#10B981": "#48d090", // green → bright green
+  "#F59E0B": "#f0d048", // amber → bright yellow
+  "#8B5CF6": "#a060f0", // violet → vivid violet
+  "#EC4899": "#e070b0", // pink → hot pink
+  "#06B6D4": "#48c8e0", // cyan → cyber cyan
+  "#F97316": "#f08840", // orange → bright orange
+  "#D1D5DB": "#a0a0c0", // light gray fallback
+};
+
+/** Cyber theme — neon cyberpunk teal/magenta. */
+const CYBER_COLOR_MAP: Record<string, string> = {
+  "#9CA3AF": "#608890", // gray → muted cyber gray
+  "#3B82F6": "#08a0a8", // blue → cyber primary teal
+  "#EF4444": "#e02060", // red → neon magenta
+  "#10B981": "#10c8a0", // green → neon teal
+  "#F59E0B": "#e0c020", // amber → electric yellow
+  "#8B5CF6": "#a040e0", // violet → neon purple
+  "#EC4899": "#e040a0", // pink → hot magenta
+  "#06B6D4": "#10c0d8", // cyan → vivid cyan
+  "#F97316": "#e07020", // orange → bright orange
+  "#D1D5DB": "#80a0a8", // light gray fallback
+};
+
+/** Sandstone theme — warm earthy neutrals. */
+const SANDSTONE_COLOR_MAP: Record<string, string> = {
+  "#9CA3AF": "#a89888", // gray → warm taupe
+  "#3B82F6": "#a87c54", // blue → sandstone primary
+  "#EF4444": "#a85848", // red → terracotta
+  "#10B981": "#88a878", // green → desert sage
+  "#F59E0B": "#c89858", // amber → warm honey
+  "#8B5CF6": "#88688c", // violet → muted plum
+  "#EC4899": "#c08888", // pink → adobe rose
+  "#06B6D4": "#90b0a8", // cyan → desert teal
+  "#F97316": "#c87038", // orange → burnt orange
+  "#D1D5DB": "#c0b0a0", // light gray fallback
+};
+
+/** Tokyo Night theme — deep blues with electric pop. */
+const TOKYO_NIGHT_COLOR_MAP: Record<string, string> = {
+  "#9CA3AF": "#7c84a0", // gray → blue-gray
+  "#3B82F6": "#4870c8", // blue → tokyo primary blue
+  "#EF4444": "#d04860", // red → electric crimson
+  "#10B981": "#48b8a0", // green → cool teal
+  "#F59E0B": "#d8c060", // amber → warm yellow
+  "#8B5CF6": "#a070e0", // violet → vivid purple
+  "#EC4899": "#d870a8", // pink → bright pink
+  "#06B6D4": "#5cb8e0", // cyan → bright sky
+  "#F97316": "#e08858", // orange → soft orange
+  "#D1D5DB": "#a0a8c0", // light gray fallback
+};
+
 /** Map of color theme IDs to their task color remap tables. */
 const THEME_COLOR_MAPS: Record<string, Record<string, string>> = {
   miffy: MIFFY_COLOR_MAP,
   nord: NORD_COLOR_MAP,
   rosewood: ROSEWOOD_COLOR_MAP,
   midnight: MIDNIGHT_COLOR_MAP,
+  ocean: OCEAN_COLOR_MAP,
+  forest: FOREST_COLOR_MAP,
+  sunset: SUNSET_COLOR_MAP,
+  lavender: LAVENDER_COLOR_MAP,
+  matcha: MATCHA_COLOR_MAP,
+  dracula: DRACULA_COLOR_MAP,
+  cyber: CYBER_COLOR_MAP,
+  sandstone: SANDSTONE_COLOR_MAP,
+  "tokyo-night": TOKYO_NIGHT_COLOR_MAP,
 };
 
 /**
