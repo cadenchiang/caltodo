@@ -77,8 +77,18 @@
   --border-subtle: #fce8ef;
 
   --ring: #f9a8c9;
-  --nav-active-bg: #fdf0f4;
+  --nav-active-bg: rgba(232, 114, 154, 0.12);
   --sidebar-border-color: #f9d5e0;
+}
+
+/* Miffy theme: use accent-pink hover on sidebar nav items so they're
+   visibly shaded against the pastel background (default black/4% is
+   imperceptible on Miffy's pink background). */
+.theme-miffy .nav-item:hover {
+  background-color: rgba(232, 114, 154, 0.07);
+}
+.dark.theme-miffy .nav-item:hover {
+  background-color: rgba(232, 114, 154, 0.10);
 }
 
 .dark.theme-miffy {

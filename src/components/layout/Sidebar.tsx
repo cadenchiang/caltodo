@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Inbox, Sun, CalendarRange, ChevronLeft } from "lucide-react";
 import { NAV_ITEMS } from "@/lib/constants";
 import { SETTINGS_SECTIONS, SETTINGS_GROUPS, DEFAULT_SECTION, type SettingsSectionId } from "@/lib/settingsConfig";
-import SidebarNavItem, { navItemClasses } from "./SidebarNavItem";
+import SidebarNavItem, { navItemClasses, SidebarActivePill } from "./SidebarNavItem";
 import ProfilePopup from "./ProfilePopup";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useCalChatUnread } from "@/hooks/useCalChatUnread";
@@ -159,6 +159,7 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
                       }}
                       className={`w-full cursor-pointer ${navItemClasses(isActive, isMiffy)}`}
                     >
+                      {isActive && <SidebarActivePill />}
                       <Icon size={16} className="shrink-0" />
                       <span>{section.label}</span>
                     </button>
