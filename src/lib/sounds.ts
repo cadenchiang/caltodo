@@ -24,52 +24,68 @@ function getAudioContext(): AudioContext | null {
   return audioCtx;
 }
 
-/** Pre-decoded audio buffer for zero-latency playback via Web Audio API. */
-let taskCompleteBuffer: AudioBuffer | null = null;
-let bufferLoading = false;
-
 /**
- * Fetches and decodes the task completion sound into a Web Audio buffer.
- * Called lazily on first play; subsequent plays are instant.
- */
-async function ensureBuffer(): Promise<AudioBuffer | null> {
-  const ctx = getAudioContext();
-  if (!ctx) return null;
-  if (taskCompleteBuffer) return taskCompleteBuffer;
-  if (bufferLoading) return null;
-  bufferLoading = true;
-  try {
-    const res = await fetch("/sounds/task-complete.mp3");
-    const arrayBuf = await res.arrayBuffer();
-    taskCompleteBuffer = await ctx.decodeAudioData(arrayBuf);
-    return taskCompleteBuffer;
-  } catch {
-    bufferLoading = false;
-    return null;
-  }
-}
-
-// Kick off preload as soon as module is imported (non-blocking)
-if (typeof window !== "undefined") {
-  ensureBuffer();
-}
-
-/**
- * Plays the Apple Pay success "ding" sound when a task is completed.
- * Uses Web Audio API with a pre-decoded buffer for instant playback.
+ * Plays a synthesized "wooden tap" when a task is completed. Subtle,
+ * smooth, and quick — feels like flicking a small wooden block. No
+ * external audio file: WebAudio only, so it works offline and starts
+ * instantly without a fetch/decode round-trip.
+ *
+ * The sound is built from two layers:
+ *  1. A short band-passed white-noise burst (~25ms) that gives the
+ *     percussive transient — that's what makes it feel "tap-y" rather
+ *     than "beep-y".
+ *  2. A muted low sine resonance (~180Hz, 90ms) that gives a hint of
+ *     wooden body underneath, with an exponential decay so it doesn't
+ *     ring.
  */
 export function playTaskComplete(): void {
   const ctx = getAudioContext();
   if (!ctx) return;
 
   function play() {
-    if (!taskCompleteBuffer || !ctx) return;
-    const source = ctx.createBufferSource();
-    const gain = ctx.createGain();
-    source.buffer = taskCompleteBuffer;
-    gain.gain.value = 0.5;
-    source.connect(gain).connect(ctx.destination);
-    source.start(0);
+    if (!ctx) return;
+    const now = ctx.currentTime;
+
+    // ── Layer 1: noise transient (the "tap") ─────────────────────────
+    // Build a 60ms buffer of white noise; the band-pass filter selects
+    // a wooden mid-band so it sounds like a knock instead of a hiss.
+    const noiseDuration = 0.06;
+    const noiseFrames = Math.floor(ctx.sampleRate * noiseDuration);
+    const noiseBuffer = ctx.createBuffer(1, noiseFrames, ctx.sampleRate);
+    const data = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < noiseFrames; i++) data[i] = Math.random() * 2 - 1;
+
+    const noiseSource = ctx.createBufferSource();
+    noiseSource.buffer = noiseBuffer;
+
+    const noiseFilter = ctx.createBiquadFilter();
+    noiseFilter.type = "bandpass";
+    noiseFilter.frequency.value = 1100;
+    noiseFilter.Q.value = 4.5;
+
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.setValueAtTime(0.001, now);
+    noiseGain.gain.exponentialRampToValueAtTime(0.18, now + 0.004);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.045);
+
+    noiseSource.connect(noiseFilter).connect(noiseGain).connect(ctx.destination);
+    noiseSource.start(now);
+    noiseSource.stop(now + noiseDuration);
+
+    // ── Layer 2: low sine body (the "wood") ──────────────────────────
+    const body = ctx.createOscillator();
+    body.type = "sine";
+    body.frequency.setValueAtTime(220, now);
+    body.frequency.exponentialRampToValueAtTime(170, now + 0.09);
+
+    const bodyGain = ctx.createGain();
+    bodyGain.gain.setValueAtTime(0.001, now);
+    bodyGain.gain.exponentialRampToValueAtTime(0.09, now + 0.005);
+    bodyGain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+
+    body.connect(bodyGain).connect(ctx.destination);
+    body.start(now);
+    body.stop(now + 0.1);
   }
 
   if (ctx.state === "suspended") {
