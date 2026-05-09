@@ -200,6 +200,15 @@ body[data-route="settings"] .miffy-glow::before {
   display: none !important;
 }
 
+/* Drop the desktop main-element bottom padding on Settings. Settings
+   manages its own scroll container; the 40px tail just left dead
+   space at the bottom of the panel. Mobile keeps its tab-bar offset. */
+@media (min-width: 768px) {
+  body[data-route="settings"] main {
+    padding-bottom: 0 !important;
+  }
+}
+
 /* ── Miffy theme: faint watermark in main content ── */
 .theme-miffy .miffy-watermark::after {
   content: "";

@@ -40,14 +40,35 @@ function renderSection(sectionId: SettingsSectionId) {
 }
 
 /**
+ * Generic section skeleton shown while a not-yet-mounted section is
+ * being inflated. Shape matches the settings.loading.tsx skeleton so
+ * the visual rhythm carries through from route-level transitions.
+ */
+function SettingsSectionSkeleton() {
+  return (
+    <div className="space-y-3 animate-fade-in">
+      <div className="h-6 w-40 rounded bg-muted animate-pulse" />
+      <div className="h-4 w-64 rounded bg-muted animate-pulse" />
+      <div className="h-28 rounded-2xl bg-muted animate-pulse mt-4" />
+      <div className="h-28 rounded-2xl bg-muted animate-pulse" />
+      <div className="h-28 rounded-2xl bg-muted animate-pulse" />
+    </div>
+  );
+}
+
+/**
  * Renders only sections the user has visited so far, keeping them
  * mounted (hidden via display:none) when not active. After a section
- * is visited once, switching back is instant — no remount cost.
+ * is visited once, switching back is instant — no remount cost. While
+ * the active section is mounting for the first time, a generic
+ * skeleton is shown so the right pane never blanks out between the
+ * sidebar pill swap and the section's first paint.
  *
  * @param activeSection - The currently selected section ID
  * @param visited - Set of section IDs that have been mounted at least once
  */
 function StickyMountedSections({ activeSection, visited }: { activeSection: SettingsSectionId; visited: ReadonlySet<SettingsSectionId> }) {
+  const activeMounted = visited.has(activeSection);
   return (
     <>
       {SETTINGS_SECTIONS.map((section) => {
@@ -59,6 +80,7 @@ function StickyMountedSections({ activeSection, visited }: { activeSection: Sett
           </div>
         );
       })}
+      {!activeMounted && <SettingsSectionSkeleton />}
     </>
   );
 }
