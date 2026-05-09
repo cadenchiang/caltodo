@@ -11,7 +11,7 @@ import { computeNextDueDate, shouldSpawnNext } from "@/lib/repeat";
 
 import { showNewAssignmentsModal } from "@/components/ui/NewAssignmentsModal";
 import { readSyncStream } from "@/lib/gcal/read-sync-stream";
-import { playTaskComplete } from "@/lib/sounds";
+import { playTaskComplete, playTaskCreated } from "@/lib/sounds";
 
 /** localStorage key and version for stale-while-revalidate task caching. */
 const CACHE_KEY = "caltodo_tasks_cache";
@@ -511,6 +511,11 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       setError("Not authenticated. Please sign in again.");
       return;
     }
+
+    // Confirming "blip" the moment the user adds a task. Fires before the
+    // optimistic state update so it's perceptually tied to the click, not
+    // to the React commit.
+    playTaskCreated();
 
     // Optimistic: create a temporary task object that appears instantly
     const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`;

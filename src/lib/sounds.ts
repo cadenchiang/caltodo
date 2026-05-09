@@ -96,6 +96,45 @@ export function playTaskComplete(): void {
 }
 
 /**
+ * Plays a soft synthesized "blip" when a task is created. Lighter and
+ * higher than the wooden completion tap so the two events stay
+ * distinguishable: completion is a confident knock, creation is a quick
+ * acknowledging tick. WebAudio only — no asset fetch.
+ *
+ * Single sine layer at ~660Hz with a fast exponential decay (~70ms).
+ * Quiet enough to fire on every task add without becoming annoying.
+ */
+export function playTaskCreated(): void {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+
+  function play() {
+    if (!ctx) return;
+    const now = ctx.currentTime;
+
+    const osc = ctx.createOscillator();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(660, now);
+    osc.frequency.exponentialRampToValueAtTime(820, now + 0.05);
+
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.001, now);
+    gain.gain.exponentialRampToValueAtTime(0.07, now + 0.005);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.075);
+
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.085);
+  }
+
+  if (ctx.state === "suspended") {
+    ctx.resume().then(play).catch(() => {});
+  } else {
+    play();
+  }
+}
+
+/**
  * Plays the iMessage-style "sent" sound — a short ascending two-tone chirp.
  * Fires after a message is optimistically sent.
  */
