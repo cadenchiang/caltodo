@@ -56,17 +56,31 @@ export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
           <div className="flex flex-col items-center mt-6 sm:mt-14 mb-3 sm:mb-4">
             <div className="relative flex items-end justify-center" style={{ gap: 0 }}>
               {/* Canvas — outer left, highest */}
-              <div className="group relative cursor-pointer flex flex-col items-center -mr-1 sm:-mr-3" style={{ marginBottom: "20px" }}>
+              <div
+                className="group relative cursor-pointer flex flex-col items-center -mr-1 sm:-mr-3 cluster-emerge"
+                style={{
+                  marginBottom: "20px",
+                  animationDelay: "350ms",
+                  ["--cluster-x" as string]: "60px",
+                  ["--cluster-y" as string]: "8px",
+                }}
+              >
                 <div className="w-9 h-9 sm:w-16 sm:h-16 rounded-[10px] sm:rounded-[14px] bg-white shadow-[0_1px_3px_rgba(0,0,0,0.12)] flex items-center justify-center relative z-10">
                   <img src="/canvas-logo.png" alt="Canvas" className="w-[70%] h-[70%] object-contain" />
                 </div>
-                <div className="w-7 h-2 sm:w-14 sm:h-4 mt-1" style={{ background: "radial-gradient(ellipse at center, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.015) 50%, transparent 70%)", borderRadius: "50%" }} />
                 <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-3 rounded-md bg-black text-white text-xs font-medium px-2 py-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100 z-50 whitespace-nowrap">
                   Canvas
                 </div>
               </div>
               {/* Gradescope — inner left, mid */}
-              <div className="group relative cursor-pointer flex flex-col items-center -mr-1 sm:-mr-3" style={{ marginBottom: "10px" }}>
+              <div
+                className="group relative cursor-pointer flex flex-col items-center -mr-1 sm:-mr-3 cluster-emerge"
+                style={{
+                  marginBottom: "10px",
+                  animationDelay: "350ms",
+                  ["--cluster-x" as string]: "30px",
+                }}
+              >
                 <svg width="64" height="64" viewBox="0 0 14 14" fill="none" className="w-9 h-9 sm:w-16 sm:h-16 relative z-10">
                   <rect width="14" height="14" rx="3" fill="#3AADA8" />
                   <rect x="1.5" y="8.5" width="2" height="3.5" rx="0.5" fill="white" />
@@ -74,29 +88,44 @@ export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
                   <rect x="7.5" y="4.5" width="2" height="7.5" rx="0.5" fill="white" />
                   <rect x="10.5" y="2.5" width="2" height="9.5" rx="0.5" fill="white" />
                 </svg>
-                <div className="w-7 h-2 sm:w-14 sm:h-4 mt-1" style={{ background: "radial-gradient(ellipse at center, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.015) 50%, transparent 70%)", borderRadius: "50%" }} />
                 <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-3 rounded-md bg-black text-white text-xs font-medium px-2 py-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100 z-50 whitespace-nowrap">
                   Gradescope
                 </div>
               </div>
-              {/* caltodo — center, lowest (bottom of V) */}
-              <div className="relative flex flex-col items-center z-20">
+              {/* caltodo — center, lowest (bottom of V) — appears first, platforms emerge from behind */}
+              <div
+                className="relative flex flex-col items-center z-20 cluster-center-in"
+                style={{ animationDelay: "0ms" }}
+              >
                 <img src="/logo.png" alt="caltodo" className="h-12 sm:h-24 relative z-10" />
-                <div className="w-10 h-3 sm:w-20 sm:h-5 mt-0.5" style={{ background: "radial-gradient(ellipse at center, rgba(0,0,0,0.06) 0%, rgba(0,0,0,0.02) 45%, transparent 70%)", borderRadius: "50%" }} />
               </div>
               {/* Pensieve — inner right, mid */}
-              <div className="group relative cursor-pointer flex flex-col items-center -ml-1 sm:-ml-3 z-10" style={{ marginBottom: "10px" }}>
+              <div
+                className="group relative cursor-pointer flex flex-col items-center -ml-1 sm:-ml-3 z-10 cluster-emerge"
+                style={{
+                  marginBottom: "10px",
+                  animationDelay: "350ms",
+                  ["--cluster-x" as string]: "-30px",
+                }}
+              >
                 <div className="relative w-9 h-9 sm:w-16 sm:h-16 z-10">
                   <div className="absolute inset-[10%] rounded-full bg-white" />
                   <img src="/pensieve-logo.png" alt="Pensive" className="w-full h-full object-contain relative" />
                 </div>
-                <div className="w-7 h-2 sm:w-14 sm:h-4 mt-1" style={{ background: "radial-gradient(ellipse at center, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.015) 50%, transparent 70%)", borderRadius: "50%" }} />
                 <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-3 rounded-md bg-black text-white text-xs font-medium px-2 py-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100 z-50 whitespace-nowrap">
                   Pensive
                 </div>
               </div>
               {/* Google Calendar — outer right, highest */}
-              <div className="group relative cursor-pointer flex flex-col items-center -ml-1 sm:-ml-3" style={{ marginBottom: "20px" }}>
+              <div
+                className="group relative cursor-pointer flex flex-col items-center -ml-1 sm:-ml-3 cluster-emerge"
+                style={{
+                  marginBottom: "20px",
+                  animationDelay: "350ms",
+                  ["--cluster-x" as string]: "-60px",
+                  ["--cluster-y" as string]: "8px",
+                }}
+              >
                 <svg width="64" height="64" viewBox="0 0 122.88 122.88" className="w-9 h-9 sm:w-16 sm:h-16 relative z-10">
                   <polygon points="93.78,29.1 29.1,29.1 29.1,93.78 93.78,93.78" fill="#fff" />
                   <polygon points="93.78,122.88 122.88,93.78 93.78,93.78" fill="#EA4335" />
@@ -108,30 +137,47 @@ export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
                   <path d="M42.37,79.27c-2.42-1.63-4.09-4.02-5-7.17l5.61-2.31c0.51,1.94,1.4,3.44,2.67,4.51c1.26,1.07,2.8,1.59,4.59,1.59c1.84,0,3.41-0.56,4.73-1.67c1.32-1.12,1.98-2.54,1.98-4.26c0-1.76-0.7-3.2-2.09-4.32c-1.39-1.12-3.14-1.67-5.22-1.67H46.4v-5.55h2.91c1.79,0,3.31-0.48,4.54-1.46c1.23-0.97,1.84-2.3,1.84-3.99c0-1.5-0.55-2.7-1.65-3.6s-2.49-1.35-4.18-1.35c-1.65,0-2.96,0.44-3.93,1.32c-0.97,0.88-1.7,2-2.12,3.24l-5.55-2.31c0.74-2.09,2.09-3.93,4.07-5.52c1.98-1.59,4.51-2.39,7.58-2.39c2.27,0,4.32,0.44,6.13,1.32c1.81,0.88,3.23,2.1,4.26,3.65c1.03,1.56,1.54,3.31,1.54,5.25c0,1.98-0.48,3.65-1.43,5.03c-0.95,1.37-2.13,2.43-3.52,3.16v0.33c1.79,0.74,3.36,1.96,4.51,3.52c1.17,1.58,1.76,3.46,1.76,5.66c0,2.2-0.56,4.16-1.67,5.88c-1.12,1.72-2.66,3.08-4.62,4.07c-1.96,0.99-4.17,1.49-6.62,1.49C47.41,81.72,44.79,80.91,42.37,79.27z" fill="#1A73E8" />
                   <path d="M76.83,51.43l-6.16,4.45l-3.08-4.67l11.05-7.97h4.24v37.6h-6.05V51.43z" fill="#1A73E8" />
                 </svg>
-                <div className="w-7 h-2 sm:w-14 sm:h-4 mt-1" style={{ background: "radial-gradient(ellipse at center, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.015) 50%, transparent 70%)", borderRadius: "50%" }} />
                 <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-3 rounded-md bg-black text-white text-xs font-medium px-2 py-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100 z-50 whitespace-nowrap">
                   Google Calendar
                 </div>
               </div>
             </div>
+
+            {/* Product label below cluster */}
+            <p
+              className="mt-3 sm:mt-5 text-sm sm:text-lg font-bold text-black tracking-tight animate-fade-up"
+              style={{ animationDelay: "1000ms" }}
+            >
+              caltodo
+            </p>
           </div>
 
 
 
           {/* Heading */}
-          <h2 className="text-[36px] sm:text-[64px] leading-[0.95] sm:leading-[0.95] tracking-tight text-center text-black" style={{ fontFamily: '-apple-system, "SF Pro Display", BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' }}>
+          <h2
+            className="text-[36px] sm:text-[64px] leading-[0.95] sm:leading-[0.95] tracking-tight text-center text-black animate-fade-up"
+            style={{
+              fontFamily: '-apple-system, "SF Pro Display", BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+              animationDelay: "1200ms",
+            }}
+          >
             <span className="font-bold">Stay ahead.</span>
           </h2>
 
           {/* Subtitle */}
-          <p className="text-sm sm:text-xl text-center font-sans font-medium mt-3 sm:mt-6 mb-5 sm:mb-8 leading-snug text-black max-w-[280px] sm:max-w-[460px]">
+          <p
+            className="text-sm sm:text-xl text-center font-sans font-medium mt-3 sm:mt-6 mb-5 sm:mb-8 leading-snug text-black max-w-[280px] sm:max-w-[460px] animate-fade-up"
+            style={{ animationDelay: "1350ms" }}
+          >
             All of your assignments, now in one place. Meet the beautifully designed, fully integrated planner for school and life.
           </p>
 
           {/* CTA */}
           <Link
             href="/login?signup=true"
-            className="px-4 sm:px-5 py-2 rounded-xl bg-[#0071E3] text-white text-sm sm:text-base font-medium hover:bg-[#3D8FE8] transition-colors duration-200 mb-4 sm:mb-12 inline-flex items-center gap-1.5"
+            className="px-4 sm:px-5 py-2 rounded-xl bg-[#0071E3] text-white text-sm sm:text-base font-medium hover:bg-[#3D8FE8] transition-colors duration-200 mb-4 sm:mb-12 inline-flex items-center gap-1.5 animate-fade-up"
+            style={{ animationDelay: "1500ms" }}
           >
             Get started
             <ArrowRight size={16} strokeWidth={2.5} />
@@ -142,7 +188,8 @@ export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
         {/* Hero screenshot — MacBook on cream pill */}
         <div
           ref={mockupRef}
-          className="mt-1 sm:mt-1.5 w-full max-w-5xl mx-auto relative px-1 sm:px-0"
+          className="mt-1 sm:mt-1.5 w-full max-w-5xl mx-auto relative px-1 sm:px-0 animate-fade-up"
+          style={{ animationDelay: "1700ms" }}
         >
           {/* Cream pill background */}
           <div className="bg-[#f6f5f4] rounded-3xl sm:rounded-[32px] pt-10 sm:pt-16 px-6 sm:px-16 overflow-hidden">
@@ -174,53 +221,55 @@ export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
         </div>
 
         {/* Trusted by section — scrolling marquee with edge fade */}
-        <div className="w-full flex flex-col items-center gap-8 sm:gap-12 py-8 sm:py-12">
-          <p className="text-center text-lg sm:text-2xl font-semibold text-black tracking-tight">
-            {userCount ? `Trusted by ${userCount}+ students at` : "Trusted by students at"}
-          </p>
-          <div
-            className="w-full max-w-3xl mx-auto overflow-hidden"
-            style={{
-              maskImage: "linear-gradient(to right, transparent 0%, black 12%, black 88%, transparent 100%)",
-              WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 12%, black 88%, transparent 100%)",
-            }}
-          >
+        <FadeIn className="w-full">
+          <div className="w-full flex flex-col items-center gap-8 sm:gap-12 py-8 sm:py-12">
+            <p className="text-center text-lg sm:text-2xl font-semibold text-black tracking-tight">
+              {userCount ? `Trusted by ${userCount}+ students at` : "Trusted by students at"}
+            </p>
             <div
-              className="flex items-center gap-8 whitespace-nowrap"
-              style={{ animation: "loginMarquee 50s linear infinite" }}
+              className="w-full max-w-5xl mx-auto overflow-hidden"
+              style={{
+                maskImage: "linear-gradient(to right, transparent 0%, black 6%, black 94%, transparent 100%)",
+                WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 6%, black 94%, transparent 100%)",
+              }}
             >
-              {(() => {
-                const schools = [
-                  { name: "UC Berkeley", src: "/cal-logo.png" },
-                  { name: "Stanford", src: "/schools/stanford.svg" },
-                  { name: "Harvard", src: "/schools/harvard.svg" },
-                  { name: "MIT", src: "/schools/mit.svg" },
-                  { name: "Yale", src: "/schools/yale.svg" },
-                  { name: "Cornell", src: "/schools/cornell.svg" },
-                  { name: "NYU", src: "/schools/nyu.svg" },
-                  { name: "UCSD", src: "/schools/ucsd.svg" },
-                  { name: "UCLA", src: "/schools/ucla.svg" },
-                  { name: "UPenn", src: "/schools/upenn.svg" },
-                  { name: "USC", src: "/schools/usc.svg" },
-                  { name: "Columbia", src: "/schools/columbia.svg" },
-                ];
-                return [...schools, ...schools].map((school, i) => (
-                  <div
-                    key={`${school.name}-${i}`}
-                    className="h-9 w-24 flex items-center justify-center shrink-0"
-                    title={school.name}
-                  >
-                    <img
-                      src={school.src}
-                      alt={school.name}
-                      className="max-h-full max-w-full object-contain grayscale opacity-60"
-                    />
-                  </div>
-                ));
-              })()}
+              <div
+                className="flex items-center gap-8 whitespace-nowrap"
+                style={{ animation: "loginMarquee 50s linear infinite" }}
+              >
+                {(() => {
+                  const schools = [
+                    { name: "UC Berkeley", src: "/cal-logo.png" },
+                    { name: "Stanford", src: "/schools/stanford.svg" },
+                    { name: "Harvard", src: "/schools/harvard.svg" },
+                    { name: "MIT", src: "/schools/mit.svg" },
+                    { name: "Yale", src: "/schools/yale.svg" },
+                    { name: "Cornell", src: "/schools/cornell.svg" },
+                    { name: "NYU", src: "/schools/nyu.svg" },
+                    { name: "UCSD", src: "/schools/ucsd.svg" },
+                    { name: "UCLA", src: "/schools/ucla.svg" },
+                    { name: "UPenn", src: "/schools/upenn.svg" },
+                    { name: "USC", src: "/schools/usc.svg" },
+                    { name: "Columbia", src: "/schools/columbia.svg" },
+                  ];
+                  return [...schools, ...schools].map((school, i) => (
+                    <div
+                      key={`${school.name}-${i}`}
+                      className="h-9 w-24 flex items-center justify-center shrink-0"
+                      title={school.name}
+                    >
+                      <img
+                        src={school.src}
+                        alt={school.name}
+                        className="max-h-full max-w-full object-contain grayscale opacity-60"
+                      />
+                    </div>
+                  ));
+                })()}
+              </div>
             </div>
           </div>
-        </div>
+        </FadeIn>
 
       </main>
 
@@ -237,38 +286,80 @@ export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
             </p>
           </FadeIn>
 
-          {/* Three-step how it works */}
-          <div className="w-full max-w-5xl mb-16 sm:mb-24 flex flex-col gap-8 sm:gap-10">
-            {([
-              { step: "1", title: "Sync your classes", desc: "Upload your syllabus or sync your assignments from your other platforms.", img: "/step-sync.png", icon: RefreshCw },
-              { step: "2", title: "Manage your assignments", desc: "See every deadline on a single calendar — no more switching between tabs.", img: "/step-calendar.png", icon: CalendarDays },
-              { step: "3", title: "Personalize your board", desc: "Build your perfect dashboard in under 5 minutes with drag-and-drop widgets and themes.", img: "/step-personalize.png", icon: LayoutGrid },
-            ] as const).map((item, i) => {
-              const Icon = item.icon;
-              return (
-                <FadeIn key={item.step} delay={i * 100}>
-                  <div className="bg-[#f6f5f4] rounded-3xl p-8 sm:p-12 overflow-hidden">
-                    <div className={`flex flex-col sm:flex-row items-center gap-8 sm:gap-12 ${i % 2 === 1 ? "sm:flex-row-reverse" : ""}`}>
-                      <div className="sm:w-1/2 w-full">
-                        <img src={item.img} alt={item.title} className="w-full block rounded-xl" />
-                      </div>
-                      <div className="sm:w-1/2 text-center sm:text-left">
-                        <Icon className="w-7 h-7 text-[#0071E3] mb-4 mx-auto sm:mx-0" strokeWidth={2} />
-                        <h3 className="text-2xl sm:text-[32px] font-bold text-black leading-tight tracking-tight" style={{ fontFamily: '-apple-system, "SF Pro Display", BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' }}>
-                          {item.title}
-                        </h3>
-                        <p className="text-base sm:text-lg text-black/70 mt-3 sm:mt-4 max-w-md mx-auto sm:mx-0 leading-snug">{item.desc}</p>
-                      </div>
-                    </div>
+          {/* How it works — step 1 full width, steps 2 & 3 side-by-side Notion-style */}
+          <div className="w-full max-w-5xl mb-16 sm:mb-24 flex flex-col gap-6 sm:gap-8">
+            {/* Step 1 — text top-left, image fills the right column from top to bottom */}
+            <FadeIn>
+              <div className="bg-[#f6f5f4] rounded-3xl p-8 sm:p-12 overflow-hidden relative min-h-[260px] sm:min-h-[340px]">
+                <div className="max-w-md relative z-10">
+                  <RefreshCw className="w-7 h-7 text-[#0071E3] mb-4" strokeWidth={2} />
+                  <h3 className="text-2xl sm:text-[32px] font-bold text-black leading-tight tracking-tight" style={{ fontFamily: '-apple-system, "SF Pro Display", BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' }}>
+                    Sync your classes
+                  </h3>
+                  <p className="text-base sm:text-lg text-black/70 mt-3 sm:mt-4 leading-snug">
+                    Upload your syllabus or sync your assignments from your other platforms.
+                  </p>
+                </div>
+                {/* Desktop: image fills the right column floor-to-ceiling so there's no empty space above */}
+                <div className="hidden sm:block absolute top-8 right-8 bottom-8 w-[40%] max-w-[400px] rounded-2xl overflow-hidden shadow-[0_8px_30px_-12px_rgba(0,0,0,0.15)]">
+                  <img
+                    src="/step-sync.png"
+                    alt="Sync your classes"
+                    className="w-full h-full object-cover object-top"
+                  />
+                </div>
+                {/* Mobile: image stacks below text */}
+                <div className="sm:hidden mt-6">
+                  <img
+                    src="/step-sync.png"
+                    alt="Sync your classes"
+                    className="w-full block rounded-xl"
+                  />
+                </div>
+              </div>
+            </FadeIn>
+
+            {/* Steps 2 & 3 — two-column Notion-style grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
+              <FadeIn delay={100}>
+                <div className="bg-[#f6f5f4] rounded-3xl p-8 sm:p-10 overflow-hidden flex flex-col h-full">
+                  <CalendarDays className="w-7 h-7 text-[#0071E3] mb-4" strokeWidth={2} />
+                  <h3 className="text-2xl sm:text-[28px] font-bold text-black leading-tight tracking-tight" style={{ fontFamily: '-apple-system, "SF Pro Display", BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' }}>
+                    Manage your assignments
+                  </h3>
+                  <p className="text-base sm:text-lg text-black/70 mt-3 leading-snug">
+                    See every deadline on a single calendar, no more switching between tabs.
+                  </p>
+                  <div className="mt-8 sm:mt-10 mx-auto w-[85%]">
+                    <img
+                      src="/step-calendar.png"
+                      alt="Manage your assignments"
+                      className="w-full block rounded-xl shadow-[0_8px_30px_-12px_rgba(0,0,0,0.15)]"
+                    />
                   </div>
-                </FadeIn>
-              );
-            })}
+                </div>
+              </FadeIn>
+              <FadeIn delay={200}>
+                <div className="bg-[#f6f5f4] rounded-3xl p-8 sm:p-10 overflow-hidden flex flex-col h-full">
+                  <LayoutGrid className="w-7 h-7 text-[#0071E3] mb-4" strokeWidth={2} />
+                  <h3 className="text-2xl sm:text-[28px] font-bold text-black leading-tight tracking-tight" style={{ fontFamily: '-apple-system, "SF Pro Display", BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' }}>
+                    Personalize your board
+                  </h3>
+                  <p className="text-base sm:text-lg text-black/70 mt-3 leading-snug">
+                    Build your perfect dashboard in under 5 minutes with drag-and-drop widgets and themes.
+                  </p>
+                  <div className="mt-8 sm:mt-10 -mx-8 sm:-mx-10 -mb-8 sm:-mb-10">
+                    <img src="/step-personalize.png" alt="Personalize your board" className="w-full block" />
+                  </div>
+                </div>
+              </FadeIn>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Footer */}
+      <FadeIn>
       <footer className="bg-white px-6 sm:px-10 py-5 border-t border-black/10">
         <div className="max-w-5xl mx-auto flex items-start sm:items-center justify-between">
           <div>
@@ -288,6 +379,7 @@ export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
           </div>
         </div>
       </footer>
+      </FadeIn>
 
       {/* Spots modal */}
       <div

@@ -1171,6 +1171,43 @@ body {
   will-change: opacity, transform, filter;
 }
 
+/* Hero integration cluster — caltodo logo spawns in first (scale + blur ramp),
+ * then surrounding logos emerge horizontally from behind it. Side items use a
+ * CSS variable for the direction/distance so one keyframe covers both sides. */
+@keyframes clusterCenterIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.55);
+    filter: blur(8px);
+  }
+  60% {
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0);
+  }
+}
+@keyframes clusterEmerge {
+  from {
+    opacity: 0;
+    transform: translateX(var(--cluster-x, 0)) translateY(var(--cluster-y, 0));
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) translateY(0);
+  }
+}
+.cluster-center-in {
+  animation: clusterCenterIn 950ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  will-change: opacity, transform, filter;
+}
+.cluster-emerge {
+  animation: clusterEmerge 1100ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  will-change: opacity, transform;
+}
+
 /* Hero appear animation */
 @keyframes appear {
   0% {
