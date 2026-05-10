@@ -15,6 +15,8 @@ interface ToastProps {
   action?: ToastAction;
   /** Optional progress value (0–100). Shows a thin bar at the bottom of the toast. */
   progress?: number;
+  /** Visual variant — default (dark) or error (red). */
+  variant?: "default" | "error";
   dismissing: boolean;
   onDismiss: () => void;
 }
@@ -33,16 +35,21 @@ export default function Toast({
   message,
   action,
   progress,
+  variant = "default",
   dismissing,
   onDismiss,
 }: ToastProps) {
   const showProgress = typeof progress === "number" && progress < 100;
+  const bgClass =
+    variant === "error"
+      ? "bg-red-600/95 dark:bg-red-700/95"
+      : "bg-neutral-800/90 dark:bg-neutral-900/90";
 
   return (
     <div
       role="status"
       aria-live="polite"
-      className={`pointer-events-auto relative flex items-center gap-3 rounded-full px-5 py-3 text-sm text-white shadow-lg backdrop-blur-md bg-neutral-800/90 dark:bg-neutral-900/90 overflow-hidden max-w-[calc(100vw-2rem)] ${
+      className={`pointer-events-auto relative flex items-center gap-3 rounded-full px-5 py-3 text-sm text-white shadow-lg backdrop-blur-md ${bgClass} overflow-hidden max-w-[calc(100vw-2rem)] ${
         dismissing ? "animate-toast-out" : "animate-toast-in"
       }`}
     >

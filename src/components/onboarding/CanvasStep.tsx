@@ -9,11 +9,11 @@ import { useToast } from "@/contexts/ToastContext";
  * Each step maps to a timestamp in the instruction video.
  */
 const TOKEN_STEPS: Array<{ label: string; time: number }> = [
-  { label: "open bCourses settings", time: 0 },
-  { label: "create + new access token", time: 5 },
-  { label: "name the token whatever you want", time: 9 },
-  { label: "set expiration to max (120 days)", time: 12 },
-  { label: "copy and paste your token below", time: 18 },
+  { label: "Open Canvas settings", time: 0 },
+  { label: "Create + new access token", time: 5 },
+  { label: "Name the token whatever you want", time: 9 },
+  { label: "Set expiration to max (120 days)", time: 12 },
+  { label: "Copy and paste your token below", time: 18 },
 ];
 
 interface CanvasCourse {
@@ -57,7 +57,20 @@ interface CanvasStepProps {
   initialBaseUrl?: string;
   initialCourses?: CanvasCourse[] | null;
   initialSelectedIds?: number[];
-  onDraftChange?: (draft: { token: string; baseUrl: string; courses: CanvasCourse[] | null; selectedIds: number[] }) => void;
+  initialIcalUrl?: string;
+  initialIcalCourses?: ICalCourse[] | null;
+  initialIcalSelectedNames?: string[];
+  initialMode?: "ical" | "api";
+  onDraftChange?: (draft: {
+    token: string;
+    baseUrl: string;
+    courses: CanvasCourse[] | null;
+    selectedIds: number[];
+    icalUrl: string;
+    icalCourses: ICalCourse[] | null;
+    icalSelectedNames: string[];
+    mode: "ical" | "api";
+  }) => void;
 }
 
 /**
@@ -77,14 +90,14 @@ function formatTimestamp(seconds: number): string {
  * Default: paste calendar feed URL (simple).
  * Advanced: API token flow with course selection (for power users).
  */
-export default function CanvasStep({ onNext, onSkip, saving, error, setError, initialToken, initialBaseUrl, initialCourses, initialSelectedIds, onDraftChange }: CanvasStepProps) {
+export default function CanvasStep({ onNext, onSkip, saving, error, setError, initialToken, initialBaseUrl, initialCourses, initialSelectedIds, initialIcalUrl, initialIcalCourses, initialIcalSelectedNames, initialMode, onDraftChange }: CanvasStepProps) {
   const { showToast } = useToast();
-  const [mode, setMode] = useState<"ical" | "api">("ical");
+  const [mode, setMode] = useState<"ical" | "api">(initialMode ?? "ical");
 
-  // iCal state
-  const [icalUrl, setIcalUrl] = useState("");
-  const [icalCourses, setIcalCourses] = useState<ICalCourse[] | null>(null);
-  const [icalSelectedNames, setIcalSelectedNames] = useState<Set<string>>(new Set());
+  // iCal state — restored from draft when navigating back
+  const [icalUrl, setIcalUrl] = useState(initialIcalUrl ?? "");
+  const [icalCourses, setIcalCourses] = useState<ICalCourse[] | null>(initialIcalCourses ?? null);
+  const [icalSelectedNames, setIcalSelectedNames] = useState<Set<string>>(new Set(initialIcalSelectedNames ?? []));
   const [icalLoading, setIcalLoading] = useState(false);
 
   // API token state (advanced)
@@ -100,9 +113,27 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
   const videoRef = useRef<HTMLVideoElement>(null);
 
   /** Ref tracking latest state for unmount draft reporting. */
-  const draftRef = useRef({ token: canvasToken, baseUrl: canvasBaseUrl, courses, selectedIds: Array.from(selectedIds) });
+  const draftRef = useRef({
+    token: canvasToken,
+    baseUrl: canvasBaseUrl,
+    courses,
+    selectedIds: Array.from(selectedIds),
+    icalUrl,
+    icalCourses,
+    icalSelectedNames: Array.from(icalSelectedNames),
+    mode,
+  });
   useEffect(() => {
-    draftRef.current = { token: canvasToken, baseUrl: canvasBaseUrl, courses, selectedIds: Array.from(selectedIds) };
+    draftRef.current = {
+      token: canvasToken,
+      baseUrl: canvasBaseUrl,
+      courses,
+      selectedIds: Array.from(selectedIds),
+      icalUrl,
+      icalCourses,
+      icalSelectedNames: Array.from(icalSelectedNames),
+      mode,
+    };
   });
   useEffect(() => {
     return () => { onDraftChange?.(draftRef.current); };
@@ -140,13 +171,13 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
   async function handleICalSave() {
     const url = icalUrl.trim();
     if (!url) {
-      showToast("please paste your calendar feed URL.");
+      showToast("Please paste your calendar feed URL.", { variant: "error", duration: 4000 });
       return;
     }
 
     // Basic validation
     if (!url.startsWith("https://") || !url.endsWith(".ics")) {
-      setError("that doesn't look like a calendar feed URL. it should start with https:// and end with .ics");
+      showToast("That doesn't look like a calendar feed URL. It should start with https:// and end with .ics", { variant: "error", duration: 4000 });
       return;
     }
 
@@ -185,12 +216,12 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
         return;
       }
       setIcalCourses(data.courses);
-      setIcalSelectedNames(new Set(data.courses.map((c: ICalCourse) => c.name)));
+      setIcalSelectedNames(new Set());
     } catch (err) {
       if (err instanceof TypeError) {
-        setError("Network error. Check your connection.");
+        showToast("Network error. Check your connection.", { variant: "error", duration: 4000 });
       } else {
-        setError(err instanceof Error ? err.message : String(err));
+        showToast(err instanceof Error ? err.message : String(err), { variant: "error", duration: 4000 });
       }
     } finally {
       setIcalLoading(false);
@@ -213,23 +244,23 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
    */
   async function handleVerify() {
     if (!canvasToken.trim()) {
-      showToast("please enter your bCourses access token.");
+      showToast("Please enter your Canvas access token.", { variant: "error", duration: 4000 });
       return;
     }
 
     const trimmedUrl = canvasBaseUrl.trim();
     if (!trimmedUrl.startsWith("https://")) {
-      setError("Canvas URL must start with https://");
+      showToast("Canvas URL must start with https://", { variant: "error", duration: 4000 });
       return;
     }
     try {
       const parsed = new URL(trimmedUrl);
       if (!parsed.hostname || !parsed.hostname.includes(".")) {
-        setError("Canvas URL must have a valid hostname.");
+        showToast("Canvas URL must have a valid hostname.", { variant: "error", duration: 4000 });
         return;
       }
     } catch {
-      setError("Canvas URL is not a valid URL.");
+      showToast("Canvas URL is not a valid URL.", { variant: "error", duration: 4000 });
       return;
     }
 
@@ -253,9 +284,9 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
       setSelectedIds(new Set());
     } catch (err) {
       if (err instanceof TypeError) {
-        setError("Network error. Check your connection.");
+        showToast("Network error. Check your connection.", { variant: "error", duration: 4000 });
       } else {
-        setError(err instanceof Error ? err.message : String(err));
+        showToast(err instanceof Error ? err.message : String(err), { variant: "error", duration: 4000 });
       }
     } finally {
       setVerifying(false);
@@ -295,8 +326,8 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
   return (
     <div className="text-center">
       <div className="flex items-center justify-center gap-2 mb-4">
-        <img src="/bcourses-logo.png" alt="bCourses" width={22} height={22} className="shrink-0" />
-        <h2 className="text-lg font-bold text-foreground animate-drop-in">bCourses</h2>
+        <img src="/canvas-logo.png" alt="Canvas" width={22} height={22} className="shrink-0 object-contain" />
+        <h2 className="text-lg font-bold text-foreground animate-drop-in">Canvas</h2>
       </div>
 
       {/* ===== iCal mode (default) — URL input ===== */}
@@ -306,24 +337,24 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
             <div className="flex items-center gap-3 px-2 py-2">
               <span className="w-7 h-7 rounded-full bg-foreground text-background flex items-center justify-center text-xs font-bold shrink-0">1</span>
               <span className="text-sm font-medium text-foreground">
-                go to your{" "}
+                Go to your{" "}
                 <a
                   href="https://bcourses.berkeley.edu/calendar#view_name=month"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-blue-500 underline"
+                  className="text-foreground hover:opacity-70 transition-opacity"
                 >
-                  bCourses calendar
+                  Canvas calendar
                 </a>
               </span>
             </div>
             <div className="flex items-center gap-3 px-2 py-2">
               <span className="w-7 h-7 rounded-full bg-foreground text-background flex items-center justify-center text-xs font-bold shrink-0">2</span>
-              <span className="text-sm font-medium text-foreground">click &quot;Calendar Feed&quot; at the bottom right</span>
+              <span className="text-sm font-medium text-foreground">Click &quot;Calendar Feed&quot; at the bottom right</span>
             </div>
             <div className="flex items-center gap-3 px-2 py-2">
               <span className="w-7 h-7 rounded-full bg-foreground text-background flex items-center justify-center text-xs font-bold shrink-0">3</span>
-              <span className="text-sm font-medium text-foreground">copy the feed URL and paste it below</span>
+              <span className="text-sm font-medium text-foreground">Copy the feed URL and paste it below</span>
             </div>
           </div>
 
@@ -332,7 +363,7 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
               type="url"
               value={icalUrl}
               onChange={(e) => setIcalUrl(e.target.value)}
-              placeholder="paste calendar feed URL"
+              placeholder="Paste calendar feed URL"
               autoComplete="off"
               className="w-full px-3 py-2.5 rounded-xl border border-foreground/20 bg-card text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-foreground/50 transition-colors"
             />
@@ -341,11 +372,15 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
           <div className="animate-drop-in delay-300">
             <button
               onClick={handleICalSave}
-              disabled={saving || icalLoading}
-              className="w-full px-4 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2 btn-elevated-primary"
+              disabled={saving || icalLoading || !icalUrl.trim()}
+              className={`w-full px-5 py-2.5 rounded-full text-sm font-semibold border border-transparent flex items-center justify-center gap-2 transition-colors ${
+                !icalUrl.trim()
+                  ? "bg-[#D1D1D6] dark:bg-[#3A3A3C] text-white/70 dark:text-white/40 cursor-not-allowed"
+                  : "bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 disabled:opacity-50"
+              }`}
             >
               {icalLoading && <Loader2 size={14} className="animate-spin" />}
-              {icalLoading ? "loading courses..." : saving ? "saving..." : "connect"}
+              {icalLoading ? "Loading courses..." : saving ? "Saving..." : "Connect"}
             </button>
           </div>
 
@@ -355,7 +390,7 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
             onClick={() => { setMode("api"); setError(null); }}
             className="mt-4 text-[11px] text-muted-foreground/50 hover:text-muted-foreground transition-colors"
           >
-            use API key instead (advanced, more setup required)
+            Use API key instead (advanced, more setup required)
           </button>
         </>
       )}
@@ -364,9 +399,9 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
       {mode === "ical" && icalCourses && (
         <>
           <div className="mb-4">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm font-medium text-muted-foreground">
-                select courses to sync ({icalSelectedNames.size}/{icalCourses.length})
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-semibold text-foreground">
+                Select Courses to Sync ({icalSelectedNames.size}/{icalCourses.length})
               </p>
               <button
                 type="button"
@@ -377,33 +412,43 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
                     setIcalSelectedNames(new Set(icalCourses.map((c) => c.name)));
                   }
                 }}
-                className="text-xs text-blue-400 hover:text-blue-300 transition-colors duration-100"
+                className="text-xs font-medium text-[#0071E3] hover:text-[#3D8FE8] transition-colors"
               >
-                {icalSelectedNames.size === icalCourses.length ? "deselect all" : "select all"}
+                {icalSelectedNames.size === icalCourses.length ? "Deselect All" : "Select All"}
               </button>
             </div>
-            <div className="max-h-80 overflow-auto rounded-xl border border-border">
-              {icalCourses.map((course) => (
-                <label
-                  key={course.name}
-                  className="flex items-center gap-3 px-3 py-2.5 hover:bg-accent transition-colors duration-100 cursor-pointer border-b border-border last:border-0"
-                >
-                  <input
-                    type="checkbox"
-                    checked={icalSelectedNames.has(course.name)}
-                    onChange={() => toggleIcalCourse(course.name)}
-                    className="w-4 h-4 rounded accent-foreground"
-                  />
-                  <span className="text-sm text-foreground truncate">{course.name}</span>
-                </label>
-              ))}
+            <div className="flex flex-col gap-2 max-h-80 overflow-auto -mx-1 px-1 py-1">
+              {icalCourses.map((course) => {
+                const selected = icalSelectedNames.has(course.name);
+                return (
+                  <button
+                    key={course.name}
+                    type="button"
+                    onClick={() => toggleIcalCourse(course.name)}
+                    className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl bg-white text-foreground border-2 transition-colors duration-150 focus:outline-none ${
+                      selected ? "border-[#0071E3]" : "border-transparent hover:border-[#0071E3]/30"
+                    }`}
+                  >
+                    <span className="flex-1 min-w-0 text-sm font-semibold text-foreground truncate">{course.name}</span>
+                    <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-colors ${
+                      selected ? "bg-[#0071E3]" : "border border-muted-foreground/30"
+                    }`}>
+                      {selected && (
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-white">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
               {icalCourses.length === 0 && (
-                <div className="px-3 py-4 text-center">
-                  <p className="text-sm text-foreground font-medium mb-2">
-                    no courses found in your calendar feed.
+                <div className="px-3 py-4 text-center bg-white rounded-xl">
+                  <p className="text-sm text-foreground font-semibold mb-2">
+                    No courses found in your calendar feed.
                   </p>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    this usually means no assignments have been posted yet. you can continue and select courses later in Settings &gt; Classes.
+                  <p className="text-xs text-foreground leading-relaxed">
+                    This usually means no assignments have been posted yet. You can continue and select courses later in Settings &gt; Classes.
                   </p>
                 </div>
               )}
@@ -413,9 +458,9 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
           <button
             onClick={handleICalSave}
             disabled={saving}
-            className="w-full px-4 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-sm font-semibold disabled:opacity-50 btn-elevated-primary"
+            className="w-full px-5 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-full text-sm font-semibold disabled:opacity-50 btn-elevated-primary"
           >
-            {saving ? "saving..." : icalSelectedNames.size > 0 ? "save & next" : "next"}
+            {saving ? "Saving..." : icalSelectedNames.size > 0 ? "Save & Next" : "Next"}
           </button>
         </>
       )}
@@ -423,8 +468,8 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
       {/* ===== API token mode (advanced) ===== */}
       {mode === "api" && !courses && (
         <>
-          <p className="text-xs text-muted-foreground mb-4 animate-drop-in">
-            this method requires generating an API token and has more setup steps.
+          <p className="text-xs text-foreground mb-4 animate-drop-in">
+            This method requires generating an API token and has more setup steps.
           </p>
 
           {/* Steps + video section */}
@@ -472,9 +517,9 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
                           <span className={`text-sm leading-tight ${isActive ? "font-semibold" : "font-medium"}`}>
                             {i === 0 ? (
                               <>
-                                open{" "}
-                                <a href="https://bcourses.berkeley.edu/profile/settings" target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">
-                                  bCourses settings
+                                Open{" "}
+                                <a href="https://bcourses.berkeley.edu/profile/settings" target="_blank" rel="noopener noreferrer" className="text-foreground hover:opacity-70 transition-opacity underline">
+                                  Canvas settings
                                 </a>
                               </>
                             ) : (
@@ -497,7 +542,7 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
                   className="text-sm text-muted-foreground hover:text-foreground transition-colors mb-4 flex items-center gap-1 mx-auto"
                 >
                   <X size={14} />
-                  hide video
+                  Hide video
                 </button>
               </div>
             </div>
@@ -523,8 +568,8 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
                           {i === 0 ? (
                             <>
                               Open{" "}
-                              <a href="https://bcourses.berkeley.edu/profile/settings" target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">
-                                bCourses Settings
+                              <a href="https://bcourses.berkeley.edu/profile/settings" target="_blank" rel="noopener noreferrer" className="text-foreground hover:opacity-70 transition-opacity underline">
+                                Canvas Settings
                               </a>
                             </>
                           ) : i === 1 ? (
@@ -533,9 +578,9 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
                               <button
                                 type="button"
                                 onClick={() => setShowTokenHelp(!showTokenHelp)}
-                                className="text-blue-400 font-normal text-xs hover:text-blue-600 cursor-pointer transition-colors"
+                                className="text-[#0071E3] font-normal text-xs hover:text-[#3D8FE8] cursor-pointer transition-colors"
                               >
-                                having issues?
+                                Having issues?
                               </button>
                             </>
                           ) : (
@@ -567,7 +612,7 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
                   className="w-full flex items-center gap-2.5 px-3.5 py-3 mb-4 rounded-xl text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 hover:bg-blue-100 dark:hover:bg-blue-500/20 active:scale-[0.98] transition-all duration-150"
                 >
                   <Play size={14} />
-                  watch how to generate a token
+                  Watch how to generate a token
                 </button>
               </div>
             </div>
@@ -579,7 +624,7 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
                 type={showToken ? "text" : "password"}
                 value={canvasToken}
                 onChange={(e) => setCanvasToken(e.target.value)}
-                placeholder="paste access token"
+                placeholder="Paste access token"
                 autoComplete="off"
                 name="canvas-token-nofill"
                 className="w-full px-3 py-2.5 pr-10 rounded-xl border border-foreground/20 bg-card text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-foreground/50 transition-colors"
@@ -598,10 +643,10 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
             <button
               onClick={handleVerify}
               disabled={verifying || saving}
-              className="w-full px-4 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2 btn-elevated-primary"
+              className="w-full px-5 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-full text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2 btn-elevated-primary"
             >
               {verifying && <Loader2 size={14} className="animate-spin" />}
-              {verifying ? "verifying..." : "connect"}
+              {verifying ? "Verifying..." : "Connect"}
             </button>
           </div>
 
@@ -609,9 +654,9 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
           <button
             type="button"
             onClick={() => { setMode("ical"); setError(null); }}
-            className="mt-4 text-[11px] text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+            className="mt-4 text-[11px] text-foreground/60 hover:text-foreground transition-colors"
           >
-            use calendar feed instead (easier)
+            Use calendar feed instead (easier)
           </button>
         </>
       )}
@@ -667,9 +712,9 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
           <button
             onClick={handleSaveAndNext}
             disabled={saving}
-            className="w-full px-4 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-sm font-semibold disabled:opacity-50 btn-elevated-primary"
+            className="w-full px-5 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-full text-sm font-semibold disabled:opacity-50 btn-elevated-primary"
           >
-            {saving ? "saving..." : selectedIds.size > 0 ? "save & next" : "next"}
+            {saving ? "Saving..." : selectedIds.size > 0 ? "Save & Next" : "Next"}
           </button>
         </>
       )}

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Eye, EyeOff, Loader2, Merge, ShieldCheck, ChevronDown } from "lucide-react";
 import { extractCourseCode } from "@/lib/course-name-merge";
+import { useToast } from "@/contexts/ToastContext";
 
 /**
  * Collapsible help text for SSO/password issues.
@@ -84,6 +85,7 @@ interface GradescopeStepProps {
  * @param setError - Callback to set/clear error messages
  */
 export default function GradescopeStep({ onNext, onSkip, saving, error, setError, initialEmail, initialPassword, initialCourses, initialSelectedIds, onDraftChange, existingCanvasCourses }: GradescopeStepProps) {
+  const { showToast } = useToast();
   const [email, setEmail] = useState(initialEmail ?? "");
   const [password, setPassword] = useState(initialPassword ?? "");
   const [showPassword, setShowPassword] = useState(false);
@@ -115,7 +117,7 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
    */
   async function handleVerify() {
     if (!email.trim() || !password.trim()) {
-      setError("Please enter both your email and password.");
+      showToast("Please enter both your email and password.", { variant: "error", duration: 4000 });
       return;
     }
 
@@ -170,9 +172,9 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
       }
     } catch (err) {
       if (err instanceof TypeError) {
-        setError("Network error. Check your connection.");
+        showToast("Network error. Check your connection.", { variant: "error", duration: 4000 });
       } else {
-        setError(err instanceof Error ? err.message : String(err));
+        showToast(err instanceof Error ? err.message : String(err), { variant: "error", duration: 4000 });
       }
     } finally {
       setVerifying(false);
@@ -275,11 +277,15 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
           <div className="animate-drop-in delay-300">
             <button
               onClick={handleVerify}
-              disabled={verifying || saving}
-              className="w-full px-4 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2 btn-elevated-primary"
+              disabled={verifying || saving || !email.trim() || !password.trim()}
+              className={`w-full px-5 py-2.5 rounded-full text-sm font-semibold border border-transparent flex items-center justify-center gap-2 transition-colors ${
+                !email.trim() || !password.trim()
+                  ? "bg-[#D1D1D6] dark:bg-[#3A3A3C] text-white/70 dark:text-white/40 cursor-not-allowed"
+                  : "bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 disabled:opacity-50"
+              }`}
             >
               {verifying && <Loader2 size={14} className="animate-spin" />}
-              {verifying ? "verifying..." : "connect"}
+              {verifying ? "Verifying..." : "Connect"}
             </button>
           </div>
 
@@ -293,9 +299,9 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
       {courses && (
         <>
           <div className="mb-4">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm font-medium text-muted-foreground">
-                select courses to sync ({selectedIds.size}/{courses.length})
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-semibold text-foreground">
+                Select Courses to Sync ({selectedIds.size}/{courses.length})
               </p>
               <button
                 type="button"
@@ -306,31 +312,38 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
                     setSelectedIds(new Set(courses.map((c) => c.id)));
                   }
                 }}
-                className="text-xs text-blue-400 hover:text-blue-300 transition-colors duration-100"
+                className="text-xs font-medium text-[#0071E3] hover:text-[#3D8FE8] transition-colors"
               >
-                {selectedIds.size === courses.length ? "deselect all" : "select all"}
+                {selectedIds.size === courses.length ? "Deselect All" : "Select All"}
               </button>
             </div>
-            <div className="max-h-80 overflow-auto rounded-xl border border-border">
-              {courses.map((course) => (
-                <label
-                  key={course.id}
-                  className="flex items-center gap-3 px-3 py-2.5 hover:bg-accent transition-colors duration-100 cursor-pointer border-b border-border last:border-0"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.has(course.id)}
-                    onChange={() => toggleCourse(course.id)}
-                    className="w-4 h-4 rounded accent-foreground"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <span className="text-sm text-foreground block truncate">{course.name}</span>
-                    {course.shortName && (
-                      <span className="text-xs text-muted-foreground block truncate">{course.shortName}</span>
-                    )}
-                  </div>
-                </label>
-              ))}
+            <div className="flex flex-col gap-2 max-h-80 overflow-auto -mx-1 px-1 py-1">
+              {courses.map((course) => {
+                const selected = selectedIds.has(course.id);
+                return (
+                  <button
+                    key={course.id}
+                    type="button"
+                    onClick={() => toggleCourse(course.id)}
+                    className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl bg-white text-foreground border-2 transition-colors duration-150 focus:outline-none ${
+                      selected ? "border-[#0071E3]" : "border-transparent hover:border-[#0071E3]/30"
+                    }`}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm font-semibold text-foreground block truncate">{course.name}</span>
+                    </div>
+                    <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-colors ${
+                      selected ? "bg-[#0071E3]" : "border border-muted-foreground/30"
+                    }`}>
+                      {selected && (
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-white">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
               {courses.length === 0 && (
                 <div className="px-3 py-4">
                   <AuthHelpDropdown />
@@ -342,9 +355,9 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
           <button
             onClick={handleSaveAndNext}
             disabled={saving}
-            className="w-full px-4 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-sm font-semibold disabled:opacity-50 btn-elevated-primary"
+            className="w-full px-5 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-full text-sm font-semibold disabled:opacity-50 btn-elevated-primary"
           >
-            {saving ? "saving..." : selectedIds.size > 0 ? "save & next" : "next"}
+            {saving ? "Saving..." : selectedIds.size > 0 ? "Save & Next" : "Next"}
           </button>
         </>
       )}

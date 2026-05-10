@@ -4,6 +4,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { Upload, FileText } from "lucide-react";
 import { useTaskContext } from "@/contexts/TaskContext";
+import { useToast } from "@/contexts/ToastContext";
 import type { ExtractedAssignment } from "@/app/api/syllabus/extract/route";
 import SyllabusPreview from "./SyllabusPreview";
 import type { SelectableAssignment } from "./SyllabusPreview";
@@ -52,6 +53,7 @@ const MOCK_ASSIGNMENTS: SelectableAssignment[] = [
  * Phases: upload → extracting (loading UI) → preview (editable list).
  */
 export default function SyllabusStep({ onNext, onSkip, error, setError, onPhaseChange }: SyllabusStepProps) {
+  const { showToast } = useToast();
   const { importSyllabusTasks } = useTaskContext();
   const searchParams = useSearchParams();
 
@@ -110,11 +112,11 @@ export default function SyllabusStep({ onNext, onSkip, error, setError, onPhaseC
   const processFile = useCallback((f: File) => {
     setError(null);
     if (!ACCEPTED_TYPES.includes(f.type)) {
-      setError("Unsupported file type. Please upload a PDF, PNG, JPG, or WebP file.");
+      showToast("Unsupported file type. Please upload a PDF, PNG, JPG, or WebP file.", { variant: "error", duration: 4000 });
       return;
     }
     if (f.size > MAX_FILE_SIZE) {
-      setError("File too large. Maximum size is 10 MB.");
+      showToast("File too large. Maximum size is 10 MB.", { variant: "error", duration: 4000 });
       return;
     }
     setFile(f);
@@ -125,7 +127,7 @@ export default function SyllabusStep({ onNext, onSkip, error, setError, onPhaseC
       setFileBase64(result.split(",")[1]);
     };
     reader.readAsDataURL(f);
-  }, [setError]);
+  }, [setError, showToast]);
 
   /** Starts the simulated progress bar and status message rotation. */
   function startProgressSimulation() {
@@ -172,7 +174,7 @@ export default function SyllabusStep({ onNext, onSkip, error, setError, onPhaseC
       clearExtractionIntervals();
       setProgressPercent(0);
       setPhase("upload");
-      setError(err instanceof Error ? err.message : String(err));
+      showToast(err instanceof Error ? err.message : String(err), { variant: "error", duration: 4000 });
     }
   }
 
@@ -200,7 +202,7 @@ export default function SyllabusStep({ onNext, onSkip, error, setError, onPhaseC
       );
       await onNext({} as Record<string, never>);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      showToast(err instanceof Error ? err.message : String(err), { variant: "error", duration: 4000 });
     } finally {
       setImporting(false);
     }
@@ -270,10 +272,10 @@ export default function SyllabusStep({ onNext, onSkip, error, setError, onPhaseC
         onClick={() => fileInputRef.current?.click()}
         className={`animate-drop-in delay-150 border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-colors ${
           dragOver
-            ? "border-purple-500 bg-purple-50 dark:bg-purple-500/10"
+            ? "border-purple-500"
             : file
-            ? "border-purple-300 bg-purple-50/50 dark:border-purple-500/40 dark:bg-purple-500/5"
-            : "border-border hover:border-foreground/30"
+            ? "border-purple-400"
+            : "border-foreground/20"
         }`}
       >
         <input
@@ -286,17 +288,17 @@ export default function SyllabusStep({ onNext, onSkip, error, setError, onPhaseC
         {file ? (
           <div className="flex flex-col items-center gap-2">
             <FileText size={32} className="text-purple-500" />
-            <p className="text-sm font-medium text-foreground">{file.name}</p>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-sm font-semibold text-foreground">{file.name}</p>
+            <p className="text-xs text-foreground">
               {(file.size / 1024 / 1024).toFixed(1)} MB
             </p>
-            <p className="text-xs text-blue-500">Click to choose a different file</p>
+            <p className="text-xs font-medium text-[#0071E3]">Click to choose a different file</p>
           </div>
         ) : (
           <div className="flex flex-col items-center gap-2">
-            <Upload size={32} className="text-muted-foreground" />
-            <p className="text-sm font-medium text-foreground">Drag & drop your syllabus here</p>
-            <p className="text-xs text-muted-foreground">PDF, PNG, JPG, or WebP (max 10 MB)</p>
+            <Upload size={32} className="text-foreground" />
+            <p className="text-sm font-semibold text-foreground">Drag &amp; drop your syllabus here</p>
+            <p className="text-xs text-foreground">PDF, PNG, JPG, or WebP (max 10 MB)</p>
           </div>
         )}
       </div>
@@ -308,7 +310,11 @@ export default function SyllabusStep({ onNext, onSkip, error, setError, onPhaseC
       <button
         onClick={handleExtract}
         disabled={!file}
-        className="w-full mt-6 px-4 py-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl font-semibold btn-elevated-primary disabled:opacity-50 animate-drop-in delay-200 cursor-pointer"
+        className={`w-full mt-6 px-5 py-2.5 rounded-full text-sm font-semibold border border-transparent transition-colors animate-drop-in delay-200 ${
+          !file
+            ? "bg-[#D1D1D6] dark:bg-[#3A3A3C] text-white/70 dark:text-white/40 cursor-not-allowed"
+            : "bg-gray-900 dark:bg-white text-white dark:text-gray-900 cursor-pointer"
+        }`}
       >
         Extract Assignments
       </button>

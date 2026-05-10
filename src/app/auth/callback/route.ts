@@ -62,8 +62,13 @@ export async function GET(request: NextRequest) {
               console.warn("auth/callback: failed to seed hidden_nav_items", seedError.message);
             }
           }
+
+          // Send new users through the onboarding wizard so they pick
+          // their platforms and connect each integration.
+          redirectTo.pathname = "/app/onboarding";
+        } else {
+          redirectTo.pathname = pickLandingPath(user.user_metadata);
         }
-        redirectTo.pathname = pickLandingPath(user.user_metadata);
       } else {
         redirectTo.pathname = "/app/home";
       }

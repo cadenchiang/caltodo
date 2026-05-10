@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2, LogOut, UserX } from "lucide-react";
+import { Trash2, LogOut, UserX, RotateCcw } from "lucide-react";
 import { useTaskContext } from "@/contexts/TaskContext";
 import { useToast } from "@/contexts/ToastContext";
 import { clearLayoutCache } from "@/lib/board-layout-cache";
@@ -20,6 +20,7 @@ export default function AdvancedSection() {
   const [confirmSignOut, setConfirmSignOut] = useState(false);
   const [confirmDeleteAccount, setConfirmDeleteAccount] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
+  const [resettingOnboarding, setResettingOnboarding] = useState(false);
 
   useEffect(() => {
     router.prefetch("/app/inbox");
@@ -56,6 +57,30 @@ export default function AdvancedSection() {
     clearLayoutCache();
     await fetch("/auth/signout", { method: "POST" });
     router.push("/");
+  }
+
+  /**
+   * Resets the onboarding flow so all welcome modals reappear and
+   * the user is sent back through /app/onboarding.
+   * Clears server-side dismissed_modals and local "seen" flags.
+   */
+  async function handleResetOnboarding() {
+    setResettingOnboarding(true);
+    try {
+      await fetch("/api/credentials", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dismissed_modals: {} }),
+      });
+      localStorage.removeItem("caltodo_notes_welcome_seen");
+      localStorage.removeItem("caltodo_integrations_welcome_seen");
+      localStorage.removeItem("calchat_welcome_accepted");
+      router.push("/app/onboarding");
+    } catch {
+      showToast("Failed to reset onboarding.");
+    } finally {
+      setResettingOnboarding(false);
+    }
   }
 
   /**
@@ -107,6 +132,15 @@ export default function AdvancedSection() {
           {confirmDelete
             ? `Click again to delete all ${tasks.length} tasks`
             : `Delete All Tasks (${tasks.length})`}
+        </button>
+
+        <button
+          onClick={handleResetOnboarding}
+          disabled={resettingOnboarding}
+          className="w-full flex items-center gap-3 px-4 py-3 text-sm rounded-xl border border-border bg-card hover:bg-accent text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          <RotateCcw size={15} />
+          {resettingOnboarding ? "Resetting..." : "Reset Onboarding"}
         </button>
 
         {/* Divider */}

@@ -53,7 +53,7 @@ export default function FeatureHighlight() {
   const goPrev = () => changeSlide(Math.max(active - 1, 0));
 
   return (
-    <section className="w-full bg-[#FCFCFD] pt-20 sm:pt-28 py-6 sm:py-8">
+    <section className="w-full bg-[#f6f5f4] pt-20 sm:pt-28 py-6 sm:py-8">
       <div className="max-w-4xl mx-auto px-6 lg:px-10">
         {/* Badge + Heading */}
         <FadeIn>
@@ -97,12 +97,10 @@ export default function FeatureHighlight() {
                   onMouseEnter={() => setHoveredSlide(i)}
                   onMouseLeave={() => setHoveredSlide(null)}
                 >
-                  {/* Outer frame — padded card border */}
+                  {/* No frame — image only */}
                   <div
-                    className={`rounded-2xl p-1.5 sm:p-2 transition-all duration-500 ${
-                      isActive
-                        ? "bg-gray-100 border border-gray-200 shadow-xl"
-                        : "bg-gray-100 border border-gray-200 shadow-sm cursor-pointer"
+                    className={`transition-all duration-500 ${
+                      isActive ? "" : "cursor-pointer"
                     }`}
                   >
                     {/* Inner image container */}

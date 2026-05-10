@@ -10,9 +10,9 @@ import { useToast } from "@/contexts/ToastContext";
 const TOKEN_STEPS: Array<{ label: string; time: number }> = [
   { label: "open your Canvas settings", time: 0 },
   { label: "create + new access token", time: 5 },
-  { label: "name the token whatever you want", time: 9 },
-  { label: "set expiration to max (120 days)", time: 12 },
-  { label: "copy and paste your token below", time: 18 },
+  { label: "Name the token whatever you want", time: 9 },
+  { label: "Set expiration to max (120 days)", time: 12 },
+  { label: "Copy and paste your token below", time: 18 },
 ];
 
 interface CanvasCourse {
@@ -109,11 +109,11 @@ export default function AddCanvasStep({ onNext, onSkip, saving, error, setError 
     const url = icalUrl.trim();
 
     if (!url) {
-      showToast("please paste your calendar feed URL.");
+      showToast("Please paste your calendar feed URL.", { variant: "error", duration: 4000 });
       return;
     }
     if (!url.startsWith("https://") || !url.endsWith(".ics")) {
-      setError("that doesn't look like a calendar feed URL. it should start with https:// and end with .ics");
+      showToast("That doesn't look like a calendar feed URL. It should start with https:// and end with .ics", { variant: "error", duration: 4000 });
       return;
     }
 
@@ -122,7 +122,7 @@ export default function AddCanvasStep({ onNext, onSkip, saving, error, setError 
       const parsed = new URL(url);
       base = `${parsed.protocol}//${parsed.hostname}`;
     } catch {
-      setError("couldn't parse the URL. please check it and try again.");
+      showToast("Couldn't parse the URL. Please check it and try again.", { variant: "error", duration: 4000 });
       return;
     }
 
@@ -140,11 +140,11 @@ export default function AddCanvasStep({ onNext, onSkip, saving, error, setError 
   async function handleVerify() {
     const host = baseHost.trim().replace(/^https?:\/\//, "").replace(/\/+$/, "");
     if (!host) {
-      showToast("please enter the Canvas domain.");
+      showToast("Please enter the Canvas domain.", { variant: "error", duration: 4000 });
       return;
     }
     if (!token.trim()) {
-      showToast("please enter your Canvas access token.");
+      showToast("Please enter your Canvas access token.", { variant: "error", duration: 4000 });
       return;
     }
 
@@ -166,7 +166,7 @@ export default function AddCanvasStep({ onNext, onSkip, saving, error, setError 
       setCourses(data.courses);
       setSelectedIds(new Set());
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      showToast(err instanceof Error ? err.message : String(err), { variant: "error", duration: 4000 });
     } finally {
       setVerifying(false);
     }
@@ -218,7 +218,7 @@ export default function AddCanvasStep({ onNext, onSkip, saving, error, setError 
             </div>
             <div className="flex items-center gap-3 px-2 py-2">
               <span className="w-7 h-7 rounded-full bg-foreground text-background flex items-center justify-center text-xs font-bold shrink-0">3</span>
-              <span className="text-sm font-medium text-foreground">copy and paste the URL below</span>
+              <span className="text-sm font-medium text-foreground">Copy and paste the URL below</span>
             </div>
           </div>
 
@@ -227,7 +227,7 @@ export default function AddCanvasStep({ onNext, onSkip, saving, error, setError 
               type="url"
               value={icalUrl}
               onChange={(e) => setIcalUrl(e.target.value)}
-              placeholder="paste calendar feed URL"
+              placeholder="Paste calendar feed URL"
               autoComplete="off"
               className="w-full px-3 py-2.5 rounded-xl border border-foreground/20 bg-card text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-foreground/50 transition-colors"
             />
@@ -243,9 +243,9 @@ export default function AddCanvasStep({ onNext, onSkip, saving, error, setError 
             <button
               onClick={handleICalSave}
               disabled={saving}
-              className="flex-1 px-4 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2 btn-elevated-primary"
+              className="flex-1 px-5 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-full text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2 btn-elevated-primary"
             >
-              {saving ? "saving..." : "connect"}
+              {saving ? "Saving..." : "Connect"}
             </button>
           </div>
 
@@ -254,7 +254,7 @@ export default function AddCanvasStep({ onNext, onSkip, saving, error, setError 
             onClick={() => { setMode("api"); setError(null); }}
             className="mt-4 text-[11px] text-muted-foreground/50 hover:text-muted-foreground transition-colors"
           >
-            use API key instead (advanced, more setup required)
+            Use API key instead (advanced, more setup required)
           </button>
         </>
       )}
@@ -263,7 +263,7 @@ export default function AddCanvasStep({ onNext, onSkip, saving, error, setError 
       {mode === "api" && !courses && (
         <>
           <p className="text-xs text-muted-foreground mb-4 animate-drop-in">
-            this method requires generating an API token and has more setup steps.
+            This method requires generating an API token and has more setup steps.
           </p>
 
           <div className="animate-drop-in delay-100">
@@ -326,7 +326,7 @@ export default function AddCanvasStep({ onNext, onSkip, saving, error, setError 
                   className="text-sm text-muted-foreground hover:text-foreground transition-colors mb-4 flex items-center gap-1 mx-auto"
                 >
                   <X size={14} />
-                  hide video
+                  Hide video
                 </button>
               </div>
             </div>
@@ -357,7 +357,7 @@ export default function AddCanvasStep({ onNext, onSkip, saving, error, setError 
                                 onClick={() => setShowTokenHelp(!showTokenHelp)}
                                 className="text-blue-400 font-normal text-xs hover:text-blue-600 cursor-pointer transition-colors"
                               >
-                                having issues?
+                                Having issues?
                               </button>
                             </>
                           ) : (
@@ -389,7 +389,7 @@ export default function AddCanvasStep({ onNext, onSkip, saving, error, setError 
                   className="w-full flex items-center gap-2.5 px-3.5 py-3 mb-4 rounded-xl text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 hover:bg-blue-100 dark:hover:bg-blue-500/20 active:scale-[0.98] transition-all duration-150"
                 >
                   <Play size={14} />
-                  watch how to generate a token
+                  Watch how to generate a token
                 </button>
               </div>
             </div>
@@ -417,7 +417,7 @@ export default function AddCanvasStep({ onNext, onSkip, saving, error, setError 
                 type={showToken ? "text" : "password"}
                 value={token}
                 onChange={(e) => setToken(e.target.value)}
-                placeholder="paste access token"
+                placeholder="Paste access token"
                 autoComplete="new-password"
                 name="canvas-add-token-nofill"
                 data-1p-ignore
@@ -443,10 +443,10 @@ export default function AddCanvasStep({ onNext, onSkip, saving, error, setError 
             <button
               onClick={handleVerify}
               disabled={verifying || saving}
-              className="flex-1 px-4 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2 btn-elevated-primary"
+              className="flex-1 px-5 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-full text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2 btn-elevated-primary"
             >
               {verifying && <Loader2 size={14} className="animate-spin" />}
-              {verifying ? "verifying..." : "connect"}
+              {verifying ? "Verifying..." : "Connect"}
             </button>
           </div>
 
@@ -455,7 +455,7 @@ export default function AddCanvasStep({ onNext, onSkip, saving, error, setError 
             onClick={() => { setMode("ical"); setError(null); }}
             className="mt-4 text-[11px] text-muted-foreground/50 hover:text-muted-foreground transition-colors"
           >
-            use calendar feed instead (easier)
+            Use calendar feed instead (easier)
           </button>
         </>
       )}
@@ -519,9 +519,9 @@ export default function AddCanvasStep({ onNext, onSkip, saving, error, setError 
             <button
               onClick={handleSaveAndNext}
               disabled={saving}
-              className="flex-1 px-4 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-sm font-semibold disabled:opacity-50 btn-elevated-primary"
+              className="flex-1 px-5 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-full text-sm font-semibold disabled:opacity-50 btn-elevated-primary"
             >
-              {saving ? "saving..." : "save"}
+              {saving ? "Saving..." : "Save"}
             </button>
           </div>
         </>

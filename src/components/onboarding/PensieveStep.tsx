@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Loader2 } from "lucide-react";
+import { useToast } from "@/contexts/ToastContext";
 
 /** Regex for validating a Pensieve calendar URL. */
 const PENSIEVE_URL_REGEX = /^https:\/\/api\.pensieve\.co\/api\/calendar\/[^/]+\.ics$/;
@@ -45,7 +46,9 @@ interface PensieveStepProps {
  * @param setError - Callback to set/clear error messages
  */
 export default function PensieveStep({ onNext, onSkip, saving, error, setError, initialUrl, onDraftChange }: PensieveStepProps) {
+  const { showToast } = useToast();
   const [url, setUrl] = useState(initialUrl ?? "");
+  const [urlInvalid, setUrlInvalid] = useState(false);
   const [courses, setCourses] = useState<PensieveCourse[] | null>(null);
   const [selectedNames, setSelectedNames] = useState<Set<string>>(new Set());
   const [loadingCourses, setLoadingCourses] = useState(false);
@@ -66,13 +69,16 @@ export default function PensieveStep({ onNext, onSkip, saving, error, setError, 
   async function handleSaveAndNext() {
     const trimmed = url.trim();
     if (!trimmed) {
-      setError("Please enter your Pensive calendar URL.");
+      setUrlInvalid(true);
+      showToast("Please enter your Pensive calendar URL.", { variant: "error", duration: 4000 });
       return;
     }
     if (!PENSIEVE_URL_REGEX.test(trimmed)) {
-      setError("Invalid Pensive URL. It should look like https://api.pensieve.co/api/calendar/...ics");
+      setUrlInvalid(true);
+      showToast("Invalid Pensive URL. It should start with https://api.pensieve.co/api/calendar/", { variant: "error", duration: 4000 });
       return;
     }
+    setUrlInvalid(false);
     setError(null);
 
     // If courses already loaded, save selection and advance
@@ -106,12 +112,12 @@ export default function PensieveStep({ onNext, onSkip, saving, error, setError, 
         return;
       }
       setCourses(data.courses);
-      setSelectedNames(new Set(data.courses.map((c: PensieveCourse) => c.name)));
+      setSelectedNames(new Set());
     } catch (err) {
       if (err instanceof TypeError) {
-        setError("Network error. Check your connection.");
+        showToast("Network error. Check your connection.", { variant: "error", duration: 4000 });
       } else {
-        setError(err instanceof Error ? err.message : String(err));
+        showToast(err instanceof Error ? err.message : String(err), { variant: "error", duration: 4000 });
       }
     } finally {
       setLoadingCourses(false);
@@ -172,11 +178,18 @@ export default function PensieveStep({ onNext, onSkip, saving, error, setError, 
             <input
               type="text"
               value={url}
-              onChange={(e) => setUrl(e.target.value)}
+              onChange={(e) => {
+                setUrl(e.target.value);
+                if (urlInvalid) setUrlInvalid(false);
+              }}
               placeholder="https://api.pensieve.co/api/calendar/...ics"
               autoComplete="off"
               name="pensieve-url-nofill"
-              className="w-full px-3 py-2.5 rounded-xl border border-foreground/20 bg-card text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-foreground/50 transition-colors"
+              className={`w-full px-3 py-2.5 rounded-xl border bg-card text-sm text-foreground placeholder-muted-foreground focus:outline-none transition-colors ${
+                urlInvalid
+                  ? "border-red-500 focus:border-red-500"
+                  : "border-foreground/20 focus:border-foreground/50"
+              }`}
             />
           </div>
 
@@ -184,11 +197,15 @@ export default function PensieveStep({ onNext, onSkip, saving, error, setError, 
           <div className="animate-drop-in delay-300">
             <button
               onClick={handleSaveAndNext}
-              disabled={saving || loadingCourses}
-              className="w-full px-4 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2 btn-elevated-primary"
+              disabled={saving || loadingCourses || !url.trim()}
+              className={`w-full px-5 py-2.5 rounded-full text-sm font-semibold border border-transparent flex items-center justify-center gap-2 transition-colors ${
+                !url.trim()
+                  ? "bg-[#D1D1D6] dark:bg-[#3A3A3C] text-white/70 dark:text-white/40 cursor-not-allowed"
+                  : "bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 disabled:opacity-50"
+              }`}
             >
               {loadingCourses && <Loader2 size={14} className="animate-spin" />}
-              {loadingCourses ? "loading courses..." : saving ? "saving..." : "connect"}
+              {loadingCourses ? "Loading courses..." : saving ? "Saving..." : "Connect"}
             </button>
           </div>
         </>
@@ -198,9 +215,9 @@ export default function PensieveStep({ onNext, onSkip, saving, error, setError, 
       {courses && (
         <>
           <div className="mb-4">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm font-medium text-muted-foreground">
-                select courses to sync ({selectedNames.size}/{courses.length})
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-semibold text-foreground">
+                Select Courses to Sync ({selectedNames.size}/{courses.length})
               </p>
               <button
                 type="button"
@@ -211,35 +228,45 @@ export default function PensieveStep({ onNext, onSkip, saving, error, setError, 
                     setSelectedNames(new Set(courses.map((c) => c.name)));
                   }
                 }}
-                className="text-xs text-blue-400 hover:text-blue-300 transition-colors duration-100"
+                className="text-xs font-medium text-[#0071E3] hover:text-[#3D8FE8] transition-colors"
               >
-                {selectedNames.size === courses.length ? "deselect all" : "select all"}
+                {selectedNames.size === courses.length ? "Deselect All" : "Select All"}
               </button>
             </div>
-            <div className="max-h-80 overflow-auto rounded-xl border border-border">
-              {courses.map((course) => (
-                <label
-                  key={course.name}
-                  className="flex items-center gap-3 px-3 py-2.5 hover:bg-accent transition-colors duration-100 cursor-pointer border-b border-border last:border-0"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedNames.has(course.name)}
-                    onChange={() => toggleCourse(course.name)}
-                    className="w-4 h-4 rounded accent-foreground"
-                  />
-                  <span className="text-sm text-foreground truncate">{course.name}</span>
-                </label>
-              ))}
+            <div className="flex flex-col gap-2 max-h-80 overflow-auto -mx-1 px-1 py-1">
+              {courses.map((course) => {
+                const selected = selectedNames.has(course.name);
+                return (
+                  <button
+                    key={course.name}
+                    type="button"
+                    onClick={() => toggleCourse(course.name)}
+                    className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl bg-white text-foreground border-2 transition-colors duration-150 focus:outline-none ${
+                      selected ? "border-[#0071E3]" : "border-transparent hover:border-[#0071E3]/30"
+                    }`}
+                  >
+                    <span className="flex-1 min-w-0 text-sm font-semibold text-foreground truncate">{course.name}</span>
+                    <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-colors ${
+                      selected ? "bg-[#0071E3]" : "border border-muted-foreground/30"
+                    }`}>
+                      {selected && (
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-white">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
           <button
             onClick={handleSaveAndNext}
             disabled={saving}
-            className="w-full px-4 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-sm font-semibold disabled:opacity-50 btn-elevated-primary"
+            className="w-full px-5 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-full text-sm font-semibold disabled:opacity-50 btn-elevated-primary"
           >
-            {saving ? "saving..." : selectedNames.size > 0 ? "save & next" : "next"}
+            {saving ? "Saving..." : selectedNames.size > 0 ? "Save & Next" : "Next"}
           </button>
         </>
       )}

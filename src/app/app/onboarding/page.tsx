@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Monitor, FileText, Check } from "lucide-react";
 import { useTaskContext } from "@/contexts/TaskContext";
 import { trackEvent } from "@/lib/analytics";
 import CanvasStep from "@/components/onboarding/CanvasStep";
@@ -12,8 +12,8 @@ import AddCanvasStep from "@/components/onboarding/AddCanvasStep";
 import SyllabusStep from "@/components/onboarding/SyllabusStep";
 import type { IntegrationCredentials, AdditionalCanvasAccount } from "@/lib/types";
 
-type Step = "welcome" | "platforms" | "canvas" | "gradescope" | "pensieve" | "done";
-type Platform = "canvas" | "gradescope" | "pensieve";
+type Step = "welcome" | "platforms" | "canvas" | "gradescope" | "pensieve" | "syllabus" | "done";
+type Platform = "canvas" | "gradescope" | "pensieve" | "syllabus";
 
 /** Display labels for each step in the stepper bar. */
 const STEP_LABELS: Record<Step, string> = {
@@ -22,6 +22,7 @@ const STEP_LABELS: Record<Step, string> = {
   canvas: "Canvas",
   gradescope: "Gradescope",
   pensieve: "Pensive",
+  syllabus: "Syllabus",
   done: "Finish",
 };
 
@@ -30,6 +31,7 @@ const PLATFORM_OPTIONS: Array<{ id: Platform; label: string; description: string
   { id: "canvas", label: "Canvas", description: "Sync assignments from your Canvas account", logo: "/canvas-logo.png" },
   { id: "gradescope", label: "Gradescope", description: "Sync deadlines from Gradescope", logo: "/gradescope-logo.png" },
   { id: "pensieve", label: "Pensive", description: "Sync CS/DS assignments from Pensive", logo: "/pensieve-logo.png" },
+  { id: "syllabus", label: "Syllabus", description: "Extract assignments from a syllabus PDF", logo: "/file.svg" },
 ];
 
 /** Valid platforms for standalone ?setup= mode. */
@@ -44,32 +46,278 @@ const SETUP_LABELS: Record<string, string> = {
   syllabus: "Syllabus",
 };
 
-/**
- * Auto-syncing "done" step. Triggers sync on mount (fire-and-forget),
- * then fades out the overlay and navigates to /app/inbox.
- *
- * @param onSyncAndGo - Fires background sync and navigates after fade-out
- */
-function DoneStep({ onSyncAndGo }: { onSyncAndGo: () => void }) {
-  useEffect(() => {
-    // Brief pause so user can read "you're all set", then transition out
-    const timer = setTimeout(onSyncAndGo, 1200);
-    return () => clearTimeout(timer);
-  }, [onSyncAndGo]);
+/** Status blurbs cycled while syncing — mostly playful with a few technical ones. */
+const SYNC_BLURBS = [
+  "Hunting down sneaky deadlines...",
+  "Bribing the calendar gods...",
+  "Negotiating extensions for you...",
+  "Untangling your schedule...",
+  "Calibrating sync engine...",
+  "Color-coding your future...",
+  "Pretending finals aren't real...",
+  "Whispering to the registrar...",
+  "Sharpening pencils...",
+  "Cross-referencing due dates...",
+  "Convincing your TA to be lenient...",
+  "Stretching office hours...",
+  "Decoding mysterious syllabi...",
+  "Saving you from yourself...",
+  "Indexing your assignments...",
+  "Turning chaos into Tuesdays...",
+  "Reticulating splines...",
+  "Buttering up your professors...",
+  "Almost there, hang tight...",
+];
 
-  return (
-    <div className="text-center">
-      <h2 className="text-lg font-bold text-foreground mb-2 animate-drop-in">
-        you&apos;re all set!
-      </h2>
-      <p className="text-sm text-muted-foreground mb-6 animate-drop-in delay-100">
-        syncing your assignments...
-      </p>
-      <div className="flex justify-center animate-drop-in delay-200">
-        <div className="h-6 w-6 border-2 border-muted-foreground/30 border-t-foreground rounded-full animate-spin" />
+interface SyncStats {
+  total: number;
+  perSource: Array<{ label: string; count: number }>;
+  courses: string[];
+}
+
+/**
+ * "Done" step — actually waits for the sync to complete.
+ * Phase 1 (syncing): progress bar + rotating blurb messages.
+ * Phase 2 (complete): shows stats (assignments synced, courses) + "Let's Go" button.
+ *
+ * @param onComplete - Called when the user clicks "Let's Go" after seeing stats
+ * @param triggerSync - Awaits sync completion; resolves when done
+ * @param getSyncStats - Reads the latest SyncResult and turns it into display stats
+ */
+function DoneStep({
+  onComplete,
+  triggerSync,
+  getSyncStats,
+}: {
+  onComplete: () => void;
+  triggerSync: () => Promise<void>;
+  getSyncStats: () => SyncStats | null;
+}) {
+  const [progress, setProgress] = useState(0);
+  const [blurbIndex, setBlurbIndex] = useState(0);
+  const [phase, setPhase] = useState<"syncing" | "complete">("syncing");
+  const [stats, setStats] = useState<SyncStats | null>(null);
+  const [fadingOut, setFadingOut] = useState(false);
+  const syncDoneRef = useRef(false);
+
+  // Kick off the sync once on mount — DON'T snap progress; let the tick interval ride it up.
+  useEffect(() => {
+    let cancelled = false;
+    triggerSync().finally(() => {
+      if (cancelled) return;
+      syncDoneRef.current = true;
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Tick progress up by 1 each interval — purposely slow so the user feels the build-up.
+  // While sync is in flight: cap at 92. Once sync resolves: keep climbing all the way to 100,
+  // then flip to the complete phase. The bar never "jumps".
+  useEffect(() => {
+    if (phase !== "syncing") return;
+    let tick = 0;
+    const id = setInterval(() => {
+      tick += 1;
+      // Rotate blurb every ~2.4s (12 ticks at 200ms).
+      if (tick % 12 === 0) setBlurbIndex((i) => (i + 1) % SYNC_BLURBS.length);
+      setProgress((p) => {
+        const cap = syncDoneRef.current ? 100 : 92;
+        if (p >= cap) return p;
+        return p + 1;
+      });
+    }, 200);
+    return () => clearInterval(id);
+  }, [phase]);
+
+  // When the bar reaches 100% AND sync is actually done:
+  //   1. Hold full state for the user to enjoy the checkmark.
+  //   2. Fade the syncing UI out fully.
+  //   3. Mount the recap which fades in slowly.
+  useEffect(() => {
+    if (phase !== "syncing") return;
+    if (progress < 100 || !syncDoneRef.current) return;
+    // Beat 1: 1.4s with full bar + checkmark visible
+    const fadeStart = setTimeout(() => setFadingOut(true), 1400);
+    // Beat 2: 1.0s after fade-out begins, swap to complete phase
+    const swap = setTimeout(() => {
+      setStats(getSyncStats());
+      setPhase("complete");
+    }, 2400);
+    return () => {
+      clearTimeout(fadeStart);
+      clearTimeout(swap);
+    };
+  }, [progress, phase, getSyncStats]);
+
+  if (phase === "syncing") {
+    return (
+      <div
+        key="syncing"
+        className={`text-center px-2 animate-phase-in -mt-[15vh] transition-opacity duration-1000 ease-out ${
+          fadingOut ? "opacity-0" : "opacity-100"
+        }`}
+      >
+        {/* caltodo logo */}
+        <div className="flex justify-center mb-6">
+          <img src="/logo.png" alt="caltodo" className="h-10 dark:invert" />
+        </div>
+        <h2 className="text-2xl font-bold text-foreground mb-2 tracking-tight">
+          Setting up your account
+        </h2>
+        <p className="text-sm text-foreground mb-8 min-h-[1.25rem] transition-opacity duration-500" key={blurbIndex}>
+          {SYNC_BLURBS[blurbIndex]}
+        </p>
+        <div className="w-full h-4 rounded-full bg-[#E5E5E7] dark:bg-[#3A3A3C] overflow-hidden mb-3">
+          <div
+            className="h-full rounded-l-full relative bg-[#0071E3]"
+            style={{
+              width: `${progress}%`,
+              transition: "width 280ms cubic-bezier(0.4, 0, 0.2, 1)",
+            }}
+          >
+            <div className="absolute left-2.5 right-2.5 top-1 h-1 rounded-full bg-white/25" />
+          </div>
+        </div>
+        <div className="flex items-center justify-center gap-2 h-6">
+          {progress >= 100 ? (
+            <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#0071E3] animate-check-in">
+              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#0071E3] text-white">
+                <Check size={12} strokeWidth={3} />
+              </span>
+              Done
+            </span>
+          ) : (
+            <p className="text-sm font-medium text-foreground tabular-nums">{progress}%</p>
+          )}
+        </div>
       </div>
+    );
+  }
+
+  // Complete phase — analytics recap
+  return (
+    <div key="complete" className="text-center px-2 animate-phase-in">
+      {/* caltodo logo */}
+      <div className="flex justify-center mb-6">
+        <img src="/logo.png" alt="caltodo" className="h-10 dark:invert" />
+      </div>
+      <h2 className="text-2xl font-bold text-foreground mb-2 tracking-tight">
+        You&apos;re all set.
+      </h2>
+      <p className="text-sm text-foreground mb-8">
+        Here&apos;s what we synced.
+      </p>
+
+      {/* Top stats row: assignments + classes */}
+      <div className="grid grid-cols-2 gap-3 mb-3">
+        <div className="bg-[#f6f5f4] rounded-2xl px-4 py-5">
+          <p className="text-4xl font-bold text-foreground tabular-nums tracking-tight">
+            {stats?.total ?? 0}
+          </p>
+          <p className="text-xs font-medium text-foreground mt-1.5">
+            {stats?.total === 1 ? "Assignment" : "Assignments"}
+          </p>
+        </div>
+        <div className="bg-[#f6f5f4] rounded-2xl px-4 py-5">
+          <p className="text-4xl font-bold text-foreground tabular-nums tracking-tight">
+            {stats?.courses.length ?? 0}
+          </p>
+          <p className="text-xs font-medium text-foreground mt-1.5">
+            {stats?.courses.length === 1 ? "Class" : "Classes"}
+          </p>
+        </div>
+      </div>
+
+      {/* Per-source breakdown with logos */}
+      {stats && stats.perSource.length > 0 && (
+        <div className="bg-[#f6f5f4] rounded-2xl p-3 mb-3">
+          <div className="flex flex-col gap-2">
+            {stats.perSource.map((row) => (
+              <div key={row.label} className="flex items-center gap-3 px-2 py-2 rounded-xl bg-white">
+                <div className="w-7 h-7 flex items-center justify-center shrink-0">
+                  <SourceLogo label={row.label} />
+                </div>
+                <span className="flex-1 text-left text-sm font-semibold text-foreground">{row.label}</span>
+                <span className="text-sm font-semibold text-foreground tabular-nums">
+                  {row.count} {row.count === 1 ? "assignment" : "assignments"}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Classes list */}
+      {stats && stats.courses.length > 0 && (
+        <div className="bg-[#f6f5f4] rounded-2xl px-4 py-4 mb-8 text-left">
+          <p className="text-xs font-semibold text-foreground mb-2.5 uppercase tracking-wide">
+            Your Classes
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {stats.courses.slice(0, 14).map((name) => (
+              <span
+                key={name}
+                className="text-xs font-medium px-2.5 py-1 rounded-lg bg-white text-foreground"
+              >
+                {name}
+              </span>
+            ))}
+            {stats.courses.length > 14 && (
+              <span className="text-xs font-medium px-2.5 py-1 text-foreground">
+                +{stats.courses.length - 14} more
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Live sync indicator — forward-looking, sits just before the CTA */}
+      <p className="inline-flex items-center gap-1.5 text-xs font-medium text-[#0071E3] mb-4">
+        <span className="relative inline-flex h-2 w-2">
+          <span className="absolute inline-flex h-full w-full rounded-full bg-[#0071E3] opacity-75 animate-ping" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-[#0071E3]" />
+        </span>
+        Live sync is on. New assignments appear automatically.
+      </p>
+
+      <button
+        onClick={onComplete}
+        className="w-full px-5 py-2.5 rounded-full text-sm font-semibold bg-gray-900 dark:bg-white text-white dark:text-gray-900"
+      >
+        Let&apos;s Go
+      </button>
     </div>
   );
+}
+
+/** Renders the appropriate logo for a sync source label. */
+function SourceLogo({ label }: { label: string }) {
+  if (label === "Canvas") {
+    return <img src="/canvas-logo.png" alt="" className="w-full h-full object-contain" />;
+  }
+  if (label === "Gradescope") {
+    return (
+      <svg viewBox="0 0 14 14" fill="none" className="w-full h-full">
+        <rect width="14" height="14" rx="3" fill="#3AADA8" />
+        <rect x="1.5" y="8.5" width="2" height="3.5" rx="0.5" fill="white" />
+        <rect x="4.5" y="6.5" width="2" height="5.5" rx="0.5" fill="white" />
+        <rect x="7.5" y="4.5" width="2" height="7.5" rx="0.5" fill="white" />
+        <rect x="10.5" y="2.5" width="2" height="9.5" rx="0.5" fill="white" />
+      </svg>
+    );
+  }
+  if (label === "Pensive") {
+    return (
+      <div className="relative w-full h-full">
+        <div className="absolute inset-[10%] rounded-full bg-white" />
+        <img src="/pensieve-logo.png" alt="" className="w-full h-full object-contain relative" />
+      </div>
+    );
+  }
+  return null;
 }
 
 /**
@@ -85,7 +333,7 @@ function DoneStep({ onSyncAndGo }: { onSyncAndGo: () => void }) {
 export default function OnboardingPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { triggerSync } = useTaskContext();
+  const { triggerSync, syncResult } = useTaskContext();
 
   // Standalone single-step setup mode: ?setup=canvas|gradescope|pensieve
   const setupParam = searchParams.get("setup");
@@ -105,7 +353,20 @@ export default function OnboardingPage() {
     token: string; baseUrl: string;
     courses: Array<{ id: number; name: string; course_code: string }> | null;
     selectedIds: number[];
-  }>({ token: "", baseUrl: "https://bcourses.berkeley.edu", courses: null, selectedIds: [] });
+    icalUrl: string;
+    icalCourses: Array<{ name: string }> | null;
+    icalSelectedNames: string[];
+    mode: "ical" | "api";
+  }>({
+    token: "",
+    baseUrl: "https://bcourses.berkeley.edu",
+    courses: null,
+    selectedIds: [],
+    icalUrl: "",
+    icalCourses: null,
+    icalSelectedNames: [],
+    mode: "ical",
+  });
 
   const gradescopeDraftRef = useRef<{
     email: string; password: string;
@@ -140,6 +401,7 @@ export default function OnboardingPage() {
     if (selectedPlatforms.has("canvas")) platformSteps.push("canvas");
     if (selectedPlatforms.has("gradescope")) platformSteps.push("gradescope");
     if (selectedPlatforms.has("pensieve")) platformSteps.push("pensieve");
+    if (selectedPlatforms.has("syllabus")) platformSteps.push("syllabus");
     return ["welcome", "platforms", ...platformSteps, "done"];
   }, [selectedPlatforms]);
 
@@ -477,10 +739,14 @@ export default function OnboardingPage() {
   const [exiting, setExiting] = useState(false);
 
   /**
-   * Starts fade-out, fires sync in background, then navigates to inbox.
-   * Sync continues via TaskContext even after navigation.
+   * Marks onboarding complete and navigates to /app/home.
+   *
+   * @param skipSync - When true, sync is fired in the background (used for Skip Setup
+   *                   path so the user can land in the app immediately without waiting).
+   *                   When false, sync has already completed in DoneStep so we don't
+   *                   re-fire it.
    */
-  function handleSyncAndGo() {
+  function handleSyncAndGo({ skipSync = false }: { skipSync?: boolean } = {}) {
     trackEvent("onboarding_completed");
     setExiting(true);
     // New users completing onboarding should never see any welcome/announcement modals.
@@ -510,70 +776,102 @@ export default function OnboardingPage() {
     // Notify Sidebar/MobileTabBar that onboarding is complete (unlocks CalChat instantly)
     window.dispatchEvent(new CustomEvent("onboarding-status-change", { detail: { completed: true } }));
     try { sessionStorage.removeItem("caltodo_onboarding_status"); } catch { /* non-critical */ }
-    // Fire sync in background — it runs in TaskContext and survives navigation
-    triggerSync().catch(() => {});
+    // Skip Setup path: fire sync in the background since the user wants to land in the app fast.
+    // Setup-completed path: sync has already finished in DoneStep — don't re-fire.
+    if (skipSync) {
+      triggerSync().catch(() => {});
+    }
     // Navigate after fade-out animation completes
     setTimeout(() => router.push("/app/home"), 500);
   }
 
+  /**
+   * Reads the latest SyncResult from TaskContext and produces display stats
+   * for the post-sync recap (total assignments, per-source counts, course list).
+   */
+  function getSyncStats(): SyncStats | null {
+    if (!syncResult) return null;
+    const total =
+      syncResult.canvas.synced +
+      syncResult.gradescope.synced +
+      syncResult.pensieve.synced +
+      (syncResult.brightspace?.synced ?? 0);
+    const perSource: Array<{ label: string; count: number }> = [];
+    if (syncResult.canvas.synced > 0) perSource.push({ label: "Canvas", count: syncResult.canvas.synced });
+    if (syncResult.gradescope.synced > 0) perSource.push({ label: "Gradescope", count: syncResult.gradescope.synced });
+    if (syncResult.pensieve.synced > 0) perSource.push({ label: "Pensive", count: syncResult.pensieve.synced });
+    if (syncResult.brightspace?.synced) perSource.push({ label: "Brightspace", count: syncResult.brightspace.synced });
+    const selectedCanvas = canvasDraftRef.current.courses
+      ?.filter((c) => canvasDraftRef.current.selectedIds.includes(c.id))
+      .map((c) => c.name) ?? [];
+    const selectedGradescope = (gradescopeDraftRef.current.courses ?? [])
+      .filter((c) => gradescopeDraftRef.current.selectedIds.includes(c.id))
+      .map((c) => c.name);
+    const courses = Array.from(new Set([...selectedCanvas, ...selectedGradescope]));
+    return { total, perSource, courses };
+  }
+
+  const isDoneStep = currentStep === "done";
+
   return (
     <div className={`fixed inset-0 z-50 flex flex-col bg-background transition-opacity duration-500 ${exiting ? "opacity-0" : "opacity-100"}`}>
-      {/* Top bar: logo left, centered stepper, close right */}
-      <div className="flex items-center justify-between px-6 pt-5 pb-3">
+      {/* Top bar: logo left, centered stepper, close right — hidden on done step */}
+      <div
+        className={`relative flex items-center justify-between px-6 pt-5 pb-3 gap-4 ${
+          isDoneStep ? "hidden" : ""
+        }`}
+      >
         {/* Logo — left corner (non-interactive during onboarding) */}
         <div className="shrink-0">
           <img src="/logo.png" alt="caltodo" className="h-7 dark:invert" />
         </div>
 
-        {/* Stepper bars + back button — centered with constrained width */}
-        <div className="flex items-center gap-2 w-full max-w-md mx-6">
-          {/* Back button */}
-          <button
-            onClick={() => {
-              if (stepIndex > 0) setCurrentStep(steps[stepIndex - 1]);
-            }}
-            className={`p-1 rounded-lg transition-colors shrink-0 ${
-              stepIndex > 0
-                ? "text-muted-foreground hover:text-foreground cursor-pointer"
-                : "text-transparent pointer-events-none"
-            }`}
-            aria-label="Go back"
-          >
-            <ChevronLeft size={16} />
-          </button>
-
-          <div className="flex items-center gap-1.5 flex-1 min-w-0">
-            {steps.map((step, i) => {
-              const state = i < stepIndex ? "completed" : i === stepIndex ? "active" : "inactive";
-              return (
-                <div key={step} className="flex-1 flex flex-col gap-1">
-                  <span
-                    className={`text-[11px] font-medium transition-colors duration-300 ${
-                      state === "completed" ? "text-green-600" : state === "active" ? "text-foreground" : "text-muted-foreground"
-                    }`}
-                  >
-                    {STEP_LABELS[step]}
-                  </span>
-                  <div
-                    className={`h-1 rounded-full transition-all duration-500 ${
-                      state === "completed" ? "bg-green-500" : state === "active" ? "bg-foreground" : "bg-muted"
-                    }`}
-                  />
-                </div>
-              );
-            })}
+        {/* Single rounded progress bar — centered in the bar */}
+        <div className="absolute left-1/2 -translate-x-1/2 w-full max-w-md px-16 pointer-events-none">
+          <div className="h-4 rounded-full bg-[#E5E5E7] dark:bg-[#3A3A3C] overflow-hidden">
+            <div
+              className="h-full rounded-l-full transition-[width] duration-500 ease-out relative bg-[#0071E3]"
+              style={{
+                width: `${({
+                  welcome: 0,
+                  platforms: 20,
+                  canvas: 40,
+                  gradescope: 55,
+                  pensieve: 70,
+                  syllabus: 85,
+                  done: 100,
+                } as Record<Step, number>)[currentStep]}%`,
+              }}
+            >
+              {/* Subtle top sheen — inset from the rounded ends */}
+              <div className="absolute left-2.5 right-2.5 top-1 h-1 rounded-full bg-white/25" />
+            </div>
           </div>
         </div>
 
-        {/* Spacer to balance the logo on the left */}
-        <div className="w-7 shrink-0" />
+        {/* Skip Setup button — subtle */}
+        <button
+          onClick={() => router.push("/app/inbox")}
+          className="shrink-0 text-xs text-muted-foreground/70 hover:text-foreground transition-colors px-2 py-1"
+        >
+          Skip Setup
+        </button>
       </div>
 
       {/* Step content — vertically centered */}
       <div className="flex-1 overflow-y-auto">
-        <div className="min-h-full flex items-center justify-center px-6 pt-4 pb-[20vh]">
-          <div className="w-full max-w-md">
-          <div key={currentStep} className="animate-step-in">
+        <div className={`min-h-full flex items-center justify-center px-6 ${isDoneStep ? "py-12" : "pt-4 pb-[20vh]"}`}>
+          <div className={`w-full ${isDoneStep ? "max-w-lg" : "max-w-md"}`}>
+          <div key={currentStep} className={`animate-step-in ${isDoneStep ? "" : "bg-[#f6f5f4] rounded-2xl p-8 sm:p-10"}`}>
+            {stepIndex > 0 && !isDoneStep && (
+              <button
+                onClick={() => setCurrentStep(steps[stepIndex - 1])}
+                className="-ml-1.5 mb-3 inline-flex items-center justify-center text-muted-foreground/60 hover:text-foreground transition-colors"
+                aria-label="Go back"
+              >
+                <ChevronLeft size={18} strokeWidth={2} />
+              </button>
+            )}
             {error && (
               <div className="bg-red-500/10 text-red-400 text-sm p-3 rounded-xl mb-4">
                 {error}
@@ -582,69 +880,90 @@ export default function OnboardingPage() {
 
             {currentStep === "welcome" && (
               <div className="text-center">
-                <div className="flex justify-center mb-3 animate-drop-in">
+                <div className="flex justify-center mb-3 ">
                   <img
                     src="/logo.png"
                     alt="caltodo"
                     className="h-14 dark:invert"
                   />
                 </div>
-                <h1 className="text-2xl font-bold text-foreground mb-2 animate-drop-in">
-                  welcome to caltodo
+                <h1 className="text-2xl font-bold text-foreground mb-3 ">
+                  Welcome to caltodo.
                 </h1>
-                <p className="text-muted-foreground text-sm mb-3 animate-drop-in delay-100">
-                  connect your Canvas, Gradescope, and Pensive accounts to automatically sync your assignments.
+                <p className="text-foreground text-sm mb-2 ">
+                  This takes about 5-10 minutes.
                 </p>
-                <p className="text-foreground text-sm font-semibold mb-8 animate-drop-in delay-150 text-center">
-                  this takes about 5-10 minutes.
-                </p>
-                {/* Mobile-only recommendation */}
-                <p className="md:hidden text-sm font-semibold text-foreground mb-6 animate-drop-in delay-150">
-                  For the best experience, we recommend completing setup on a computer.
+                <p className="text-foreground text-sm mb-8  flex items-center justify-center gap-2">
+                  <Monitor size={16} strokeWidth={2} />
+                  We recommend doing this on a computer.
                 </p>
                 <button
                   onClick={() => setCurrentStep("platforms")}
-                  className="w-full px-4 py-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl font-semibold animate-drop-in delay-200 btn-elevated-primary"
+                  className="w-full px-5 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-full text-sm font-semibold"
                 >
-                  get started
+                  Get Started
                 </button>
               </div>
             )}
 
             {currentStep === "platforms" && (
               <div>
-                <h2 className="text-lg font-bold text-foreground mb-2 animate-drop-in">
-                  select your platforms
+                <h2 className="text-lg font-bold text-foreground mb-2 ">
+                  Select Your Platforms
                 </h2>
-                <p className="text-sm text-muted-foreground mb-6 animate-drop-in delay-100">
-                  which platforms do you use? you can always change this later.
+                <p className="text-sm text-muted-foreground mb-6 ">
+                  Which platforms do you use? You can always change this later.
                 </p>
                 <div className="flex flex-col gap-3 mb-8">
                   {PLATFORM_OPTIONS.map((opt, i) => {
                     const selected = selectedPlatforms.has(opt.id);
+                    const hasProgress = (() => {
+                      if (opt.id === "canvas") {
+                        const c = canvasDraftRef.current;
+                        return !!(c.icalUrl || c.token || (c.icalCourses && c.icalCourses.length > 0) || (c.courses && c.courses.length > 0));
+                      }
+                      if (opt.id === "gradescope") {
+                        const g = gradescopeDraftRef.current;
+                        return !!(g.email || g.password || (g.courses && g.courses.length > 0));
+                      }
+                      if (opt.id === "pensieve") {
+                        return !!pensieveDraftRef.current.url;
+                      }
+                      return false;
+                    })();
                     return (
                       <button
                         key={opt.id}
                         type="button"
                         onClick={() => togglePlatform(opt.id)}
-                        className={`animate-drop-in flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl border-2 transition-all ${
+                        className={` flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl bg-white text-foreground border-2 transition-colors duration-150 focus:outline-none ${
                           selected
-                            ? "border-foreground bg-muted"
-                            : "border-border hover:border-foreground/30"
+                            ? "border-[#0071E3]"
+                            : "border-transparent hover:border-[#0071E3]/30"
                         }`}
                         style={{ animationDelay: `${(i + 2) * 50}ms` }}
                       >
-                        <img
-                          src={opt.logo}
-                          alt={opt.label}
-                          className="w-8 h-8 object-contain shrink-0"
-                        />
-                        <div className="flex-1 min-w-0">
+                        {opt.id === "syllabus" ? (
+                          <div className="w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-500/15 flex items-center justify-center shrink-0">
+                            <FileText size={16} className="text-purple-500" />
+                          </div>
+                        ) : (
+                          <img
+                            src={opt.logo}
+                            alt={opt.label}
+                            className="w-8 h-8 object-contain shrink-0"
+                          />
+                        )}
+                        <div className="flex-1 min-w-0 flex items-center gap-2">
                           <span className="text-sm font-semibold text-foreground">{opt.label}</span>
-                          <p className="text-xs text-muted-foreground">{opt.description}</p>
+                          {hasProgress && (
+                            <span className="text-[10px] font-semibold text-[#0071E3] bg-[#0071E3]/10 px-1.5 py-0.5 rounded">
+                              Saved
+                            </span>
+                          )}
                         </div>
-                        <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors ${
-                          selected ? "border-foreground bg-foreground" : "border-muted-foreground/40"
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-colors ${
+                          selected ? "bg-[#0071E3]" : "border border-muted-foreground/30"
                         }`}>
                           {selected && (
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-background">
@@ -658,19 +977,21 @@ export default function OnboardingPage() {
                 </div>
                 <button
                   onClick={() => {
+                    if (selectedPlatforms.size === 0) return;
                     trackEvent("onboarding_platforms_selected", {
                       platforms: Array.from(selectedPlatforms).join(","),
                     });
-                    if (selectedPlatforms.size === 0) {
-                      setCurrentStep("done");
-                    } else {
-                      setCurrentStep(nextStepAfter("platforms"));
-                    }
+                    setCurrentStep(nextStepAfter("platforms"));
                   }}
-                  className="w-full px-4 py-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl font-semibold btn-elevated-primary animate-drop-in"
+                  disabled={selectedPlatforms.size === 0}
+                  className={`w-full px-5 py-2.5 rounded-full text-sm font-semibold transition-colors border border-transparent ${
+                    selectedPlatforms.size === 0
+                      ? "bg-[#D1D1D6] dark:bg-[#3A3A3C] text-white/70 dark:text-white/40 cursor-not-allowed"
+                      : "bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800"
+                  }`}
                   style={{ animationDelay: "250ms" }}
                 >
-                  {selectedPlatforms.size === 0 ? "skip setup" : "continue"}
+                  Continue
                 </button>
               </div>
             )}
@@ -686,6 +1007,10 @@ export default function OnboardingPage() {
                 initialBaseUrl={canvasDraftRef.current.baseUrl}
                 initialCourses={canvasDraftRef.current.courses}
                 initialSelectedIds={canvasDraftRef.current.selectedIds}
+                initialIcalUrl={canvasDraftRef.current.icalUrl}
+                initialIcalCourses={canvasDraftRef.current.icalCourses}
+                initialIcalSelectedNames={canvasDraftRef.current.icalSelectedNames}
+                initialMode={canvasDraftRef.current.mode}
                 onDraftChange={handleCanvasDraft}
               />
             )}
@@ -718,8 +1043,21 @@ export default function OnboardingPage() {
               />
             )}
 
+            {currentStep === "syllabus" && (
+              <SyllabusStep
+                onNext={async () => { setCurrentStep(nextStepAfter("syllabus")); return true; }}
+                onSkip={() => { trackEvent("onboarding_step_skipped", { step: "syllabus" }); setCurrentStep(nextStepAfter("syllabus")); }}
+                error={error}
+                setError={setError}
+              />
+            )}
+
             {currentStep === "done" && (
-              <DoneStep onSyncAndGo={handleSyncAndGo} />
+              <DoneStep
+                onComplete={() => handleSyncAndGo()}
+                triggerSync={() => triggerSync(undefined, undefined, { silent: true })}
+                getSyncStats={getSyncStats}
+              />
             )}
           </div>
         </div>

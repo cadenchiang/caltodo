@@ -82,20 +82,20 @@ export default function IntegrationsWelcomeModal() {
           <div className="h-1 w-16 rounded-full bg-foreground" />
         </div>
 
-        {/* Title — left-aligned */}
+        {/* Title */}
         <h3
           className="text-xl font-semibold text-foreground mb-2 animate-drop-in"
           style={{ animationDelay: "150ms" }}
         >
-          your integrations
+          Your Integrations
         </h3>
 
-        {/* Description — left-aligned */}
+        {/* Description */}
         <p
-          className="text-sm text-muted-foreground mb-6 leading-relaxed animate-drop-in"
+          className="text-sm text-foreground mb-6 leading-relaxed animate-drop-in"
           style={{ animationDelay: "220ms" }}
         >
-          connect your class platforms to automatically import assignments and deadlines.
+          Connect your class platforms to automatically import assignments and deadlines.
         </p>
 
         {/* Items */}
@@ -107,9 +107,9 @@ export default function IntegrationsWelcomeModal() {
           <div className="flex items-start gap-3.5 py-4 border-t border-border">
             <BookOpen size={18} className="text-foreground shrink-0 mt-0.5" />
             <div className="min-w-0">
-              <p className="text-sm font-medium text-foreground">sync your classes</p>
-              <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                connect bCourses, Gradescope, or Pensive to import assignments
+              <p className="text-sm font-semibold text-foreground">Sync Your Classes</p>
+              <p className="text-xs text-foreground mt-0.5 leading-relaxed">
+                Connect Canvas, Gradescope, or Pensive to import assignments.
               </p>
             </div>
           </div>
@@ -120,9 +120,9 @@ export default function IntegrationsWelcomeModal() {
               <GCalIcon size={18} />
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-medium text-foreground">live sync to Google Calendar</p>
-              <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                your assignments automatically appear on your calendar
+              <p className="text-sm font-semibold text-foreground">Live Sync To Google Calendar</p>
+              <p className="text-xs text-foreground mt-0.5 leading-relaxed">
+                Your assignments automatically appear on your calendar.
               </p>
             </div>
           </div>
@@ -131,24 +131,24 @@ export default function IntegrationsWelcomeModal() {
           <div className="flex items-start gap-3.5 py-4 border-t border-border">
             <ShieldCheck size={18} className="text-foreground shrink-0 mt-0.5" />
             <div className="min-w-0">
-              <p className="text-sm font-medium text-foreground">your data is safe and encrypted</p>
-              <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                all credentials are encrypted with AES-256. no one — not even us — can see your information.
+              <p className="text-sm font-semibold text-foreground">Your Data Is Safe And Encrypted</p>
+              <p className="text-xs text-foreground mt-0.5 leading-relaxed">
+                All credentials are encrypted with AES-256. No one, not even us, can see your information.
               </p>
             </div>
           </div>
         </div>
 
-        {/* CTA — right-aligned */}
+        {/* CTA */}
         <div
           className="flex justify-end animate-drop-in"
           style={{ animationDelay: "360ms" }}
         >
           <button
             onClick={handleDismiss}
-            className="px-8 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-full text-sm font-medium hover:opacity-90 transition-opacity cursor-pointer active:scale-95"
+            className="px-6 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-full text-xs font-semibold hover:opacity-90 transition-opacity cursor-pointer"
           >
-            got it &rarr;
+            Got it
           </button>
         </div>
       </div>

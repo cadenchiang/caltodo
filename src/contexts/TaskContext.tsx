@@ -153,7 +153,7 @@ interface TaskContextValue {
   snoozeTask: (id: string, hours: number) => Promise<void>;
   unsnoozeTask: (id: string) => Promise<void>;
   reorderTasks: (updates: Array<{ id: string; sort_order: number }>) => Promise<void>;
-  triggerSync: (courseOverrides?: { canvas_courses?: Array<{ id: number; name: string }>; gradescope_courses?: Array<{ id: string; name: string }> }, platforms?: Array<"canvas" | "gradescope" | "pensieve">) => Promise<void>;
+  triggerSync: (courseOverrides?: { canvas_courses?: Array<{ id: number; name: string }>; gradescope_courses?: Array<{ id: string; name: string }> }, platforms?: Array<"canvas" | "gradescope" | "pensieve">, options?: { silent?: boolean }) => Promise<void>;
   fetchTasks: () => Promise<Task[]>;
   /**
    * Merges duplicate assignments into a single survivor task.
@@ -1274,19 +1274,22 @@ export function TaskProvider({ children }: { children: ReactNode }) {
    * Triggers a full sync from Canvas + Gradescope, then refreshes tasks.
    * Manages a simulated progress bar during the sync.
    */
-  async function triggerSync(courseOverrides?: { canvas_courses?: Array<{ id: number; name: string }>; gradescope_courses?: Array<{ id: string; name: string }> }, platforms?: Array<"canvas" | "gradescope" | "pensieve">) {
+  async function triggerSync(courseOverrides?: { canvas_courses?: Array<{ id: number; name: string }>; gradescope_courses?: Array<{ id: string; name: string }> }, platforms?: Array<"canvas" | "gradescope" | "pensieve">, options?: { silent?: boolean }) {
+    const silent = options?.silent === true;
     // Abort any in-flight auto-sync to prevent race condition where both
     // auto-sync and manual sync update taskBaselineRef concurrently
     autoSyncAbortRef.current?.abort();
     setSyncing(true);
     setError(null);
     setSyncResult(null);
-    showToast("Syncing assignments...", { duration: 60_000, progress: 0 });
+    if (!silent) {
+      showToast("Syncing assignments...", { duration: 60_000, progress: 0 });
+    }
     trackEvent("sync_started");
 
     // Simulate progress: tick up to 90% while fetch is in-flight
     let currentProgress = 0;
-    const progressInterval = setInterval(() => {
+    const progressInterval = silent ? null : setInterval(() => {
       currentProgress = Math.min(currentProgress + 5, 90);
       updateToastProgress(currentProgress);
     }, 500);
@@ -1308,8 +1311,8 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       const result: SyncResult = await res.json();
 
       // Complete the progress bar before showing the result toast
-      clearInterval(progressInterval);
-      updateToastProgress(100);
+      if (progressInterval) clearInterval(progressInterval);
+      if (!silent) updateToastProgress(100);
 
       setSyncResult(result);
       setLastSyncedAt(result.last_synced_at);
@@ -1318,26 +1321,28 @@ export function TaskProvider({ children }: { children: ReactNode }) {
         errors: result.canvas.errors.length + result.gradescope.errors.length + result.pensieve.errors.length,
       });
 
-      // Brief pause so the user sees 100% before the result toast replaces it
-      await new Promise((r) => setTimeout(r, 400));
+      if (!silent) {
+        // Brief pause so the user sees 100% before the result toast replaces it
+        await new Promise((r) => setTimeout(r, 400));
 
-      // Build and show sync result toast globally
-      const parts: string[] = [];
-      if (result.canvas.synced > 0) parts.push(`${result.canvas.synced} from Canvas`);
-      if (result.gradescope.synced > 0) parts.push(`${result.gradescope.synced} from Gradescope`);
-      if (result.pensieve.synced > 0) parts.push(`${result.pensieve.synced} from Pensieve`);
-      const syncErrors = [...result.canvas.errors, ...result.gradescope.errors, ...result.pensieve.errors];
-      let toastMsg = parts.length > 0 ? `Synced ${parts.join(", ")}. All tasks are up to date.` : "All tasks are up to date — no new assignments found.";
-      if (syncErrors.length > 0) {
-        toastMsg += ` ${syncErrors.map(m => m.replace(/Go to Settings to add them\.?/, "")).join(". ").trim()}`;
+        // Build and show sync result toast globally
+        const parts: string[] = [];
+        if (result.canvas.synced > 0) parts.push(`${result.canvas.synced} from Canvas`);
+        if (result.gradescope.synced > 0) parts.push(`${result.gradescope.synced} from Gradescope`);
+        if (result.pensieve.synced > 0) parts.push(`${result.pensieve.synced} from Pensieve`);
+        const syncErrors = [...result.canvas.errors, ...result.gradescope.errors, ...result.pensieve.errors];
+        let toastMsg = parts.length > 0 ? `Synced ${parts.join(", ")}. All tasks are up to date.` : "All tasks are up to date — no new assignments found.";
+        if (syncErrors.length > 0) {
+          toastMsg += ` ${syncErrors.map(m => m.replace(/Go to Settings to add them\.?/, "")).join(". ").trim()}`;
+        }
+        showToast(toastMsg, {
+          duration: 8_000,
+          action: {
+            label: "Inbox",
+            onClick: () => { window.location.href = "/app/inbox"; },
+          },
+        });
       }
-      showToast(toastMsg, {
-        duration: 8_000,
-        action: {
-          label: "Inbox",
-          onClick: () => { window.location.href = "/app/inbox"; },
-        },
-      });
 
       // Refresh tasks list after sync to include new assignments
       await fetchTasks();
@@ -1351,10 +1356,10 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       const message = err instanceof Error ? err.message : String(err);
       trackEvent("sync_failed", { error: message });
       setError(message);
-      clearInterval(progressInterval);
-      showToast(`Sync failed: ${message}`, { duration: 6_000 });
+      if (progressInterval) clearInterval(progressInterval);
+      if (!silent) showToast(`Sync failed: ${message}`, { duration: 6_000 });
     } finally {
-      clearInterval(progressInterval);
+      if (progressInterval) clearInterval(progressInterval);
       setSyncing(false);
     }
   }

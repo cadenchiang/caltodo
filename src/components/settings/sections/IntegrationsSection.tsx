@@ -147,6 +147,149 @@ export default function IntegrationsSection() {
         <IntegrationSettings />
         <SyllabusSettings />
       </div>
+      <RequestPlatformForm />
     </section>
+  );
+}
+
+/**
+ * Trigger button + popup modal letting users request a platform their
+ * school uses that caltodo doesn't yet integrate with.
+ * Submits via /api/contact prefixed with [Platform request] so it can be filtered.
+ */
+function RequestPlatformForm() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <div className="mt-6 pt-5 border-t border-border">
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl border border-dashed border-border bg-card hover:bg-accent hover:border-foreground/30 transition-colors cursor-pointer"
+        >
+          <div className="flex items-center gap-3 min-w-0 text-left">
+            <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+              <Plus size={16} className="text-muted-foreground" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-foreground">
+                Request a platform
+              </p>
+              <p className="text-xs text-subtle-foreground truncate">
+                Don&apos;t see one your school offers? Tell us.
+              </p>
+            </div>
+          </div>
+          <span className="text-xs font-medium text-[#0071E3] shrink-0">Submit</span>
+        </button>
+      </div>
+      <RequestPlatformModal open={open} onClose={() => setOpen(false)} />
+    </>
+  );
+}
+
+/**
+ * Centered popup modal with the platform-request form.
+ * Closes on Escape, on backdrop click, and after a successful submission.
+ */
+function RequestPlatformModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [message, setMessage] = useState("");
+  const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (open && textareaRef.current) {
+      setTimeout(() => textareaRef.current?.focus(), 100);
+    }
+    if (!open) {
+      setMessage("");
+      setStatus("idle");
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open, onClose]);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!message.trim() || status === "sending") return;
+    setStatus("sending");
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "Platform request",
+          email: null,
+          message: `[Platform request] ${message.trim()}`,
+        }),
+      });
+      if (!res.ok) throw new Error("Submission failed");
+      setStatus("sent");
+      setTimeout(onClose, 800);
+    } catch {
+      setStatus("error");
+    }
+  }
+
+  if (!open) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md rounded-2xl bg-popover border border-border shadow-xl p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 className="text-base font-semibold text-foreground mb-1">
+          Don&apos;t see a platform your school offers?
+        </h3>
+        <p className="text-xs text-subtle-foreground mb-4">
+          Tell us which one and we&apos;ll add it.
+        </p>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+          <textarea
+            ref={textareaRef}
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder="e.g. Schoology, Brightspace, Moodle..."
+            rows={3}
+            maxLength={2000}
+            disabled={status === "sending"}
+            className="w-full rounded-lg border border-input-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent disabled:opacity-50"
+          />
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs text-subtle-foreground">
+              {status === "sent" && "Thanks — we got it."}
+              {status === "error" && "Something went wrong. Try again."}
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-1.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-accent transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={!message.trim() || status === "sending"}
+                className="px-4 py-1.5 rounded-lg bg-[#0071E3] text-white text-sm font-medium hover:bg-[#3D8FE8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {status === "sending" ? "Sending..." : "Submit"}
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 }

@@ -23,6 +23,8 @@ interface ToastOptions {
   duration?: number;
   /** Optional progress value (0–100). Prevents auto-dismiss while < 100. */
   progress?: number;
+  /** Visual variant — default (dark) or error (red). */
+  variant?: "default" | "error";
 }
 
 /** Internal representation of a single toast notification. */
@@ -34,6 +36,8 @@ interface ToastItem {
   dismissing: boolean;
   /** Optional progress value (0–100). */
   progress?: number;
+  /** Visual variant — default (dark) or error (red). */
+  variant?: "default" | "error";
 }
 
 interface ToastContextValue {
@@ -98,6 +102,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         duration,
         dismissing: false,
         progress: options?.progress,
+        variant: options?.variant,
       };
 
       setToasts((prev) => {
@@ -170,6 +175,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                   message={toast.message}
                   action={toast.action}
                   progress={toast.progress}
+                  variant={toast.variant}
                   dismissing={toast.dismissing}
                   onDismiss={() => dismissToast(toast.id)}
                 />
