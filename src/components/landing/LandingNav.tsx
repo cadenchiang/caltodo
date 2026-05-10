@@ -94,24 +94,41 @@ export default function LandingNav({ loggedIn: loggedInProp }: LandingNavProps =
   }
 
   /**
-   * Clicking a hash link while already on the home page wouldn't trigger a
-   * Next.js navigation, which means the browser would skip the scroll. This
-   * intercepts the click and runs a smooth scrollIntoView instead.
+   * Clicking a hash link needs special handling in two cases:
+   *
+   *   1. On the home route already: Next.js wouldn't trigger any navigation
+   *      so the browser would skip the scroll entirely — we scroll smoothly
+   *      via scrollIntoView and update the URL hash.
+   *   2. On any other route: Next.js's App Router does NOT honor URL hash
+   *      anchors during client-side navigations, so navigating to "/#pricing"
+   *      would just dump the user at the top of home. We stash the target id
+   *      in sessionStorage and let Hero's onMount effect handle the scroll
+   *      once the home page renders.
    *
    * @param e - The click event from the anchor.
    * @param href - The full link href (e.g. "/#pricing").
    */
   function handleHashClick(e: React.MouseEvent<HTMLAnchorElement>, href: string) {
-    if (pathname !== "/") return; // off-route: let Link navigate to "/" with the hash
     const hashIndex = href.indexOf("#");
     if (hashIndex === -1) return;
     const id = href.slice(hashIndex + 1);
-    const el = document.getElementById(id);
-    if (!el) return;
-    e.preventDefault();
-    el.scrollIntoView({ behavior: "smooth", block: "start" });
-    // Reflect the section in the URL so refresh/share lands the user back here.
-    window.history.replaceState(null, "", href.slice(hashIndex));
+
+    if (pathname === "/") {
+      const el = document.getElementById(id);
+      if (!el) return;
+      e.preventDefault();
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      window.history.replaceState(null, "", href.slice(hashIndex));
+      return;
+    }
+
+    // Off-route: tell Hero where to scroll once it mounts.
+    try {
+      sessionStorage.setItem("caltodo_pending_scroll", id);
+    } catch {
+      /* sessionStorage can throw in private-browsing — fall through to default nav */
+    }
+    // Let the Link continue with its normal navigation to "/".
   }
 
   /**

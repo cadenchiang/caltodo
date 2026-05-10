@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 const TESTIMONIALS: Array<{ quote: string; name: string; school: string }> = [
   {
     quote: "Caltodo saved my GPA last semester. I haven't missed an assignment since.",
-    name: "Caden Chiang",
+    name: "Alex Nguyen",
     school: "UC Berkeley",
   },
   {

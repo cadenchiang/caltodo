@@ -42,21 +42,34 @@ export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
     return () => observer.disconnect();
   }, []);
 
-  // When the home page mounts with a URL hash (e.g. navigated here from /about
-  // via the Pricing nav link), scroll the target into view. Next.js's App
-  // Router does not honor hash anchors on client-side navigations, so this
-  // bridges that gap.
+  // When the home page mounts, scroll to a pending section if one was stashed
+  // by LandingNav (off-route → home navigation) or if the URL has a hash.
+  // Next.js's App Router doesn't honor hash anchors on client-side navigations
+  // — sessionStorage is the reliable signal between routes.
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const hash = window.location.hash;
-    if (!hash || hash.length < 2) return;
-    const id = hash.slice(1);
-    // Defer one frame so the section's DOM (and FadeIn refs) are mounted.
-    const handle = window.requestAnimationFrame(() => {
-      const target = document.getElementById(id);
+
+    let pendingId: string | null = null;
+    try {
+      pendingId = sessionStorage.getItem("caltodo_pending_scroll");
+      if (pendingId) sessionStorage.removeItem("caltodo_pending_scroll");
+    } catch {
+      /* sessionStorage may throw in private-browsing */
+    }
+    if (!pendingId) {
+      const hash = window.location.hash;
+      if (hash && hash.length > 1) pendingId = hash.slice(1);
+    }
+    if (!pendingId) return;
+
+    // Wait one frame so the target element is mounted, then a second beat so
+    // the FadeIn wrappers + image loads don't shift the layout under us.
+    const targetId = pendingId;
+    const handle = window.setTimeout(() => {
+      const target = document.getElementById(targetId);
       if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
-    return () => window.cancelAnimationFrame(handle);
+    }, 80);
+    return () => window.clearTimeout(handle);
   }, []);
 
   const mockupRef = useRef<HTMLDivElement>(null);
@@ -389,8 +402,10 @@ export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
         </div>
       </div>
 
-      {/* Pricing — Free vs Pro (anchor target for the nav "Pricing" link) */}
-      <div id="pricing" className="w-full bg-white scroll-mt-24">
+      {/* Pricing — Free vs Pro. The actual scroll anchor (id="pricing") lives
+          inside Pricing_04 on the heading itself so the user lands at the
+          heading instead of below the section's top padding. */}
+      <div className="w-full bg-white">
         <FadeIn>
           <Pricing_04 />
         </FadeIn>

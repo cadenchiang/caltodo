@@ -84,7 +84,10 @@ export default function Pricing_04() {
     <section className="relative flex flex-col items-center justify-center max-w-5xl py-16 sm:py-24 mx-auto px-6">
       <div className="flex flex-col items-center justify-center max-w-2xl mx-auto">
         <div className="flex flex-col items-center text-center max-w-2xl mx-auto">
-          <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-black">
+          <h2
+            id="pricing"
+            className="scroll-mt-24 text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-black"
+          >
             Pricing
           </h2>
           <p className="text-base md:text-lg text-center text-black/70 mt-4 sm:mt-6">
