@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ArrowRight } from "lucide-react";
@@ -29,6 +29,13 @@ export default function LandingNav({ loggedIn: loggedInProp }: LandingNavProps =
   const [loggedIn, setLoggedIn] = useState<boolean>(loggedInProp ?? false);
   /** Tracks which on-page section is currently in view (home page only). */
   const [activeHash, setActiveHash] = useState<string>("");
+  /**
+   * Timestamp until which the IntersectionObserver should NOT touch activeHash.
+   * Set when the user clicks a hash link from off-route so the pending target
+   * stays highlighted while the home page mounts and scrolls, without the
+   * observer's initial "not intersecting" callback briefly flipping it to Home.
+   */
+  const scrollLockUntilRef = useRef<number>(0);
 
   useEffect(() => {
     if (loggedInProp !== undefined) return; // parent already decided
@@ -45,17 +52,34 @@ export default function LandingNav({ loggedIn: loggedInProp }: LandingNavProps =
   /**
    * Observe the on-page #pricing section when we're on the home route so the
    * nav can highlight "Pricing" automatically as the user scrolls past it.
-   * On any non-home route, no observation is needed.
+   *
+   * If we just landed on home via an off-route hash-link click, sessionStorage
+   * tells us where the user is scrolling to. We pre-set activeHash so Pricing
+   * highlights immediately, and lock the observer for a short window so its
+   * initial "not intersecting" callback doesn't flip the nav back to Home.
    */
   useEffect(() => {
     if (pathname !== "/") {
       setActiveHash("");
       return;
     }
+
+    // Pre-highlight any pending scroll target so the nav doesn't flicker.
+    try {
+      const pending = sessionStorage.getItem("caltodo_pending_scroll");
+      if (pending) {
+        setActiveHash(`#${pending}`);
+        scrollLockUntilRef.current = Date.now() + 1500;
+      }
+    } catch {
+      /* sessionStorage may throw in private browsing */
+    }
+
     const el = document.getElementById("pricing");
     if (!el) return;
     const observer = new IntersectionObserver(
       ([entry]) => {
+        if (Date.now() < scrollLockUntilRef.current) return;
         if (entry.isIntersecting && entry.intersectionRatio > 0.25) {
           setActiveHash("#pricing");
         } else if (!entry.isIntersecting) {
@@ -117,12 +141,19 @@ export default function LandingNav({ loggedIn: loggedInProp }: LandingNavProps =
       const el = document.getElementById(id);
       if (!el) return;
       e.preventDefault();
+      // Lock the highlight on the target so the observer doesn't flicker
+      // during the smooth scroll.
+      setActiveHash(`#${id}`);
+      scrollLockUntilRef.current = Date.now() + 1200;
       el.scrollIntoView({ behavior: "smooth", block: "start" });
       window.history.replaceState(null, "", href.slice(hashIndex));
       return;
     }
 
-    // Off-route: tell Hero where to scroll once it mounts.
+    // Off-route: pre-highlight the target so the nav doesn't flicker to Home
+    // while Next.js navigates, and tell Hero where to scroll once it mounts.
+    setActiveHash(`#${id}`);
+    scrollLockUntilRef.current = Date.now() + 2000;
     try {
       sessionStorage.setItem("caltodo_pending_scroll", id);
     } catch {
