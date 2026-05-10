@@ -145,7 +145,7 @@ export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
 
             {/* Product label below cluster */}
             <p
-              className="mt-3 sm:mt-5 text-sm sm:text-lg font-bold text-black tracking-tight animate-fade-up"
+              className="mt-3 sm:mt-5 text-sm sm:text-lg font-medium text-black tracking-tight animate-fade-up"
               style={{ animationDelay: "1000ms" }}
             >
               caltodo
@@ -330,11 +330,15 @@ export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
                   <p className="text-base sm:text-lg text-black/70 mt-3 leading-snug">
                     See every deadline on a single calendar, no more switching between tabs.
                   </p>
-                  <div className="mt-8 sm:mt-10 mx-auto w-[85%]">
+                  <div className="mt-8 sm:mt-10 -mx-8 sm:-mx-10 -mb-8 sm:-mb-10 overflow-hidden">
                     <img
                       src="/step-calendar.png"
                       alt="Manage your assignments"
-                      className="w-full block rounded-xl shadow-[0_8px_30px_-12px_rgba(0,0,0,0.15)]"
+                      className="w-full block"
+                      style={{
+                        transform: "scale(1.28)",
+                        transformOrigin: "center bottom",
+                      }}
                     />
                   </div>
                 </div>
