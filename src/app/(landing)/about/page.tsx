@@ -4,7 +4,8 @@ import { ArrowRight, MapPin } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "About - caltodo",
-  description: "caltodo is a free, non-profit planner built by students, for students.",
+  description:
+    "caltodo pulls every assignment from every platform into one place so you stop missing deadlines that were hiding in plain sight.",
   alternates: { canonical: "/about" },
 };
 
@@ -27,13 +28,13 @@ export default function AboutPage() {
           className="text-sm sm:text-xl font-sans font-medium leading-snug text-black mb-4 animate-fade-up"
           style={{ animationDelay: "120ms" }}
         >
-          At <span className="font-bold">caltodo</span>, we&rsquo;re building a free, non-profit planner that pulls every assignment from your school&rsquo;s platforms into one place. We exist so students don&rsquo;t have to pay to keep track of their own homework.
+          We built <span className="font-bold">caltodo</span> because we kept missing deadlines that were hiding in plain sight. Assignments scattered across Canvas, Gradescope, and a syllabus PDF you opened once in week one. Tabs you forgot to refresh. The 11:58pm realization that something was due two minutes ago.
         </p>
         <p
           className="text-sm sm:text-xl font-sans font-medium leading-snug text-black mb-6 animate-fade-up"
           style={{ animationDelay: "200ms" }}
         >
-          caltodo is, and always will be, free for students. Designed and built by students, for students.
+          caltodo pulls every assignment from every platform into one place so nothing falls through the cracks. Built by students, for students, designed by people who&rsquo;ve been on the wrong side of every late-night scramble and missed quiz.
         </p>
 
         <div

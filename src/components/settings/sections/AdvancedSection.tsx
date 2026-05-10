@@ -6,6 +6,7 @@ import { Trash2, LogOut, UserX, RotateCcw } from "lucide-react";
 import { useTaskContext } from "@/contexts/TaskContext";
 import { useToast } from "@/contexts/ToastContext";
 import { clearLayoutCache } from "@/lib/board-layout-cache";
+import SignOutConfirmModal from "@/components/ui/SignOutConfirmModal";
 
 /**
  * Advanced settings section.
@@ -17,7 +18,10 @@ export default function AdvancedSection() {
   const { tasks, deleteAllTasks } = useTaskContext();
   const { showToast } = useToast();
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [confirmSignOut, setConfirmSignOut] = useState(false);
+  /** Controls the centered "Sign out?" confirmation modal. */
+  const [showSignOutModal, setShowSignOutModal] = useState(false);
+  /** Spinner state on the modal's confirm button while the sign-out request is in flight. */
+  const [signingOut, setSigningOut] = useState(false);
   const [confirmDeleteAccount, setConfirmDeleteAccount] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [resettingOnboarding, setResettingOnboarding] = useState(false);
@@ -43,20 +47,29 @@ export default function AdvancedSection() {
   }
 
   /**
-   * Signs the user out with double-click confirmation.
-   * First click shows confirmation, second click executes.
-   * Resets after 3 seconds if not confirmed.
+   * Opens the centered confirmation modal — actual sign-out happens in confirmSignOut().
    */
-  async function handleSignOut() {
-    if (!confirmSignOut) {
-      setConfirmSignOut(true);
-      setTimeout(() => setConfirmSignOut(false), 3000);
-      return;
+  function handleSignOut() {
+    setShowSignOutModal(true);
+  }
+
+  /**
+   * Performs the sign-out after the user has confirmed in the modal.
+   * Clears layout cache, posts to /auth/signout, and redirects home.
+   */
+  async function confirmSignOut() {
+    setSigningOut(true);
+    try {
+      clearLayoutCache();
+      const res = await fetch("/auth/signout", { method: "POST" });
+      if (!res.ok) throw new Error(`Sign out failed (${res.status})`);
+      setShowSignOutModal(false);
+      router.push("/");
+    } catch {
+      setSigningOut(false);
+      setShowSignOutModal(false);
+      showToast("Failed to sign out. Please try again.");
     }
-    setConfirmSignOut(false);
-    clearLayoutCache();
-    await fetch("/auth/signout", { method: "POST" });
-    router.push("/");
   }
 
   /**
@@ -148,14 +161,10 @@ export default function AdvancedSection() {
 
         <button
           onClick={handleSignOut}
-          className={`w-full flex items-center gap-3 px-4 py-3 text-sm rounded-xl border transition-colors ${
-            confirmSignOut
-              ? "border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/30 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/50"
-              : "border-border bg-card hover:bg-accent text-foreground"
-          }`}
+          className="w-full flex items-center gap-3 px-4 py-3 text-sm rounded-xl border border-border bg-card hover:bg-accent text-foreground transition-colors"
         >
           <LogOut size={15} />
-          {confirmSignOut ? "Click again to sign out" : "Sign Out"}
+          Sign Out
         </button>
         <button
           onClick={handleDeleteAccount}
@@ -174,6 +183,14 @@ export default function AdvancedSection() {
               : "Delete Account"}
         </button>
       </div>
+
+      {/* Centered confirm modal — replaces the old click-twice pattern */}
+      <SignOutConfirmModal
+        open={showSignOutModal}
+        onConfirm={confirmSignOut}
+        onCancel={() => setShowSignOutModal(false)}
+        signingOut={signingOut}
+      />
     </section>
   );
 }

@@ -27,6 +27,8 @@ interface LandingNavProps {
 export default function LandingNav({ loggedIn: loggedInProp }: LandingNavProps = {}) {
   const pathname = usePathname();
   const [loggedIn, setLoggedIn] = useState<boolean>(loggedInProp ?? false);
+  /** Tracks which on-page section is currently in view (home page only). */
+  const [activeHash, setActiveHash] = useState<string>("");
 
   useEffect(() => {
     if (loggedInProp !== undefined) return; // parent already decided
@@ -40,11 +42,91 @@ export default function LandingNav({ loggedIn: loggedInProp }: LandingNavProps =
     };
   }, [loggedInProp]);
 
+  /**
+   * Observe the on-page #pricing section when we're on the home route so the
+   * nav can highlight "Pricing" automatically as the user scrolls past it.
+   * On any non-home route, no observation is needed.
+   */
+  useEffect(() => {
+    if (pathname !== "/") {
+      setActiveHash("");
+      return;
+    }
+    const el = document.getElementById("pricing");
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && entry.intersectionRatio > 0.25) {
+          setActiveHash("#pricing");
+        } else if (!entry.isIntersecting) {
+          setActiveHash("");
+        }
+      },
+      { threshold: [0, 0.25, 0.6, 1] },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [pathname]);
+
   const links: Array<{ label: string; href: string }> = [
     { label: "Home", href: "/" },
+    { label: "Pricing", href: "/#pricing" },
     { label: "About", href: "/about" },
     { label: "Contact", href: "/contact" },
   ];
+
+  /**
+   * Decide whether a given nav link should render as the active one.
+   * Home is active only when no on-page section is currently highlighted.
+   *
+   * @param href - The href of the link being rendered.
+   * @returns true if this link represents the current location/section.
+   */
+  function isActive(href: string): boolean {
+    if (pathname === "/") {
+      if (href === "/#pricing") return activeHash === "#pricing";
+      if (href === "/") return activeHash === "";
+      return false;
+    }
+    if (href === "/") return false;
+    if (href.includes("#")) return false; // hash links never active on other pages
+    return pathname.startsWith(href);
+  }
+
+  /**
+   * Clicking a hash link while already on the home page wouldn't trigger a
+   * Next.js navigation, which means the browser would skip the scroll. This
+   * intercepts the click and runs a smooth scrollIntoView instead.
+   *
+   * @param e - The click event from the anchor.
+   * @param href - The full link href (e.g. "/#pricing").
+   */
+  function handleHashClick(e: React.MouseEvent<HTMLAnchorElement>, href: string) {
+    if (pathname !== "/") return; // off-route: let Link navigate to "/" with the hash
+    const hashIndex = href.indexOf("#");
+    if (hashIndex === -1) return;
+    const id = href.slice(hashIndex + 1);
+    const el = document.getElementById(id);
+    if (!el) return;
+    e.preventDefault();
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+    // Reflect the section in the URL so refresh/share lands the user back here.
+    window.history.replaceState(null, "", href.slice(hashIndex));
+  }
+
+  /**
+   * Clicking Home while already on "/" should scroll back to the top instead
+   * of being a no-op (the browser otherwise leaves you wherever you were).
+   *
+   * @param e - The click event from the Home anchor.
+   */
+  function handleHomeClick(e: React.MouseEvent<HTMLAnchorElement>) {
+    if (pathname !== "/") return; // off-route: let Link navigate to "/" normally
+    e.preventDefault();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    // Strip any hash so the URL reflects "top of home".
+    window.history.replaceState(null, "", "/");
+  }
 
   return (
     <nav className="sticky top-0 z-40 w-full px-4 sm:px-8 py-3 sm:py-4 grid grid-cols-3 items-center bg-white border-b border-black/5">
@@ -59,13 +141,21 @@ export default function LandingNav({ loggedIn: loggedInProp }: LandingNavProps =
       {/* Center: nav links */}
       <div className="hidden sm:flex justify-self-center items-center gap-6 text-sm">
         {links.map((item) => {
-          const active =
-            item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+          const active = isActive(item.href);
+          const isHashLink = item.href.includes("#");
+          const isHomeLink = item.href === "/";
           return (
             <Link
               key={item.href}
               href={item.href}
               prefetch
+              onClick={
+                isHashLink
+                  ? (e) => handleHashClick(e, item.href)
+                  : isHomeLink
+                    ? handleHomeClick
+                    : undefined
+              }
               className={`transition-colors ${
                 active
                   ? "font-bold text-black"

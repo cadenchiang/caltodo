@@ -7,6 +7,7 @@ import Image from "next/image";
 import { Settings, LogOut, MessageCircle, User } from "lucide-react";
 import ContactModal from "@/components/ui/ContactModal";
 import EditProfileModal from "@/components/ui/EditProfileModal";
+import SignOutConfirmModal from "@/components/ui/SignOutConfirmModal";
 import { clearLayoutCache } from "@/lib/board-layout-cache";
 
 interface ProfilePopupProps {
@@ -26,7 +27,8 @@ interface ProfilePopupProps {
  */
 export default function ProfilePopup({ avatarUrl, fullName, email }: ProfilePopupProps) {
   const [open, setOpen] = useState(false);
-  const [confirmSignOut, setConfirmSignOut] = useState(false);
+  /** Controls the centered "Sign out?" confirm modal. */
+  const [showSignOutModal, setShowSignOutModal] = useState(false);
   const [imgError, setImgError] = useState(false);
   const [showContact, setShowContact] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
@@ -38,7 +40,6 @@ export default function ProfilePopup({ avatarUrl, fullName, email }: ProfilePopu
     function handleClickOutside(e: MouseEvent) {
       if (popupRef.current && !popupRef.current.contains(e.target as Node)) {
         setOpen(false);
-        setConfirmSignOut(false);
       }
     }
 
@@ -46,11 +47,6 @@ export default function ProfilePopup({ avatarUrl, fullName, email }: ProfilePopu
       document.addEventListener("mousedown", handleClickOutside);
     }
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [open]);
-
-  // Reset confirm state when popup closes
-  useEffect(() => {
-    if (!open) setConfirmSignOut(false);
   }, [open]);
 
   /**
@@ -69,12 +65,20 @@ export default function ProfilePopup({ avatarUrl, fullName, email }: ProfilePopu
 
   const [signingOut, setSigningOut] = useState(false);
 
-  async function handleSignOutClick() {
-    if (!confirmSignOut) {
-      setConfirmSignOut(true);
-      return;
-    }
-    // Second click confirms
+  /**
+   * Opens the centered confirmation modal. Actual sign-out happens in
+   * confirmSignOut() once the user clicks the modal's Sign out button.
+   */
+  function handleSignOutClick() {
+    setOpen(false);
+    setShowSignOutModal(true);
+  }
+
+  /**
+   * Performs the sign-out after the user has confirmed in the modal.
+   * Clears the local board layout cache, hits /auth/signout, redirects home.
+   */
+  async function confirmSignOut() {
     setSigningOut(true);
     try {
       clearLayoutCache();
@@ -82,12 +86,11 @@ export default function ProfilePopup({ avatarUrl, fullName, email }: ProfilePopu
       if (!res.ok) {
         throw new Error(`Sign out failed (${res.status})`);
       }
-      setOpen(false);
-      setConfirmSignOut(false);
+      setShowSignOutModal(false);
       router.push("/");
     } catch {
       setSigningOut(false);
-      setConfirmSignOut(false);
+      setShowSignOutModal(false);
       alert("Failed to sign out. Please try again.");
     }
   }
@@ -183,18 +186,22 @@ export default function ProfilePopup({ avatarUrl, fullName, email }: ProfilePopu
             <button
               onClick={handleSignOutClick}
               disabled={signingOut}
-              className={`flex items-center gap-3 w-full px-4 py-3 text-sm rounded-b-xl transition-colors disabled:opacity-60 ${
-                confirmSignOut
-                  ? "text-red-500 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/50"
-                  : "text-secondary-foreground hover:bg-accent"
-              }`}
+              className="flex items-center gap-3 w-full px-4 py-3 text-sm rounded-b-xl transition-colors disabled:opacity-60 text-secondary-foreground hover:bg-accent"
             >
               <LogOut size={16} />
-              {signingOut ? "Signing out..." : confirmSignOut ? "Click again to confirm" : "Sign Out"}
+              Sign Out
             </button>
           </div>
         </div>
       )}
+
+      {/* Confirm sign-out modal (centered, portaled) */}
+      <SignOutConfirmModal
+        open={showSignOutModal}
+        onConfirm={confirmSignOut}
+        onCancel={() => setShowSignOutModal(false)}
+        signingOut={signingOut}
+      />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { X, Send, MessageCircle } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
@@ -16,6 +16,9 @@ interface ContactModalProps {
   userEmail?: string | null;
 }
 
+/** Duration the exit animation runs (matches .animate-announce-card-out in globals.css). */
+const CLOSE_ANIM_MS = 220;
+
 /**
  * Centered popup modal with a contact form.
  * Submits to /api/contact which stores the message server-side.
@@ -30,7 +33,22 @@ export default function ContactModal({ open, onClose, userName, userEmail }: Con
   const { showToast } = useToast();
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  /** When true, the modal is playing its exit animation and will unmount in ~220ms. */
+  const [closing, setClosing] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  /**
+   * Begin the exit animation, then call the parent's onClose after it finishes.
+   * Prevents the dismiss from happening synchronously so the exit animation can play.
+   */
+  const requestClose = useCallback(() => {
+    if (closing) return;
+    setClosing(true);
+    setTimeout(() => {
+      setClosing(false);
+      onClose();
+    }, CLOSE_ANIM_MS);
+  }, [closing, onClose]);
 
   // Focus textarea when modal opens
   useEffect(() => {
@@ -39,6 +57,7 @@ export default function ContactModal({ open, onClose, userName, userEmail }: Con
     }
     if (!open) {
       setMessage("");
+      setClosing(false);
     }
   }, [open]);
 
@@ -46,11 +65,11 @@ export default function ContactModal({ open, onClose, userName, userEmail }: Con
   useEffect(() => {
     if (!open) return;
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") requestClose();
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [open, onClose]);
+  }, [open, requestClose]);
 
   /**
    * Submits the contact form to the API endpoint.
@@ -75,7 +94,7 @@ export default function ContactModal({ open, onClose, userName, userEmail }: Con
 
       if (res.ok) {
         showToast("Message sent! We'll get back to you soon.");
-        onClose();
+        requestClose();
       } else {
         showToast("Failed to send message. Please try again.");
       }
@@ -92,20 +111,20 @@ export default function ContactModal({ open, onClose, userName, userEmail }: Con
     <div className="fixed inset-0 z-[9999] flex items-center justify-center">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-announce-backdrop-in"
-        onClick={onClose}
+        className={`absolute inset-0 bg-black/50 backdrop-blur-sm ${closing ? "animate-announce-backdrop-out" : "animate-announce-backdrop-in"}`}
+        onClick={requestClose}
       />
 
       {/* Modal */}
-      <div className="relative bg-card rounded-2xl border border-border shadow-2xl w-full w-[calc(100%-2rem)] max-w-md animate-announce-card-in">
+      <div className={`relative bg-card rounded-2xl border border-border shadow-2xl w-full w-[calc(100%-2rem)] max-w-md ${closing ? "animate-announce-card-out" : "animate-announce-card-in"}`}>
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <div className="flex items-center gap-2">
-            <MessageCircle size={15} className="text-subtle-foreground" />
+            <MessageCircle size={15} className="text-foreground" />
             <h2 className="text-sm font-semibold text-foreground">Contact Us</h2>
           </div>
           <button
-            onClick={onClose}
+            onClick={requestClose}
             className="p-1 text-subtle-foreground hover:text-foreground transition-colors rounded-lg hover:bg-accent"
             aria-label="Close"
           >
@@ -117,8 +136,8 @@ export default function ContactModal({ open, onClose, userName, userEmail }: Con
         <form onSubmit={handleSubmit} className="px-5 py-4 space-y-4">
           {/* Pre-filled user info (read-only) */}
           {(userName || userEmail) && (
-            <div className="text-xs text-subtle-foreground">
-              Sending as <span className="font-medium text-secondary-foreground">{userName || userEmail}</span>
+            <div className="text-xs text-foreground">
+              Sending as <span className="font-bold text-foreground">{userName || userEmail}</span>
             </div>
           )}
 

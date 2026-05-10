@@ -5,6 +5,7 @@ import Link from "next/link";
 import { RefreshCw, CalendarDays, LayoutGrid, ArrowRight } from "lucide-react";
 import GoogleOneTap from "@/components/auth/GoogleOneTap";
 import FadeIn from "@/components/landing/FadeIn";
+import Pricing_04 from "@/components/ui/ruixen-pricing-04";
 
 
 interface HeroProps {
@@ -369,6 +370,13 @@ export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Pricing — Free vs Pro (anchor target for the nav "Pricing" link) */}
+      <div id="pricing" className="w-full bg-white scroll-mt-24">
+        <FadeIn>
+          <Pricing_04 />
+        </FadeIn>
       </div>
 
       {/* Footer */}

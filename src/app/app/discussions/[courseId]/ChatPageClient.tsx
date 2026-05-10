@@ -14,7 +14,6 @@ import ChatSidebar from "@/components/discussions/ChatSidebar";
 import ChatDetailsSidebar from "@/components/discussions/ChatDetailsSidebar";
 import { createClient } from "@/lib/supabase/client";
 import { useDiscussionBoards } from "@/hooks/useDiscussionBoards";
-import CalChatWelcomeModal from "@/components/discussions/CalChatWelcomeModal";
 import CalChatLockedModal from "@/components/ui/CalChatLockedModal";
 import PageTransition from "@/components/ui/PageTransition";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
@@ -322,7 +321,6 @@ export default function ChatPageClient({ initialCourseId, initialMessages }: Cha
   return (
     <PageTransition>
       <div id="tour-calchat-page" className="absolute inset-0 flex">
-        <CalChatWelcomeModal />
       {/* Chat list sidebar — hidden on mobile, visible on md+ */}
       <div className="hidden md:flex w-72 shrink-0 border-r border-black/30 dark:border-white/20 flex-col">
         <ChatSidebar

@@ -15,6 +15,8 @@ type AnalyticsEvent =
   | "onboarding_step_viewed"
   | "onboarding_step_completed"
   | "onboarding_step_skipped"
+  | "onboarding_school_selected"
+  | "onboarding_referral_selected"
   | "onboarding_platforms_selected"
   | "onboarding_completed"
   | "onboarding_exited"

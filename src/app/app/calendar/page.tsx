@@ -32,7 +32,6 @@ import CreateTypeToggle from "@/components/calendar/CreateTypeToggle";
 import TaskPreviewPopover from "@/components/tasks/TaskPreviewPopover";
 import DayOverflowPopover from "@/components/calendar/DayOverflowPopover";
 import PageTransition from "@/components/ui/PageTransition";
-import GCalAnnouncementModal from "@/components/ui/GCalAnnouncementModal";
 import type { PendingInvite, GCalEvent } from "@/lib/types";
 import { usePendingInvites } from "@/hooks/usePendingInvites";
 import { getEventDateKey } from "@/lib/gcal/event-utils";
@@ -381,7 +380,6 @@ export default function CalendarPage() {
             onTaskClick={(task, rect) => { modals.handleTaskClick(task, rect); }}
           />
         )}
-        <GCalAnnouncementModal />
       </div>
     </PageTransition>
   );

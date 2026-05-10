@@ -10,14 +10,18 @@ import GradescopeStep from "@/components/onboarding/GradescopeStep";
 import PensieveStep from "@/components/onboarding/PensieveStep";
 import AddCanvasStep from "@/components/onboarding/AddCanvasStep";
 import SyllabusStep from "@/components/onboarding/SyllabusStep";
+import SearchableSelect from "@/components/onboarding/SearchableSelect";
+import { SCHOOL_OPTIONS, REFERRAL_OPTIONS } from "@/components/onboarding/onboardingOptions";
 import type { IntegrationCredentials, AdditionalCanvasAccount } from "@/lib/types";
 
-type Step = "welcome" | "platforms" | "canvas" | "gradescope" | "pensieve" | "syllabus" | "done";
+type Step = "welcome" | "school" | "referral" | "platforms" | "canvas" | "gradescope" | "pensieve" | "syllabus" | "done";
 type Platform = "canvas" | "gradescope" | "pensieve" | "syllabus";
 
 /** Display labels for each step in the stepper bar. */
 const STEP_LABELS: Record<Step, string> = {
   welcome: "Welcome",
+  school: "School",
+  referral: "Referral",
   platforms: "Platforms",
   canvas: "Canvas",
   gradescope: "Gradescope",
@@ -346,6 +350,10 @@ export default function OnboardingPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedPlatforms, setSelectedPlatforms] = useState<Set<Platform>>(new Set());
+  /** Free-form school name selected on the "school" step. Tracked for analytics only. */
+  const [school, setSchool] = useState<string>("");
+  /** Free-form referral source selected on the "referral" step. Tracked for analytics only. */
+  const [referral, setReferral] = useState<string>("");
 
   // Draft state refs — persisted across step navigation without causing re-renders.
   // Updated by each step on unmount; read by each step on mount.
@@ -402,7 +410,7 @@ export default function OnboardingPage() {
     if (selectedPlatforms.has("gradescope")) platformSteps.push("gradescope");
     if (selectedPlatforms.has("pensieve")) platformSteps.push("pensieve");
     if (selectedPlatforms.has("syllabus")) platformSteps.push("syllabus");
-    return ["welcome", "platforms", ...platformSteps, "done"];
+    return ["welcome", "school", "referral", "platforms", ...platformSteps, "done"];
   }, [selectedPlatforms]);
 
   const stepIndex = steps.indexOf(currentStep);
@@ -835,11 +843,13 @@ export default function OnboardingPage() {
               style={{
                 width: `${({
                   welcome: 0,
-                  platforms: 20,
-                  canvas: 40,
-                  gradescope: 55,
-                  pensieve: 70,
-                  syllabus: 85,
+                  school: 10,
+                  referral: 20,
+                  platforms: 30,
+                  canvas: 45,
+                  gradescope: 60,
+                  pensieve: 75,
+                  syllabus: 88,
                   done: 100,
                 } as Record<Step, number>)[currentStep]}%`,
               }}
@@ -899,10 +909,66 @@ export default function OnboardingPage() {
                   We recommend doing this on a computer.
                 </p>
                 <button
-                  onClick={() => setCurrentStep("platforms")}
+                  onClick={() => setCurrentStep("school")}
                   className="w-full px-5 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-full text-sm font-semibold"
                 >
                   Get Started
+                </button>
+              </div>
+            )}
+
+            {currentStep === "school" && (
+              <div>
+                <h2 className="text-lg font-bold text-foreground mb-2">
+                  Where do you go to school?
+                </h2>
+                <p className="text-sm text-muted-foreground mb-6">
+                  Helps us know who we&rsquo;re building for.
+                </p>
+                <SearchableSelect
+                  options={SCHOOL_OPTIONS}
+                  value={school}
+                  onChange={setSchool}
+                  placeholder="Select your school..."
+                />
+                <button
+                  onClick={() => {
+                    trackEvent("onboarding_school_selected", { school: school || "(skipped)" });
+                    trackEvent("onboarding_step_completed", { step: "school" });
+                    setCurrentStep("referral");
+                  }}
+                  disabled={!school.trim()}
+                  className="mt-8 w-full px-5 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-full text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Continue
+                </button>
+              </div>
+            )}
+
+            {currentStep === "referral" && (
+              <div>
+                <h2 className="text-lg font-bold text-foreground mb-2">
+                  Where did you hear about us?
+                </h2>
+                <p className="text-sm text-muted-foreground mb-6">
+                  Helps us figure out what&rsquo;s working.
+                </p>
+                <SearchableSelect
+                  options={REFERRAL_OPTIONS}
+                  value={referral}
+                  onChange={setReferral}
+                  placeholder="Select a source..."
+                />
+                <button
+                  onClick={() => {
+                    trackEvent("onboarding_referral_selected", { source: referral || "(skipped)" });
+                    trackEvent("onboarding_step_completed", { step: "referral" });
+                    setCurrentStep("platforms");
+                  }}
+                  disabled={!referral.trim()}
+                  className="mt-8 w-full px-5 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-full text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Continue
                 </button>
               </div>
             )}
