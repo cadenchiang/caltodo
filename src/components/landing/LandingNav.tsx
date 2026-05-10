@@ -29,6 +29,8 @@ export default function LandingNav({ loggedIn: loggedInProp }: LandingNavProps =
   const [loggedIn, setLoggedIn] = useState<boolean>(loggedInProp ?? false);
   /** Tracks which on-page section is currently in view (home page only). */
   const [activeHash, setActiveHash] = useState<string>("");
+  /** True once the user has scrolled past the top — used to toggle the divider. */
+  const [scrolled, setScrolled] = useState(false);
   /**
    * Timestamp until which the IntersectionObserver should NOT touch activeHash.
    * Set when the user clicks a hash link from off-route so the pending target
@@ -48,6 +50,17 @@ export default function LandingNav({ loggedIn: loggedInProp }: LandingNavProps =
       cancelled = true;
     };
   }, [loggedInProp]);
+
+  // Toggle the bottom divider based on scroll position so the nav reads
+  // borderless when sitting at the top of the page.
+  useEffect(() => {
+    function onScroll() {
+      setScrolled(window.scrollY > 4);
+    }
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   /**
    * Observe the on-page #pricing section when we're on the home route so the
@@ -177,7 +190,11 @@ export default function LandingNav({ loggedIn: loggedInProp }: LandingNavProps =
   }
 
   return (
-    <nav className="sticky top-0 z-40 w-full px-4 sm:px-8 py-3 sm:py-4 grid grid-cols-3 items-center bg-white border-b border-black/5">
+    <nav
+      className={`sticky top-0 z-40 w-full px-4 sm:px-8 py-3 sm:py-4 grid grid-cols-3 items-center bg-white border-b transition-colors duration-200 ${
+        scrolled ? "border-black/5" : "border-transparent"
+      }`}
+    >
       {/* Left: logo */}
       <Link
         href={loggedIn ? "/app/home" : "/"}
