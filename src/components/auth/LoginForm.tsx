@@ -114,13 +114,13 @@ export default function LoginForm() {
       {/* Header */}
       <div className="mb-1">
         <h1
-          className="text-2xl font-bold text-gray-900 tracking-tight animate-fade-up"
+          className="text-2xl font-bold text-gray-900 tracking-tight animate-fade-right"
           style={{ animationDelay: "0ms" }}
         >
           {heading}
         </h1>
         <p
-          className="text-sm text-gray-600 mt-1.5 animate-fade-up"
+          className="text-sm text-gray-600 mt-1.5 animate-fade-right"
           style={{ animationDelay: "120ms" }}
         >
           {subheading}
@@ -129,7 +129,7 @@ export default function LoginForm() {
 
       {/* Error message */}
       {error && (
-        <div className="bg-red-500/10 text-red-600 text-sm p-3 rounded-xl animate-fade-up">
+        <div className="bg-red-500/10 text-red-600 text-sm p-3 rounded-xl animate-fade-right">
           {error}
         </div>
       )}
@@ -138,7 +138,7 @@ export default function LoginForm() {
       <button
         type="button"
         onClick={handleGoogleSignIn}
-        className="flex items-center justify-center gap-3 w-full px-4 py-3 rounded-xl bg-white border border-gray-200 text-gray-900 text-sm font-medium shadow-sm hover:bg-gray-50 transition-colors animate-fade-up"
+        className="flex items-center justify-center gap-3 w-full px-4 py-3 rounded-xl bg-white border border-gray-200 text-gray-900 text-sm font-medium shadow-sm hover:bg-gray-50 transition-colors animate-fade-right"
         style={{ animationDelay: "240ms" }}
       >
         <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
@@ -152,7 +152,7 @@ export default function LoginForm() {
 
       {/* Alt prompt link */}
       <p
-        className="text-center text-xs text-gray-600 mt-1 animate-fade-up"
+        className="text-center text-xs text-gray-600 mt-1 animate-fade-right"
         style={{ animationDelay: "360ms" }}
       >
         {altPromptText}{" "}

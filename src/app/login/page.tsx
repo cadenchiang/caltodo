@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import LoginForm from "@/components/auth/LoginForm";
 import LoginRightPanel from "@/components/auth/LoginRightPanel";
+import GoogleOneTap from "@/components/auth/GoogleOneTap";
 import { ToastProvider } from "@/contexts/ToastContext";
 
 /**
@@ -30,6 +31,8 @@ export const metadata: Metadata = {
 export default function LoginPage() {
   return (
     <ToastProvider>
+      {/* Native Google One Tap prompt — appears top-right on desktop if user has a Google session */}
+      <GoogleOneTap />
       <div className="h-dvh overflow-hidden flex flex-row bg-white force-light">
         {/* Left: form sitting on a glass modal card */}
         <div className="basis-1/2 min-w-0 flex flex-col items-center justify-center px-6 py-8 relative">

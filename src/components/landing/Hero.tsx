@@ -148,7 +148,7 @@ export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
               className="mt-3 sm:mt-5 text-sm sm:text-lg font-medium text-black tracking-tight animate-fade-up"
               style={{ animationDelay: "1000ms" }}
             >
-              caltodo
+              Caltodo
             </p>
           </div>
 
@@ -167,10 +167,19 @@ export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
 
           {/* Subtitle */}
           <p
-            className="text-sm sm:text-xl text-center font-sans font-medium mt-3 sm:mt-6 mb-5 sm:mb-8 leading-snug text-black max-w-[280px] sm:max-w-[460px] animate-fade-up"
+            className="text-sm sm:text-xl text-center font-sans font-medium mt-3 sm:mt-6 mb-5 sm:mb-8 leading-snug text-black max-w-[280px] sm:max-w-none animate-fade-up"
             style={{ animationDelay: "1350ms" }}
           >
-            All of your assignments, now in one place. Meet the beautifully designed, fully integrated planner for school and life.
+            <span className="sm:hidden">
+              All of your assignments, now in one place. Meet the beautifully designed, fully integrated planner for your school and life.
+            </span>
+            <span className="hidden sm:inline">
+              All of your assignments, now in one
+              <br />
+              place. Meet the beautifully designed, fully
+              <br />
+              integrated planner for your school and life.
+            </span>
           </p>
 
           {/* CTA */}
