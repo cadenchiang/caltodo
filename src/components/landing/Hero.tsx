@@ -42,6 +42,23 @@ export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
     return () => observer.disconnect();
   }, []);
 
+  // When the home page mounts with a URL hash (e.g. navigated here from /about
+  // via the Pricing nav link), scroll the target into view. Next.js's App
+  // Router does not honor hash anchors on client-side navigations, so this
+  // bridges that gap.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const hash = window.location.hash;
+    if (!hash || hash.length < 2) return;
+    const id = hash.slice(1);
+    // Defer one frame so the section's DOM (and FadeIn refs) are mounted.
+    const handle = window.requestAnimationFrame(() => {
+      const target = document.getElementById(id);
+      if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    return () => window.cancelAnimationFrame(handle);
+  }, []);
+
   const mockupRef = useRef<HTMLDivElement>(null);
 
   return (
