@@ -1140,6 +1140,37 @@ body {
   animation: checkIn 500ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
+/* Login school marquee — slow horizontal scroll */
+@keyframes loginMarquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.login-marquee-track {
+  animation: loginMarquee 50s linear infinite;
+}
+
+/* Premium fade-up — longer, smoother curve for landing element entrances */
+@keyframes fadeUp {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 24px, 0);
+    filter: blur(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+    filter: blur(0);
+  }
+}
+
+.animate-fade-up {
+  animation-name: fadeUp;
+  animation-duration: 900ms;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  animation-fill-mode: both;
+  will-change: opacity, transform, filter;
+}
+
 /* Hero appear animation */
 @keyframes appear {
   0% {

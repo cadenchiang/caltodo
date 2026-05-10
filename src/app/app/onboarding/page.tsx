@@ -737,6 +737,7 @@ export default function OnboardingPage() {
   }
 
   const [exiting, setExiting] = useState(false);
+  const [showSkipModal, setShowSkipModal] = useState(false);
 
   /**
    * Marks onboarding complete and navigates to /app/home.
@@ -849,9 +850,9 @@ export default function OnboardingPage() {
           </div>
         </div>
 
-        {/* Skip Setup button — subtle */}
+        {/* Skip Setup button — subtle, opens confirm modal */}
         <button
-          onClick={() => router.push("/app/inbox")}
+          onClick={() => setShowSkipModal(true)}
           className="shrink-0 text-xs text-muted-foreground/70 hover:text-foreground transition-colors px-2 py-1"
         >
           Skip Setup
@@ -1063,6 +1064,43 @@ export default function OnboardingPage() {
         </div>
         </div>
       </div>
+
+      {/* Skip Setup confirmation modal */}
+      {showSkipModal && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+          onClick={() => setShowSkipModal(false)}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl animate-drop-in"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-bold text-foreground mb-2">
+              Skip setup for now?
+            </h3>
+            <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
+              You can always connect Canvas, Gradescope, Pensive, or upload a syllabus later from <span className="font-semibold text-foreground">Settings &gt; Integrations</span>.
+            </p>
+            <div className="flex items-center justify-end gap-2">
+              <button
+                onClick={() => setShowSkipModal(false)}
+                className="px-4 py-2 text-sm font-medium text-foreground hover:bg-black/5 rounded-lg transition-colors"
+              >
+                Keep going
+              </button>
+              <button
+                onClick={() => {
+                  setShowSkipModal(false);
+                  router.push("/app/inbox");
+                }}
+                className="px-4 py-2 rounded-full text-sm font-semibold bg-gray-900 dark:bg-white text-white dark:text-gray-900"
+              >
+                Skip for now
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

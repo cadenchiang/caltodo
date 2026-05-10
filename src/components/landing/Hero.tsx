@@ -22,7 +22,6 @@ interface HeroProps {
 export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
   const [showSpotsModal, setShowSpotsModal] = useState(false);
   const [pastHero, setPastHero] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
   const userCount = initialUserCount ?? null;
   const heroEndRef = useRef<HTMLDivElement>(null);
 
@@ -42,51 +41,19 @@ export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
     return () => observer.disconnect();
   }, []);
 
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 8);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
   const mockupRef = useRef<HTMLDivElement>(null);
 
   return (
-    <div className="min-h-dvh flex flex-col bg-white text-black" style={{ overflowX: "clip" }}>
+    <>
       {/* Google One Tap sign-in prompt (desktop only) */}
       <GoogleOneTap />
-
-      {/* Flat top bar */}
-      <nav
-        className="sticky top-0 z-40 w-full px-4 sm:px-8 py-3 sm:py-4 flex items-center justify-between bg-white transition-[border-color] duration-200"
-        style={{ borderBottom: `1px solid ${scrolled ? "rgba(0,0,0,0.08)" : "rgba(0,0,0,0)"}` }}
-      >
-          <Link href={loggedIn ? "/app/home" : "/"} className="flex items-center hover:opacity-70 transition-opacity">
-            <img src="/logo.png" alt="caltodo" className="h-7 sm:h-9 w-auto" />
-          </Link>
-          <div className="flex items-center gap-1 sm:gap-1.5">
-            <Link
-              href={loggedIn ? "/app/home" : "/login?signup=true"}
-              className="px-4 py-1.5 text-xs sm:px-5 sm:py-2 sm:text-sm font-medium rounded-lg bg-[#0071E3] text-white hover:bg-[#3D8FE8] transition-colors duration-200 inline-flex items-center gap-1.5"
-            >
-              Get started
-              <ArrowRight size={14} strokeWidth={2.5} />
-            </Link>
-            <Link
-              href={loggedIn ? "/app/home" : "/login"}
-              className="px-4 py-1.5 text-xs sm:px-5 sm:py-2 sm:text-sm font-medium rounded-lg text-black hover:bg-black/10 transition-colors duration-200"
-            >
-              Login
-            </Link>
-        </div>
-      </nav>
 
       {/* Hero content */}
       <main className="flex-1 flex flex-col items-center px-6 lg:px-10 relative pb-8 sm:pb-10">
         {/* Above-the-fold section — fills viewport on mobile, normal flow on desktop */}
         <div className="min-h-[calc(100dvh-8rem)] sm:min-h-0 flex flex-col items-center justify-center sm:justify-start w-full relative">
           {/* Logo with integration icons behind */}
-          <div className="flex flex-col items-center mt-2 sm:mt-6 mb-3 sm:mb-4">
+          <div className="flex flex-col items-center mt-6 sm:mt-14 mb-3 sm:mb-4">
             <div className="relative flex items-end justify-center" style={{ gap: 0 }}>
               {/* Canvas — outer left, highest */}
               <div className="group relative cursor-pointer flex flex-col items-center -mr-1 sm:-mr-3" style={{ marginBottom: "20px" }}>
@@ -206,34 +173,52 @@ export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
           </div>
         </div>
 
-        {/* Trusted by section — equal spacing top/middle/bottom */}
+        {/* Trusted by section — scrolling marquee with edge fade */}
         <div className="w-full flex flex-col items-center gap-8 sm:gap-12 py-8 sm:py-12">
           <p className="text-center text-lg sm:text-2xl font-semibold text-black tracking-tight">
             {userCount ? `Trusted by ${userCount}+ students at` : "Trusted by students at"}
           </p>
-          <div className="w-full max-w-4xl mx-auto flex items-center justify-between flex-nowrap gap-x-2 sm:gap-x-4 px-2">
-            {[
-              { name: "UC Berkeley", src: "/cal-logo.png" },
-              { name: "Cornell", src: "/schools/cornell.svg" },
-              { name: "NYU", src: "/schools/nyu.svg" },
-              { name: "UCSD", src: "/schools/ucsd.svg" },
-              { name: "UCLA", src: "/schools/ucla.svg" },
-              { name: "UPenn", src: "/schools/upenn.svg" },
-              { name: "USC", src: "/schools/usc.svg" },
-              { name: "Columbia", src: "/schools/columbia.svg" },
-            ].map((school) => (
-              <div
-                key={school.name}
-                className="h-7 sm:h-9 w-16 sm:w-24 flex items-center justify-center shrink-0"
-                title={school.name}
-              >
-                <img
-                  src={school.src}
-                  alt={school.name}
-                  className="max-h-full max-w-full object-contain grayscale opacity-70 hover:opacity-100 hover:grayscale-0 transition-all"
-                />
-              </div>
-            ))}
+          <div
+            className="w-full max-w-3xl mx-auto overflow-hidden"
+            style={{
+              maskImage: "linear-gradient(to right, transparent 0%, black 12%, black 88%, transparent 100%)",
+              WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 12%, black 88%, transparent 100%)",
+            }}
+          >
+            <div
+              className="flex items-center gap-8 whitespace-nowrap"
+              style={{ animation: "loginMarquee 50s linear infinite" }}
+            >
+              {(() => {
+                const schools = [
+                  { name: "UC Berkeley", src: "/cal-logo.png" },
+                  { name: "Stanford", src: "/schools/stanford.svg" },
+                  { name: "Harvard", src: "/schools/harvard.svg" },
+                  { name: "MIT", src: "/schools/mit.svg" },
+                  { name: "Yale", src: "/schools/yale.svg" },
+                  { name: "Cornell", src: "/schools/cornell.svg" },
+                  { name: "NYU", src: "/schools/nyu.svg" },
+                  { name: "UCSD", src: "/schools/ucsd.svg" },
+                  { name: "UCLA", src: "/schools/ucla.svg" },
+                  { name: "UPenn", src: "/schools/upenn.svg" },
+                  { name: "USC", src: "/schools/usc.svg" },
+                  { name: "Columbia", src: "/schools/columbia.svg" },
+                ];
+                return [...schools, ...schools].map((school, i) => (
+                  <div
+                    key={`${school.name}-${i}`}
+                    className="h-9 w-24 flex items-center justify-center shrink-0"
+                    title={school.name}
+                  >
+                    <img
+                      src={school.src}
+                      alt={school.name}
+                      className="max-h-full max-w-full object-contain grayscale opacity-60"
+                    />
+                  </div>
+                ));
+              })()}
+            </div>
           </div>
         </div>
 
@@ -359,6 +344,6 @@ export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

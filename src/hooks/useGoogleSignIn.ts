@@ -68,8 +68,11 @@ export function useGoogleSignIn() {
 
         /**
          * Polls the popup window until it either closes or navigates back to our
-         * origin (after the OAuth callback redirect). Once detected, closes the
-         * popup and navigates the main window to the destination.
+         * origin (after the OAuth callback redirect). Once detected, waits for
+         * the auth cookies to actually appear in the main window's session before
+         * navigating — without this, the main window can race ahead of the
+         * popup's Set-Cookie write and bounce off the protected route back to
+         * /login.
          */
         const pollId = setInterval(async () => {
           try {
@@ -91,8 +94,29 @@ export function useGoogleSignIn() {
               const destination = popupUrl.includes("/app/onboarding")
                 ? "/app/onboarding"
                 : "/app/home";
-              popup.close();
-              window.location.href = destination;
+
+              // Wait for the popup's Set-Cookie write to land before navigating.
+              // We re-check getSession() until it resolves with a session, up to
+              // ~3s. Without this, the main window's request to /app/* arrives
+              // without cookies and the layout bounces it to /login.
+              const start = Date.now();
+              const sessionPoll = setInterval(async () => {
+                const {
+                  data: { session },
+                } = await supabase.auth.getSession();
+                if (session) {
+                  clearInterval(sessionPoll);
+                  popup.close();
+                  window.location.href = destination;
+                  return;
+                }
+                if (Date.now() - start > 3000) {
+                  clearInterval(sessionPoll);
+                  popup.close();
+                  // Fall back: go anyway. Layout will handle re-auth if needed.
+                  window.location.href = destination;
+                }
+              }, 100);
             }
           } catch {
             // Cross-origin — popup is still on Google/Supabase domain, keep polling
