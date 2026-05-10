@@ -37,10 +37,10 @@ export default function AboutPage() {
         </p>
 
         <div
-          className="flex items-center gap-2 text-sm text-gray-500 mb-10 animate-fade-up"
+          className="flex items-center gap-2 text-sm font-bold text-black mb-10 animate-fade-up"
           style={{ animationDelay: "280ms" }}
         >
-          <MapPin size={16} strokeWidth={2} />
+          <MapPin size={16} strokeWidth={2.5} />
           <span>UC Berkeley · Berkeley, California</span>
         </div>
 
