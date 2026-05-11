@@ -12,6 +12,7 @@ import { randomBytes } from "crypto";
 import { createClient } from "@/lib/supabase/server";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
+import { isPro } from "@/lib/entitlements";
 
 /** Google OAuth2 authorization endpoint. */
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
@@ -29,6 +30,15 @@ export async function GET(request: NextRequest) {
 
   if (authError || !user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Google Calendar sync is a Pro-gated feature. Block at the door — don't
+  // let a free user start the OAuth flow only to be told later it doesn't work.
+  if (!(await isPro(user.id))) {
+    return NextResponse.json(
+      { error: "Google Calendar sync is a Pro feature", code: "pro_required" },
+      { status: 402 },
+    );
   }
 
   const { allowed } = rateLimit(`gcal-auth:${user.id}`, 30, 60_000);

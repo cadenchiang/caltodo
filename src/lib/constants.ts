@@ -1,4 +1,4 @@
-import { LayoutGrid, Inbox, CalendarDays, NotebookPen, Users } from "lucide-react";
+import { LayoutGrid, Inbox, CalendarDays, Users } from "lucide-react";
 
 /**
  * Navigation items for the sidebar.
@@ -8,7 +8,6 @@ export const NAV_ITEMS = [
   { label: "Board", href: "/app/home", icon: LayoutGrid },
   { label: "Inbox", href: "/app/inbox", icon: Inbox },
   { label: "Calendar", href: "/app/calendar", icon: CalendarDays },
-  { label: "Notes", href: "/app/notes", icon: NotebookPen },
   { label: "Chat", href: "/app/discussions", icon: Users },
 ] as const;
 

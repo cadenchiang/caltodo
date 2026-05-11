@@ -11,7 +11,6 @@ import ProfilePopup from "./ProfilePopup";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useCalChatUnread } from "@/hooks/useCalChatUnread";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
-import { useDismissedModals } from "@/hooks/useDismissedModals";
 import { useHiddenNavItems } from "@/hooks/useHiddenNavItems";
 
 
@@ -72,11 +71,6 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
   const hasCalChatUnread = useCalChatUnread();
   useOnboardingStatus();
   const { isHidden: isNavItemHidden } = useHiddenNavItems();
-
-  // Track whether user has dismissed the notes welcome — server-persisted per account.
-  // Only show "NEW" badge until the account has seen/dismissed the notes welcome modal.
-  const { isDismissed: isModalDismissed, dismiss: dismissModal, loaded: modalsLoaded } = useDismissedModals();
-  const notesIsNew = modalsLoaded && !isModalDismissed("notes_welcome");
 
   // Active settings section: URL is the source of truth, but we keep an
   // optimistic local override that updates synchronously on click. Without
@@ -190,9 +184,7 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
           <nav id="tour-sidebar-nav" className="flex flex-col gap-1">
             {NAV_ITEMS.filter((item) => !isNavItemHidden(item.href)).map((item) => {
               const isInbox = item.href === "/app/inbox";
-              const isCalendar = item.href === "/app/calendar";
               const isChat = item.href === "/app/discussions";
-              const isNotes = item.href === "/app/notes";
               return (
                 <SidebarNavItem
                   key={item.href}
@@ -201,13 +193,9 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
                   icon={isInbox ? inboxConfig.icon : item.icon}
                   badge={false}
                   badgeCount={isChat ? hasCalChatUnread : undefined}
-                  badgeText={isNotes && notesIsNew ? "NEW" : undefined}
                   id={`tour-nav-${item.label.toLowerCase()}`}
                   imageSrc={undefined}
                   imageClassName={undefined}
-                  onClick={isNotes && notesIsNew ? () => {
-                    dismissModal("notes_welcome");
-                  } : undefined}
                 />
               );
             })}

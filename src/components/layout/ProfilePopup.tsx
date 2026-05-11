@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { Settings, LogOut, MessageCircle, User } from "lucide-react";
 import ContactModal from "@/components/ui/ContactModal";
 import EditProfileModal from "@/components/ui/EditProfileModal";
 import SignOutConfirmModal from "@/components/ui/SignOutConfirmModal";
+import { useEntitlement } from "@/hooks/useEntitlement";
 import { clearLayoutCache } from "@/lib/board-layout-cache";
 
 interface ProfilePopupProps {
@@ -26,6 +26,7 @@ interface ProfilePopupProps {
  * @param email - User's email address
  */
 export default function ProfilePopup({ avatarUrl, fullName, email }: ProfilePopupProps) {
+  const { entitlement, isTrial, trialDaysLeft } = useEntitlement();
   const [open, setOpen] = useState(false);
   /** Controls the centered "Sign out?" confirm modal. */
   const [showSignOutModal, setShowSignOutModal] = useState(false);
@@ -33,7 +34,6 @@ export default function ProfilePopup({ avatarUrl, fullName, email }: ProfilePopu
   const [showContact, setShowContact] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
   const popupRef = useRef<HTMLDivElement>(null);
-  const router = useRouter();
 
   // Close on outside click
   useEffect(() => {
@@ -76,23 +76,24 @@ export default function ProfilePopup({ avatarUrl, fullName, email }: ProfilePopu
 
   /**
    * Performs the sign-out after the user has confirmed in the modal.
-   * Clears the local board layout cache, hits /auth/signout, redirects home.
+   *
+   * Three things have to happen for sign-out to actually stick:
+   *   1. Clear the local board-layout cache so the next user sees their own data.
+   *   2. POST /auth/signout — clears the Supabase auth cookies on the server.
+   *   3. Hard-navigate to "/" — `router.push` keeps client state in memory, so
+   *      the SSR'd page (and middleware) needs a fresh request to forget the
+   *      old session. Using window.location forces that.
    */
   async function confirmSignOut() {
     setSigningOut(true);
     try {
       clearLayoutCache();
-      const res = await fetch("/auth/signout", { method: "POST" });
-      if (!res.ok) {
-        throw new Error(`Sign out failed (${res.status})`);
-      }
-      setShowSignOutModal(false);
-      router.push("/");
+      await fetch("/auth/signout", { method: "POST" });
     } catch {
-      setSigningOut(false);
-      setShowSignOutModal(false);
-      alert("Failed to sign out. Please try again.");
+      /* even if the server roundtrip fails we still want to drop the user
+         out of the app — the hard redirect below clears the in-memory state */
     }
+    window.location.href = "/";
   }
 
   return (
@@ -150,20 +151,11 @@ export default function ProfilePopup({ avatarUrl, fullName, email }: ProfilePopu
             {email && (
               <p className="text-xs text-subtle-foreground truncate">{email}</p>
             )}
+            {entitlement && <PlanBadge plan={entitlement.effectivePlan} founder={entitlement.founder} trialDaysLeft={isTrial ? trialDaysLeft : null} />}
           </div>
 
           {/* Menu items */}
           <div>
-            <button
-              onClick={() => {
-                setOpen(false);
-                router.push("/app/profile");
-              }}
-              className="flex items-center gap-3 w-full px-4 py-3 text-sm text-secondary-foreground hover:bg-accent transition-colors"
-            >
-              <User size={16} />
-              Profile
-            </button>
             <Link
               href="/app/settings"
               prefetch={true}
@@ -203,5 +195,46 @@ export default function ProfilePopup({ avatarUrl, fullName, email }: ProfilePopu
         signingOut={signingOut}
       />
     </div>
+  );
+}
+
+/**
+ * Renders a small pill under the user's email showing which plan they're on.
+ *   - Founder: gold-ish "Founder" badge (Pro for life, no expiry)
+ *   - Pro:     blue "Pro" badge
+ *   - Trial:   blue "Pro trial" badge with days-left suffix
+ *   - Free:    neutral "Free" badge
+ *
+ * @param plan - The effective plan from the entitlement.
+ * @param founder - True for the founding cohort (overrides the plan label).
+ * @param trialDaysLeft - Days remaining when on a trial; null otherwise.
+ */
+function PlanBadge({
+  plan,
+  founder,
+  trialDaysLeft,
+}: {
+  plan: "free" | "trial" | "pro";
+  founder: boolean;
+  trialDaysLeft: number | null;
+}) {
+  let label = "Free";
+  let className = "bg-muted text-muted-foreground";
+  if (founder) {
+    label = "Founder";
+    className = "bg-amber-500/10 text-amber-600 dark:text-amber-400";
+  } else if (plan === "pro") {
+    label = "Pro";
+    className = "bg-[#0071E3]/10 text-[#0071E3]";
+  } else if (plan === "trial") {
+    label = trialDaysLeft !== null ? `Pro trial · ${trialDaysLeft}d left` : "Pro trial";
+    className = "bg-[#0071E3]/10 text-[#0071E3]";
+  }
+  return (
+    <span
+      className={`mt-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold tracking-wide ${className}`}
+    >
+      {label}
+    </span>
   );
 }

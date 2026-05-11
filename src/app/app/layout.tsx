@@ -11,6 +11,7 @@ import { PresenceProvider } from "@/contexts/PresenceContext";
 import CanvasTokenExpiredModal from "@/components/ui/CanvasTokenExpiredModal";
 import GlobalChatNotifier from "@/components/ui/GlobalChatNotifier";
 import NewAssignmentsModal from "@/components/ui/NewAssignmentsModal";
+import TrialBanner from "@/components/ui/TrialBanner";
 import HiddenRouteRedirect from "@/components/layout/HiddenRouteRedirect";
 import PostHogIdentify from "@/components/PostHogIdentify";
 import PostHogPageView from "@/components/PostHogPageView";
@@ -46,7 +47,9 @@ export default async function AppLayout({
   const email = session.user.email ?? null;
 
   return (
-    <div className="flex flex-col md:flex-row h-dvh">
+    <div className="flex flex-col h-dvh">
+      <TrialBanner />
+      <div className="flex flex-col md:flex-row flex-1 min-h-0">
       <PostHogIdentify userId={session.user.id} email={email} fullName={fullName} />
       <PostHogPageView />
       <ToastProvider>
@@ -68,6 +71,7 @@ export default async function AppLayout({
           </TaskProvider>
           </PresenceProvider>
       </ToastProvider>
+      </div>
     </div>
   );
 }

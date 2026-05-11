@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { CheckIcon } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 
 type Plan = "monthly" | "annually";
 
@@ -151,6 +152,87 @@ export default function Pricing_04() {
  * @param plan - The plan config to render.
  * @param billPlan - Whether to show monthly or annual price.
  */
+/**
+ * Renders the correct CTA for a plan card depending on auth + tier.
+ * Free plan: always a normal link to signup.
+ * Pro plan: if the user is signed in, POST /api/stripe/checkout and redirect
+ *   to Stripe Checkout. Otherwise route through /login first, preserving
+ *   the chosen interval so onboarding can resume checkout afterward.
+ */
+function PlanCta({
+  plan,
+  isPro,
+  billPlan,
+}: {
+  plan: PlanConfig;
+  isPro: boolean;
+  billPlan: Plan;
+}) {
+  const [submitting, setSubmitting] = useState(false);
+
+  const className = cn(
+    "w-full inline-flex items-center justify-center px-4 sm:px-5 py-2 rounded-xl text-sm sm:text-base font-medium transition-colors duration-200",
+    isPro ? "bg-[#0071E3] text-white hover:bg-[#3D8FE8]" : "bg-black text-white hover:bg-black/85",
+  );
+
+  // Free tier (cta === 'free') goes straight to the signup link.
+  if (plan.cta !== "pro") {
+    return (
+      <Link href={plan.link} className={className}>
+        {plan.buttonText}
+      </Link>
+    );
+  }
+
+  /**
+   * Handle the Pro upgrade click. If the user is signed in, hit checkout;
+   * otherwise send them to /login with the chosen interval preserved so
+   * they can resume checkout right after onboarding.
+   */
+  async function handleUpgrade() {
+    setSubmitting(true);
+    try {
+      const supabase = createClient();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) {
+        window.location.href = `/login?signup=true&plan=pro&interval=${billPlan === "monthly" ? "month" : "year"}`;
+        return;
+      }
+      const res = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ interval: billPlan === "monthly" ? "month" : "year" }),
+      });
+      const data = await res.json();
+      if (data?.url) {
+        window.location.href = data.url as string;
+        return;
+      }
+      if (data?.alreadyPro) {
+        window.location.href = "/app/settings";
+        return;
+      }
+      throw new Error(data?.error ?? "checkout_failed");
+    } catch {
+      setSubmitting(false);
+      alert("Something went wrong starting checkout. Please try again.");
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleUpgrade}
+      disabled={submitting}
+      className={cn(className, "disabled:opacity-60 disabled:cursor-not-allowed")}
+    >
+      {submitting ? "Starting checkout..." : plan.buttonText}
+    </button>
+  );
+}
+
 function Plan({ plan, billPlan }: { plan: PlanConfig; billPlan: Plan }) {
   const isPro = plan.cta === "pro";
   const currentPrice = billPlan === "monthly" ? plan.monthlyPrice : plan.annuallyPrice;
@@ -208,17 +290,7 @@ function Plan({ plan, billPlan }: { plan: PlanConfig; billPlan: Plan }) {
 
       {/* Button + billing caption — pinned to the bottom of the card */}
       <div className="mt-auto flex flex-col items-start w-full pt-8">
-        <Link
-          href={plan.link}
-          className={cn(
-            "w-full inline-flex items-center justify-center px-4 sm:px-5 py-2 rounded-xl text-sm sm:text-base font-medium transition-colors duration-200",
-            isPro
-              ? "bg-[#0071E3] text-white hover:bg-[#3D8FE8]"
-              : "bg-black text-white hover:bg-black/85",
-          )}
-        >
-          {plan.buttonText}
-        </Link>
+        <PlanCta plan={plan} isPro={isPro} billPlan={billPlan} />
         <div className="h-10 overflow-hidden w-full mx-auto">
           <AnimatePresence mode="wait">
             <motion.span

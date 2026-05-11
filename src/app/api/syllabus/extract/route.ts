@@ -10,8 +10,13 @@
 import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
+import { isPro } from "@/lib/entitlements";
+
+/** Free-tier users may upload this many syllabus PDFs total. */
+const FREE_SYLLABUS_LIMIT = 1;
 
 /** Maximum file size in bytes (10 MB). */
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
@@ -80,6 +85,28 @@ export async function POST(request: Request) {
 
   if (authError || !user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Pro-tier gating: free users get 1 lifetime upload. Read the counter from
+  // integration_credentials (default 0 for users who haven't uploaded yet).
+  const userIsPro = await isPro(user.id);
+  if (!userIsPro) {
+    const admin = createAdminClient();
+    const { data: creds } = await admin
+      .from("integration_credentials")
+      .select("syllabus_upload_count")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    const usedCount = (creds?.syllabus_upload_count as number | undefined) ?? 0;
+    if (usedCount >= FREE_SYLLABUS_LIMIT) {
+      return NextResponse.json(
+        {
+          error: "Free plan allows 1 syllabus upload. Upgrade to Pro for unlimited uploads.",
+          code: "pro_required",
+        },
+        { status: 402 },
+      );
+    }
   }
 
   // Rate limit: 10 requests per 60 seconds per user
@@ -244,6 +271,26 @@ export async function POST(request: Request) {
       courseName: result.course_name,
       assignmentCount: result.assignments.length,
     });
+
+    // Increment the per-user upload counter so future free-tier requests are
+    // gated. Only counts successful extractions so a failed upload doesn't
+    // burn the user's free quota.
+    try {
+      const admin = createAdminClient();
+      await admin.rpc("increment_syllabus_upload_count", { p_user_id: user.id }).single();
+    } catch {
+      // Fall back to a direct update if the RPC isn't deployed yet.
+      const admin = createAdminClient();
+      const { data: row } = await admin
+        .from("integration_credentials")
+        .select("syllabus_upload_count")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      const next = ((row?.syllabus_upload_count as number | undefined) ?? 0) + 1;
+      await admin
+        .from("integration_credentials")
+        .upsert({ user_id: user.id, syllabus_upload_count: next }, { onConflict: "user_id" });
+    }
 
     return NextResponse.json(result);
   } catch (err) {

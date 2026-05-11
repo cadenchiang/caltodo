@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Check } from "lucide-react";
+import { Check, Lock } from "lucide-react";
 import ThemeToggle from "@/components/layout/ThemeToggle";
 import { useTheme } from "@/contexts/ThemeContext";
 import type { ColorTheme } from "@/contexts/ThemeContext";
 import { cn } from "@/lib/utils";
+import { useEntitlement } from "@/hooks/useEntitlement";
+import UpgradeModal from "@/components/ui/UpgradeModal";
 
 /** localStorage key for the set of unlocked theme IDs. */
 const UNLOCKED_THEMES_KEY = "caltodo_unlocked_themes";
@@ -156,11 +158,23 @@ function saveUnlockedThemes(themes: string[]): void {
  */
 export default function AppearanceSection() {
   const { colorTheme, setColorTheme } = useTheme();
+  const { isPro } = useEntitlement();
   const [unlockedThemes, setUnlockedThemes] = useState<string[]>([]);
   const [codeInput, setCodeInput] = useState("");
   const [error, setError] = useState(false);
   const [shaking, setShaking] = useState(false);
+  const [showUpgrade, setShowUpgrade] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // When a free user lands on this section while a non-default theme is
+  // somehow active (e.g. their trial expired), reset to default so the gate
+  // is enforced from the UI side. The server-side feature flag is just a
+  // marketing claim — themes apply via a CSS class, so we enforce by clearing.
+  useEffect(() => {
+    if (!isPro && colorTheme !== null) {
+      setColorTheme(null);
+    }
+  }, [isPro, colorTheme, setColorTheme]);
 
   // Load unlocked themes from localStorage on mount
   useEffect(() => {
@@ -192,12 +206,19 @@ export default function AppearanceSection() {
   /**
    * Handles clicking a theme card. Toggles active theme, or shows unlock input for locked themes.
    *
+   * Free users see all themes but every non-default one is Pro-gated, so the
+   * click opens the UpgradeModal instead of activating the theme.
+   *
    * @param theme - The theme option that was clicked
    */
   const handleThemeClick = useCallback((theme: ThemeOption) => {
+    if (!isPro) {
+      setShowUpgrade(true);
+      return;
+    }
     const next: ColorTheme = colorTheme === theme.id ? null : theme.id;
     setColorTheme(next);
-  }, [colorTheme, setColorTheme]);
+  }, [colorTheme, setColorTheme, isPro]);
 
   return (
     <section>
@@ -246,22 +267,29 @@ export default function AppearanceSection() {
 
           {THEME_OPTIONS.filter((theme) => !theme.locked || unlockedThemes.includes(theme.id)).map((theme) => {
             const isActive = colorTheme === theme.id;
+            const gated = !isPro;
 
             return (
               <button
                 key={theme.id}
                 type="button"
                 onClick={() => handleThemeClick(theme)}
-                aria-label={isActive ? `Deactivate ${theme.name} theme` : `Activate ${theme.name} theme`}
+                aria-label={
+                  gated
+                    ? `${theme.name} theme — Pro required`
+                    : isActive
+                      ? `Deactivate ${theme.name} theme`
+                      : `Activate ${theme.name} theme`
+                }
                 className={cn(
                   "relative flex flex-col items-start gap-2 rounded-xl border p-3 transition-all duration-200 cursor-pointer text-left",
                   "hover:border-input-border",
                   isActive
                     ? "border-ring bg-accent ring-1 ring-ring"
-                    : "border-border bg-card"
+                    : "border-border bg-card",
                 )}
               >
-                <div className="flex items-center gap-1.5">
+                <div className={cn("flex items-center gap-1.5", gated && "opacity-60")}>
                   {theme.swatches.map((color, i) => (
                     <span
                       key={i}
@@ -270,13 +298,19 @@ export default function AppearanceSection() {
                     />
                   ))}
                 </div>
-                <div className="min-w-0">
+                <div className={cn("min-w-0", gated && "opacity-70")}>
                   <span className="text-xs font-medium text-foreground">{theme.name}</span>
                   <p className="text-[10px] text-muted-foreground leading-tight">{theme.description}</p>
                 </div>
-                {isActive && (
+                {isActive && !gated && (
                   <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-ring flex items-center justify-center">
                     <Check size={12} className="text-white" />
+                  </div>
+                )}
+                {gated && (
+                  <div className="absolute top-2 right-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-[#0071E3] text-white text-[9px] font-semibold tracking-wide">
+                    <Lock size={9} strokeWidth={3} />
+                    PRO
                   </div>
                 )}
               </button>
@@ -284,8 +318,9 @@ export default function AppearanceSection() {
           })}
         </div>
 
-        {/* Theme code unlock bar — only show if there are locked themes not yet unlocked */}
-        {THEME_OPTIONS.some((t) => t.locked && !unlockedThemes.includes(t.id)) && (
+        {/* Theme code unlock bar — only show to Pro users (the gate is Pro,
+            not the code). Free users see the Upgrade modal first. */}
+        {isPro && THEME_OPTIONS.some((t) => t.locked && !unlockedThemes.includes(t.id)) && (
           <div className="mt-4">
             <div className={cn("flex items-center gap-2", shaking && "animate-shake")}>
               <input
@@ -333,6 +368,12 @@ export default function AppearanceSection() {
           </div>
         )}
       </div>
+
+      <UpgradeModal
+        open={showUpgrade}
+        onClose={() => setShowUpgrade(false)}
+        feature="themes"
+      />
     </section>
   );
 }

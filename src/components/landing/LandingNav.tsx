@@ -105,9 +105,15 @@ export default function LandingNav({ loggedIn: loggedInProp }: LandingNavProps =
     return () => observer.disconnect();
   }, [pathname]);
 
+  // Middleware redirects authenticated users from `/` straight to /app/home.
+  // The `?landing=1` query opts out of that redirect, so logged-in users can
+  // still browse the marketing site by clicking nav links here.
+  const homeHref = loggedIn ? "/?landing=1" : "/";
+  const pricingHref = loggedIn ? "/?landing=1#pricing" : "/#pricing";
+
   const links: Array<{ label: string; href: string }> = [
-    { label: "Home", href: "/" },
-    { label: "Pricing", href: "/#pricing" },
+    { label: "Home", href: homeHref },
+    { label: "Pricing", href: pricingHref },
     { label: "About", href: "/about" },
     { label: "Contact", href: "/contact" },
   ];
@@ -116,18 +122,25 @@ export default function LandingNav({ loggedIn: loggedInProp }: LandingNavProps =
    * Decide whether a given nav link should render as the active one.
    * Home is active only when no on-page section is currently highlighted.
    *
-   * @param href - The href of the link being rendered.
+   * @param href - The href of the link being rendered. May include a
+   *               `?landing=1` query and/or a `#section` hash.
    * @returns true if this link represents the current location/section.
    */
   function isActive(href: string): boolean {
+    const hashIndex = href.indexOf("#");
+    const targetHash = hashIndex >= 0 ? href.slice(hashIndex) : "";
+    // Path part only — strip any "?landing=1" query so logged-in / logged-out
+    // hrefs compare cleanly against pathname.
+    const pathPart = (hashIndex >= 0 ? href.slice(0, hashIndex) : href).split("?")[0] || "/";
+
     if (pathname === "/") {
-      if (href === "/#pricing") return activeHash === "#pricing";
-      if (href === "/") return activeHash === "";
+      if (targetHash === "#pricing") return activeHash === "#pricing";
+      if (pathPart === "/" && !targetHash) return activeHash === "";
       return false;
     }
-    if (href === "/") return false;
-    if (href.includes("#")) return false; // hash links never active on other pages
-    return pathname.startsWith(href);
+    if (pathPart === "/") return false;
+    if (targetHash) return false; // hash links never active on other pages
+    return pathname.startsWith(pathPart);
   }
 
   /**

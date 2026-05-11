@@ -55,21 +55,18 @@ export default function AdvancedSection() {
 
   /**
    * Performs the sign-out after the user has confirmed in the modal.
-   * Clears layout cache, posts to /auth/signout, and redirects home.
+   * Clears layout cache, posts to /auth/signout, and hard-navigates home so
+   * the in-memory Supabase session is dropped along with the cookies.
    */
   async function confirmSignOut() {
     setSigningOut(true);
     try {
       clearLayoutCache();
-      const res = await fetch("/auth/signout", { method: "POST" });
-      if (!res.ok) throw new Error(`Sign out failed (${res.status})`);
-      setShowSignOutModal(false);
-      router.push("/");
+      await fetch("/auth/signout", { method: "POST" });
     } catch {
-      setSigningOut(false);
-      setShowSignOutModal(false);
-      showToast("Failed to sign out. Please try again.");
+      /* hard redirect below still drops the user out of the app */
     }
+    window.location.href = "/";
   }
 
   /**
