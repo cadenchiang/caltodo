@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Menu, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 interface LandingNavProps {
@@ -38,6 +38,8 @@ export default function LandingNav({ loggedIn: loggedInProp }: LandingNavProps =
    * observer's initial "not intersecting" callback briefly flipping it to Home.
    */
   const scrollLockUntilRef = useRef<number>(0);
+  /** Whether the mobile menu overlay is open. */
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     if (loggedInProp !== undefined) return; // parent already decided
@@ -61,6 +63,22 @@ export default function LandingNav({ loggedIn: loggedInProp }: LandingNavProps =
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  // Close the mobile menu on route change so it doesn't linger after navigation.
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname]);
+
+  // Lock body scroll while the mobile menu is open so the page beneath
+  // doesn't scroll through the overlay.
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [mobileMenuOpen]);
 
   /**
    * Observe the on-page #pricing section when we're on the home route so the
@@ -203,77 +221,147 @@ export default function LandingNav({ loggedIn: loggedInProp }: LandingNavProps =
   }
 
   return (
-    <nav
-      className={`sticky top-0 z-40 w-full px-4 sm:px-8 py-3 sm:py-4 grid grid-cols-3 items-center bg-white border-b transition-colors duration-200 ${
-        scrolled ? "border-black/5" : "border-transparent"
-      }`}
-    >
-      {/* Left: logo */}
-      <Link
-        href={loggedIn ? "/app/home" : "/"}
-        className="justify-self-start flex items-center hover:opacity-70 transition-opacity"
+    <>
+      <nav
+        className={`sticky top-0 z-40 w-full px-4 sm:px-8 py-3 sm:py-4 grid grid-cols-3 items-center bg-white border-b transition-colors duration-200 ${
+          scrolled ? "border-black/5" : "border-transparent"
+        }`}
       >
-        <img src="/logo.png" alt="caltodo" className="h-7 sm:h-9 w-auto" />
-      </Link>
-
-      {/* Center: nav links */}
-      <div className="hidden sm:flex justify-self-center items-center gap-6 text-sm">
-        {links.map((item) => {
-          const active = isActive(item.href);
-          const isHashLink = item.href.includes("#");
-          const isHomeLink = item.href === "/";
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              prefetch
-              onClick={
-                isHashLink
-                  ? (e) => handleHashClick(e, item.href)
-                  : isHomeLink
-                    ? handleHomeClick
-                    : undefined
-              }
-              className={`transition-colors ${
-                active
-                  ? "font-bold text-black"
-                  : "font-medium text-gray-400 hover:text-black"
-              }`}
-            >
-              {item.label}
-            </Link>
-          );
-        })}
-      </div>
-
-      {/* Right: CTAs — public-state default, upgrades to "Open app" if signed in */}
-      <div className="justify-self-end flex items-center gap-1 sm:gap-1.5">
-        {loggedIn ? (
-          <Link
-            href="/app/home"
-            className="px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-xl bg-[#0071E3] text-white text-xs sm:text-sm font-medium hover:bg-[#3D8FE8] transition-colors duration-200 inline-flex items-center gap-1.5"
+        {/* Left: hamburger on mobile, logo on desktop */}
+        <div className="justify-self-start flex items-center">
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen((v) => !v)}
+            aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+            aria-expanded={mobileMenuOpen}
+            className="sm:hidden -ml-1 mr-2 inline-flex items-center justify-center w-9 h-9 rounded-lg text-black hover:bg-black/5 transition-colors"
           >
-            Open app
-            <ArrowRight size={14} strokeWidth={2.5} />
+            {mobileMenuOpen ? <X size={20} strokeWidth={2} /> : <Menu size={20} strokeWidth={2} />}
+          </button>
+          <Link
+            href={loggedIn ? "/app/home" : "/"}
+            className="flex items-center hover:opacity-70 transition-opacity"
+          >
+            <img src="/logo.png" alt="caltodo" className="h-7 sm:h-9 w-auto" />
           </Link>
-        ) : (
-          <>
+        </div>
+
+        {/* Center: nav links — desktop only */}
+        <div className="hidden sm:flex justify-self-center items-center gap-6 text-sm">
+          {links.map((item) => {
+            const active = isActive(item.href);
+            const isHashLink = item.href.includes("#");
+            const isHomeLink = item.href === "/";
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                prefetch
+                onClick={
+                  isHashLink
+                    ? (e) => handleHashClick(e, item.href)
+                    : isHomeLink
+                      ? handleHomeClick
+                      : undefined
+                }
+                className={`transition-colors ${
+                  active
+                    ? "font-bold text-black"
+                    : "font-medium text-gray-400 hover:text-black"
+                }`}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
+        </div>
+
+        {/* Right: CTAs — public-state default, upgrades to "Open app" if signed in.
+            On mobile, "Login" is hidden to save space; it lives inside the menu. */}
+        <div className="justify-self-end flex items-center gap-1 sm:gap-1.5">
+          {loggedIn ? (
             <Link
-              href="/login?signup=true"
+              href="/app/home"
               className="px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-xl bg-[#0071E3] text-white text-xs sm:text-sm font-medium hover:bg-[#3D8FE8] transition-colors duration-200 inline-flex items-center gap-1.5"
             >
-              Get started
+              Open app
               <ArrowRight size={14} strokeWidth={2.5} />
             </Link>
-            <Link
-              href="/login"
-              className="px-4 py-1.5 text-xs sm:px-5 sm:py-2 sm:text-sm font-medium rounded-lg text-black hover:bg-black/10 transition-colors duration-200"
-            >
-              Login
-            </Link>
-          </>
-        )}
+          ) : (
+            <>
+              <Link
+                href="/login?signup=true"
+                className="px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-xl bg-[#0071E3] text-white text-xs sm:text-sm font-medium hover:bg-[#3D8FE8] transition-colors duration-200 inline-flex items-center gap-1.5"
+              >
+                Get started
+                <ArrowRight size={14} strokeWidth={2.5} />
+              </Link>
+              <Link
+                href="/login"
+                className="hidden sm:inline-flex px-4 py-1.5 text-xs sm:px-5 sm:py-2 sm:text-sm font-medium rounded-lg text-black hover:bg-black/10 transition-colors duration-200"
+              >
+                Login
+              </Link>
+            </>
+          )}
+        </div>
+      </nav>
+
+      {/* Mobile menu overlay — sits below the sticky nav. Tapping the backdrop
+          or any link closes it (links via the pathname effect). */}
+      <div
+        className={`sm:hidden fixed inset-0 top-[52px] z-30 bg-black/30 backdrop-blur-[2px] transition-opacity duration-200 ${
+          mobileMenuOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+        }`}
+        onClick={() => setMobileMenuOpen(false)}
+        aria-hidden={!mobileMenuOpen}
+      >
+        <div
+          className={`bg-white border-b border-black/5 transition-transform duration-200 ease-out origin-top ${
+            mobileMenuOpen ? "translate-y-0" : "-translate-y-4"
+          }`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <ul className="flex flex-col py-2">
+            {links.map((item) => {
+              const active = isActive(item.href);
+              const isHashLink = item.href.includes("#");
+              const isHomeLink = item.href === "/";
+              return (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    prefetch
+                    onClick={(e) => {
+                      if (isHashLink) handleHashClick(e, item.href);
+                      else if (isHomeLink) handleHomeClick(e);
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`block px-5 py-3 text-base transition-colors ${
+                      active
+                        ? "font-bold text-black"
+                        : "font-medium text-gray-500 hover:text-black"
+                    }`}
+                  >
+                    {item.label}
+                  </Link>
+                </li>
+              );
+            })}
+            {!loggedIn && (
+              <li className="border-t border-black/5 mt-1 pt-1">
+                <Link
+                  href="/login"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block px-5 py-3 text-base font-medium text-black hover:bg-black/5 transition-colors"
+                >
+                  Login
+                </Link>
+              </li>
+            )}
+          </ul>
+        </div>
       </div>
-    </nav>
+    </>
   );
 }

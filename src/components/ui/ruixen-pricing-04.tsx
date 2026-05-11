@@ -24,8 +24,8 @@ interface PlanConfig {
 }
 
 /**
- * Caltodo pricing plans. Pro gates the board, Google Calendar two-way sync,
- * and syllabus PDF extraction. Everything else stays free forever.
+ * Caltodo pricing plans. Premium gates the board, Google Calendar two-way
+ * sync, and syllabus PDF extraction. Everything else stays free forever.
  */
 export const PLANS: PlanConfig[] = [
   {
@@ -48,12 +48,12 @@ export const PLANS: PlanConfig[] = [
   },
   {
     id: "pro",
-    title: "Pro",
+    title: "Premium",
     desc: "Power features for students who want full control of their workflow.",
     monthlyPrice: 9.99,
     annuallyPrice: 19.99,
     badge: "Most popular",
-    buttonText: "Start Pro",
+    buttonText: "Upgrade to Premium",
     features: [
       "Everything in Free",
       "Personalized board with drag-and-drop widgets",
@@ -82,8 +82,8 @@ export default function Pricing_04() {
   };
 
   return (
-    <section className="relative flex flex-col items-center justify-center max-w-5xl py-16 sm:py-24 mx-auto px-6">
-      <div className="flex flex-col items-center justify-center max-w-2xl mx-auto">
+    <section className="relative flex flex-col items-center justify-center max-w-5xl py-12 sm:py-24 mx-auto px-5 sm:px-6">
+      <div className="flex flex-col items-center justify-center max-w-2xl mx-auto w-full">
         <div className="flex flex-col items-center text-center max-w-2xl mx-auto">
           <h2
             id="pricing"
@@ -91,11 +91,11 @@ export default function Pricing_04() {
           >
             Pricing
           </h2>
-          <p className="text-base md:text-lg text-center text-black/70 mt-4 sm:mt-6">
+          <p className="text-sm sm:text-base md:text-lg text-center text-black/70 mt-3 sm:mt-6 px-2">
             Start free. Upgrade if you want the power-user features.
           </p>
         </div>
-        <div className="flex items-center justify-center space-x-4 mt-6 sm:mt-8">
+        <div className="flex items-center justify-center space-x-3 sm:space-x-4 mt-6 sm:mt-8">
           <span
             className={cn(
               "text-sm sm:text-base font-medium transition-colors",
@@ -111,8 +111,8 @@ export default function Pricing_04() {
             aria-checked={billPlan === "annually"}
             aria-label="Toggle monthly / annual billing"
             className={cn(
-              "relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border border-transparent transition-colors duration-300 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0071E3]/40",
-              billPlan === "annually" ? "bg-[#0071E3]" : "bg-black/15",
+              "relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border border-transparent transition-colors duration-300 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-[#f6a623]/40",
+              billPlan === "annually" ? "bg-[#f6a623]" : "bg-black/15",
             )}
           >
             <span
@@ -130,14 +130,14 @@ export default function Pricing_04() {
             )}
           >
             Annually
-            <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full bg-[#0071E3]/10 text-[#0071E3] text-[11px] font-semibold tracking-wide">
+            <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full bg-[#f6a623]/15 text-[#b97a17] dark:text-[#f6a623] text-[11px] font-semibold tracking-wide">
               Save $100/yr
             </span>
           </span>
         </div>
       </div>
 
-      <div className="grid w-full grid-cols-1 lg:grid-cols-2 pt-10 lg:pt-12 gap-4 lg:gap-6 max-w-5xl mx-auto">
+      <div className="grid w-full grid-cols-1 lg:grid-cols-2 pt-8 sm:pt-10 lg:pt-12 gap-4 lg:gap-6 max-w-5xl mx-auto">
         {PLANS.map((plan) => (
           <Plan key={plan.id} plan={plan} billPlan={billPlan} />
         ))}
@@ -171,8 +171,10 @@ function PlanCta({
   const [submitting, setSubmitting] = useState(false);
 
   const className = cn(
-    "w-full inline-flex items-center justify-center px-4 sm:px-5 py-2 rounded-xl text-sm sm:text-base font-medium transition-colors duration-200",
-    isPro ? "bg-[#0071E3] text-white hover:bg-[#3D8FE8]" : "bg-black text-white hover:bg-black/85",
+    "w-full inline-flex items-center justify-center px-4 sm:px-5 py-2 rounded-xl text-sm sm:text-base font-semibold transition-colors duration-200",
+    isPro
+      ? "bg-[#f6a623] text-white hover:bg-[#e0961f]"
+      : "bg-black text-white hover:bg-black/85",
   );
 
   // Free tier (cta === 'free') goes straight to the signup link.
@@ -186,38 +188,73 @@ function PlanCta({
 
   /**
    * Handle the Pro upgrade click. If the user is signed in, hit checkout;
-   * otherwise send them to /login with the chosen interval preserved so
-   * they can resume checkout right after onboarding.
+   * otherwise stash the upgrade intent in sessionStorage and send them
+   * to /login so the post-auth effect can resume checkout automatically.
+   *
+   * The 503 / devGrantAvailable branch lets localhost developers test the
+   * full upgrade flow without configuring Stripe keys.
    */
   async function handleUpgrade() {
     setSubmitting(true);
+    const interval = billPlan === "monthly" ? "month" : "year";
     try {
       const supabase = createClient();
       const {
         data: { session },
       } = await supabase.auth.getSession();
       if (!session) {
-        window.location.href = `/login?signup=true&plan=pro&interval=${billPlan === "monthly" ? "month" : "year"}`;
+        try {
+          sessionStorage.setItem(
+            "caltodo_pending_upgrade",
+            JSON.stringify({ interval, ts: Date.now() }),
+          );
+        } catch {
+          /* sessionStorage may throw in private browsing */
+        }
+        window.location.href = `/login?signup=true&plan=pro&interval=${interval}`;
         return;
       }
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ interval: billPlan === "monthly" ? "month" : "year" }),
+        body: JSON.stringify({ interval }),
       });
-      const data = await res.json();
-      if (data?.url) {
-        window.location.href = data.url as string;
+      const data = (await res.json().catch(() => ({}))) as {
+        url?: string;
+        alreadyPro?: boolean;
+        error?: string;
+        message?: string;
+        devGrantAvailable?: boolean;
+      };
+      if (data.url) {
+        window.location.href = data.url;
         return;
       }
-      if (data?.alreadyPro) {
+      if (data.alreadyPro) {
         window.location.href = "/app/settings";
         return;
       }
-      throw new Error(data?.error ?? "checkout_failed");
-    } catch {
+      if (res.status === 503 && data.devGrantAvailable) {
+        const grantRes = await fetch("/api/dev/grant-pro", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ interval }),
+        });
+        const grantData = (await grantRes.json().catch(() => ({}))) as {
+          ok?: boolean;
+          message?: string;
+        };
+        if (grantData.ok) {
+          window.location.href = "/app/settings";
+          return;
+        }
+        throw new Error(grantData.message ?? "Dev grant failed.");
+      }
+      throw new Error(data.message ?? data.error ?? "checkout_failed");
+    } catch (err) {
       setSubmitting(false);
-      alert("Something went wrong starting checkout. Please try again.");
+      const message = err instanceof Error ? err.message : "Please try again.";
+      alert(`Couldn't start checkout: ${message}`);
     }
   }
 
@@ -240,18 +277,18 @@ function Plan({ plan, billPlan }: { plan: PlanConfig; billPlan: Plan }) {
   return (
     <div
       className={cn(
-        "flex flex-col relative rounded-3xl transition-all bg-[#f6f5f4] items-start w-full h-full p-8 sm:p-10 overflow-hidden",
-        isPro && "ring-2 ring-[#0071E3]/40",
+        "flex flex-col relative rounded-3xl transition-all bg-[#f6f5f4] items-start w-full h-full p-6 sm:p-10 overflow-hidden",
+        isPro && "ring-2 ring-[#f6a623]/40",
       )}
     >
       {plan.badge && (
-        <div className="absolute top-4 right-4 px-2.5 py-1 rounded-full bg-[#0071E3] text-white text-[11px] font-semibold tracking-wide">
+        <div className="absolute top-3 right-3 sm:top-4 sm:right-4 px-2.5 py-1 rounded-full bg-[#f6a623] text-white text-[11px] font-semibold tracking-wide">
           {plan.badge}
         </div>
       )}
 
       <h3
-        className="text-2xl sm:text-[28px] font-bold text-black leading-tight tracking-tight"
+        className="text-xl sm:text-[28px] font-bold text-black leading-tight tracking-tight"
         style={{
           fontFamily:
             '-apple-system, "SF Pro Display", BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
@@ -259,7 +296,7 @@ function Plan({ plan, billPlan }: { plan: PlanConfig; billPlan: Plan }) {
       >
         {plan.title}
       </h3>
-      <h4 className="mt-3 text-3xl font-bold md:text-5xl text-black leading-tight tracking-tight">
+      <h4 className="mt-2 sm:mt-3 text-3xl sm:text-4xl md:text-5xl font-bold text-black leading-tight tracking-tight">
         <NumberFlow
           value={currentPrice}
           suffix={billPlan === "monthly" ? "/mo" : "/yr"}
@@ -273,14 +310,14 @@ function Plan({ plan, billPlan }: { plan: PlanConfig; billPlan: Plan }) {
           }}
         />
       </h4>
-      <p className="text-base sm:text-lg text-black/70 mt-3 leading-snug">{plan.desc}</p>
+      <p className="text-sm sm:text-lg text-black/70 mt-2 sm:mt-3 leading-snug">{plan.desc}</p>
 
-      <div className="flex flex-col items-start w-full mt-6 gap-y-2.5">
+      <div className="flex flex-col items-start w-full mt-5 sm:mt-6 gap-y-2 sm:gap-y-2.5">
         <span className="text-sm font-medium text-black/80 mb-1">Includes:</span>
         {plan.features.map((feature) => (
           <div key={feature} className="flex items-start justify-start gap-2.5">
             <CheckIcon
-              className={cn("size-5 shrink-0 mt-0.5", isPro ? "text-[#0071E3]" : "text-black/70")}
+              className={cn("size-5 shrink-0 mt-0.5", isPro ? "text-[#f6a623]" : "text-black/70")}
               strokeWidth={2.5}
             />
             <span className="text-sm md:text-base text-black/80 leading-snug">{feature}</span>
@@ -289,7 +326,7 @@ function Plan({ plan, billPlan }: { plan: PlanConfig; billPlan: Plan }) {
       </div>
 
       {/* Button + billing caption — pinned to the bottom of the card */}
-      <div className="mt-auto flex flex-col items-start w-full pt-8">
+      <div className="mt-auto flex flex-col items-start w-full pt-6 sm:pt-8">
         <PlanCta plan={plan} isPro={isPro} billPlan={billPlan} />
         <div className="h-10 overflow-hidden w-full mx-auto">
           <AnimatePresence mode="wait">

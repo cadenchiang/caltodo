@@ -33,11 +33,12 @@ export default function LoginPage() {
     <ToastProvider>
       {/* Native Google One Tap prompt — appears top-right on desktop if user has a Google session */}
       <GoogleOneTap />
-      <div className="h-dvh overflow-hidden flex flex-row bg-white force-light">
-        {/* Left: form sitting on a glass modal card */}
-        <div className="basis-1/2 min-w-0 flex flex-col items-center justify-center px-6 py-8 relative">
+      <div className="min-h-dvh md:h-dvh md:overflow-hidden flex flex-col md:flex-row bg-white force-light">
+        {/* Left: form sitting on a glass modal card. Full width on mobile,
+            half-width once the right panel becomes visible at md. */}
+        <div className="w-full md:basis-1/2 min-w-0 flex flex-col items-center justify-center px-5 sm:px-6 py-10 md:py-8 relative">
           <div
-            className="w-full max-w-sm rounded-2xl px-8 py-10 relative"
+            className="w-full max-w-sm rounded-2xl px-6 sm:px-8 py-8 sm:py-10 relative"
             style={{
               background: "rgba(255, 255, 255, 0.55)",
               backdropFilter: "blur(24px) saturate(180%)",

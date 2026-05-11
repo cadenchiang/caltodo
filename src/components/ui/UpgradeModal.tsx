@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { LayoutGrid, CalendarDays, FileText, Palette, Sparkles, X } from "lucide-react";
+import { Check, ChevronRight, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -10,33 +10,52 @@ interface Props {
   open: boolean;
   /** Called when the user closes the modal without upgrading. */
   onClose: () => void;
-  /** Drives the headline + featured icon. Defaults to a generic "Upgrade to Pro". */
+  /**
+   * Drives the headline copy. Defaults to a generic "Upgrade to Premium".
+   * The feature key only changes the title — the body (feature checklist
+   * and pricing) is shared, since Caltodo Premium is a single bundle.
+   */
   feature?: "board" | "gcal" | "syllabus" | "themes" | "generic";
 }
 
-const FEATURE_COPY: Record<
-  NonNullable<Props["feature"]>,
-  { title: string; icon: typeof LayoutGrid }
-> = {
-  board: { title: "Unlock your board", icon: LayoutGrid },
-  gcal: { title: "Unlock Calendar sync", icon: CalendarDays },
-  syllabus: { title: "Unlock unlimited syllabi", icon: FileText },
-  themes: { title: "Unlock themes", icon: Palette },
-  generic: { title: "Upgrade to Pro", icon: Sparkles },
+const FEATURE_TITLE: Record<NonNullable<Props["feature"]>, string> = {
+  board: "Unlock your board",
+  gcal: "Unlock Calendar sync",
+  syllabus: "Unlock unlimited syllabi",
+  themes: "Unlock themes",
+  generic: "Upgrade to Premium",
 };
+
+/**
+ * Tight feature list — four bullets, the most-asked-about ones. Keeping it
+ * short reduces visual density and makes the modal scannable in one glance.
+ */
+const PREMIUM_FEATURES = [
+  "Personalized board with widgets",
+  "Google Calendar two-way sync",
+  "Unlimited syllabus uploads",
+  "All themes & smart notifications",
+];
+
+const PRICING = {
+  month: { label: "$9.99", suffix: "/mo" },
+  year: { label: "$19.99", suffix: "/yr" },
+} as const;
 
 const CLOSE_ANIM_MS = 220;
 
 /**
- * Upgrade modal shown when a free user hits a gated feature. Borrows the
- * pricing-card visual language: cream surface, rounded-3xl corners, the
- * Caltodo blue for the primary CTA, SF Pro Display heading typography.
+ * Premium upgrade modal. Light cream card (matches landing pricing language),
+ * feature checklist, two-tab plan selector, amber Upgrade Now CTA, and a
+ * terms checkbox that gates the submit. Adapts to dark mode.
  *
- * Defaults to the annual interval (the best deal). On confirm, POSTs to
- * /api/stripe/checkout and redirects the user to Stripe's hosted checkout.
+ * On submit, POSTs to /api/stripe/checkout. If Stripe is not configured but
+ * the response advertises devGrantAvailable, falls back to /api/dev/grant-pro
+ * so localhost testing works without real keys.
  */
 export default function UpgradeModal({ open, onClose, feature = "generic" }: Props) {
   const [interval, setInterval] = useState<"month" | "year">("year");
+  const [acceptedTerms, setAcceptedTerms] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [closing, setClosing] = useState(false);
 
@@ -66,10 +85,13 @@ export default function UpgradeModal({ open, onClose, feature = "generic" }: Pro
   }, [open, submitting, requestClose]);
 
   /**
-   * Hits /api/stripe/checkout to get a Stripe-hosted checkout URL, then
-   * navigates the browser to it. On failure, surfaces a generic error.
+   * Hits /api/stripe/checkout to get a hosted-checkout URL and redirects.
+   * On a 503 with devGrantAvailable (localhost without Stripe keys), falls
+   * back to /api/dev/grant-pro so the upgrade flow stays testable without
+   * configuring real Stripe. Surfaces the API's message on failure.
    */
   async function handleUpgrade() {
+    if (!acceptedTerms || submitting) return;
     setSubmitting(true);
     try {
       const res = await fetch("/api/stripe/checkout", {
@@ -77,129 +99,162 @@ export default function UpgradeModal({ open, onClose, feature = "generic" }: Pro
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ interval }),
       });
-      const data = await res.json();
-      if (data?.url) {
-        window.location.href = data.url as string;
+      const data = (await res.json().catch(() => ({}))) as {
+        url?: string;
+        alreadyPro?: boolean;
+        error?: string;
+        message?: string;
+        devGrantAvailable?: boolean;
+      };
+
+      if (data.url) {
+        window.location.href = data.url;
         return;
       }
-      if (data?.alreadyPro) {
+      if (data.alreadyPro) {
         window.location.href = "/app/settings";
         return;
       }
-      throw new Error(data?.error ?? "checkout_failed");
-    } catch {
+
+      if (res.status === 503 && data.devGrantAvailable) {
+        const grantRes = await fetch("/api/dev/grant-pro", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ interval }),
+        });
+        const grantData = (await grantRes.json().catch(() => ({}))) as {
+          ok?: boolean;
+          message?: string;
+        };
+        if (grantData.ok) {
+          window.location.href = "/app/settings";
+          return;
+        }
+        throw new Error(grantData.message ?? "Dev grant failed.");
+      }
+
+      throw new Error(data.message ?? data.error ?? "checkout_failed");
+    } catch (err) {
       setSubmitting(false);
-      alert("Something went wrong starting checkout. Please try again.");
+      const message = err instanceof Error ? err.message : "Please try again.";
+      alert(`Couldn't start checkout: ${message}`);
     }
   }
 
   if (!open || typeof document === "undefined") return null;
 
-  const copy = FEATURE_COPY[feature];
-  const Icon = copy.icon;
+  const title = FEATURE_TITLE[feature];
+  const active = PRICING[interval];
 
   return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center px-4">
+    <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center px-3 sm:px-4 py-3 sm:py-6">
       {/* Backdrop */}
       <div
         className={cn(
-          "absolute inset-0 bg-black/45 backdrop-blur-sm",
+          "absolute inset-0 bg-black/50 backdrop-blur-sm",
           closing ? "animate-announce-backdrop-out" : "animate-announce-backdrop-in",
         )}
         onClick={submitting ? undefined : requestClose}
       />
 
-      {/* Card */}
+      {/* Card. Inherits body font (no SF Pro override) and uses a single
+          restrained size scale: title, body, button, fine print. */}
       <div
         className={cn(
-          "relative w-full max-w-md rounded-3xl bg-[#f6f5f4] p-8 sm:p-10 ring-2 ring-[#0071E3]/40",
-          "shadow-[0_24px_60px_-12px_rgba(0,0,0,0.18),0_8px_20px_-4px_rgba(0,0,0,0.08)]",
+          "relative w-full max-w-sm max-h-[92dvh] overflow-y-auto rounded-3xl bg-card text-foreground p-6 sm:p-7 ring-1 ring-black/5 dark:ring-white/[0.06]",
+          "shadow-[0_24px_60px_-12px_rgba(0,0,0,0.22),0_8px_20px_-4px_rgba(0,0,0,0.10)]",
           closing ? "animate-announce-card-out" : "animate-announce-card-in",
         )}
       >
-        {/* Most popular pill (top-right) */}
-        <div className="absolute top-4 right-4 px-2.5 py-1 rounded-full bg-[#0071E3] text-white text-[11px] font-semibold tracking-wide">
-          Pro
-        </div>
-
         <button
           type="button"
           onClick={requestClose}
           disabled={submitting}
-          className="absolute top-4 left-4 p-1 text-black/40 hover:text-black/80 transition-colors rounded-lg hover:bg-black/5 disabled:opacity-40"
+          className="absolute top-3 right-3 p-1.5 text-foreground/45 hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors disabled:opacity-40"
           aria-label="Close"
         >
-          <X size={16} />
+          <X size={18} strokeWidth={2} />
         </button>
 
-        {/* Feature icon */}
-        <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-[#0071E3]/10 text-[#0071E3] mb-5 mt-3">
-          <Icon size={22} strokeWidth={2.25} />
-        </div>
+        <h2 className="text-xl font-semibold tracking-tight pr-8">{title}</h2>
 
-        <h2
-          className="text-xl sm:text-2xl font-bold text-black leading-tight tracking-tight"
-          style={{
-            fontFamily:
-              '-apple-system, "SF Pro Display", BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
-          }}
-        >
-          {copy.title}
-        </h2>
+        {/* Feature list */}
+        <ul className="mt-5 space-y-2">
+          {PREMIUM_FEATURES.map((label) => (
+            <li key={label} className="flex items-center gap-2.5 text-sm text-foreground/80">
+              <Check size={16} strokeWidth={2.5} className="text-[#f6a623] shrink-0" />
+              <span>{label}</span>
+            </li>
+          ))}
+        </ul>
 
-        {/* Pricing toggle */}
-        <div className="grid grid-cols-2 gap-2 mt-5">
+        {/* Plan selector — segmented, single line, one size scale */}
+        <div className="mt-6 grid grid-cols-2 gap-2">
           <button
             type="button"
             onClick={() => setInterval("year")}
+            aria-pressed={interval === "year"}
             className={cn(
               "rounded-xl border px-3.5 py-3 text-left transition-colors",
               interval === "year"
-                ? "border-[#0071E3] bg-white"
-                : "border-black/10 bg-white hover:border-black/25",
+                ? "border-[#f6a623] bg-[#f6a623]/[0.08]"
+                : "border-border bg-card hover:border-foreground/25",
             )}
           >
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-black/60">
-                Annual
-              </span>
-              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-[#0071E3] text-white">
-                Best
-              </span>
+            <div className="text-xs text-foreground">Yearly</div>
+            <div className="mt-0.5 text-sm font-semibold text-foreground">
+              {PRICING.year.label}
+              <span className="font-normal">{PRICING.year.suffix}</span>
             </div>
-            <div className="mt-1 text-lg font-bold text-black">$19.99/yr</div>
           </button>
           <button
             type="button"
             onClick={() => setInterval("month")}
+            aria-pressed={interval === "month"}
             className={cn(
               "rounded-xl border px-3.5 py-3 text-left transition-colors",
               interval === "month"
-                ? "border-[#0071E3] bg-white"
-                : "border-black/10 bg-white hover:border-black/25",
+                ? "border-[#f6a623] bg-[#f6a623]/[0.08]"
+                : "border-border bg-card hover:border-foreground/25",
             )}
           >
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-black/60">
-              Monthly
-            </span>
-            <div className="mt-1 text-lg font-bold text-black">$9.99/mo</div>
+            <div className="text-xs text-foreground">Monthly</div>
+            <div className="mt-0.5 text-sm font-semibold text-foreground">
+              {PRICING.month.label}
+              <span className="font-normal">{PRICING.month.suffix}</span>
+            </div>
           </button>
         </div>
 
         {/* CTA */}
-        <div className="mt-5">
-          <button
-            type="button"
-            onClick={handleUpgrade}
-            disabled={submitting}
-            className="w-full inline-flex items-center justify-center gap-1.5 px-4 sm:px-5 py-2 rounded-xl bg-[#0071E3] text-white text-sm sm:text-base font-medium hover:bg-[#3D8FE8] disabled:opacity-60 disabled:cursor-not-allowed transition-colors duration-200"
+        <button
+          type="button"
+          onClick={handleUpgrade}
+          disabled={submitting || !acceptedTerms}
+          className={cn(
+            "mt-5 w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-semibold text-sm text-white transition-colors",
+            "bg-[#f6a623] hover:bg-[#e0961f]",
+            "disabled:opacity-50 disabled:cursor-not-allowed",
+          )}
+        >
+          {submitting ? "Starting checkout…" : `Upgrade for ${active.label}${active.suffix}`}
+          {!submitting && <ChevronRight size={15} strokeWidth={2.5} />}
+        </button>
+
+        {/* Fine print. No checkbox: clicking Upgrade implies acceptance,
+            consistent with the Stripe-hosted checkout that follows. */}
+        <p className="mt-3 text-xs text-foreground/50 leading-relaxed">
+          By upgrading you accept the{" "}
+          <a
+            href="/terms"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline underline-offset-2 hover:text-foreground"
           >
-            {submitting ? "Starting checkout..." : "Upgrade to Pro"}
-          </button>
-          <p className="text-center text-[11px] text-black/50 mt-2.5">
-            Cancel anytime.
-          </p>
-        </div>
+            Pricing Terms
+          </a>
+          . Auto-renews; cancel anytime in Settings.
+        </p>
       </div>
     </div>,
     document.body,

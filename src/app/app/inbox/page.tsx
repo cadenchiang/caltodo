@@ -16,11 +16,7 @@ import PageTransition from "@/components/ui/PageTransition";
 import type { Task, PendingInvite } from "@/lib/types";
 import { usePendingInvites } from "@/hooks/usePendingInvites";
 
-import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { trackEvent } from "@/lib/analytics";
-
-/** localStorage key to persist dismissal of the "Sync classes" badge. */
-const SYNC_BADGE_DISMISSED_KEY = "caltodo_sync_badge_dismissed";
 
 type InboxFilter = "all" | "today" | "7days";
 type ViewMode = "list" | "board" | "courses";
@@ -208,8 +204,6 @@ export default function InboxPage() {
 
   const inboxRouter = useRouter();
   const searchParams = useSearchParams();
-  const { hasCompletedOnboarding, loading: onboardingLoading } = useOnboardingStatus({ skipCache: true });
-  const [syncBadgeDismissed, setSyncBadgeDismissed] = useState(true);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [listPreviewTask, setListPreviewTask] = useState<Task | null>(null);
   const [listPreviewRect, setListPreviewRect] = useState<DOMRect | null>(null);
@@ -268,9 +262,6 @@ export default function InboxPage() {
     const savedGroup = localStorage.getItem("inbox-board-group") as "class" | "date" | null;
     if (savedGroup) setBoardGroupBy(savedGroup);
     hydratedRef.current = true;
-    try {
-      setSyncBadgeDismissed(localStorage.getItem(SYNC_BADGE_DISMISSED_KEY) === "true");
-    } catch { /* ignore */ }
   }, []);
 
   // Pending invites now come from the shared SWR hook (usePendingInvites)
@@ -669,36 +660,6 @@ export default function InboxPage() {
                 )}
               </div>
 
-              {/* "Sync Classes" badge for unonboarded users — hidden on mobile */}
-              {!hasCompletedOnboarding && !lastSyncedAt && !syncBadgeDismissed && !onboardingLoading && (
-                <div className="relative shrink-0 hidden md:flex items-center group/sync">
-                  <a
-                    href="/app/settings?section=integrations"
-                    title="Connect your class platforms"
-                    className="active:scale-95 transition-all relative"
-                  >
-                    <div className="rounded-full bg-[#007AFF] pl-2.5 pr-3 py-1.5 flex items-center gap-1.5 hover:opacity-80 transition-opacity">
-                      <span className="text-xs font-semibold text-white">Sync Classes</span>
-                    </div>
-                  </a>
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setSyncBadgeDismissed(true);
-                      try { localStorage.setItem(SYNC_BADGE_DISMISSED_KEY, "true"); } catch { /* ignore */ }
-                    }}
-                    className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-gray-200 dark:bg-zinc-700 flex items-center justify-center opacity-0 group-hover/sync:opacity-100 transition-opacity hover:bg-gray-300 dark:hover:bg-zinc-600"
-                    aria-label="Dismiss"
-                    title="Dismiss"
-                  >
-                    <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
-                      <line x1="18" y1="6" x2="6" y2="18" />
-                      <line x1="6" y1="6" x2="18" y2="18" />
-                    </svg>
-                  </button>
-                </div>
-              )}
             </div>
 
             <div className="flex items-center gap-1">

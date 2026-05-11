@@ -1,17 +1,36 @@
 import Stripe from "stripe";
 
 /**
- * Singleton Stripe client used by API routes and server actions.
- * Reads the secret key from env at module load time; throws if missing
- * so misconfiguration fails loudly at first use.
- *
- * @returns A configured Stripe client.
+ * Thrown when a required Stripe env var is missing.
+ * Routes catch this to return a clear 503 ("Stripe is not configured")
+ * instead of a generic 500, so the client UI can show useful copy.
+ */
+export class StripeNotConfiguredError extends Error {
+  /** The env var that was missing. */
+  readonly envVar: string;
+  constructor(envVar: string) {
+    super(`${envVar} is not set`);
+    this.name = "StripeNotConfiguredError";
+    this.envVar = envVar;
+  }
+}
+
+/** True when every var the checkout / portal flow needs is present. */
+export function isStripeConfigured(): boolean {
+  return Boolean(
+    process.env.STRIPE_SECRET_KEY &&
+      process.env.STRIPE_PRO_MONTHLY_PRICE_ID &&
+      process.env.STRIPE_PRO_ANNUAL_PRICE_ID,
+  );
+}
+
+/**
+ * Build a Stripe client. Throws StripeNotConfiguredError when the secret key
+ * is missing so callers can branch on configuration cleanly.
  */
 function getStripeClient(): Stripe {
   const key = process.env.STRIPE_SECRET_KEY;
-  if (!key) {
-    throw new Error("STRIPE_SECRET_KEY is not set");
-  }
+  if (!key) throw new StripeNotConfiguredError("STRIPE_SECRET_KEY");
   return new Stripe(key, {
     apiVersion: "2026-04-22.dahlia",
     typescript: true,
@@ -32,15 +51,16 @@ export const STRIPE_PRICES = {
 };
 
 /**
- * Reads a required environment variable. Throws if missing so we never
- * silently send an empty value to Stripe (which would produce vague errors).
+ * Reads a required environment variable. Throws StripeNotConfiguredError if
+ * missing so we never silently send an empty value to Stripe (which would
+ * produce vague errors that are hard to debug).
  *
  * @param name - Env var name to read.
  * @returns The string value of the env var.
  */
 function requiredEnv(name: string): string {
   const v = process.env[name];
-  if (!v) throw new Error(`${name} is not set`);
+  if (!v) throw new StripeNotConfiguredError(name);
   return v;
 }
 

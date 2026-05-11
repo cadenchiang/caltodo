@@ -128,7 +128,6 @@ export interface DismissedModals {
   sync_welcome?: boolean;
   notes_welcome?: boolean;
   gcal_announce?: boolean;
-  integrations_welcome?: boolean;
   calchat_welcome?: boolean;
   pensieve_announced?: boolean;
   calchat_announcement?: boolean;

@@ -1,8 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { stripe, webhookSecret } from "@/lib/stripe";
+import { revalidateTag } from "next/cache";
+import { stripe, webhookSecret, StripeNotConfiguredError } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logger } from "@/lib/logger";
 import type Stripe from "stripe";
+
+/**
+ * Invalidate the per-user entitlement cache (see getEntitlement in
+ * src/lib/entitlements.ts). Stripe events change the user's plan and the
+ * cache TTL would otherwise hold a stale value for up to 60s.
+ */
+function invalidateEntitlement(userId: string): void {
+  revalidateTag(`entitlement:${userId}`);
+}
 
 /**
  * Stripe webhook handler. This is the single source of truth that flips a
@@ -29,6 +39,13 @@ export async function POST(req: NextRequest) {
     const raw = await req.text();
     event = stripe().webhooks.constructEvent(raw, sig, webhookSecret());
   } catch (err) {
+    if (err instanceof StripeNotConfiguredError) {
+      logger.warn("stripe_webhook_missing_env", { envVar: err.envVar });
+      return NextResponse.json(
+        { error: "stripe_not_configured", message: `${err.envVar} is not set.` },
+        { status: 503 },
+      );
+    }
     logger.warn("stripe_webhook_signature_failed", {
       message: err instanceof Error ? err.message : String(err),
     });
@@ -151,6 +168,8 @@ async function syncFromSubscription(sub: Stripe.Subscription) {
       { onConflict: "user_id" },
     );
 
+  invalidateEntitlement(userId);
+
   logger.info("stripe_subscription_synced", {
     userId,
     plan,
@@ -182,6 +201,8 @@ async function handleSubscriptionDeleted(sub: Stripe.Subscription) {
     })
     .eq("user_id", userId);
 
+  invalidateEntitlement(userId);
+
   logger.info("stripe_subscription_deleted", { userId });
 }
 
@@ -199,6 +220,8 @@ async function handlePaymentFailed(invoice: Stripe.Invoice) {
     .from("subscriptions")
     .update({ status: "past_due" })
     .eq("user_id", userId);
+
+  invalidateEntitlement(userId);
 
   logger.warn("stripe_payment_failed", { userId });
 }

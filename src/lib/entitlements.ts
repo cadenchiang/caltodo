@@ -1,4 +1,5 @@
-import { createClient as createServerClient } from "@/lib/supabase/server";
+import { unstable_cache } from "next/cache";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 /** Plan a user effectively has access to right now. */
 export type EffectivePlan = "free" | "trial" | "pro";
@@ -31,14 +32,18 @@ const DEFAULT_FREE: Entitlement = {
 };
 
 /**
- * Reads the effective entitlement for a user from Supabase.
- * Uses the `user_entitlement` view so trial-expiry logic lives in SQL.
+ * Performs the actual Supabase roundtrip. Kept separate so it can be wrapped
+ * in a per-user cache below. Uses the admin (service-role) client because
+ * the cache function lives outside the request-cookie scope — calling
+ * createServerClient() here would trigger Next's "cookies() inside
+ * unstable_cache" error. We pass userId in explicitly and bypass RLS;
+ * the cache key already namespaces by user.
  *
- * @param userId - The auth.users id to look up.
- * @returns The user's current entitlement; falls back to free when missing.
+ * Returns DEFAULT_FREE on miss or error (defense in depth: a failed lookup
+ * must not accidentally grant Pro).
  */
-export async function getEntitlement(userId: string): Promise<Entitlement> {
-  const supabase = await createServerClient();
+async function fetchEntitlementUncached(userId: string): Promise<Entitlement> {
+  const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("user_entitlement")
     .select(
@@ -58,6 +63,31 @@ export async function getEntitlement(userId: string): Promise<Entitlement> {
     stripeSubscriptionId: data.stripe_subscription_id,
     billingInterval: data.billing_interval as "month" | "year" | null,
   };
+}
+
+/**
+ * Reads the effective entitlement for a user from Supabase.
+ * Cached per-user with a 60s TTL via `unstable_cache`: navigations to gated
+ * routes (most notably /app/home) used to incur a fresh Supabase roundtrip
+ * on every visit (~100-300ms), which manifested as a visible skeleton flash
+ * before the paywall painted. The cache eliminates that latency for the
+ * common case (rapid back-and-forth between routes).
+ *
+ * On a real plan change (Stripe webhook), the entry is invalidated via
+ * `revalidateTag("entitlement")` so the user sees the new plan within the
+ * same request cycle. The 60s TTL is the safety net for any path that
+ * doesn't explicitly invalidate.
+ *
+ * @param userId - The auth.users id to look up.
+ * @returns The user's current entitlement; falls back to free when missing.
+ */
+export async function getEntitlement(userId: string): Promise<Entitlement> {
+  const cached = unstable_cache(
+    () => fetchEntitlementUncached(userId),
+    ["entitlement", userId],
+    { revalidate: 60, tags: ["entitlement", `entitlement:${userId}`] },
+  );
+  return cached();
 }
 
 /**

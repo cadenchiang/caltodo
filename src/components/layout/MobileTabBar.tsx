@@ -77,7 +77,7 @@ export default function MobileTabBar() {
     badgeCount?: number;
   }> = [
     {
-      label: "Board",
+      label: "Home",
       href: "/app/home",
       icon: LayoutGrid,
       badge: false,

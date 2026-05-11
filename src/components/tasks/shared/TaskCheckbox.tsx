@@ -45,7 +45,7 @@ export default function TaskCheckbox({
         e.stopPropagation();
         onToggle();
       }}
-      className={`group/check flex-shrink-0 ${sizeClass} rounded-[4px] flex items-center justify-center transition-all cursor-pointer ${
+      className={`group/check flex-shrink-0 ${sizeClass} rounded-full flex items-center justify-center transition-all cursor-pointer ${
         isLg ? "mt-1" : ""
       }`}
       style={{

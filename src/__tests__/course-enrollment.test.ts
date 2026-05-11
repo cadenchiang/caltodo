@@ -234,4 +234,44 @@ describe("gatherEnrollableCourses", () => {
 
     expect(result).toHaveLength(0);
   });
+
+  it("should produce identical external_id for iCal courses whose names differ only in formatting", () => {
+    // Reproduces the duplicate-group-chats bug: an iCal feed re-emits the
+    // same course with slightly different whitespace/case across syncs, and
+    // each variation used to produce a different hash → a new course row →
+    // a new group chat. After normalization, all variations collapse.
+    const variations = [
+      "UGBA 101A-LEC-002 SP26",
+      "UGBA 101A-LEC-002 SP26 ", // trailing space
+      "  UGBA 101A-LEC-002 SP26", // leading whitespace
+      "ugba 101a-lec-002 sp26", // lowercase
+      "UGBA  101A-LEC-002  SP26", // double spaces
+      "UGBA 101A-LEC-002 SP26", // non-breaking spaces
+    ];
+
+    const ids = variations.map((name) => {
+      const result = gatherEnrollableCourses({
+        canvas_ical_url: "https://example.com/feed.ics",
+        selected_canvas_courses: [{ id: 0, name }],
+      });
+      return result[0].external_id;
+    });
+
+    const unique = new Set(ids);
+    expect(unique.size).toBe(1);
+    expect(ids[0]).toMatch(/^ical-\d+$/);
+  });
+
+  it("should produce different external_id for genuinely different course names", () => {
+    // Sanity check: different sections should NOT collapse.
+    const a = gatherEnrollableCourses({
+      canvas_ical_url: "https://example.com/feed.ics",
+      selected_canvas_courses: [{ id: 0, name: "UGBA 101A-LEC-001 SP26" }],
+    });
+    const b = gatherEnrollableCourses({
+      canvas_ical_url: "https://example.com/feed.ics",
+      selected_canvas_courses: [{ id: 0, name: "UGBA 101A-LEC-002 SP26" }],
+    });
+    expect(a[0].external_id).not.toBe(b[0].external_id);
+  });
 });

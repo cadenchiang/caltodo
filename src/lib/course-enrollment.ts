@@ -224,17 +224,38 @@ export function gatherEnrollableCourses(credentials: {
 }
 
 /**
+ * Normalizes a course name for stable hashing so syncs that return the
+ * same course with minor formatting differences (trailing whitespace,
+ * different case, double spaces, non-breaking spaces) collapse to the
+ * same external_id. This prevents duplicate course rows — and therefore
+ * duplicate per-class group chats — when an iCal feed re-emits the same
+ * course with slightly different formatting.
+ *
+ * Does NOT strip semester suffixes or section codes — those are part of
+ * the course's identity, and removing them would merge legitimately
+ * distinct sections.
+ */
+function normalizeCourseName(name: string): string {
+  return name
+    .replace(/\s+/g, " ") // collapse any run of whitespace (incl. NBSP) to one space
+    .trim()
+    .toLowerCase();
+}
+
+/**
  * Generates a stable positive numeric ID from a course name string.
  * Used for iCal courses which don't have a Canvas numeric course ID.
- * Uses djb2 hash to produce a unique, deterministic number.
+ * Uses djb2 hash over the *normalized* name so trivial formatting
+ * differences across syncs don't produce different IDs.
  *
  * @param name - Course name string
- * @returns Positive 32-bit integer derived from the name
+ * @returns Positive 32-bit integer derived from the normalized name
  */
 function stableIdFromName(name: string): number {
+  const normalized = normalizeCourseName(name);
   let hash = 5381;
-  for (let i = 0; i < name.length; i++) {
-    hash = ((hash << 5) + hash + name.charCodeAt(i)) | 0;
+  for (let i = 0; i < normalized.length; i++) {
+    hash = ((hash << 5) + hash + normalized.charCodeAt(i)) | 0;
   }
   return Math.abs(hash);
 }

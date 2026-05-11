@@ -1,6 +1,30 @@
+import { unstable_cache } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import Hero from "@/components/landing/Hero";
+
+/**
+ * Cached total user count for the "Trusted by N+" badge.
+ *
+ * The Supabase admin listUsers() call is a server-to-server HTTP round-trip
+ * that previously ran on every landing-page request, blocking SSR and adding
+ * 200-500ms of latency. Caching it for one hour cuts that to a single hit
+ * per region per hour. Returns 0 on failure — the Hero hides the count when
+ * it's 0, so the page still renders cleanly if Supabase is down.
+ */
+const getCachedUserCount = unstable_cache(
+  async (): Promise<number> => {
+    try {
+      const admin = createAdminClient();
+      const { data } = await admin.auth.admin.listUsers({ perPage: 1, page: 1 });
+      return (data as { total?: number; users: unknown[] }).total ?? data.users.length;
+    } catch {
+      return 0;
+    }
+  },
+  ["landing-user-count"],
+  { revalidate: 3600, tags: ["landing-user-count"] },
+);
 
 /**
  * JSON-LD structured data for the homepage.
@@ -47,13 +71,7 @@ export default async function HomePage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  // Fetch user count server-side so it renders immediately
-  let userCount = 0;
-  try {
-    const admin = createAdminClient();
-    const { data } = await admin.auth.admin.listUsers({ perPage: 1, page: 1 });
-    userCount = (data as { total?: number; users: unknown[] }).total ?? data.users.length;
-  } catch { /* fallback to 0 */ }
+  const userCount = await getCachedUserCount();
 
   return (
     <>

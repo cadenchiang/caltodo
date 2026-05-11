@@ -11,6 +11,13 @@ import type { GCalCalendarEntry } from "@/lib/types";
 /** Base URL for the Google Calendar API v3. */
 const GCAL_API_BASE = "https://www.googleapis.com/calendar/v3";
 
+/** Display name for the dedicated calendar caltodo writes synced assignments into. */
+export const CALTODO_CALENDAR_SUMMARY = "caltodo";
+
+/** Description set on the calendar at create-time. */
+const CALTODO_CALENDAR_DESCRIPTION =
+  "Synced assignments and deadlines from caltodo. Changes made here won't sync back.";
+
 /**
  * Lists all calendars from the user's Google Calendar account.
  * Unlike listWritableCalendars, this includes reader and freeBusyReader calendars
@@ -61,4 +68,76 @@ export async function listAllCalendars(
   });
 
   return calendars;
+}
+
+/**
+ * Finds an existing calendar named "caltodo" in the user's account or
+ * creates one if none exists. Returns the calendar ID.
+ *
+ * caltodo pushes synced assignments into a dedicated calendar so they
+ * stay isolated from the user's personal events — that way the user can
+ * hide, color, or share them independently. Without this, sync writes
+ * landed in the user's primary calendar (the bug we're fixing here).
+ *
+ * @param accessToken - Valid Google OAuth2 access token (calendar scope)
+ * @returns The calendar ID, or null on API failure
+ */
+export async function findOrCreateCaltodoCalendar(
+  accessToken: string,
+): Promise<string | null> {
+  const existing = await listAllCalendars(accessToken);
+  if (existing) {
+    const match = existing.find(
+      (c) =>
+        c.summary.trim().toLowerCase() === CALTODO_CALENDAR_SUMMARY &&
+        (c.accessRole === "owner" || c.accessRole === "writer"),
+    );
+    if (match) {
+      logger.info("findOrCreateCaltodoCalendar: matched existing calendar", {
+        calendarId: match.id,
+      });
+      return match.id;
+    }
+  }
+
+  const timeZone = (() => {
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+    } catch {
+      return "UTC";
+    }
+  })();
+
+  const res = await fetch(`${GCAL_API_BASE}/calendars`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      summary: CALTODO_CALENDAR_SUMMARY,
+      description: CALTODO_CALENDAR_DESCRIPTION,
+      timeZone,
+    }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    logger.error("findOrCreateCaltodoCalendar: failed to create calendar", {
+      status: res.status,
+      body,
+    });
+    return null;
+  }
+
+  const data = (await res.json()) as { id?: string };
+  if (!data.id) {
+    logger.error("findOrCreateCaltodoCalendar: create response missing id", { data });
+    return null;
+  }
+
+  logger.info("findOrCreateCaltodoCalendar: created new calendar", {
+    calendarId: data.id,
+  });
+  return data.id;
 }

@@ -101,7 +101,7 @@ export async function POST(request: Request) {
     if (usedCount >= FREE_SYLLABUS_LIMIT) {
       return NextResponse.json(
         {
-          error: "Free plan allows 1 syllabus upload. Upgrade to Pro for unlimited uploads.",
+          error: "Free plan allows 1 syllabus upload. Upgrade to Premium for unlimited uploads.",
           code: "pro_required",
         },
         { status: 402 },

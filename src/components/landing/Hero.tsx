@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { RefreshCw, CalendarDays, LayoutGrid, ArrowRight } from "lucide-react";
 import GoogleOneTap from "@/components/auth/GoogleOneTap";
 import FadeIn from "@/components/landing/FadeIn";
@@ -128,7 +129,15 @@ export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
                 className="relative flex flex-col items-center z-20 cluster-center-in"
                 style={{ animationDelay: "0ms" }}
               >
-                <img src="/logo.png" alt="caltodo" className="h-12 sm:h-24 relative z-10" />
+                <Image
+                  src="/logo.png"
+                  alt="caltodo"
+                  width={512}
+                  height={536}
+                  priority
+                  sizes="(min-width: 640px) 96px, 48px"
+                  className="h-12 sm:h-24 w-auto relative z-10"
+                />
               </div>
               {/* Pensieve — inner right, mid */}
               <div
@@ -250,10 +259,14 @@ export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
                   <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#d8d8dc]" />
                   <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#d8d8dc]" />
                 </div>
-                <img
+                <Image
                   src="/app-screenshot-board.png"
                   alt="caltodo board view with widgets and calendar"
-                  className="w-full block"
+                  width={1920}
+                  height={1149}
+                  priority
+                  sizes="(min-width: 1024px) 1024px, 100vw"
+                  className="w-full h-auto block"
                 />
               </div>
             </div>
@@ -342,18 +355,23 @@ export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
                 </div>
                 {/* Desktop: image fills the right column floor-to-ceiling so there's no empty space above */}
                 <div className="hidden sm:block absolute top-8 right-8 bottom-8 w-[40%] max-w-[400px] rounded-2xl overflow-hidden shadow-[0_8px_30px_-12px_rgba(0,0,0,0.15)]">
-                  <img
+                  <Image
                     src="/step-sync.png"
                     alt="Sync your classes"
-                    className="w-full h-full object-cover object-top"
+                    fill
+                    sizes="(min-width: 640px) 400px, 0px"
+                    className="object-cover object-top"
                   />
                 </div>
                 {/* Mobile: image stacks below text */}
                 <div className="sm:hidden mt-6">
-                  <img
+                  <Image
                     src="/step-sync.png"
                     alt="Sync your classes"
-                    className="w-full block rounded-xl"
+                    width={1508}
+                    height={1238}
+                    sizes="100vw"
+                    className="w-full h-auto block rounded-xl"
                   />
                 </div>
               </div>
@@ -371,10 +389,13 @@ export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
                     See every deadline on a single calendar, no more switching between tabs.
                   </p>
                   <div className="mt-8 sm:mt-10 -mx-8 sm:-mx-10 -mb-8 sm:-mb-10 overflow-hidden">
-                    <img
+                    <Image
                       src="/step-calendar.png"
                       alt="Manage your assignments"
-                      className="w-full block"
+                      width={1600}
+                      height={1123}
+                      sizes="(min-width: 640px) 50vw, 100vw"
+                      className="w-full h-auto block"
                       style={{
                         transform: "scale(1.28)",
                         transformOrigin: "center bottom",
@@ -393,7 +414,14 @@ export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
                     Build your perfect dashboard in under 5 minutes with drag-and-drop widgets and themes.
                   </p>
                   <div className="mt-8 sm:mt-10 -mx-8 sm:-mx-10 -mb-8 sm:-mb-10">
-                    <img src="/step-personalize.png" alt="Personalize your board" className="w-full block" />
+                    <Image
+                      src="/step-personalize.png"
+                      alt="Personalize your board"
+                      width={1600}
+                      height={1111}
+                      sizes="(min-width: 640px) 50vw, 100vw"
+                      className="w-full h-auto block"
+                    />
                   </div>
                 </div>
               </FadeIn>
@@ -461,7 +489,14 @@ export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
           </button>
 
           {/* Logo */}
-          <img src="/logo.png" alt="caltodo" className="h-12 mb-10" />
+          <Image
+            src="/logo.png"
+            alt="caltodo"
+            width={512}
+            height={536}
+            sizes="48px"
+            className="h-12 w-auto mb-10"
+          />
 
           {/* Letter */}
           <div className="space-y-4 text-[15px] leading-relaxed text-black/90 mb-8">

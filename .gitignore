@@ -57,3 +57,6 @@ mobile/dist/
 /public/swe-worker-*.js
 /public/swe-worker-*.js.map
 .gstack/
+
+# Backups of pre-compression landing PNGs (re-creatable via scripts/compress-landing-images.mjs).
+/public/originals/

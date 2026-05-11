@@ -24,7 +24,20 @@ import { useToast } from "@/contexts/ToastContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import type { WidgetType, WidgetInstance } from "@/lib/widget-types";
 
-export default function HomeBoard() {
+/**
+ * @param embedded When true, skip the outer -mx/-my negative margins that
+ * normally escape the parent <main>'s padding. Used by BoardLockedScreen
+ * which applies its own escape on a wrapper — without this flag the two
+ * sets of negative margins compound and push content off the viewport.
+ */
+interface HomeBoardProps {
+  embedded?: boolean;
+}
+
+export default function HomeBoard({ embedded = false }: HomeBoardProps = {}) {
+  const escapeMargins = embedded
+    ? ""
+    : "-mx-4 md:-mx-10 -mt-4 md:-mt-10 -mb-4 md:-mb-10";
   const {
     widgets,
     layouts,
@@ -194,10 +207,18 @@ export default function HomeBoard() {
 
   // Don't render grid until localStorage is hydrated (avoids layout flash).
   // Show a ghost skeleton matching the board layout so first paint has shape.
+  //
+  // Embedded inside BoardLockedScreen, render nothing during the unhydrated
+  // window: the paywall card sits on top with a translucent backdrop, and a
+  // skeleton bleeding through would read as "the app is still loading"
+  // instead of "you're paywalled". The paywall is what the user should see
+  // on first paint; the blurred real board only matters once it's actually
+  // there to blur.
   if (!hydrated) {
+    if (embedded) return null;
     return (
       <PageTransition>
-        <div className="h-full overflow-hidden -mx-4 md:-mx-10 -mt-4 md:-mt-10 -mb-4 md:-mb-10">
+        <div className={`h-full overflow-hidden ${escapeMargins}`}>
           <div className="h-40 w-full bg-muted animate-pulse" />
           <div className="px-6 md:px-10 pt-6 space-y-3">
             <div className="h-14 w-14 rounded-lg bg-muted animate-pulse" />
@@ -215,7 +236,7 @@ export default function HomeBoard() {
 
   return (
     <PageTransition>
-      <div className="h-full overflow-hidden -mx-4 md:-mx-10 -mt-4 md:-mt-10 -mb-4 md:-mb-10">
+      <div className={`h-full overflow-hidden ${escapeMargins}`}>
       <div className={`h-full flex flex-col ${isDragging ? "overflow-hidden" : "overflow-y-auto"}`}>
         {/* Cover Image */}
         <BoardCover

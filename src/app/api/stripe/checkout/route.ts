@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { stripe, STRIPE_PRICES } from "@/lib/stripe";
+import {
+  stripe,
+  STRIPE_PRICES,
+  isStripeConfigured,
+  StripeNotConfiguredError,
+} from "@/lib/stripe";
 import { getEntitlement } from "@/lib/entitlements";
 import { logger } from "@/lib/logger";
 
@@ -28,6 +33,28 @@ export async function POST(req: NextRequest) {
 
     const body = (await req.json().catch(() => ({}))) as { interval?: string };
     const interval = body.interval === "month" ? "month" : "year";
+
+    // Surface "Stripe not configured" before doing any work so the client can
+    // route to the dev-grant flow on localhost (or show a clear setup hint
+    // in production rather than the generic "something went wrong" alert).
+    if (!isStripeConfigured()) {
+      const devGrantAvailable = process.env.NODE_ENV === "development";
+      logger.warn("stripe_checkout_not_configured", {
+        userId: user.id,
+        devGrantAvailable,
+      });
+      return NextResponse.json(
+        {
+          error: "stripe_not_configured",
+          message: devGrantAvailable
+            ? "Stripe keys are missing. Use the dev grant on localhost or set STRIPE_* env vars."
+            : "Subscriptions are not configured. Please contact support.",
+          devGrantAvailable,
+        },
+        { status: 503 },
+      );
+    }
+
     const priceId = interval === "month" ? STRIPE_PRICES.proMonthly() : STRIPE_PRICES.proAnnual();
 
     const entitlement = await getEntitlement(user.id);
@@ -83,9 +110,30 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ url: session.url });
   } catch (err) {
+    // A missing env var caught downstream (e.g. STRIPE_PRO_MONTHLY_PRICE_ID
+    // was unset even though SECRET_KEY existed) — surface a configuration
+    // error to the client so it can route to the dev grant on localhost.
+    if (err instanceof StripeNotConfiguredError) {
+      const devGrantAvailable = process.env.NODE_ENV === "development";
+      logger.warn("stripe_checkout_missing_env", { envVar: err.envVar });
+      return NextResponse.json(
+        {
+          error: "stripe_not_configured",
+          message: `${err.envVar} is not set.`,
+          devGrantAvailable,
+        },
+        { status: 503 },
+      );
+    }
     logger.error("stripe_checkout_failed", {
       message: err instanceof Error ? err.message : String(err),
     });
-    return NextResponse.json({ error: "checkout_failed" }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: "checkout_failed",
+        message: err instanceof Error ? err.message : "Unexpected error.",
+      },
+      { status: 500 },
+    );
   }
 }

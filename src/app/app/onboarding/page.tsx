@@ -762,7 +762,7 @@ export default function OnboardingPage() {
     // Persist to server so dismiss state follows the account across devices.
     const allDismissed = {
       sync_welcome: true, notes_welcome: true, gcal_announce: true,
-      integrations_welcome: true, calchat_welcome: true,
+      calchat_welcome: true,
       pensieve_announced: true, calchat_announcement: true,
     };
     fetch("/api/credentials", {
@@ -777,7 +777,6 @@ export default function OnboardingPage() {
       localStorage.setItem("caltodo_sync_dismissed", "true");
       localStorage.setItem("caltodo_notes_welcome_seen", "true");
       localStorage.setItem("caltodo_gcal_announce_seen", "true");
-      localStorage.setItem("caltodo_integrations_welcome_seen", "true");
       localStorage.setItem("calchat_welcome_accepted", "true");
     } catch {
       /* non-critical */

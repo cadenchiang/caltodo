@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient as createServerClient } from "@/lib/supabase/server";
-import { stripe } from "@/lib/stripe";
+import { stripe, isStripeConfigured, StripeNotConfiguredError } from "@/lib/stripe";
 import { getEntitlement } from "@/lib/entitlements";
 import { logger } from "@/lib/logger";
 
@@ -20,6 +20,16 @@ export async function POST(req: NextRequest) {
     } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
+    if (!isStripeConfigured()) {
+      return NextResponse.json(
+        {
+          error: "stripe_not_configured",
+          message: "Subscriptions are not configured.",
+        },
+        { status: 503 },
+      );
+    }
+
     const entitlement = await getEntitlement(user.id);
     if (!entitlement.stripeCustomerId) {
       return NextResponse.json({ error: "no_customer" }, { status: 400 });
@@ -33,9 +43,25 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ url: session.url });
   } catch (err) {
+    if (err instanceof StripeNotConfiguredError) {
+      logger.warn("stripe_portal_missing_env", { envVar: err.envVar });
+      return NextResponse.json(
+        {
+          error: "stripe_not_configured",
+          message: `${err.envVar} is not set.`,
+        },
+        { status: 503 },
+      );
+    }
     logger.error("stripe_portal_failed", {
       message: err instanceof Error ? err.message : String(err),
     });
-    return NextResponse.json({ error: "portal_failed" }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: "portal_failed",
+        message: err instanceof Error ? err.message : "Unexpected error.",
+      },
+      { status: 500 },
+    );
   }
 }

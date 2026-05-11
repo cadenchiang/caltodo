@@ -5,8 +5,12 @@
 
 /* ── Semantic color tokens ── */
 :root {
-  /* Backgrounds */
-  --background: #ffffff;
+  /* Backgrounds. --background drives the main content area; --sidebar-bg
+     is read by .glass-strong (the chrome behind the desktop sidebar). The
+     two-tone split lets the sidebar sit slightly off-white from the main
+     content so the nav reads as a distinct panel, Notion-style. */
+  --background: #fefefc;
+  --sidebar-bg: #f7f7f5;
   --card: #ffffff;
   --popover: #ffffff;
   --muted: #f9fafb;
@@ -37,7 +41,8 @@
 }
 
 .dark {
-  --background: #1c1c1e;
+  --background: #191919;
+  --sidebar-bg: #202020;
   --card: #2c2c2e;
   --popover: #262626;
   --muted: #262626;
@@ -1026,16 +1031,16 @@ body {
   background: rgba(30, 30, 30, 0.75);
 }
 
-/* Sidebar uses the page background so the chrome blends in seamlessly
-   with the main content area instead of standing out as a separate
-   panel. Per-theme overrides further down can still tweak this when a
-   theme wants explicit contrast. */
+/* Sidebar reads --sidebar-bg so the chrome can sit slightly off-tone
+   from the main content area. Per-theme overrides further down still
+   set their own glass-strong colors when a theme wants explicit
+   contrast (Nord, Miffy, etc.). */
 .glass-strong {
-  background: var(--background);
+  background: var(--sidebar-bg);
 }
 
 .dark .glass-strong {
-  background: var(--background);
+  background: var(--sidebar-bg);
 }
 
 .glass-subtle {

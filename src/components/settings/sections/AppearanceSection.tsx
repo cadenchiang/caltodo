@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Check, Lock } from "lucide-react";
 import ThemeToggle from "@/components/layout/ThemeToggle";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -9,19 +9,13 @@ import { cn } from "@/lib/utils";
 import { useEntitlement } from "@/hooks/useEntitlement";
 import UpgradeModal from "@/components/ui/UpgradeModal";
 
-/** localStorage key for the set of unlocked theme IDs. */
-const UNLOCKED_THEMES_KEY = "caltodo_unlocked_themes";
-
-/** Hardcoded access code for the Miffy theme (case-insensitive). */
-const MIFFY_ACCESS_CODE = "CHENFEI";
-
 /**
  * Theme option metadata for rendering in the picker grid.
  *
  * @param id - Color theme identifier
  * @param name - Display name
  * @param description - Short description
- * @param locked - Whether a code is required to unlock
+ * @param locked - Whether the theme is Pro-gated
  * @param swatches - 4 hex colors for the preview circles
  */
 interface ThemeOption {
@@ -121,98 +115,31 @@ const THEME_OPTIONS: ThemeOption[] = [
 ];
 
 /**
- * Reads the set of unlocked theme IDs from localStorage.
- *
- * @returns Array of unlocked theme ID strings
- */
-function getUnlockedThemes(): string[] {
-  try {
-    const raw = localStorage.getItem(UNLOCKED_THEMES_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) return parsed;
-    }
-  } catch {
-    // localStorage unavailable or corrupt
-  }
-  return [];
-}
-
-/**
- * Persists the set of unlocked theme IDs to localStorage.
- *
- * @param themes - Array of unlocked theme ID strings
- */
-function saveUnlockedThemes(themes: string[]): void {
-  try {
-    localStorage.setItem(UNLOCKED_THEMES_KEY, JSON.stringify(themes));
-  } catch {
-    // localStorage unavailable
-  }
-}
-
-/**
  * Appearance settings section.
  * Renders the light/dark/auto theme toggle and a grid of theme cards.
- * Miffy is locked behind an access code; all other themes are freely selectable.
+ * Miffy is the only Pro-gated theme; everything else is free.
  */
 export default function AppearanceSection() {
   const { colorTheme, setColorTheme } = useTheme();
   const { isPro } = useEntitlement();
-  const [unlockedThemes, setUnlockedThemes] = useState<string[]>([]);
-  const [codeInput, setCodeInput] = useState("");
-  const [error, setError] = useState(false);
-  const [shaking, setShaking] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
 
-  // When a free user lands on this section while a non-default theme is
-  // somehow active (e.g. their trial expired), reset to default so the gate
-  // is enforced from the UI side. The server-side feature flag is just a
-  // marketing claim — themes apply via a CSS class, so we enforce by clearing.
+  // Miffy is the only Pro-gated theme. If a free user somehow has it active
+  // (e.g. trial expired), reset to default. Other themes apply freely.
   useEffect(() => {
-    if (!isPro && colorTheme !== null) {
+    if (!isPro && colorTheme === "miffy") {
       setColorTheme(null);
     }
   }, [isPro, colorTheme, setColorTheme]);
 
-  // Load unlocked themes from localStorage on mount
-  useEffect(() => {
-    setUnlockedThemes(getUnlockedThemes());
-  }, []);
-
   /**
-   * Attempts to unlock a locked theme with the entered code.
-   * On success: unlocks, activates, and persists.
-   * On failure: triggers shake animation and error message.
-   *
-   * @param themeId - The theme ID to unlock
-   */
-  const handleUnlock = useCallback((themeId: string) => {
-    if (themeId === "miffy" && codeInput.trim().toUpperCase() === MIFFY_ACCESS_CODE) {
-      const next = [...unlockedThemes, themeId];
-      setUnlockedThemes(next);
-      saveUnlockedThemes(next);
-      setColorTheme(themeId as ColorTheme);
-      setCodeInput("");
-      setError(false);
-    } else {
-      setError(true);
-      setShaking(true);
-      setTimeout(() => setShaking(false), 400);
-    }
-  }, [codeInput, unlockedThemes, setColorTheme]);
-
-  /**
-   * Handles clicking a theme card. Toggles active theme, or shows unlock input for locked themes.
-   *
-   * Free users see all themes but every non-default one is Pro-gated, so the
-   * click opens the UpgradeModal instead of activating the theme.
+   * Handles clicking a theme card. Toggles active theme, or shows the upgrade
+   * modal when a free user clicks the Miffy theme (the only Pro-gated theme).
    *
    * @param theme - The theme option that was clicked
    */
   const handleThemeClick = useCallback((theme: ThemeOption) => {
-    if (!isPro) {
+    if (theme.locked && !isPro) {
       setShowUpgrade(true);
       return;
     }
@@ -265,9 +192,12 @@ export default function AppearanceSection() {
             )}
           </button>
 
-          {THEME_OPTIONS.filter((theme) => !theme.locked || unlockedThemes.includes(theme.id)).map((theme) => {
+          {THEME_OPTIONS.map((theme) => {
             const isActive = colorTheme === theme.id;
-            const gated = !isPro;
+            // Only Miffy is Pro-gated. Other themes are free for everyone.
+            // Pro users who haven't entered the code still see the lock UI for
+            // Miffy (the code is a separate unlock layer on top of Pro).
+            const gated = theme.locked && !isPro;
 
             return (
               <button
@@ -317,56 +247,6 @@ export default function AppearanceSection() {
             );
           })}
         </div>
-
-        {/* Theme code unlock bar — only show to Pro users (the gate is Pro,
-            not the code). Free users see the Upgrade modal first. */}
-        {isPro && THEME_OPTIONS.some((t) => t.locked && !unlockedThemes.includes(t.id)) && (
-          <div className="mt-4">
-            <div className={cn("flex items-center gap-2", shaking && "animate-shake")}>
-              <input
-                ref={inputRef}
-                type="text"
-                value={codeInput}
-                onChange={(e) => {
-                  setCodeInput(e.target.value);
-                  if (error) setError(false);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    const locked = THEME_OPTIONS.find((t) => t.locked && !unlockedThemes.includes(t.id));
-                    if (locked) handleUnlock(locked.id);
-                  }
-                }}
-                placeholder="Have a theme code?"
-                className={cn(
-                  "h-8 flex-1 min-w-0 rounded-lg border px-3 text-xs bg-background text-foreground",
-                  "placeholder:text-muted-foreground",
-                  "focus:outline-none focus:ring-1 focus:ring-ring",
-                  error ? "border-red-400 dark:border-red-500" : "border-input-border"
-                )}
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  const locked = THEME_OPTIONS.find((t) => t.locked && !unlockedThemes.includes(t.id));
-                  if (locked) handleUnlock(locked.id);
-                }}
-                className={cn(
-                  "h-8 px-4 shrink-0 rounded-lg text-xs font-medium",
-                  "bg-accent text-foreground hover:bg-muted border border-input-border",
-                  "transition-colors duration-150"
-                )}
-              >
-                Redeem
-              </button>
-            </div>
-            {error && (
-              <p className="text-[11px] text-red-500 dark:text-red-400 mt-1.5 pl-1">
-                Invalid code. Try again.
-              </p>
-            )}
-          </div>
-        )}
       </div>
 
       <UpgradeModal

@@ -276,15 +276,41 @@ export default function GoogleCalendarSettings() {
     toast("Setting up Google Calendar...", { progress: 0 });
     try {
       await refresh();
-      // Fetch available calendars and select them (max 10 per route validation)
+      // Ensure a dedicated "caltodo" calendar exists. We pass its ID FIRST
+      // in the calendarIds array because the sync code writes events to
+      // calendarIds[0]. This isolates synced assignments from the user's
+      // personal calendars (the fix for the "deploying to personal calendar"
+      // bug).
+      const caltodoRes = await fetch("/api/gcal/ensure-caltodo-calendar", {
+        method: "POST",
+      });
+      let caltodoCalendarId: string | null = null;
+      if (caltodoRes.ok) {
+        const { calendarId } = (await caltodoRes.json()) as { calendarId: string };
+        caltodoCalendarId = calendarId;
+      } else {
+        console.warn("autoSetupCalendar: failed to ensure caltodo calendar; falling back");
+      }
+
+      // Also list user's other calendars so the widget can still read events
+      // from them. Caltodo calendar stays at index 0 (write target).
       const calListRes = await fetch("/api/gcal/calendars?all=true");
-      let calendarIds = ["primary"];
+      const otherIds: string[] = [];
       if (calListRes.ok) {
         const calData = await calListRes.json();
         if (calData.calendars && calData.calendars.length > 0) {
-          calendarIds = calData.calendars.map((c: { id: string }) => c.id).slice(0, 10);
+          for (const c of calData.calendars as Array<{ id: string }>) {
+            if (c.id !== caltodoCalendarId) otherIds.push(c.id);
+          }
         }
       }
+
+      const calendarIds = caltodoCalendarId
+        ? [caltodoCalendarId, ...otherIds].slice(0, 10)
+        : otherIds.length > 0
+          ? otherIds.slice(0, 10)
+          : ["primary"];
+
       const selectRes = await fetch("/api/gcal/select-calendar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

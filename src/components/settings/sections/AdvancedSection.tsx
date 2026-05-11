@@ -83,7 +83,6 @@ export default function AdvancedSection() {
         body: JSON.stringify({ dismissed_modals: {} }),
       });
       localStorage.removeItem("caltodo_notes_welcome_seen");
-      localStorage.removeItem("caltodo_integrations_welcome_seen");
       localStorage.removeItem("calchat_welcome_accepted");
       router.push("/app/onboarding");
     } catch {

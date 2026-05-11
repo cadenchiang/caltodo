@@ -5,7 +5,7 @@ import { LayoutGrid, Inbox, CalendarDays, Users } from "lucide-react";
  * Settings is accessed via the profile popup only.
  */
 export const NAV_ITEMS = [
-  { label: "Board", href: "/app/home", icon: LayoutGrid },
+  { label: "Home", href: "/app/home", icon: LayoutGrid },
   { label: "Inbox", href: "/app/inbox", icon: Inbox },
   { label: "Calendar", href: "/app/calendar", icon: CalendarDays },
   { label: "Chat", href: "/app/discussions", icon: Users },
