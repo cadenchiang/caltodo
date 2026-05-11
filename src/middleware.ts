@@ -58,8 +58,21 @@ export async function middleware(request: NextRequest) {
   // Redirect authenticated users away from landing/login to their first
   // non-hidden nav item. Skip if ?landing=1 is present (sidebar logo click).
   if (user && (pathname === "/" || pathname === "/login") && !request.nextUrl.searchParams.has("landing")) {
+    // /app/home is Pro-gated; sending a free user there on login lands them
+    // on the lock screen, which reads as broken. Look up their effective
+    // plan via the already-authenticated anon client (RLS allows self-read
+    // on user_entitlement) so the landing pick can skip /app/home for free
+    // users. Only fires on / and /login per the matcher below, so this DB
+    // hit is not on every navigation.
+    const { data: ent } = await supabase
+      .from("user_entitlement")
+      .select("effective_plan")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    const isPro = ent?.effective_plan === "pro" || ent?.effective_plan === "trial";
+
     const url = request.nextUrl.clone();
-    url.pathname = pickLandingPath(user.user_metadata);
+    url.pathname = pickLandingPath(user.user_metadata, isPro);
     const redirectResponse = NextResponse.redirect(url);
     supabaseResponse.cookies.getAll().forEach((cookie) => {
       redirectResponse.cookies.set(cookie.name, cookie.value, cookie);

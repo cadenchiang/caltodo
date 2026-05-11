@@ -82,7 +82,9 @@ export function useGoogleSignIn() {
                 data: { session },
               } = await supabase.auth.getSession();
               if (session) {
-                window.location.href = "/app/home";
+                // Bounce through /; middleware picks /app/home for Pro,
+                // /app/inbox for free, respecting hidden_nav_items.
+                window.location.href = "/";
               }
               return;
             }
@@ -91,9 +93,11 @@ export function useGoogleSignIn() {
 
             if (popupUrl.includes("/app/") || popupUrl.includes("/login")) {
               clearInterval(pollId);
+              // Non-onboarding destinations go through / so middleware can
+              // pick /app/home (Pro) vs /app/inbox (free) per entitlement.
               const destination = popupUrl.includes("/app/onboarding")
                 ? "/app/onboarding"
-                : "/app/home";
+                : "/";
 
               // Wait for the popup's Set-Cookie write to land before navigating.
               // We re-check getSession() until it resolves with a session, up to

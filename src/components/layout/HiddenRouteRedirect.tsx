@@ -14,6 +14,7 @@
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useHiddenNavItems } from "@/hooks/useHiddenNavItems";
+import { useEntitlement } from "@/hooks/useEntitlement";
 import { pickLandingPath } from "@/lib/landing-path";
 
 /** Nav hrefs we treat as "guardable." Subroutes (e.g. /app/notes/foo) also redirect. */
@@ -32,6 +33,7 @@ export default function HiddenRouteRedirect() {
   const pathname = usePathname();
   const router = useRouter();
   const { hidden } = useHiddenNavItems();
+  const { isPro } = useEntitlement();
 
   useEffect(() => {
     if (!pathname) return;
@@ -42,11 +44,10 @@ export default function HiddenRouteRedirect() {
     if (!matched) return;
     if (!hidden.has(matched)) return;
 
-    // Pretend metadata to compute the landing target.
-    const target = pickLandingPath({ hidden_nav_items: [...hidden] });
+    const target = pickLandingPath({ hidden_nav_items: [...hidden] }, isPro);
     if (target === pathname) return;
     router.replace(target);
-  }, [pathname, hidden, router]);
+  }, [pathname, hidden, isPro, router]);
 
   return null;
 }

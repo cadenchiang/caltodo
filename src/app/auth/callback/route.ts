@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { pickLandingPath } from "@/lib/landing-path";
+import { isPro } from "@/lib/entitlements";
 
 /**
  * OAuth callback route handler.
@@ -67,10 +68,14 @@ export async function GET(request: NextRequest) {
           // their platforms and connect each integration.
           redirectTo.pathname = "/app/onboarding";
         } else {
-          redirectTo.pathname = pickLandingPath(user.user_metadata);
+          // Free users skip /app/home (Pro-gated lock screen) and land on
+          // /app/inbox instead. isPro() reads the cached entitlement so
+          // this is one DB hit at most per 60s per user.
+          const userIsPro = await isPro(user.id);
+          redirectTo.pathname = pickLandingPath(user.user_metadata, userIsPro);
         }
       } else {
-        redirectTo.pathname = "/app/home";
+        redirectTo.pathname = "/app/inbox";
       }
 
       return NextResponse.redirect(redirectTo);
