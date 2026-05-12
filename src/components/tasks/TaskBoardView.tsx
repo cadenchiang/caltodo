@@ -378,6 +378,9 @@ export default function TaskBoardView({
   const savedOrderRef = useRef<string[]>([]);
   /** Always-current column IDs (updated after columns memo, read in callbacks). */
   const columnIdsRef = useRef<string[]>([]);
+  /** Measured width of a rendered column at drag start, so the
+   *  DragOverlay matches the source column's exact pixel width. */
+  const [dragColWidth, setDragColWidth] = useState<number | null>(null);
 
   const isDragEnabled = groupBy === "class";
 
@@ -386,10 +389,13 @@ export default function TaskBoardView({
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
 
-  /** Sets activeId and snapshots the current column order for potential revert. */
+  /** Sets activeId, snapshots column order, and measures the active
+   *  column's pixel width so the DragOverlay can match it exactly. */
   const handleDragStart = useCallback((event: DragStartEvent) => {
     setActiveId(String(event.active.id));
     savedOrderRef.current = columnIdsRef.current;
+    const first = scrollRowRef.current?.children[0] as HTMLElement | undefined;
+    if (first) setDragColWidth(first.offsetWidth);
   }, []);
 
   /** Persists the final order to localStorage and clears activeId. */
@@ -623,7 +629,12 @@ export default function TaskBoardView({
       {/* Floating drag overlay — follows cursor with subtle shadow */}
       <DragOverlay dropAnimation={{ duration: 200, easing: "ease" }}>
         {activeId && activeColumnTasks && (
-          <div className="opacity-95 shadow-2xl cursor-grabbing" style={{ willChange: "transform", width: "calc((100vw - 48px) / 4)" }}>
+          <div
+            className="opacity-95 shadow-2xl cursor-grabbing"
+            // Use the measured pixel width of the live column so the
+            // overlay matches the source column shape exactly.
+            style={{ willChange: "transform", width: dragColWidth ?? 280 }}
+          >
             <BoardColumn
               name={activeId}
               displayName={isDateMode ? activeId : (aliases.get(activeId) || activeId)}

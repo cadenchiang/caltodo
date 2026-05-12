@@ -157,8 +157,10 @@ export default function TaskPreviewPopover({
 
   // Mirror the list detail panel: overdue tasks show "Overdue N day(s)"
   // (no time); everything else gets the long EEE, MMM d, yyyy formatting.
+  // Completed tasks NEVER show "Overdue" — the check mark already
+  // conveys done, and overdue on a finished task is misleading.
   const dueInfo = getDueDateInfo(task.due_date, task.due_time);
-  const isOverdue = !!dueInfo && dueInfo.dateLabel.startsWith("Overdue");
+  const isOverdue = !task.is_completed && !!dueInfo && dueInfo.dateLabel.startsWith("Overdue");
   const dateLabel = isOverdue
     ? dueInfo!.dateLabel
     : task.due_date
@@ -169,6 +171,9 @@ export default function TaskPreviewPopover({
     : task.due_time
       ? format(new Date(`2000-01-01T${task.due_time}`), "h:mm a")
       : null;
+  // Completed: drop the urgency color so the pill reads as a neutral
+  // info chip instead of red.
+  const urgencyClass = task.is_completed ? "text-muted-foreground" : dueInfo?.className;
 
   const repeatLabel =
     task.repeat_interval && task.repeat_unit
@@ -237,7 +242,7 @@ export default function TaskPreviewPopover({
           <TaskDateTimeLabel
             dateLabel={dateLabel}
             timeLabel={timeLabel}
-            urgencyClassName={dueInfo?.className}
+            urgencyClassName={urgencyClass}
           />
         </button>
 

@@ -69,7 +69,9 @@ export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: Tas
   // — matches the list/board view. Non-overdue tasks keep the long
   // "Mon, May 11, 2026" formatting that's nice in the wide panel.
   const dueInfo = getDueDateInfo(task.due_date, task.due_time);
-  const isOverdue = !!dueInfo && dueInfo.dateLabel.startsWith("Overdue");
+  // Completed tasks never show "Overdue" or red — the check already
+  // conveys done. They get the long neutral date instead.
+  const isOverdue = !task.is_completed && !!dueInfo && dueInfo.dateLabel.startsWith("Overdue");
   const dateLabel = isOverdue
     ? dueInfo!.dateLabel
     : task.due_date
@@ -80,6 +82,7 @@ export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: Tas
     : task.due_time
       ? format(new Date(`2000-01-01T${task.due_time}`), "h:mm a")
       : null;
+  const urgencyClass = task.is_completed ? "text-muted-foreground" : dueInfo?.className;
   const repeatLabel = task.repeat_interval && task.repeat_unit
     ? getRepeatLabel(task.repeat_interval, task.repeat_unit)
     : null;
@@ -136,7 +139,7 @@ export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: Tas
         <TaskDateTimeLabel
           dateLabel={dateLabel}
           timeLabel={timeLabel}
-          urgencyClassName={getDueDateInfo(task.due_date, task.due_time)?.className}
+          urgencyClassName={urgencyClass}
         />
 
         <TaskRepeatLabel repeatLabel={repeatLabel} />
