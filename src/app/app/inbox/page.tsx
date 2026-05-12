@@ -3,11 +3,12 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Inbox, ChevronDown, X, Sun, CalendarRange, CalendarDays, GraduationCap, MoreVertical, List, LayoutGrid, ArrowUpDown, RefreshCw, Plus } from "lucide-react";
+import { Inbox, ChevronDown, X, Sun, CalendarRange, CalendarDays, GraduationCap, MoreVertical, List, LayoutGrid, ArrowUpDown, RefreshCw, Plus, CalendarDays as CalIcon } from "lucide-react";
 import { useTaskContext } from "@/contexts/TaskContext";
 import { expandRepeatingTasks, getRealTaskId } from "@/lib/expand-repeating-tasks";
 import TaskList from "@/components/tasks/TaskList";
 import TaskBoardView from "@/components/tasks/TaskBoardView";
+import CalendarPanel from "@/components/calendar/CalendarPanel";
 import TaskDetailPanel from "@/components/tasks/TaskDetailPanel";
 import TaskCreateModal from "@/components/tasks/TaskCreateModal";
 import TaskPreviewPopover from "@/components/tasks/TaskPreviewPopover";
@@ -18,7 +19,7 @@ import { usePendingInvites } from "@/hooks/usePendingInvites";
 import { trackEvent } from "@/lib/analytics";
 
 type InboxFilter = "all" | "today" | "7days";
-type ViewMode = "list" | "board";
+type ViewMode = "list" | "board" | "calendar";
 
 const FILTER_OPTIONS: { key: InboxFilter; label: string; icon: React.ComponentType<{ size?: number; className?: string }> }[] = [
   { key: "all", label: "Inbox", icon: Inbox },
@@ -203,6 +204,19 @@ export default function InboxPage() {
 
   const inboxRouter = useRouter();
   const searchParams = useSearchParams();
+  // First name for the page title — read from the user-profile cache
+  // that the sidebar writes on mount. Falls back to "My Tasks" when no
+  // name is available.
+  const [firstName, setFirstName] = useState<string>("");
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("caltodo_user_profile");
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as { fullName?: string | null };
+      const first = (parsed.fullName ?? "").split(" ")[0] ?? "";
+      if (first) setFirstName(first);
+    } catch { /* localStorage unavailable */ }
+  }, []);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [listPreviewTask, setListPreviewTask] = useState<Task | null>(null);
   const [listPreviewRect, setListPreviewRect] = useState<DOMRect | null>(null);
@@ -597,20 +611,38 @@ export default function InboxPage() {
 
   return (
     <PageTransition>
-      <div className="flex flex-col md:flex-row -m-4 md:-m-10 h-[calc(100dvh-3rem)] md:h-dvh">
-        {/* Left: task list (60%) */}
-        <div className="flex flex-col min-w-0 min-h-0" style={{ flex: "3 1 0%" }}>
-          <div className="px-4 pt-7 pb-4 md:px-8 md:pt-10 md:pb-5 flex items-center justify-between animate-stagger stagger-1">
+      <div className="flex flex-col -m-4 md:-m-10 min-h-[calc(100dvh-3rem)] md:min-h-dvh">
+        {/* Page title block — no border underneath; the divider lives on
+            the tabs row below so it extends across the full page width. */}
+        <div className="px-10 pt-28 pb-6 md:px-20 md:pt-36 md:pb-8 animate-stagger stagger-1">
+          <div className="flex items-center gap-5 -ml-3">
+            {/* Large circle icon — matches the sidebar's glassy gray. */}
+            <div className="w-20 h-20 md:w-24 md:h-24 rounded-full glass-strong flex items-center justify-center shrink-0">
+              <Inbox className="text-muted-foreground" size={40} strokeWidth={1.75} />
+            </div>
+            <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground">
+              {firstName ? `${firstName}'s Tasks` : "My Tasks"}
+            </h1>
+          </div>
+        </div>
+
+
+        {/* Tabs + actions row — spans the full page width. No border-b
+            (the divider line was removed). */}
+        <div className="pl-10 pr-[22px] pt-1 pb-4 md:pl-20 md:pr-[62px] md:pt-2 md:pb-5 flex items-center justify-between animate-stagger stagger-2">
             {/* Left: List / Board tabs — Notion-style. Active tab gets a
                 soft accent pill; inactive tabs read as plain icon + label.
-                Replaces the previous "Inbox" title and filter dropdown.
                 Negative left margin pulls the first tab flush with the
                 container's left edge — the tab's internal px-3 padding
                 would otherwise push the text inward. */}
             <div className="flex items-center gap-1 min-w-0 -ml-3">
+              {/* In-page tabs for Board / List view modes, plus a third
+                  tab for Calendar that navigates to /app/calendar (which
+                  renders the same chrome with its own active tab). */}
               {([
                 { key: "board" as const, label: "Board", icon: LayoutGrid },
                 { key: "list" as const, label: "List", icon: List },
+                { key: "calendar" as const, label: "Calendar", icon: CalIcon },
               ]).map(({ key, label, icon: Icon }) => {
                 const isActive = viewMode === key;
                 return (
@@ -759,6 +791,11 @@ export default function InboxPage() {
             </div>
           </div>
 
+        {/* Body — split into tasks (left) + contained detail card (right).
+            Sits below the full-width tabs / bar above. */}
+        <div className="flex flex-1 min-h-0">
+          {/* Left column: tasks (tabs row lives above the body split) */}
+          <div className="flex flex-col min-w-0 min-h-0 flex-1">
           {/* Header add-task modal */}
           <TaskCreateModal
             open={showAddModal}
@@ -767,9 +804,28 @@ export default function InboxPage() {
             defaultCourseName={addModalCourseName}
           />
 
-          <div id="tour-task-list" className="flex-1 overflow-auto animate-stagger stagger-2">
+          <div
+            id="tour-task-list"
+            className={`flex-1 animate-stagger stagger-2 ${
+              viewMode === "calendar"
+                ? "flex flex-col"
+                : viewMode === "list"
+                  ? "pl-7 md:pl-[68px] pr-2 md:pr-2"
+                  : "pl-7 md:pl-[68px] pr-7 md:pr-[68px]"
+            }`}
+            onClick={viewMode === "list"
+              ? (e) => {
+                  // Only deselect on a direct click of this wrapper's
+                  // empty space — never on buttons / section headers /
+                  // task rows nested inside.
+                  if (e.target === e.currentTarget) setSelectedTask(null);
+                }
+              : undefined}
+          >
             <div key={viewMode} className="animate-view-switch h-full">
-              {viewMode === "list" ? (
+              {viewMode === "calendar" ? (
+                <CalendarPanel />
+              ) : viewMode === "list" ? (
                 <TaskList
                   tasks={sortedTasks}
                   loading={loading}
@@ -839,19 +895,25 @@ export default function InboxPage() {
               )}
             </div>
           </div>
+          </div>
+
+          {/* Right: contained detail card — square-ish self-contained box
+              with margins, rounded corners, border + shadow. Replaces the
+              old edge-to-edge right panel. List view only. */}
+          {viewMode === "list" && (
+            <div className="hidden md:flex w-[50%] shrink-0 pl-2 pr-6 pt-0 pb-6 md:pl-3 md:pr-10 md:pt-0 md:pb-8 sticky top-0 self-start h-[calc(100dvh-2.5rem)]">
+              <div className="w-full h-full bg-card border border-border rounded-2xl shadow-sm overflow-hidden flex flex-col">
+                <TaskDetailPanel
+                  task={currentSelectedTask}
+                  onClose={() => setSelectedTask(null)}
+                  onSave={updateTask}
+                  onDelete={deleteTask}
+                />
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Right: detail panel (40%, list view only, hidden on mobile) */}
-        {viewMode === "list" && (
-          <div className="hidden md:flex w-[50%] shrink-0">
-            <TaskDetailPanel
-              task={currentSelectedTask}
-              onClose={() => setSelectedTask(null)}
-              onSave={updateTask}
-              onDelete={deleteTask}
-            />
-          </div>
-        )}
       </div>
 
       {/* Board view: preview popover (first click) */}

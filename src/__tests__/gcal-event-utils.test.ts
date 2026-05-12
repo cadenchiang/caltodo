@@ -39,7 +39,7 @@ describe("parseEventDate", () => {
 
 describe("hexToRgba", () => {
   it("should convert hex with # to rgba", () => {
-    expect(hexToRgba("#3b82f6", 0.5)).toBe("rgba(59, 130, 246, 0.5)");
+    expect(hexToRgba("#0e89d6", 0.5)).toBe("rgba(59, 130, 246, 0.5)");
   });
 
   it("should convert hex without # to rgba", () => {

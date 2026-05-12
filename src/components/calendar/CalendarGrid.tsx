@@ -108,18 +108,44 @@ export default function CalendarGrid({
   }
 
   const labels = isMobile ? WEEKDAY_LABELS_SHORT : WEEKDAY_LABELS_FULL;
-  const minRowHeight = isMobile ? "52px" : "120px";
+  // Taller default rows so the 2-row task bars (title + status pill)
+  // have breathing room and a few tasks can show before truncation.
+  const minRowHeight = isMobile ? "68px" : "160px";
+
+  // Weekday index for "today" (Mon=0 ... Sun=6, weekStartsOn:1).
+  const todayDow = (() => {
+    const d = new Date().getDay();
+    return d === 0 ? 6 : d - 1;
+  })();
 
   return (
-    <div id="tour-calendar-grid" className="bg-card h-full flex flex-col">
-      {/* Day grid — weekday labels are inside first-row cells like Google Calendar */}
+    <div id="tour-calendar-grid" className="bg-card flex flex-col">
+      {/* Weekday header row — inside the rounded card. Current weekday is
+          bold + solid foreground; others stay muted. */}
+      <div className="grid grid-cols-7 border-b border-gray-200 dark:border-gray-700/50 bg-card">
+        {labels.map((label, i) => (
+          <div
+            key={label}
+            className={`text-center text-[11px] py-2 tracking-wide ${
+              i === todayDow
+                ? "font-bold text-foreground"
+                : "font-medium text-muted-foreground"
+            }`}
+          >
+            {label}
+          </div>
+        ))}
+      </div>
+
+      {/* Day grid — each week row sizes to its tallest cell, so weeks
+          with more tasks grow taller and quiet weeks stay short. The
+          min keeps an empty week from collapsing too far. */}
       <div
-        className="grid grid-cols-7 flex-1 min-h-0"
-        style={{ gridTemplateRows: `minmax(0, 1.15fr) repeat(${rowCount - 1}, minmax(0, 1fr))` }}
+        className="grid grid-cols-7"
+        style={{ gridAutoRows: `minmax(${minRowHeight}, max-content)` }}
       >
         {days.map((day, i) => {
           const dateStr = format(day, "yyyy-MM-dd");
-          const isFirstRow = i < 7;
           return (
             <CalendarDayCell
               key={dateStr}
@@ -133,7 +159,6 @@ export default function CalendarGrid({
               addingDate={addingDate}
               isLastCol={(i + 1) % 7 === 0}
               isSelected={selectedDate === dateStr}
-              weekdayLabel={isFirstRow ? labels[i % 7] : undefined}
               onDayClick={onDayClick}
               onDaySelect={onDaySelect}
               onTaskClick={onTaskClick}

@@ -412,7 +412,7 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
                     setIcalSelectedNames(new Set(icalCourses.map((c) => c.name)));
                   }
                 }}
-                className="text-xs font-medium text-[#0071E3] hover:text-[#3D8FE8] transition-colors"
+                className="text-xs font-medium text-[#0e89d6] hover:text-[#3D8FE8] transition-colors"
               >
                 {icalSelectedNames.size === icalCourses.length ? "Deselect All" : "Select All"}
               </button>
@@ -426,12 +426,12 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
                     type="button"
                     onClick={() => toggleIcalCourse(course.name)}
                     className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl bg-white text-foreground border-2 transition-colors duration-150 focus:outline-none ${
-                      selected ? "border-[#0071E3]" : "border-transparent hover:border-[#0071E3]/30"
+                      selected ? "border-[#0e89d6]" : "border-transparent hover:border-[#0e89d6]/30"
                     }`}
                   >
                     <span className="flex-1 min-w-0 text-sm font-semibold text-foreground truncate">{course.name}</span>
                     <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-colors ${
-                      selected ? "bg-[#0071E3]" : "border border-muted-foreground/30"
+                      selected ? "bg-[#0e89d6]" : "border border-muted-foreground/30"
                     }`}>
                       {selected && (
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-white">
@@ -578,7 +578,7 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
                               <button
                                 type="button"
                                 onClick={() => setShowTokenHelp(!showTokenHelp)}
-                                className="text-[#0071E3] font-normal text-xs hover:text-[#3D8FE8] cursor-pointer transition-colors"
+                                className="text-[#0e89d6] font-normal text-xs hover:text-[#3D8FE8] cursor-pointer transition-colors"
                               >
                                 Having issues?
                               </button>

@@ -100,7 +100,11 @@ export default function SidebarNavItem({ label, href, icon: Icon, badge, badgeCo
   const pathname = usePathname();
   const { colorTheme } = useTheme();
   const isMiffy = colorTheme === "miffy";
-  const isActive = active ?? (pathname === href || pathname.startsWith(href + "/"));
+  // The /app/calendar route is conceptually a tab inside the Inbox view,
+  // so the Inbox sidebar item should stay highlighted while the user is
+  // on the calendar page.
+  const inboxOwnsCalendar = href === "/app/inbox" && (pathname === "/app/calendar" || pathname.startsWith("/app/calendar/"));
+  const isActive = active ?? (pathname === href || pathname.startsWith(href + "/") || inboxOwnsCalendar);
 
   return (
     <Link
@@ -127,7 +131,7 @@ export default function SidebarNavItem({ label, href, icon: Icon, badge, badgeCo
         </span>
       )}
       {badgeText && (
-        <span className="relative z-10 ml-auto px-1.5 py-0.5 rounded-md bg-[#007AFF] text-white text-[9px] font-bold tracking-wide shrink-0">
+        <span className="relative z-10 ml-auto px-1.5 py-0.5 rounded-md bg-[#0e89d6] text-white text-[9px] font-bold tracking-wide shrink-0">
           {badgeText}
         </span>
       )}

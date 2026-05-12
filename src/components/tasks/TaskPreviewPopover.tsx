@@ -5,6 +5,8 @@ import { createPortal } from "react-dom";
 import { format } from "date-fns";
 import { getRepeatLabel } from "@/lib/repeat";
 import { getThemeColor } from "@/lib/constants";
+import { getDueDateInfo } from "@/lib/task-utils";
+import { ExternalLink } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import type { Task } from "@/lib/types";
 import TaskCheckbox from "./shared/TaskCheckbox";
@@ -31,12 +33,18 @@ interface TaskPreviewPopoverProps {
   anchorRect: DOMRect;
   /** Called when the popover should close. */
   onClose: () => void;
-  /** Called when the user clicks the edit (pencil) button. */
+  /** Called when the user opens the full edit modal (date-pill click). */
   onEdit: (task: Task) => void;
   /** Called when the user clicks the delete (trash) button. */
   onDelete: (id: string) => void;
   /** Called when the user toggles the completion checkbox. */
   onToggle: (id: string) => void;
+  /**
+   * Optional inline-save handler. When provided, the title can be edited
+   * directly in the popover and saved via this callback. Without it the
+   * title falls back to a read-only span.
+   */
+  onSave?: (id: string, updates: { title?: string }) => void;
 }
 
 /**
@@ -56,6 +64,7 @@ export default function TaskPreviewPopover({
   anchorRect,
   onClose,
   onEdit,
+  onSave,
   onDelete,
   onToggle,
 }: TaskPreviewPopoverProps) {
@@ -146,13 +155,20 @@ export default function TaskPreviewPopover({
 
   const dotColor = getThemeColor(task.color, colorTheme);
 
-  const dateLabel = task.due_date
-    ? format(new Date(task.due_date + "T00:00:00"), "EEE, MMM d, yyyy")
-    : null;
-
-  const timeLabel = task.due_time
-    ? format(new Date(`2000-01-01T${task.due_time}`), "h:mm a")
-    : null;
+  // Mirror the list detail panel: overdue tasks show "Overdue N day(s)"
+  // (no time); everything else gets the long EEE, MMM d, yyyy formatting.
+  const dueInfo = getDueDateInfo(task.due_date, task.due_time);
+  const isOverdue = !!dueInfo && dueInfo.dateLabel.startsWith("Overdue");
+  const dateLabel = isOverdue
+    ? dueInfo!.dateLabel
+    : task.due_date
+      ? format(new Date(task.due_date + "T00:00:00"), "EEE, MMM d, yyyy")
+      : null;
+  const timeLabel = isOverdue
+    ? null
+    : task.due_time
+      ? format(new Date(`2000-01-01T${task.due_time}`), "h:mm a")
+      : null;
 
   const repeatLabel =
     task.repeat_interval && task.repeat_unit
@@ -188,7 +204,7 @@ export default function TaskPreviewPopover({
           overflowY: "auto",
         }}
       >
-      {/* Header action buttons */}
+      {/* Header — pencil/edit + close. Pencil opens the full edit modal. */}
       <TaskActionBar
         onEdit={() => onEdit(task)}
         onDelete={() => onDelete(task.id)}
@@ -198,7 +214,7 @@ export default function TaskPreviewPopover({
 
       {/* Body */}
       <div className="px-6 pb-6">
-        {/* Title row: clickable checkbox square + title */}
+        {/* Title row — read-only; deeper edits go through the pencil. */}
         <div className="flex items-start gap-4">
           <TaskCheckbox
             color={dotColor}
@@ -211,14 +227,41 @@ export default function TaskPreviewPopover({
           </span>
         </div>
 
-        {/* Date + Time under title */}
-        <TaskDateTimeLabel dateLabel={dateLabel} timeLabel={timeLabel} />
+        {/* Date + Time pill — click to open the full editor for date/time changes. */}
+        <button
+          type="button"
+          onClick={() => onEdit(task)}
+          className="block text-left hover:opacity-80 transition-opacity"
+          aria-label="Edit date and time"
+        >
+          <TaskDateTimeLabel
+            dateLabel={dateLabel}
+            timeLabel={timeLabel}
+            urgencyClassName={dueInfo?.className}
+          />
+        </button>
 
-        {/* Repeat label under date */}
         <TaskRepeatLabel repeatLabel={repeatLabel} />
 
         {/* Divider */}
         <div className="border-t border-border my-5" />
+
+        {/* Open Assignment — at the top of the body when the task has a source URL. */}
+        {task.source_url && (
+          <div className="flex items-center gap-4 py-3 min-w-0">
+            <div className="shrink-0 w-5 flex items-center justify-center">
+              <ExternalLink size={20} className="text-muted-foreground" />
+            </div>
+            <a
+              href={task.source_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm font-medium text-muted-foreground hover:text-foreground hover:underline truncate transition-colors"
+            >
+              Open assignment
+            </a>
+          </div>
+        )}
 
         {/* Course name row */}
         <TaskCourseRow courseName={task.course_name} />

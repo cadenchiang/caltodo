@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { Task } from "@/lib/types";
 import { getThemeColor } from "@/lib/constants";
+import { getDueDateInfo } from "@/lib/task-utils";
 import { useTheme } from "@/contexts/ThemeContext";
 import { hexToRgba } from "@/lib/gcal/event-utils";
 
@@ -108,7 +109,7 @@ export default function CalendarTaskBar({ task, onClick, isPending, compact = fa
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className={`w-full text-left flex items-center gap-0.5 rounded overflow-hidden ${compact ? "px-1 py-0 h-[16px]" : "px-1.5 py-0.5 h-[22px]"} ${
+      className={`w-full text-left flex flex-col items-stretch gap-1 rounded-md overflow-hidden bg-white dark:bg-card border border-border ${compact ? "px-1.5 py-1" : "px-2 py-1.5"} ${
         task.is_completed ? "opacity-50" : ""
       } ${isPending ? "opacity-50" : ""} ${justDropped ? "calendar-task-drop-in" : ""}`}
       style={{
@@ -116,43 +117,81 @@ export default function CalendarTaskBar({ task, onClick, isPending, compact = fa
           "transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease, background-color 0.15s ease, opacity 0.18s ease",
         transform: isActive ? "scale(1.04)" : hovered && !isDragging ? "translateY(-1px)" : "none",
         boxShadow: isActive
-          ? `0 4px 16px ${hexToRgba(color, 0.25)}, 0 2px 6px rgba(0,0,0,0.08)`
-          : hovered && !isDragging ? "0 1px 3px rgba(0,0,0,0.06)" : "none",
+          ? "0 4px 16px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.06)"
+          : hovered && !isDragging ? "0 1px 3px rgba(0,0,0,0.06)" : "0 1px 2px rgba(0,0,0,0.03)",
         opacity: isDragging ? 0.35 : undefined,
         zIndex: isActive ? 20 : "auto",
         position: isActive ? "relative" : undefined,
-        ...(isPending ? {
-          backgroundColor: "transparent",
-          border: `1px dashed ${hexToRgba(color, 0.4)}`,
-          borderLeftWidth: "2px",
-        } : {
-          backgroundColor: hexToRgba(color, isActive ? 0.22 : highlighted ? 0.18 : 0.1),
-          borderLeft: `2px solid ${color}`,
-        }),
+        ...(isPending ? { borderStyle: "dashed" } : {}),
       }}
       title={isPending ? `Pending invite: ${task.title}` : task.title}
     >
-      {task.is_completed && !isPending && (
-        <svg className="w-2.5 h-2.5 shrink-0 mr-1 hidden md:block" style={{ color }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="20 6 9 17 4 12" />
-        </svg>
-      )}
-      {task.due_time && (
-        <span className={`${compact ? "text-[9px]" : "text-[11px]"} font-medium shrink-0`} style={{ color }}>
-          {formatTimeCompact(task.due_time)}
+      {/* Row 1: squircle (always shown) + title. Filled when completed
+          (green for Gradescope submissions, blue otherwise), outlined
+          when not. */}
+      <div className="flex items-center gap-1.5 min-w-0">
+        {!isPending && (() => {
+          const isGradescope = task.source === "gradescope";
+          const fillColor = isGradescope ? "#10B981" : "#0e89d6";
+          if (task.is_completed) {
+            return (
+              <span
+                className="shrink-0 inline-flex items-center justify-center w-3.5 h-3.5 rounded-[4px]"
+                style={{ backgroundColor: fillColor }}
+                aria-label="Completed"
+              >
+                <svg width={8} height={6} viewBox="0 0 10 8" fill="none">
+                  <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </span>
+            );
+          }
+          return (
+            <span
+              className="shrink-0 inline-block w-3.5 h-3.5 rounded-[4px]"
+              style={{ border: `1.75px solid ${fillColor}`, backgroundColor: "transparent" }}
+              aria-label="Incomplete"
+            />
+          );
+        })()}
+        <span
+          className={`${compact ? "text-[10px]" : "text-[12px]"} font-semibold truncate ${
+            task.is_completed ? "text-muted-foreground line-through" : "text-foreground"
+          }`}
+        >
+          {task.title}
         </span>
-      )}
-      <span
-        className={`${compact ? "text-[10px]" : "text-[12px]"} font-medium truncate ${task.is_completed ? "line-through" : ""}`}
-        style={{ color }}
-      >
-        {truncateTitle(task.title, MAX_TITLE_CHARS)}
-      </span>
-      {task.repeat_interval && task.repeat_unit && (
-        <svg className="w-2.5 h-2.5 shrink-0 opacity-40 text-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M17 2l4 4-4 4" /><path d="M3 11v-1a4 4 0 014-4h14" /><path d="M7 22l-4-4 4-4" /><path d="M21 13v1a4 4 0 01-4 4H3" />
-        </svg>
-      )}
+        {task.repeat_interval && task.repeat_unit && (
+          <svg className="w-2.5 h-2.5 shrink-0 opacity-40 text-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M17 2l4 4-4 4" /><path d="M3 11v-1a4 4 0 014-4h14" /><path d="M7 22l-4-4 4-4" /><path d="M21 13v1a4 4 0 01-4 4H3" />
+          </svg>
+        )}
+      </div>
+
+      {/* Row 2: date / overdue status pill. Skipped entirely when the
+          task is completed — the squircle on the title row already
+          conveys done, and an "Overdue" label on a finished task would
+          be misleading. */}
+      {!isPending && !task.is_completed && (() => {
+        const due = getDueDateInfo(task.due_date, task.due_time);
+        if (!due) return null;
+        const isOverdue = due.dateLabel.startsWith("Overdue");
+        const text = isOverdue
+          ? due.dateLabel
+          : due.timeLabel
+            ? `${due.timeLabel} · ${due.dateLabel}`
+            : due.dateLabel;
+        return (
+          <div className="flex items-center">
+            <span
+              className={`inline-flex items-center px-1.5 py-px rounded-full text-[9px] font-semibold ${due.className}`}
+              style={{ backgroundColor: "color-mix(in srgb, currentColor 14%, transparent)" }}
+            >
+              {text}
+            </span>
+          </div>
+        );
+      })()}
     </button>
   );
 }

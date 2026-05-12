@@ -217,7 +217,7 @@ export default function CalendarHeader({
               title="Connect your class platforms"
               className="active:scale-95 transition-all relative"
             >
-              <div className="rounded-full bg-[#007AFF] pl-2.5 pr-3 py-1.5 flex items-center gap-1.5 hover:opacity-80 transition-opacity">
+              <div className="rounded-full bg-[#0e89d6] pl-2.5 pr-3 py-1.5 flex items-center gap-1.5 hover:opacity-80 transition-opacity">
                 <span className="text-xs font-semibold text-white">Sync Classes</span>
               </div>
             </a>
@@ -291,9 +291,9 @@ export default function CalendarHeader({
               title="Sync your tasks to Google Calendar"
               className="active:scale-95 transition-all relative"
             >
-              <div className="rounded-full bg-blue-50 dark:bg-blue-500/10 border border-blue-200/60 dark:border-blue-500/20 pl-2.5 pr-3 py-1.5 flex items-center gap-2 hover:bg-blue-100 dark:hover:bg-blue-500/15 hover:border-blue-300 dark:hover:border-blue-500/30 transition-colors">
-                <GCalIcon size={16} />
-                <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">Connect Google Calendar</span>
+              <div className="rounded-lg border border-gray-300 dark:border-gray-500 px-3 py-1.5 flex items-center gap-2 text-foreground hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
+                <GCalIcon size={14} />
+                <span className="text-xs font-medium">Connect Google Calendar</span>
               </div>
             </a>
             <button

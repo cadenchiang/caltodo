@@ -3,6 +3,22 @@
 /* Enable class-based dark mode for manual toggle (used only for status-color overrides) */
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Override Tailwind's default blue scale to the brand blue #0e89d6.
+   Any `text-blue-*`, `bg-blue-*`, `border-blue-*`, `ring-blue-*` etc.
+   in the codebase now picks up the same brand color. */
+@theme {
+  --color-blue-50:  #e8f4fc;
+  --color-blue-100: #c5e3f7;
+  --color-blue-200: #9fd1f1;
+  --color-blue-300: #5fb1e6;
+  --color-blue-400: #2a9bdd;
+  --color-blue-500: #0e89d6;
+  --color-blue-600: #0c78bd;
+  --color-blue-700: #0a67a3;
+  --color-blue-800: #08568a;
+  --color-blue-900: #064571;
+}
+
 /* ── Semantic color tokens ── */
 :root {
   /* Backgrounds. --background drives the main content area; --sidebar-bg
@@ -260,9 +276,9 @@ body[data-route="settings"] .miffy-glow::before {
   --color-blue-200: #bfdbfe;
   --color-blue-300: #93c5fd;
   --color-blue-400: #60a5fa;
-  --color-blue-500: #3b82f6;
+  --color-blue-500: #0e89d6;
   --color-blue-600: #2563eb;
-  --color-blue-700: #1d4ed8;
+  --color-blue-700: #0e89d6;
   --color-blue-800: #1e40af;
   --color-blue-900: #1e3a8a;
   --color-blue-950: #172554;
@@ -1075,18 +1091,27 @@ body {
   }
 }
 
+@keyframes pageFadeIn {
+  from { opacity: 0.85; }
+  to   { opacity: 1; }
+}
+
 .animate-in {
   animation: fadeIn 150ms ease-out;
 }
 
+/* Soft page transition — only fades the last 15% of opacity, so the
+   new page never starts fully transparent. Eliminates the brief
+   white flash that came from opacity-0 against the layout bg during
+   route swaps. */
 .animate-fade-in {
-  animation: pageFadeIn 400ms ease-out;
+  animation: pageFadeIn 120ms ease-out;
 }
 
 @keyframes pageFadeIn {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(3px);
   }
   to {
     opacity: 1;
@@ -1308,7 +1333,7 @@ body {
 }
 
 .dark .brand-gradient {
-  background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 60%, #FDB515 100%);
+  background: linear-gradient(135deg, #0e89d6 0%, #60a5fa 60%, #FDB515 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -1322,7 +1347,7 @@ body {
 }
 
 .gradient-border-active {
-  border-color: #3B82F6;
+  border-color: #0e89d6;
   box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.3);
 }
 
@@ -1436,7 +1461,7 @@ body {
 @keyframes staggerIn {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(3px);
   }
   to {
     opacity: 1;
@@ -1445,13 +1470,20 @@ body {
 }
 
 .animate-stagger {
-  animation: staggerIn 280ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  animation: staggerIn 160ms ease-out backwards;
 }
 
-.stagger-1 { animation-delay: 40ms; }
-.stagger-2 { animation-delay: 90ms; }
-.stagger-3 { animation-delay: 140ms; }
-.stagger-4 { animation-delay: 190ms; }
+.stagger-1 { animation-delay: 0ms; }
+.stagger-2 { animation-delay: 30ms; }
+.stagger-3 { animation-delay: 60ms; }
+.stagger-4 { animation-delay: 90ms; }
+
+/* When PageTransition decides the current mount shouldn't animate
+   (first session load or chat pages), suppress nested stagger
+   animations too so the page just appears. */
+.no-page-anim .animate-stagger {
+  animation: none;
+}
 
 /* Drop-in animation — drops from above with subtle bounce */
 @keyframes dropIn {
@@ -2389,7 +2421,7 @@ input[type="range"].slider-blue::-webkit-slider-thumb {
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: #3b82f6;
+  background: #0e89d6;
   border: 2px solid #fff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
   cursor: pointer;
@@ -2399,7 +2431,7 @@ input[type="range"].slider-blue::-moz-range-thumb {
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: #3b82f6;
+  background: #0e89d6;
   border: 2px solid #fff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
   cursor: pointer;
@@ -2411,7 +2443,7 @@ input[type="range"].slider-blue::-webkit-slider-runnable-track {
 }
 
 input[type="range"].slider-blue::-moz-range-progress {
-  background: #3b82f6;
+  background: #0e89d6;
   height: 4px;
   border-radius: 9999px;
 }

@@ -30,7 +30,7 @@ interface ClassProgressWidgetProps {
 
 /** Default palette for courses without a dominant color. */
 const COURSE_COLORS = [
-  "#3b82f6", "#8b5cf6", "#ec4899", "#f97316", "#22c55e",
+  "#0e89d6", "#8b5cf6", "#ec4899", "#f97316", "#22c55e",
   "#06b6d4", "#eab308", "#ef4444", "#6366f1", "#14b8a6",
 ];
 
@@ -154,7 +154,7 @@ export default function ClassProgressWidget({ config }: ClassProgressWidgetProps
                 className="h-full rounded-full transition-all duration-500"
                 style={{
                   width: `${overallPct}%`,
-                  backgroundColor: config?.accentColor || "#3b82f6",
+                  backgroundColor: config?.accentColor || "#0e89d6",
                 }}
               />
             </div>
@@ -305,7 +305,7 @@ function CourseDetailModal({
               {/* Checkbox */}
               <button
                 onClick={() => toggleComplete(task.id)}
-                className={`no-drag mt-0.5 w-[18px] h-[18px] rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
+                className={`no-drag mt-0.5 w-[18px] h-[18px] rounded-[4px] border-2 flex items-center justify-center shrink-0 transition-colors ${
                   task.is_completed
                     ? "border-transparent"
                     : "border-muted-foreground/30 hover:border-muted-foreground/60"

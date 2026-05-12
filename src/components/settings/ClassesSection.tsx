@@ -444,7 +444,7 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
 
   const syllabusModalCourses = syllabusCourses.map((name) => ({ id: `syllabus-${name}`, name }));
   const groups = [
-    ...(canvasCourses.length > 0 ? [{ label: "bCourses", courses: canvasCourses, color: "#3b82f6" }] : []),
+    ...(canvasCourses.length > 0 ? [{ label: "bCourses", courses: canvasCourses, color: "#0e89d6" }] : []),
     ...(gseCourses.length > 0 ? [{ label: "Gradescope", courses: gseCourses, color: "#14b8a6" }] : []),
     ...(pensieveCourses.length > 0 ? [{ label: "Pensive", courses: pensieveCourses, color: "#8B5CF6" }] : []),
     ...(syllabusModalCourses.length > 0 ? [{ label: "Syllabus", courses: syllabusModalCourses, color: "#7c3aed" }] : []),

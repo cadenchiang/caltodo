@@ -55,8 +55,8 @@ export const computePanelPosition = computeSidePanelPosition;
  * uses internally when no custom accentColor is set.
  */
 const WIDGET_ACCENT_DEFAULTS: Record<string, string> = {
-  "tasks-today": "#3b82f6",
-  "class-progress": "#3b82f6",
+  "tasks-today": "#0e89d6",
+  "class-progress": "#0e89d6",
   "google-calendar": "#4285F4",
   pomodoro: "#4285F4",
   quote: "#4285F4",

@@ -292,7 +292,7 @@ export default function SyllabusStep({ onNext, onSkip, error, setError, onPhaseC
             <p className="text-xs text-foreground">
               {(file.size / 1024 / 1024).toFixed(1)} MB
             </p>
-            <p className="text-xs font-medium text-[#0071E3]">Click to choose a different file</p>
+            <p className="text-xs font-medium text-[#0e89d6]">Click to choose a different file</p>
           </div>
         ) : (
           <div className="flex flex-col items-center gap-2">

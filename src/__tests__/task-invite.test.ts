@@ -241,7 +241,7 @@ describe("POST /api/tasks/invite — success path", () => {
         return chainMock({
           data: {
             id: TASK_ID, user_id: INVITER_ID, title: "HW1", description: "Do the homework",
-            due_date: "2026-03-01", due_time: null, color: "#3B82F6", course_name: "CS61A",
+            due_date: "2026-03-01", due_time: null, color: "#0e89d6", course_name: "CS61A",
             google_event_id: null, tags: ["homework"],
           },
           error: null,

@@ -176,7 +176,7 @@ function DoneStep({
         </p>
         <div className="w-full h-4 rounded-full bg-[#E5E5E7] dark:bg-[#3A3A3C] overflow-hidden mb-3">
           <div
-            className="h-full rounded-l-full relative bg-[#0071E3]"
+            className="h-full rounded-l-full relative bg-[#0e89d6]"
             style={{
               width: `${progress}%`,
               transition: "width 280ms cubic-bezier(0.4, 0, 0.2, 1)",
@@ -187,8 +187,8 @@ function DoneStep({
         </div>
         <div className="flex items-center justify-center gap-2 h-6">
           {progress >= 100 ? (
-            <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#0071E3] animate-check-in">
-              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#0071E3] text-white">
+            <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#0e89d6] animate-check-in">
+              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#0e89d6] text-white">
                 <Check size={12} strokeWidth={3} />
               </span>
               Done
@@ -279,10 +279,10 @@ function DoneStep({
       )}
 
       {/* Live sync indicator — forward-looking, sits just before the CTA */}
-      <p className="inline-flex items-center gap-1.5 text-xs font-medium text-[#0071E3] mb-4">
+      <p className="inline-flex items-center gap-1.5 text-xs font-medium text-[#0e89d6] mb-4">
         <span className="relative inline-flex h-2 w-2">
-          <span className="absolute inline-flex h-full w-full rounded-full bg-[#0071E3] opacity-75 animate-ping" />
-          <span className="relative inline-flex h-2 w-2 rounded-full bg-[#0071E3]" />
+          <span className="absolute inline-flex h-full w-full rounded-full bg-[#0e89d6] opacity-75 animate-ping" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-[#0e89d6]" />
         </span>
         Live sync is on. New assignments appear automatically.
       </p>
@@ -838,7 +838,7 @@ export default function OnboardingPage() {
         <div className="absolute left-1/2 -translate-x-1/2 w-full max-w-md px-16 pointer-events-none">
           <div className="h-4 rounded-full bg-[#E5E5E7] dark:bg-[#3A3A3C] overflow-hidden">
             <div
-              className="h-full rounded-l-full transition-[width] duration-500 ease-out relative bg-[#0071E3]"
+              className="h-full rounded-l-full transition-[width] duration-500 ease-out relative bg-[#0e89d6]"
               style={{
                 width: `${({
                   welcome: 0,
@@ -1004,8 +1004,8 @@ export default function OnboardingPage() {
                         onClick={() => togglePlatform(opt.id)}
                         className={` flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl bg-white text-foreground border-2 transition-colors duration-150 focus:outline-none ${
                           selected
-                            ? "border-[#0071E3]"
-                            : "border-transparent hover:border-[#0071E3]/30"
+                            ? "border-[#0e89d6]"
+                            : "border-transparent hover:border-[#0e89d6]/30"
                         }`}
                         style={{ animationDelay: `${(i + 2) * 50}ms` }}
                       >
@@ -1023,13 +1023,13 @@ export default function OnboardingPage() {
                         <div className="flex-1 min-w-0 flex items-center gap-2">
                           <span className="text-sm font-semibold text-foreground">{opt.label}</span>
                           {hasProgress && (
-                            <span className="text-[10px] font-semibold text-[#0071E3] bg-[#0071E3]/10 px-1.5 py-0.5 rounded">
+                            <span className="text-[10px] font-semibold text-[#0e89d6] bg-[#0e89d6]/10 px-1.5 py-0.5 rounded">
                               Saved
                             </span>
                           )}
                         </div>
                         <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-colors ${
-                          selected ? "bg-[#0071E3]" : "border border-muted-foreground/30"
+                          selected ? "bg-[#0e89d6]" : "border border-muted-foreground/30"
                         }`}>
                           {selected && (
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-background">

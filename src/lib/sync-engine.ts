@@ -21,7 +21,7 @@ import type { SyncResult, SyncSourceResult, AdditionalCanvasAccount } from "@/li
 const UPSERT_BATCH_SIZE = 50;
 
 /** Default color for Canvas assignments (blue). */
-const CANVAS_COLOR = "#3B82F6";
+const CANVAS_COLOR = "#0e89d6";
 /** Default color for Gradescope assignments (green). */
 const GRADESCOPE_COLOR = "#10B981";
 

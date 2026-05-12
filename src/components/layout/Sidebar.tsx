@@ -3,7 +3,7 @@
 import { useState, useEffect, useTransition } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useRouter } from "next/navigation";
-import { Inbox, Sun, CalendarRange, ChevronLeft, ChevronsLeft, Menu } from "lucide-react";
+import { Inbox, Sun, CalendarRange, ChevronLeft } from "lucide-react";
 import { NAV_ITEMS } from "@/lib/constants";
 import { SETTINGS_SECTIONS, SETTINGS_GROUPS, DEFAULT_SECTION, type SettingsSectionId } from "@/lib/settingsConfig";
 import SidebarNavItem, { navItemClasses, SidebarActivePill } from "./SidebarNavItem";
@@ -12,7 +12,6 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { useCalChatUnread } from "@/hooks/useCalChatUnread";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { useHiddenNavItems } from "@/hooks/useHiddenNavItems";
-import { useUserHasNotes } from "@/hooks/useUserHasNotes";
 
 
 /** Filter configuration mapping for dynamic sidebar label. */
@@ -46,28 +45,6 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
   const isDark = resolvedTheme === "dark";
   const isSettings = pathname.startsWith("/app/settings");
   const [inboxFilter, setInboxFilter] = useState<string>("all");
-  /**
-   * Whether the desktop sidebar is collapsed to a top-left hamburger.
-   * Persisted to localStorage so it survives reloads. Hydrated after mount
-   * to avoid SSR/CSR mismatches.
-   */
-  const [collapsed, setCollapsed] = useState(false);
-  useEffect(() => {
-    try {
-      if (localStorage.getItem("caltodo_sidebar_collapsed") === "true") {
-        setCollapsed(true);
-      }
-    } catch { /* ignore */ }
-  }, []);
-
-  /** Toggles the collapsed state and persists it. */
-  function toggleCollapsed() {
-    setCollapsed((prev) => {
-      const next = !prev;
-      try { localStorage.setItem("caltodo_sidebar_collapsed", String(next)); } catch { /* ignore */ }
-      return next;
-    });
-  }
 
   // Local avatar/name state for reactive updates from profile changes
   const [localAvatarUrl, setLocalAvatarUrl] = useState(avatarUrl);
@@ -94,10 +71,13 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
   const hasCalChatUnread = useCalChatUnread();
   useOnboardingStatus();
   const { isHidden: isNavItemHidden } = useHiddenNavItems();
-  // "Notes" is a returning-user-only nav item — we hide it for accounts
-  // that have never created a note. The route itself is still reachable by
-  // URL, so users with existing notes can still navigate there directly.
-  const userHasNotes = useUserHasNotes();
+  // "Notes" is gated to a short allowlist (Chenfei + victoriachow). Everyone
+  // else doesn't see the sidebar item at all. The route itself is still
+  // reachable by URL for users who somehow have notes already, but the
+  // navigation entry is hidden.
+  const NOTES_ALLOWLIST = ["chenfei", "victoriachow"];
+  const emailLower = (email ?? "").toLowerCase();
+  const isNotesAllowed = NOTES_ALLOWLIST.some((name) => emailLower.includes(name));
 
   // Active settings section: URL is the source of truth, but we keep an
   // optimistic local override that updates synchronously on click. Without
@@ -138,29 +118,11 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
   // Hide navigation during onboarding to prevent users from navigating away
   if (pathname.startsWith("/app/onboarding")) return null;
 
-  // Collapsed: render a narrow rail so the page content shifts right and the
-  // hamburger has room to sit at the top-left without overlapping headings.
-  if (collapsed) {
-    return (
-      <aside className="hidden md:flex w-14 h-screen shrink-0 pt-4 px-3">
-        <button
-          onClick={toggleCollapsed}
-          className="w-8 h-8 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors cursor-pointer"
-          aria-label="Open sidebar"
-          title="Open sidebar"
-        >
-          <Menu size={18} />
-        </button>
-      </aside>
-    );
-  }
-
   const inboxConfig = FILTER_CONFIG[inboxFilter] || FILTER_CONFIG.all;
 
+  // Sidebar is always expanded — collapse feature was removed.
   return (
-    <aside
-      className="hidden md:flex glass-strong w-52 h-screen flex-col justify-between pb-4 px-3 shrink-0 shadow-lg dark:shadow-black/30"
-    >
+    <aside className="hidden md:flex glass-strong w-52 h-screen flex-col justify-between pb-4 px-3 shrink-0 shadow-lg dark:shadow-black/30">
       <div>
         {/* Header: logo + name on the left, collapse button on the right.
             px-3 aligns the logo's left edge with nav item icons below. */}
@@ -173,18 +135,6 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
             />
             <span className="text-foreground font-semibold text-base tracking-tight truncate">caltodo</span>
           </a>
-          {/* Hide collapse in settings: the back button is the only way out,
-              so collapsing the sidebar would trap the user on the settings page. */}
-          {!isSettings && (
-            <button
-              onClick={toggleCollapsed}
-              className="text-muted-foreground hover:text-foreground p-1 transition-colors shrink-0 cursor-pointer"
-              aria-label="Collapse sidebar"
-              title="Collapse sidebar"
-            >
-              <ChevronsLeft size={18} />
-            </button>
-          )}
         </div>
         {isSettings ? (
           <div className="flex flex-col gap-1">
@@ -235,10 +185,9 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
           <nav id="tour-sidebar-nav" className="flex flex-col gap-1">
             {NAV_ITEMS
               .filter((item) => !isNavItemHidden(item.href))
-              // Hide Notes from the sidebar for users with no existing notes.
-              // /app/notes still resolves by URL so historic links / bookmarks
-              // keep working for users who *did* once create notes.
-              .filter((item) => item.href !== "/app/notes" || userHasNotes)
+              // Notes is allowlist-gated — only Chenfei + victoriachow see
+              // it in the sidebar. URL still resolves for anyone.
+              .filter((item) => item.href !== "/app/notes" || isNotesAllowed)
               .map((item) => {
               const isInbox = item.href === "/app/inbox";
               const isChat = item.href === "/app/discussions";

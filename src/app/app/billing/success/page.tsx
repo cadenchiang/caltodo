@@ -10,7 +10,7 @@ export default function BillingSuccessPage() {
   return (
     <div className="min-h-[60vh] flex items-center justify-center px-6">
       <div className="w-full max-w-md text-center">
-        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[#0071E3]/10 text-[#0071E3] mb-5">
+        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[#0e89d6]/10 text-[#0e89d6] mb-5">
           <CheckIcon size={28} strokeWidth={2.5} />
         </div>
         <h1 className="text-2xl font-bold text-foreground tracking-tight">
@@ -22,7 +22,7 @@ export default function BillingSuccessPage() {
         </p>
         <Link
           href="/app/home"
-          className="mt-6 inline-flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#0071E3] text-white text-sm font-semibold hover:bg-[#3D8FE8] transition-colors"
+          className="mt-6 inline-flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#0e89d6] text-white text-sm font-semibold hover:bg-[#3D8FE8] transition-colors"
         >
           Open your board
           <ArrowRight size={14} strokeWidth={2.5} />

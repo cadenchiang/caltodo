@@ -38,9 +38,12 @@ export function getDueDateInfo(
   const timeLabel = dueTime ? formatTime12h(dueTime) : null;
 
   if (diffDays < 0) {
-    const month = due.toLocaleString("en-US", { month: "short" });
-    const day = due.getDate();
-    return { dateLabel: `${month} ${day}`, timeLabel, className: "text-red-400" };
+    // Overdue: show "Overdue N day(s)" so the urgency is unmistakable.
+    // timeLabel is suppressed (no clock time on a past task) so the
+    // pill stays short.
+    const daysLate = Math.abs(diffDays);
+    const label = daysLate === 1 ? "Overdue 1 day" : `Overdue ${daysLate} days`;
+    return { dateLabel: label, timeLabel: null, className: "text-red-400" };
   }
   if (diffDays === 0) {
     return { dateLabel: "Today", timeLabel, className: "text-blue-400" };

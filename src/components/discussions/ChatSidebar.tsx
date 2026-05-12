@@ -92,7 +92,7 @@ function ChatRow({
           <GroupAvatar initials={initials} name={board.course.name} size={44} />
         )}
         {isUnread && !isActive && (
-          <span className="absolute -bottom-0.5 -left-0.5 w-3 h-3 rounded-full bg-[#007AFF] border-2 border-white dark:border-zinc-900" />
+          <span className="absolute -bottom-0.5 -left-0.5 w-3 h-3 rounded-full bg-[#0e89d6] border-2 border-white dark:border-zinc-900" />
         )}
       </div>
 

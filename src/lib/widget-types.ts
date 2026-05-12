@@ -120,6 +120,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     category: "productivity",
     minW: 1, minH: 1, maxW: 6, maxH: 4,
     defaultW: 2, defaultH: 2,
+    hidden: true,
   },
   weather: {
     type: "weather",

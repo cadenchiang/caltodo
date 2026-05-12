@@ -22,7 +22,7 @@ function makeTask(overrides: Partial<Task> = {}): Task {
     due_date: "2026-03-01",
     due_time: null,
     is_completed: false,
-    color: "#3b82f6",
+    color: "#0e89d6",
     created_at: "2026-03-01T00:00:00Z",
     updated_at: "2026-03-01T00:00:00Z",
     source: null,

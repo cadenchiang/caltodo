@@ -74,7 +74,7 @@ export default function AssignmentsWeekView({
               className="flex flex-col items-center py-1.5 md:py-2.5 gap-0.5"
             >
               <span className={`text-[9px] md:text-[11px] font-semibold uppercase ${
-                isToday ? "text-[#007AFF]" : "text-foreground/60"
+                isToday ? "text-[#0e89d6]" : "text-foreground/60"
               }`}>
                 <span className="md:hidden">{format(day, "EEEEE")}</span>
                 <span className="hidden md:inline">{format(day, "EEE")}</span>
@@ -82,7 +82,7 @@ export default function AssignmentsWeekView({
               <span
                 className={`text-sm md:text-lg font-semibold inline-flex items-center justify-center ${
                   isToday
-                    ? "w-6 h-6 md:w-8 md:h-8 rounded-full bg-[#007AFF] text-white"
+                    ? "w-6 h-6 md:w-8 md:h-8 rounded-full bg-[#0e89d6] text-white"
                     : "text-foreground"
                 }`}
               >

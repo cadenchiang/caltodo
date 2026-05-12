@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { Check, ChevronRight, X } from "lucide-react";
+import { ChevronRight, Sparkles, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -157,38 +157,55 @@ export default function UpgradeModal({ open, onClose, feature = "generic" }: Pro
         onClick={submitting ? undefined : requestClose}
       />
 
-      {/* Card. Inherits body font (no SF Pro override) and uses a single
-          restrained size scale: title, body, button, fine print. */}
+      {/* Card. Matches the landing pricing card: cream surface, black text,
+          bold plan name with blue "Popular" pill, solid bullets, black CTA.
+          A single SF Pro font-family is applied to the root so every label
+          inside the modal reads with the same typeface. */}
       <div
         className={cn(
-          "relative w-full max-w-sm max-h-[92dvh] overflow-y-auto rounded-3xl bg-card text-foreground p-6 sm:p-7 ring-1 ring-black/5 dark:ring-white/[0.06]",
+          "relative w-full max-w-sm max-h-[92dvh] overflow-y-auto rounded-3xl bg-[#f6f5f4] dark:bg-zinc-900 text-black dark:text-white p-6 sm:p-7 ring-1 ring-black/5 dark:ring-white/[0.06]",
           "shadow-[0_24px_60px_-12px_rgba(0,0,0,0.22),0_8px_20px_-4px_rgba(0,0,0,0.10)]",
           closing ? "animate-announce-card-out" : "animate-announce-card-in",
         )}
+        style={{
+          fontFamily:
+            '-apple-system, "SF Pro Display", BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+        }}
       >
         <button
           type="button"
           onClick={requestClose}
           disabled={submitting}
-          className="absolute top-3 right-3 p-1.5 text-foreground/45 hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors disabled:opacity-40"
+          className="absolute top-3 right-3 p-1.5 text-black/45 dark:text-white/45 hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 rounded-lg transition-colors disabled:opacity-40"
           aria-label="Close"
         >
           <X size={18} strokeWidth={2} />
         </button>
 
-        <h2 className="text-xl font-semibold tracking-tight pr-8">{title}</h2>
+        {/* Top icon */}
+        <Sparkles size={28} className="text-black dark:text-white mb-5" strokeWidth={1.75} aria-hidden />
 
-        {/* Feature list */}
-        <ul className="mt-5 space-y-2">
+        {/* Title + Popular pill */}
+        <div className="flex items-center gap-2.5 mb-3 pr-8">
+          <h2 className="text-lg sm:text-xl font-extrabold text-black dark:text-white leading-none tracking-tight">
+            {title}
+          </h2>
+          <span className="px-2.5 py-1 rounded-full bg-[#0e89d6] text-white text-xs font-bold leading-none">
+            Popular
+          </span>
+        </div>
+
+        {/* Feature list — solid dot bullets, matching the pricing card */}
+        <ul className="mt-4 space-y-2.5">
           {PREMIUM_FEATURES.map((label) => (
-            <li key={label} className="flex items-center gap-2.5 text-sm text-foreground/80">
-              <Check size={16} strokeWidth={2.5} className="text-[#f6a623] shrink-0" />
-              <span>{label}</span>
+            <li key={label} className="flex items-start gap-3">
+              <span className="w-1.5 h-1.5 rounded-full bg-black/70 dark:bg-white/70 shrink-0 mt-[8px]" aria-hidden />
+              <span className="text-base text-black/80 dark:text-white/80 leading-snug">{label}</span>
             </li>
           ))}
         </ul>
 
-        {/* Plan selector — segmented, single line, one size scale */}
+        {/* Plan selector — segmented, blue accent for the active option */}
         <div className="mt-6 grid grid-cols-2 gap-2">
           <button
             type="button"
@@ -197,14 +214,14 @@ export default function UpgradeModal({ open, onClose, feature = "generic" }: Pro
             className={cn(
               "rounded-xl border px-3.5 py-3 text-left transition-colors",
               interval === "year"
-                ? "border-[#f6a623] bg-[#f6a623]/[0.08]"
-                : "border-border bg-card hover:border-foreground/25",
+                ? "border-[#0e89d6] bg-[#0e89d6]/[0.08]"
+                : "border-black/10 dark:border-white/10 bg-white/50 dark:bg-white/[0.03] hover:border-black/25 dark:hover:border-white/25",
             )}
           >
-            <div className="text-xs text-foreground">Yearly</div>
-            <div className="mt-0.5 text-sm font-semibold text-foreground">
+            <div className="text-xs text-black/70 dark:text-white/70">Yearly</div>
+            <div className="mt-0.5 text-sm font-bold text-black dark:text-white">
               {PRICING.year.label}
-              <span className="font-normal">{PRICING.year.suffix}</span>
+              <span className="font-normal text-black/60 dark:text-white/60">{PRICING.year.suffix}</span>
             </div>
           </button>
           <button
@@ -214,26 +231,26 @@ export default function UpgradeModal({ open, onClose, feature = "generic" }: Pro
             className={cn(
               "rounded-xl border px-3.5 py-3 text-left transition-colors",
               interval === "month"
-                ? "border-[#f6a623] bg-[#f6a623]/[0.08]"
-                : "border-border bg-card hover:border-foreground/25",
+                ? "border-[#0e89d6] bg-[#0e89d6]/[0.08]"
+                : "border-black/10 dark:border-white/10 bg-white/50 dark:bg-white/[0.03] hover:border-black/25 dark:hover:border-white/25",
             )}
           >
-            <div className="text-xs text-foreground">Monthly</div>
-            <div className="mt-0.5 text-sm font-semibold text-foreground">
+            <div className="text-xs text-black/70 dark:text-white/70">Monthly</div>
+            <div className="mt-0.5 text-sm font-bold text-black dark:text-white">
               {PRICING.month.label}
-              <span className="font-normal">{PRICING.month.suffix}</span>
+              <span className="font-normal text-black/60 dark:text-white/60">{PRICING.month.suffix}</span>
             </div>
           </button>
         </div>
 
-        {/* CTA */}
+        {/* CTA — blue pill matching the "Popular" accent. */}
         <button
           type="button"
           onClick={handleUpgrade}
           disabled={submitting || !acceptedTerms}
           className={cn(
-            "mt-5 w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-semibold text-sm text-white transition-colors",
-            "bg-[#f6a623] hover:bg-[#e0961f]",
+            "mt-5 w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg font-medium text-sm text-white transition-colors",
+            "bg-[#0e89d6] hover:bg-[#0c79bf]",
             "disabled:opacity-50 disabled:cursor-not-allowed",
           )}
         >
@@ -243,13 +260,13 @@ export default function UpgradeModal({ open, onClose, feature = "generic" }: Pro
 
         {/* Fine print. No checkbox: clicking Upgrade implies acceptance,
             consistent with the Stripe-hosted checkout that follows. */}
-        <p className="mt-3 text-xs text-foreground/50 leading-relaxed">
+        <p className="mt-3 text-xs text-black/50 dark:text-white/50 leading-relaxed">
           By upgrading you accept the{" "}
           <a
             href="/terms"
             target="_blank"
             rel="noopener noreferrer"
-            className="underline underline-offset-2 hover:text-foreground"
+            className="underline underline-offset-2 hover:text-black dark:hover:text-white"
           >
             Pricing Terms
           </a>

@@ -615,7 +615,7 @@ export default function TaskList({
                   <>
                     {groupTasks.map((task, i) => (
                       <div key={task.id}>
-                        {i > 0 && <div className="mx-12 h-px bg-border" />}
+                        {/* Inter-task divider removed: tasks now render as cards. */}
                         <TaskItem
                           task={task}
                           isSelected={selectedTaskId === task.id}
@@ -648,7 +648,7 @@ export default function TaskList({
               {dropTargetIndex === i && draggedId !== task.id && (
                 <div className="h-0.5 bg-blue-500 mx-4 rounded-full" />
               )}
-              {i > 0 && dropTargetIndex !== i && <div className="mx-12 h-px bg-border" />}
+              {/* Inter-task divider removed: tasks now render as cards. */}
               <TaskItem
                 task={task}
                 isSelected={selectedTaskId === task.id}
@@ -677,7 +677,7 @@ export default function TaskList({
       {snoozed.length > 0 && (
         <div className="mt-1">
           <div
-            className="flex items-center mx-2 pl-2.5 pr-1 py-1.5 rounded-lg hover:bg-accent transition-colors cursor-pointer"
+            className="flex items-center mx-0 pl-0 pr-1 py-1.5 rounded-lg hover:bg-accent transition-colors cursor-pointer"
             onClick={() => setHiddenExpanded(!hiddenExpanded)}
           >
             <ChevronRight
@@ -693,7 +693,7 @@ export default function TaskList({
             <>
               {snoozed.map((task, i) => (
                 <div key={task.id} className="cv-auto-task">
-                  {i > 0 && <div className="mx-12 h-px bg-border" />}
+                  {/* Inter-task divider removed: tasks now render as cards. */}
                   <div className="flex items-center px-4 py-2 group">
                     <span className="text-sm text-foreground truncate flex-1 min-w-0">{task.title}</span>
                     <span className="text-xs text-subtle-foreground tabular-nums mr-2 shrink-0">
@@ -740,7 +740,7 @@ export default function TaskList({
       {completed.length > 0 && (
         <div className="mt-1">
           <div
-            className="flex items-center mx-2 pl-2.5 pr-1 py-1.5 rounded-lg hover:bg-accent transition-colors group cursor-pointer"
+            className="flex items-center mx-0 pl-0 pr-1 py-1.5 rounded-lg hover:bg-accent transition-colors group cursor-pointer"
             onClick={() => {
               const next = !completedExpanded;
               setCompletedExpanded(next);
@@ -808,7 +808,7 @@ export default function TaskList({
             <>
               {completedToShow.map((task, i) => (
                 <div key={task.id} className="cv-auto-task">
-                  {i > 0 && <div className="mx-12 h-px bg-border" />}
+                  {/* Inter-task divider removed: tasks now render as cards. */}
                   <TaskItem
                     task={task}
                     isSelected={selectedTaskId === task.id}
@@ -835,7 +835,7 @@ export default function TaskList({
       {archived.length > 0 && (
         <div className="mt-1">
           <div
-            className="flex items-center mx-2 pl-2.5 pr-1 py-1 rounded-lg hover:bg-accent/50 transition-colors group cursor-pointer"
+            className="flex items-center mx-0 pl-0 pr-1 py-1 rounded-lg hover:bg-accent/50 transition-colors group cursor-pointer"
             onClick={() => setArchiveExpanded(!archiveExpanded)}
           >
             <ChevronRight
@@ -889,7 +889,7 @@ export default function TaskList({
             <div className="opacity-60">
               {archivedToShow.map((task, i) => (
                 <div key={task.id} className="cv-auto-task">
-                  {i > 0 && <div className="mx-12 h-px bg-border/50" />}
+                  {/* Inter-task divider removed: tasks now render as cards. */}
                   <TaskItem
                     task={task}
                     isSelected={selectedTaskId === task.id}

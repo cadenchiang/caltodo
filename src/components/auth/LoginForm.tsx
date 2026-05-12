@@ -156,7 +156,7 @@ export default function LoginForm() {
         style={{ animationDelay: "360ms" }}
       >
         {altPromptText}{" "}
-        <a href={altPromptHref} className="font-semibold text-[#0071E3] hover:text-[#3D8FE8] transition-colors">
+        <a href={altPromptHref} className="font-semibold text-[#0e89d6] hover:text-[#3D8FE8] transition-colors">
           {altPromptLink}
         </a>
       </p>

@@ -171,6 +171,7 @@ export default function WidgetGalleryModal({
     const query = search.toLowerCase().trim();
 
     const filtered = all.filter((w) => {
+      if (w.hidden) return false;
       const matchesCategory = activeCategory === "all" || w.category === activeCategory;
       const matchesSearch =
         !query ||

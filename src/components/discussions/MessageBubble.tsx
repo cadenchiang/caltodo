@@ -259,7 +259,7 @@ function MessageBubble({
                     <div
                       className={`px-3.5 py-2 text-[14.5px] leading-[1.35] break-words whitespace-pre-wrap ${
                         isOwn
-                          ? `${anonymous ? "bg-[#1C1C1E] dark:bg-[#2C2C2E]" : "bg-[#007AFF]"} text-white ${
+                          ? `${anonymous ? "bg-[#1C1C1E] dark:bg-[#2C2C2E]" : "bg-[#0e89d6]"} text-white ${
                               isLastInGroup && imageUrls.length === 0
                                 ? "rounded-[20px] rounded-br-[6px]"
                                 : "rounded-[20px]"
@@ -308,7 +308,7 @@ function MessageBubble({
                     <div
                       className={`px-3.5 py-2 text-[14.5px] leading-[1.35] break-words whitespace-pre-wrap ${
                         isOwn
-                          ? `${anonymous ? "bg-[#1C1C1E] dark:bg-[#2C2C2E]" : "bg-[#007AFF]"} text-white rounded-[20px] rounded-br-[6px]${isSending ? " opacity-70" : ""}`
+                          ? `${anonymous ? "bg-[#1C1C1E] dark:bg-[#2C2C2E]" : "bg-[#0e89d6]"} text-white rounded-[20px] rounded-br-[6px]${isSending ? " opacity-70" : ""}`
                           : "bg-[#E9E9EB] dark:bg-[#303030] text-black dark:text-white rounded-[20px] rounded-bl-[6px]"
                       }`}
                     >

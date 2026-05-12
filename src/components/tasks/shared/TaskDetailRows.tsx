@@ -10,6 +10,12 @@ interface TaskDateTimeLabelProps {
   dateLabel: string | null;
   /** Formatted time string (e.g. "h:mm a"). */
   timeLabel: string | null;
+  /**
+   * Tailwind text-color class for the urgency tint (e.g. "text-red-400").
+   * Defaults to muted text when not provided. The pill bg is derived
+   * from this color via color-mix so the tint always matches.
+   */
+  urgencyClassName?: string;
 }
 
 /**
@@ -19,11 +25,18 @@ interface TaskDateTimeLabelProps {
  * @param dateLabel - Formatted date, or null to omit
  * @param timeLabel - Formatted time, or null to omit
  */
-export function TaskDateTimeLabel({ dateLabel, timeLabel }: TaskDateTimeLabelProps) {
+export function TaskDateTimeLabel({ dateLabel, timeLabel, urgencyClassName }: TaskDateTimeLabelProps) {
   if (!dateLabel && !timeLabel) return null;
+  const colorClass = urgencyClassName ?? "text-muted-foreground";
   return (
-    <div className="pl-9 text-sm text-secondary-foreground mt-1">
-      {[dateLabel, timeLabel].filter(Boolean).join(" \u00B7 ")}
+    <div className="pl-9 mt-1.5">
+      <span
+        className={`inline-flex items-center px-2 py-0.5 rounded-full text-[12px] font-semibold ${colorClass}`}
+        style={{ backgroundColor: "color-mix(in srgb, currentColor 14%, transparent)" }}
+      >
+        {timeLabel && <span className="opacity-60 mr-1">{timeLabel}</span>}
+        {dateLabel}
+      </span>
     </div>
   );
 }

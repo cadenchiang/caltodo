@@ -3,7 +3,7 @@
 import { cn } from "@/lib/utils";
 import NumberFlow from "@number-flow/react";
 import { AnimatePresence, motion } from "framer-motion";
-import { CheckIcon } from "lucide-react";
+import { Home, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -34,14 +34,12 @@ export const PLANS: PlanConfig[] = [
     desc: "Everything you need to never miss a deadline again.",
     monthlyPrice: 0,
     annuallyPrice: 0,
-    buttonText: "Get started free",
+    buttonText: "Sign up",
     features: [
-      "Sync assignments from Canvas, Gradescope, and Pensive",
+      "Automatic assignment syncing",
       "1 syllabus upload",
       "All your deadlines on one calendar",
-      "Daily, weekly, and inbox views",
       "Mobile + desktop access",
-      "Unlimited assignments",
     ],
     link: "/login?signup=true",
     cta: "free",
@@ -52,8 +50,8 @@ export const PLANS: PlanConfig[] = [
     desc: "Power features for students who want full control of their workflow.",
     monthlyPrice: 9.99,
     annuallyPrice: 19.99,
-    badge: "Most popular",
-    buttonText: "Upgrade to Premium",
+    badge: "Popular",
+    buttonText: "Get started",
     features: [
       "Everything in Free",
       "Personalized board with drag-and-drop widgets",
@@ -171,10 +169,10 @@ function PlanCta({
   const [submitting, setSubmitting] = useState(false);
 
   const className = cn(
-    "w-full inline-flex items-center justify-center px-4 sm:px-5 py-2 rounded-xl text-sm sm:text-base font-semibold transition-colors duration-200",
+    "w-full inline-flex items-center justify-center px-4 sm:px-5 py-2.5 rounded-lg text-sm font-medium transition-colors duration-200",
     isPro
-      ? "bg-[#f6a623] text-white hover:bg-[#e0961f]"
-      : "bg-black text-white hover:bg-black/85",
+      ? "bg-black text-white hover:bg-black/85"
+      : "bg-white text-black border border-black/10 shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:bg-black/[0.02]",
   );
 
   // Free tier (cta === 'free') goes straight to the signup link.
@@ -274,69 +272,87 @@ function Plan({ plan, billPlan }: { plan: PlanConfig; billPlan: Plan }) {
   const isPro = plan.cta === "pro";
   const currentPrice = billPlan === "monthly" ? plan.monthlyPrice : plan.annuallyPrice;
   const fractionDigits = currentPrice === 0 ? 0 : 2;
+  const Icon = isPro ? Sparkles : Home;
+  /**
+   * The Premium plan's first bullet is "Everything in Free" — render that
+   * as a section header (matching the Notion layout) instead of a bullet.
+   */
+  const featuresList = isPro ? plan.features.slice(1) : plan.features;
+
   return (
-    <div
-      className={cn(
-        "flex flex-col relative rounded-3xl transition-all bg-[#f6f5f4] items-start w-full h-full p-6 sm:p-10 overflow-hidden",
-        isPro && "ring-2 ring-[#f6a623]/40",
-      )}
-    >
-      {plan.badge && (
-        <div className="absolute top-3 right-3 sm:top-4 sm:right-4 px-2.5 py-1 rounded-full bg-[#f6a623] text-white text-[11px] font-semibold tracking-wide">
-          {plan.badge}
-        </div>
-      )}
+    <div className="flex flex-col relative rounded-3xl bg-[#f6f5f4] items-start w-full h-full p-6 sm:p-8 overflow-hidden">
+      {/* Top icon */}
+      <Icon size={28} className="text-black mb-6" strokeWidth={1.75} aria-hidden />
 
-      <h3
-        className="text-xl sm:text-[28px] font-bold text-black leading-tight tracking-tight"
-        style={{
-          fontFamily:
-            '-apple-system, "SF Pro Display", BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
-        }}
-      >
-        {plan.title}
-      </h3>
-      <h4 className="mt-2 sm:mt-3 text-3xl sm:text-4xl md:text-5xl font-bold text-black leading-tight tracking-tight">
-        <NumberFlow
-          value={currentPrice}
-          suffix={billPlan === "monthly" ? "/mo" : "/yr"}
-          format={{
-            currency: "USD",
-            style: "currency",
-            currencySign: "standard",
-            minimumFractionDigits: fractionDigits,
-            maximumFractionDigits: fractionDigits,
-            currencyDisplay: "narrowSymbol",
+      {/* Plan name + Popular badge */}
+      <div className="flex items-center gap-2.5 mb-3">
+        <h3
+          className="text-lg sm:text-xl font-extrabold text-black leading-none"
+          style={{
+            fontFamily:
+              '-apple-system, "SF Pro Display", BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
           }}
-        />
-      </h4>
-      <p className="text-sm sm:text-lg text-black/70 mt-2 sm:mt-3 leading-snug">{plan.desc}</p>
-
-      <div className="flex flex-col items-start w-full mt-5 sm:mt-6 gap-y-2 sm:gap-y-2.5">
-        <span className="text-sm font-medium text-black/80 mb-1">Includes:</span>
-        {plan.features.map((feature) => (
-          <div key={feature} className="flex items-start justify-start gap-2.5">
-            <CheckIcon
-              className={cn("size-5 shrink-0 mt-0.5", isPro ? "text-[#f6a623]" : "text-black/70")}
-              strokeWidth={2.5}
-            />
-            <span className="text-sm md:text-base text-black/80 leading-snug">{feature}</span>
-          </div>
-        ))}
+        >
+          {plan.title}
+        </h3>
+        {plan.badge && (
+          <span className="px-2.5 py-1 rounded-full bg-[#0e89d6] text-white text-xs font-bold leading-none">
+            {plan.badge}
+          </span>
+        )}
       </div>
 
-      {/* Button + billing caption — pinned to the bottom of the card */}
-      <div className="mt-auto flex flex-col items-start w-full pt-6 sm:pt-8">
+      {/* Price */}
+      <div className="flex items-baseline gap-2 mb-6">
+        <h4 className="text-4xl sm:text-5xl font-bold text-black leading-none tracking-tight">
+          <NumberFlow
+            value={currentPrice}
+            format={{
+              currency: "USD",
+              style: "currency",
+              currencySign: "standard",
+              minimumFractionDigits: fractionDigits,
+              maximumFractionDigits: fractionDigits,
+              currencyDisplay: "narrowSymbol",
+            }}
+          />
+        </h4>
+        {currentPrice > 0 && (
+          <span className="text-base text-black/60">
+            per {billPlan === "monthly" ? "month" : "year"}
+          </span>
+        )}
+      </div>
+
+      {/* CTA */}
+      <div className="w-full mb-6">
         <PlanCta plan={plan} isPro={isPro} billPlan={billPlan} />
-        <div className="h-10 overflow-hidden w-full mx-auto">
+      </div>
+
+      {/* Features list */}
+      {isPro && (
+        <p className="text-base font-semibold text-black mb-3">Everything in Free +</p>
+      )}
+      <ul className="flex flex-col items-start w-full gap-2.5 sm:gap-3">
+        {featuresList.map((feature) => (
+          <li key={feature} className="flex items-start gap-3">
+            <span className="w-2 h-2 rounded-full bg-black/70 shrink-0 mt-[9px]" aria-hidden />
+            <span className="text-base text-black/80 leading-snug">{feature}</span>
+          </li>
+        ))}
+      </ul>
+
+      {/* Billing caption pinned to the bottom */}
+      <div className="mt-auto pt-6 w-full">
+        <div className="h-5 overflow-hidden">
           <AnimatePresence mode="wait">
             <motion.span
               key={billPlan}
-              initial={{ y: 20, opacity: 0 }}
+              initial={{ y: 12, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
-              exit={{ y: -20, opacity: 0 }}
+              exit={{ y: -12, opacity: 0 }}
               transition={{ duration: 0.2, ease: "easeOut" }}
-              className="text-xs sm:text-sm text-center text-black/50 mt-2.5 mx-auto block"
+              className="text-sm text-black/50 block"
             >
               {plan.monthlyPrice === 0
                 ? "Free forever, no card required"

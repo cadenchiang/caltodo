@@ -32,7 +32,7 @@ export function parseEventDate(dateStr: string): Date {
 /**
  * Converts a hex color to an rgba string at the given opacity.
  *
- * @param hex - Hex color string (e.g. "#3b82f6")
+ * @param hex - Hex color string (e.g. "#0e89d6")
  * @param opacity - Opacity between 0 and 1
  * @returns rgba string
  */

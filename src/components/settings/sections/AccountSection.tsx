@@ -6,19 +6,16 @@ import Image from "next/image";
 import { LogOut, UserX, Camera } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 import { clearLayoutCache } from "@/lib/board-layout-cache";
-import SignOutConfirmModal from "@/components/ui/SignOutConfirmModal";
 
 /**
  * Account settings section.
  * Displays user profile (avatar, name, email) and provides
- * sign-out and delete-account actions with double-click confirmation.
+ * log-out and delete-account actions.
  */
 export default function AccountSection() {
   const router = useRouter();
   const { showToast } = useToast();
-  /** Controls the centered "Sign out?" confirm modal. */
-  const [showSignOutModal, setShowSignOutModal] = useState(false);
-  /** Spinner state on the modal's confirm button while the sign-out request is in flight. */
+  /** Spinner state on the log-out button while the request is in flight. */
   const [signingOut, setSigningOut] = useState(false);
   const [confirmDeleteAccount, setConfirmDeleteAccount] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
@@ -109,18 +106,11 @@ export default function AccountSection() {
   }
 
   /**
-   * Opens the centered confirmation modal — the actual sign-out happens in confirmSignOut().
+   * Performs log-out immediately. Clears layout cache, hits /auth/signout,
+   * hard-navigates home so the in-memory Supabase session is dropped along
+   * with the cookies.
    */
-  function handleSignOut() {
-    setShowSignOutModal(true);
-  }
-
-  /**
-   * Performs the sign-out after the user confirms in the modal.
-   * Clears layout cache, hits /auth/signout, hard-navigates home so the
-   * in-memory Supabase session is dropped along with the cookies.
-   */
-  async function confirmSignOut() {
+  async function handleLogOut() {
     setSigningOut(true);
     try {
       clearLayoutCache();
@@ -217,11 +207,12 @@ export default function AccountSection() {
       </div>
       <div className="flex flex-col gap-2 mt-2">
         <button
-          onClick={handleSignOut}
-          className="w-full flex items-center gap-3 px-4 py-3 text-sm rounded-xl border border-border bg-card hover:bg-accent text-foreground transition-colors"
+          onClick={handleLogOut}
+          disabled={signingOut}
+          className="w-full flex items-center gap-3 px-4 py-3 text-sm rounded-xl border border-border bg-card hover:bg-accent text-foreground transition-colors disabled:opacity-60"
         >
           <LogOut size={15} />
-          Sign Out
+          {signingOut ? "Logging out..." : "Log Out"}
         </button>
         <button
           onClick={handleDeleteAccount}
@@ -240,14 +231,6 @@ export default function AccountSection() {
               : "Delete Account"}
         </button>
       </div>
-
-      {/* Centered confirm modal — replaces the old click-twice pattern */}
-      <SignOutConfirmModal
-        open={showSignOutModal}
-        onConfirm={confirmSignOut}
-        onCancel={() => setShowSignOutModal(false)}
-        signingOut={signingOut}
-      />
     </section>
   );
 }

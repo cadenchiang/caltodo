@@ -28,7 +28,7 @@ const SAMPLE_SIZE = 100;
  * @param r - Red channel (0-255)
  * @param g - Green channel (0-255)
  * @param b - Blue channel (0-255)
- * @returns Hex color string (e.g. "#3b82f6")
+ * @returns Hex color string (e.g. "#0e89d6")
  */
 export function rgbToHex(r: number, g: number, b: number): string {
   return (
@@ -150,7 +150,7 @@ export function quantizePixels(
  *
  * @example
  * const colors = await extractPalette("https://example.com/photo.jpg");
- * // => ["#3b82f6", "#f59e0b", "#10b981", "#6366f1", "#ef4444"]
+ * // => ["#0e89d6", "#f59e0b", "#10b981", "#6366f1", "#ef4444"]
  */
 export async function extractPalette(
   imageUrl: string,

@@ -186,10 +186,10 @@ export default function StatsSection() {
               transition={{ duration: 0.5, type: "spring", damping: 15, delay: 1.0 }}
               className="mb-3"
             >
-              <div className="relative rounded-full bg-[#007AFF] px-3.5 py-1 text-xs sm:text-sm font-medium text-white whitespace-nowrap shadow-[0_0_16px_rgba(0,122,255,0.4)]">
+              <div className="relative rounded-full bg-[#0e89d6] px-3.5 py-1 text-xs sm:text-sm font-medium text-white whitespace-nowrap shadow-[0_0_16px_rgba(0,122,255,0.4)]">
                 all-in-one
                 <svg
-                  className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 text-[#007AFF]"
+                  className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 text-[#0e89d6]"
                   width="10"
                   height="6"
                   viewBox="0 0 10 6"
@@ -219,12 +219,12 @@ export default function StatsSection() {
                 </div>
               </motion.div>
 
-              <div className="relative h-full rounded-[32px] overflow-hidden bg-[#007AFF]/15">
+              <div className="relative h-full rounded-[32px] overflow-hidden bg-[#0e89d6]/15">
                 <motion.div
                   initial={{ height: 0 }}
                   animate={inView ? { height: "100%" } : {}}
                   transition={{ duration: 0.6, type: "spring", damping: 18, delay: 0.5 }}
-                  className="absolute bottom-0 w-full rounded-[32px] bg-[#007AFF] flex items-center justify-center"
+                  className="absolute bottom-0 w-full rounded-[32px] bg-[#0e89d6] flex items-center justify-center"
                 >
                   <span className="text-sm sm:text-base font-bold text-white tracking-tight">
                     <NumberFlow value={inView ? 15 : 0} />
@@ -234,7 +234,7 @@ export default function StatsSection() {
               </div>
             </div>
 
-            <p className="mt-3 text-xs sm:text-sm tracking-tight font-semibold text-[#007AFF] text-center">
+            <p className="mt-3 text-xs sm:text-sm tracking-tight font-semibold text-[#0e89d6] text-center">
               With caltodo
             </p>
           </div>

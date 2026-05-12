@@ -56,7 +56,7 @@ export function rgbToHsv(r: number, g: number, b: number): [number, number, numb
 /**
  * Converts hex color string to RGB tuple.
  *
- * @param hex - Hex color (e.g. "#3B82F6")
+ * @param hex - Hex color (e.g. "#0e89d6")
  * @returns Tuple [r, g, b] each 0-255
  */
 export function hexToRgb(hex: string): [number, number, number] {
@@ -74,7 +74,7 @@ export function hexToRgb(hex: string): [number, number, number] {
  * @param r - Red (0-255)
  * @param g - Green (0-255)
  * @param b - Blue (0-255)
- * @returns Hex string like "#3b82f6"
+ * @returns Hex string like "#0e89d6"
  */
 export function rgbToHex(r: number, g: number, b: number): string {
   return "#" + [r, g, b]

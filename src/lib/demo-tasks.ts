@@ -15,7 +15,7 @@ function dateOffset(days: number): string {
 const DEMO_USER_ID = "demo-user";
 
 const COLORS = {
-  canvas: "#3B82F6",
+  canvas: "#0e89d6",
   gradescope: "#10B981",
   pensieve: "#8B5CF6",
   syllabus: "#8B5CF6",

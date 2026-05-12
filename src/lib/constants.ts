@@ -1,18 +1,17 @@
-import { LayoutGrid, Inbox, CalendarDays, NotebookPen, Users } from "lucide-react";
+import { LayoutGrid, Inbox, NotebookPen, Users } from "lucide-react";
 
 /**
  * Navigation items for the sidebar.
- * Settings is accessed via the profile popup only.
  *
- * The "Notes" item is filtered out of the visible nav by the Sidebar for
- * users who have never created a note (see useUserHasNotes). Returning
- * users with existing notes still see it. The route itself is always
- * reachable by URL so deep-links don't break.
+ * Calendar lives as a tab inside Inbox (Board / List / Calendar), so the
+ * sidebar no longer has a separate Calendar entry. The /app/calendar
+ * route still works — the inbox tabs navigate to it.
+ *
+ * Notes is filtered out by the Sidebar for users not on the allowlist.
  */
 export const NAV_ITEMS = [
   { label: "Home", href: "/app/home", icon: LayoutGrid },
   { label: "Inbox", href: "/app/inbox", icon: Inbox },
-  { label: "Calendar", href: "/app/calendar", icon: CalendarDays },
   { label: "Notes", href: "/app/notes", icon: NotebookPen },
   { label: "Chat", href: "/app/discussions", icon: Users },
 ] as const;
@@ -22,7 +21,7 @@ export const NAV_ITEMS = [
  */
 export const TASK_COLORS = [
   "#9CA3AF", // gray (default)
-  "#3B82F6", // blue
+  "#0e89d6", // blue
   "#EF4444", // red
   "#10B981", // green
   "#F59E0B", // amber
@@ -35,7 +34,7 @@ export const TASK_COLORS = [
 /**
  * Default task color.
  */
-export const DEFAULT_TASK_COLOR = "#3B82F6";
+export const DEFAULT_TASK_COLOR = "#0e89d6";
 
 /**
  * Miffy theme pink-shade mapping for task colors.
@@ -46,7 +45,7 @@ export const DEFAULT_TASK_COLOR = "#3B82F6";
  */
 const MIFFY_COLOR_MAP: Record<string, string> = {
   "#9CA3AF": "#c8b0b8", // gray → warm taupe-pink
-  "#3B82F6": "#e8729a", // blue → bold rose pink
+  "#0e89d6": "#e8729a", // blue → bold rose pink
   "#EF4444": "#a83860", // red → deep magenta
   "#10B981": "#f2c4d4", // green → soft rose
   "#F59E0B": "#f9dde5", // amber → very pale blush
@@ -68,7 +67,7 @@ export function getMiffyColor(color: string | null | undefined): string {
 /** Nord theme: muted arctic tones for task colors. */
 const NORD_COLOR_MAP: Record<string, string> = {
   "#9CA3AF": "#7b88a0", // gray → nord muted gray
-  "#3B82F6": "#5e81ac", // blue → nord frost blue
+  "#0e89d6": "#5e81ac", // blue → nord frost blue
   "#EF4444": "#bf616a", // red → nord aurora red
   "#10B981": "#a3be8c", // green → nord aurora green
   "#F59E0B": "#ebcb8b", // amber → nord aurora yellow
@@ -82,7 +81,7 @@ const NORD_COLOR_MAP: Record<string, string> = {
 /** Rosewood theme: warm wine-burgundy tones for task colors. */
 const ROSEWOOD_COLOR_MAP: Record<string, string> = {
   "#9CA3AF": "#a08080", // gray → warm taupe
-  "#3B82F6": "#a03040", // blue → bold burgundy
+  "#0e89d6": "#a03040", // blue → bold burgundy
   "#EF4444": "#801828", // red → deep wine
   "#10B981": "#c89898", // green → soft rose
   "#F59E0B": "#d8b0a0", // amber → warm peach
@@ -96,7 +95,7 @@ const ROSEWOOD_COLOR_MAP: Record<string, string> = {
 /** Midnight theme: electric blue accent tones for task colors. */
 const MIDNIGHT_COLOR_MAP: Record<string, string> = {
   "#9CA3AF": "#607090", // gray → slate blue
-  "#3B82F6": "#3a6cf0", // blue → electric blue
+  "#0e89d6": "#3a6cf0", // blue → electric blue
   "#EF4444": "#e05050", // red → bright red
   "#10B981": "#40a888", // green → teal green
   "#F59E0B": "#d8a040", // amber → warm gold
@@ -110,7 +109,7 @@ const MIDNIGHT_COLOR_MAP: Record<string, string> = {
 /** Forest theme — earthy greens and muted woods. */
 const FOREST_COLOR_MAP: Record<string, string> = {
   "#9CA3AF": "#94a08c", // gray → moss gray
-  "#3B82F6": "#388038", // blue → forest primary green
+  "#0e89d6": "#388038", // blue → forest primary green
   "#EF4444": "#a64030", // red → autumn red
   "#10B981": "#6b9a4a", // green → leafy green
   "#F59E0B": "#c89a4a", // amber → bark gold
@@ -124,7 +123,7 @@ const FOREST_COLOR_MAP: Record<string, string> = {
 /** Sunset theme — warm oranges and coral. */
 const SUNSET_COLOR_MAP: Record<string, string> = {
   "#9CA3AF": "#b89888", // gray → warm taupe
-  "#3B82F6": "#d85828", // blue → sunset primary orange
+  "#0e89d6": "#d85828", // blue → sunset primary orange
   "#EF4444": "#a83020", // red → ember red
   "#10B981": "#d8a45c", // green → muted gold
   "#F59E0B": "#e8a040", // amber → bright sunset
@@ -138,7 +137,7 @@ const SUNSET_COLOR_MAP: Record<string, string> = {
 /** Lavender theme — soft purples and violets. */
 const LAVENDER_COLOR_MAP: Record<string, string> = {
   "#9CA3AF": "#a098b0", // gray → cool lilac gray
-  "#3B82F6": "#7248a8", // blue → lavender primary
+  "#0e89d6": "#7248a8", // blue → lavender primary
   "#EF4444": "#9a3868", // red → magenta plum
   "#10B981": "#8888c8", // green → soft periwinkle
   "#F59E0B": "#c8a8c8", // amber → pale orchid
@@ -152,7 +151,7 @@ const LAVENDER_COLOR_MAP: Record<string, string> = {
 /** Matcha theme — soft sage greens. */
 const MATCHA_COLOR_MAP: Record<string, string> = {
   "#9CA3AF": "#a0a890", // gray → matcha gray
-  "#3B82F6": "#6a8858", // blue → matcha primary
+  "#0e89d6": "#6a8858", // blue → matcha primary
   "#EF4444": "#a86058", // red → muted clay red
   "#10B981": "#7ca068", // green → bright sage
   "#F59E0B": "#c8b078", // amber → light wheat
@@ -166,7 +165,7 @@ const MATCHA_COLOR_MAP: Record<string, string> = {
 /** Dracula theme — bold gothic purples. */
 const DRACULA_COLOR_MAP: Record<string, string> = {
   "#9CA3AF": "#9098b8", // gray → cool gray
-  "#3B82F6": "#9060e0", // blue → dracula primary purple
+  "#0e89d6": "#9060e0", // blue → dracula primary purple
   "#EF4444": "#e04848", // red → bright vampire red
   "#10B981": "#48d090", // green → bright green
   "#F59E0B": "#f0d048", // amber → bright yellow
@@ -180,7 +179,7 @@ const DRACULA_COLOR_MAP: Record<string, string> = {
 /** Cyber theme — neon cyberpunk teal/magenta. */
 const CYBER_COLOR_MAP: Record<string, string> = {
   "#9CA3AF": "#608890", // gray → muted cyber gray
-  "#3B82F6": "#08a0a8", // blue → cyber primary teal
+  "#0e89d6": "#08a0a8", // blue → cyber primary teal
   "#EF4444": "#e02060", // red → neon magenta
   "#10B981": "#10c8a0", // green → neon teal
   "#F59E0B": "#e0c020", // amber → electric yellow
@@ -194,7 +193,7 @@ const CYBER_COLOR_MAP: Record<string, string> = {
 /** Sandstone theme — warm earthy neutrals. */
 const SANDSTONE_COLOR_MAP: Record<string, string> = {
   "#9CA3AF": "#a89888", // gray → warm taupe
-  "#3B82F6": "#a87c54", // blue → sandstone primary
+  "#0e89d6": "#a87c54", // blue → sandstone primary
   "#EF4444": "#a85848", // red → terracotta
   "#10B981": "#88a878", // green → desert sage
   "#F59E0B": "#c89858", // amber → warm honey
@@ -208,7 +207,7 @@ const SANDSTONE_COLOR_MAP: Record<string, string> = {
 /** Tokyo Night theme — deep blues with electric pop. */
 const TOKYO_NIGHT_COLOR_MAP: Record<string, string> = {
   "#9CA3AF": "#7c84a0", // gray → blue-gray
-  "#3B82F6": "#4870c8", // blue → tokyo primary blue
+  "#0e89d6": "#4870c8", // blue → tokyo primary blue
   "#EF4444": "#d04860", // red → electric crimson
   "#10B981": "#48b8a0", // green → cool teal
   "#F59E0B": "#d8c060", // amber → warm yellow
@@ -240,7 +239,7 @@ const THEME_COLOR_MAPS: Record<string, Record<string, string>> = {
  * Aesthetic themes (miffy, nord, rosewood, midnight) remap task colors.
  * Accent themes (ocean, forest, sunset, lavender) return the original color.
  *
- * @param color - Original task hex color (e.g. "#3B82F6")
+ * @param color - Original task hex color (e.g. "#0e89d6")
  * @param colorTheme - Active color theme ID, or null for default
  * @returns Remapped hex color string, or the original color if no remapping exists
  */

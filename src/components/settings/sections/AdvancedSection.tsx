@@ -6,11 +6,10 @@ import { Trash2, LogOut, UserX, RotateCcw } from "lucide-react";
 import { useTaskContext } from "@/contexts/TaskContext";
 import { useToast } from "@/contexts/ToastContext";
 import { clearLayoutCache } from "@/lib/board-layout-cache";
-import SignOutConfirmModal from "@/components/ui/SignOutConfirmModal";
 
 /**
  * Advanced settings section.
- * Provides delete-all-tasks, sign out, and delete account actions with
+ * Provides delete-all-tasks, log out, and delete account actions with
  * double-click confirmation on destructive ones.
  */
 export default function AdvancedSection() {
@@ -18,9 +17,7 @@ export default function AdvancedSection() {
   const { tasks, deleteAllTasks } = useTaskContext();
   const { showToast } = useToast();
   const [confirmDelete, setConfirmDelete] = useState(false);
-  /** Controls the centered "Sign out?" confirmation modal. */
-  const [showSignOutModal, setShowSignOutModal] = useState(false);
-  /** Spinner state on the modal's confirm button while the sign-out request is in flight. */
+  /** Spinner state on the log-out button while the request is in flight. */
   const [signingOut, setSigningOut] = useState(false);
   const [confirmDeleteAccount, setConfirmDeleteAccount] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
@@ -47,18 +44,11 @@ export default function AdvancedSection() {
   }
 
   /**
-   * Opens the centered confirmation modal — actual sign-out happens in confirmSignOut().
+   * Performs log-out immediately. Clears layout cache, posts to /auth/signout,
+   * and hard-navigates home so the in-memory Supabase session is dropped along
+   * with the cookies.
    */
-  function handleSignOut() {
-    setShowSignOutModal(true);
-  }
-
-  /**
-   * Performs the sign-out after the user has confirmed in the modal.
-   * Clears layout cache, posts to /auth/signout, and hard-navigates home so
-   * the in-memory Supabase session is dropped along with the cookies.
-   */
-  async function confirmSignOut() {
+  async function handleLogOut() {
     setSigningOut(true);
     try {
       clearLayoutCache();
@@ -156,11 +146,12 @@ export default function AdvancedSection() {
         <div className="border-t border-border my-2" />
 
         <button
-          onClick={handleSignOut}
-          className="w-full flex items-center gap-3 px-4 py-3 text-sm rounded-xl border border-border bg-card hover:bg-accent text-foreground transition-colors"
+          onClick={handleLogOut}
+          disabled={signingOut}
+          className="w-full flex items-center gap-3 px-4 py-3 text-sm rounded-xl border border-border bg-card hover:bg-accent text-foreground transition-colors disabled:opacity-60"
         >
           <LogOut size={15} />
-          Sign Out
+          {signingOut ? "Logging out..." : "Log Out"}
         </button>
         <button
           onClick={handleDeleteAccount}
@@ -179,14 +170,6 @@ export default function AdvancedSection() {
               : "Delete Account"}
         </button>
       </div>
-
-      {/* Centered confirm modal — replaces the old click-twice pattern */}
-      <SignOutConfirmModal
-        open={showSignOutModal}
-        onConfirm={confirmSignOut}
-        onCancel={() => setShowSignOutModal(false)}
-        signingOut={signingOut}
-      />
     </section>
   );
 }

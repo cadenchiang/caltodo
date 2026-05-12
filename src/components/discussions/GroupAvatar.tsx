@@ -20,7 +20,7 @@ interface GroupAvatarProps {
  * Each entry is [from, to] for a CSS gradient.
  */
 const GRADIENTS: [string, string][] = [
-  ["#3B82F6", "#1D4ED8"], // blue
+  ["#0e89d6", "#0e89d6"], // blue
   ["#8B5CF6", "#6D28D9"], // purple
   ["#EC4899", "#BE185D"], // pink
   ["#10B981", "#047857"], // emerald

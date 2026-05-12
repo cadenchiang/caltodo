@@ -282,7 +282,7 @@ export default function LandingNav({ loggedIn: loggedInProp }: LandingNavProps =
           {loggedIn ? (
             <Link
               href="/app/home"
-              className="px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-xl bg-[#0071E3] text-white text-xs sm:text-sm font-medium hover:bg-[#3D8FE8] transition-colors duration-200 inline-flex items-center gap-1.5"
+              className="px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-xl bg-[#0e89d6] text-white text-xs sm:text-sm font-medium hover:bg-[#3D8FE8] transition-colors duration-200 inline-flex items-center gap-1.5"
             >
               Open app
               <ArrowRight size={14} strokeWidth={2.5} />
@@ -291,7 +291,7 @@ export default function LandingNav({ loggedIn: loggedInProp }: LandingNavProps =
             <>
               <Link
                 href="/login?signup=true"
-                className="px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-xl bg-[#0071E3] text-white text-xs sm:text-sm font-medium hover:bg-[#3D8FE8] transition-colors duration-200 inline-flex items-center gap-1.5"
+                className="px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-xl bg-[#0e89d6] text-white text-xs sm:text-sm font-medium hover:bg-[#3D8FE8] transition-colors duration-200 inline-flex items-center gap-1.5"
               >
                 Get started
                 <ArrowRight size={14} strokeWidth={2.5} />

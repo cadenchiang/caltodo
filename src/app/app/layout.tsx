@@ -71,7 +71,7 @@ export default async function AppLayout({
             <Sidebar avatarUrl={avatarUrl} fullName={fullName} email={email} />
             <main
               suppressHydrationWarning
-              className="flex-1 overflow-hidden px-4 md:px-10 pt-[max(1rem,env(safe-area-inset-top))] md:pt-[max(2.5rem,env(safe-area-inset-top))] pb-16 md:pb-10 bg-background relative miffy-glow miffy-watermark"
+              className="flex-1 overflow-y-auto overflow-x-hidden px-4 md:px-10 pt-[max(1rem,env(safe-area-inset-top))] md:pt-[max(2.5rem,env(safe-area-inset-top))] pb-16 md:pb-10 bg-background relative miffy-glow miffy-watermark"
             >
               {children}
             </main>

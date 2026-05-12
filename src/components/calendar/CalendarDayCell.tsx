@@ -40,8 +40,9 @@ interface CalendarDayCellProps {
 /** Approximate heights in px for layout calculations. */
 const HEADER_HEIGHT = 22;
 const HEADER_HEIGHT_WITH_LABEL = 34;
-const ITEM_HEIGHT = 17;
-const ITEM_HEIGHT_LARGE = 22;
+// Updated for the new 2-row task bar (title + status pill).
+const ITEM_HEIGHT = 36;
+const ITEM_HEIGHT_LARGE = 44;
 const MORE_LINE_HEIGHT = 14;
 
 /**
@@ -96,23 +97,19 @@ export default function CalendarDayCell({
 
   const headerH = weekdayLabel ? HEADER_HEIGHT_WITH_LABEL : HEADER_HEIGHT;
 
-  // Dynamically compute how many items fit in the cell.
-  // Start with Infinity (show all) so there's no reflow flash — the ResizeObserver
-  // fires within the same frame and constrains to the actual available space.
-  const [maxItems, setMaxItems] = useState(Infinity);
+  // Dynamically compute how many items fit in the cell. Start at the
+  // hard cap (4) so the first render never shows more than the budget
+  // — the ResizeObserver narrows further if the cell is shorter.
+  const [maxItems, setMaxItems] = useState(4);
+
+  /** Hard cap — show up to 4 tasks per cell; anything past is "+N more".
+      The grid rows use `max-content` so the cell stretches to fit all
+      four; we no longer derive maxItems from available height. */
+  const MAX_ITEMS_PER_CELL = 4;
 
   useEffect(() => {
-    const el = cellRef.current;
-    if (!el || isMobile) return;
-    const itemH = assignmentsMode ? ITEM_HEIGHT_LARGE : ITEM_HEIGHT;
-    const observer = new ResizeObserver(([entry]) => {
-      const h = entry.contentBoxSize[0].blockSize;
-      const available = h - headerH - MORE_LINE_HEIGHT;
-      setMaxItems(Math.max(1, Math.floor(available / itemH)));
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [isMobile, headerH, assignmentsMode]);
+    setMaxItems(MAX_ITEMS_PER_CELL);
+  }, []);
 
   const effectiveEvents = assignmentsMode ? [] : gcalEvents;
   const totalItems = tasks.length + pendingInvites.length + effectiveEvents.length;
@@ -174,14 +171,14 @@ export default function CalendarDayCell({
       ref={cellRef}
       className={`p-0.5 md:px-1 md:py-0.5 overflow-hidden ${isLastCol ? "" : "border-r"} border-b border-gray-200 dark:border-gray-700/50 transition-all duration-150 ease-out relative ${
         isPast
-          ? "bg-gray-100 dark:bg-black/30"
+          ? "bg-[var(--sidebar-bg)] dark:bg-black/30"
           : !isCurrentMonth
-            ? "bg-gray-50 dark:bg-black/15"
+            ? "bg-[var(--sidebar-bg)] dark:bg-black/15"
             : isSelected && isMobile
               ? "bg-gray-100 dark:bg-white/5"
               : "bg-card"
       } hover:bg-black/[0.02] dark:hover:bg-white/[0.03] ${
-        isDragOver ? "ring-2 ring-inset ring-[#007AFF]/70 bg-[#007AFF]/5 dark:bg-[#007AFF]/10" : ""
+        isDragOver ? "ring-2 ring-inset ring-[#0e89d6]/70 bg-[#0e89d6]/5 dark:bg-[#0e89d6]/10" : ""
       }`}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -200,7 +197,7 @@ export default function CalendarDayCell({
           <span
             className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs leading-none transition-all duration-200 ease-out ${
               isToday
-                ? "bg-[#007AFF] text-white font-bold"
+                ? "bg-[#0e89d6] text-white font-bold"
                 : isSelected
                   ? "bg-gray-800 dark:bg-white text-white dark:text-gray-900 font-bold"
                   : isCurrentMonth
@@ -253,11 +250,29 @@ export default function CalendarDayCell({
               {weekdayLabel}
             </div>
           )}
-          <div className="flex items-center justify-center relative mb-0.5">
+          {/* Day number is right-aligned at the top — Notion-style. The
+              add (+) button sits on the LEFT so it doesn't crowd the
+              date when the cell is hovered. */}
+          <div className="flex items-center justify-between relative mb-0.5 px-0.5">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                const rect = e.currentTarget.getBoundingClientRect();
+                onDayClick(dateStr, new DOMRect(rect.left, rect.bottom + 4, rect.width, 1));
+              }}
+              className={`w-4 h-4 rounded-full items-center justify-center text-muted-foreground hover:bg-gray-300 dark:hover:bg-gray-600 hover:text-foreground transition-all flex ${
+                hovered && !addingDate ? "opacity-100" : "opacity-0 pointer-events-none"
+              }`}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+            </button>
             <span
               className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-[11px] leading-none transition-all duration-200 ease-out ${
                 isToday
-                  ? "bg-[#007AFF] text-white font-bold"
+                  ? "bg-[#0e89d6] text-white font-bold"
                   : isSelected
                     ? "bg-gray-800 dark:bg-white text-white dark:text-gray-900 font-bold"
                     : isCurrentMonth
@@ -267,21 +282,6 @@ export default function CalendarDayCell({
             >
               {format(day, "d")}
             </span>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                const rect = e.currentTarget.getBoundingClientRect();
-                onDayClick(dateStr, new DOMRect(rect.left, rect.bottom + 4, rect.width, 1));
-              }}
-              className={`absolute right-0 w-4 h-4 rounded-full items-center justify-center text-muted-foreground hover:bg-gray-300 dark:hover:bg-gray-600 hover:text-foreground transition-all flex ${
-                hovered && !addingDate ? "opacity-100" : "opacity-0 pointer-events-none"
-              }`}
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <line x1="12" y1="5" x2="12" y2="19" />
-                <line x1="5" y1="12" x2="19" y2="12" />
-              </svg>
-            </button>
           </div>
 
           {addingDate === dateStr && (

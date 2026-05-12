@@ -305,7 +305,7 @@ export default function PomodoroWidget({
 
   /** Progress fraction (0 = full, 1 = empty). */
   const progress = 1 - secondsLeft / totalForPhase;
-  const workColor = config?.accentColor || '#007AFF';
+  const workColor = config?.accentColor || '#0e89d6';
   const breakColor = '#22c55e';
   const ringStroke = phase === "work" ? workColor : breakColor;
 

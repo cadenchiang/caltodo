@@ -176,7 +176,7 @@ export default function AppearanceSection() {
             )}
           >
             <div className="flex items-center gap-1.5">
-              <span className="w-4 h-4 rounded-full border border-black/10 dark:border-white/10 bg-[#3B82F6]" />
+              <span className="w-4 h-4 rounded-full border border-black/10 dark:border-white/10 bg-[#0e89d6]" />
               <span className="w-4 h-4 rounded-full border border-black/10 dark:border-white/10 bg-[#f3f4f6] dark:bg-[#404040]" />
               <span className="w-4 h-4 rounded-full border border-black/10 dark:border-white/10 bg-[#1f2937] dark:bg-[#f3f4f6]" />
               <span className="w-4 h-4 rounded-full border border-black/10 dark:border-white/10 bg-white dark:bg-[#111111]" />
@@ -238,7 +238,7 @@ export default function AppearanceSection() {
                   </div>
                 )}
                 {gated && (
-                  <div className="absolute top-2 right-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-[#0071E3] text-white text-[9px] font-semibold tracking-wide">
+                  <div className="absolute top-2 right-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-[#0e89d6] text-white text-[9px] font-semibold tracking-wide">
                     <Lock size={9} strokeWidth={3} />
                     PRO
                   </div>

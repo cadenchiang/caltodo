@@ -95,7 +95,7 @@ const SECTIONS: Section[] = [
           href="https://developers.google.com/terms/api-services-user-data-policy"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-[#0071E3] underline underline-offset-2 hover:text-[#3D8FE8]"
+          className="text-[#0e89d6] underline underline-offset-2 hover:text-[#3D8FE8]"
         >
           Google API Services User Data Policy
         </a>
@@ -154,7 +154,7 @@ const SECTIONS: Section[] = [
         us at{" "}
         <a
           href="mailto:cadenchiang@berkeley.edu"
-          className="text-[#0071E3] underline underline-offset-2 hover:text-[#3D8FE8]"
+          className="text-[#0e89d6] underline underline-offset-2 hover:text-[#3D8FE8]"
         >
           cadenchiang@berkeley.edu
         </a>

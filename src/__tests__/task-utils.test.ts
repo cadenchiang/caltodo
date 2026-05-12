@@ -104,7 +104,7 @@ describe("getSourceBadges", () => {
       due_date: null,
       due_time: null,
       is_completed: false,
-      color: "#3B82F6",
+      color: "#0e89d6",
       created_at: "2025-01-01T00:00:00Z",
       updated_at: "2025-01-01T00:00:00Z",
       source: null,

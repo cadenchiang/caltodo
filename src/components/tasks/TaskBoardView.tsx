@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDown, MoreVertical, Palette, Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, MoreVertical, Palette, Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
 import {
   DndContext,
   DragOverlay,
@@ -105,7 +105,7 @@ const GENERAL_COLUMN = "General";
 const COLUMN_PALETTE: Array<{ dot: string; bg: string; subtle: string; text: string }> = [
   { dot: "#A78BFA", bg: "rgba(167,139,250,0.16)", subtle: "rgba(167,139,250,0.03)", text: "#7C3AED" }, // violet
   { dot: "#F59E0B", bg: "rgba(245,158,11,0.16)",  subtle: "rgba(245,158,11,0.03)",  text: "#B45309" }, // amber
-  { dot: "#3B82F6", bg: "rgba(59,130,246,0.16)",  subtle: "rgba(59,130,246,0.03)",  text: "#1D4ED8" }, // blue
+  { dot: "#0e89d6", bg: "rgba(59,130,246,0.16)",  subtle: "rgba(59,130,246,0.03)",  text: "#0e89d6" }, // blue
   { dot: "#10B981", bg: "rgba(16,185,129,0.16)",  subtle: "rgba(16,185,129,0.03)",  text: "#047857" }, // green
   { dot: "#EC4899", bg: "rgba(236,72,153,0.16)",  subtle: "rgba(236,72,153,0.03)",  text: "#BE185D" }, // pink
   { dot: "#06B6D4", bg: "rgba(6,182,212,0.16)",   subtle: "rgba(6,182,212,0.03)",   text: "#0E7490" }, // cyan
@@ -193,8 +193,10 @@ function groupByCourse(tasks: Task[]): Map<string, Task[]> {
     entries.push([displayName, tasks]);
   }
   entries.sort((a, b) => {
-    if (a[0] === GENERAL_COLUMN) return 1;
-    if (b[0] === GENERAL_COLUMN) return -1;
+    // General is the catch-all "no class" column — pin it first so the
+    // user's untagged tasks are the leftmost column on the board.
+    if (a[0] === GENERAL_COLUMN) return -1;
+    if (b[0] === GENERAL_COLUMN) return 1;
     return a[0].localeCompare(b[0]);
   });
 
@@ -328,6 +330,22 @@ export default function TaskBoardView({
   const [aliases, setAliases] = useState<Map<string, string>>(() => loadColumnAliases());
   const [emptyStateCreateOpen, setEmptyStateCreateOpen] = useState(false);
 
+  // Refs / state for the scroll-arrow controls. The handlers that
+  // consume columnIds are declared further down (after columnIds is
+  // computed) to avoid a TDZ on the const declaration.
+  const scrollRowRef = useRef<HTMLDivElement>(null);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const COLS_PER_PAGE = 4;
+  const GAP = 16;
+  const pageStep = useCallback(() => {
+    const el = scrollRowRef.current;
+    if (!el) return 0;
+    const first = el.children[0] as HTMLElement | undefined;
+    if (!first) return 0;
+    return COLS_PER_PAGE * (first.offsetWidth + GAP);
+  }, []);
+
   /** Renames a column by saving a display alias. */
   const renameColumn = useCallback((originalName: string, newDisplayName: string) => {
     setAliases((prev) => {
@@ -410,6 +428,48 @@ export default function TaskBoardView({
   const columnIds = useMemo(() => [...columns.keys()], [columns]);
   columnIdsRef.current = columnIds;
 
+  // Scroll-arrow handlers + ResizeObserver — declared here because they
+  // depend on columnIds. One page = 4 * (colWidth + gap). Total pages is
+  // ceil(columnCount / 4) so a partial last page still counts. The last
+  // page clamps to maxScroll (= scrollWidth − clientWidth) so the
+  // viewport stays filled (e.g. cols 6–9 of 9 instead of just col 9).
+  const handleScrollByOne = useCallback((direction: 1 | -1) => {
+    const el = scrollRowRef.current;
+    if (!el) return;
+    const step = pageStep();
+    if (!step) return;
+    const maxPage = Math.max(0, totalPages - 1);
+    const nextPage = Math.max(0, Math.min(maxPage, currentPage + direction));
+    const maxScroll = Math.max(0, el.scrollWidth - el.clientWidth);
+    const target = nextPage === maxPage ? maxScroll : nextPage * step;
+    el.scrollTo({ left: target, behavior: "smooth" });
+  }, [pageStep, currentPage, totalPages]);
+  const handleScrollUpdate = useCallback(() => {
+    const el = scrollRowRef.current;
+    if (!el) return;
+    const step = pageStep();
+    if (!step) return;
+    const maxScroll = Math.max(0, el.scrollWidth - el.clientWidth);
+    const pages = Math.max(1, Math.ceil(columnIds.length / COLS_PER_PAGE));
+    setTotalPages(pages);
+    setCurrentPage(
+      el.scrollLeft >= maxScroll - 1 ? pages - 1 : Math.round(el.scrollLeft / step),
+    );
+  }, [pageStep, columnIds.length]);
+  useEffect(() => {
+    const el = scrollRowRef.current;
+    if (!el) return;
+    const recompute = () => {
+      setTotalPages(Math.max(1, Math.ceil(columnIds.length / COLS_PER_PAGE)));
+    };
+    recompute();
+    const ro = new ResizeObserver(recompute);
+    ro.observe(el);
+    for (const child of Array.from(el.children)) ro.observe(child);
+    return () => ro.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [columnIds.length]);
+
   /** Active column data for DragOverlay rendering. */
   const activeColumnTasks = activeId ? columns.get(activeId) ?? null : null;
 
@@ -476,26 +536,63 @@ export default function TaskBoardView({
       onDragCancel={handleDragCancel}
       autoScroll={{ threshold: { x: 0.15, y: 0.15 }, interval: 5 }}
     >
+      {/* Static scroll controls — left/right arrows plus a current/total
+          indicator so the user knows there are more columns to the right.
+          Lives above the columns and stays put while the row scrolls. */}
+      <div className="flex items-center justify-between pb-3">
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => handleScrollByOne(-1)}
+            disabled={currentPage <= 0}
+            aria-label="Previous column"
+            className="w-8 h-8 flex items-center justify-center rounded-lg border border-border text-foreground hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+          >
+            <ChevronLeft size={16} />
+          </button>
+          <button
+            type="button"
+            onClick={() => handleScrollByOne(1)}
+            disabled={currentPage >= Math.max(0, columnIds.length - 1)}
+            aria-label="Next column"
+            className="w-8 h-8 flex items-center justify-center rounded-lg border border-border text-foreground hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+          >
+            <ChevronRight size={16} />
+          </button>
+        </div>
+        {/* Page indicator — phone-home-screen style dots. One dot per
+            page; the current page's dot is the accent foreground color,
+            others are muted. Compact and instantly readable. */}
+        <div className="flex items-center gap-1.5" aria-label={`Page ${currentPage + 1} of ${totalPages}`}>
+          {Array.from({ length: totalPages }).map((_, i) => (
+            <span
+              key={i}
+              className={`w-1.5 h-1.5 rounded-full transition-colors ${
+                i === currentPage ? "bg-foreground" : "bg-muted-foreground/30"
+              }`}
+            />
+          ))}
+        </div>
+      </div>
       <SortableContext items={columnIds} strategy={horizontalListSortingStrategy}>
         <div
-          // Edge mask: columns fade out near the left and right gutters so
-          // scrolled content doesn't slam into the viewport edge. Width of
-          // the fade is ~24px on each side; the middle is fully opaque.
-          className="flex overflow-x-auto gap-4 px-4 pb-6 h-full"
-          style={{
-            maskImage:
-              "linear-gradient(to right, transparent 0, black 24px, black calc(100% - 24px), transparent 100%)",
-            WebkitMaskImage:
-              "linear-gradient(to right, transparent 0, black 24px, black calc(100% - 24px), transparent 100%)",
-          }}
+          ref={scrollRowRef}
+          onScroll={handleScrollUpdate}
+          // overflow-x-hidden disables wheel/trackpad scrolling — only the
+          // arrow buttons (which call scrollBy programmatically) advance
+          // the row. Vertical scroll inside columns still works because
+          // each column owns its own overflow.
+          className="flex overflow-x-hidden gap-4 px-0 pb-6 h-full scroll-smooth"
         >
           {[...columns.entries()].map(([columnName, columnTasks]) => (
             <SortableColumn key={columnName} id={columnName}>
               {({ setNodeRef, style, attributes, listeners }) => (
                 <div
                   ref={setNodeRef}
-                  style={style}
-                  className="w-[280px] flex-shrink-0"
+                  // Width math: 4 columns fit perfectly in the viewport
+                  // when each is (100% − 3 gaps × 16px) / 4 wide.
+                  style={{ ...style, flex: "0 0 calc((100% - 48px) / 4)" }}
+                  className="min-w-0"
                   {...attributes}
                 >
                   <BoardColumn
@@ -526,7 +623,7 @@ export default function TaskBoardView({
       {/* Floating drag overlay — follows cursor with subtle shadow */}
       <DragOverlay dropAnimation={{ duration: 200, easing: "ease" }}>
         {activeId && activeColumnTasks && (
-          <div className="w-[280px] opacity-95 shadow-2xl cursor-grabbing" style={{ willChange: "transform" }}>
+          <div className="opacity-95 shadow-2xl cursor-grabbing" style={{ willChange: "transform", width: "calc((100vw - 48px) / 4)" }}>
             <BoardColumn
               name={activeId}
               displayName={isDateMode ? activeId : (aliases.get(activeId) || activeId)}
@@ -953,7 +1050,7 @@ function BoardColumn({
                 try { localStorage.setItem(`caltodo_board_completed_${name}`, String(next)); } catch { /* ignore */ }
               }}
               className={`flex items-center gap-1 px-1 py-1.5 w-full text-left transition-opacity hover:opacity-100 ${
-                completedExpanded ? "opacity-60" : "opacity-100"
+                completedExpanded ? "opacity-100" : "opacity-60"
               }`}
             >
               <ChevronDown
@@ -1057,35 +1154,30 @@ function TaskCard({ task, isSelected, onToggle, onSelect, onDelete }: TaskCardPr
       >
         {/* Checkbox + title + three-dot menu */}
         <div className="flex items-start gap-2.5">
-          <div className="mt-0.5">
-            <TaskCheckbox
-              color={taskColor}
-              isCompleted={isCompleted}
-              onToggle={() => onToggle(task.id)}
-              size="sm"
-            />
-          </div>
+          {/* Board-view cards never render a squircle — the preview
+              popover that opens on click has its own checkbox. The card
+              itself stays as just title + date. */}
           <span
             className={`text-sm font-semibold leading-snug flex-1 min-w-0 ${
-              isCompleted ? "text-muted-foreground" : "text-foreground"
+              isCompleted ? "text-muted-foreground line-through" : "text-foreground"
             }`}
           >
             {task.title}
           </span>
-          <button
-            ref={menuBtnRef}
-            onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }}
-            className="flex-shrink-0 p-0.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-all opacity-0 group-hover:opacity-100 [@media(pointer:coarse)]:opacity-100"
-            aria-label="Task options"
-          >
-            <MoreVertical size={14} />
-          </button>
+          {/* Three-dots hover menu removed from board cards — delete /
+              edit happen via the preview popover that opens on click. */}
         </div>
 
-        {/* Date + time combined */}
+        {/* Date + time pill — tint is derived from the badge text color
+            via color-mix(currentColor 14% transparent) so the soft bg
+            always tracks whatever urgency color the badge is using
+            (red for overdue, blue for upcoming, etc.). */}
         {dueBadge && (
-          <div className="mt-1.5 pl-[24px]">
-            <span className={`text-[11px] font-normal ${dueBadge.className} ${isCompleted ? "opacity-70" : ""}`}>
+          <div className="mt-1.5">
+            <span
+              className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${dueBadge.className} ${isCompleted ? "opacity-70" : ""}`}
+              style={{ backgroundColor: "color-mix(in srgb, currentColor 14%, transparent)" }}
+            >
               {dueBadge.dateLabel}{dueBadge.timeLabel ? ` ${dueBadge.timeLabel}` : ""}
             </span>
           </div>

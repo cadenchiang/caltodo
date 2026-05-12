@@ -113,7 +113,7 @@ export function WidgetProgressBar({
         className="h-full rounded-full transition-all duration-500 ease-out"
         style={{
           width: `${Math.min(100, Math.max(0, pct))}%`,
-          backgroundColor: accentColor || "var(--color-blue-500, #3b82f6)",
+          backgroundColor: accentColor || "var(--color-blue-500, #0e89d6)",
         }}
       />
     </div>

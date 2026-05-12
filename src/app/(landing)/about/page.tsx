@@ -71,7 +71,7 @@ export default function AboutPage() {
 
         <Link
           href="/login?signup=true"
-          className="inline-flex items-center gap-1.5 px-4 sm:px-5 py-2 rounded-xl bg-[#0071E3] text-white text-sm sm:text-base font-medium hover:bg-[#3D8FE8] transition-colors duration-200 animate-fade-up"
+          className="inline-flex items-center gap-1.5 px-4 sm:px-5 py-2 rounded-xl bg-[#0e89d6] text-white text-sm sm:text-base font-medium hover:bg-[#3D8FE8] transition-colors duration-200 animate-fade-up"
           style={{ animationDelay: "680ms" }}
         >
           Get started

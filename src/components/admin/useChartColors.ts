@@ -64,7 +64,7 @@ export function useChartColors(): ChartColors {
   }
 
   return {
-    primary: "#3b82f6", // blue-500
+    primary: "#0e89d6", // blue-500
     secondary: "#10b981", // emerald-500
     tertiary: "#f59e0b", // amber-500
     quaternary: "#8b5cf6", // violet-500

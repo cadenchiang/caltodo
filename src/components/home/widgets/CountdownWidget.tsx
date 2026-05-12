@@ -79,7 +79,7 @@ export default function CountdownWidget({ config }: CountdownWidgetProps) {
     );
   }
 
-  const accentColor = config?.accentColor || "#007AFF";
+  const accentColor = config?.accentColor || "#0e89d6";
 
   return (
     <WidgetShell centered>

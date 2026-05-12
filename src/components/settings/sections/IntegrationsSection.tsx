@@ -178,7 +178,7 @@ function RequestPlatformForm() {
               </p>
             </div>
           </div>
-          <span className="text-xs font-medium text-[#0071E3] shrink-0">Submit</span>
+          <span className="text-xs font-medium text-[#0e89d6] shrink-0">Submit</span>
         </button>
       </div>
       <RequestPlatformModal open={open} onClose={() => setOpen(false)} />
@@ -280,7 +280,7 @@ function RequestPlatformModal({ open, onClose }: { open: boolean; onClose: () =>
               <button
                 type="submit"
                 disabled={!message.trim() || status === "sending"}
-                className="px-4 py-1.5 rounded-lg bg-[#0071E3] text-white text-sm font-medium hover:bg-[#3D8FE8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-1.5 rounded-lg bg-[#0e89d6] text-white text-sm font-medium hover:bg-[#3D8FE8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {status === "sending" ? "Sending..." : "Submit"}
               </button>

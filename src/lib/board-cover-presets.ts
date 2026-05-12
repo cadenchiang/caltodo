@@ -13,7 +13,7 @@ export const SOLID_COVERS: { id: string; label: string; color: string }[] = [
   { id: "s4", label: "Slate", color: "#475569" },
   { id: "s5", label: "Charcoal", color: "#1e293b" },
   { id: "s6", label: "Sky", color: "#7dd3fc" },
-  { id: "s7", label: "Blue", color: "#3b82f6" },
+  { id: "s7", label: "Blue", color: "#0e89d6" },
   { id: "s8", label: "Indigo", color: "#6366f1" },
   { id: "s9", label: "Violet", color: "#8b5cf6" },
   { id: "s10", label: "Rose", color: "#fb7185" },

@@ -126,7 +126,7 @@ export default function FeatureHighlight() {
                           {"badge" in slide && slide.badge && (
                             <span className={`px-2.5 py-0.5 text-xs font-semibold rounded-xl tracking-wide ${
                               "badgeColor" in slide && slide.badgeColor === "blue"
-                                ? "bg-[#007AFF] text-white"
+                                ? "bg-[#0e89d6] text-white"
                                 : "bg-[#ff5a05] text-white"
                             }`}>
                               {slide.badge}

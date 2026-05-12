@@ -58,7 +58,7 @@ function isLastWeek(dateStr: string): boolean {
 export default function StatsWidget({ config }: StatsWidgetProps) {
   const { tasks } = useTaskContext();
   const metric = config?.statsMetric || "completion";
-  const accentColor = config?.accentColor || "#007AFF";
+  const accentColor = config?.accentColor || "#0e89d6";
 
   const stats = useMemo(() => {
     const active = tasks.filter((t) => !t.dismissed_at);

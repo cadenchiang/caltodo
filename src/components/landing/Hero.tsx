@@ -225,7 +225,7 @@ export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
           {/* CTA */}
           <Link
             href="/login?signup=true"
-            className="px-4 sm:px-5 py-2 rounded-xl bg-[#0071E3] text-white text-sm sm:text-base font-medium hover:bg-[#3D8FE8] transition-colors duration-200 mb-4 sm:mb-12 inline-flex items-center gap-1.5 animate-fade-up"
+            className="px-4 sm:px-5 py-2 rounded-xl bg-[#0e89d6] text-white text-sm sm:text-base font-medium hover:bg-[#3D8FE8] transition-colors duration-200 mb-4 sm:mb-12 inline-flex items-center gap-1.5 animate-fade-up"
             style={{ animationDelay: "1500ms" }}
           >
             Get started
@@ -345,7 +345,7 @@ export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
             <FadeIn>
               <div className="bg-[#f6f5f4] rounded-3xl p-8 sm:p-12 overflow-hidden relative min-h-[260px] sm:min-h-[340px]">
                 <div className="max-w-md relative z-10">
-                  <RefreshCw className="w-7 h-7 text-[#0071E3] mb-4" strokeWidth={2} />
+                  <RefreshCw className="w-7 h-7 text-[#0e89d6] mb-4" strokeWidth={2} />
                   <h3 className="text-2xl sm:text-[32px] font-bold text-black leading-tight tracking-tight" style={{ fontFamily: '-apple-system, "SF Pro Display", BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' }}>
                     Sync your classes
                   </h3>
@@ -381,7 +381,7 @@ export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
               <FadeIn delay={100}>
                 <div className="bg-[#f6f5f4] rounded-3xl p-8 sm:p-10 overflow-hidden flex flex-col h-full">
-                  <CalendarDays className="w-7 h-7 text-[#0071E3] mb-4" strokeWidth={2} />
+                  <CalendarDays className="w-7 h-7 text-[#0e89d6] mb-4" strokeWidth={2} />
                   <h3 className="text-2xl sm:text-[28px] font-bold text-black leading-tight tracking-tight" style={{ fontFamily: '-apple-system, "SF Pro Display", BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' }}>
                     Manage your assignments
                   </h3>
@@ -406,7 +406,7 @@ export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
               </FadeIn>
               <FadeIn delay={200}>
                 <div className="bg-[#f6f5f4] rounded-3xl p-8 sm:p-10 overflow-hidden flex flex-col h-full">
-                  <LayoutGrid className="w-7 h-7 text-[#0071E3] mb-4" strokeWidth={2} />
+                  <LayoutGrid className="w-7 h-7 text-[#0e89d6] mb-4" strokeWidth={2} />
                   <h3 className="text-2xl sm:text-[28px] font-bold text-black leading-tight tracking-tight" style={{ fontFamily: '-apple-system, "SF Pro Display", BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' }}>
                     Personalize your board
                   </h3>
@@ -516,7 +516,7 @@ export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
           <div className="flex justify-end">
             <Link
               href="/login?signup=true"
-              className="inline-flex items-center gap-1.5 px-6 py-2.5 bg-[#0071E3] text-white rounded-full text-sm font-medium hover:scale-[1.05] active:scale-[0.97] transition-transform duration-200"
+              className="inline-flex items-center gap-1.5 px-6 py-2.5 bg-[#0e89d6] text-white rounded-full text-sm font-medium hover:scale-[1.05] active:scale-[0.97] transition-transform duration-200"
               onClick={() => setShowSpotsModal(false)}
             >
               try it free &rarr;

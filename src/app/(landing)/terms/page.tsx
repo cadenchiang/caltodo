@@ -144,7 +144,7 @@ const SECTIONS: Section[] = [
         If you have questions about these Terms, contact us at{" "}
         <a
           href="mailto:cadenchiang@berkeley.edu"
-          className="text-[#0071E3] underline underline-offset-2 hover:text-[#3D8FE8]"
+          className="text-[#0e89d6] underline underline-offset-2 hover:text-[#3D8FE8]"
         >
           cadenchiang@berkeley.edu
         </a>

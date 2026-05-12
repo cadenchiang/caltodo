@@ -27,10 +27,10 @@ function getWeatherGradient(code: number): string {
   if (code <= 1) return "linear-gradient(135deg, #47b2ff, #1a8cff)";
   if (code <= 3) return "linear-gradient(135deg, #60a5fa, #94a3b8)";
   if (code <= 48) return "linear-gradient(135deg, #94a3b8, #64748b)";
-  if (code <= 55) return "linear-gradient(135deg, #60a5fa, #3b82f6)";
-  if (code <= 65) return "linear-gradient(135deg, #3b82f6, #2563eb)";
+  if (code <= 55) return "linear-gradient(135deg, #60a5fa, #0e89d6)";
+  if (code <= 65) return "linear-gradient(135deg, #0e89d6, #2563eb)";
   if (code <= 75) return "linear-gradient(135deg, #bfdbfe, #93c5fd)";
-  if (code <= 82) return "linear-gradient(135deg, #3b82f6, #1d4ed8)";
+  if (code <= 82) return "linear-gradient(135deg, #0e89d6, #0e89d6)";
   return "linear-gradient(135deg, #7c3aed, #4c1d95)";
 }
 

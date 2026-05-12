@@ -2,14 +2,20 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Pencil, X, MoreVertical, Trash2, ExternalLink } from "lucide-react";
+/* eslint-disable @typescript-eslint/no-unused-vars */
+// Pencil is still imported in case a future caller wants the edit button.
 import Tooltip from "@/components/ui/Tooltip";
 
 /**
  * Props for the shared header action bar used in task detail views.
  */
 interface TaskActionBarProps {
-  /** Called when the edit (pencil) button is clicked. */
-  onEdit: () => void;
+  /**
+   * Called when the edit (pencil) button is clicked. Optional — when
+   * omitted the pencil is hidden entirely (used by the detail panel
+   * where the title is directly editable inline).
+   */
+  onEdit?: () => void;
   /** Called when the delete (trash) button is clicked. Optional. */
   onDelete?: () => void;
   /** Called when the close (X) button is clicked. */
@@ -52,14 +58,16 @@ export default function TaskActionBar({
 
   return (
     <div className="flex items-center justify-end gap-1 px-5 pt-4 pb-2">
-      <Tooltip label="Edit task">
-        <button
-          onClick={onEdit}
-          className="p-2 rounded-lg text-secondary-foreground hover:text-foreground hover:bg-accent transition-colors"
-        >
-          <Pencil size={18} />
-        </button>
-      </Tooltip>
+      {onEdit && (
+        <Tooltip label="Edit task">
+          <button
+            onClick={onEdit}
+            className="p-2 rounded-lg text-secondary-foreground hover:text-foreground hover:bg-accent transition-colors"
+          >
+            <Pencil size={18} />
+          </button>
+        </Tooltip>
+      )}
       {hasMenuItems && (
         <div ref={menuRef} className="relative flex items-center">
           <Tooltip label="More options">

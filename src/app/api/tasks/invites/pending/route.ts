@@ -87,7 +87,7 @@ export async function GET() {
         taskTitle: task?.title ?? "Unknown task",
         taskDueDate: task?.due_date ?? null,
         taskDueTime: task?.due_time ?? null,
-        taskColor: task?.color ?? "#3B82F6",
+        taskColor: task?.color ?? "#0e89d6",
         inviterName: inviter?.name ?? null,
         inviterEmail: inviter?.email ?? share.invitee_email,
         inviterAvatar: inviter?.avatar ?? null,

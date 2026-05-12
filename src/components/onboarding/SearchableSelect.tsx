@@ -154,7 +154,7 @@ export default function SearchableSelect({
                 >
                   <span className="text-foreground">{opt}</span>
                   {value === opt && (
-                    <Check size={14} className="text-[#0071E3]" />
+                    <Check size={14} className="text-[#0e89d6]" />
                   )}
                 </button>
               ))

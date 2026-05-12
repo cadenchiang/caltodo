@@ -74,7 +74,7 @@ export default function BentoFeatures() {
                 <h3 className="flex items-center gap-2 text-base sm:text-lg font-semibold text-black tracking-tight mb-1">
                   {feature.title}
                   {"badge" in feature && feature.badge && (
-                    <span className="px-2.5 py-0.5 rounded-full bg-[#007AFF] text-white text-[9px] font-bold tracking-wider uppercase">
+                    <span className="px-2.5 py-0.5 rounded-full bg-[#0e89d6] text-white text-[9px] font-bold tracking-wider uppercase">
                       {feature.badge}
                     </span>
                   )}

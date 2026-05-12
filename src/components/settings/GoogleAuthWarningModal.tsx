@@ -31,10 +31,10 @@ export default function GoogleAuthWarningModal({
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center">
       <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-announce-backdrop-in"
         onClick={onCancel}
       />
-      <div className="relative bg-card rounded-2xl border border-border shadow-2xl w-[calc(100%-2rem)] max-w-sm p-6 animate-modal-in">
+      <div className="relative bg-popover rounded-2xl border border-border shadow-2xl w-[calc(100%-2rem)] max-w-sm p-6 animate-announce-card-in">
         <div>
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-500/15 flex items-center justify-center shrink-0">
@@ -46,26 +46,27 @@ export default function GoogleAuthWarningModal({
           </div>
           <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
             You may see a warning that says &quot;Google hasn&apos;t verified
-            this app.&quot; This is normal — Google&apos;s verification process
-            takes time. Your data is safe.
+            this app.&quot; This is normal. Google&apos;s verification process
+            takes time, and your data is safe.
           </p>
           <div className="text-sm text-muted-foreground mb-6 leading-relaxed bg-muted/50 rounded-xl px-4 py-3 border border-border/50">
             Click <span className="font-medium text-foreground">Advanced</span>{" "}
-            → <span className="font-medium text-foreground">Go to CalTodo (unsafe)</span>{" "}
+            <span aria-hidden>→</span>{" "}
+            <span className="font-medium text-foreground">Go to CalTodo (unsafe)</span>{" "}
             to continue.
           </div>
           <div className="space-y-2">
             <button
               type="button"
               onClick={onContinue}
-              className="w-full px-4 py-2.5 rounded-xl text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 transition-all cursor-pointer"
+              className="w-full px-4 py-2.5 rounded-xl text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 transition-colors cursor-pointer"
             >
               Continue
             </button>
             <button
               type="button"
               onClick={onCancel}
-              className="w-full px-4 py-2 rounded-xl text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
+              className="w-full px-4 py-2 rounded-xl text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
             >
               Cancel
             </button>

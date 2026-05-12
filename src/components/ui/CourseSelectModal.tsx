@@ -181,7 +181,7 @@ export default function CourseSelectModal<T extends string | number>({
                             <div
                               className="w-4 h-4 rounded shrink-0 flex items-center justify-center transition-all duration-150"
                               style={{
-                                backgroundColor: checked ? (group.color || "#3b82f6") : "transparent",
+                                backgroundColor: checked ? (group.color || "#0e89d6") : "transparent",
                                 border: checked ? "none" : "1.5px solid var(--input-border)",
                               }}
                             >
@@ -215,7 +215,7 @@ export default function CourseSelectModal<T extends string | number>({
                     <div
                       className="w-4 h-4 rounded shrink-0 flex items-center justify-center transition-all duration-150"
                       style={{
-                        backgroundColor: checked ? "#3b82f6" : "transparent",
+                        backgroundColor: checked ? "#0e89d6" : "transparent",
                         border: checked ? "none" : "1.5px solid var(--input-border)",
                       }}
                     >

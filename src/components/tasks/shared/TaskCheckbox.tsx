@@ -33,8 +33,10 @@ export default function TaskCheckbox({
   size = "sm",
 }: TaskCheckboxProps) {
   const isLg = size === "lg";
-  const sizeClass = isLg ? "w-5 h-5" : "w-3.5 h-3.5";
-  const borderWidth = isLg ? "1.5px" : "1px";
+  const sizeClass = isLg ? "w-5 h-5" : "w-4 h-4";
+  // Thicker borders so the squircle reads more clearly at small sizes —
+  // small bumped from 1px → 1.75px, large from 1.5px → 2px.
+  const borderWidth = isLg ? "2px" : "1.75px";
   const svgWidth = isLg ? 10 : 8;
   const svgHeight = isLg ? 8 : 6;
   const strokeWidth = isLg ? 2 : 1.5;
@@ -45,7 +47,7 @@ export default function TaskCheckbox({
         e.stopPropagation();
         onToggle();
       }}
-      className={`group/check flex-shrink-0 ${sizeClass} rounded-full flex items-center justify-center transition-all cursor-pointer ${
+      className={`group/check flex-shrink-0 ${sizeClass} rounded-[4px] flex items-center justify-center transition-all cursor-pointer ${
         isLg ? "mt-1" : ""
       }`}
       style={{

@@ -96,17 +96,19 @@ function TaskItemImpl({ task, isSelected, onToggle, onSelect, onDelete }: TaskIt
   return (
     <>
       <div
-        className={`group flex items-center gap-2 px-3 h-10 mx-1 md:gap-3 md:px-6 md:mx-2 rounded-xl transition-colors duration-100 cursor-pointer ${
+        className={`group relative flex items-center gap-2 px-2.5 py-3.5 mb-2 md:gap-3 md:px-3 md:py-4 rounded-xl transition-all duration-100 cursor-pointer bg-white dark:bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-md ${
           isSelected
-            ? "bg-black/5 dark:bg-muted/60"
-            : "hover:bg-accent"
+            ? "border-2 border-[#0e89d6] shadow-[0_2px_8px_rgba(14,137,214,0.15)]"
+            : "border border-border"
         } ${task.is_completed ? "opacity-60" : ""} ${isOptimistic ? "animate-task-slide-in" : ""}`}
-        onClick={(e) => onSelect(task, e.currentTarget.getBoundingClientRect())}
+        onClick={(e) => { e.stopPropagation(); onSelect(task, e.currentTarget.getBoundingClientRect()); }}
         onContextMenu={handleContextMenu}
       >
-        {/* Checkbox */}
+        {/* Checkbox — always shown, hardcoded to #0e89d6 so every task
+            squircle is the same uniform blue (instead of varying by the
+            per-task color). */}
         <TaskCheckbox
-          color={taskColor}
+          color="#0e89d6"
           isCompleted={task.is_completed}
           onToggle={() => onToggle(task.id)}
           size="sm"
@@ -115,8 +117,8 @@ function TaskItemImpl({ task, isSelected, onToggle, onSelect, onDelete }: TaskIt
         {/* Title + tags */}
         <div className="flex-1 min-w-0 flex items-center gap-1.5">
           <span
-            className={`truncate text-sm ${
-              task.is_completed ? "text-muted-foreground" : "text-foreground"
+            className={`truncate text-sm font-semibold ${
+              task.is_completed ? "text-muted-foreground line-through" : "text-foreground"
             }`}
           >
             {task.title}
@@ -133,26 +135,24 @@ function TaskItemImpl({ task, isSelected, onToggle, onSelect, onDelete }: TaskIt
           <Repeat size={12} className="text-purple-400 shrink-0" />
         )}
 
-        {/* Due time and date */}
+        {/* Due time and date — pill, matches the board view styling. Bg
+            tint is derived from the badge text color via color-mix so it
+            tracks the urgency hue (red overdue, blue upcoming, etc.). */}
         {dueBadge && (
-          <span className={`text-[11px] shrink-0 font-normal ${dueBadge.className}`}>
+          <span
+            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] shrink-0 font-semibold ml-auto ${dueBadge.className}`}
+            style={{ backgroundColor: "color-mix(in srgb, currentColor 14%, transparent)" }}
+          >
             {dueBadge.timeLabel && (
-              <span className="text-muted-foreground opacity-60">{dueBadge.timeLabel} </span>
+              <span className="opacity-60 mr-1">{dueBadge.timeLabel}</span>
             )}
             {dueBadge.dateLabel}
           </span>
         )}
 
-        {/* Three-dots menu button */}
-        <button
-          ref={menuBtnRef}
-          type="button"
-          onClick={handleDotsClick}
-          className="shrink-0 -mr-2 p-1.5 md:p-0.5 rounded text-subtle-foreground md:opacity-0 md:group-hover:opacity-100 hover:text-foreground hover:bg-accent transition-all"
-          aria-label="Task options"
-        >
-          <MoreVertical size={14} />
-        </button>
+        {/* Three-dots menu button removed — right-click still opens the
+            context menu (handleContextMenu on the row) and tasks can be
+            deleted from the detail panel. */}
       </div>
 
       {/* Context menu (from right-click or three-dots) */}

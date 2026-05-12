@@ -59,7 +59,7 @@ const QUOTES: QuoteEntry[] = [
 
 export default function QuoteWidget({ config, onUpdateConfig }: QuoteWidgetProps) {
   const category = config?.quoteCategory || "all";
-  const accentColor = config?.accentColor || "#007AFF";
+  const accentColor = config?.accentColor || "#0e89d6";
   const customText = config?.customText || "";
   const customAuthor = config?.customAuthor || "";
   const isCustom = !!customText;
