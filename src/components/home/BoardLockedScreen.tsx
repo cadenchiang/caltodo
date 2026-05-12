@@ -8,15 +8,16 @@ import UpgradeModal from "@/components/ui/UpgradeModal";
 /**
  * Lock state for /app/home when the user doesn't have Premium.
  *
- * The background uses the same compressed board screenshot as the card,
- * served via next/image with priority + CSS blur. This renders instantly
- * (no waiting on localStorage hydration of the real <HomeBoard />), which
- * matters for the perceived-instant nav the user wants. Two modes:
+ * Two background layers crossfade based on the `dismissed` state:
  *
- *   A) Default — blurred preview behind a compact card that explains the
- *      gate and offers Upgrade Now. X dismisses to mode B.
- *   B) Dismissed — preview renders sharp with a "Premium only" pill
- *      anchored to the bottom of the viewport via fixed positioning.
+ *   A) Default — `app-screenshot-board-preview-bg.jpg`, a pre-blurred 2× RGB
+ *      JPEG (clean frosted-glass; bypasses palette banding that CSS blur
+ *      reveals when applied to the indexed source PNG).
+ *   B) Dismissed — the sharp original PNG so the user can actually see what
+ *      they're missing.
+ *
+ * Both layers paint at priority so there's no hydration wait — same instant
+ * paint as before, just cleaner.
  */
 export default function BoardLockedScreen() {
   const [dismissed, setDismissed] = useState(false);
@@ -29,12 +30,28 @@ export default function BoardLockedScreen() {
     // of the content box, so the margins would only shift the box (leaving
     // a gap on the right) instead of widening it.
     <div className="relative h-full overflow-hidden -mx-4 md:-mx-10 -mt-4 md:-mt-10 -mb-4 md:-mb-10">
-      {/* Background preview. Static image + CSS blur so it paints on the
-          very first render — no hydration wait. */}
+      {/* Default (blurred) layer — clean RGB pre-blurred JPEG. */}
       <div
         aria-hidden
-        className={`absolute inset-0 pointer-events-none select-none transition-[filter,transform] duration-300 ${
-          !dismissed ? "blur-md scale-[1.02]" : "blur-0 scale-100"
+        className={`absolute inset-0 pointer-events-none select-none transition-opacity duration-300 ${
+          dismissed ? "opacity-0" : "opacity-100"
+        }`}
+      >
+        <Image
+          src="/app-screenshot-board-preview-bg.jpg"
+          alt=""
+          fill
+          sizes="100vw"
+          className="object-cover object-top"
+          priority
+        />
+      </div>
+
+      {/* Dismissed (sharp) layer — original PNG. */}
+      <div
+        aria-hidden
+        className={`absolute inset-0 pointer-events-none select-none transition-opacity duration-300 ${
+          dismissed ? "opacity-100" : "opacity-0"
         }`}
       >
         <Image

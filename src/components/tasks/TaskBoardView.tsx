@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDown, GripVertical, MoreVertical, Palette, Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { ChevronDown, MoreVertical, Palette, Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
 import {
   DndContext,
   DragOverlay,
@@ -93,6 +93,48 @@ function saveColumnOrder(order: string[]): void {
 
 /** Default column name for tasks without a course_name. */
 const GENERAL_COLUMN = "General";
+
+/**
+ * Notion-style soft-tinted column accents. Each column gets a deterministic
+ * dot + tinted background pill based on a stable hash of its name. We use a
+ * small fixed palette so colors feel curated rather than random.
+ *
+ * Date buckets get fixed colors that read as a chronological gradient
+ * (purple → amber → blue → green) to match common Kanban status palettes.
+ */
+const COLUMN_PALETTE: Array<{ dot: string; bg: string; subtle: string; text: string }> = [
+  { dot: "#A78BFA", bg: "rgba(167,139,250,0.16)", subtle: "rgba(167,139,250,0.03)", text: "#7C3AED" }, // violet
+  { dot: "#F59E0B", bg: "rgba(245,158,11,0.16)",  subtle: "rgba(245,158,11,0.03)",  text: "#B45309" }, // amber
+  { dot: "#3B82F6", bg: "rgba(59,130,246,0.16)",  subtle: "rgba(59,130,246,0.03)",  text: "#1D4ED8" }, // blue
+  { dot: "#10B981", bg: "rgba(16,185,129,0.16)",  subtle: "rgba(16,185,129,0.03)",  text: "#047857" }, // green
+  { dot: "#EC4899", bg: "rgba(236,72,153,0.16)",  subtle: "rgba(236,72,153,0.03)",  text: "#BE185D" }, // pink
+  { dot: "#06B6D4", bg: "rgba(6,182,212,0.16)",   subtle: "rgba(6,182,212,0.03)",   text: "#0E7490" }, // cyan
+  { dot: "#F97316", bg: "rgba(249,115,22,0.16)",  subtle: "rgba(249,115,22,0.03)",  text: "#C2410C" }, // orange
+];
+const NEUTRAL_ACCENT = { dot: "#9CA3AF", bg: "rgba(156,163,175,0.16)", subtle: "rgba(156,163,175,0.03)", text: "#374151" };
+
+/**
+ * Returns the column accent for a given column name. Date-bucket names get
+ * fixed slots in the palette; everything else (class names, "General") gets
+ * a hashed slot so repeat-renders produce the same color.
+ *
+ * @param name - The column's canonical key (course code, bucket name, etc.)
+ */
+function getColumnAccent(name: string): { dot: string; bg: string; subtle: string; text: string } {
+  if (name === GENERAL_COLUMN) return NEUTRAL_ACCENT;
+  // Pin the four date buckets so they read as a status gradient.
+  if (name === "Today") return COLUMN_PALETTE[0];
+  if (name === "Next 3 Days") return COLUMN_PALETTE[1];
+  if (name === "Next 7 Days") return COLUMN_PALETTE[2];
+  if (name === "Later") return COLUMN_PALETTE[3];
+  // Deterministic FNV-1a-ish hash → palette index.
+  let h = 2166136261;
+  for (let i = 0; i < name.length; i++) {
+    h ^= name.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return COLUMN_PALETTE[Math.abs(h) % COLUMN_PALETTE.length];
+}
 
 interface TaskBoardViewProps {
   tasks: Task[];
@@ -435,14 +477,14 @@ export default function TaskBoardView({
       autoScroll={{ threshold: { x: 0.15, y: 0.15 }, interval: 5 }}
     >
       <SortableContext items={columnIds} strategy={horizontalListSortingStrategy}>
-        <div className="flex overflow-x-auto gap-6 px-6 pb-6 h-full">
+        <div className="flex overflow-x-auto gap-4 px-4 pb-6 h-full">
           {[...columns.entries()].map(([columnName, columnTasks]) => (
             <SortableColumn key={columnName} id={columnName}>
               {({ setNodeRef, style, attributes, listeners }) => (
                 <div
                   ref={setNodeRef}
                   style={style}
-                  className="min-w-[280px] max-w-[320px] flex-shrink-0"
+                  className="w-[280px] flex-shrink-0"
                   {...attributes}
                 >
                   <BoardColumn
@@ -473,7 +515,7 @@ export default function TaskBoardView({
       {/* Floating drag overlay — follows cursor with subtle shadow */}
       <DragOverlay dropAnimation={{ duration: 200, easing: "ease" }}>
         {activeId && activeColumnTasks && (
-          <div className="min-w-[280px] max-w-[320px] opacity-95 shadow-2xl cursor-grabbing" style={{ willChange: "transform" }}>
+          <div className="w-[280px] opacity-95 shadow-2xl cursor-grabbing" style={{ willChange: "transform" }}>
             <BoardColumn
               name={activeId}
               displayName={isDateMode ? activeId : (aliases.get(activeId) || activeId)}
@@ -543,7 +585,10 @@ function BoardColumn({
   onDeleteClass,
 }: BoardColumnProps) {
   const BOARD_ITEMS_LIMIT = 5;
-  const [completedExpanded, setCompletedExpanded] = useState(true);
+  // Completed section starts collapsed by default. The hydrate effect below
+  // re-opens it only if the user previously expanded it for this column —
+  // saved state under `caltodo_board_completed_${name}` ("true" = expanded).
+  const [completedExpanded, setCompletedExpanded] = useState(false);
   const [showAllActive, setShowAllActive] = useState(false);
   const [showAllCompleted, setShowAllCompleted] = useState(false);
 
@@ -562,12 +607,14 @@ function BoardColumn({
     return maxColor;
   }, [tasks]);
 
-  // Hydrate collapsed state from localStorage after mount
+  // Hydrate expanded state from localStorage after mount. We now store
+  // "true" only when the user has explicitly expanded the section for this
+  // column, so the default-collapsed state needs no entry.
   useEffect(() => {
     try {
       const key = `caltodo_board_completed_${name}`;
       const saved = localStorage.getItem(key);
-      if (saved === "false") setCompletedExpanded(false);
+      if (saved === "true") setCompletedExpanded(true);
     } catch { /* ignore */ }
   }, [name]);
   const [showMenu, setShowMenu] = useState(false);
@@ -629,56 +676,85 @@ function BoardColumn({
     };
   }, [tasks]);
 
+  // Column accent — soft tinted pill + colored dot, picked deterministically
+  // from the column name so each class keeps its color across renders. Only
+  // applies to class-grouped columns; date buckets use a neutral palette.
+  const accent = getColumnAccent(name);
+
+  // The whole column wrapper is the drag handle now — listeners go on the
+  // root div. PointerSensor's 5px activation distance still keeps task-card
+  // clicks and the title-pill click from being interpreted as drags.
+  const wrapperListeners = (showDragHandle && dragHandleListeners ? dragHandleListeners : {}) as Record<string, (e: React.PointerEvent) => void>;
+
   return (
-    <div className="flex flex-col h-full">
-      {/* Column header — plain text, not in a box */}
-      <div className="px-1 pb-3 flex items-center justify-between">
+    <div
+      // Spread listeners first so the explicit `style` below wins over any
+      // style coming from dnd-kit (we previously had touchAction collide
+      // with backgroundColor, wiping out the column tint entirely).
+      {...wrapperListeners}
+      // Column stretches to fill the board height so the Completed section
+      // can pin to the bottom (active tasks at the top, gap in between).
+      className={`flex flex-col h-full min-h-[200px] rounded-2xl border border-border/60 px-2 pt-2 pb-2 ${
+        showDragHandle ? "cursor-grab active:cursor-grabbing" : ""
+      }`}
+      style={{
+        backgroundColor: accent.subtle,
+        touchAction: showDragHandle ? "none" : undefined,
+      }}
+    >
+      <div className="px-0.5 pb-2 flex items-center justify-between">
         <div className="flex items-center gap-2 min-w-0">
-          {showDragHandle && (
-            <div
-              className="flex-shrink-0 cursor-grab active:cursor-grabbing touch-none text-muted-foreground/40 hover:text-muted-foreground transition-colors"
-              title="Drag to reorder"
-              {...dragHandleListeners}
-            >
-              <GripVertical size={14} />
-            </div>
-          )}
+          {/* Title pill — clicking the pill opens the column options menu
+              (replaces the three-dot button). When editing the title, the
+              input replaces the label inline. */}
           {editing ? (
-            <input
-              ref={editInputRef}
-              value={editValue}
-              onChange={(e) => setEditValue(e.target.value)}
-              onBlur={commitRename}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") commitRename();
-                if (e.key === "Escape") { setEditValue(displayName); setEditing(false); }
-              }}
-              className="text-sm font-semibold text-foreground bg-transparent border-b border-blue-500 outline-none min-w-0 py-0"
-            />
-          ) : (
-            <span className="text-sm font-semibold text-foreground truncate">{displayName}</span>
-          )}
-          <span className="text-xs text-muted-foreground shrink-0">{active.length}</span>
-        </div>
-        {!hideMenu && (
-          <div className="flex items-center shrink-0">
-            <button
-              onClick={() => setShowAddForm(!showAddForm)}
-              className="p-1 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors"
-              title="Add task"
+            <div
+              className="flex items-center gap-1.5 pl-1.5 pr-2.5 py-0.5 rounded-full min-w-0"
+              style={{ backgroundColor: accent.bg }}
             >
-              <Plus size={14} />
-            </button>
+              <span
+                className="w-2.5 h-2.5 rounded-full shrink-0"
+                style={{ backgroundColor: accent.text }}
+              />
+              <input
+                ref={editInputRef}
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                onBlur={commitRename}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") commitRename();
+                  if (e.key === "Escape") { setEditValue(displayName); setEditing(false); }
+                }}
+                onPointerDown={(e) => e.stopPropagation()}
+                className="text-sm font-semibold text-foreground bg-transparent border-b border-blue-500 outline-none min-w-0 py-0"
+              />
+            </div>
+          ) : (
             <button
               ref={menuBtnRef}
-              onClick={() => setShowMenu(!showMenu)}
-              className="p-1 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors"
-              title="Column options"
+              type="button"
+              onClick={() => !hideMenu && setShowMenu(!showMenu)}
+              disabled={hideMenu}
+              className="flex items-center gap-1.5 pl-1.5 pr-2.5 py-0.5 rounded-full min-w-0 hover:brightness-95 dark:hover:brightness-110 transition-all disabled:cursor-default cursor-pointer"
+              style={{ backgroundColor: accent.bg }}
+              title={hideMenu ? undefined : "Column options"}
             >
-              <MoreVertical size={14} />
+              <span
+                className="w-2.5 h-2.5 rounded-full shrink-0"
+                style={{ backgroundColor: accent.text }}
+              />
+              <span className="text-sm font-semibold text-foreground truncate">
+                {displayName}
+              </span>
             </button>
-          </div>
-        )}
+          )}
+          <span
+            className="text-sm font-semibold shrink-0"
+            style={{ color: accent.text }}
+          >
+            {active.length}
+          </span>
+        </div>
         {showMenu && menuBtnRef.current && createPortal(
           <div
             ref={menuDropdownRef}
@@ -796,8 +872,10 @@ function BoardColumn({
         }}
       />
 
-      {/* Scrollable card area */}
-      <div className="flex-1 overflow-y-auto flex flex-col gap-2">
+      {/* Card area — flex-1 so the Completed section can pin to the bottom
+          via mt-auto, leaving empty space above it when the active list is
+          short. */}
+      <div className="flex-1 flex flex-col gap-2">
         {/* Active task cards */}
         {(showAllActive ? active : active.slice(0, BOARD_ITEMS_LIMIT)).map((task) => (
           <TaskCard
@@ -818,41 +896,64 @@ function BoardColumn({
           </button>
         )}
 
-        {active.length === 0 && completed.length === 0 && (
-          hideMenu ? (
-            <div className="rounded-xl border border-dashed border-border/50 py-8 flex items-center justify-center">
-              <span className="text-xs text-muted-foreground">No tasks</span>
-            </div>
-          ) : (
-            <div
-              className="rounded-xl bg-muted/50 dark:bg-muted/30 min-h-[200px]"
-              style={{
-                maskImage: "linear-gradient(to bottom, black 30%, transparent 100%)",
-                WebkitMaskImage: "linear-gradient(to bottom, black 30%, transparent 100%)",
-              }}
-            />
-          )
+        {/* "+ New task" — always visible (when the column accepts new tasks),
+            sits below the active list. Outline-only and super subtle so it
+            reads as a quiet add-affordance rather than a CTA. Drag listeners
+            on the parent shouldn't pick this up because clicks don't move. */}
+        {!hideMenu && (
+          <button
+            type="button"
+            onClick={() => setShowAddForm(true)}
+            onPointerDown={(e) => e.stopPropagation()}
+            aria-label="Add task"
+            title="Add task"
+            // "+ New task" — + on the left, label to its right, vertically
+            // centered. Faded by default, lights up on hover. Border picks
+            // up the title-pill tint so it reads as part of the column's
+            // color family.
+            className="w-full flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-opacity cursor-pointer bg-transparent hover:bg-accent/40 opacity-60 hover:opacity-100"
+            style={{ color: accent.text, border: `1px solid ${accent.bg}` }}
+          >
+            <Plus size={16} strokeWidth={2.5} className="shrink-0" />
+            <span>New task</span>
+          </button>
         )}
 
-        {/* Completed section — expanded by default */}
+        {/* Truly empty + columns where adding is disabled get a neutral
+            "No tasks" hint instead of the add button above. */}
+        {hideMenu && active.length === 0 && completed.length === 0 && (
+          <div className="rounded-xl border border-dashed border-border/40 py-6 flex items-center justify-center">
+            <span className="text-xs text-muted-foreground">No tasks</span>
+          </div>
+        )}
+
+        {/* Completed section — always pinned to the bottom of the column
+            via mt-auto. The flex-1 spacer on the cards-area parent
+            absorbs the gap between active tasks and Completed regardless
+            of whether the section is expanded. */}
         {completed.length > 0 && (
-          <div className="mt-2">
+          <div className="mt-auto pt-2">
             <button
               onClick={() => {
                 const next = !completedExpanded;
                 setCompletedExpanded(next);
                 try { localStorage.setItem(`caltodo_board_completed_${name}`, String(next)); } catch { /* ignore */ }
               }}
-              className="flex items-center gap-1 px-1 py-1.5 w-full text-left"
+              className={`flex items-center gap-1 px-1 py-1.5 w-full text-left transition-opacity hover:opacity-100 ${
+                completedExpanded ? "opacity-60" : "opacity-100"
+              }`}
             >
               <ChevronDown
                 size={14}
-                className={`shrink-0 text-muted-foreground transition-transform duration-200 ${
+                className={`shrink-0 transition-transform duration-200 ${
                   completedExpanded ? "" : "-rotate-90"
                 }`}
+                style={{ color: accent.text }}
               />
-              <span className="text-sm font-semibold text-foreground">Completed</span>
-              <span className="text-xs text-muted-foreground ml-1">{completed.length}</span>
+              <span className="text-sm font-semibold" style={{ color: accent.text }}>Completed</span>
+              <span className="text-sm font-semibold ml-1" style={{ color: accent.text }}>
+                {completed.length}
+              </span>
             </button>
             {completedExpanded && (
               <div className="flex flex-col gap-2 mt-1">

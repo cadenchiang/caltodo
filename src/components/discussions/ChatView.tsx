@@ -151,6 +151,8 @@ export default function ChatView({
 
   // Auto-scroll when content height grows (e.g. images loading, typing indicator)
   // while locked to bottom. Uses smooth scroll for a subtle feel.
+  // Observe the scroll container once (empty deps) — observing all children
+  // and recreating on every messages.length change wasted observers and CPU.
   const prevScrollHeightRef = useRef(0);
   useEffect(() => {
     const el = scrollRef.current;
@@ -164,13 +166,9 @@ export default function ChatView({
       prevScrollHeightRef.current = newHeight;
     });
 
-    // Observe all children so images, typing indicator, etc. trigger re-check
-    for (const child of Array.from(el.children)) {
-      observer.observe(child);
-    }
-
+    observer.observe(el);
     return () => observer.disconnect();
-  }, [messages.length]);
+  }, []);
 
   // Dynamically size the bottom padding to match the bottom bar's actual height.
   // Adapts automatically when the input grows (multi-line, attachments, reply bar).
@@ -367,6 +365,30 @@ export default function ChatView({
   }, [checkNearBottom, hasMore, onLoadMore]);
 
   /**
+   * O(1) lookup map for reply targets. Replaces an O(N) messages.find() that
+   * ran once per rendered bubble — turning every message-list render into
+   * O(N²). Built once per messages array reference.
+   */
+  const messagesById = useMemo(() => {
+    const map = new Map<string, ChatMessage>();
+    for (const m of messages) map.set(m.id, m);
+    return map;
+  }, [messages]);
+
+  /**
+   * Stable handler the memoized MessageBubble can receive without breaking
+   * memo equality. MessageBubble passes (messageId, emoji) — we close over
+   * currentUserId here so the bubble's prop reference stays stable across
+   * renders that don't change toggle dependencies.
+   */
+  const handleToggleReactionStable = useCallback(
+    (messageId: string, emoji: string) => {
+      onToggleReaction?.(messageId, emoji, currentUserId);
+    },
+    [onToggleReaction, currentUserId],
+  );
+
+  /**
    * Maps anonymous author_id → sequential number (order of first appearance).
    * Only includes authors who sent at least one anonymous message.
    */
@@ -418,71 +440,69 @@ export default function ChatView({
   }, [messages]);
 
   /**
-   * Pre-computes layout data for each message:
-   * - showTimestamp: whether to show a centered timestamp before this message
-   * - showAuthor: whether to show the author name/avatar
-   * - isLastInGroup: whether this is the last message before a visual break
-   * - isLastMessage: whether this is the very last non-system message
+   * Pre-computes layout data for each message in O(N):
+   *  - showTimestamp / showAuthor — derived from a single forward pass that
+   *    tracks the previous non-system message.
+   *  - isLastInGroup — derived from a single backward pass that tracks the
+   *    next non-system message.
+   *  - isLastMessage — the last non-system index, recorded during the back pass.
+   *
+   * The previous version did nested scans per message (O(N²)) and called
+   * `new Date(...)` four times per pair, which became noticeable after the
+   * user loaded older messages via loadMore.
    */
   const messageLayout = useMemo(() => {
+    const n = displayMessages.length;
     const layout: Array<{
       showTimestamp: boolean;
       showAuthor: boolean;
       isLastInGroup: boolean;
       isLastMessage: boolean;
-    }> = [];
+    }> = new Array(n);
 
-    // Find index of last non-system message
-    let lastNonSystemIdx = -1;
-    for (let i = displayMessages.length - 1; i >= 0; i--) {
-      if (!displayMessages[i]._systemText) { lastNonSystemIdx = i; break; }
+    // Cache parsed timestamps so we never construct the same Date twice.
+    const times = new Array<number>(n);
+    for (let i = 0; i < n; i++) {
+      times[i] = displayMessages[i]._systemText
+        ? 0
+        : Date.parse(displayMessages[i].created_at);
     }
 
-    for (let i = 0; i < displayMessages.length; i++) {
+    // Forward pass: showTimestamp + showAuthor (need prev non-system message).
+    let prevIdx = -1;
+    for (let i = 0; i < n; i++) {
       const msg = displayMessages[i];
-
-      // System events get default layout (not rendered via MessageBubble)
       if (msg._systemText) {
-        layout.push({ showTimestamp: false, showAuthor: false, isLastInGroup: false, isLastMessage: false });
+        layout[i] = { showTimestamp: false, showAuthor: false, isLastInGroup: false, isLastMessage: false };
         continue;
       }
-
-      // Find previous non-system message
-      let prevNS: ChatMessage | null = null;
-      for (let j = i - 1; j >= 0; j--) {
-        if (!displayMessages[j]._systemText) { prevNS = displayMessages[j]; break; }
-      }
-
-      // Find next non-system message
-      let nextNS: ChatMessage | null = null;
-      for (let j = i + 1; j < displayMessages.length; j++) {
-        if (!displayMessages[j]._systemText) { nextNS = displayMessages[j]; break; }
-      }
-
-      // Show timestamp if: first message, different day, or gap >= 15 min
-      const dayChanged = !prevNS || !sameDay(prevNS.created_at, msg.created_at);
-      const timeGap = prevNS
-        ? new Date(msg.created_at).getTime() - new Date(prevNS.created_at).getTime()
-        : Infinity;
+      const prev = prevIdx >= 0 ? displayMessages[prevIdx] : null;
+      const dayChanged = !prev || !sameDay(prev.created_at, msg.created_at);
+      const timeGap = prev ? times[i] - times[prevIdx] : Infinity;
       const showTimestamp = dayChanged || timeGap >= TIMESTAMP_GAP;
+      const showAuthor = !prev || showTimestamp || prev.author_id !== msg.author_id;
+      layout[i] = { showTimestamp, showAuthor, isLastInGroup: false, isLastMessage: false };
+      prevIdx = i;
+    }
 
-      // Show author if: timestamp break or different author
-      const showAuthor = !prevNS || showTimestamp || prevNS.author_id !== msg.author_id;
-
-      // Last in group if: no next message, next has timestamp, or different author
-      const nextDayChanged = !nextNS || !sameDay(msg.created_at, nextNS.created_at);
-      const nextTimeGap = nextNS
-        ? new Date(nextNS.created_at).getTime() - new Date(msg.created_at).getTime()
-        : Infinity;
+    // Backward pass: isLastInGroup + isLastMessage (need next non-system message).
+    let nextIdx = -1;
+    let lastNonSystemIdx = -1;
+    for (let i = n - 1; i >= 0; i--) {
+      const msg = displayMessages[i];
+      if (msg._systemText) continue;
+      if (lastNonSystemIdx === -1) lastNonSystemIdx = i;
+      const next = nextIdx >= 0 ? displayMessages[nextIdx] : null;
+      const nextDayChanged = !next || !sameDay(msg.created_at, next.created_at);
+      const nextTimeGap = next ? times[nextIdx] - times[i] : Infinity;
       const nextHasTimestamp = nextDayChanged || nextTimeGap >= TIMESTAMP_GAP;
-      const isLastInGroup = !nextNS || nextHasTimestamp || nextNS.author_id !== msg.author_id;
-
-      layout.push({
-        showTimestamp,
-        showAuthor,
+      const isLastInGroup = !next || nextHasTimestamp || next.author_id !== msg.author_id;
+      layout[i] = {
+        ...layout[i],
         isLastInGroup,
         isLastMessage: i === lastNonSystemIdx,
-      });
+      };
+      nextIdx = i;
     }
 
     return layout;
@@ -564,7 +584,17 @@ export default function ChatView({
           const isOwn = msg.author_id === currentUserId;
 
           return (
-            <div key={msg.id} id={`msg-${msg.id}`} className="transition-colors duration-500 rounded-lg">
+            <div
+              key={msg.id}
+              id={`msg-${msg.id}`}
+              className="transition-colors duration-500 rounded-lg"
+              // content-visibility lets the browser skip layout + paint for
+              // off-screen bubbles (the closest CSS-native equivalent to the
+              // cell-reuse pattern iMessage gets from UICollectionView).
+              // containIntrinsicSize reserves vertical space so scrollbar
+              // height stays correct before a bubble has been painted.
+              style={{ contentVisibility: "auto", containIntrinsicSize: "auto 60px" }}
+            >
               {showTimestamp && <DateSeparator date={msg.created_at} />}
               <MessageBubble
                 message={msg}
@@ -578,11 +608,11 @@ export default function ChatView({
                 isAdmin={isAdmin}
                 revealedIdentity={revealedIdentities.get(msg.author_id)}
                 onRevealIdentity={onRevealIdentity}
-                replyTo={msg.reply_to_id ? messages.find((m) => m.id === msg.reply_to_id) ?? null : null}
+                replyTo={msg.reply_to_id ? messagesById.get(msg.reply_to_id) ?? null : null}
                 onDelete={isOwn ? handleUnsendRequest : undefined}
                 onReport={!isOwn ? handleReport : undefined}
                 onReply={setReplyTarget}
-                onToggleReaction={onToggleReaction ? (emoji) => onToggleReaction(msg.id, emoji, currentUserId) : undefined}
+                onToggleReaction={onToggleReaction ? handleToggleReactionStable : undefined}
                 onViewReactions={handleViewReactions}
                 onScrollToMessage={scrollToMessage}
               />

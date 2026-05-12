@@ -1,13 +1,19 @@
-import { LayoutGrid, Inbox, CalendarDays, Users } from "lucide-react";
+import { LayoutGrid, Inbox, CalendarDays, NotebookPen, Users } from "lucide-react";
 
 /**
  * Navigation items for the sidebar.
  * Settings is accessed via the profile popup only.
+ *
+ * The "Notes" item is filtered out of the visible nav by the Sidebar for
+ * users who have never created a note (see useUserHasNotes). Returning
+ * users with existing notes still see it. The route itself is always
+ * reachable by URL so deep-links don't break.
  */
 export const NAV_ITEMS = [
   { label: "Home", href: "/app/home", icon: LayoutGrid },
   { label: "Inbox", href: "/app/inbox", icon: Inbox },
   { label: "Calendar", href: "/app/calendar", icon: CalendarDays },
+  { label: "Notes", href: "/app/notes", icon: NotebookPen },
   { label: "Chat", href: "/app/discussions", icon: Users },
 ] as const;
 

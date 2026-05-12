@@ -8,7 +8,6 @@ import { useTaskContext } from "@/contexts/TaskContext";
 import { expandRepeatingTasks, getRealTaskId } from "@/lib/expand-repeating-tasks";
 import TaskList from "@/components/tasks/TaskList";
 import TaskBoardView from "@/components/tasks/TaskBoardView";
-import CourseGridView from "@/components/courses/CourseGridView";
 import TaskDetailPanel from "@/components/tasks/TaskDetailPanel";
 import TaskCreateModal from "@/components/tasks/TaskCreateModal";
 import TaskPreviewPopover from "@/components/tasks/TaskPreviewPopover";
@@ -19,7 +18,7 @@ import { usePendingInvites } from "@/hooks/usePendingInvites";
 import { trackEvent } from "@/lib/analytics";
 
 type InboxFilter = "all" | "today" | "7days";
-type ViewMode = "list" | "board" | "courses";
+type ViewMode = "list" | "board";
 
 const FILTER_OPTIONS: { key: InboxFilter; label: string; icon: React.ComponentType<{ size?: number; className?: string }> }[] = [
   { key: "all", label: "Inbox", icon: Inbox },
@@ -241,7 +240,11 @@ export default function InboxPage() {
   const filterDropdownRef = useRef<HTMLDivElement>(null);
   /** Guards persist effects from running on mount (which would overwrite hydrated values). */
   const hydratedRef = useRef(false);
-  const [viewMode, setViewMode] = useState<ViewMode>("list");
+  // New users default to the Board view ("list" was the old default).
+  // Once the user has explicitly picked anything we persist it under
+  // "inbox-view-mode" and respect that on hydrate below — so existing users
+  // keep whatever they last selected.
+  const [viewMode, setViewMode] = useState<ViewMode>("board");
   const [showViewMenu, setShowViewMenu] = useState(false);
   const viewMenuRef = useRef<HTMLButtonElement>(null);
   const viewMenuDropdownRef = useRef<HTMLDivElement>(null);
@@ -773,18 +776,6 @@ export default function InboxPage() {
                     <LayoutGrid size={14} />
                     Board
                   </button>
-                  <button
-                    onClick={() => { trackEvent("view_mode_changed", { mode: "courses" }); setViewMode("courses"); setShowViewMenu(false); }}
-                    className={`flex items-center gap-2 w-full text-left px-3 py-2 text-sm transition-colors ${
-                      viewMode === "courses"
-                        ? "text-foreground font-medium"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                    style={{ backgroundColor: viewMode === "courses" ? "rgba(255,255,255,0.08)" : "transparent" }}
-                  >
-                    <GraduationCap size={14} />
-                    Courses
-                  </button>
                   <div className="border-t border-border my-1" />
                   <button
                     onClick={() => { setShowViewMenu(false); handleSyncClick(); }}
@@ -845,12 +836,6 @@ export default function InboxPage() {
                   pendingInvites={pendingInvites}
                   onRespondInvite={handleRespondInvite}
                   onAcceptAllInvites={handleAcceptAllInvites}
-                />
-              ) : viewMode === "courses" ? (
-                <CourseGridView
-                  tasks={filteredTasks}
-                  courseColors={courseColors}
-                  loading={loading}
                 />
               ) : (
                 <TaskBoardView

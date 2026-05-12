@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { memo, useState, useRef, useEffect } from "react";
 import { EyeOff, MoreVertical, Undo2, Smile, CornerUpLeft, Flag } from "lucide-react";
 import type { ChatMessage } from "@/lib/types";
 import type { ReactionGroup } from "@/hooks/useMessageReactions";
@@ -43,7 +43,8 @@ interface MessageBubbleProps {
   /** Callback to report another user's message. Only shown for non-own messages. */
   onReport?: (messageId: string) => void;
   onReply?: (message: ChatMessage) => void;
-  onToggleReaction?: (emoji: string) => void;
+  /** (messageId, emoji) — keeps the prop reference stable across renders so React.memo works. */
+  onToggleReaction?: (messageId: string, emoji: string) => void;
   /** Callback to open the reactions detail modal for this message. */
   onViewReactions?: (messageId: string) => void;
   /** Callback to scroll to a specific message (for reply quote clicks). */
@@ -99,7 +100,7 @@ function isAnonymous(message: ChatMessage): boolean {
   return !message.author_name;
 }
 
-export default function MessageBubble({
+function MessageBubble({
   message, isOwn, showAuthor, isLastInGroup, isLastMessage,
   anonymousNumber, reactions, currentUserId, isAdmin, revealedIdentity, onRevealIdentity, replyTo, onDelete, onReport, onReply, onToggleReaction, onViewReactions, onScrollToMessage,
 }: MessageBubbleProps) {
@@ -363,7 +364,7 @@ export default function MessageBubble({
                         <button
                           key={emoji}
                           onClick={() => {
-                            onToggleReaction?.(emoji);
+                            onToggleReaction?.(message.id, emoji);
                             setShowReactPicker(false);
                           }}
                           aria-label={`React with ${emoji}`}
@@ -455,3 +456,12 @@ export default function MessageBubble({
     </div>
   );
 }
+
+/**
+ * Memoized so Realtime INSERTs and unrelated state changes don't re-render
+ * every bubble. ChatView passes stable handler refs (handleToggleReactionStable,
+ * handleUnsendRequest, handleReport, etc.) and per-message data via discrete
+ * props, so the default shallow comparison is enough to skip nearly all
+ * re-renders. Cell-reuse equivalent for the web.
+ */
+export default memo(MessageBubble);
