@@ -600,69 +600,37 @@ export default function InboxPage() {
       <div className="flex flex-col md:flex-row -m-4 md:-m-10 h-[calc(100dvh-3rem)] md:h-dvh">
         {/* Left: task list (60%) */}
         <div className="flex flex-col min-w-0 min-h-0" style={{ flex: "3 1 0%" }}>
-          <div className="px-4 pt-4 pb-3 md:px-8 md:pt-8 md:pb-4 flex items-center justify-between animate-stagger stagger-1">
-            {/* Left: title + sync badge grouped together */}
-            <div className="flex items-center gap-2.5 min-w-0">
-              {/* Clickable title = filter selector */}
-              <div id="tour-filter" ref={filterRef} className="relative">
-                <button
-                  onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-                  className="flex items-center gap-2 text-xl font-bold text-foreground hover:opacity-80 transition-opacity"
-                >
-                  {(() => {
-                    const current = FILTER_OPTIONS.find((o) => o.key === filter) ?? FILTER_OPTIONS[0];
-                    const Icon = current.icon;
-                    return (
-                      <>
-                        <Icon size={20} className="text-foreground" />
-                        {current.label}
-                      </>
-                    );
-                  })()}
-                  <ChevronDown size={14} className="text-muted-foreground" />
-                </button>
-                {showFilterDropdown && filterRef.current && createPortal(
-                  <div
-                    id="tour-filter-dropdown"
-                    ref={filterDropdownRef}
-                    className="fixed z-[9999] rounded-xl shadow-2xl border border-border overflow-hidden animate-in min-w-[160px] bg-popover"
-                    style={{
-                      top: filterRef.current.getBoundingClientRect().bottom + 4,
-                      left: filterRef.current.getBoundingClientRect().left,
+          <div className="px-4 pt-7 pb-4 md:px-8 md:pt-10 md:pb-5 flex items-center justify-between animate-stagger stagger-1">
+            {/* Left: List / Board tabs — Notion-style. Active tab gets a
+                soft accent pill; inactive tabs read as plain icon + label.
+                Replaces the previous "Inbox" title and filter dropdown.
+                Negative left margin pulls the first tab flush with the
+                container's left edge — the tab's internal px-3 padding
+                would otherwise push the text inward. */}
+            <div className="flex items-center gap-1 min-w-0 -ml-3">
+              {([
+                { key: "board" as const, label: "Board", icon: LayoutGrid },
+                { key: "list" as const, label: "List", icon: List },
+              ]).map(({ key, label, icon: Icon }) => {
+                const isActive = viewMode === key;
+                return (
+                  <button
+                    key={key}
+                    onClick={() => {
+                      trackEvent("view_mode_changed", { mode: key });
+                      setViewMode(key);
                     }}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold transition-colors ${
+                      isActive
+                        ? "bg-black/[0.05] dark:bg-white/[0.07] text-foreground"
+                        : "text-muted-foreground hover:text-foreground hover:bg-black/[0.03] dark:hover:bg-white/[0.05]"
+                    }`}
                   >
-                    {FILTER_OPTIONS.map(({ key, label, icon: Icon }) => {
-                      const isDisabled = viewMode === "board" && boardGroupBy === "date" && key !== "all";
-                      return (
-                        <button
-                          key={key}
-                          disabled={isDisabled}
-                          onClick={() => {
-                            if (isDisabled) return;
-                            setFilter(key);
-                            setShowFilterDropdown(false);
-                          }}
-                          className={`flex items-center gap-2 w-full text-left px-3 py-2 text-sm transition-colors ${
-                            isDisabled
-                              ? "opacity-40 cursor-not-allowed pointer-events-none"
-                              : filter === key
-                                ? "text-foreground font-medium"
-                                : "text-muted-foreground hover:text-foreground"
-                          }`}
-                          style={{
-                            backgroundColor: !isDisabled && filter === key ? "rgba(255,255,255,0.08)" : "transparent",
-                          }}
-                        >
-                          <Icon size={16} />
-                          {label}
-                        </button>
-                      );
-                    })}
-                  </div>,
-                  document.body
-                )}
-              </div>
-
+                    <Icon size={15} strokeWidth={isActive ? 2.25 : 2} />
+                    {label}
+                  </button>
+                );
+              })}
             </div>
 
             <div className="flex items-center gap-1">

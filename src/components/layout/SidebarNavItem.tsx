@@ -72,7 +72,7 @@ export function navItemClasses(isActive: boolean, _isMiffy?: boolean): string {
   // child can fill the item. We no longer apply `nav-item-active` because
   // the pill paints the background instead — animating between items via
   // framer-motion's shared layoutId.
-  const base = "nav-item relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors";
+  const base = "nav-item relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors";
   if (isActive) {
     return `${base} text-foreground`;
   }

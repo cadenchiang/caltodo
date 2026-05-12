@@ -477,7 +477,18 @@ export default function TaskBoardView({
       autoScroll={{ threshold: { x: 0.15, y: 0.15 }, interval: 5 }}
     >
       <SortableContext items={columnIds} strategy={horizontalListSortingStrategy}>
-        <div className="flex overflow-x-auto gap-4 px-4 pb-6 h-full">
+        <div
+          // Edge mask: columns fade out near the left and right gutters so
+          // scrolled content doesn't slam into the viewport edge. Width of
+          // the fade is ~24px on each side; the middle is fully opaque.
+          className="flex overflow-x-auto gap-4 px-4 pb-6 h-full"
+          style={{
+            maskImage:
+              "linear-gradient(to right, transparent 0, black 24px, black calc(100% - 24px), transparent 100%)",
+            WebkitMaskImage:
+              "linear-gradient(to right, transparent 0, black 24px, black calc(100% - 24px), transparent 100%)",
+          }}
+        >
           {[...columns.entries()].map(([columnName, columnTasks]) => (
             <SortableColumn key={columnName} id={columnName}>
               {({ setNodeRef, style, attributes, listeners }) => (
@@ -692,9 +703,11 @@ function BoardColumn({
       // style coming from dnd-kit (we previously had touchAction collide
       // with backgroundColor, wiping out the column tint entirely).
       {...wrapperListeners}
-      // Column stretches to fill the board height so the Completed section
-      // can pin to the bottom (active tasks at the top, gap in between).
-      className={`flex flex-col h-full min-h-[200px] rounded-2xl border border-border/60 px-2 pt-2 pb-2 ${
+      // Column hugs its content exactly — no h-full, no min-h. Whatever
+      // the header + active list + Completed row need is the column
+      // height. align-self start prevents the parent flex from
+      // stretching us to match a taller neighbor.
+      className={`flex flex-col self-start rounded-2xl border border-border/60 px-2 pt-2 pb-2 ${
         showDragHandle ? "cursor-grab active:cursor-grabbing" : ""
       }`}
       style={{
@@ -872,10 +885,11 @@ function BoardColumn({
         }}
       />
 
-      {/* Card area — flex-1 so the Completed section can pin to the bottom
-          via mt-auto, leaving empty space above it when the active list is
-          short. */}
-      <div className="flex-1 flex flex-col gap-2">
+      {/* Card area — natural height: each section sits directly under the
+          previous one (active list → + New task → Completed). The column
+          wrapper's h-full still provides vertical room when the column is
+          short relative to its neighbors. */}
+      <div className="flex flex-col gap-2">
         {/* Active task cards */}
         {(showAllActive ? active : active.slice(0, BOARD_ITEMS_LIMIT)).map((task) => (
           <TaskCard
@@ -927,12 +941,11 @@ function BoardColumn({
           </div>
         )}
 
-        {/* Completed section — always pinned to the bottom of the column
-            via mt-auto. The flex-1 spacer on the cards-area parent
-            absorbs the gap between active tasks and Completed regardless
-            of whether the section is expanded. */}
+        {/* Completed section — sits naturally under the + New task row
+            (no mt-auto pinning). When expanded it just grows downward
+            with its content. */}
         {completed.length > 0 && (
-          <div className="mt-auto pt-2">
+          <div className="mt-2">
             <button
               onClick={() => {
                 const next = !completedExpanded;
@@ -1053,7 +1066,7 @@ function TaskCard({ task, isSelected, onToggle, onSelect, onDelete }: TaskCardPr
             />
           </div>
           <span
-            className={`text-sm leading-snug flex-1 min-w-0 ${
+            className={`text-sm font-semibold leading-snug flex-1 min-w-0 ${
               isCompleted ? "text-muted-foreground" : "text-foreground"
             }`}
           >
