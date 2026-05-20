@@ -5,10 +5,12 @@
  * @module widget-types
  */
 
-import type { ResponsiveLayouts } from "react-grid-layout";
+import type { LayoutItem, ResponsiveLayouts } from "react-grid-layout";
 
 /** All available widget type identifiers. */
 export type WidgetType =
+  | "profile"
+  | "intro"
   | "tasks-today"
   | "clock"
   | "image"
@@ -67,13 +69,31 @@ export interface WidgetInstance {
 
 /** Registry of all widget types with their constraints and display info. */
 export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
+  profile: {
+    type: "profile",
+    label: "Profile",
+    description: "Avatar, name, and operator status card",
+    iconName: "User",
+    category: "popular",
+    minW: 2, minH: 2, maxW: 4, maxH: 3,
+    defaultW: 2, defaultH: 2,
+  },
+  intro: {
+    type: "intro",
+    label: "Greeting",
+    description: "Good afternoon banner with date + local clock",
+    iconName: "Sunrise",
+    category: "popular",
+    minW: 3, minH: 1, maxW: 8, maxH: 2,
+    defaultW: 4, defaultH: 1,
+  },
   "tasks-today": {
     type: "tasks-today",
     label: "Tasks",
     description: "Your tasks with completion count",
     iconName: "CheckSquare",
     category: "popular",
-    minW: 1, minH: 1, maxW: 4, maxH: 4,
+    minW: 2, minH: 2, maxW: 4, maxH: 4,
     defaultW: 2, defaultH: 2,
   },
   clock: {
@@ -84,6 +104,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     category: "popular",
     minW: 2, minH: 2, maxW: 4, maxH: 3,
     defaultW: 2, defaultH: 2,
+    hidden: true,
   },
   image: {
     type: "image",
@@ -91,7 +112,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     description: "Drag-and-drop image display",
     iconName: "ImageIcon",
     category: "media",
-    minW: 1, minH: 1, maxW: 6, maxH: 4,
+    minW: 2, minH: 2, maxW: 6, maxH: 4,
     defaultW: 2, defaultH: 2,
   },
   "class-progress": {
@@ -100,7 +121,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     description: "Per-course completion bars",
     iconName: "GraduationCap",
     category: "info",
-    minW: 2, minH: 1, maxW: 4, maxH: 4,
+    minW: 2, minH: 2, maxW: 4, maxH: 4,
     defaultW: 2, defaultH: 2,
   },
   "google-calendar": {
@@ -109,7 +130,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     description: "Upcoming events from Google Calendar",
     iconName: "Calendar",
     category: "popular",
-    minW: 1, minH: 1, maxW: 4, maxH: 4,
+    minW: 2, minH: 2, maxW: 4, maxH: 4,
     defaultW: 2, defaultH: 2,
   },
   notes: {
@@ -118,7 +139,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     description: "Quick inline notes",
     iconName: "FileText",
     category: "productivity",
-    minW: 1, minH: 1, maxW: 6, maxH: 4,
+    minW: 2, minH: 2, maxW: 6, maxH: 4,
     defaultW: 2, defaultH: 2,
     hidden: true,
   },
@@ -128,7 +149,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     description: "Current weather and forecast",
     iconName: "CloudSun",
     category: "popular",
-    minW: 1, minH: 1, maxW: 4, maxH: 4,
+    minW: 2, minH: 2, maxW: 4, maxH: 4,
     defaultW: 2, defaultH: 2,
   },
   "cal-chat": {
@@ -137,8 +158,12 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     description: "Recent messages from Cal Chat",
     iconName: "MessagesSquare",
     category: "social",
-    minW: 1, minH: 1, maxW: 4, maxH: 4,
+    minW: 2, minH: 2, maxW: 4, maxH: 4,
     defaultW: 2, defaultH: 2,
+    // CalChat was removed from the product — keep the type registered
+    // so any historical widget instances in the DB still resolve, but
+    // hide from the gallery so nobody can add new ones.
+    hidden: true,
   },
   pomodoro: {
     type: "pomodoro",
@@ -155,8 +180,9 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     description: "Days until your next deadline or event",
     iconName: "Hourglass",
     category: "productivity",
-    minW: 1, minH: 1, maxW: 4, maxH: 3,
+    minW: 2, minH: 2, maxW: 4, maxH: 3,
     defaultW: 2, defaultH: 1,
+    hidden: true,
   },
   "quick-links": {
     type: "quick-links",
@@ -164,8 +190,9 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     description: "Pinned bookmarks with favicons",
     iconName: "Link",
     category: "productivity",
-    minW: 1, minH: 1, maxW: 4, maxH: 4,
+    minW: 2, minH: 2, maxW: 4, maxH: 4,
     defaultW: 2, defaultH: 2,
+    hidden: true,
   },
   "habit-tracker": {
     type: "habit-tracker",
@@ -173,8 +200,9 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     description: "GitHub-style heatmap with streaks",
     iconName: "Flame",
     category: "productivity",
-    minW: 2, minH: 1, maxW: 4, maxH: 3,
+    minW: 2, minH: 2, maxW: 4, maxH: 3,
     defaultW: 2, defaultH: 2,
+    hidden: true,
   },
   quote: {
     type: "quote",
@@ -182,8 +210,9 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     description: "Daily motivational quotes",
     iconName: "Quote",
     category: "media",
-    minW: 1, minH: 1, maxW: 4, maxH: 3,
+    minW: 2, minH: 2, maxW: 4, maxH: 3,
     defaultW: 2, defaultH: 1,
+    hidden: true,
   },
   stats: {
     type: "stats",
@@ -191,8 +220,9 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     description: "Task completion metrics and trends",
     iconName: "BarChart3",
     category: "info",
-    minW: 1, minH: 1, maxW: 4, maxH: 3,
+    minW: 2, minH: 2, maxW: 4, maxH: 3,
     defaultW: 2, defaultH: 1,
+    hidden: true,
   },
   "weekly-heatmap": {
     type: "weekly-heatmap",
@@ -200,7 +230,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     description: "Weekly productivity heatmap",
     iconName: "Grid3X3",
     category: "info",
-    minW: 2, minH: 1, maxW: 4, maxH: 3,
+    minW: 2, minH: 2, maxW: 4, maxH: 3,
     defaultW: 2, defaultH: 2,
   },
   sticker: {
@@ -209,8 +239,9 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     description: "Decorative emoji or text",
     iconName: "Smile",
     category: "media",
-    minW: 1, minH: 1, maxW: 4, maxH: 4,
-    defaultW: 1, defaultH: 1,
+    minW: 2, minH: 2, maxW: 4, maxH: 4,
+    defaultW: 2, defaultH: 2,
+    hidden: true,
   },
   spotify: {
     type: "spotify",
@@ -227,8 +258,9 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     description: "Current month grid with today highlighted",
     iconName: "CalendarDays",
     category: "info",
-    minW: 1, minH: 1, maxW: 2, maxH: 2,
-    defaultW: 1, defaultH: 1,
+    minW: 2, minH: 2, maxW: 2, maxH: 2,
+    defaultW: 2, defaultH: 2,
+    hidden: true,
   },
   "daily-reminders": {
     type: "daily-reminders",
@@ -236,8 +268,9 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     description: "Checkbox list that resets each day",
     iconName: "ListChecks",
     category: "productivity",
-    minW: 1, minH: 1, maxW: 3, maxH: 3,
-    defaultW: 1, defaultH: 2,
+    minW: 2, minH: 2, maxW: 3, maxH: 3,
+    defaultW: 2, defaultH: 2,
+    hidden: true,
   },
   courses: {
     type: "courses",
@@ -261,14 +294,58 @@ export function generateWidgetId(): string {
 
 /**
  * Returns the default starter layout for first-time users.
- * Starts with a clean slate — no widgets, no banner.
- * Users add widgets via the edit mode gallery.
  *
- * @returns Object with empty widgets array and empty layouts
+ * Mirrors the Jerrod-style dashboard reference: profile + greeting
+ * banner on the top row, a tall image / calendar / tasks middle band,
+ * Spotify "Now Playing" + countdown on the bottom row. Activity heatmap
+ * stands in for the "steps" panel on the right. Lays out into the lg
+ * (8-col) grid with vertical stacks for md (4-col) and sm (2-col) so
+ * the same widget set degrades gracefully on smaller breakpoints.
+ *
+ * @returns Object with starter widgets array and a 4-row layout per
+ *   breakpoint
  */
 export function getDefaultLayout(): {
   widgets: WidgetInstance[];
   layouts: ResponsiveLayouts<string>;
 } {
-  return { widgets: [], layouts: { lg: [], md: [], sm: [] } };
+  const widgets: WidgetInstance[] = [
+    { id: "default-profile", type: "profile", config: {} },
+    { id: "default-intro", type: "intro", config: {} },
+    { id: "default-heatmap", type: "weekly-heatmap", config: {} },
+    { id: "default-gcal", type: "google-calendar", config: {} },
+    { id: "default-tasks", type: "tasks-today", config: {} },
+    { id: "default-image", type: "image", config: {} },
+    { id: "default-spotify", type: "spotify", config: {} },
+  ];
+
+  // lg: 8 columns × 8 rows. Matches the reference screenshot:
+  //   col  0   1   2   3   4   5   6   7
+  // r 0–1  [profile 2x2 ][intro     4x2     ][heat   2x2]
+  // r 2–5  [gcal       4x4         ][tasks 2x4][image  2x6]
+  // r 6–7  [spotify    6x2         ]         [image continues]
+  const lg: LayoutItem[] = [
+    { i: "default-profile",   x: 0, y: 0, w: 2, h: 2, minW: 2, minH: 2 },
+    { i: "default-intro",     x: 2, y: 0, w: 4, h: 2, minW: 3, minH: 2 },
+    { i: "default-heatmap",   x: 6, y: 0, w: 2, h: 2, minW: 2, minH: 2 },
+    { i: "default-gcal",      x: 0, y: 2, w: 4, h: 4, minW: 2, minH: 2 },
+    { i: "default-tasks",     x: 4, y: 2, w: 2, h: 4, minW: 2, minH: 2 },
+    { i: "default-image",     x: 6, y: 2, w: 2, h: 6, minW: 2, minH: 2 },
+    { i: "default-spotify",   x: 0, y: 6, w: 6, h: 2, minW: 2, minH: 2 },
+  ];
+
+  // md / sm: stack vertically — every widget keeps its 2-row floor.
+  const md: LayoutItem[] = [
+    { i: "default-profile", x: 0, y: 0,  w: 4, h: 2, minW: 2, minH: 2 },
+    { i: "default-intro",   x: 0, y: 2,  w: 4, h: 2, minW: 3, minH: 2 },
+    { i: "default-gcal",    x: 0, y: 4,  w: 4, h: 3, minW: 2, minH: 2 },
+    { i: "default-tasks",   x: 0, y: 7,  w: 4, h: 3, minW: 2, minH: 2 },
+    { i: "default-heatmap", x: 0, y: 10, w: 4, h: 2, minW: 2, minH: 2 },
+    { i: "default-spotify", x: 0, y: 12, w: 4, h: 2, minW: 2, minH: 2 },
+    { i: "default-image",   x: 0, y: 14, w: 4, h: 3, minW: 2, minH: 2 },
+  ];
+
+  const sm: LayoutItem[] = md.map((item) => ({ ...item, w: 2 }));
+
+  return { widgets, layouts: { lg, md, sm } };
 }

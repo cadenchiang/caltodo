@@ -9,7 +9,7 @@ import { SETTINGS_SECTIONS, SETTINGS_GROUPS, DEFAULT_SECTION, type SettingsSecti
 import SidebarNavItem, { navItemClasses, SidebarActivePill } from "./SidebarNavItem";
 import ProfilePopup from "./ProfilePopup";
 import { useTheme } from "@/contexts/ThemeContext";
-import { useCalChatUnread } from "@/hooks/useCalChatUnread";
+// useCalChatUnread import removed — CalChat is no longer in the sidebar.
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { useHiddenNavItems } from "@/hooks/useHiddenNavItems";
 
@@ -68,7 +68,7 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
     window.addEventListener("profile-updated", handleProfileUpdate);
     return () => window.removeEventListener("profile-updated", handleProfileUpdate);
   }, []);
-  const hasCalChatUnread = useCalChatUnread();
+  // CalChat removed — no unread badge to compute.
   useOnboardingStatus();
   const { isHidden: isNavItemHidden } = useHiddenNavItems();
   // "Notes" is gated to a short allowlist (Chenfei + victoriachow). Everyone
@@ -189,7 +189,6 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
               .filter((item) => item.href !== "/app/notes" || isNotesAllowed)
               .map((item) => {
               const isInbox = item.href === "/app/inbox";
-              const isChat = item.href === "/app/discussions";
               return (
                 <SidebarNavItem
                   key={item.href}
@@ -197,7 +196,7 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
                   href={item.href}
                   icon={isInbox ? inboxConfig.icon : item.icon}
                   badge={false}
-                  badgeCount={isChat ? hasCalChatUnread : undefined}
+                  badgeCount={undefined}
                   id={`tour-nav-${item.label.toLowerCase()}`}
                   imageSrc={undefined}
                   imageClassName={undefined}

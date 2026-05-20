@@ -1,19 +1,24 @@
-import { LayoutGrid, Inbox, NotebookPen, Users } from "lucide-react";
+import { LayoutGrid, Inbox, NotebookPen, CalendarDays } from "lucide-react";
 
 /**
  * Navigation items for the sidebar.
  *
- * Calendar lives as a tab inside Inbox (Board / List / Calendar), so the
- * sidebar no longer has a separate Calendar entry. The /app/calendar
- * route still works — the inbox tabs navigate to it.
+ * Calendar is its own top-level page at /app/calendar — it lives in the
+ * sidebar between Inbox and Notes. (It briefly lived as a tab inside
+ * Inbox; we reverted that.)
  *
  * Notes is filtered out by the Sidebar for users not on the allowlist.
+ *
+ * Chat (CalChat / discussions) was removed from the product — the
+ * sidebar no longer surfaces it and the CalChat widget is hidden in
+ * the gallery. The /app/discussions route still exists for legacy
+ * links but isn't promoted anywhere.
  */
 export const NAV_ITEMS = [
   { label: "Home", href: "/app/home", icon: LayoutGrid },
   { label: "Inbox", href: "/app/inbox", icon: Inbox },
+  { label: "Calendar", href: "/app/calendar", icon: CalendarDays },
   { label: "Notes", href: "/app/notes", icon: NotebookPen },
-  { label: "Chat", href: "/app/discussions", icon: Users },
 ] as const;
 
 /**
