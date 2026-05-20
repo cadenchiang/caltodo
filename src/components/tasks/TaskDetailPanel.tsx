@@ -17,7 +17,7 @@ import {
   TaskTagsRow,
   TaskDescriptionRow,
 } from "./shared/TaskDetailRows";
-import { ClipboardList, ExternalLink } from "lucide-react";
+import { ClipboardList, ExternalLink, Pencil } from "lucide-react";
 
 interface TaskDetailPanelProps {
   /** The selected task, or null for empty state. */
