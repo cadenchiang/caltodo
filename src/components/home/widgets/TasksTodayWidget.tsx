@@ -124,7 +124,7 @@ export default function TasksTodayWidget({ config }: TasksTodayWidgetProps) {
         title={label}
         right={
           <div className="flex items-center gap-1.5">
-            <span className="text-xs text-muted-foreground tabular-nums">
+            <span className="text-xs text-foreground tabular-nums">
               {completedCount}/{totalCount}
             </span>
             <span
@@ -184,7 +184,7 @@ export default function TasksTodayWidget({ config }: TasksTodayWidgetProps) {
                   {/* Title */}
                   <span
                     className={`flex-1 min-w-0 truncate text-sm ${
-                      task.is_completed ? "text-muted-foreground" : "text-foreground"
+                      task.is_completed ? "text-foreground" : "text-foreground"
                     }`}
                   >
                     {task.title}

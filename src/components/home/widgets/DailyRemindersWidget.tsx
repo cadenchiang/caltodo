@@ -156,7 +156,7 @@ export default function DailyRemindersWidget({
         <span className="text-xs font-semibold text-foreground">– reminders</span>
         <button
           onClick={() => setAdding(true)}
-          className="w-5 h-5 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+          className="w-5 h-5 rounded-full flex items-center justify-center text-foreground hover:text-foreground transition-colors"
           title="Add reminder"
         >
           <Plus size={12} strokeWidth={2.5} />
@@ -181,7 +181,7 @@ export default function DailyRemindersWidget({
               <span
                 className={`text-xs flex-1 leading-tight transition-all ${
                   checked
-                    ? "line-through text-muted-foreground/50"
+                    ? "line-through text-foreground/50"
                     : "text-foreground"
                 }`}
               >
@@ -192,7 +192,7 @@ export default function DailyRemindersWidget({
                   e.preventDefault();
                   removeItem(item.id);
                 }}
-                className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground transition-opacity shrink-0"
+                className="opacity-0 group-hover:opacity-100 text-foreground hover:text-foreground transition-opacity shrink-0"
               >
                 <X size={10} />
               </button>
@@ -224,7 +224,7 @@ export default function DailyRemindersWidget({
                 }
               }}
               placeholder="New reminder..."
-              className="text-xs bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground/50 flex-1"
+              className="text-xs bg-transparent border-none outline-none text-foreground placeholder:text-foreground/50 flex-1"
             />
           </div>
         )}
@@ -232,7 +232,7 @@ export default function DailyRemindersWidget({
         {/* Empty state */}
         {items.length === 0 && !adding && (
           <div className="flex items-center justify-center h-full">
-            <span className="text-[10px] text-muted-foreground/50">
+            <span className="text-xs text-foreground/50">
               Click + to add reminders
             </span>
           </div>

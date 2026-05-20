@@ -55,12 +55,12 @@ export default function StackedFace({ now, is24h, timezone, fontWeight }: ClockF
       </span>
       <div className="w-8 h-px bg-gradient-to-r from-transparent via-foreground/20 to-transparent my-2" />
       <span
-        className="text-4xl font-extralight tracking-tight text-foreground/60 tabular-nums leading-none"
+        className="text-4xl font-extralight tracking-tight text-foreground tabular-nums leading-none"
       >
         {minute}
       </span>
       {period && (
-        <span className="text-[10px] text-muted-foreground mt-2 bg-muted rounded-md px-1.5 py-0.5">
+        <span className="text-[10px] text-foreground mt-2 bg-muted rounded-md px-1.5 py-0.5">
           {period}
         </span>
       )}

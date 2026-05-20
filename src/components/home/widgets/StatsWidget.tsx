@@ -145,7 +145,7 @@ export default function StatsWidget({ config }: StatsWidgetProps) {
         </div>
       )}
 
-      <p className="text-xs text-muted-foreground mt-1.5">{stats.label}</p>
+      <p className="text-xs text-foreground mt-1.5">{stats.label}</p>
     </WidgetShell>
   );
 }

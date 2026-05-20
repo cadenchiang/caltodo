@@ -174,7 +174,7 @@ export default function HabitTrackerWidget({ config, onUpdateConfig }: HabitTrac
               key={i}
               className="h-[11px] flex items-center justify-end"
             >
-              <span className="text-[10px] text-muted-foreground leading-none">{label}</span>
+              <span className="text-xs text-foreground leading-none">{label}</span>
             </div>
           ))}
         </div>
@@ -201,10 +201,10 @@ export default function HabitTrackerWidget({ config, onUpdateConfig }: HabitTrac
 
       {/* Footer stats */}
       <div className="flex items-center justify-between mt-2 pt-2 border-t border-foreground/5">
-        <span className="text-xs text-muted-foreground">
+        <span className="text-xs text-foreground">
           {totalChecked}/{totalDays} days
         </span>
-        <span className="text-xs text-muted-foreground tabular-nums">
+        <span className="text-xs text-foreground tabular-nums">
           {totalDays > 0 ? Math.round((totalChecked / totalDays) * 100) : 0}%
         </span>
       </div>

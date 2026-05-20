@@ -59,7 +59,7 @@ export default function MiniCalendarWidget({ config }: MiniCalendarWidgetProps) 
       <div className="grid grid-cols-7 gap-0">
         {DAY_LABELS.map((d, i) => (
           <div key={i} className="text-center">
-            <span className="text-[9px] font-medium text-muted-foreground/60">{d}</span>
+            <span className="text-xs font-medium text-foreground/60">{d}</span>
           </div>
         ))}
       </div>
@@ -75,12 +75,12 @@ export default function MiniCalendarWidget({ config }: MiniCalendarWidgetProps) 
               className="flex items-center justify-center"
             >
               <div
-                className={`w-5 h-5 flex items-center justify-center rounded-full text-[10px] tabular-nums leading-none ${
+                className={`w-5 h-5 flex items-center justify-center rounded-full text-xs tabular-nums leading-none ${
                   today
                     ? "text-white font-semibold"
                     : inMonth
                       ? "text-foreground"
-                      : "text-muted-foreground/30"
+                      : "text-foreground/30"
                 }`}
                 style={today ? { backgroundColor: accentColor } : undefined}
               >

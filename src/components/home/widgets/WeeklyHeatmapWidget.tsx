@@ -106,7 +106,7 @@ export default function WeeklyHeatmapWidget({ config }: WeeklyHeatmapWidgetProps
       <WidgetHeader
         title="Activity"
         right={
-          <span className="text-xs text-muted-foreground tabular-nums">
+          <span className="text-xs text-foreground tabular-nums">
             {totalCompleted} tasks completed
           </span>
         }
@@ -117,7 +117,7 @@ export default function WeeklyHeatmapWidget({ config }: WeeklyHeatmapWidgetProps
         {monthLabels.map((m, i) => (
           <span
             key={i}
-            className="text-[10px] text-muted-foreground"
+            className="text-xs text-foreground"
             style={{
               marginLeft: i === 0 ? `${m.col * 14}px` : undefined,
               width: i < monthLabels.length - 1
@@ -136,7 +136,7 @@ export default function WeeklyHeatmapWidget({ config }: WeeklyHeatmapWidgetProps
         <div className="flex flex-col gap-0.5 shrink-0 mr-1">
           {["", "M", "", "W", "", "F", ""].map((label, i) => (
             <div key={i} className="h-[11px] flex items-center justify-end">
-              <span className="text-[10px] text-muted-foreground leading-none">{label}</span>
+              <span className="text-xs text-foreground leading-none">{label}</span>
             </div>
           ))}
         </div>
@@ -164,7 +164,7 @@ export default function WeeklyHeatmapWidget({ config }: WeeklyHeatmapWidgetProps
 
       {/* Legend */}
       <div className="flex items-center justify-end gap-1 mt-2">
-        <span className="text-[10px] text-muted-foreground mr-1">Less</span>
+        <span className="text-xs text-foreground mr-1">Less</span>
         {[0, 1, 2, 3, 4].map((level) => (
           <div
             key={level}
@@ -172,7 +172,7 @@ export default function WeeklyHeatmapWidget({ config }: WeeklyHeatmapWidgetProps
             style={{ backgroundColor: getCellStyle(level) }}
           />
         ))}
-        <span className="text-[10px] text-muted-foreground ml-1">More</span>
+        <span className="text-xs text-foreground ml-1">More</span>
       </div>
     </div>
   );

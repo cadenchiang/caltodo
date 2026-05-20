@@ -32,7 +32,7 @@ export default function StickerWidget({ config, onUpdateConfig }: StickerWidgetP
         {emoji}
       </span>
       {stickerText && (
-        <p className="text-[11px] text-muted-foreground mt-3 truncate max-w-full">
+        <p className="text-xs text-foreground mt-3 truncate max-w-full">
           {stickerText}
         </p>
       )}

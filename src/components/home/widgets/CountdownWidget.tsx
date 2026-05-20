@@ -86,7 +86,7 @@ export default function CountdownWidget({ config }: CountdownWidgetProps) {
       {remaining.passed ? (
         <>
           <p className="text-2xl font-bold text-foreground">Done!</p>
-          <p className="text-[11px] text-muted-foreground mt-1 truncate max-w-full">
+          <p className="text-xs text-foreground mt-1 truncate max-w-full">
             {targetLabel}
           </p>
         </>
@@ -114,13 +114,13 @@ export default function CountdownWidget({ config }: CountdownWidgetProps) {
                 >
                   {unit.value}
                 </span>
-                <span className="text-[9px] uppercase tracking-widest text-muted-foreground mt-1">
+                <span className="text-xs uppercase tracking-widest text-foreground mt-1">
                   {unit.label}
                 </span>
               </div>
             ))}
           </div>
-          <p className="text-[11px] text-muted-foreground mt-2.5 truncate max-w-full leading-tight">
+          <p className="text-xs text-foreground mt-2.5 truncate max-w-full leading-tight">
             {targetLabel}
           </p>
         </>

@@ -1,13 +1,19 @@
-import { redirect } from "next/navigation";
+"use client";
+
+import CalendarPanel from "@/components/calendar/CalendarPanel";
+import PageTransition from "@/components/ui/PageTransition";
 
 /**
- * Legacy /app/calendar route. The calendar lives inside /app/inbox as a
- * third tab now, so any URL hits to /app/calendar bounce to the inbox
- * page (which the user can switch into Calendar view via the tab).
- *
- * Keeping the route file (instead of deleting the folder) preserves any
- * existing bookmarks or external links to /app/calendar.
+ * Calendar page — full-screen calendar view at /app/calendar.
+ * Lives on its own route again (previously folded into /app/inbox as a
+ * third tab). The sidebar's Calendar link points here.
  */
-export default function CalendarRedirect() {
-  redirect("/app/inbox");
+export default function CalendarPage() {
+  return (
+    <PageTransition>
+      <div className="flex flex-col -m-4 md:-m-10 h-full max-h-full overflow-hidden">
+        <CalendarPanel />
+      </div>
+    </PageTransition>
+  );
 }

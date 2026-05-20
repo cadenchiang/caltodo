@@ -140,7 +140,7 @@ export default function ClassProgressWidget({ config }: ClassProgressWidgetProps
         <WidgetHeader
           title="Courses"
           right={
-            <span className="text-xs text-muted-foreground tabular-nums">
+            <span className="text-xs text-foreground tabular-nums">
               {overallPct}% complete
             </span>
           }
@@ -169,7 +169,7 @@ export default function ClassProgressWidget({ config }: ClassProgressWidgetProps
                     className="w-2 h-2 rounded-full shrink-0"
                     style={{ backgroundColor: c.color }}
                   />
-                  <span className="text-[10px] text-muted-foreground truncate">
+                  <span className="text-xs text-foreground truncate">
                     {c.name}
                   </span>
                 </div>
@@ -198,7 +198,7 @@ export default function ClassProgressWidget({ config }: ClassProgressWidgetProps
                     <p className="text-xs font-medium text-foreground truncate group-hover:text-foreground">
                       {c.name}
                     </p>
-                    <p className="text-xs text-muted-foreground tabular-nums">
+                    <p className="text-xs text-foreground tabular-nums">
                       {c.completed} of {c.total} done
                     </p>
                   </div>
@@ -206,7 +206,7 @@ export default function ClassProgressWidget({ config }: ClassProgressWidgetProps
                   {/* Progress ring */}
                   <div className="relative shrink-0">
                     <ProgressRing pct={pct} color={c.color} size={28} />
-                    <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-foreground tabular-nums">
+                    <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-foreground tabular-nums">
                       {pct}
                     </span>
                   </div>
@@ -274,7 +274,7 @@ function CourseDetailModal({
             </div>
             <button
               onClick={onClose}
-              className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
+              className="w-8 h-8 rounded-full flex items-center justify-center text-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
               aria-label="Close"
             >
               <X size={16} />
@@ -289,7 +289,7 @@ function CourseDetailModal({
                 style={{ width: `${pct}%`, backgroundColor: course.color }}
               />
             </div>
-            <span className="text-xs text-muted-foreground shrink-0 tabular-nums">
+            <span className="text-xs text-foreground shrink-0 tabular-nums">
               {course.completed}/{course.total}
             </span>
           </div>
@@ -318,12 +318,12 @@ function CourseDetailModal({
 
               {/* Task details */}
               <div className="flex-1 min-w-0">
-                <p className={`text-sm ${task.is_completed ? "line-through text-muted-foreground" : "text-foreground"}`}>
+                <p className={`text-sm ${task.is_completed ? "line-through text-foreground" : "text-foreground"}`}>
                   {task.title}
                 </p>
                 <div className="flex items-center gap-2 mt-0.5">
                   {task.due_date && (
-                    <span className="text-[11px] text-muted-foreground">
+                    <span className="text-xs text-foreground">
                       {new Date(task.due_date + "T12:00:00").toLocaleDateString("en-US", {
                         month: "short",
                         day: "numeric",
@@ -331,7 +331,7 @@ function CourseDetailModal({
                     </span>
                   )}
                   {task.points_possible != null && (
-                    <span className="text-[11px] text-muted-foreground">
+                    <span className="text-xs text-foreground">
                       {task.points_possible} pts
                     </span>
                   )}

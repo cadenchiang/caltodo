@@ -158,13 +158,28 @@ export function IntegrationProvider({ children }: { children: React.ReactNode })
     }
   }, []);
 
-  // Re-fetch credentials when sync completes (updates Classes tab in real-time)
+  // Re-fetch credentials whenever something signals that integration
+  // state may have changed: a sync completion, the GCal OAuth callback,
+  // the page regaining focus after returning from OAuth, or storage
+  // updates from a sibling tab. These signals make the connected pill
+  // flip from "Connect" to "Connected" within ~one tick of the change
+  // landing on the server instead of waiting for the next manual refresh.
   useEffect(() => {
-    function handleCredentialsChanged() {
-      fetchCredentials();
-    }
-    window.addEventListener("credentials-changed", handleCredentialsChanged);
-    return () => window.removeEventListener("credentials-changed", handleCredentialsChanged);
+    const refresh = () => fetchCredentials();
+    const handleFocus = () => fetchCredentials();
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === CACHE_KEY || e.key === null) fetchCredentials();
+    };
+    window.addEventListener("credentials-changed", refresh);
+    window.addEventListener("gcal-status-change", refresh);
+    window.addEventListener("focus", handleFocus);
+    window.addEventListener("storage", handleStorage);
+    return () => {
+      window.removeEventListener("credentials-changed", refresh);
+      window.removeEventListener("gcal-status-change", refresh);
+      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("storage", handleStorage);
+    };
   }, [fetchCredentials]);
 
   function handleUpdate(updated: IntegrationCredentials) {

@@ -27,13 +27,13 @@ export default function CardDisplay({
         className="h-full w-full flex flex-col items-center justify-center p-3 cursor-pointer"
         onClick={handleClick}
       >
-        <span className="text-muted-foreground mb-2">
+        <span className="text-foreground mb-2">
           {getWeatherIcon(current.weatherCode, 48)}
         </span>
         <span className="text-4xl font-extralight tracking-tighter tabular-nums text-foreground leading-none">
           {formatTemp(current.temp)}
         </span>
-        <p className="text-xs text-muted-foreground mt-1">
+        <p className="text-xs text-foreground mt-1">
           {getWeatherLabel(current.weatherCode)}
         </p>
       </div>
@@ -48,7 +48,7 @@ export default function CardDisplay({
     >
       {/* Current header */}
       <div className="flex items-center justify-center gap-2 mb-2">
-        <span className="text-muted-foreground">
+        <span className="text-foreground">
           {getWeatherIcon(current.weatherCode, 20)}
         </span>
         <span className="text-lg font-extralight tabular-nums text-foreground leading-none">
@@ -75,21 +75,21 @@ export default function CardDisplay({
                 className={`w-9 text-[11px] ${
                   i === 0
                     ? "font-semibold text-foreground"
-                    : "text-muted-foreground"
+                    : "text-foreground"
                 }`}
               >
                 {dayLabel}
               </span>
-              <span className="text-muted-foreground">
+              <span className="text-foreground">
                 {getWeatherIcon(day.weatherCode, 16)}
               </span>
-              <span className="text-[11px] text-muted-foreground flex-1 truncate">
+              <span className="text-[11px] text-foreground flex-1 truncate">
                 {getWeatherLabel(day.weatherCode)}
               </span>
               <span className="text-[11px] tabular-nums text-foreground">
                 {formatTemp(day.tempMax)}
               </span>
-              <span className="text-[11px] tabular-nums text-muted-foreground">
+              <span className="text-[11px] tabular-nums text-foreground">
                 {formatTemp(day.tempMin)}
               </span>
             </li>

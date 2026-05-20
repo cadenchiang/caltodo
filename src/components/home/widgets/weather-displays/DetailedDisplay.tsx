@@ -33,8 +33,8 @@ export default function DetailedDisplay({
       >
         {/* Location */}
         <div className="flex items-center gap-1">
-          <MapPin size={10} className="text-muted-foreground shrink-0" />
-          <span className="text-[11px] text-muted-foreground truncate">
+          <MapPin size={10} className="text-foreground shrink-0" />
+          <span className="text-[11px] text-foreground truncate">
             {locationName}
           </span>
         </div>
@@ -48,7 +48,7 @@ export default function DetailedDisplay({
           >
             {formatTemp(current.temp)}
           </span>
-          <span className="text-muted-foreground">
+          <span className="text-foreground">
             {getWeatherIcon(current.weatherCode, compact ? 24 : 32)}
           </span>
         </div>
@@ -91,8 +91,8 @@ export default function DetailedDisplay({
       {/* Header */}
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-1">
-          <MapPin size={10} className="text-muted-foreground shrink-0" />
-          <span className="text-[11px] text-muted-foreground truncate">
+          <MapPin size={10} className="text-foreground shrink-0" />
+          <span className="text-[11px] text-foreground truncate">
             {locationName}
           </span>
         </div>
@@ -100,7 +100,7 @@ export default function DetailedDisplay({
           <span className="text-lg font-extralight tabular-nums text-foreground leading-none">
             {formatTemp(current.temp)}
           </span>
-          <span className="text-muted-foreground">
+          <span className="text-foreground">
             {getWeatherIcon(current.weatherCode, 16)}
           </span>
         </div>
@@ -130,15 +130,15 @@ export default function DetailedDisplay({
                 className={`w-9 text-[11px] ${
                   i === 0
                     ? "font-semibold text-foreground"
-                    : "text-muted-foreground"
+                    : "text-foreground"
                 }`}
               >
                 {dayLabel}
               </span>
-              <span className="w-5 text-center text-muted-foreground">
+              <span className="w-5 text-center text-foreground">
                 {getWeatherIcon(day.weatherCode, 14)}
               </span>
-              <span className="w-6 text-right text-[11px] tabular-nums text-muted-foreground">
+              <span className="w-6 text-right text-[11px] tabular-nums text-foreground">
                 {formatTemp(day.tempMin)}
               </span>
               <div className="flex-1 h-[3px] rounded-full bg-muted relative mx-1">
@@ -182,7 +182,7 @@ function StatCell({
 }) {
   return (
     <div className="rounded-lg bg-muted/50 px-2 py-1.5">
-      <div className="flex items-center gap-1 text-muted-foreground mb-0.5">
+      <div className="flex items-center gap-1 text-foreground mb-0.5">
         {icon}
         <span className="text-[9px] uppercase tracking-wide">{label}</span>
       </div>

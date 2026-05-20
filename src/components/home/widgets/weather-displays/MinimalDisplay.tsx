@@ -30,7 +30,7 @@ export default function MinimalDisplay({
         <span className="text-5xl font-extralight tracking-tighter tabular-nums text-foreground leading-none">
           {formatTemp(current.temp)}
         </span>
-        <span className="text-muted-foreground">
+        <span className="text-foreground">
           {getWeatherIcon(current.weatherCode, 28)}
         </span>
       </div>
@@ -58,15 +58,15 @@ export default function MinimalDisplay({
                 className={`text-[11px] w-9 ${
                   i === 0
                     ? "font-semibold text-foreground"
-                    : "text-muted-foreground"
+                    : "text-foreground"
                 }`}
               >
                 {dayLabel}
               </span>
-              <span className="text-muted-foreground">
+              <span className="text-foreground">
                 {getWeatherIcon(day.weatherCode, 12)}
               </span>
-              <span className="text-[11px] tabular-nums text-muted-foreground">
+              <span className="text-[11px] tabular-nums text-foreground">
                 {formatTemp(day.tempMin)}
               </span>
               <span className="text-[11px] tabular-nums text-foreground">

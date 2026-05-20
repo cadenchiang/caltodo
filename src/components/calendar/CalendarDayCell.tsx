@@ -250,17 +250,18 @@ export default function CalendarDayCell({
               {weekdayLabel}
             </div>
           )}
-          {/* Day number is right-aligned at the top — Notion-style. The
-              add (+) button sits on the LEFT so it doesn't crowd the
-              date when the cell is hovered. */}
-          <div className="flex items-center justify-between relative mb-0.5 px-0.5">
+          {/* Day number is centered at the top of the cell — old-school
+              calendar style. The add (+) button sits absolute-positioned
+              on the left so it doesn't displace the centered number when
+              it appears on hover. */}
+          <div className="relative flex items-center justify-center mb-0.5 px-0.5">
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 const rect = e.currentTarget.getBoundingClientRect();
                 onDayClick(dateStr, new DOMRect(rect.left, rect.bottom + 4, rect.width, 1));
               }}
-              className={`w-4 h-4 rounded-full items-center justify-center text-muted-foreground hover:bg-gray-300 dark:hover:bg-gray-600 hover:text-foreground transition-all flex ${
+              className={`absolute left-0 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full items-center justify-center text-muted-foreground hover:bg-gray-300 dark:hover:bg-gray-600 hover:text-foreground transition-all flex ${
                 hovered && !addingDate ? "opacity-100" : "opacity-0 pointer-events-none"
               }`}
             >

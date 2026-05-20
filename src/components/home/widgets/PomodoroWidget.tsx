@@ -321,7 +321,7 @@ export default function PomodoroWidget({
             <button onClick={handlePlayPause} disabled={editMode} className="w-7 h-7 rounded-full flex items-center justify-center text-white hover:scale-105 transition-transform disabled:opacity-40" style={{ backgroundColor: workColor }} aria-label={running ? "Pause" : "Start"}>
               {running ? <Pause size={12} /> : <Play size={12} className="ml-0.5" />}
             </button>
-            <button onClick={handleReset} disabled={editMode} className="w-5 h-5 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40" aria-label="Reset">
+            <button onClick={handleReset} disabled={editMode} className="w-5 h-5 rounded-full flex items-center justify-center text-foreground hover:text-foreground transition-colors disabled:opacity-40" aria-label="Reset">
               <RotateCcw size={10} />
             </button>
           </div>
@@ -331,7 +331,7 @@ export default function PomodoroWidget({
         <>
           {/* Phase label */}
           <div className="flex items-center justify-between mb-1">
-            <span className="text-[10px] font-semibold text-muted-foreground tracking-wide uppercase">
+            <span className="text-xs font-semibold text-foreground tracking-wide uppercase">
               {phase === "work" ? "Focus" : "Break"}
             </span>
             <div className="flex gap-1">
@@ -368,13 +368,13 @@ export default function PomodoroWidget({
 
           {/* Controls */}
           <div className="flex items-center justify-center gap-3 no-drag">
-            <button onClick={handleReset} disabled={editMode} className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-40 disabled:pointer-events-none" aria-label="Reset timer">
+            <button onClick={handleReset} disabled={editMode} className="w-8 h-8 rounded-full flex items-center justify-center text-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-40 disabled:pointer-events-none" aria-label="Reset timer">
               <RotateCcw size={14} />
             </button>
             <button onClick={handlePlayPause} disabled={editMode} className="w-10 h-10 rounded-full flex items-center justify-center text-white shadow-lg hover:scale-105 transition-transform disabled:opacity-40 disabled:pointer-events-none" style={{ backgroundColor: workColor }} aria-label={running ? "Pause timer" : "Start timer"}>
               {running ? <Pause size={18} /> : <Play size={18} className="ml-0.5" />}
             </button>
-            <button onClick={handleSkip} disabled={editMode} className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-40 disabled:pointer-events-none" aria-label="Skip to next phase">
+            <button onClick={handleSkip} disabled={editMode} className="w-8 h-8 rounded-full flex items-center justify-center text-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-40 disabled:pointer-events-none" aria-label="Skip to next phase">
               <SkipForward size={14} />
             </button>
           </div>

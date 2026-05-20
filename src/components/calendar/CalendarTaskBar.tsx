@@ -3,7 +3,6 @@
 import { useState } from "react";
 import type { Task } from "@/lib/types";
 import { getThemeColor } from "@/lib/constants";
-import { getDueDateInfo } from "@/lib/task-utils";
 import { useTheme } from "@/contexts/ThemeContext";
 import { hexToRgba } from "@/lib/gcal/event-utils";
 
@@ -53,44 +52,48 @@ function truncateTitle(title: string, max: number): string {
 }
 
 /**
- * Compact task bar in a calendar day cell.
- * Solid colored background with dark text, matching Google Calendar style.
+ * Compact task bar in a calendar day cell. Restored from commit
+ * 400e1bf ("Polish calendar UI: event colors, animations, grid
+ * refinements") — single-row chip with a colored left border, light
+ * tinted background, and time + title on one line. Drag-and-drop +
+ * active-state highlighting layered back on top of the visual.
  *
  * @param task - The task to display
  * @param onClick - Callback when clicked (opens popover with full details)
  * @param isPending - When true, renders as a dashed outline bar for pending invites
  */
-export default function CalendarTaskBar({ task, onClick, isPending, compact = false, isActive = false, justDropped = false }: CalendarTaskBarProps) {
+export default function CalendarTaskBar({
+  task,
+  onClick,
+  isPending,
+  compact = false,
+  isActive = false,
+  justDropped = false,
+}: CalendarTaskBarProps) {
   const { colorTheme } = useTheme();
   const [hovered, setHovered] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const color = getThemeColor(task.color, colorTheme);
   const highlighted = hovered || isActive;
-
-  // Pending invites can't be dragged — they aren't real tasks yet.
   const draggable = !isPending;
 
   /**
    * Begin a drag for this task. Stores the task id in dataTransfer so the
    * target day cell can resolve it on drop and call updateTask with the
    * new due_date. Uses setDragImage to anchor the drag preview to the
-   * exact pickup point under the cursor (eliminates the default offset
-   * jump and produces a much smoother glide). See CalendarDayCell.handleDrop.
+   * exact pickup point under the cursor.
    */
   const handleDragStart = (e: React.DragEvent<HTMLButtonElement>) => {
     if (!draggable) return;
     e.stopPropagation();
     e.dataTransfer.setData("application/x-caltodo-task-id", task.id);
     e.dataTransfer.effectAllowed = "move";
-    // Anchor the drag image at the cursor's exact offset within the bar.
     const rect = e.currentTarget.getBoundingClientRect();
     e.dataTransfer.setDragImage(
       e.currentTarget,
       e.clientX - rect.left,
-      e.clientY - rect.top
+      e.clientY - rect.top,
     );
-    // Defer state flip to next frame so the dragImage snapshot above is
-    // captured at full opacity (otherwise the drag preview itself would dim).
     requestAnimationFrame(() => setIsDragging(true));
   };
 
@@ -109,94 +112,72 @@ export default function CalendarTaskBar({ task, onClick, isPending, compact = fa
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className={`w-full text-left flex flex-col items-stretch gap-1 rounded-md overflow-hidden bg-white dark:bg-card border border-border ${compact ? "px-1.5 py-1" : "px-2 py-1.5"} ${
+      className={`w-full text-left flex items-center gap-0.5 rounded transition-all overflow-hidden hover:-translate-y-px hover:shadow-sm ${compact ? "px-1 py-0 h-[16px]" : "px-1.5 py-0.5 h-[22px]"} ${
         task.is_completed ? "opacity-50" : ""
       } ${isPending ? "opacity-50" : ""} ${justDropped ? "calendar-task-drop-in" : ""}`}
-      style={{
-        transition:
-          "transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease, background-color 0.15s ease, opacity 0.18s ease",
-        transform: isActive ? "scale(1.04)" : hovered && !isDragging ? "translateY(-1px)" : "none",
-        boxShadow: isActive
-          ? "0 4px 16px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.06)"
-          : hovered && !isDragging ? "0 1px 3px rgba(0,0,0,0.06)" : "0 1px 2px rgba(0,0,0,0.03)",
-        opacity: isDragging ? 0.35 : undefined,
-        zIndex: isActive ? 20 : "auto",
-        position: isActive ? "relative" : undefined,
-        ...(isPending ? { borderStyle: "dashed" } : {}),
-      }}
+      style={
+        isPending
+          ? {
+              backgroundColor: "transparent",
+              border: `1px dashed ${hexToRgba(color, 0.4)}`,
+              borderLeftWidth: "2px",
+              opacity: isDragging ? 0.35 : undefined,
+            }
+          : {
+              backgroundColor: hexToRgba(color, highlighted ? 0.22 : 0.12),
+              borderLeft: `2px solid ${color}`,
+              opacity: isDragging ? 0.35 : undefined,
+              transform: isActive ? "scale(1.02)" : undefined,
+              zIndex: isActive ? 20 : "auto",
+              position: isActive ? "relative" : undefined,
+            }
+      }
       title={isPending ? `Pending invite: ${task.title}` : task.title}
     >
-      {/* Row 1: squircle (always shown) + title. Filled when completed
-          (green for Gradescope submissions, blue otherwise), outlined
-          when not. */}
-      <div className="flex items-center gap-1.5 min-w-0">
-        {!isPending && (() => {
-          // Prefer the user-picked task color (pink, etc.) over the
-          // source-based default so the checkmark visually matches the
-          // task's class color everywhere it appears. Fall back to the
-          // green/blue source defaults only when no custom color is set.
-          const isGradescope = task.source === "gradescope";
-          const sourceDefault = isGradescope ? "#10B981" : "#0e89d6";
-          const fillColor = task.color ? color : sourceDefault;
-          if (task.is_completed) {
-            return (
-              <span
-                className="shrink-0 inline-flex items-center justify-center w-3.5 h-3.5 rounded-[4px]"
-                style={{ backgroundColor: fillColor }}
-                aria-label="Completed"
-              >
-                <svg width={8} height={6} viewBox="0 0 10 8" fill="none">
-                  <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </span>
-            );
-          }
-          return (
-            <span
-              className="shrink-0 inline-block w-3.5 h-3.5 rounded-[4px]"
-              style={{ border: `1.75px solid ${fillColor}`, backgroundColor: "transparent" }}
-              aria-label="Incomplete"
-            />
-          );
-        })()}
-        <span
-          className={`${compact ? "text-[10px]" : "text-[12px]"} font-semibold truncate ${
-            task.is_completed ? "text-muted-foreground line-through" : "text-foreground"
-          }`}
+      {task.is_completed && !isPending && (
+        <svg
+          className="w-2.5 h-2.5 shrink-0 mr-1 hidden md:block"
+          style={{ color }}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeLinejoin="round"
         >
-          {task.title}
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+      )}
+      {task.due_time && (
+        <span
+          className={`${compact ? "text-[9px]" : "text-[11px]"} font-medium shrink-0`}
+          style={{ color }}
+        >
+          {formatTimeCompact(task.due_time)}
         </span>
-        {task.repeat_interval && task.repeat_unit && (
-          <svg className="w-2.5 h-2.5 shrink-0 opacity-40 text-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M17 2l4 4-4 4" /><path d="M3 11v-1a4 4 0 014-4h14" /><path d="M7 22l-4-4 4-4" /><path d="M21 13v1a4 4 0 01-4 4H3" />
-          </svg>
-        )}
-      </div>
-
-      {/* Row 2: date / overdue status pill. Skipped entirely when the
-          task is completed — the squircle on the title row already
-          conveys done, and an "Overdue" label on a finished task would
-          be misleading. */}
-      {!isPending && !task.is_completed && (() => {
-        const due = getDueDateInfo(task.due_date, task.due_time);
-        if (!due) return null;
-        const isOverdue = due.dateLabel.startsWith("Overdue");
-        const text = isOverdue
-          ? due.dateLabel
-          : due.timeLabel
-            ? `${due.timeLabel} · ${due.dateLabel}`
-            : due.dateLabel;
-        return (
-          <div className="flex items-center">
-            <span
-              className={`inline-flex items-center px-1.5 py-px rounded-full text-[9px] font-semibold ${due.className}`}
-              style={{ backgroundColor: "color-mix(in srgb, currentColor 14%, transparent)" }}
-            >
-              {text}
-            </span>
-          </div>
-        );
-      })()}
+      )}
+      <span
+        className={`${compact ? "text-[10px]" : "text-[12px]"} font-medium truncate ${task.is_completed ? "line-through" : ""}`}
+        style={{ color }}
+      >
+        {truncateTitle(task.title, MAX_TITLE_CHARS)}
+      </span>
+      {task.repeat_interval && task.repeat_unit && (
+        <svg
+          className="w-2.5 h-2.5 shrink-0 opacity-40 text-foreground"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M17 2l4 4-4 4" />
+          <path d="M3 11v-1a4 4 0 014-4h14" />
+          <path d="M7 22l-4-4 4-4" />
+          <path d="M21 13v1a4 4 0 01-4 4H3" />
+        </svg>
+      )}
     </button>
   );
 }

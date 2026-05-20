@@ -127,7 +127,7 @@ export default function SearchableSelect({
             <Search size={14} className="text-muted-foreground shrink-0" />
             <input
               ref={inputRef}
-              type="text"
+              type="search"
               value={query}
               onChange={(e) => {
                 setQuery(e.target.value);
@@ -135,6 +135,16 @@ export default function SearchableSelect({
               }}
               onKeyDown={onKeyDown}
               placeholder="Type to search..."
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              inputMode="search"
+              data-1p-ignore="true"
+              data-lpignore="true"
+              data-bwignore="true"
+              data-form-type="other"
+              name="searchable-select"
               className="w-full text-sm bg-transparent outline-none placeholder:text-muted-foreground"
             />
           </div>

@@ -81,7 +81,7 @@ export default function FlipFace({ now, is24h, timezone, fontWeight }: ClockFace
       <FlipCard digit={digits[2]} fontWeight={weight} />
       <FlipCard digit={digits[3]} fontWeight={weight} />
       {period && (
-        <span className="text-[10px] text-muted-foreground ml-1 self-end mb-1.5 bg-muted rounded-md px-1.5 py-0.5">
+        <span className="text-[10px] text-foreground ml-1 self-end mb-1.5 bg-muted rounded-md px-1.5 py-0.5">
           {period}
         </span>
       )}

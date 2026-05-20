@@ -25,7 +25,7 @@
      is read by .glass-strong (the chrome behind the desktop sidebar). The
      two-tone split lets the sidebar sit slightly off-white from the main
      content so the nav reads as a distinct panel, Notion-style. */
-  --background: #fefefc;
+  --background: #ffffff;
   --sidebar-bg: #f7f7f5;
   --card: #ffffff;
   --popover: #ffffff;
@@ -1449,34 +1449,24 @@ body {
    no `backwards` fill mode so the content is never invisibly absent before
    the animation starts (avoids the flash that plain animate-stagger causes
    on frequent switches). */
-@keyframes sectionIn {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
-}
+/* sectionIn entrance was removed; class hook no-ops. */
 .animate-section-in {
-  animation: sectionIn 240ms cubic-bezier(0.16, 1, 0.3, 1);
+  animation: none;
 }
 
-/* Staggered section entrance — used inside pages */
-@keyframes staggerIn {
-  from {
-    opacity: 0;
-    transform: translateY(3px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+/* Staggered section entrance — neutralized at the user's request.
+   The page-level PageTransition wrapper now handles the fade-in
+   gesture once; in-page sections used to layer their own delayed
+   stagger animations on top, which read as busy and slow. Keeping
+   the class hooks but making them a no-op so existing markup
+   compiles without animating. */
+.animate-stagger,
+.stagger-1,
+.stagger-2,
+.stagger-3,
+.stagger-4 {
+  animation: none;
 }
-
-.animate-stagger {
-  animation: staggerIn 160ms ease-out backwards;
-}
-
-.stagger-1 { animation-delay: 0ms; }
-.stagger-2 { animation-delay: 30ms; }
-.stagger-3 { animation-delay: 60ms; }
-.stagger-4 { animation-delay: 90ms; }
 
 /* When PageTransition decides the current mount shouldn't animate
    (first session load or chat pages), suppress nested stagger
@@ -1899,35 +1889,13 @@ textarea:-webkit-autofill {
   animation: syncGlow 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-/* Task item entrance animation for optimistic add */
-@keyframes taskSlideIn {
-  from {
-    opacity: 0;
-    transform: translateY(-8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.animate-task-slide-in {
-  animation: taskSlideIn 250ms cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-@keyframes viewSwitch {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.animate-view-switch {
-  animation: viewSwitch 200ms ease-out backwards;
+/* Element-level entrance animations were removed at the user's
+   request. The class hooks remain as no-ops so existing markup still
+   compiles, but no transform/opacity choreography fires. */
+.animate-task-slide-in,
+.animate-view-switch,
+.animate-section-in {
+  animation: none;
 }
 
 /* Tour click pulse — press-down + spring-back with expanding ring ripple */
@@ -2101,19 +2069,13 @@ textarea:-webkit-autofill {
   animation: chatNotifIn 300ms ease-out;
 }
 
-/* ── Widget Dashboard: subtle, smooth iOS-style jiggle for edit mode ── */
-@keyframes widgetJiggle {
-  0% { transform: rotate(0deg); }
-  25% { transform: rotate(-0.6deg); }
-  50% { transform: rotate(0deg); }
-  75% { transform: rotate(0.6deg); }
-  100% { transform: rotate(0deg); }
-}
-
+/* ── Widget Dashboard edit-mode affordance ──
+   The jiggle animation AND the ring shadow were both removed at the
+   user's request — adding/removing the shadow caused a visible pop
+   when toggling edit mode. The Done button is sufficient signal that
+   edit mode is active. Hover dim (::after) still fires in edit mode. */
 .widget-jiggle {
-  animation: widgetJiggle 1.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
   user-select: none;
-  box-shadow: 0 0 0 1px rgba(59,130,246,0.15);
   position: relative;
 }
 
@@ -2159,22 +2121,6 @@ textarea:-webkit-autofill {
 
 .widget-jiggle:hover::after {
   background: rgba(0, 0, 0, 0.06);
-}
-
-/* Vary timing per item for natural, non-synchronized jiggle */
-.widget-jiggle:nth-child(2n) {
-  animation-duration: 1.35s;
-  animation-delay: 0.08s;
-}
-
-.widget-jiggle:nth-child(3n) {
-  animation-duration: 1.15s;
-  animation-delay: 0.15s;
-}
-
-.widget-jiggle:nth-child(5n) {
-  animation-duration: 1.45s;
-  animation-delay: 0.04s;
 }
 
 /* ── Widget gallery card hover — Notion-style lift + shadow ── */
@@ -2295,29 +2241,25 @@ textarea:-webkit-autofill {
 }
 
 /*
- * Disable react-grid-layout's built-in CSS transition on initial mount.
- * Without this, items animate from (0,0) to their actual positions on load.
- * The parent container adds .widget-grid-ready after the first render,
- * which re-enables smooth transitions for drag/resize/swap interactions.
+ * Kill EVERY transition on react-grid-layout items, in every mode.
+ * Their own stylesheet defines `transition: all 200ms ease` plus a
+ * `transition-property: left, top, width, height` override, and the
+ * cssTransforms mode adds a transform transition on top. Forcing all
+ * of those to `none !important` is the only way to guarantee items
+ * never animate into place — the user explicitly didn't want any
+ * slide-in motion.
  */
-.react-grid-item.cssTransforms:not(.widget-grid-ready .react-grid-item) {
+.react-grid-item,
+.react-grid-item.cssTransforms,
+.react-grid-item.resizing,
+.react-grid-item.react-draggable-dragging {
   transition: none !important;
+  transition-property: none !important;
 }
 
-.widget-grid-ready .react-grid-item.cssTransforms {
-  transition: transform 200ms cubic-bezier(0.25, 0.1, 0.25, 1), width 200ms cubic-bezier(0.25, 0.1, 0.25, 1), height 200ms cubic-bezier(0.25, 0.1, 0.25, 1) !important;
-  will-change: transform;
-}
-
-/* On page load, fade widgets in (opacity only — no positional movement) */
-.react-grid-item {
-  animation: widgetFadeIn 350ms ease-out both;
-}
-
-@keyframes widgetFadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
+/* Board entrance animation removed at the user's request. The page-
+   level PageTransition wrapper handles the single fade-in for /app/home;
+   widgets just appear in place with no per-tile motion. */
 
 .react-grid-placeholder {
   background: var(--ring) !important;
@@ -2659,4 +2601,35 @@ input[type="range"].slider-blue::-moz-range-track {
   .calendar-task-drop-in {
     animation: none;
   }
+}
+
+/* ── Home board wallpaper background ──
+   Tracks the active theme's --background so the default caltodo theme
+   stays white (light) or near-black (dark). Cards lift off the canvas
+   purely via their drop shadow, no tinted gradient required. */
+.board-wallpaper {
+  background-color: var(--background);
+}
+
+/* Squircle widget card — sits on top of .board-wallpaper. Pronounced
+   shadow + slight upward inner highlight so each card visibly floats
+   above the canvas like an iPhone home-screen tile. */
+.board-widget-card {
+  border-radius: 24px;
+  background-color: var(--card);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.6) inset,
+    0 2px 4px rgba(15, 23, 42, 0.06),
+    0 8px 20px -6px rgba(15, 23, 42, 0.12),
+    0 22px 48px -18px rgba(15, 23, 42, 0.18);
+  border: 1px solid color-mix(in srgb, var(--foreground) 8%, transparent);
+}
+
+.dark .board-widget-card {
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.04) inset,
+    0 2px 4px rgba(0, 0, 0, 0.45),
+    0 10px 24px -6px rgba(0, 0, 0, 0.55),
+    0 28px 60px -20px rgba(0, 0, 0, 0.7);
+  border-color: color-mix(in srgb, white 10%, transparent);
 }

@@ -3,12 +3,11 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Inbox, ChevronDown, X, Sun, CalendarRange, CalendarDays, GraduationCap, MoreVertical, List, LayoutGrid, ArrowUpDown, RefreshCw, Plus, CalendarDays as CalIcon } from "lucide-react";
+import { Inbox, X, Sun, CalendarRange, CalendarDays, GraduationCap, MoreVertical, List, LayoutGrid, ArrowUpDown, RefreshCw, Plus } from "lucide-react";
 import { useTaskContext } from "@/contexts/TaskContext";
 import { expandRepeatingTasks, getRealTaskId } from "@/lib/expand-repeating-tasks";
 import TaskList from "@/components/tasks/TaskList";
 import TaskBoardView from "@/components/tasks/TaskBoardView";
-import CalendarPanel from "@/components/calendar/CalendarPanel";
 import TaskDetailPanel from "@/components/tasks/TaskDetailPanel";
 import TaskCreateModal from "@/components/tasks/TaskCreateModal";
 import TaskPreviewPopover from "@/components/tasks/TaskPreviewPopover";
@@ -19,7 +18,7 @@ import { usePendingInvites } from "@/hooks/usePendingInvites";
 import { trackEvent } from "@/lib/analytics";
 
 type InboxFilter = "all" | "today" | "7days";
-type ViewMode = "list" | "board" | "calendar";
+type ViewMode = "list" | "board";
 
 const FILTER_OPTIONS: { key: InboxFilter; label: string; icon: React.ComponentType<{ size?: number; className?: string }> }[] = [
   { key: "all", label: "Inbox", icon: Inbox },
@@ -256,9 +255,16 @@ export default function InboxPage() {
   const hydratedRef = useRef(false);
   // New users default to the Board view ("list" was the old default).
   // Once the user has explicitly picked anything we persist it under
-  // "inbox-view-mode" and respect that on hydrate below — so existing users
-  // keep whatever they last selected.
-  const [viewMode, setViewMode] = useState<ViewMode>("board");
+  // Inbox defaults to List view for new sessions. The hydrate effect
+  // below restores the user's last selection from localStorage so the
+  // toggle persists across visits. A separate callback wraps setState
+  // with an inline localStorage write so the persistence never gets
+  // clobbered by a hydration-time effect race.
+  const [viewMode, setViewModeState] = useState<ViewMode>("list");
+  const setViewMode = useCallback((next: ViewMode) => {
+    setViewModeState(next);
+    try { localStorage.setItem("inbox-view-mode", next); } catch { /* non-critical */ }
+  }, []);
   const [showViewMenu, setShowViewMenu] = useState(false);
   const viewMenuRef = useRef<HTMLButtonElement>(null);
   const viewMenuDropdownRef = useRef<HTMLDivElement>(null);
@@ -272,8 +278,10 @@ export default function InboxPage() {
   useEffect(() => {
     const savedFilter = localStorage.getItem("inbox-filter") as InboxFilter | null;
     if (savedFilter) setFilterRaw(savedFilter);
-    const savedView = localStorage.getItem("inbox-view-mode") as ViewMode | null;
-    if (savedView) setViewMode(savedView);
+    const savedView = localStorage.getItem("inbox-view-mode");
+    // Use the raw state setter (NOT the persisted wrapper) so the
+    // hydrate-read doesn't immediately re-save itself.
+    if (savedView === "list" || savedView === "board") setViewModeState(savedView);
     const savedSort = localStorage.getItem("inbox-sort-mode") as SortMode | null;
     if (savedSort) setSortMode(savedSort);
     const savedGroup = localStorage.getItem("inbox-board-group") as "class" | "date" | null;
@@ -432,11 +440,10 @@ export default function InboxPage() {
     };
   }, [showFilterDropdown]);
 
-  // Persist preferences to localStorage (skip mount to avoid overwriting hydrated values)
-  useEffect(() => {
-    if (!hydratedRef.current) return;
-    localStorage.setItem("inbox-view-mode", viewMode);
-  }, [viewMode]);
+  // viewMode persistence is handled inline by the setViewMode callback
+  // above — the previous standalone effect ran during hydration and
+  // overwrote the saved value with the default "list" before the
+  // hydrate effect's setState committed. Don't put it back.
 
   useEffect(() => {
     if (!hydratedRef.current) return;
@@ -611,38 +618,21 @@ export default function InboxPage() {
 
   return (
     <PageTransition>
-      <div className="flex flex-col -m-4 md:-m-10 min-h-full">
-        {/* Page title block — no border underneath; the divider lives on
-            the tabs row below so it extends across the full page width. */}
-        <div className="px-10 pt-28 pb-6 md:px-20 md:pt-36 md:pb-8 animate-stagger stagger-1">
-          <div className="flex items-center gap-5 -ml-3">
-            {/* Large circle icon — matches the sidebar's glassy gray. */}
-            <div className="w-20 h-20 md:w-24 md:h-24 rounded-full glass-strong flex items-center justify-center shrink-0">
-              <Inbox className="text-muted-foreground" size={40} strokeWidth={1.75} />
-            </div>
-            <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground">
-              {firstName ? `${firstName}'s Tasks` : "My Tasks"}
-            </h1>
-          </div>
-        </div>
-
-
+      <div className="flex flex-col -m-4 md:-m-10 h-full max-h-full overflow-hidden">
         {/* Tabs + actions row — spans the full page width. No border-b
             (the divider line was removed). */}
-        <div className="pl-10 pr-[22px] pt-1 pb-4 md:pl-20 md:pr-[62px] md:pt-2 md:pb-5 flex items-center justify-between animate-stagger stagger-2">
+        <div className="pl-4 pr-3 pt-4 pb-2 md:pl-8 md:pr-6 md:pt-5 md:pb-2 flex items-center justify-between animate-stagger stagger-2">
             {/* Left: List / Board tabs — Notion-style. Active tab gets a
                 soft accent pill; inactive tabs read as plain icon + label.
-                Negative left margin pulls the first tab flush with the
-                container's left edge — the tab's internal px-3 padding
-                would otherwise push the text inward. */}
-            <div className="flex items-center gap-1 min-w-0 -ml-3">
+                No negative left margin: keep the active pill's left edge
+                aligned with the board columns / list rows below. */}
+            <div className="flex items-center gap-1 min-w-0">
               {/* In-page tabs for Board / List view modes, plus a third
                   tab for Calendar that navigates to /app/calendar (which
                   renders the same chrome with its own active tab). */}
               {([
-                { key: "board" as const, label: "Board", icon: LayoutGrid },
                 { key: "list" as const, label: "List", icon: List },
-                { key: "calendar" as const, label: "Calendar", icon: CalIcon },
+                { key: "board" as const, label: "Board", icon: LayoutGrid },
               ]).map(({ key, label, icon: Icon }) => {
                 const isActive = viewMode === key;
                 return (
@@ -806,26 +796,23 @@ export default function InboxPage() {
 
           <div
             id="tour-task-list"
-            className={`flex-1 animate-stagger stagger-2 ${
-              viewMode === "calendar"
-                ? "flex flex-col"
-                : viewMode === "list"
-                  ? "pl-7 md:pl-[68px] pr-2 md:pr-2"
-                  : "pl-7 md:pl-[68px] pr-7 md:pr-[68px]"
+            className={`flex-1 min-h-0 overflow-y-auto animate-stagger stagger-2 ${
+              viewMode === "list"
+                ? "pl-4 md:pl-8 pr-4 md:pr-6"
+                : "pl-4 md:pl-8 pr-4 md:pr-8"
             }`}
             onClick={viewMode === "list"
-              ? (e) => {
-                  // Only deselect on a direct click of this wrapper's
-                  // empty space — never on buttons / section headers /
-                  // task rows nested inside.
-                  if (e.target === e.currentTarget) setSelectedTask(null);
+              ? () => {
+                  // Any click that reaches this wrapper is an empty-area
+                  // click — TaskItem.onClick stopPropagation already
+                  // intercepts row clicks, so reaching here means the
+                  // user clicked off the row. Deselect.
+                  setSelectedTask(null);
                 }
               : undefined}
           >
             <div key={viewMode} className="animate-view-switch h-full">
-              {viewMode === "calendar" ? (
-                <CalendarPanel />
-              ) : viewMode === "list" ? (
+              {viewMode === "list" ? (
                 <TaskList
                   tasks={sortedTasks}
                   loading={loading}
@@ -897,27 +884,31 @@ export default function InboxPage() {
           </div>
           </div>
 
-          {/* Right: contained detail card — square-ish self-contained box
-              with margins, rounded corners, border + shadow. Replaces the
-              old edge-to-edge right panel. List view only.
-              Clicking the padding gutter around the card deselects the
-              active task — mirrors the left task-list's empty-area click
-              behavior so users can dismiss the selection from either side. */}
+          {/* Right: edge-to-edge detail panel — full-height, flush against
+              the page edge with a left border separating it from the list.
+              List view only. Clicking the panel's empty placeholder area
+              deselects, mirroring the left task-list behavior. */}
           {viewMode === "list" && (
             <div
-              className="hidden md:flex w-[50%] shrink-0 pl-2 pr-6 pt-0 pb-6 md:pl-3 md:pr-10 md:pt-0 md:pb-8 sticky top-0 self-start h-[calc(100dvh-2.5rem)]"
+              className="hidden md:flex w-[50%] shrink-0 border-l border-border h-full"
               onClick={(e) => {
-                if (e.target === e.currentTarget) setSelectedTask(null);
+                // Deselect when the click hits the panel wrapper or
+                // bubbles up from non-interactive empty areas. The
+                // detail panel's interactive children (inputs,
+                // buttons) handle their own clicks and stop
+                // propagation when needed, so any click reaching the
+                // outermost wrapper is a "clicked off" gesture.
+                const target = e.target as HTMLElement;
+                if (target.closest("input, textarea, button, [contenteditable], a")) return;
+                setSelectedTask(null);
               }}
             >
-              <div className="w-full h-full bg-card border border-border rounded-2xl shadow-sm overflow-hidden flex flex-col">
-                <TaskDetailPanel
-                  task={currentSelectedTask}
-                  onClose={() => setSelectedTask(null)}
-                  onSave={updateTask}
-                  onDelete={deleteTask}
-                />
-              </div>
+              <TaskDetailPanel
+                task={currentSelectedTask}
+                onClose={() => setSelectedTask(null)}
+                onSave={updateTask}
+                onDelete={deleteTask}
+              />
             </div>
           )}
         </div>

@@ -1,23 +1,40 @@
-/**
- * Lightweight page transition wrapper.
- *
- * Plays a quick, subtle fade-in only when the user is *switching* between
- * pages. Skipped in two cases:
- *   1. Initial app load. The first paint after a hard reload should not
- *      animate — it makes the boot feel tacky.
- *   2. Chat pages (/app/discussions/*). Per product call, chat shouldn't
- *      flicker on entry.
- *
- * @param children - Page content to animate
- */
-
 "use client";
 
 /**
- * No-op wrapper. The fade-in animation was producing a visible white
- * flash on route swaps; we now mount children instantly with no opacity
- * transition. Kept as a thin component so existing call sites compile.
+ * Page transition wrapper — simple fade in/out across every /app/*
+ * route. 350ms, just opacity, nothing fancy. The loading.tsx flash
+ * that used to blank the screen before the fade started has been
+ * removed so the previous page stays visible until the new one
+ * mounts, and the fade lands on top of it instead of on a white card.
  */
+
+import { useEffect, useState } from "react";
+
 export default function PageTransition({ children }: { children: React.ReactNode }) {
-  return <div className="h-full">{children}</div>;
+  const [mounted, setMounted] = useState(false);
+
+  // Schedule the opacity flip on the SECOND animation frame so the
+  // browser actually paints the initial opacity:0 state before the
+  // transition kicks in. A single requestAnimationFrame fires before
+  // the first paint commits, so the previous behavior went straight
+  // to opacity:1 and the user saw no fade at all.
+  useEffect(() => {
+    let raf2 = 0;
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => setMounted(true));
+    });
+    return () => {
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2);
+    };
+  }, []);
+
+  return (
+    <div
+      className="h-full transition-opacity duration-[350ms] ease-out"
+      style={{ opacity: mounted ? 1 : 0 }}
+    >
+      {children}
+    </div>
+  );
 }

@@ -593,8 +593,9 @@ export default function TaskBoardView({
     >
       {/* Static scroll controls — left/right arrows plus a current/total
           indicator so the user knows there are more columns to the right.
-          Lives above the columns and stays put while the row scrolls. */}
-      <div className="flex items-center justify-between pb-3">
+          Sticky to the top of the scrolling task-list wrapper so the
+          arrows stay visible even as the user scrolls long columns. */}
+      <div className="sticky top-0 z-10 bg-background flex items-center justify-between pt-1 pb-3">
         <div className="flex items-center gap-1">
           <button
             type="button"

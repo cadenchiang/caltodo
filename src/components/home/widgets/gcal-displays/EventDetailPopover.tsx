@@ -149,14 +149,14 @@ export default function EventDetailPopover({ event, color, anchorRect, onClose }
             href={event.htmlLink}
             target="_blank"
             rel="noopener noreferrer"
-            className="w-9 h-9 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            className="w-9 h-9 rounded-full flex items-center justify-center text-foreground hover:text-foreground hover:bg-muted transition-colors"
             aria-label="Open in Google Calendar"
           >
             <ExternalLink size={18} />
           </a>
           <button
             onClick={onClose}
-            className="w-9 h-9 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            className="w-9 h-9 rounded-full flex items-center justify-center text-foreground hover:text-foreground hover:bg-muted transition-colors"
             aria-label="Close"
           >
             <X size={18} />
@@ -167,7 +167,7 @@ export default function EventDetailPopover({ event, color, anchorRect, onClose }
           <div className="w-4 h-4 rounded shrink-0 mt-1.5" style={{ backgroundColor: color }} />
           <div className="min-w-0 flex-1">
             <h3 className="text-[22px] font-normal text-foreground leading-7">{event.summary}</h3>
-            <p className="text-sm text-muted-foreground mt-0.5">
+            <p className="text-sm text-foreground mt-0.5">
               {formatTimeRange(event.start, event.end, event.allDay)}
             </p>
           </div>
@@ -176,18 +176,18 @@ export default function EventDetailPopover({ event, color, anchorRect, onClose }
         <div className="pb-4">
           {event.location && (
             <div className="flex items-start gap-4 px-6 py-2.5">
-              <MapPin size={20} className="shrink-0 mt-0.5 text-muted-foreground" />
+              <MapPin size={20} className="shrink-0 mt-0.5 text-foreground" />
               <span className="text-sm font-medium text-foreground">{event.location}</span>
             </div>
           )}
           {description && (
             <div className="flex items-start gap-4 px-6 py-2.5">
-              <FileText size={20} className="shrink-0 mt-0.5 text-muted-foreground" />
+              <FileText size={20} className="shrink-0 mt-0.5 text-foreground" />
               <p className="text-sm text-foreground whitespace-pre-wrap line-clamp-6">{description}</p>
             </div>
           )}
           <div className="flex items-center gap-4 px-6 py-2.5">
-            <Calendar size={20} className="shrink-0 text-muted-foreground" />
+            <Calendar size={20} className="shrink-0 text-foreground" />
             <span className="text-sm text-foreground">{event.calendarId || "Google Calendar"}</span>
           </div>
         </div>

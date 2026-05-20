@@ -66,7 +66,7 @@ export default function CalChatWidget({ config }: CalChatWidgetProps) {
         title="Cal Chat"
         right={
           compact ? (
-            <span className="text-xs text-muted-foreground">
+            <span className="text-xs text-foreground">
               {sortedBoards.length} active
             </span>
           ) : undefined
@@ -82,13 +82,13 @@ export default function CalChatWidget({ config }: CalChatWidgetProps) {
                   {board.course.name}
                 </span>
                 {board.last_message_at && (
-                  <span className="text-xs text-muted-foreground shrink-0">
+                  <span className="text-xs text-foreground shrink-0">
                     {formatRelativeTime(board.last_message_at)}
                   </span>
                 )}
               </div>
               {board.last_message_body && (
-                <p className="text-xs text-muted-foreground line-clamp-1">
+                <p className="text-xs text-foreground line-clamp-1">
                   <span className="font-medium">{board.last_message_author}: </span>
                   {board.last_message_body}
                 </p>

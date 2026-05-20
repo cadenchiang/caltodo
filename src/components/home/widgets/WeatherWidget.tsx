@@ -284,24 +284,24 @@ export default function WeatherWidget({ config, editMode }: WeatherWidgetProps) 
         tabIndex={!permDenied ? 0 : undefined}
         onKeyDown={!permDenied ? (e) => { if (e.key === "Enter" || e.key === " ") setRetryCount((c) => c + 1); } : undefined}
       >
-        <div className="text-muted-foreground mb-2">
+        <div className="text-foreground mb-2">
           {getWeatherIcon(3, 24)}
         </div>
         {permDenied ? (
           <>
-            <p className="text-xs text-muted-foreground mb-1">
+            <p className="text-xs text-foreground mb-1">
               {geoError}
             </p>
             <button
               type="button"
               onClick={() => setRetryCount((c) => c + 1)}
-              className="text-xs text-foreground hover:text-muted-foreground transition-colors cursor-pointer"
+              className="text-xs text-foreground hover:text-foreground transition-colors cursor-pointer"
             >
               Retry
             </button>
           </>
         ) : (
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-foreground">
             {geoError}
           </p>
         )}

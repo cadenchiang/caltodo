@@ -55,10 +55,10 @@ export function WidgetHeader({
   right?: ReactNode;
 }) {
   return (
-    <div className="widget-header flex items-center justify-between mb-2 -mx-3 -mt-3 px-3 h-8 shrink-0 border-b border-foreground/[0.06]" style={{ color: "var(--widget-text-color, var(--foreground))" }}>
-      <h3 className="text-xs font-semibold" style={{ color: "inherit" }}>{title}</h3>
+    <div className="widget-header flex items-center justify-between mb-3 shrink-0" style={{ color: "var(--widget-text-color, var(--foreground))" }}>
+      <h3 className="text-sm font-bold tracking-tight" style={{ color: "inherit" }}>{title}</h3>
       {right && (
-        <div className="flex items-center gap-1.5 shrink-0" style={{ color: "inherit" }}>{right}</div>
+        <div className="flex items-center gap-1.5 shrink-0 text-sm font-semibold" style={{ color: "inherit" }}>{right}</div>
       )}
     </div>
   );
@@ -82,9 +82,9 @@ export function WidgetEmptyState({
   action?: ReactNode;
 }) {
   return (
-    <div className="h-full w-full flex flex-col items-center justify-center p-3 text-center">
-      <div className="text-muted-foreground mb-2">{icon}</div>
-      <p className="text-xs text-muted-foreground">{message}</p>
+    <div className="h-full w-full flex flex-col items-center justify-center p-4 text-center text-foreground">
+      <div className="mb-3 [&>svg]:w-7 [&>svg]:h-7">{icon}</div>
+      <p className="text-sm font-semibold tracking-tight">{message}</p>
       {action && <div className="mt-3">{action}</div>}
     </div>
   );
@@ -135,7 +135,7 @@ export function WidgetStat({
   tabular?: boolean;
 }) {
   return (
-    <span className={`text-xs text-muted-foreground ${tabular ? "tabular-nums" : ""}`}>
+    <span className={`text-xs text-foreground ${tabular ? "tabular-nums" : ""}`}>
       {children}
     </span>
   );

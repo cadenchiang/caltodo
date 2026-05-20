@@ -61,7 +61,7 @@ export default function CardsDisplay({ events, calendarColors, fallbackColor }: 
             >
               <div className="flex items-center justify-between gap-2">
                 <p className={`text-xs font-medium truncate ${
-                  isPast ? "line-through text-muted-foreground" : "text-foreground"
+                  isPast ? "line-through text-foreground" : "text-foreground"
                 }`}>
                   {event.summary}
                 </p>
@@ -72,9 +72,9 @@ export default function CardsDisplay({ events, calendarColors, fallbackColor }: 
                 )}
               </div>
               <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-[10px] text-muted-foreground">{timeStr}</span>
+                <span className="text-[10px] text-foreground">{timeStr}</span>
                 {event.location && (
-                  <span className="text-[10px] text-muted-foreground flex items-center gap-0.5 truncate">
+                  <span className="text-[10px] text-foreground flex items-center gap-0.5 truncate">
                     <MapPin size={8} className="shrink-0" />
                     <span className="truncate">{event.location}</span>
                   </span>

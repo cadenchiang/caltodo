@@ -111,7 +111,7 @@ export default function SplitFace({ now, is24h, timezone, fontWeight }: ClockFac
             </div>
             {period && (
               <span
-                className="text-muted-foreground uppercase tracking-wider font-semibold"
+                className="text-foreground uppercase tracking-wider font-semibold"
                 style={{ fontSize: labelSize, marginTop: labelSize * 0.4 }}
               >
                 {period}
@@ -146,7 +146,7 @@ export default function SplitFace({ now, is24h, timezone, fontWeight }: ClockFac
               </span>
             </div>
             <span
-              className="text-muted-foreground uppercase tracking-wider font-semibold"
+              className="text-foreground uppercase tracking-wider font-semibold"
               style={{ fontSize: labelSize, marginTop: labelSize * 0.4 }}
             >
               {day}

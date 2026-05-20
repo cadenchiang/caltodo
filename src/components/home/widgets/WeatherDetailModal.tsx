@@ -196,14 +196,14 @@ export default function WeatherDetailModal({
         {/* Header */}
         <div className="flex items-center justify-between p-3 border-b border-border shrink-0">
           <div className="flex items-center gap-1.5">
-            <MapPin size={14} className="text-muted-foreground" />
+            <MapPin size={14} className="text-foreground" />
             <span className="text-sm font-medium text-foreground truncate">
               {locationName}
             </span>
           </div>
           <button
             onClick={handleClose}
-            className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            className="w-8 h-8 rounded-full flex items-center justify-center text-foreground hover:text-foreground hover:bg-muted transition-colors"
             aria-label="Close"
           >
             <X size={16} />
@@ -220,7 +220,7 @@ export default function WeatherDetailModal({
 
           {error && (
             <div className="flex items-center justify-center py-16">
-              <p className="text-sm text-muted-foreground">{error}</p>
+              <p className="text-sm text-foreground">{error}</p>
             </div>
           )}
 

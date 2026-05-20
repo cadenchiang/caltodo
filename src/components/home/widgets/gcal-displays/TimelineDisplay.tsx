@@ -74,7 +74,7 @@ export default function TimelineDisplay({ events, calendarColors, fallbackColor 
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <p className={`text-xs font-medium truncate flex-1 ${
-                    isPast ? "text-muted-foreground line-through" : "text-foreground"
+                    isPast ? "text-foreground line-through" : "text-foreground"
                   }`}>
                     {event.summary}
                   </p>
@@ -84,7 +84,7 @@ export default function TimelineDisplay({ events, calendarColors, fallbackColor 
                     </span>
                   )}
                 </div>
-                <p className="text-[10px] text-muted-foreground mt-0.5">{timeStr}</p>
+                <p className="text-[10px] text-foreground mt-0.5">{timeStr}</p>
               </div>
             </button>
           );

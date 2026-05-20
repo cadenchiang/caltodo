@@ -45,7 +45,7 @@ export default function ListDisplay({ events, calendarColors, fallbackColor, com
         {Array.from(grouped.entries()).map(([dateKey, dayEvents], idx) => (
           <div key={dateKey}>
             <div className={`flex items-center gap-2 px-1 ${idx > 0 ? "mt-1" : ""}`}>
-              <span className={`text-[10px] font-semibold tracking-wider shrink-0 ${
+              <span className={`text-xs font-bold shrink-0 ${
                 dateKey === todayKey ? "text-blue-500" : "text-foreground"
               }`}>
                 {dayLabel(dateKey, todayKey, tomorrowKey)}
@@ -77,19 +77,17 @@ export default function ListDisplay({ events, calendarColors, fallbackColor, com
                       style={{ backgroundColor: color }}
                     />
                     <div className="min-w-0 flex-1">
-                      <p className={`text-xs font-medium truncate ${
-                        isPast ? "text-muted-foreground line-through" : "text-foreground"
+                      <p className={`text-sm font-bold truncate text-foreground ${
+                        isPast ? "line-through" : ""
                       }`}>
                         {event.summary}
                       </p>
-                      <p className={`text-[10px] mt-0.5 ${
-                        isPast ? "text-muted-foreground" : "text-foreground/80"
-                      }`}>
+                      <p className="text-xs font-medium mt-0.5 text-foreground">
                         {timeStr}
                       </p>
                     </div>
                     {countdown && (
-                      <span className="text-[9px] font-medium text-blue-500 shrink-0">
+                      <span className="text-xs font-bold text-blue-500 shrink-0">
                         {countdown}
                       </span>
                     )}

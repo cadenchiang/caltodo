@@ -108,9 +108,12 @@ export default function CalendarGrid({
   }
 
   const labels = isMobile ? WEEKDAY_LABELS_SHORT : WEEKDAY_LABELS_FULL;
-  // Taller default rows so the 2-row task bars (title + status pill)
-  // have breathing room and a few tasks can show before truncation.
-  const minRowHeight = isMobile ? "68px" : "160px";
+  // Minimum cell height so a quiet week doesn't collapse to nothing.
+  // Lowered from 96px to 64px on desktop so 6 rows + the weekday header
+  // + the panel header always fit in the viewport without the bottom
+  // week getting clipped. The grid uses `minmax(min, 1fr)` so rows
+  // still stretch to fill available height when there's slack.
+  const minRowHeight = isMobile ? "56px" : "64px";
 
   // Weekday index for "today" (Mon=0 ... Sun=6, weekStartsOn:1).
   const todayDow = (() => {
@@ -119,10 +122,10 @@ export default function CalendarGrid({
   })();
 
   return (
-    <div id="tour-calendar-grid" className="bg-card flex flex-col">
+    <div id="tour-calendar-grid" className="bg-card flex flex-col flex-1 min-h-0">
       {/* Weekday header row — inside the rounded card. Current weekday is
           bold + solid foreground; others stay muted. */}
-      <div className="grid grid-cols-7 border-b border-gray-200 dark:border-gray-700/50 bg-card">
+      <div className="grid grid-cols-7 border-b border-gray-200 dark:border-gray-700/50 bg-card shrink-0">
         {labels.map((label, i) => (
           <div
             key={label}
@@ -137,12 +140,12 @@ export default function CalendarGrid({
         ))}
       </div>
 
-      {/* Day grid — each week row sizes to its tallest cell, so weeks
-          with more tasks grow taller and quiet weeks stay short. The
-          min keeps an empty week from collapsing too far. */}
+      {/* Day grid — rows split the remaining vertical space equally
+          (minmax(min, 1fr)) so the whole month fits without page
+          scroll. Tasks overflow each cell via the "+N more" link. */}
       <div
-        className="grid grid-cols-7"
-        style={{ gridAutoRows: `minmax(${minRowHeight}, max-content)` }}
+        className="grid grid-cols-7 flex-1 min-h-0"
+        style={{ gridAutoRows: `minmax(${minRowHeight}, 1fr)` }}
       >
         {days.map((day, i) => {
           const dateStr = format(day, "yyyy-MM-dd");

@@ -1,15 +1,20 @@
 "use client";
 
 /**
- * Spotify embed widget — renders a playable Spotify player via iframe.
- * Users paste a Spotify URL (track, album, playlist, podcast) in the
- * settings panel. Supports custom header text, colors, and dark/light theme.
+ * Spotify embed widget — Jerrod-style "Now Playing" chrome around the
+ * official Spotify embed iframe. A small "01 :: NOW PLAYING" label at
+ * the top-left, the player below filling the rest of the card. Empty
+ * state directs the user to paste a Spotify URL via settings.
+ *
+ * Audio playback continues to come from Spotify's iframe — we just
+ * wrap it in matching typography so the widget visually slots into
+ * the Jerrod-style dashboard.
  *
  * @module SpotifyWidget
  */
 
 import { Music } from "lucide-react";
-import { WidgetShell, WidgetHeader, WidgetEmptyState } from "./WidgetPrimitives";
+import { WidgetEmptyState } from "./WidgetPrimitives";
 
 interface SpotifyWidgetProps {
   config: Record<string, string>;
@@ -63,62 +68,52 @@ export function parseSpotifyUrl(
   return null;
 }
 
-/** Content type labels for the header. */
-const TYPE_LABELS: Record<string, string> = {
-  track: "Track",
-  album: "Album",
-  playlist: "Playlist",
-  episode: "Episode",
-  show: "Podcast",
-};
-
 /**
- * Builds the Spotify embed iframe URL from a parsed type and ID.
+ * Builds the Spotify embed iframe URL from a parsed type and ID. The
+ * widget always renders the light-mode theme so the embed surfaces
+ * sit on white like the rest of the dashboard.
  *
  * @param type - Content type (track, album, playlist, episode, show)
  * @param id - Spotify content ID
- * @param darkMode - Whether to use dark theme (theme=0)
  * @returns Full embed URL string
  */
-function buildEmbedUrl(type: string, id: string, darkMode = true): string {
-  return `https://open.spotify.com/embed/${type}/${id}?theme=${darkMode ? "0" : "1"}`;
+function buildEmbedUrl(type: string, id: string): string {
+  return `https://open.spotify.com/embed/${type}/${id}?theme=1`;
 }
 
 export default function SpotifyWidget({ config }: SpotifyWidgetProps) {
   const parsed = parseSpotifyUrl(config.spotifyUrl || "");
 
-  // Empty state — direct to settings
   if (!parsed) {
     return (
-      <WidgetEmptyState
-        icon={<Music size={24} />}
-        message="Click to add a Spotify link in settings"
-      />
+      <div className="h-full w-full flex flex-col px-4 py-3 gap-2">
+        <div className="text-sm font-semibold text-foreground">Now Playing</div>
+        <div className="flex-1 min-h-0">
+          <WidgetEmptyState
+            icon={<Music size={20} />}
+            message="Click to add a Spotify link"
+          />
+        </div>
+      </div>
     );
   }
 
-  // Render embedded player with optional header
-  const useDarkTheme = config.spotifyTheme !== "light";
-  const embedUrl = buildEmbedUrl(parsed.type, parsed.id, useDarkTheme);
-  const headerText = config.spotifyLabel || TYPE_LABELS[parsed.type] || "Spotify";
-  const showHeader = config.spotifyShowHeader !== "false";
+  const embedUrl = buildEmbedUrl(parsed.type, parsed.id);
 
   return (
-    <WidgetShell className={showHeader ? "" : "p-0"}>
-      {showHeader && (
-        <WidgetHeader title={headerText} />
-      )}
-      <div className={`flex-1 min-h-0 overflow-hidden ${showHeader ? "-mx-3 -mb-3" : ""}`}>
+    <div className="h-full w-full flex flex-col gap-2 px-4 pt-3 pb-2">
+      <div className="text-sm font-semibold text-foreground">Now Playing</div>
+      <div className="flex-1 min-h-0 overflow-hidden rounded-xl">
         <iframe
           src={embedUrl}
           width="100%"
           height="100%"
           allow="encrypted-media"
           loading="lazy"
-          className={showHeader ? "" : "rounded-sm"}
           title="Spotify Player"
+          style={{ border: 0 }}
         />
       </div>
-    </WidgetShell>
+    </div>
   );
 }

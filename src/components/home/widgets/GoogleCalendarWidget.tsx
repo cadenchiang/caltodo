@@ -226,7 +226,7 @@ export default function GoogleCalendarWidget({ config, editMode, onUpdateConfig 
       <WidgetHeader
         title="Google Calendar"
         right={
-          <span className="text-[10px] text-muted-foreground">
+          <span className="text-xs text-foreground">
             {viewMode === "custom"
               ? `${config.customDays || "7"} Days`
               : VIEW_MODES.find((m) => m.key === viewMode)?.label ?? viewMode}

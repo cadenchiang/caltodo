@@ -151,7 +151,7 @@ export default function QuoteWidget({ config, onUpdateConfig }: QuoteWidgetProps
               saveCustomQuote(editText, e.target.value);
             }}
             placeholder="Author (optional)"
-            className="w-full bg-transparent text-[11px] text-muted-foreground tracking-wide focus:outline-none placeholder-muted-foreground/50"
+            className="w-full bg-transparent text-xs text-foreground tracking-wide focus:outline-none placeholder-muted-foreground/50"
           />
           <div className="flex items-center gap-2 pt-1">
             <button
@@ -166,7 +166,7 @@ export default function QuoteWidget({ config, onUpdateConfig }: QuoteWidgetProps
                   });
                 }
               }}
-              className="text-[11px] font-medium text-blue-500 hover:text-blue-600 transition-colors"
+              className="text-xs font-medium text-blue-500 hover:text-blue-600 transition-colors"
             >
               Done
             </button>
@@ -174,7 +174,7 @@ export default function QuoteWidget({ config, onUpdateConfig }: QuoteWidgetProps
               <button
                 type="button"
                 onClick={resetToDaily}
-                className="text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+                className="text-xs font-medium text-foreground hover:text-foreground transition-colors flex items-center gap-1"
               >
                 <RotateCcw size={10} />
                 Reset to daily
@@ -197,7 +197,7 @@ export default function QuoteWidget({ config, onUpdateConfig }: QuoteWidgetProps
           {displayQuote.text}
         </p>
         <div className="w-12 h-0.5 opacity-30 mt-3 rounded-full" style={{ backgroundColor: accentColor }} />
-        <p className="text-[11px] text-muted-foreground mt-2 tracking-wide">
+        <p className="text-xs text-foreground mt-2 tracking-wide">
           &mdash; {displayQuote.author}
         </p>
 
@@ -213,7 +213,7 @@ export default function QuoteWidget({ config, onUpdateConfig }: QuoteWidgetProps
             className="absolute -top-1 -right-1 p-1.5 rounded-lg bg-card border border-border shadow-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-accent"
             title="Edit quote"
           >
-            <Pencil size={12} className="text-muted-foreground" />
+            <Pencil size={12} className="text-foreground" />
           </button>
         )}
       </div>

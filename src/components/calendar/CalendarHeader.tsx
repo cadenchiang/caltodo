@@ -240,16 +240,20 @@ export default function CalendarHeader({
           </div>
         )}
 
-        {/* GCal synced tag — hidden on mobile to save space */}
+        {/* GCal synced indicator — just the logo + a green checkmark,
+            no "Synced" copy. Hidden on mobile. Click opens the
+            disconnect popover. */}
         {gcalConnected && (
           <div className="relative shrink-0 hidden md:block ml-2">
             <button
               ref={buttonRef}
               onClick={() => setShowPopover(!showPopover)}
-              className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-colors"
+              className="flex items-center gap-1 px-2 py-1 rounded-full hover:bg-foreground/[0.05] transition-colors"
+              aria-label="Google Calendar synced"
+              title="Google Calendar synced"
             >
-              <GCalIcon size={12} />
-              Synced
+              <GCalIcon size={14} />
+              <Check size={12} strokeWidth={2.75} className="text-emerald-500" />
             </button>
             {showPopover && createPortal(
               <div ref={popoverRef} style={getPopoverStyle()} className="z-[9999] bg-white dark:bg-neutral-800 border border-border rounded-xl shadow-xl dark:shadow-black/40 p-3.5 min-w-[220px] animate-popover-in">
@@ -284,36 +288,10 @@ export default function CalendarHeader({
             )}
           </div>
         )}
-        {gcalConnected === false && !badgeDismissed && (
-          <div className="relative shrink-0 hidden md:flex items-center group/badge ml-2">
-            <a
-              href="/app/settings?section=integrations"
-              title="Sync your tasks to Google Calendar"
-              className="active:scale-95 transition-all relative"
-            >
-              <div className="rounded-lg border border-gray-300 dark:border-gray-500 px-3 py-1.5 flex items-center gap-2 text-foreground hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
-                <GCalIcon size={14} />
-                <span className="text-xs font-medium">Connect Google Calendar</span>
-              </div>
-            </a>
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setBadgeDismissed(true);
-                try { localStorage.setItem(GCAL_BADGE_DISMISSED_KEY, "true"); } catch { /* ignore */ }
-              }}
-              className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-gray-200 dark:bg-zinc-700 flex items-center justify-center opacity-0 group-hover/badge:opacity-100 transition-opacity hover:bg-gray-300 dark:hover:bg-zinc-600"
-              aria-label="Dismiss"
-              title="Dismiss"
-            >
-              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            </button>
-          </div>
-        )}
+        {/* "Connect Google Calendar" badge was removed at the user's
+            request — when GCal isn't connected, the header shows
+            nothing in this slot instead of nagging. Connecting still
+            happens from /app/settings. */}
       </div>
 
       {/* Right: Add + View mode (settings gear / view-mode toggle removed —

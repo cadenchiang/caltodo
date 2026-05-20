@@ -59,11 +59,11 @@ export default function CompactDisplay({ events, calendarColors, fallbackColor }
                 style={{ backgroundColor: color }}
               />
               <span className={`text-[11px] truncate flex-1 ${
-                isPast ? "text-muted-foreground line-through" : "text-foreground"
+                isPast ? "text-foreground line-through" : "text-foreground"
               }`}>
                 {event.summary}
               </span>
-              <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
+              <span className="text-[10px] text-foreground tabular-nums shrink-0">
                 {timeStr}
               </span>
               {countdown && (

@@ -93,7 +93,7 @@ export default function NotesWidget({ config, onUpdateConfig }: NotesWidgetProps
               {content}
             </p>
           ) : (
-            <p className="text-sm text-muted-foreground italic">
+            <p className="text-sm text-foreground italic">
               No notes yet
             </p>
           )}

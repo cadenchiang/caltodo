@@ -64,11 +64,11 @@ export default function AgendaDisplay({ events, calendarColors, fallbackColor }:
               {/* Time column */}
               <div className="w-8 shrink-0 text-center">
                 <p className={`text-sm font-semibold leading-none tabular-nums ${
-                  isPast ? "text-muted-foreground" : "text-foreground"
+                  isPast ? "text-foreground" : "text-foreground"
                 }`}>
                   {timeTop}
                 </p>
-                <p className="text-[9px] text-muted-foreground mt-0.5">{timeBottom}</p>
+                <p className="text-[9px] text-foreground mt-0.5">{timeBottom}</p>
               </div>
 
               {/* Color accent line */}
@@ -80,12 +80,12 @@ export default function AgendaDisplay({ events, calendarColors, fallbackColor }:
               {/* Event details */}
               <div className="min-w-0 flex-1">
                 <p className={`text-xs font-medium truncate ${
-                  isPast ? "text-muted-foreground line-through" : "text-foreground"
+                  isPast ? "text-foreground line-through" : "text-foreground"
                 }`}>
                   {event.summary}
                 </p>
                 {event.location && (
-                  <p className="text-[10px] text-muted-foreground truncate mt-0.5">
+                  <p className="text-[10px] text-foreground truncate mt-0.5">
                     {event.location}
                   </p>
                 )}

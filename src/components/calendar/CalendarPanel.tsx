@@ -263,66 +263,7 @@ export default function CalendarPanel() {
         </div>
       )}
 
-      <div className="px-10 py-2 md:px-20 md:pt-3 md:pb-3 shrink-0 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h2 className="text-sm font-semibold text-foreground tracking-tight">{title}</h2>
-          {gcalConnected && (
-            <div className="relative">
-              <button
-                ref={gcalBtnRef}
-                type="button"
-                onClick={() => setShowGcalPopover((v) => !v)}
-                className="hidden md:inline-flex items-center gap-1.5 px-2 py-1 text-[11px] font-medium rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-colors cursor-pointer"
-                aria-label="Google Calendar synced"
-                title="Google Calendar synced"
-              >
-                <GCalLogo size={12} />
-                <Check size={11} strokeWidth={2.75} />
-              </button>
-              {showGcalPopover && (
-                <div
-                  ref={gcalPopoverRef}
-                  className="absolute top-full left-0 mt-2 z-50 bg-white dark:bg-neutral-800 border border-border rounded-xl shadow-xl dark:shadow-black/40 p-3.5 min-w-[240px] animate-in"
-                >
-                  {gcalEmail && (
-                    <div className="flex items-center gap-2.5 mb-3">
-                      {gcalPhotoUrl ? (
-                        <img src={gcalPhotoUrl} alt="" width={28} height={28} className="rounded-full shrink-0" referrerPolicy="no-referrer" />
-                      ) : (
-                        <div className="w-7 h-7 rounded-full bg-[#0e89d6] flex items-center justify-center text-white text-xs font-medium shrink-0">
-                          {gcalEmail[0].toUpperCase()}
-                        </div>
-                      )}
-                      <span className="text-xs text-foreground font-medium truncate flex-1">{gcalEmail}</span>
-                      <Check size={14} className="text-emerald-500 shrink-0" />
-                    </div>
-                  )}
-                  <p className="text-xs text-muted-foreground mb-3">Viewing events from Google Calendar.</p>
-                  <button
-                    onClick={handleGcalDisconnect}
-                    disabled={disconnecting}
-                    className={`w-full px-3 py-2 text-xs font-medium rounded-lg transition-all disabled:opacity-60 ${
-                      confirmDisconnect
-                        ? "bg-red-500 text-white hover:bg-red-600"
-                        : "text-foreground border border-border hover:bg-accent"
-                    }`}
-                  >
-                    {disconnecting ? "Disconnecting…" : confirmDisconnect ? "Click to confirm disconnect" : "Disconnect Google Calendar"}
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-        <div className="flex items-center gap-1">
-          <button onClick={() => navigate(-1)} className="w-7 h-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors text-sm" aria-label="Previous">‹</button>
-          <button onClick={() => setCurrentDate(new Date())} className="px-2.5 py-1 text-xs font-semibold text-foreground rounded-md border border-border hover:bg-accent transition-colors">Today</button>
-          <button onClick={() => navigate(1)} className="w-7 h-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors text-sm" aria-label="Next">›</button>
-        </div>
-      </div>
-
-      {/* CalendarHeader kept off-screen to preserve its hooks/side effects */}
-      <div className="hidden">
+      <div className="px-4 md:px-8 pt-4 md:pt-5 pb-3 shrink-0">
         <CalendarHeader
           currentMonth={currentDate}
           title={title}
@@ -337,7 +278,7 @@ export default function CalendarPanel() {
         />
       </div>
 
-      <div className="flex-1 flex flex-col mx-7 md:mx-[68px] mb-8 md:mb-12 rounded-2xl border border-gray-200/80 dark:border-gray-700/50 bg-white dark:bg-[#141414] overflow-hidden">
+      <div className="flex-1 flex flex-col mx-4 md:mx-8 rounded-2xl border border-gray-200/80 dark:border-gray-700/50 bg-white dark:bg-[#141414] overflow-hidden min-h-0">
         {viewMode === "month" ? (
           <CalendarGrid
             currentMonth={currentDate}

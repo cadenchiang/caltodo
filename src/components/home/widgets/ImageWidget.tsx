@@ -184,8 +184,8 @@ export default function ImageWidget({
         <div className="w-5 h-5 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin" />
       ) : (
         <>
-          <ImageIcon size={24} className="text-muted-foreground mb-2" />
-          <p className="text-xs text-muted-foreground mb-1">
+          <ImageIcon size={24} className="text-foreground mb-2" />
+          <p className="text-xs text-foreground mb-1">
             {dragOver ? "Drop image here" : "No image"}
           </p>
           {!dragOver && onUpdateConfig && (

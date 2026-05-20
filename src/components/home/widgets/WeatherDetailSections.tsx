@@ -94,10 +94,10 @@ export function HeroSection({ data, selectedDay, fmt }: HeroProps) {
       <p className="text-6xl font-extralight tracking-tighter tabular-nums text-foreground">
         {fmt(displayTemp)}
       </p>
-      <p className="text-sm text-muted-foreground mt-1">
+      <p className="text-sm text-foreground mt-1">
         {getWeatherLabel(displayCode)}
       </p>
-      <p className="text-xs text-muted-foreground/70 mt-0.5">
+      <p className="text-xs text-foreground/70 mt-0.5">
         H:{fmt(high)} L:{fmt(low)}
       </p>
     </div>
@@ -129,11 +129,11 @@ export function HourlyStrip({ hours, fmt, fmtHour, isToday }: HourlyProps) {
             key={h.time}
             className="flex flex-col items-center gap-1.5 min-w-[52px] px-1"
           >
-            <span className="text-[11px] text-muted-foreground font-medium">
+            <span className="text-xs text-foreground font-medium">
               {fmtHour(h.time, isToday ? i : -1)}
             </span>
             {h.precipProb > 20 && (
-              <span className="text-[9px] text-blue-400 tabular-nums -my-0.5">
+              <span className="text-xs text-blue-400 tabular-nums -my-0.5">
                 {h.precipProb}%
               </span>
             )}
@@ -196,7 +196,7 @@ export function DayForecastList({
                 className={`w-10 text-xs ${
                   isSelected
                     ? "font-semibold text-foreground"
-                    : "text-muted-foreground"
+                    : "text-foreground"
                 }`}
               >
                 {dayLabel}
@@ -204,11 +204,11 @@ export function DayForecastList({
               <span className="w-5 flex justify-center">
                 {getWeatherIcon(day.weatherCode, 16)}
               </span>
-              <span className="flex-1 text-xs text-muted-foreground truncate">
+              <span className="flex-1 text-xs text-foreground truncate">
                 {getWeatherLabel(day.weatherCode)}
               </span>
               {day.precipProb > 0 && (
-                <span className="text-[10px] text-blue-400 w-8 text-right tabular-nums">
+                <span className="text-xs text-blue-400 w-8 text-right tabular-nums">
                   {day.precipProb}%
                 </span>
               )}
@@ -306,9 +306,9 @@ function StatCard({
 }) {
   return (
     <div className="p-3">
-      <div className="flex items-center gap-1.5 text-muted-foreground mb-1.5">
+      <div className="flex items-center gap-1.5 text-foreground mb-1.5">
         {icon}
-        <span className="text-[10px] font-medium text-muted-foreground">
+        <span className="text-xs font-medium text-foreground">
           {label}
         </span>
       </div>
@@ -316,7 +316,7 @@ function StatCard({
         {value}
       </p>
       {sublabel && (
-        <p className="text-[10px] text-muted-foreground mt-0.5">{sublabel}</p>
+        <p className="text-xs text-foreground mt-0.5">{sublabel}</p>
       )}
     </div>
   );

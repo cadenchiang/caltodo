@@ -13,6 +13,17 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
+
+/**
+ * Pin this route to the Node.js runtime with a long deadline. The
+ * Claude API call regularly takes 20-40s for a multi-page PDF, which
+ * blew past the default 10s serverless timeout and surfaced as 504
+ * "Extraction failed". 60s is Vercel's max for the Hobby plan; bump
+ * to 300 if we move to Pro. Edge runtime can't be used because the
+ * Anthropic SDK needs Node streams.
+ */
+export const runtime = "nodejs";
+export const maxDuration = 60;
 import { isPro } from "@/lib/entitlements";
 
 /** Free-tier users may upload this many syllabus PDFs total. */

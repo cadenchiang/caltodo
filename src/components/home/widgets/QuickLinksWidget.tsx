@@ -111,7 +111,7 @@ export default function QuickLinksWidget({ config, onUpdateConfig }: QuickLinksW
         right={
           <button
             onClick={() => setAdding(true)}
-            className="no-drag w-5 h-5 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            className="no-drag w-5 h-5 rounded flex items-center justify-center text-foreground hover:text-foreground hover:bg-muted transition-colors"
             aria-label="Add link"
           >
             <Plus size={12} />
@@ -137,7 +137,7 @@ export default function QuickLinksWidget({ config, onUpdateConfig }: QuickLinksW
             <span className="text-xs text-foreground truncate">{link.label}</span>
             <button
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleRemove(i); }}
-              className="no-drag absolute top-1 right-1 w-4 h-4 rounded-full flex items-center justify-center bg-muted text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-red-100 hover:text-red-500 dark:hover:bg-red-500/10 transition-all"
+              className="no-drag absolute top-1 right-1 w-4 h-4 rounded-full flex items-center justify-center bg-muted text-foreground opacity-0 group-hover:opacity-100 hover:bg-red-100 hover:text-red-500 dark:hover:bg-red-500/10 transition-all"
               aria-label={`Remove ${link.label}`}
             >
               <X size={8} />
@@ -169,7 +169,7 @@ export default function QuickLinksWidget({ config, onUpdateConfig }: QuickLinksW
           <div className="flex gap-1.5">
             <button
               onClick={() => setAdding(false)}
-              className="flex-1 px-2 py-1 text-xs rounded-md text-muted-foreground hover:bg-muted transition-colors"
+              className="flex-1 px-2 py-1 text-xs rounded-md text-foreground hover:bg-muted transition-colors"
             >
               Cancel
             </button>

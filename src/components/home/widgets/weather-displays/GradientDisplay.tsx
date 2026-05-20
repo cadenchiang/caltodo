@@ -128,16 +128,16 @@ export default function GradientDisplay({
                 className={`w-9 text-[11px] ${
                   i === 0
                     ? "font-semibold text-foreground"
-                    : "text-muted-foreground"
+                    : "text-foreground"
                 }`}
               >
                 {dayLabel}
               </span>
-              <span className="text-muted-foreground">
+              <span className="text-foreground">
                 {getWeatherIcon(day.weatherCode, 14)}
               </span>
               <span className="flex-1" />
-              <span className="text-[11px] tabular-nums text-muted-foreground">
+              <span className="text-[11px] tabular-nums text-foreground">
                 {formatTemp(day.tempMin)}
               </span>
               <span className="text-[11px] tabular-nums text-foreground">

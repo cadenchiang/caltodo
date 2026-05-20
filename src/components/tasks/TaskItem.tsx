@@ -96,10 +96,8 @@ function TaskItemImpl({ task, isSelected, onToggle, onSelect, onDelete }: TaskIt
   return (
     <>
       <div
-        className={`group relative flex items-center gap-2 px-2.5 py-3.5 mb-2 md:gap-3 md:px-3 md:py-4 rounded-xl transition-all duration-100 cursor-pointer bg-white dark:bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-md ${
-          isSelected
-            ? "border-2 border-[#0e89d6] shadow-[0_2px_8px_rgba(14,137,214,0.15)]"
-            : "border border-border"
+        className={`group relative flex items-center gap-2 px-2.5 py-3.5 mb-2 md:gap-3 md:px-3 md:py-4 rounded-xl transition-shadow duration-100 cursor-pointer bg-white dark:bg-card border border-foreground/15 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_2px_8px_-2px_rgba(0,0,0,0.06)] hover:shadow-[0_2px_4px_rgba(0,0,0,0.06),0_8px_18px_-4px_rgba(0,0,0,0.10)] ${
+          isSelected ? "ring-2 ring-[#0e89d6] ring-offset-0" : ""
         } ${task.is_completed ? "opacity-60" : ""} ${isOptimistic ? "animate-task-slide-in" : ""}`}
         onClick={(e) => { e.stopPropagation(); onSelect(task, e.currentTarget.getBoundingClientRect()); }}
         onContextMenu={handleContextMenu}
