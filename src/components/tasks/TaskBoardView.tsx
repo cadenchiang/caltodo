@@ -338,6 +338,14 @@ export default function TaskBoardView({
   const [totalPages, setTotalPages] = useState(1);
   const COLS_PER_PAGE = 4;
   const GAP = 16;
+  /** localStorage key for the horizontal carousel position. Separated
+   *  per groupBy so date and class views remember their own page.
+   *  localStorage (not session) so the position survives closing the
+   *  tab/browser and returning later. */
+  const scrollMemoryKey = `board-scroll:${groupBy}`;
+  /** Guards the one-shot restoration so we only seed scrollLeft once
+   *  per mount, after columns paint. */
+  const scrollRestoredRef = useRef(false);
   const pageStep = useCallback(() => {
     const el = scrollRowRef.current;
     if (!el) return 0;
@@ -461,7 +469,20 @@ export default function TaskBoardView({
     setCurrentPage(
       el.scrollLeft >= maxScroll - 1 ? pages - 1 : Math.round(el.scrollLeft / step),
     );
-  }, [pageStep, columnIds.length]);
+    // Persist scroll position so navigating away and back to the board
+    // (or switching between Board/List/Calendar tabs, or closing the
+    // tab and returning later) returns to the same carousel page.
+    // Only persist after the initial restore has run — otherwise the
+    // first scroll event from the restore itself would just rewrite
+    // the same value.
+    if (scrollRestoredRef.current) {
+      try {
+        localStorage.setItem(scrollMemoryKey, String(el.scrollLeft));
+      } catch {
+        /* localStorage unavailable — non-critical */
+      }
+    }
+  }, [pageStep, columnIds.length, scrollMemoryKey]);
   useEffect(() => {
     const el = scrollRowRef.current;
     if (!el) return;
@@ -475,6 +496,34 @@ export default function TaskBoardView({
     return () => ro.disconnect();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [columnIds.length]);
+
+  /**
+   * Restores horizontal scroll position from sessionStorage after the
+   * columns have laid out. Runs once per mount of this component, gated
+   * on columnIds.length so we don't restore before the row has width.
+   * The clamp guards against stored positions exceeding the new
+   * scrollWidth (e.g. user dropped a class between sessions).
+   */
+  useEffect(() => {
+    if (scrollRestoredRef.current) return;
+    const el = scrollRowRef.current;
+    if (!el || columnIds.length === 0) return;
+    try {
+      const raw = localStorage.getItem(scrollMemoryKey);
+      if (raw !== null) {
+        const target = Number(raw);
+        if (Number.isFinite(target)) {
+          const maxScroll = Math.max(0, el.scrollWidth - el.clientWidth);
+          el.scrollLeft = Math.min(Math.max(0, target), maxScroll);
+        }
+      }
+    } catch {
+      /* localStorage unavailable — non-critical */
+    }
+    scrollRestoredRef.current = true;
+    // Recompute page indicators against the freshly-set scrollLeft.
+    handleScrollUpdate();
+  }, [columnIds.length, scrollMemoryKey, handleScrollUpdate]);
 
   /** Active column data for DragOverlay rendering. */
   const activeColumnTasks = activeId ? columns.get(activeId) ?? null : null;

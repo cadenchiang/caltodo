@@ -611,7 +611,7 @@ export default function InboxPage() {
 
   return (
     <PageTransition>
-      <div className="flex flex-col -m-4 md:-m-10 min-h-[calc(100dvh-3rem)] md:min-h-dvh">
+      <div className="flex flex-col -m-4 md:-m-10 min-h-full">
         {/* Page title block — no border underneath; the divider lives on
             the tabs row below so it extends across the full page width. */}
         <div className="px-10 pt-28 pb-6 md:px-20 md:pt-36 md:pb-8 animate-stagger stagger-1">
@@ -899,9 +899,17 @@ export default function InboxPage() {
 
           {/* Right: contained detail card — square-ish self-contained box
               with margins, rounded corners, border + shadow. Replaces the
-              old edge-to-edge right panel. List view only. */}
+              old edge-to-edge right panel. List view only.
+              Clicking the padding gutter around the card deselects the
+              active task — mirrors the left task-list's empty-area click
+              behavior so users can dismiss the selection from either side. */}
           {viewMode === "list" && (
-            <div className="hidden md:flex w-[50%] shrink-0 pl-2 pr-6 pt-0 pb-6 md:pl-3 md:pr-10 md:pt-0 md:pb-8 sticky top-0 self-start h-[calc(100dvh-2.5rem)]">
+            <div
+              className="hidden md:flex w-[50%] shrink-0 pl-2 pr-6 pt-0 pb-6 md:pl-3 md:pr-10 md:pt-0 md:pb-8 sticky top-0 self-start h-[calc(100dvh-2.5rem)]"
+              onClick={(e) => {
+                if (e.target === e.currentTarget) setSelectedTask(null);
+              }}
+            >
               <div className="w-full h-full bg-card border border-border rounded-2xl shadow-sm overflow-hidden flex flex-col">
                 <TaskDetailPanel
                   task={currentSelectedTask}
