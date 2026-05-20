@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import type { DiscussionBoard } from "@/lib/types";
 
-const CACHE_KEY = "discussion_boards_cache_v2";
+const CACHE_KEY = "discussion_boards_cache_v4";
 const CACHE_TTL_MS = 60_000; // 1 minute
 
 interface CacheEntry {

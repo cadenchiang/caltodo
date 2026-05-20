@@ -6,7 +6,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { updateBoardCacheTimestamp } from "@/lib/calchat-cache";
 
-const CACHE_KEY = "discussion_boards_cache_v2";
+const CACHE_KEY = "discussion_boards_cache_v4";
 
 /** Creates a fake sessionStorage cache with the given boards. */
 function buildCache(boards: Array<{ course: { id: string }; last_message_at?: string | null }>) {

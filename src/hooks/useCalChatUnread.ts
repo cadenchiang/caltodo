@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 
-const CACHE_KEY = "discussion_boards_cache_v2";
+const CACHE_KEY = "discussion_boards_cache_v4";
 const MUTE_KEY_PREFIX = "calchat_muted_";
 const READ_AT_PREFIX = "calchat_read_at_";
 

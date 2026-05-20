@@ -66,7 +66,7 @@ export async function GET() {
       return NextResponse.json({ error: "Failed to fetch boards" }, { status: 500 });
     }
 
-    const boards = (data ?? []).map((row: {
+    const rawBoards = (data ?? []).map((row: {
       course_id: string;
       course_source: string;
       course_external_id: string;
@@ -94,9 +94,51 @@ export async function GET() {
       member_avatars: row.member_avatars ?? [],
     }));
 
+    // Dedupe historical duplicate course rows by normalized name across all
+    // sources. The course-enrollment dedup key is (source, external_id), so the
+    // same class showing up via Canvas + Gradescope + Pensieve creates three
+    // separate course rows even when the user thinks of them as one chat.
+    // Keep `system` courses (CalYak) as-is; for the rest, collapse same-name
+    // entries down to the most active one: most messages, then most recent
+    // activity, then oldest.
+    const seen = new Map<string, typeof rawBoards[number]>();
+    for (const board of rawBoards) {
+      if (board.course.source === "system") {
+        seen.set(`system:${board.course.id}`, board);
+        continue;
+      }
+      const key = `name:${board.course.name.replace(/\s+/g, " ").trim().toLowerCase()}`;
+      const existing = seen.get(key);
+      if (!existing) {
+        seen.set(key, board);
+        continue;
+      }
+      const existingScore: [number, number, number] = [
+        existing.message_count,
+        existing.last_message_at ? new Date(existing.last_message_at).getTime() : 0,
+        -new Date(existing.course.created_at).getTime(),
+      ];
+      const candidateScore: [number, number, number] = [
+        board.message_count,
+        board.last_message_at ? new Date(board.last_message_at).getTime() : 0,
+        -new Date(board.course.created_at).getTime(),
+      ];
+      const candidateWins =
+        candidateScore[0] > existingScore[0] ||
+        (candidateScore[0] === existingScore[0] && candidateScore[1] > existingScore[1]) ||
+        (candidateScore[0] === existingScore[0] &&
+          candidateScore[1] === existingScore[1] &&
+          candidateScore[2] > existingScore[2]);
+      if (candidateWins) {
+        seen.set(key, board);
+      }
+    }
+    const boards = Array.from(seen.values());
+
     logger.info("GET /api/discussions/boards", {
       userId: user.id,
       boardCount: boards.length,
+      duplicatesCollapsed: rawBoards.length - boards.length,
     });
 
     return NextResponse.json(boards);

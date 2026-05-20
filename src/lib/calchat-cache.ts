@@ -7,7 +7,7 @@
  */
 
 /** SessionStorage key shared with useDiscussionBoards and GlobalChatNotifier. */
-const DEFAULT_CACHE_KEY = "discussion_boards_cache_v2";
+const DEFAULT_CACHE_KEY = "discussion_boards_cache_v4";
 
 /**
  * Updates `last_message_at` for a specific board in the sessionStorage cache
@@ -15,7 +15,7 @@ const DEFAULT_CACHE_KEY = "discussion_boards_cache_v2";
  * recounts immediately.
  *
  * @param courseId - The course UUID whose timestamp should be bumped
- * @param cacheKey - SessionStorage key (defaults to discussion_boards_cache_v2)
+ * @param cacheKey - SessionStorage key (defaults to discussion_boards_cache_v4)
  * @returns void
  *
  * @edge-cases

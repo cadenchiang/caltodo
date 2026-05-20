@@ -133,7 +133,6 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
               alt="caltodo"
               className={`h-8 object-contain shrink-0 ${isMiffy ? "" : "dark:invert"}`}
             />
-            <span className="text-foreground font-semibold text-base tracking-tight truncate">caltodo</span>
           </a>
         </div>
         {isSettings ? (

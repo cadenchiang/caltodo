@@ -399,7 +399,10 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
       }
 
       // 4b. Invalidate CalChat discussion boards cache so course list updates
-      try { sessionStorage.removeItem("discussion_boards_cache_v2"); } catch { /* non-critical */ }
+      try {
+        sessionStorage.removeItem("discussion_boards_cache_v2");
+        sessionStorage.removeItem("discussion_boards_cache_v4");
+      } catch { /* non-critical */ }
       window.dispatchEvent(new CustomEvent("caltodo-courses-changed"));
 
       // 5. Build result toast

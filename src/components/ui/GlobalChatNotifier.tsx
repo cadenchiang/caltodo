@@ -10,7 +10,7 @@ import { updateBoardCacheTimestamp } from "@/lib/calchat-cache";
 import { MessageCircle, X } from "lucide-react";
 
 /** SessionStorage key shared with useDiscussionBoards for board cache. */
-const CACHE_KEY = "discussion_boards_cache_v2";
+const CACHE_KEY = "discussion_boards_cache_v4";
 /** localStorage prefix for per-course mute state. */
 const MUTE_KEY_PREFIX = "calchat_muted_";
 /** localStorage prefix for last-sent timestamp (set by useCourseChat). */
