@@ -103,7 +103,7 @@ export default function BoardTitle({
               <h2 className="text-base font-semibold text-foreground">Edit Title</h2>
               <button
                 onClick={() => setModalOpen(false)}
-                className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                className="w-8 h-8 rounded-full flex items-center justify-center text-foreground hover:text-foreground hover:bg-muted transition-colors"
               >
                 <X size={16} />
               </button>
@@ -141,7 +141,7 @@ export default function BoardTitle({
                       className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
                         localSize === s.value
                           ? "bg-blue-500 text-white"
-                          : "bg-muted text-muted-foreground hover:text-foreground"
+                          : "bg-muted text-foreground hover:text-foreground"
                       }`}
                     >
                       {s.label}
@@ -172,7 +172,7 @@ export default function BoardTitle({
                       <button
                         type="button"
                         onClick={() => setLocalColor("")}
-                        className="text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                        className="text-xs text-foreground hover:text-foreground transition-colors shrink-0"
                       >
                         Reset
                       </button>
@@ -197,7 +197,7 @@ export default function BoardTitle({
 
             {/* Footer */}
             <div className="flex justify-end gap-2 p-4 border-t border-border">
-              <button onClick={() => setModalOpen(false)} className="px-4 py-2 text-sm rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+              <button onClick={() => setModalOpen(false)} className="px-4 py-2 text-sm rounded-xl text-foreground hover:text-foreground hover:bg-muted transition-colors">
                 Cancel
               </button>
               <button onClick={handleSave} className="px-4 py-2 text-sm rounded-xl bg-blue-500 text-white hover:bg-blue-600 transition-colors">

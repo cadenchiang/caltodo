@@ -21,6 +21,7 @@ import SegmentedControl from "@/components/ui/SegmentedControl";
 import ColorPickerPopover from "@/components/ui/ColorPickerPopover";
 import { useTheme } from "@/contexts/ThemeContext";
 import CalendarPicker from "@/components/home/CalendarPicker";
+import CollapsibleSection from "@/components/home/CollapsibleSection";
 import ClockFacePicker from "@/components/home/ClockFacePicker";
 import WeatherDisplayPicker from "@/components/home/WeatherDisplayPicker";
 import GCalDisplayPicker from "@/components/home/GCalDisplayPicker";
@@ -276,40 +277,35 @@ export default function WidgetEditorPanel({
       {/* Header */}
       <div className="flex items-center justify-between p-3 border-b border-border shrink-0">
         <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-          {IconComponent && <IconComponent size={15} className="text-muted-foreground shrink-0" />}
+          {IconComponent && <IconComponent size={15} className="text-foreground shrink-0" />}
           {label} Settings
         </h2>
-        <button onClick={handleDone} className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors" aria-label="Close">
+        <button onClick={handleDone} className="w-8 h-8 rounded-full flex items-center justify-center text-foreground hover:text-foreground hover:bg-muted transition-colors" aria-label="Close">
           <X size={16} />
         </button>
       </div>
 
       {/* Body — scrollable settings */}
       <div className="p-3 space-y-3 overflow-y-auto flex-1 text-sm">
-        {/* Clock */}
+        {/* Clock — single view, only timezone / format / weight remain. */}
         {widget.type === "clock" && <>
-          <ClockFacePicker value={localConfig.clockFace || "digital"} onChange={(v) => updateField("clockFace", v)} />
-          <div><label className="block text-sm font-medium text-foreground mb-1.5">Time Format</label><SegmentedControl options={[{ value: "12", label: "12h" }, { value: "24", label: "24h" }]} value={localConfig.clockFormat || "12"} onChange={(v) => updateField("clockFormat", v)} /></div>
-          <div><label className="block text-sm font-medium text-foreground mb-1.5">Timezone</label><select value={localConfig.clockTimezone || ""} onChange={(e) => updateField("clockTimezone", e.target.value)} className={SEL}>{TIMEZONE_OPTIONS.map((tz) => <option key={tz.value} value={tz.value}>{tz.label}</option>)}</select></div>
-          <div><label className="block text-sm font-medium text-foreground mb-1.5">Font Weight</label><select value={localConfig.clockFontWeight || "300"} onChange={(e) => updateField("clockFontWeight", e.target.value)} className={SEL}>{WEIGHT_OPTIONS.map((w) => <option key={w.value} value={w.value}>{w.label}</option>)}</select></div>
+          <CollapsibleSection title="Time Format" hint={localConfig.clockFormat === "24" ? "24h" : "12h"}><SegmentedControl options={[{ value: "12", label: "12h" }, { value: "24", label: "24h" }]} value={localConfig.clockFormat || "12"} onChange={(v) => updateField("clockFormat", v)} /></CollapsibleSection>
+          <CollapsibleSection title="Timezone"><select value={localConfig.clockTimezone || ""} onChange={(e) => updateField("clockTimezone", e.target.value)} className={SEL}>{TIMEZONE_OPTIONS.map((tz) => <option key={tz.value} value={tz.value}>{tz.label}</option>)}</select></CollapsibleSection>
+          <CollapsibleSection title="Font Weight"><select value={localConfig.clockFontWeight || "300"} onChange={(e) => updateField("clockFontWeight", e.target.value)} className={SEL}>{WEIGHT_OPTIONS.map((w) => <option key={w.value} value={w.value}>{w.label}</option>)}</select></CollapsibleSection>
         </>}
 
-        {/* Tasks */}
-        {widget.type === "tasks-today" && <>
-          <div><label className="block text-sm font-medium text-foreground mb-1.5">View Mode</label><SegmentedControl options={[{ value: "today", label: "Today" }, { value: "week", label: "Week" }, { value: "inbox", label: "All" }]} value={localConfig.viewMode || "today"} onChange={(v) => updateField("viewMode", v)} /></div>
-          <div><label className="block text-sm font-medium text-foreground mb-1.5">Show Completed</label><SegmentedControl options={[{ value: "true", label: "Show" }, { value: "false", label: "Hide" }]} value={localConfig.showCompleted ?? "true"} onChange={(v) => updateField("showCompleted", v)} /></div>
-        </>}
+        {/* Tasks — single view, only the show-completed toggle remains. */}
+        {widget.type === "tasks-today" && (
+          <CollapsibleSection title="Show Completed"><SegmentedControl options={[{ value: "true", label: "Show" }, { value: "false", label: "Hide" }]} value={localConfig.showCompleted ?? "true"} onChange={(v) => updateField("showCompleted", v)} /></CollapsibleSection>
+        )}
 
         {/* Class Progress */}
-        {widget.type === "class-progress" && <div><label className="block text-sm font-medium text-foreground mb-1.5">Sort Courses By</label><select value={localConfig.progressSort || "count"} onChange={(e) => updateField("progressSort", e.target.value)} className={SEL}><option value="count">Most tasks first</option><option value="alpha">Alphabetical</option><option value="completion">Completion % (highest first)</option></select></div>}
+        {widget.type === "class-progress" && <CollapsibleSection title="Sort Courses By"><select value={localConfig.progressSort || "count"} onChange={(e) => updateField("progressSort", e.target.value)} className={SEL}><option value="count">Most tasks first</option><option value="alpha">Alphabetical</option><option value="completion">Completion % (highest first)</option></select></CollapsibleSection>}
 
-        {/* Google Calendar */}
-        {widget.type === "google-calendar" && <>
-          <GCalDisplayPicker value={localConfig.gcalDisplay || "list"} onChange={(v) => updateField("gcalDisplay", v)} />
-          <CalendarPicker calendars={calendars} selectedIds={selectedCalendarIds} onToggle={handleCalToggle} onSelectAll={() => { setSelectedCalendarIds(new Set(calendars.map((c) => c.id))); updateField("calendarIds", JSON.stringify(calendars.map((c) => c.id))); }} onDeselectAll={() => { setSelectedCalendarIds(new Set()); updateField("calendarIds", "[]"); }} loading={calendarsLoading} />
-          <div><label className="block text-sm font-medium text-foreground mb-1.5">Default View</label><select value={localConfig.viewMode || "week"} onChange={(e) => updateField("viewMode", e.target.value)} className={SEL}><option value="today">Today</option><option value="2day">2 Days</option><option value="3day">3 Days</option><option value="4day">4 Days</option><option value="5day">5 Days</option><option value="week">Week</option><option value="month">Month</option><option value="custom">Custom...</option></select></div>
-          {localConfig.viewMode === "custom" && <div><label className="block text-sm font-medium text-foreground mb-1.5">Number of Days</label><input type="number" min={1} max={90} value={localConfig.customDays || "7"} onChange={(e) => updateField("customDays", e.target.value)} className={SEL} /></div>}
-        </>}
+        {/* Google Calendar — single view, only the calendar picker remains. */}
+        {widget.type === "google-calendar" && (
+          <CollapsibleSection title="Calendars" hint={`${selectedCalendarIds.size} of ${calendars.length}`}><CalendarPicker calendars={calendars} selectedIds={selectedCalendarIds} onToggle={handleCalToggle} onSelectAll={() => { setSelectedCalendarIds(new Set(calendars.map((c) => c.id))); updateField("calendarIds", JSON.stringify(calendars.map((c) => c.id))); }} onDeselectAll={() => { setSelectedCalendarIds(new Set()); updateField("calendarIds", "[]"); }} loading={calendarsLoading} /></CollapsibleSection>
+        )}
 
         {/* Image */}
         {widget.type === "image" && <div className="space-y-6">
@@ -331,7 +327,7 @@ export default function WidgetEditorPanel({
                     <button
                       type="button"
                       onClick={() => togglePresetCat(catKey)}
-                      className="text-[9px] text-muted-foreground hover:text-foreground transition-colors"
+                      className="text-[9px] text-foreground hover:text-foreground transition-colors"
                     >
                       {isExpanded ? "Show Less" : `Show All (${cat.presets.length})`}
                     </button>
@@ -362,88 +358,55 @@ export default function WidgetEditorPanel({
           {localConfig.imageUrl && <button type="button" onClick={() => updateField("imageUrl", "")} className="text-xs text-red-500 hover:text-red-600 transition-colors">Remove image</button>}
         </div>}
 
-        {/* Weather */}
-        {widget.type === "weather" && <>
-          <WeatherDisplayPicker value={localConfig.weatherDisplay || "standard"} onChange={(v) => updateField("weatherDisplay", v)} />
-          <div><label className="block text-sm font-medium text-foreground mb-1.5">View</label><SegmentedControl options={[{ value: "today", label: "Today" }, { value: "week", label: "7-Day" }]} value={localConfig.weatherView || "today"} onChange={(v) => updateField("weatherView", v)} /></div>
-          <div><label className="block text-sm font-medium text-foreground mb-1.5">Temperature</label><SegmentedControl options={[{ value: "F", label: "\u00b0F" }, { value: "C", label: "\u00b0C" }]} value={localConfig.tempUnit || "F"} onChange={(v) => updateField("tempUnit", v)} /></div>
-        </>}
+        {/* Weather \u2014 single view, only temperature unit remains. */}
+        {widget.type === "weather" && (
+          <CollapsibleSection title="Temperature" hint={localConfig.tempUnit === "C" ? "\u00b0C" : "\u00b0F"}><SegmentedControl options={[{ value: "F", label: "\u00b0F" }, { value: "C", label: "\u00b0C" }]} value={localConfig.tempUnit || "F"} onChange={(v) => updateField("tempUnit", v)} /></CollapsibleSection>
+        )}
 
-        {/* Notes */}
-        {widget.type === "notes" && <>
-          <NotesStylePicker value={localConfig.notesStyle || "blank"} onChange={(v) => updateField("notesStyle", v)} />
-        </>}
+        {/* Notes \u2014 single default style, no picker. */}
 
         {/* Countdown */}
         {widget.type === "countdown" && <>
-          <div><label className="block text-sm font-medium text-foreground mb-1.5">Mode</label><SegmentedControl options={[{ value: "auto", label: "Auto" }, { value: "custom", label: "Custom" }]} value={localConfig.countdownMode || "auto"} onChange={(v) => updateField("countdownMode", v)} /></div>
-          {(localConfig.countdownMode || "auto") === "auto" && <p className="text-xs text-muted-foreground">Automatically shows your next upcoming deadline.</p>}
+          <CollapsibleSection title="Mode" hint={localConfig.countdownMode || "auto"}>
+            <SegmentedControl options={[{ value: "auto", label: "Auto" }, { value: "custom", label: "Custom" }]} value={localConfig.countdownMode || "auto"} onChange={(v) => updateField("countdownMode", v)} />
+            {(localConfig.countdownMode || "auto") === "auto" && <p className="text-xs text-foreground mt-2">Automatically shows your next upcoming deadline.</p>}
+          </CollapsibleSection>
           {localConfig.countdownMode === "custom" && <>
-            <div><label className="block text-sm font-medium text-foreground mb-1.5">Target Date</label><input type="date" value={localConfig.countdownDate || ""} onChange={(e) => updateField("countdownDate", e.target.value)} className={SEL} /></div>
-            <div><label className="block text-sm font-medium text-foreground mb-1.5">Label</label><input type="text" placeholder="e.g. Spring Break" value={localConfig.countdownLabel || ""} onChange={(e) => updateField("countdownLabel", e.target.value)} className={SEL} /></div>
+            <CollapsibleSection title="Target Date"><input type="date" value={localConfig.countdownDate || ""} onChange={(e) => updateField("countdownDate", e.target.value)} className={SEL} /></CollapsibleSection>
+            <CollapsibleSection title="Label"><input type="text" placeholder="e.g. Spring Break" value={localConfig.countdownLabel || ""} onChange={(e) => updateField("countdownLabel", e.target.value)} className={SEL} /></CollapsibleSection>
           </>}
         </>}
 
         {/* Habit Tracker */}
-        {widget.type === "habit-tracker" && <>
-          <div><label className="block text-sm font-medium text-foreground mb-1.5">Habit Name</label><input type="text" placeholder="e.g. Study 2 hours" value={localConfig.habitName || ""} onChange={(e) => updateField("habitName", e.target.value)} className={SEL} /></div>
-        </>}
+        {widget.type === "habit-tracker" && (
+          <CollapsibleSection title="Habit Name"><input type="text" placeholder="e.g. Study 2 hours" value={localConfig.habitName || ""} onChange={(e) => updateField("habitName", e.target.value)} className={SEL} /></CollapsibleSection>
+        )}
 
         {/* Quote */}
-        {widget.type === "quote" && <>
-          <div><label className="block text-sm font-medium text-foreground mb-1.5">Category</label><select value={localConfig.quoteCategory || "all"} onChange={(e) => updateField("quoteCategory", e.target.value)} className={SEL}><option value="all">All</option><option value="motivation">Motivation</option><option value="study">Study</option><option value="productivity">Productivity</option></select></div>
-        </>}
+        {widget.type === "quote" && (
+          <CollapsibleSection title="Category" hint={localConfig.quoteCategory || "all"}><select value={localConfig.quoteCategory || "all"} onChange={(e) => updateField("quoteCategory", e.target.value)} className={SEL}><option value="all">All</option><option value="motivation">Motivation</option><option value="study">Study</option><option value="productivity">Productivity</option></select></CollapsibleSection>
+        )}
 
         {/* Stats */}
-        {widget.type === "stats" && <>
-          <div><label className="block text-sm font-medium text-foreground mb-1.5">Metric</label><select value={localConfig.statsMetric || "completion"} onChange={(e) => updateField("statsMetric", e.target.value)} className={SEL}><option value="completion">Completion Rate</option><option value="completed-week">Completed This Week</option><option value="streak">Day Streak</option><option value="pending">Tasks Remaining</option></select></div>
-        </>}
+        {widget.type === "stats" && (
+          <CollapsibleSection title="Metric"><select value={localConfig.statsMetric || "completion"} onChange={(e) => updateField("statsMetric", e.target.value)} className={SEL}><option value="completion">Completion Rate</option><option value="completed-week">Completed This Week</option><option value="streak">Day Streak</option><option value="pending">Tasks Remaining</option></select></CollapsibleSection>
+        )}
 
         {/* Sticker */}
         {widget.type === "sticker" && <>
-          <div><label className="block text-sm font-medium text-foreground mb-1.5">Emoji</label><input type="text" value={localConfig.stickerEmoji || "✨"} onChange={(e) => updateField("stickerEmoji", e.target.value)} className={SEL} maxLength={4} /></div>
-          <div><label className="block text-sm font-medium text-foreground mb-1.5">Caption</label><input type="text" placeholder="Optional text" value={localConfig.stickerText || ""} onChange={(e) => updateField("stickerText", e.target.value)} className={SEL} /></div>
+          <CollapsibleSection title="Emoji" hint={localConfig.stickerEmoji || ""}><input type="text" value={localConfig.stickerEmoji || "✨"} onChange={(e) => updateField("stickerEmoji", e.target.value)} className={SEL} maxLength={4} /></CollapsibleSection>
+          <CollapsibleSection title="Caption"><input type="text" placeholder="Optional text" value={localConfig.stickerText || ""} onChange={(e) => updateField("stickerText", e.target.value)} className={SEL} /></CollapsibleSection>
         </>}
 
-        {/* Spotify */}
-        {widget.type === "spotify" && <>
-          <div><label className="block text-sm font-medium text-foreground mb-1.5">Spotify URL</label><input type="text" placeholder="https://open.spotify.com/track/..." value={localConfig.spotifyUrl || ""} onChange={(e) => updateField("spotifyUrl", e.target.value)} className={SEL} /><p className="text-[10px] text-muted-foreground mt-1">Paste a link to a track, album, playlist, or podcast from Spotify.</p></div>
-          <div><label className="block text-sm font-medium text-foreground mb-1.5">Header Label</label><input type="text" placeholder="e.g. My Playlist" value={localConfig.spotifyLabel || ""} onChange={(e) => updateField("spotifyLabel", e.target.value)} className={SEL} /></div>
-          <div><label className="block text-sm font-medium text-foreground mb-1.5">Show Header</label><SegmentedControl options={[{ value: "true", label: "Show" }, { value: "false", label: "Hide" }]} value={localConfig.spotifyShowHeader ?? "true"} onChange={(v) => updateField("spotifyShowHeader", v)} /></div>
-          <div><label className="block text-sm font-medium text-foreground mb-1.5">Player Theme</label><SegmentedControl options={[{ value: "dark", label: "Dark" }, { value: "light", label: "Light" }]} value={localConfig.spotifyTheme || "dark"} onChange={(v) => updateField("spotifyTheme", v)} /></div>
-        </>}
-
-        {/* Divider + Appearance */}
-        <div className="border-t border-border" />
-        <p className="text-xs font-medium text-foreground">Appearance</p>
-        <div className="flex items-center gap-1.5 mb-1">
-          <button
-            type="button"
-            onClick={() => updateField("textBold", localConfig.textBold === "true" ? "false" : "true")}
-            className={`w-8 h-8 rounded-lg border text-sm font-bold flex items-center justify-center transition-colors ${localConfig.textBold === "true" ? "bg-foreground text-background border-foreground" : "border-input-border text-foreground hover:bg-muted"}`}
-            aria-label="Toggle bold"
-          >
-            B
-          </button>
-          <button
-            type="button"
-            onClick={() => updateField("textItalic", localConfig.textItalic === "true" ? "false" : "true")}
-            className={`w-8 h-8 rounded-lg border text-sm italic flex items-center justify-center transition-colors ${localConfig.textItalic === "true" ? "bg-foreground text-background border-foreground" : "border-input-border text-foreground hover:bg-muted"}`}
-            aria-label="Toggle italic"
-          >
-            I
-          </button>
-        </div>
-        <div><label className="block text-sm font-medium text-foreground mb-1.5">Border</label><SegmentedControl options={[{ value: "true", label: "Show" }, { value: "false", label: "Hide" }]} value={localConfig.widgetBorder ?? "true"} onChange={(v) => updateField("widgetBorder", v)} /></div>
-        {/* Color pickers — hidden when a color theme is active (theme controls colors) */}
-        {!colorTheme && (
-          <div className="flex items-end justify-center gap-5">
-            <ColorPickerPopover label="Text" value={localConfig.textColor || ""} onChange={(v) => updateField("textColor", v)} layout="compact" defaultValue="var(--foreground)" />
-            <ColorPickerPopover label="Background" value={localConfig.bgColor || ""} onChange={(v) => updateField("bgColor", v)} layout="compact" />
-            <ColorPickerPopover label="Accent" value={localConfig.accentColor || ""} onChange={(v) => updateField("accentColor", v)} layout="compact" defaultValue={WIDGET_ACCENT_DEFAULTS[widget.type]} onApplyToAll={onApplyAccentToAll} />
-          </div>
+        {/* Spotify — only the URL remains; the player uses one default theme. */}
+        {widget.type === "spotify" && (
+          <CollapsibleSection title="Spotify URL"><input type="text" placeholder="https://open.spotify.com/track/..." value={localConfig.spotifyUrl || ""} onChange={(e) => updateField("spotifyUrl", e.target.value)} className={SEL} /><p className="text-[10px] text-foreground mt-1">Paste a link to a track, album, playlist, or podcast from Spotify.</p></CollapsibleSection>
         )}
-        <div><label className="block text-sm font-medium text-foreground mb-1.5">Font (all widgets)</label><FontPicker value={localConfig.fontFamily || ""} onChange={(v) => { updateField("fontFamily", v); onApplyFontToAll?.(v); }} /></div>
+
+        {/* Appearance / Border / Color / Font controls were removed —
+            every widget now uses the unified squircle chrome and the
+            theme system handles colors. Per-widget customization
+            previously lived here. */}
 
       </div>
 
@@ -451,7 +414,7 @@ export default function WidgetEditorPanel({
       <div className="flex items-center justify-between p-3 border-t border-border shrink-0">
         <button
           onClick={() => setConfirmOverlay("delete")}
-          className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors"
+          className="w-8 h-8 rounded-full flex items-center justify-center text-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors"
           aria-label="Remove Widget"
         >
           <Trash2 size={15} />
@@ -483,10 +446,10 @@ function ConfirmPanel({ message, subtitle, onYes, onNo, yesLabel, noLabel, destr
   return (
     <div className="absolute inset-0 z-10 bg-card/95 flex flex-col items-center justify-center p-6 text-center rounded-2xl">
       <p className="text-sm font-medium text-foreground mb-1">{message}</p>
-      {subtitle && <p className="text-xs text-muted-foreground mb-4">{subtitle}</p>}
+      {subtitle && <p className="text-xs text-foreground mb-4">{subtitle}</p>}
       {!subtitle && <div className="mb-4" />}
       <div className="flex gap-2">
-        <button onClick={onNo} className="px-4 py-2 text-sm rounded-xl text-muted-foreground hover:bg-muted transition-colors">{noLabel}</button>
+        <button onClick={onNo} className="px-4 py-2 text-sm rounded-xl text-foreground hover:bg-muted transition-colors">{noLabel}</button>
         <button onClick={onYes} className={`px-4 py-2 text-sm rounded-xl text-white transition-colors ${destructive ? "bg-red-500 hover:bg-red-600" : "bg-blue-500 hover:bg-blue-600"}`}>{yesLabel}</button>
       </div>
     </div>

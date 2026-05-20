@@ -105,7 +105,7 @@ export default function BoardLockedScreen() {
             <h1 className="mt-2.5 text-[22px] font-semibold tracking-tight leading-tight text-foreground">
               Personalized Board
             </h1>
-            <p className="mt-1.5 text-[13px] text-foreground/60 leading-snug">
+            <p className="mt-1.5 text-[13px] text-foreground leading-snug">
               Drag-and-drop widgets, custom themes, and live data from every
               platform you sync.
             </p>

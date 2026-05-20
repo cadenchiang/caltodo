@@ -56,7 +56,7 @@ export default function PaletteModal({
           </h2>
           <button
             onClick={onSkip}
-            className="w-7 h-7 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            className="w-7 h-7 rounded-full flex items-center justify-center text-foreground hover:text-foreground hover:bg-muted transition-colors"
             aria-label="Close"
           >
             <X size={14} />
@@ -65,7 +65,7 @@ export default function PaletteModal({
 
         {/* Swatches */}
         <div className="p-4">
-          <p className="text-xs text-muted-foreground mb-3">
+          <p className="text-xs text-foreground mb-3">
             Pick a color from your banner to apply to widget text.
           </p>
           <div className="flex items-center justify-center gap-3">
@@ -98,7 +98,7 @@ export default function PaletteModal({
         <div className="flex items-center justify-end gap-2 p-4 border-t border-border">
           <button
             onClick={onSkip}
-            className="px-4 py-2 text-sm rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            className="px-4 py-2 text-sm rounded-xl text-foreground hover:text-foreground hover:bg-muted transition-colors"
           >
             Skip
           </button>

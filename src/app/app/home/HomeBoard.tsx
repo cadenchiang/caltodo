@@ -22,7 +22,12 @@ import { ICON_SIZES } from "@/components/home/emoji-picker-data";
 import { useWidgetLayout } from "@/hooks/useWidgetLayout";
 import { useToast } from "@/contexts/ToastContext";
 import { useTheme } from "@/contexts/ThemeContext";
-import type { WidgetType, WidgetInstance } from "@/lib/widget-types";
+import { createClient } from "@/lib/supabase/client";
+import { STORAGE_KEY, TEMPLATE_USER_ID } from "@/lib/board-layout-types";
+import { WIDGET_REGISTRY, getDefaultLayout, type WidgetType, type WidgetInstance } from "@/lib/widget-types";
+
+/** One-time seed flag — bump suffix to re-seed the template user's board. */
+const TEMPLATE_SEED_FLAG = "caltodo_template_board_seeded_v6";
 
 /**
  * @param embedded When true, skip the outer -mx/-my negative margins that
@@ -108,6 +113,55 @@ export default function HomeBoard({ embedded = false }: HomeBoardProps = {}) {
     return () => window.removeEventListener("tour-set-edit-mode", handleTourEditMode);
   }, []);
 
+  /**
+   * One-time seed for the template owner's board. PUTs the Jerrod-style
+   * default layout straight into Supabase via /api/board-layout, then
+   * busts the local cache and reloads. Gated by user_id match against
+   * TEMPLATE_USER_ID and a localStorage flag so it never runs for
+   * non-template users or fires twice.
+   *
+   * Bumping TEMPLATE_SEED_FLAG suffix re-seeds for the next design pass.
+   */
+  useEffect(() => {
+    let cancelled = false;
+    async function maybeSeed() {
+      try {
+        if (typeof window === "undefined") return;
+        if (localStorage.getItem(TEMPLATE_SEED_FLAG)) return;
+
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (cancelled || !user) return;
+        if (user.id !== TEMPLATE_USER_ID) {
+          localStorage.setItem(TEMPLATE_SEED_FLAG, "skipped");
+          return;
+        }
+
+        const defaults = getDefaultLayout();
+        const payload = {
+          widgets: defaults.widgets,
+          layouts: defaults.layouts,
+          // PersistedLayout shape includes a few extra fields; the API
+          // only requires widgets[] + layouts{}, the rest are merged
+          // by the client on read. Send minimal shape.
+        };
+        const res = await fetch("/api/board-layout", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) return;
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.setItem(TEMPLATE_SEED_FLAG, "seeded");
+        window.location.reload();
+      } catch {
+        /* non-critical — user can re-run manually */
+      }
+    }
+    maybeSeed();
+    return () => { cancelled = true; };
+  }, []);
+
   // Track selected widget position for spotlight overlay.
   useEffect(() => {
     if (!settingsWidget) { setSpotlightRect(null); return; }
@@ -123,13 +177,52 @@ export default function HomeBoard({ embedded = false }: HomeBoardProps = {}) {
     return () => cancelAnimationFrame(spotlightRafRef.current);
   }, [settingsWidget]);
 
-  /** Handles adding a widget from the gallery. */
+  /**
+   * Returns true if the board has room for a new widget anywhere in
+   * the visible grid — not just at the bottom. Walks every cell in
+   * the MAX_ROWS × COLS area and checks if a w×h block could land
+   * there without colliding with existing widgets. The previous
+   * "bottom + defaultH" math falsely rejected widgets when there was
+   * empty space in the middle of the layout (e.g. a sparse top row).
+   *
+   * Uses the same effective footprint as addWidget (2×2 floor) so the
+   * yes/no answer matches what would actually get placed.
+   */
+  const hasRoomFor = useCallback(
+    (type: WidgetType): boolean => {
+      const MAX_ROWS = 8;
+      const COLS = 8;
+      const def = WIDGET_REGISTRY[type];
+      if (!def) return true;
+      const w = Math.max(2, def.minW, def.defaultW);
+      const h = Math.max(2, def.minH, def.defaultH);
+      const items = layouts.lg ?? [];
+      for (let y = 0; y + h <= MAX_ROWS; y++) {
+        for (let x = 0; x + w <= COLS; x++) {
+          const collides = items.some((it) => {
+            const ix = it.x ?? 0, iy = it.y ?? 0, iw = it.w ?? 1, ih = it.h ?? 1;
+            return !(x + w <= ix || ix + iw <= x || y + h <= iy || iy + ih <= y);
+          });
+          if (!collides) return true;
+        }
+      }
+      return false;
+    },
+    [layouts]
+  );
+
+  /** Handles adding a widget from the gallery. Rejects with a popup
+   *  notification when the board is out of room. */
   const handleAddWidget = useCallback(
     (type: WidgetType) => {
+      if (!hasRoomFor(type)) {
+        showToast("No space — remove a widget first");
+        return;
+      }
       addWidget(type);
       showToast("Widget added");
     },
-    [addWidget, showToast]
+    [addWidget, showToast, hasRoomFor]
   );
 
   /** Ref to prevent double-add from both onDrop and dragend firing. */
@@ -147,20 +240,26 @@ export default function HomeBoard({ embedded = false }: HomeBoardProps = {}) {
     []
   );
 
-  /** Called when user drops an external item onto the grid. */
+  /** Called when user drops an external item onto the grid. Same
+   *  capacity check as click-to-add so drag-from-gallery also respects
+   *  the MAX_ROWS cap. */
   const handleExternalDrop = useCallback(
     (item: { x: number; y: number }) => {
       if (dropHandledRef.current) return;
       dropHandledRef.current = true;
       setDraggingType((prev) => {
         if (prev) {
-          addWidget(prev, {}, { x: item.x, y: item.y });
-          showToast("Widget added");
+          if (!hasRoomFor(prev)) {
+            showToast("No space — remove a widget first");
+          } else {
+            addWidget(prev, {}, { x: item.x, y: item.y });
+            showToast("Widget added");
+          }
         }
         return null;
       });
     },
-    [addWidget, showToast]
+    [addWidget, showToast, hasRoomFor]
   );
 
   // Fallback: if drag ends outside the grid, still add the widget at bottom
@@ -237,99 +336,46 @@ export default function HomeBoard({ embedded = false }: HomeBoardProps = {}) {
   return (
     <PageTransition>
       <div className={`h-full overflow-hidden ${escapeMargins}`}>
-      <div className={`h-full flex flex-col ${isDragging ? "overflow-hidden" : "overflow-y-auto"}`}>
-        {/* Cover Image */}
-        <BoardCover
-          coverImageUrl={coverImageUrl}
-          editMode={editMode}
-          onChangeCover={(url) => { setCoverImageUrl(url); showToast(url ? "Banner updated" : "Banner removed"); }}
-          coverHeight={coverHeight}
-          coverPositionY={coverPositionY}
-          onChangeCoverConfig={setCoverConfig}
-        />
-
-        {/* Header: Emoji + Title + Controls — matches grid container padding */}
-        <div className="px-6 md:px-10">
-          {/* Board icon — overlaps bottom of cover for Notion effect */}
-          <div className="relative mb-2.5" style={{ marginTop: -(( ICON_SIZES.find((s) => s.value === iconSize)?.px ?? 64) / 2) }}>
+      <div
+        className="relative h-full flex flex-col board-wallpaper overflow-hidden"
+      >
+        {/* Floating top-right controls — Add Widget (edit mode only) +
+            the edit-mode toggle. The old cover banner / emoji / board
+            title / description / divider block was removed; the home
+            page is now a pure wallpaper-and-cards layout. */}
+        {/* Toolbar — right-aligned with the widget grid's outer edge
+            (same px-6 md:px-10 as WidgetGrid) and locked to a fixed
+            height so toggling edit mode never shifts the widgets
+            below. The Add Widget button matches EditToggleButton's
+            exact 30px height. */}
+        <div
+          className="sticky top-0 z-30 flex items-center justify-end gap-2 px-6 md:px-10 pt-4 pb-2 shrink-0"
+          style={{ height: 56 }}
+        >
+          {editMode && (
             <button
-              onClick={() => {
-                if (editMode) setEmojiPickerOpen((p) => !p);
-              }}
-              className={`leading-none ${
-                editMode ? "cursor-pointer hover:opacity-80 transition-opacity animate-edit-hint" : "cursor-default"
-              }`}
-              aria-label="Board icon"
+              id="add-widget-btn"
+              onClick={() => setGalleryOpen(true)}
+              style={{ height: 30 }}
+              className="flex items-center gap-1.5 px-3.5 text-sm font-semibold rounded-xl border border-border bg-white/85 dark:bg-gray-800/85 backdrop-blur-md text-foreground hover:bg-white dark:hover:bg-gray-700 shadow-sm transition-colors"
             >
-              {(() => {
-                const sizePx = ICON_SIZES.find((s) => s.value === iconSize)?.px ?? 64;
-                if (boardEmoji.startsWith("lucide:")) {
-                  const iconName = boardEmoji.slice(7);
-                  const LucideIcon = LUCIDE_ICON_MAP[iconName];
-                  if (LucideIcon) {
-                    return <LucideIcon size={sizePx} strokeWidth={1.5} fill={isFilledIcon(iconName) ? "currentColor" : "none"} className="text-foreground" />;
-                  }
-                }
-                return <span style={{ fontSize: sizePx, lineHeight: 1 }}>{boardEmoji}</span>;
-              })()}
+              <Plus size={14} />
+              Add Widget
             </button>
-            <EmojiPicker
-              open={emojiPickerOpen}
-              onSelect={setBoardEmoji}
-              onClose={() => setEmojiPickerOpen(false)}
-            />
-          </div>
-
-          {/* Title row + controls — controls right-aligned with grid below */}
-          <div className="flex items-center justify-between mb-6">
-            <BoardTitle
-              title={boardTitle}
-              editMode={editMode}
-              titleConfig={{ fontFamily: titleFontFamily, textColor: titleTextColor, fontSize: titleFontSize }}
-              onTitleChange={setBoardTitle}
-              onTitleConfigChange={(cfg) => setTitleConfig(cfg.fontFamily || "", cfg.textColor || "", cfg.fontSize || "lg")}
-            />
-
-            <div className="flex items-center gap-2.5 shrink-0">
-              {editMode && (
-                <button
-                  id="add-widget-btn"
-                  onClick={() => setGalleryOpen(true)}
-                  className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-full border border-border bg-white dark:bg-gray-800 text-foreground hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm transition-all active:scale-[0.97]"
-                >
-                  <Plus size={14} />
-                  Add Widget
-                </button>
-              )}
-
-              <EditToggleButton
-                id="edit-toggle-btn"
-                editing={editMode}
-                onToggle={() => setEditMode((prev) => !prev)}
-              />
-            </div>
-          </div>
+          )}
+          <EditToggleButton
+            id="edit-toggle-btn"
+            editing={editMode}
+            onToggle={() => setEditMode((prev) => !prev)}
+          />
         </div>
 
-        {/* Board description */}
-        <BoardDescription
-          description={boardDescription}
-          editMode={editMode}
-          onDescriptionChange={setBoardDescription}
-        />
-
-        {/* Divider */}
-        <BoardDivider
-          color={dividerColor}
-          thickness={dividerThickness}
-          text={dividerText}
-          visible={dividerVisible}
-          editMode={editMode}
-          onChange={setDividerConfig}
-        />
-
-        {/* Widget Grid (full width) */}
-        <div id="widget-grid" className="flex-1 min-h-0 pb-20 md:pb-0">
+        {/* Widget Grid — sits on top of the wallpaper background. The
+            pb-20 on mobile clears the MobileTabBar; desktop has no
+            extra bottom padding so the grid fills the viewport
+            edge-to-edge. overflow-hidden so any sub-pixel overflow
+            from react-grid-layout stays inside the visible board. */}
+        <div id="widget-grid" className="flex-1 min-h-0 pb-20 md:pb-0 overflow-hidden">
           <WidgetGrid
             widgets={widgets}
             layouts={layouts}
@@ -346,25 +392,31 @@ export default function HomeBoard({ embedded = false }: HomeBoardProps = {}) {
           />
         </div>
 
-        {/* Empty state */}
+        {/* Empty state — absolutely positioned and centered over the
+            board area so it sits in the visual middle regardless of
+            sibling flex children. Wrapped in a squircle card with the
+            same chrome as the widgets so it reads as a placeholder
+            tile. */}
         {widgets.length === 0 && !editMode && (
-          <div className="flex-1 flex flex-col items-center justify-center text-center py-12">
-            <p className="text-base font-medium text-foreground mb-1.5">
-              Make this dashboard yours
-            </p>
-            <p className="text-sm text-muted-foreground mb-5 max-w-sm">
-              Add widgets to track upcoming work, calendar, weather, and more. Drag them anywhere on the board.
-            </p>
-            <button
-              onClick={() => {
-                setEditMode(true);
-                setGalleryOpen(true);
-              }}
-              className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-xl bg-blue-500 text-white hover:bg-blue-600 transition-colors"
-            >
-              <Plus size={14} />
-              Add Widgets
-            </button>
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className="pointer-events-auto board-widget-card flex flex-col items-center justify-center text-center px-10 py-10 max-w-md">
+              <p className="text-base font-semibold text-foreground mb-1.5">
+                Make this dashboard yours
+              </p>
+              <p className="text-sm text-muted-foreground mb-5">
+                Add widgets to track upcoming work, calendar, weather, and more. Drag them anywhere on the board.
+              </p>
+              <button
+                onClick={() => {
+                  setEditMode(true);
+                  setGalleryOpen(true);
+                }}
+                className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-xl bg-blue-500 text-white hover:bg-blue-500/90 transition-colors"
+              >
+                <Plus size={14} />
+                Add Widgets
+              </button>
+            </div>
           </div>
         )}
 

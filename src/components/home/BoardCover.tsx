@@ -204,7 +204,7 @@ export default function BoardCover({
               <h2 className="text-base font-semibold text-foreground">Edit Cover</h2>
               <button
                 onClick={() => setModalOpen(false)}
-                className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                className="w-8 h-8 rounded-full flex items-center justify-center text-foreground hover:text-foreground hover:bg-muted transition-colors"
                 aria-label="Close"
               >
                 <X size={16} />
@@ -224,7 +224,7 @@ export default function BoardCover({
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="text-xs font-medium text-foreground">Banner Height</label>
-                  <span className="text-[10px] tabular-nums text-muted-foreground">{coverHeight}px</span>
+                  <span className="text-[10px] tabular-nums text-foreground">{coverHeight}px</span>
                 </div>
                 <input
                   type="range"
@@ -241,7 +241,7 @@ export default function BoardCover({
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="text-xs font-medium text-foreground">Image Position</label>
-                    <span className="text-[10px] tabular-nums text-muted-foreground">{coverPositionY}%</span>
+                    <span className="text-[10px] tabular-nums text-foreground">{coverPositionY}%</span>
                   </div>
                   <input
                     type="range"
@@ -270,7 +270,7 @@ export default function BoardCover({
                       {cat.photos.length > 3 && (
                         <button
                           onClick={() => toggleCategory(catKey)}
-                          className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                          className="text-[10px] text-foreground hover:text-foreground transition-colors"
                         >
                           {isExpanded ? "Show Less" : `Show All (${cat.photos.length})`}
                         </button>
@@ -334,7 +334,7 @@ export default function BoardCover({
                       <p className="text-xs font-medium text-foreground">Gradients</p>
                       <button
                         onClick={() => toggleCategory("gradients")}
-                        className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                        className="text-[10px] text-foreground hover:text-foreground transition-colors"
                       >
                         {isExpanded ? "Show Less" : `Show All (${GRADIENT_COVERS.length})`}
                       </button>
@@ -379,7 +379,7 @@ export default function BoardCover({
                       <p className="text-xs font-medium text-foreground">Solid Colors</p>
                       <button
                         onClick={() => toggleCategory("solids")}
-                        className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                        className="text-[10px] text-foreground hover:text-foreground transition-colors"
                       >
                         {isExpanded ? "Show Less" : `Show All (${SOLID_COVERS.length})`}
                       </button>
@@ -444,7 +444,7 @@ export default function BoardCover({
               <div className="flex-1" />
               <button
                 onClick={() => setModalOpen(false)}
-                className="px-4 py-2 text-sm rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                className="px-4 py-2 text-sm rounded-xl text-foreground hover:text-foreground hover:bg-muted transition-colors"
               >
                 Done
               </button>

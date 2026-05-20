@@ -89,7 +89,7 @@ export default function NotesStylePicker({ value, onChange }: NotesStylePickerPr
             <div className="w-full h-12">
               <StylePreview styleId={style.id} />
             </div>
-            <span className="text-[10px] text-muted-foreground mt-1">{style.label}</span>
+            <span className="text-[10px] text-foreground mt-1">{style.label}</span>
           </button>
         ))}
       </div>

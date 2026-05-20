@@ -117,7 +117,7 @@ export default function EmojiPicker({
             </h2>
             <button
               onClick={onClose}
-              className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              className="w-8 h-8 rounded-full flex items-center justify-center text-foreground hover:text-foreground hover:bg-muted transition-colors"
               aria-label="Close"
             >
               <X size={16} />
@@ -143,7 +143,7 @@ export default function EmojiPicker({
                 value={iconSearch}
                 onChange={(e) => setIconSearch(e.target.value)}
                 placeholder="Search icons..."
-                className="w-full px-3 py-2 text-sm rounded-xl border border-border bg-background text-foreground placeholder:text-muted-foreground outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-colors"
+                className="w-full px-3 py-2 text-sm rounded-xl border border-border bg-background text-foreground placeholder:text-foreground outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-colors"
                 autoFocus
               />
             )}
@@ -152,7 +152,7 @@ export default function EmojiPicker({
                 value={emojiSearch}
                 onChange={(e) => setEmojiSearch(e.target.value)}
                 placeholder="Search emojis..."
-                className="w-full px-3 py-2 text-sm rounded-xl border border-border bg-background text-foreground placeholder:text-muted-foreground outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-colors"
+                className="w-full px-3 py-2 text-sm rounded-xl border border-border bg-background text-foreground placeholder:text-foreground outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-colors"
               />
             )}
           </div>
@@ -183,7 +183,7 @@ export default function EmojiPicker({
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground text-center py-6">No icons found</p>
+                  <p className="text-sm text-foreground text-center py-6">No icons found</p>
                 )
               ) : (
               <>
@@ -211,7 +211,7 @@ export default function EmojiPicker({
                     {previewColor && (
                       <button
                         onClick={() => setPreviewColor(null)}
-                        className="text-xs text-muted-foreground hover:text-foreground ml-1 transition-colors"
+                        className="text-xs text-foreground hover:text-foreground ml-1 transition-colors"
                       >
                         Reset
                       </button>
@@ -274,7 +274,7 @@ export default function EmojiPicker({
                     </div>
                   ))
                 ) : (
-                  <p className="text-sm text-muted-foreground text-center py-6">No emojis found</p>
+                  <p className="text-sm text-foreground text-center py-6">No emojis found</p>
                 )
               ) : (
                 EMOJI_CATEGORIES.map((cat) => (

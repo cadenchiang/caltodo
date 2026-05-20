@@ -30,7 +30,7 @@ function FacePreview({ faceId }: { faceId: ClockFaceId }) {
         <div className="flex flex-col items-center justify-center h-full gap-1">
           <span className="text-[11px] tabular-nums font-light text-foreground">12:00</span>
           <div className="w-4 h-px bg-border" />
-          <span className="text-[7px] text-muted-foreground">Monday</span>
+          <span className="text-[7px] text-foreground">Monday</span>
         </div>
       );
     case "analog":
@@ -111,7 +111,7 @@ export default function ClockFacePicker({ value, onChange }: ClockFacePickerProp
             <div className="w-full h-12">
               <FacePreview faceId={face.id} />
             </div>
-            <span className="text-[10px] text-muted-foreground mt-1">{face.label}</span>
+            <span className="text-[10px] text-foreground mt-1">{face.label}</span>
           </button>
         ))}
       </div>

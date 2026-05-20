@@ -11,8 +11,26 @@ import type { WidgetInstance } from "@/lib/widget-types";
 /** localStorage key for persisted widget layout. */
 export const STORAGE_KEY = "home_widget_layout";
 
+/**
+ * The Supabase user_id whose saved board acts as the default layout for
+ * every new account. Whatever this user edits becomes the layout that
+ * first-time accounts inherit. Mirrors BOARD_TEMPLATE_USER_ID on the
+ * server (api/board-layout/route.ts); kept in sync manually because the
+ * client also needs to know who the template owner is for the one-time
+ * reset-on-mount flow.
+ */
+export const TEMPLATE_USER_ID = "f6fe5372-9a08-489d-bb0a-d29c4512c04f";
+
+/**
+ * localStorage flag tracking that the template owner's existing board
+ * has been wiped once. Once set, the wipe never runs again for that
+ * browser. Bumping the suffix forces a re-wipe (e.g. if we want to
+ * reset the template board to empty again for a new design pass).
+ */
+export const TEMPLATE_WIPE_FLAG = "caltodo_template_board_wiped_v1";
+
 /** Schema version for cache invalidation. Bump to reset all users to new defaults. */
-export const SCHEMA_VERSION = 10;
+export const SCHEMA_VERSION = 11;
 
 /** Old lg column count (v2) used before migration to v3. */
 export const OLD_LG_COLS = 6;

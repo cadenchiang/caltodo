@@ -62,7 +62,7 @@ export default function BoardDescription({
           onClick={() => {
             if (editMode) setModalOpen(true);
           }}
-          className={`text-left w-full text-sm italic text-muted-foreground ${
+          className={`text-left w-full text-sm italic text-foreground ${
             editMode
               ? "cursor-pointer hover:text-foreground transition-colors animate-edit-hint"
               : "cursor-default"
@@ -89,7 +89,7 @@ export default function BoardDescription({
                 </h2>
                 <button
                   onClick={handleSave}
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-foreground hover:text-foreground hover:bg-muted transition-colors"
                   aria-label="Close"
                 >
                   <X size={16} />
@@ -107,9 +107,9 @@ export default function BoardDescription({
                   rows={3}
                   maxLength={MAX_LENGTH}
                   placeholder="Describe your board..."
-                  className="w-full rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                  className="w-full rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm text-foreground placeholder:text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/30"
                 />
-                <p className="text-[10px] text-muted-foreground text-right mt-1">
+                <p className="text-[10px] text-foreground text-right mt-1">
                   {draft.length}/{MAX_LENGTH}
                 </p>
               </div>
@@ -121,7 +121,7 @@ export default function BoardDescription({
                     setDraft(description);
                     setModalOpen(false);
                   }}
-                  className="px-3 py-1.5 text-sm rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                  className="px-3 py-1.5 text-sm rounded-lg text-foreground hover:text-foreground hover:bg-muted transition-colors"
                 >
                   Cancel
                 </button>

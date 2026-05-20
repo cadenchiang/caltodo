@@ -304,25 +304,77 @@ export function useWidgetLayout() {
     [persistLayout]
   );
 
+  /**
+   * Adds a new widget and places it in the first empty slot that fits
+   * within the fixed-row board (MAX_ROWS = 6 at the lg breakpoint).
+   * Uses each widget type's registry-defined default size instead of
+   * a hardcoded 2×2 — fixes the "page went on forever" bug where new
+   * widgets were placed at y: Infinity and react-grid-layout grew the
+   * container past the viewport.
+   *
+   * The caller (HomeBoard.handleAddWidget) already checks hasRoomFor
+   * before invoking this; we still defensively clamp here so a missed
+   * check can't blow the layout up.
+   */
   const addWidget = useCallback(
     (type: WidgetType, config: Record<string, string> = {}, position?: { x: number; y: number }): string => {
       const id = generateWidgetId();
       const reg = WIDGET_REGISTRY[type];
       const newWidget: WidgetInstance = { id, type, config };
-      const newLayoutItem: LayoutItem = {
-        i: id, x: position?.x ?? 0, y: position?.y ?? Infinity,
-        w: 2, h: 2, minW: reg.minW, minH: reg.minH,
-      };
+      const MAX_ROWS = 8;
+      const COLS = { lg: 8, md: 4, sm: 2 } as const;
+      // Enforce a 2×2 floor when a user adds a new widget via the
+      // gallery — single-cell tiles read as cramped on the dashboard.
+      // The preset default layout (getDefaultLayout) can still place
+      // banner-style widgets at h=1; that path doesn't go through here.
+      const w = Math.max(2, reg.minW, reg.defaultW);
+      const h = Math.max(2, reg.minH, reg.defaultH);
 
       setWidgets((prev) => {
         const updated = [...prev, newWidget];
         setLayoutsState((prevLayouts) => {
           const updatedLayouts: ResponsiveLayouts<string> = {};
           for (const bp of Object.keys(prevLayouts)) {
-            updatedLayouts[bp] = [...(prevLayouts[bp] || []), newLayoutItem];
+            const cols = (COLS as Record<string, number>)[bp] ?? 8;
+            const items = prevLayouts[bp] ?? [];
+            /**
+             * Walk rows top-to-bottom, columns left-to-right. The first
+             * w×h block with no overlap against existing items AND
+             * whose bottom edge is still <= MAX_ROWS wins. Falls back
+             * to (0, max(0, MAX_ROWS - h)) so the new widget is at
+             * least visible if hasRoomFor was bypassed.
+             */
+            let placedX = 0;
+            let placedY = Math.max(0, MAX_ROWS - h);
+            outer: for (let y = 0; y + h <= MAX_ROWS; y++) {
+              for (let x = 0; x + w <= cols; x++) {
+                const collides = items.some((it) => {
+                  const ix = it.x ?? 0, iy = it.y ?? 0, iw = it.w ?? 1, ih = it.h ?? 1;
+                  return !(x + w <= ix || ix + iw <= x || y + h <= iy || iy + ih <= y);
+                });
+                if (!collides) {
+                  placedX = x;
+                  placedY = y;
+                  break outer;
+                }
+              }
+            }
+
+            // Position override (drag-from-gallery drop) still respected
+            // but clamped to the board cap.
+            if (position) {
+              placedX = Math.max(0, Math.min(cols - w, position.x));
+              placedY = Math.max(0, Math.min(MAX_ROWS - h, position.y));
+            }
+
+            const newItem: LayoutItem = {
+              i: id, x: placedX, y: placedY,
+              w, h, minW: reg.minW, minH: reg.minH,
+            };
+            updatedLayouts[bp] = [...items, newItem];
           }
           if (Object.keys(updatedLayouts).length === 0) {
-            updatedLayouts.lg = [newLayoutItem];
+            updatedLayouts.lg = [{ i: id, x: 0, y: 0, w, h, minW: reg.minW, minH: reg.minH }];
           }
           persistLayout(updated, updatedLayouts);
           return updatedLayouts;

@@ -98,8 +98,8 @@ function DisplayPreview({ displayId }: { displayId: GCalDisplayId }) {
           {[1, 2].map((i) => (
             <div key={i} className={`flex items-center gap-1 py-1 ${i > 1 ? "border-t border-border/50" : ""}`}>
               <div className="w-4 text-center shrink-0">
-                <div className="text-[7px] font-semibold text-foreground/60">{i === 1 ? "9" : "2"}</div>
-                <div className="text-[5px] text-muted-foreground">{i === 1 ? "AM" : "PM"}</div>
+                <div className="text-[7px] font-semibold text-foreground">{i === 1 ? "9" : "2"}</div>
+                <div className="text-[5px] text-foreground">{i === 1 ? "AM" : "PM"}</div>
               </div>
               <div className="w-px self-stretch bg-blue-400 rounded-full" />
               <div className="flex-1">
@@ -118,7 +118,6 @@ function DisplayPreview({ displayId }: { displayId: GCalDisplayId }) {
 export default function GCalDisplayPicker({ value, onChange }: GCalDisplayPickerProps) {
   return (
     <div>
-      <label className="block text-sm font-medium text-foreground mb-2">Display Style</label>
       <div className="grid grid-cols-3 gap-2">
         {GCAL_DISPLAYS.map((display) => (
           <button
@@ -134,7 +133,7 @@ export default function GCalDisplayPicker({ value, onChange }: GCalDisplayPicker
             <div className="w-full h-12">
               <DisplayPreview displayId={display.id} />
             </div>
-            <span className="text-[10px] text-muted-foreground mt-1">{display.label}</span>
+            <span className="text-[10px] text-foreground mt-1">{display.label}</span>
           </button>
         ))}
       </div>

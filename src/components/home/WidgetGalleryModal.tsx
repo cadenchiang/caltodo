@@ -17,34 +17,43 @@ import {
   X, CheckSquare, Clock, ImageIcon, GraduationCap,
   Calendar, FileText, CloudSun, MessagesSquare, Timer, Hourglass,
   Link, Flame, Quote, BarChart3, Grid3X3, Smile, Music, Search,
+  User, Sunrise, BookOpen, ListChecks, CalendarDays,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import {
   WIDGET_REGISTRY,
   type WidgetType,
-  type WidgetCategory,
   type WidgetTypeConfig,
 } from "@/lib/widget-types";
 import { RenderWidget } from "@/components/home/WidgetContainer";
 
-/** Maps widget type to its lucide-react icon for the gallery card label. */
+/** Maps widget type to its lucide-react icon for the gallery card label.
+ *  Every visible widget must have an entry here — without an icon the
+ *  row renders title-only and reads as a section header. */
 const WIDGET_ICONS: Record<string, LucideIcon> = {
-  clock: Clock, "tasks-today": CheckSquare, "class-progress": GraduationCap,
-  "google-calendar": Calendar, image: ImageIcon,
-  notes: FileText, weather: CloudSun, "cal-chat": MessagesSquare, pomodoro: Timer,
-  countdown: Hourglass, "quick-links": Link, "habit-tracker": Flame,
-  quote: Quote, stats: BarChart3, "weekly-heatmap": Grid3X3, sticker: Smile, spotify: Music,
+  profile: User,
+  intro: Sunrise,
+  clock: Clock,
+  "tasks-today": CheckSquare,
+  "class-progress": GraduationCap,
+  "google-calendar": Calendar,
+  image: ImageIcon,
+  notes: FileText,
+  weather: CloudSun,
+  "cal-chat": MessagesSquare,
+  pomodoro: Timer,
+  countdown: Hourglass,
+  "quick-links": Link,
+  "habit-tracker": Flame,
+  quote: Quote,
+  stats: BarChart3,
+  "weekly-heatmap": Grid3X3,
+  sticker: Smile,
+  spotify: Music,
+  "mini-calendar": CalendarDays,
+  "daily-reminders": ListChecks,
+  courses: BookOpen,
 };
-
-/** Category filter options for the gallery tabs. */
-const CATEGORY_TABS: { key: "all" | WidgetCategory; label: string }[] = [
-  { key: "all", label: "All" },
-  { key: "popular", label: "Popular" },
-  { key: "productivity", label: "Productivity" },
-  { key: "info", label: "Info" },
-  { key: "media", label: "Media" },
-  { key: "social", label: "Social" },
-];
 
 /**
  * Renders the real widget component scaled down to fit the gallery thumbnail.
@@ -98,14 +107,15 @@ class LivePreviewErrorBoundary extends React.Component<
 }
 
 /**
- * Single widget card in the gallery grid. Shows live preview, icon, label, and description.
- * Supports click to add and drag to place.
+ * Single widget row in the gallery list. Flat layout: black icon on
+ * the left, label + description stacked beside it. No preview tile —
+ * the previews were too noisy to scan. Click/drag still adds.
  *
  * @param config - Widget type configuration
  * @param onAdd - Called when clicked
  * @param onDragStart - Called when drag begins
  */
-function WidgetCard({
+function WidgetRow({
   config,
   onAdd,
   onDragStart,
@@ -114,6 +124,7 @@ function WidgetCard({
   onAdd: () => void;
   onDragStart: () => void;
 }) {
+  const Icon = WIDGET_ICONS[config.type];
   return (
     <div
       role="button"
@@ -127,22 +138,13 @@ function WidgetCard({
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") onAdd();
       }}
-      className="widget-gallery-card flex flex-col text-left overflow-hidden rounded-lg border border-foreground/[0.09] bg-card cursor-grab active:cursor-grabbing"
+      className="flex items-center gap-3 px-4 py-3 text-left cursor-grab active:cursor-grabbing hover:bg-foreground/[0.04] transition-colors"
     >
-      <div
-        className="aspect-[4/3] overflow-hidden bg-foreground/[0.02] rounded-t-lg"
-        style={{ "--preview-scale": 0.55 } as React.CSSProperties}
-      >
-        <LivePreview type={config.type} />
-      </div>
-      <div className="px-3.5 pt-2.5 pb-3">
-        <span className="text-[13px] font-semibold text-foreground flex items-center gap-1.5">
-          {(() => { const Icon = WIDGET_ICONS[config.type]; return Icon ? <Icon size={13} className="text-muted-foreground shrink-0" /> : null; })()}
-          {config.label}
-        </span>
-        <span className="text-[11.5px] leading-snug mt-0.5 text-muted-foreground block">
-          {config.description}
-        </span>
+      {Icon && (
+        <Icon size={18} className="text-foreground shrink-0" strokeWidth={2.4} />
+      )}
+      <div className="text-[14px] font-bold text-foreground truncate">
+        {config.label}
       </div>
     </div>
   );
@@ -163,49 +165,23 @@ export default function WidgetGalleryModal({
   onDragStart,
 }: WidgetGalleryModalProps) {
   const [search, setSearch] = useState("");
-  const [activeCategory, setActiveCategory] = useState<"all" | WidgetCategory>("all");
 
-  /** Groups widgets by category, ordered: Popular first, then rest alphabetically. */
-  const groupedWidgets = useMemo(() => {
+  /** Flat alphabetical list — no category headers, no grid; one row per widget. */
+  const filteredWidgets = useMemo(() => {
     const all = Object.values(WIDGET_REGISTRY);
     const query = search.toLowerCase().trim();
 
-    const filtered = all.filter((w) => {
-      if (w.hidden) return false;
-      const matchesCategory = activeCategory === "all" || w.category === activeCategory;
-      const matchesSearch =
-        !query ||
-        w.label.toLowerCase().includes(query) ||
-        w.description.toLowerCase().includes(query);
-      return matchesCategory && matchesSearch;
-    });
-
-    // Group by category
-    const groups = new Map<string, WidgetTypeConfig[]>();
-    for (const w of filtered) {
-      const cat = w.category;
-      if (!groups.has(cat)) groups.set(cat, []);
-      groups.get(cat)!.push(w);
-    }
-
-    // Sort widgets within each group alphabetically
-    for (const [, widgets] of groups) {
-      widgets.sort((a, b) => a.label.localeCompare(b.label));
-    }
-
-    // Order groups: Popular first, then alphabetical by category label
-    const categoryOrder = CATEGORY_TABS.filter((t) => t.key !== "all").map((t) => t.key);
-    const ordered: { label: string; widgets: WidgetTypeConfig[] }[] = [];
-    for (const key of categoryOrder) {
-      const widgets = groups.get(key);
-      if (widgets && widgets.length > 0) {
-        const tab = CATEGORY_TABS.find((t) => t.key === key);
-        ordered.push({ label: tab?.label || key, widgets });
-      }
-    }
-
-    return ordered;
-  }, [search, activeCategory]);
+    return all
+      .filter((w) => {
+        if (w.hidden) return false;
+        if (!query) return true;
+        return (
+          w.label.toLowerCase().includes(query) ||
+          w.description.toLowerCase().includes(query)
+        );
+      })
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [search]);
 
   if (!open) return null;
 
@@ -228,7 +204,7 @@ export default function WidgetGalleryModal({
           </h2>
           <button
             onClick={onClose}
-            className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:bg-foreground/[0.05] transition-colors duration-150"
+            className="w-7 h-7 rounded-md flex items-center justify-center text-foreground hover:bg-foreground/[0.05] transition-colors duration-150"
             aria-label="Close"
           >
             <X size={15} />
@@ -240,59 +216,36 @@ export default function WidgetGalleryModal({
           <div className="relative">
             <Search
               size={14}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground pointer-events-none"
             />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search widgets..."
-              className="w-full h-9 pl-9 pr-3 text-[13px] rounded-lg border border-foreground/[0.09] bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-foreground/20"
+              className="w-full h-9 pl-9 pr-3 text-[13px] rounded-lg border border-foreground/[0.09] bg-background text-foreground placeholder:text-foreground focus:outline-none focus:ring-1 focus:ring-foreground/20"
             />
           </div>
         </div>
 
-        {/* Category tabs */}
-        <div className="px-6 pt-3 pb-1 flex gap-1.5 flex-wrap">
-          {CATEGORY_TABS.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveCategory(tab.key)}
-              className={`px-3 py-1.5 text-[12px] font-medium rounded-full transition-colors duration-150 ${
-                activeCategory === tab.key
-                  ? "bg-foreground text-background"
-                  : "bg-foreground/[0.06] text-muted-foreground hover:bg-foreground/[0.1]"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Widget grid grouped by category */}
-        <div className="px-6 py-4 max-h-[75vh] overflow-y-auto space-y-6">
-          {groupedWidgets.length === 0 && (
-            <p className="text-center text-[13px] text-muted-foreground py-8">
+        {/* Flat continuous list — black icons, no previews, no category tabs. */}
+        <div className="px-2 py-2 max-h-[75vh] overflow-y-auto">
+          {filteredWidgets.length === 0 ? (
+            <p className="text-center text-[13px] text-foreground py-8">
               No widgets match your search.
             </p>
-          )}
-          {groupedWidgets.map((group) => (
-            <div key={group.label}>
-              <h3 className="text-xs font-medium text-foreground mb-3">
-                {group.label}
-              </h3>
-              <div className="grid grid-cols-4 gap-3">
-                {group.widgets.map((config) => (
-                  <WidgetCard
-                    key={config.type}
-                    config={config}
-                    onAdd={() => { onAdd(config.type); onClose(); }}
-                    onDragStart={() => onDragStart?.(config.type)}
-                  />
-                ))}
-              </div>
+          ) : (
+            <div className="flex flex-col divide-y divide-foreground/[0.06]">
+              {filteredWidgets.map((config) => (
+                <WidgetRow
+                  key={config.type}
+                  config={config}
+                  onAdd={() => { onAdd(config.type); onClose(); }}
+                  onDragStart={() => onDragStart?.(config.type)}
+                />
+              ))}
             </div>
-          ))}
+          )}
         </div>
       </div>
     </div>

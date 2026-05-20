@@ -1,9 +1,12 @@
 "use client";
 
 /**
- * Shared edit/done toggle button.
- * Pencil icon when not editing, iOS-style blue pill with "Done" when editing.
- * Used by the home dashboard and anywhere else that needs an edit mode toggle.
+ * Shared edit / done toggle button.
+ *
+ * Pencil mode: 30 px circle, icon only, right-aligned with the widget
+ * grid edge. Done mode: 30 px tall pill in blue with the "Done" label.
+ * Both states snap to the same right edge so toggling never shifts
+ * the layout below.
  *
  * @param editing - Whether edit mode is currently active
  * @param onToggle - Callback to toggle edit mode
@@ -22,14 +25,15 @@ export default function EditToggleButton({ editing, onToggle, id }: EditToggleBu
     <button
       id={id}
       onClick={onToggle}
-      className={`flex items-center justify-center transition-all duration-200 ${
+      style={editing ? { height: 30 } : { width: 30, height: 30 }}
+      className={`flex items-center justify-center text-sm font-semibold shrink-0 ${
         editing
-          ? "px-5 py-2 text-sm font-semibold rounded-full bg-blue-500 text-white hover:bg-blue-600 shadow-sm active:scale-[0.97]"
-          : "p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted active:scale-[0.95]"
+          ? "px-4 rounded-xl bg-blue-500 text-white hover:bg-blue-500/90 shadow-sm"
+          : "rounded-full bg-transparent text-foreground hover:bg-foreground/[0.04]"
       }`}
       aria-label={editing ? "Done editing" : "Edit"}
     >
-      {editing ? "Done" : <Pencil size={16} />}
+      {editing ? "Done" : <Pencil size={16} strokeWidth={2.25} />}
     </button>
   );
 }

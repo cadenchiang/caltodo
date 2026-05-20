@@ -70,7 +70,7 @@ export default function BoardDivider({
       >
         <button
           onClick={() => onChange(color, thickness, text, true)}
-          className={`flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-all ${
+          className={`flex items-center gap-1 text-xs text-foreground hover:text-foreground transition-all ${
             hovered ? "opacity-100" : "opacity-0"
           }`}
         >
@@ -109,7 +109,7 @@ export default function BoardDivider({
                 }}
               />
               <span
-                className="text-xs font-medium text-muted-foreground shrink-0 px-1"
+                className="text-xs font-medium text-foreground shrink-0 px-1"
                 style={displayColor ? { color: displayColor } : undefined}
               >
                 {text}
@@ -155,7 +155,7 @@ export default function BoardDivider({
                 </h2>
                 <button
                   onClick={handleSave}
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-foreground hover:text-foreground hover:bg-muted transition-colors"
                   aria-label="Close"
                 >
                   <X size={16} />
@@ -164,7 +164,7 @@ export default function BoardDivider({
 
               {/* Text */}
               <div className="px-4 pb-3">
-                <label className="text-xs font-medium text-muted-foreground mb-2 block">Text</label>
+                <label className="text-xs font-medium text-foreground mb-2 block">Text</label>
                 <input
                   type="text"
                   placeholder="Optional label"
@@ -177,7 +177,7 @@ export default function BoardDivider({
               {/* Color — hidden when a color theme is active */}
               {!colorTheme && (
                 <div className="px-4 pb-3">
-                  <label className="text-xs font-medium text-muted-foreground mb-2 block">Color</label>
+                  <label className="text-xs font-medium text-foreground mb-2 block">Color</label>
                   <ColorPickerPanel
                     value={draftColor || "#888888"}
                     onChange={setDraftColor}
@@ -186,7 +186,7 @@ export default function BoardDivider({
                     <button
                       type="button"
                       onClick={() => setDraftColor("")}
-                      className="text-[10px] text-muted-foreground hover:text-foreground transition-colors mt-2"
+                      className="text-[10px] text-foreground hover:text-foreground transition-colors mt-2"
                     >
                       Reset to default
                     </button>
@@ -197,8 +197,8 @@ export default function BoardDivider({
               {/* Thickness — slider + numeric display */}
               <div className="px-4 pb-3">
                 <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs font-medium text-muted-foreground">Thickness</label>
-                  <span className="text-xs tabular-nums text-muted-foreground">{draftThickness}px</span>
+                  <label className="text-xs font-medium text-foreground">Thickness</label>
+                  <span className="text-xs tabular-nums text-foreground">{draftThickness}px</span>
                 </div>
                 <input
                   type="range"
@@ -213,12 +213,12 @@ export default function BoardDivider({
 
               {/* Preview */}
               <div className="px-4 pb-3">
-                <label className="text-xs font-medium text-muted-foreground mb-2 block">Preview</label>
+                <label className="text-xs font-medium text-foreground mb-2 block">Preview</label>
                 <div className="rounded-lg bg-muted/50 p-4 flex items-center justify-center">
                   {draftText ? (
                     <div className="flex items-center gap-3 w-full">
                       <div className="flex-1" style={{ height: `${draftThickness}px`, backgroundColor: draftColor || "var(--foreground)", opacity: draftColor ? 1 : 0.08 }} />
-                      <span className="text-xs font-medium text-muted-foreground shrink-0" style={draftColor ? { color: draftColor } : undefined}>{draftText}</span>
+                      <span className="text-xs font-medium text-foreground shrink-0" style={draftColor ? { color: draftColor } : undefined}>{draftText}</span>
                       <div className="flex-1" style={{ height: `${draftThickness}px`, backgroundColor: draftColor || "var(--foreground)", opacity: draftColor ? 1 : 0.08 }} />
                     </div>
                   ) : (
@@ -250,7 +250,7 @@ export default function BoardDivider({
                       setDraftText(text);
                       setModalOpen(false);
                     }}
-                    className="px-3 py-1.5 text-sm rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                    className="px-3 py-1.5 text-sm rounded-lg text-foreground hover:text-foreground hover:bg-muted transition-colors"
                   >
                     Cancel
                   </button>

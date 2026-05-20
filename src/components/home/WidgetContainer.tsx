@@ -18,6 +18,8 @@ import { useRouter } from "next/navigation";
 import { useTheme } from "@/contexts/ThemeContext";
 import type { WidgetInstance } from "@/lib/widget-types";
 import ClockWidget from "@/components/home/widgets/ClockWidget";
+import ProfileWidget from "@/components/home/widgets/ProfileWidget";
+import IntroWidget from "@/components/home/widgets/IntroWidget";
 import TasksTodayWidget from "@/components/home/widgets/TasksTodayWidget";
 import GoogleCalendarWidget from "@/components/home/widgets/GoogleCalendarWidget";
 import ImageWidget from "@/components/home/widgets/ImageWidget";
@@ -70,6 +72,10 @@ export function RenderWidget({
   onOpenSettings?: () => void;
 }) {
   switch (widget.type) {
+    case "profile":
+      return <ProfileWidget config={widget.config} />;
+    case "intro":
+      return <IntroWidget config={widget.config} />;
     case "clock":
       return <ClockWidget config={widget.config} />;
     case "tasks-today":
@@ -170,10 +176,14 @@ export default function WidgetContainer({
 
   // Read style config — skip custom colors when a color theme is active
   const hasTheme = !!colorTheme;
-  const bgColor = hasTheme ? undefined : (widget.config.bgColor || undefined);
+  // Per-widget bgColor / accentColor customization was removed at the
+  // user's request — every widget renders on pure white (var(--card))
+  // with no header banner tint, regardless of what's saved in config.
+  // The legacy config fields are simply ignored.
+  const bgColor: string | undefined = undefined;
   const textColor = hasTheme ? undefined : (widget.config.textColor || undefined);
   const fontFamily = widget.config.fontFamily || undefined;
-  const accentColor = hasTheme ? undefined : (widget.config.accentColor || undefined);
+  const accentColor: string | undefined = undefined;
   const fontWeight = widget.config.textBold === "true" ? "700" : undefined;
   const fontStyle = widget.config.textItalic === "true" ? ("italic" as const) : undefined;
 
@@ -190,7 +200,7 @@ export default function WidgetContainer({
       data-widget-id={widget.id}
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
-      className={`h-full w-full ${widget.config.widgetBorder === "false" ? "rounded-none bg-transparent" : "rounded-sm bg-transparent border border-foreground/[0.09]"} overflow-hidden ${editClass} ${isClickable ? "cursor-pointer" : ""} ${textColor ? "widget-custom-text" : ""}`}
+      className={`h-full w-full board-widget-card overflow-hidden ${editClass} ${isClickable ? "cursor-pointer" : ""} ${textColor ? "widget-custom-text" : ""}`}
       style={{
         backgroundColor: bgColor,
         ...(textColor ? { "--widget-text-color": textColor, color: textColor } as React.CSSProperties : {}),
