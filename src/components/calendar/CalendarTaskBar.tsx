@@ -131,8 +131,13 @@ export default function CalendarTaskBar({ task, onClick, isPending, compact = fa
           when not. */}
       <div className="flex items-center gap-1.5 min-w-0">
         {!isPending && (() => {
+          // Prefer the user-picked task color (pink, etc.) over the
+          // source-based default so the checkmark visually matches the
+          // task's class color everywhere it appears. Fall back to the
+          // green/blue source defaults only when no custom color is set.
           const isGradescope = task.source === "gradescope";
-          const fillColor = isGradescope ? "#10B981" : "#0e89d6";
+          const sourceDefault = isGradescope ? "#10B981" : "#0e89d6";
+          const fillColor = task.color ? color : sourceDefault;
           if (task.is_completed) {
             return (
               <span
