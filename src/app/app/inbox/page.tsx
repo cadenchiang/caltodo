@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Inbox, X, Sun, CalendarRange, CalendarDays, GraduationCap, MoreVertical, List, LayoutGrid, ArrowUpDown, RefreshCw, Plus } from "lucide-react";
+import { Inbox, X, Sun, CalendarRange, CalendarDays, GraduationCap, MoreVertical, List, LayoutGrid, ArrowUpDown, RefreshCw, Plus, ChevronDown } from "lucide-react";
 import { useTaskContext } from "@/contexts/TaskContext";
 import { expandRepeatingTasks, getRealTaskId } from "@/lib/expand-repeating-tasks";
 import TaskList from "@/components/tasks/TaskList";
@@ -618,7 +618,9 @@ export default function InboxPage() {
 
   return (
     <PageTransition>
-      <div className="flex flex-col -m-4 md:-m-10 h-full max-h-full overflow-hidden">
+      <div className="flex flex-row -m-4 md:-m-10 h-full max-h-full overflow-hidden">
+        {/* Left column — filter bar, tabs row, and task list. */}
+        <div className="flex flex-col flex-1 min-w-0 min-h-0">
         {/* Filter + actions bar — Inbox dropdown left, action buttons
             right. Renders for both List and Board views. The dropdown
             picks the date filter (Inbox / Today / Next 7 days) and
@@ -691,14 +693,6 @@ export default function InboxPage() {
                     <ArrowUpDown size={18} />
                   </button>
                 </div>
-                <button
-                  ref={viewMenuRef}
-                  onClick={() => setShowViewMenu(!showViewMenu)}
-                  className="p-1.5 text-foreground hover:bg-foreground/[0.05] rounded-lg transition-colors"
-                  title="View options"
-                >
-                  <MoreVertical size={18} />
-                </button>
               </div>
             </div>
           );
@@ -798,12 +792,7 @@ export default function InboxPage() {
           document.body
         )}
 
-        {/* Body — split into tasks (left) + contained detail card (right).
-            Sits below the full-width tabs / bar above. */}
-        <div className="flex flex-1 min-h-0">
-          {/* Left column: tasks (tabs row lives above the body split) */}
-          <div className="flex flex-col min-w-0 min-h-0 flex-1">
-          {/* Header add-task modal */}
+        {/* Task list area — fills the rest of the left column. */}
           <TaskCreateModal
             open={showAddModal}
             onClose={() => { setShowAddModal(false); setAddModalCourseName(null); }}
@@ -899,13 +888,14 @@ export default function InboxPage() {
               )}
             </div>
           </div>
-          </div>
+        </div>
 
-          {/* Right: edge-to-edge detail panel — full-height, flush against
-              the page edge with a left border separating it from the list.
-              List view only. Clicking the panel's empty placeholder area
-              deselects, mirroring the left task-list behavior. */}
-          {viewMode === "list" && (
+        {/* Right: edge-to-edge detail panel — extends from the very
+            top of the page to the bottom, parallel to the left column
+            (filter bar + tabs + task list). List view only. Clicking
+            the panel's empty placeholder area deselects, mirroring the
+            left task-list behavior. */}
+        {viewMode === "list" && (
             <div
               className="hidden md:flex w-[50%] shrink-0 border-l border-border h-full"
               onClick={(e) => {
@@ -928,8 +918,6 @@ export default function InboxPage() {
               />
             </div>
           )}
-        </div>
-
       </div>
 
       {/* Board view: preview popover (first click) */}

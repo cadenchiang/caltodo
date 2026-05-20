@@ -34,9 +34,9 @@ export default function TaskCheckbox({
 }: TaskCheckboxProps) {
   const isLg = size === "lg";
   const sizeClass = isLg ? "w-5 h-5" : "w-4 h-4";
-  // Thicker borders so the squircle reads more clearly at small sizes —
-  // small bumped from 1px → 1.75px, large from 1.5px → 2px.
-  const borderWidth = isLg ? "2px" : "1.75px";
+  // Thinner borders per the user's request — back to 1px on small,
+  // 1.25px on large. Pairs better with the lighter card chrome.
+  const borderWidth = isLg ? "1.25px" : "1px";
   const svgWidth = isLg ? 10 : 8;
   const svgHeight = isLg ? 8 : 6;
   const strokeWidth = isLg ? 2 : 1.5;

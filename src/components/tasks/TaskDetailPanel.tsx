@@ -92,13 +92,26 @@ export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: Tas
 
   return (
     <div className="flex-1 h-full border-l border-border flex flex-col min-w-0">
-      {/* Header removed entirely — no pencil, no overflow menu, no X.
-          Closing is handled by clicking outside / clearing selection from
-          the task list. Delete is available via each task's per-row menu. */}
+      {/* Edit pencil sits in the top-right corner — opens the full
+          TaskCreateModal in edit mode (same pattern the calendar
+          preview popover uses). The panel itself is read-only-ish:
+          the title supports inline rename for convenience, but other
+          fields require opening the modal. */}
+      <div className="shrink-0 flex items-center justify-end px-3 pt-3 pb-1">
+        <button
+          type="button"
+          onClick={() => setShowEditModal(true)}
+          className="w-8 h-8 rounded-full flex items-center justify-center text-foreground hover:bg-foreground/[0.05] transition-colors"
+          aria-label="Edit task"
+          title="Edit"
+        >
+          <Pencil size={15} strokeWidth={2.25} />
+        </button>
+      </div>
 
       {/* Static title section — title (inline-editable), date pill, repeat.
           Stays pinned at the top while the body below scrolls. */}
-      <div className="shrink-0 px-6 pt-6 pb-4 border-b border-border min-w-0">
+      <div className="shrink-0 px-6 pt-4 pb-4 border-b border-border min-w-0">
         <div className="flex items-start gap-4 min-w-0">
           <TaskCheckbox
             color={dotColor}
