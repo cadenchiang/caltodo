@@ -619,13 +619,94 @@ export default function InboxPage() {
   return (
     <PageTransition>
       <div className="flex flex-col -m-4 md:-m-10 h-full max-h-full overflow-hidden">
-        {/* Tabs + actions row — spans the full page width. No border-b
-            (the divider line was removed). */}
-        <div className="pl-4 pr-3 pt-4 pb-2 md:pl-8 md:pr-6 md:pt-5 md:pb-2 flex items-center justify-between animate-stagger stagger-2">
-            {/* Left: List / Board tabs — Notion-style. Active tab gets a
-                soft accent pill; inactive tabs read as plain icon + label.
-                No negative left margin: keep the active pill's left edge
-                aligned with the board columns / list rows below. */}
+        {/* Filter + actions bar — Inbox dropdown left, action buttons
+            right. Renders for both List and Board views. The dropdown
+            picks the date filter (Inbox / Today / Next 7 days) and
+            broadcasts changes to the sidebar via the existing custom
+            event. */}
+        {(() => {
+          const ActiveIcon = (FILTER_OPTIONS.find((o) => o.key === filter) ?? FILTER_OPTIONS[0]).icon;
+          const activeLabel = (FILTER_OPTIONS.find((o) => o.key === filter) ?? FILTER_OPTIONS[0]).label;
+          return (
+            <div className="pl-4 pr-3 pt-4 pb-2 md:pl-8 md:pr-6 md:pt-5 md:pb-2 flex items-center justify-between">
+              <div className="relative" ref={filterRef}>
+                <button
+                  type="button"
+                  onClick={() => setShowFilterDropdown((v) => !v)}
+                  className="flex items-center gap-2 px-2 py-1.5 -ml-2 rounded-lg hover:bg-foreground/[0.05] transition-colors"
+                >
+                  <ActiveIcon size={18} className="text-foreground" />
+                  <span className="text-lg font-bold text-foreground tracking-tight">
+                    {activeLabel}
+                  </span>
+                  <ChevronDown
+                    size={16}
+                    className={`text-foreground transition-transform ${showFilterDropdown ? "rotate-180" : ""}`}
+                  />
+                </button>
+                {showFilterDropdown && (
+                  <div
+                    ref={filterDropdownRef}
+                    className="absolute top-full left-0 mt-1 z-50 rounded-xl shadow-2xl border border-border overflow-hidden min-w-[180px] bg-popover"
+                  >
+                    {FILTER_OPTIONS.map((opt) => {
+                      const Icon = opt.icon;
+                      const isActive = opt.key === filter;
+                      return (
+                        <button
+                          key={opt.key}
+                          onClick={() => {
+                            setFilter(opt.key);
+                            setShowFilterDropdown(false);
+                          }}
+                          className={`flex items-center gap-2 w-full text-left px-3 py-2 text-sm transition-colors ${
+                            isActive ? "bg-foreground/[0.06] font-semibold" : "hover:bg-foreground/[0.04]"
+                          }`}
+                        >
+                          <Icon size={14} className="text-foreground" />
+                          <span className="text-foreground">{opt.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center gap-1">
+                <button
+                  id="tour-add-task"
+                  onClick={() => setShowAddModal(true)}
+                  className="p-1.5 text-foreground hover:bg-foreground/[0.05] rounded-lg transition-colors"
+                  title="Add task"
+                >
+                  <Plus size={18} />
+                </button>
+                <div className="relative">
+                  <button
+                    ref={sortMenuRef}
+                    onClick={() => setShowSortMenu(!showSortMenu)}
+                    className="p-1.5 text-foreground hover:bg-foreground/[0.05] rounded-lg transition-colors"
+                    title={viewMode === "list" ? "Sort tasks" : "Group by"}
+                  >
+                    <ArrowUpDown size={18} />
+                  </button>
+                </div>
+                <button
+                  ref={viewMenuRef}
+                  onClick={() => setShowViewMenu(!showViewMenu)}
+                  className="p-1.5 text-foreground hover:bg-foreground/[0.05] rounded-lg transition-colors"
+                  title="View options"
+                >
+                  <MoreVertical size={18} />
+                </button>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Tabs row — only List / Board now. Actions moved up into the
+            filter bar above so this row stays focused on view switching. */}
+        <div className="pl-4 pr-3 pb-2 md:pl-8 md:pr-6 md:pb-2 flex items-center">
             <div className="flex items-center gap-1 min-w-0">
               {/* In-page tabs for Board / List view modes, plus a third
                   tab for Calendar that navigates to /app/calendar (which
@@ -655,131 +736,67 @@ export default function InboxPage() {
               })}
             </div>
 
-            <div className="flex items-center gap-1">
-              {/* Add task button */}
-              <button
-                id="tour-add-task"
-                onClick={() => setShowAddModal(true)}
-                className="p-1.5 text-foreground hover:bg-accent rounded-lg transition-all"
-                title="Add task"
-              >
-                <Plus size={18} />
-              </button>
-              {/* Sort / group-by button — works for both list and board */}
-              <div className="relative">
-                <button
-                  ref={sortMenuRef}
-                  onClick={() => setShowSortMenu(!showSortMenu)}
-                  className="p-1.5 text-foreground hover:bg-accent rounded-lg transition-all"
-                  title={viewMode === "list" ? "Sort tasks" : "Group by"}
-                >
-                  <ArrowUpDown size={18} />
-                </button>
-                {showSortMenu && sortMenuRef.current && createPortal(
-                  <div
-                    ref={sortMenuDropdownRef}
-                    className="fixed z-[9999] rounded-xl shadow-2xl border border-border overflow-hidden animate-in min-w-[120px] bg-popover"
-                    style={{
-                      top: sortMenuRef.current.getBoundingClientRect().bottom + 4,
-                      right: window.innerWidth - sortMenuRef.current.getBoundingClientRect().right,
-                    }}
-                  >
-                    {(() => {
-                      const currentValue = viewMode === "list" ? sortMode : boardGroupBy;
-                      const setValue = viewMode === "list"
-                        ? (v: "date" | "class") => setSortMode(v)
-                        : (v: "date" | "class") => setBoardGroupBy(v);
-                      return (
-                        <>
-                          <button
-                            onClick={() => { trackEvent("sort_mode_changed", { sort: "date" }); setValue("date"); setShowSortMenu(false); }}
-                            className={`flex items-center gap-2 w-full text-left px-3 py-2 text-sm transition-colors ${
-                              currentValue === "date"
-                                ? "text-foreground font-medium"
-                                : "text-muted-foreground hover:text-foreground"
-                            }`}
-                            style={{ backgroundColor: currentValue === "date" ? "rgba(255,255,255,0.08)" : "transparent" }}
-                          >
-                            <CalendarDays size={14} />
-                            Date
-                          </button>
-                          <button
-                            onClick={() => { trackEvent("sort_mode_changed", { sort: "class" }); setValue("class"); setShowSortMenu(false); }}
-                            className={`flex items-center gap-2 w-full text-left px-3 py-2 text-sm transition-colors ${
-                              currentValue === "class"
-                                ? "text-foreground font-medium"
-                                : "text-muted-foreground hover:text-foreground"
-                            }`}
-                            style={{ backgroundColor: currentValue === "class" ? "rgba(255,255,255,0.08)" : "transparent" }}
-                          >
-                            <GraduationCap size={14} />
-                            Class
-                          </button>
-                        </>
-                      );
-                    })()}
-                  </div>,
-                  document.body
-                )}
-              </div>
-              <button
-                id="tour-view-toggle"
-                ref={viewMenuRef}
-                onClick={() => setShowViewMenu(!showViewMenu)}
-                className="p-1.5 text-foreground hover:bg-accent rounded-lg transition-all"
-                title="View options"
-              >
-                <MoreVertical size={18} />
-              </button>
-
-              {showViewMenu && viewMenuRef.current && createPortal(
-                <div
-                  ref={viewMenuDropdownRef}
-                  className="fixed z-[9999] rounded-xl shadow-2xl border border-border overflow-hidden animate-in min-w-[140px] bg-popover"
-                  style={{
-                    top: viewMenuRef.current.getBoundingClientRect().bottom + 4,
-                    right: window.innerWidth - viewMenuRef.current.getBoundingClientRect().right,
-                  }}
-                >
-                  <button
-                    onClick={() => { trackEvent("view_mode_changed", { mode: "list" }); setViewMode("list"); setShowViewMenu(false); }}
-                    className={`flex items-center gap-2 w-full text-left px-3 py-2 text-sm transition-colors ${
-                      viewMode === "list"
-                        ? "text-foreground font-medium"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                    style={{ backgroundColor: viewMode === "list" ? "rgba(255,255,255,0.08)" : "transparent" }}
-                  >
-                    <List size={14} />
-                    List
-                  </button>
-                  <button
-                    id="tour-board-option"
-                    onClick={() => { trackEvent("view_mode_changed", { mode: "board" }); setViewMode("board"); setShowViewMenu(false); }}
-                    className={`flex items-center gap-2 w-full text-left px-3 py-2 text-sm transition-colors ${
-                      viewMode === "board"
-                        ? "text-foreground font-medium"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                    style={{ backgroundColor: viewMode === "board" ? "rgba(255,255,255,0.08)" : "transparent" }}
-                  >
-                    <LayoutGrid size={14} />
-                    Board
-                  </button>
-                  <div className="border-t border-border my-1" />
-                  <button
-                    onClick={() => { setShowViewMenu(false); handleSyncClick(); }}
-                    disabled={syncing}
-                    className="flex items-center gap-2 w-full text-left px-3 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-                  >
-                    <RefreshCw size={14} className={syncing ? "animate-spin" : ""} />
-                    {syncing ? "Syncing..." : "Sync"}
-                  </button>
-                </div>,
-                document.body
-              )}
-            </div>
           </div>
+
+        {/* Sort / view dropdowns — portaled, anchored to the action
+            buttons in the filter bar above. */}
+        {showSortMenu && sortMenuRef.current && createPortal(
+          <div
+            ref={sortMenuDropdownRef}
+            className="fixed z-[9999] rounded-xl shadow-2xl border border-border overflow-hidden min-w-[120px] bg-popover"
+            style={{
+              top: sortMenuRef.current.getBoundingClientRect().bottom + 4,
+              right: window.innerWidth - sortMenuRef.current.getBoundingClientRect().right,
+            }}
+          >
+            {(() => {
+              const currentValue = viewMode === "list" ? sortMode : boardGroupBy;
+              const setValue = viewMode === "list"
+                ? (v: "date" | "class") => setSortMode(v)
+                : (v: "date" | "class") => setBoardGroupBy(v);
+              return (
+                <>
+                  <button
+                    onClick={() => { trackEvent("sort_mode_changed", { sort: "date" }); setValue("date"); setShowSortMenu(false); }}
+                    className={`flex items-center gap-2 w-full text-left px-3 py-2 text-sm transition-colors ${currentValue === "date" ? "bg-foreground/[0.06] font-semibold" : "hover:bg-foreground/[0.04]"}`}
+                  >
+                    <CalendarDays size={14} />
+                    Date
+                  </button>
+                  <button
+                    onClick={() => { trackEvent("sort_mode_changed", { sort: "class" }); setValue("class"); setShowSortMenu(false); }}
+                    className={`flex items-center gap-2 w-full text-left px-3 py-2 text-sm transition-colors ${currentValue === "class" ? "bg-foreground/[0.06] font-semibold" : "hover:bg-foreground/[0.04]"}`}
+                  >
+                    <GraduationCap size={14} />
+                    Class
+                  </button>
+                </>
+              );
+            })()}
+          </div>,
+          document.body
+        )}
+
+        {showViewMenu && viewMenuRef.current && createPortal(
+          <div
+            ref={viewMenuDropdownRef}
+            className="fixed z-[9999] rounded-xl shadow-2xl border border-border overflow-hidden min-w-[140px] bg-popover"
+            style={{
+              top: viewMenuRef.current.getBoundingClientRect().bottom + 4,
+              right: window.innerWidth - viewMenuRef.current.getBoundingClientRect().right,
+            }}
+          >
+            <button
+              onClick={() => { setShowViewMenu(false); handleSyncClick(); }}
+              disabled={syncing}
+              className="flex items-center gap-2 w-full text-left px-3 py-2 text-sm text-foreground hover:bg-foreground/[0.04] transition-colors disabled:opacity-50"
+            >
+              <RefreshCw size={14} className={syncing ? "animate-spin" : ""} />
+              {syncing ? "Syncing..." : "Sync"}
+            </button>
+          </div>,
+          document.body
+        )}
 
         {/* Body — split into tasks (left) + contained detail card (right).
             Sits below the full-width tabs / bar above. */}
