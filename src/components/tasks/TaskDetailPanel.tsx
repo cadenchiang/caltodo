@@ -92,20 +92,20 @@ export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: Tas
 
   return (
     <div className="flex-1 h-full border-l border-border flex flex-col min-w-0">
-      {/* Edit pencil sits in the top-right corner — opens the full
-          TaskCreateModal in edit mode (same pattern the calendar
-          preview popover uses). The panel itself is read-only-ish:
-          the title supports inline rename for convenience, but other
-          fields require opening the modal. */}
-      <div className="shrink-0 flex items-center justify-end px-3 pt-3 pb-1">
+      {/* Edit pencil sits in the top-right corner at the same vertical
+          baseline as the + / sort buttons in the inbox filter bar
+          (pt-4 md:pt-5 + p-1.5 button). Opens the TaskCreateModal in
+          edit mode — panel reads as a preview rather than a directly
+          editable form. */}
+      <div className="shrink-0 flex items-center justify-end pl-3 pr-3 md:pr-6 pt-4 md:pt-5 pb-2 md:pb-2">
         <button
           type="button"
           onClick={() => setShowEditModal(true)}
-          className="w-8 h-8 rounded-full flex items-center justify-center text-foreground hover:bg-foreground/[0.05] transition-colors"
+          className="p-1.5 rounded-lg text-foreground hover:bg-foreground/[0.05] transition-colors"
           aria-label="Edit task"
           title="Edit"
         >
-          <Pencil size={15} strokeWidth={2.25} />
+          <Pencil size={18} strokeWidth={2} />
         </button>
       </div>
 
@@ -123,28 +123,7 @@ export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: Tas
               blur commits, Escape reverts. key={task.id} forces a remount
               when the user switches to a different task so the DOM text
               re-syncs with the new task.title. */}
-          <span
-            key={task.id}
-            contentEditable
-            suppressContentEditableWarning
-            spellCheck={false}
-            className="text-xl font-semibold text-foreground leading-snug break-words min-w-0 outline-none rounded-md px-1 -mx-1 focus:bg-accent/30 transition-colors"
-            onBlur={(e) => {
-              const next = (e.currentTarget.textContent ?? "").trim();
-              if (next && next !== task.title) onSave(task.id, { title: next });
-              else e.currentTarget.textContent = task.title;
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                e.currentTarget.blur();
-              } else if (e.key === "Escape") {
-                e.preventDefault();
-                e.currentTarget.textContent = task.title;
-                e.currentTarget.blur();
-              }
-            }}
-          >
+          <span className="text-xl font-semibold text-foreground leading-snug break-words min-w-0">
             {task.title}
           </span>
         </div>

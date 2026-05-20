@@ -284,7 +284,7 @@ export default function WidgetGrid({
   return (
     <div
       ref={containerRef}
-      className={`transition-all duration-300 px-6 md:px-10${gridReady ? " widget-grid-ready" : ""}`}
+      className={`h-full overflow-hidden px-6 md:px-10${gridReady ? " widget-grid-ready" : ""}`}
     >
       {mounted && (
         <ResponsiveGridLayout
