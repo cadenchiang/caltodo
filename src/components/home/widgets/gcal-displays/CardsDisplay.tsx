@@ -60,13 +60,13 @@ export default function CardsDisplay({ events, calendarColors, fallbackColor }: 
               }}
             >
               <div className="flex items-center justify-between gap-2">
-                <p className={`text-xs font-medium truncate ${
+                <p className={`text-xs font-normal truncate ${
                   isPast ? "line-through text-foreground" : "text-foreground"
                 }`}>
                   {event.summary}
                 </p>
                 {countdown && (
-                  <span className="text-[9px] font-medium text-blue-500 shrink-0">
+                  <span className="text-[9px] font-normal text-blue-500 shrink-0">
                     {countdown}
                   </span>
                 )}

@@ -63,7 +63,7 @@ export default function AgendaDisplay({ events, calendarColors, fallbackColor }:
             >
               {/* Time column */}
               <div className="w-8 shrink-0 text-center">
-                <p className={`text-sm font-semibold leading-none tabular-nums ${
+                <p className={`text-sm font-normal leading-none tabular-nums ${
                   isPast ? "text-foreground" : "text-foreground"
                 }`}>
                   {timeTop}
@@ -79,7 +79,7 @@ export default function AgendaDisplay({ events, calendarColors, fallbackColor }:
 
               {/* Event details */}
               <div className="min-w-0 flex-1">
-                <p className={`text-xs font-medium truncate ${
+                <p className={`text-xs font-normal truncate ${
                   isPast ? "text-foreground line-through" : "text-foreground"
                 }`}>
                   {event.summary}
@@ -92,7 +92,7 @@ export default function AgendaDisplay({ events, calendarColors, fallbackColor }:
               </div>
 
               {countdown && (
-                <span className="text-[9px] font-medium text-blue-500 shrink-0">
+                <span className="text-[9px] font-normal text-blue-500 shrink-0">
                   {countdown}
                 </span>
               )}

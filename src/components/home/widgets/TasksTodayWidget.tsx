@@ -119,7 +119,7 @@ export default function TasksTodayWidget({ config }: TasksTodayWidgetProps) {
   }
 
   return (
-    <div ref={containerRef} className="h-full w-full flex flex-col p-3 overflow-hidden">
+    <div ref={containerRef} className="h-full w-full flex flex-col px-5 py-4 overflow-hidden">
       <WidgetHeader
         title={label}
         right={

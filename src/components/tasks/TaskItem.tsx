@@ -96,8 +96,8 @@ function TaskItemImpl({ task, isSelected, onToggle, onSelect, onDelete }: TaskIt
   return (
     <>
       <div
-        className={`group relative flex items-center gap-2 px-2.5 py-3.5 mb-2 md:gap-3 md:px-3 md:py-4 rounded-xl transition-shadow duration-100 cursor-pointer bg-white dark:bg-card border border-foreground/15 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_2px_8px_-2px_rgba(0,0,0,0.06)] hover:shadow-[0_2px_4px_rgba(0,0,0,0.06),0_8px_18px_-4px_rgba(0,0,0,0.10)] ${
-          isSelected ? "ring-2 ring-[#0e89d6] ring-offset-0" : ""
+        className={`group relative flex items-center gap-3 pl-2 pr-3 py-2.5 md:gap-3 md:pl-6 md:pr-4 md:py-2.5 rounded-xl transition-colors duration-100 cursor-pointer hover:bg-foreground/[0.035] dark:hover:bg-foreground/[0.07] ${
+          isSelected ? "bg-foreground/[0.06] dark:bg-foreground/[0.11]" : ""
         } ${task.is_completed ? "opacity-60" : ""} ${isOptimistic ? "animate-task-slide-in" : ""}`}
         onClick={(e) => { e.stopPropagation(); onSelect(task, e.currentTarget.getBoundingClientRect()); }}
         onContextMenu={handleContextMenu}
@@ -109,13 +109,13 @@ function TaskItemImpl({ task, isSelected, onToggle, onSelect, onDelete }: TaskIt
           color="#0e89d6"
           isCompleted={task.is_completed}
           onToggle={() => onToggle(task.id)}
-          size="sm"
+          size="xs"
         />
 
         {/* Title + tags */}
         <div className="flex-1 min-w-0 flex items-center gap-1.5">
           <span
-            className={`truncate text-sm font-semibold ${
+            className={`truncate text-sm font-normal ${
               task.is_completed ? "text-muted-foreground line-through" : "text-foreground"
             }`}
           >

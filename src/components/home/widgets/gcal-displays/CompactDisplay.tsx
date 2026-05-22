@@ -67,7 +67,7 @@ export default function CompactDisplay({ events, calendarColors, fallbackColor }
                 {timeStr}
               </span>
               {countdown && (
-                <span className="text-[9px] font-medium text-blue-500 shrink-0">
+                <span className="text-[9px] font-normal text-blue-500 shrink-0">
                   {countdown}
                 </span>
               )}

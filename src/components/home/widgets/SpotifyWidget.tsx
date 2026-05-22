@@ -13,11 +13,12 @@
  * @module SpotifyWidget
  */
 
+import { useState } from "react";
 import { Music } from "lucide-react";
-import { WidgetEmptyState } from "./WidgetPrimitives";
 
 interface SpotifyWidgetProps {
   config: Record<string, string>;
+  onUpdateConfig?: (config: Record<string, string>) => void;
 }
 
 /**
@@ -81,18 +82,49 @@ function buildEmbedUrl(type: string, id: string): string {
   return `https://open.spotify.com/embed/${type}/${id}?theme=1`;
 }
 
-export default function SpotifyWidget({ config }: SpotifyWidgetProps) {
+export default function SpotifyWidget({ config, onUpdateConfig }: SpotifyWidgetProps) {
   const parsed = parseSpotifyUrl(config.spotifyUrl || "");
+  // Inline-edit state for the empty case so the user can paste a URL
+  // straight into the widget without opening the settings modal.
+  const [draft, setDraft] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  function submitDraft() {
+    const valid = parseSpotifyUrl(draft);
+    if (!valid) {
+      setError("Not a valid Spotify URL");
+      return;
+    }
+    setError(null);
+    onUpdateConfig?.({ spotifyUrl: draft.trim() });
+  }
 
   if (!parsed) {
     return (
-      <div className="h-full w-full flex flex-col px-4 py-3 gap-2">
-        <div className="text-sm font-semibold text-foreground">Now Playing</div>
-        <div className="flex-1 min-h-0">
-          <WidgetEmptyState
-            icon={<Music size={20} />}
-            message="Click to add a Spotify link"
-          />
+      <div className="h-full w-full flex flex-col px-5 py-4 gap-3">
+        <div className="text-sm font-bold tracking-tight text-foreground">Now Playing</div>
+        <div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-3 text-foreground">
+          <Music size={28} />
+          <p className="text-sm font-semibold tracking-tight">Paste a Spotify link</p>
+          <div className="w-full flex items-center gap-2 no-drag" onClick={(e) => e.stopPropagation()}>
+            <input
+              type="url"
+              value={draft}
+              onChange={(e) => { setDraft(e.target.value); setError(null); }}
+              onKeyDown={(e) => { if (e.key === "Enter") submitDraft(); }}
+              placeholder="https://open.spotify.com/track/..."
+              className="flex-1 min-w-0 px-3 py-1.5 text-xs rounded-lg border border-input-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); submitDraft(); }}
+              disabled={!draft.trim()}
+              className="shrink-0 px-3 py-1.5 text-xs rounded-lg bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Add
+            </button>
+          </div>
+          {error && <p className="text-[11px] text-red-500">{error}</p>}
         </div>
       </div>
     );
@@ -101,8 +133,8 @@ export default function SpotifyWidget({ config }: SpotifyWidgetProps) {
   const embedUrl = buildEmbedUrl(parsed.type, parsed.id);
 
   return (
-    <div className="h-full w-full flex flex-col gap-2 px-4 pt-3 pb-2">
-      <div className="text-sm font-semibold text-foreground">Now Playing</div>
+    <div className="h-full w-full flex flex-col gap-3 px-5 pt-4 pb-2">
+      <div className="text-sm font-bold tracking-tight text-foreground">Now Playing</div>
       <div className="flex-1 min-h-0 overflow-hidden rounded-xl">
         <iframe
           src={embedUrl}

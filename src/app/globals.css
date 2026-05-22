@@ -1103,20 +1103,10 @@ body {
 /* Soft page transition — only fades the last 15% of opacity, so the
    new page never starts fully transparent. Eliminates the brief
    white flash that came from opacity-0 against the layout bg during
-   route swaps. */
+   route swaps. (The hard 0->1 fade keyframe below was duplicate and
+   overrode the intent; removed.) */
 .animate-fade-in {
-  animation: pageFadeIn 120ms ease-out;
-}
-
-@keyframes pageFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(3px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  animation: pageFadeIn 140ms ease-out;
 }
 
 /* Step transition — slide in from the right for onboarding wizard steps */

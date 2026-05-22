@@ -2,8 +2,9 @@
  * Unified task completion checkbox used across TaskItem, TaskCard,
  * TaskDetailPanel, and TaskPreviewPopover.
  *
- * Two sizes:
- * - "sm" (14px): used in list rows and board cards, with ghost checkmark on hover
+ * Three sizes:
+ * - "xs" (12px): used in compact list rows
+ * - "sm" (14px): used in board cards, with ghost checkmark on hover
  * - "lg" (20px): used in detail panel and popover previews
  */
 
@@ -15,7 +16,7 @@ interface TaskCheckboxProps {
   /** Toggle completion callback. */
   onToggle: () => void;
   /** Checkbox size variant. Defaults to "sm". */
-  size?: "sm" | "lg";
+  size?: "xs" | "sm" | "lg";
 }
 
 /**
@@ -33,13 +34,13 @@ export default function TaskCheckbox({
   size = "sm",
 }: TaskCheckboxProps) {
   const isLg = size === "lg";
-  const sizeClass = isLg ? "w-5 h-5" : "w-4 h-4";
-  // Thinner borders per the user's request — back to 1px on small,
-  // 1.25px on large. Pairs better with the lighter card chrome.
+  const isXs = size === "xs";
+  const sizeClass = isLg ? "w-5 h-5" : isXs ? "w-3.5 h-3.5" : "w-4 h-4";
+  // Thinner borders for smaller sizes.
   const borderWidth = isLg ? "1.25px" : "1px";
-  const svgWidth = isLg ? 10 : 8;
-  const svgHeight = isLg ? 8 : 6;
-  const strokeWidth = isLg ? 2 : 1.5;
+  const svgWidth = isLg ? 10 : isXs ? 7 : 8;
+  const svgHeight = isLg ? 8 : isXs ? 5 : 6;
+  const strokeWidth = isLg ? 2 : isXs ? 1.4 : 1.5;
 
   return (
     <button

@@ -222,7 +222,7 @@ export default function GoogleCalendarWidget({ config, editMode, onUpdateConfig 
   const DisplayComponent = GCAL_DISPLAY_MAP[displayId] || GCAL_DISPLAY_MAP.list;
 
   return (
-    <div ref={containerRef} className="h-full w-full flex flex-col p-3 overflow-hidden">
+    <div ref={containerRef} className="h-full w-full flex flex-col px-5 py-4 overflow-hidden">
       <WidgetHeader
         title="Google Calendar"
         right={

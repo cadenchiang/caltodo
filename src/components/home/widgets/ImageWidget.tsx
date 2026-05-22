@@ -170,15 +170,21 @@ export default function ImageWidget({
     );
   }
 
-  // No image — show drop zone + upload prompt
+  // No image — show drop zone + upload prompt. The whole zone is
+  // clickable so a single tap opens the OS file picker without first
+  // having to enter widget settings.
   return (
     <div
-      className={`h-full w-full flex flex-col items-center justify-center p-3 transition-colors ${
-        dragOver ? "border-2 border-dashed border-muted-foreground/40 bg-muted/50" : ""
+      className={`no-drag h-full w-full flex flex-col items-center justify-center p-3 transition-colors cursor-pointer ${
+        dragOver ? "border-2 border-dashed border-muted-foreground/40 bg-muted/50" : "hover:bg-foreground/[0.03]"
       }`}
       onDrop={handleDrop}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
+      onClick={(e) => {
+        e.stopPropagation();
+        if (onUpdateConfig) fileRef.current?.click();
+      }}
     >
       {uploading ? (
         <div className="w-5 h-5 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin" />
@@ -186,18 +192,32 @@ export default function ImageWidget({
         <>
           <ImageIcon size={24} className="text-foreground mb-2" />
           <p className="text-xs text-foreground mb-1">
-            {dragOver ? "Drop image here" : "No image"}
+            {dragOver ? "Drop image here" : "Click or drop an image"}
           </p>
           {!dragOver && onUpdateConfig && (
               <button
+                type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onOpenSettings?.();
+                  fileRef.current?.click();
                 }}
                 className="no-drag flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-border text-foreground hover:bg-muted transition-colors mt-1"
               >
                 <Camera size={14} />
                 Select Image
+              </button>
+          )}
+          {!dragOver && !onUpdateConfig && onOpenSettings && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenSettings();
+                }}
+                className="no-drag flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-border text-foreground hover:bg-muted transition-colors mt-1"
+              >
+                <Camera size={14} />
+                Choose image
               </button>
           )}
         </>
