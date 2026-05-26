@@ -18,7 +18,6 @@ describe("WIDGET_REGISTRY", () => {
       "image",
       "class-progress",
       "google-calendar",
-      "notes",
       "weather",
       "cal-chat",
       "pomodoro",

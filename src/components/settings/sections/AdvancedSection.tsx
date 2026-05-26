@@ -72,7 +72,6 @@ export default function AdvancedSection() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ dismissed_modals: {} }),
       });
-      localStorage.removeItem("caltodo_notes_welcome_seen");
       localStorage.removeItem("calchat_welcome_accepted");
       router.push("/app/onboarding");
     } catch {

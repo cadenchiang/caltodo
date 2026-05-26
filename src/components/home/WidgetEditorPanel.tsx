@@ -9,7 +9,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
   X, Camera, Trash2, CheckSquare, ImageIcon, GraduationCap,
-  Calendar, FileText, CloudSun, MessagesSquare, Timer,
+  Calendar, CloudSun, MessagesSquare, Timer,
   Hourglass, Link, Flame, Quote, BarChart3, Grid3X3, Smile, Music,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -24,7 +24,6 @@ import CalendarPicker from "@/components/home/CalendarPicker";
 import CollapsibleSection from "@/components/home/CollapsibleSection";
 import WeatherDisplayPicker from "@/components/home/WeatherDisplayPicker";
 import GCalDisplayPicker from "@/components/home/GCalDisplayPicker";
-import NotesStylePicker from "@/components/home/NotesStylePicker";
 import { IMAGE_WIDGET_PRESETS, IMAGE_WIDGET_PRESET_CATEGORIES } from "@/lib/image-widget-presets";
 import ImageCropModal from "@/components/ui/ImageCropModal";
 import { createClient } from "@/lib/supabase/client";
@@ -67,7 +66,7 @@ const WIDGET_ACCENT_DEFAULTS: Record<string, string> = {
 const WIDGET_LABELS: Record<string, string> = {
   "tasks-today": "Tasks Widget", "class-progress": "Class Progress",
   "google-calendar": "Google Calendar", image: "Image",
-  notes: "Notes", weather: "Weather", "cal-chat": "Cal Chat", pomodoro: "Pomodoro",
+  weather: "Weather", "cal-chat": "Cal Chat", pomodoro: "Pomodoro",
   countdown: "Countdown", "quick-links": "Quick Links", "habit-tracker": "Habit Tracker",
   quote: "Quote", stats: "Stats", "weekly-heatmap": "Activity", sticker: "Sticker", spotify: "Spotify",
   courses: "Courses",
@@ -77,7 +76,7 @@ const WIDGET_LABELS: Record<string, string> = {
 const WIDGET_ICONS: Record<string, LucideIcon> = {
   "tasks-today": CheckSquare, "class-progress": GraduationCap,
   "google-calendar": Calendar, image: ImageIcon,
-  notes: FileText, weather: CloudSun, "cal-chat": MessagesSquare, pomodoro: Timer,
+  weather: CloudSun, "cal-chat": MessagesSquare, pomodoro: Timer,
   countdown: Hourglass, "quick-links": Link, "habit-tracker": Flame,
   quote: Quote, stats: BarChart3, "weekly-heatmap": Grid3X3, sticker: Smile, spotify: Music,
   courses: GraduationCap,
@@ -106,7 +105,6 @@ const SEL = "w-full px-3 py-2 rounded-lg border border-input-border bg-card text
  * settings list.
  */
 const INLINE_EDIT_WIDGETS = new Set<string>([
-  "notes",
   "pomodoro",
   "quick-links",
   "daily-reminders",
@@ -381,8 +379,6 @@ export default function WidgetEditorPanel({
         {widget.type === "weather" && (
           <CollapsibleSection title="Temperature" hint={localConfig.tempUnit === "C" ? "\u00b0C" : "\u00b0F"}><SegmentedControl options={[{ value: "F", label: "\u00b0F" }, { value: "C", label: "\u00b0C" }]} value={localConfig.tempUnit || "F"} onChange={(v) => updateField("tempUnit", v)} /></CollapsibleSection>
         )}
-
-        {/* Notes \u2014 single default style, no picker. */}
 
         {/* Countdown */}
         {widget.type === "countdown" && <>

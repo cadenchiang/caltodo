@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { LayoutGrid, Inbox, CalendarDays, NotebookPen, Settings, Sun, CalendarRange, Users } from "lucide-react";
+import { LayoutGrid, Inbox, CalendarDays, Settings, Sun, CalendarRange, Users } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useCalChatUnread } from "@/hooks/useCalChatUnread";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
@@ -92,12 +92,6 @@ export default function MobileTabBar() {
       label: "Calendar",
       href: "/app/calendar",
       icon: CalendarDays,
-      badge: false,
-    },
-    {
-      label: "Notes",
-      href: "/app/notes",
-      icon: NotebookPen,
       badge: false,
     },
     {

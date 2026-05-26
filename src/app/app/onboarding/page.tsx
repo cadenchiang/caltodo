@@ -761,7 +761,7 @@ export default function OnboardingPage() {
     // New users completing onboarding should never see any welcome/announcement modals.
     // Persist to server so dismiss state follows the account across devices.
     const allDismissed = {
-      sync_welcome: true, notes_welcome: true, gcal_announce: true,
+      sync_welcome: true, gcal_announce: true,
       calchat_welcome: true,
       pensieve_announced: true, calchat_announcement: true,
     };
@@ -775,7 +775,6 @@ export default function OnboardingPage() {
       localStorage.setItem("caltodo_pensieve_announced", "true");
       localStorage.setItem("calchat_announcement_seen", "true");
       localStorage.setItem("caltodo_sync_dismissed", "true");
-      localStorage.setItem("caltodo_notes_welcome_seen", "true");
       localStorage.setItem("caltodo_gcal_announce_seen", "true");
       localStorage.setItem("calchat_welcome_accepted", "true");
     } catch {

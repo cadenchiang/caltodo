@@ -62,7 +62,7 @@ interface SidePanelProps {
 /**
  * Reusable fixed-position side panel with header, scrollable body,
  * optional footer, close animation, and mobile bottom sheet fallback.
- * Used by WidgetEditorPanel, FolderAppearanceModal, rename panel, etc.
+ * Used by WidgetEditorPanel, rename panel, etc.
  *
  * @param title - Panel header title
  * @param icon - Optional LucideIcon before the title

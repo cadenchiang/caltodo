@@ -23,7 +23,6 @@ import TasksTodayWidget from "@/components/home/widgets/TasksTodayWidget";
 import GoogleCalendarWidget from "@/components/home/widgets/GoogleCalendarWidget";
 import ImageWidget from "@/components/home/widgets/ImageWidget";
 import ClassProgressWidget from "@/components/home/widgets/ClassProgressWidget";
-import NotesWidget from "@/components/home/widgets/NotesWidget";
 import WeatherWidget from "@/components/home/widgets/WeatherWidget";
 import CalChatWidget from "@/components/home/widgets/CalChatWidget";
 import PomodoroWidget from "@/components/home/widgets/PomodoroWidget";
@@ -83,8 +82,6 @@ export function RenderWidget({
       return <GoogleCalendarWidget config={widget.config} editMode={editMode} onUpdateConfig={onUpdateConfig} />;
     case "image":
       return <ImageWidget config={widget.config} widgetId={widget.id} onUpdateConfig={editMode ? onUpdateConfig : undefined} onOpenSettings={onOpenSettings} />;
-    case "notes":
-      return <NotesWidget config={widget.config} onUpdateConfig={onUpdateConfig} />;
     case "weather":
       return <WeatherWidget config={widget.config} editMode={editMode} />;
     case "cal-chat":

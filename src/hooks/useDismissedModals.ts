@@ -9,12 +9,10 @@ import type { DismissedModals } from "@/lib/types";
  */
 const KEY_MAP: Record<keyof DismissedModals, string> = {
   sync_welcome: "caltodo_sync_dismissed",
-  notes_welcome: "caltodo_notes_welcome_seen",
   gcal_announce: "caltodo_gcal_announce_seen",
   calchat_welcome: "calchat_welcome_accepted",
   pensieve_announced: "caltodo_pensieve_announced",
   calchat_announcement: "calchat_announcement_seen",
-  notes_sunset: "caltodo_notes_sunset_seen",
 };
 
 /** Module-level cache so multiple hook consumers share state without re-fetching. */
@@ -151,12 +149,10 @@ export function useDismissedModals() {
   const dismissAll = useCallback(() => {
     const all: DismissedModals = {
       sync_welcome: true,
-      notes_welcome: true,
       gcal_announce: true,
       calchat_welcome: true,
       pensieve_announced: true,
       calchat_announcement: true,
-      notes_sunset: true,
     };
     setModals(all);
     cachedModals = all;

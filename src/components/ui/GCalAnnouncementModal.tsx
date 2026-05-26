@@ -28,7 +28,7 @@ function GoogleCalendarLogo() {
 
 /**
  * One-time announcement modal shown on the calendar page to introduce
- * Google Calendar sync integration. Styled identically to NotesWelcomeModal.
+ * Google Calendar sync integration.
  *
  * **Tracking:** Server-persisted via `dismissed_modals.gcal_announce`
  * with localStorage fallback for instant reads.

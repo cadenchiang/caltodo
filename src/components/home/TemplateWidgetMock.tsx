@@ -85,15 +85,6 @@ export default function TemplateWidgetMock({ type, w, h }: { type: string; w: nu
           <span className="text-[8px] text-white/60">{"\u{1F3D4}\u{FE0F}"}</span>
         </div>
       );
-    case "notes":
-      return (
-        <div className="p-2 flex flex-col h-full gap-0.5">
-          <span className="text-[7px] font-bold text-foreground mb-0.5">Notes</span>
-          {["Remember to review...", "Meeting at 3pm", "Buy groceries"].slice(0, tall ? 3 : 2).map((t, i) => (
-            <span key={i} className="text-[5px] text-foreground truncate">{t}</span>
-          ))}
-        </div>
-      );
     case "quote":
       return (
         <div className="p-2 flex items-center justify-center h-full">

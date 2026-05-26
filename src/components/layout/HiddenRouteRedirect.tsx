@@ -17,12 +17,11 @@ import { useHiddenNavItems } from "@/hooks/useHiddenNavItems";
 import { useEntitlement } from "@/hooks/useEntitlement";
 import { pickLandingPath } from "@/lib/landing-path";
 
-/** Nav hrefs we treat as "guardable." Subroutes (e.g. /app/notes/foo) also redirect. */
+/** Nav hrefs we treat as "guardable." Subroutes also redirect. */
 const GUARDED_HREFS = [
   "/app/home",
   "/app/inbox",
   "/app/calendar",
-  "/app/notes",
   "/app/discussions",
 ] as const;
 

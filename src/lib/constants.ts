@@ -1,13 +1,7 @@
-import { LayoutGrid, Inbox, NotebookPen, CalendarDays } from "lucide-react";
+import { LayoutGrid, Inbox, CalendarDays } from "lucide-react";
 
 /**
  * Navigation items for the sidebar.
- *
- * Calendar is its own top-level page at /app/calendar — it lives in the
- * sidebar between Inbox and Notes. (It briefly lived as a tab inside
- * Inbox; we reverted that.)
- *
- * Notes is filtered out by the Sidebar for users not on the allowlist.
  *
  * Chat (CalChat / discussions) was removed from the product — the
  * sidebar no longer surfaces it and the CalChat widget is hidden in
@@ -18,30 +12,7 @@ export const NAV_ITEMS = [
   { label: "Home", href: "/app/home", icon: LayoutGrid },
   { label: "Inbox", href: "/app/inbox", icon: Inbox },
   { label: "Calendar", href: "/app/calendar", icon: CalendarDays },
-  { label: "Notes", href: "/app/notes", icon: NotebookPen },
 ] as const;
-
-/**
- * Email-fragment allowlist for the Notes feature. Notes is intentionally
- * gated to these users while the rest of the product no longer surfaces
- * it. Matched as a case-insensitive substring on the user's email — so
- * "Chenfei.Wu@example.com" still resolves to allowed.
- */
-export const NOTES_ALLOWLIST = ["chenfei", "victoriachow"] as const;
-
-/**
- * Returns true when the given email is on the Notes allowlist. Used by
- * both the Sidebar nav and Settings → Navigation so the entry appears
- * (or disappears) consistently across the app.
- *
- * @param email - The user's email address, or null/undefined
- * @returns True if the email contains an allowlisted fragment
- */
-export function isNotesAllowed(email: string | null | undefined): boolean {
-  if (!email) return false;
-  const lower = email.toLowerCase();
-  return NOTES_ALLOWLIST.some((name) => lower.includes(name));
-}
 
 /**
  * Available task colors for the color picker.

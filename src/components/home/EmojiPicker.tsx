@@ -2,7 +2,7 @@
 
 /**
  * Shared icon picker modal — 2-tab design: Icons (Lucide) and Emojis (curated).
- * Used by both the home board and notes folder icon pickers.
+ * Used by the home board icon picker.
  * Supports optional palette color preview for Lucide icons.
  *
  * @param open - Whether the picker is visible

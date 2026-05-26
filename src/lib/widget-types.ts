@@ -15,7 +15,6 @@ export type WidgetType =
   | "image"
   | "class-progress"
   | "google-calendar"
-  | "notes"
   | "weather"
   | "cal-chat"
   | "pomodoro"
@@ -121,16 +120,6 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     category: "popular",
     minW: 2, minH: 2, maxW: 4, maxH: 4,
     defaultW: 2, defaultH: 2,
-  },
-  notes: {
-    type: "notes",
-    label: "Notes",
-    description: "Quick inline notes",
-    iconName: "FileText",
-    category: "productivity",
-    minW: 2, minH: 2, maxW: 6, maxH: 4,
-    defaultW: 2, defaultH: 2,
-    hidden: true,
   },
   weather: {
     type: "weather",

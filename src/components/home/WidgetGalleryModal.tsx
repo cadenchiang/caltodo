@@ -15,7 +15,7 @@
 import React, { useState, useMemo } from "react";
 import {
   X, CheckSquare, Clock, ImageIcon, GraduationCap,
-  Calendar, FileText, CloudSun, MessagesSquare, Timer, Hourglass,
+  Calendar, CloudSun, MessagesSquare, Timer, Hourglass,
   Link, Flame, Quote, BarChart3, Grid3X3, Smile, Music, Search,
   User, Sunrise, BookOpen, ListChecks, CalendarDays,
 } from "lucide-react";
@@ -38,7 +38,6 @@ const WIDGET_ICONS: Record<string, LucideIcon> = {
   "class-progress": GraduationCap,
   "google-calendar": Calendar,
   image: ImageIcon,
-  notes: FileText,
   weather: CloudSun,
   "cal-chat": MessagesSquare,
   pomodoro: Timer,

@@ -16,7 +16,6 @@ const NAV_HREFS_IN_ORDER = [
   "/app/home",
   "/app/inbox",
   "/app/calendar",
-  "/app/notes",
   "/app/discussions",
 ] as const;
 
