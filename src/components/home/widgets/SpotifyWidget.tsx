@@ -2,22 +2,24 @@
 
 /**
  * Spotify widget — renders Spotify's official embed iframe inside the
- * standard widget card. The widget background uses the default card
- * surface (var(--card)) so the player sits on the same tone as every
- * other widget; a small uniform padding lets that surface show around
- * the iframe edges since Spotify's compact embed has its own corners.
+ * standard widget card. The widget itself doesn't OWN the iframe: it
+ * registers a host element with SpotifyPlayerProvider, which projects
+ * its singleton iframe into that host. The iframe is never unmounted on
+ * route change, so playback keeps going when the user navigates between
+ * caltodo tabs or switches browser tabs.
  *
- * Trade-off note: the Spotify iframe is rendered by Spotify on their
- * own origin, so its internal UI (green background, branding, controls)
- * can't be restyled from here. We only own the chrome around it.
+ * The embed is locked to the dark variant. Spotify's iframe can't be
+ * re-themed without a full reload (the theme is a query param on the
+ * src), so changing it on every theme toggle would tear playback down.
+ * Dark is neutral enough to sit on either app theme.
  *
  * @module SpotifyWidget
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Music, Pencil } from "lucide-react";
 import SpotifyLinkModal from "./SpotifyLinkModal";
-import { useTheme } from "@/contexts/ThemeContext";
+import { useSpotifyPlayer } from "@/contexts/SpotifyPlayerContext";
 
 interface SpotifyWidgetProps {
   config: Record<string, string>;
@@ -76,34 +78,45 @@ export function parseSpotifyUrl(
 }
 
 /**
- * Builds the Spotify embed iframe URL. Spotify only exposes one color
- * knob via the `theme` query param: 0 = dark variant (green/black),
- * 1 = light variant (white compact). Nothing else about the iframe's
- * interior can be themed from our side.
+ * Builds the Spotify embed iframe URL using the dark variant. Locked to
+ * dark because changing the theme query param reloads the iframe and
+ * stops playback.
  *
  * @param type - Content type (track, album, playlist, episode, show)
  * @param id - Spotify content ID
- * @param dark - True to request the dark embed variant
  * @returns Full embed URL string
  */
-function buildEmbedUrl(type: string, id: string, dark: boolean): string {
-  const theme = dark ? 0 : 1;
-  return `https://open.spotify.com/embed/${type}/${id}?theme=${theme}`;
+function buildEmbedUrl(type: string, id: string): string {
+  return `https://open.spotify.com/embed/${type}/${id}?theme=0`;
 }
 
 export default function SpotifyWidget({ config, onUpdateConfig }: SpotifyWidgetProps) {
   const rawUrl = config.spotifyUrl || "";
   const parsed = parseSpotifyUrl(rawUrl);
   const [modalOpen, setModalOpen] = useState(false);
-  const [iframeReady, setIframeReady] = useState(false);
-  const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === "dark";
+  const hostRef = useRef<HTMLDivElement | null>(null);
+  const player = useSpotifyPlayer();
 
-  // Reset the loading skeleton whenever the embed URL changes so each
-  // new track gets its own load-in indicator.
+  // Push the current Spotify URL to the persistent player whenever it
+  // changes. The provider no-ops on duplicate URLs so re-renders don't
+  // tear the iframe down.
   useEffect(() => {
-    setIframeReady(false);
-  }, [parsed?.type, parsed?.id, isDark]);
+    if (!parsed || !player) return;
+    player.setUrl(buildEmbedUrl(parsed.type, parsed.id));
+  }, [parsed?.type, parsed?.id, player]);
+
+  // Attach the singleton iframe to this widget's host on mount and
+  // detach on unmount (which parks it in the hidden container, keeping
+  // audio alive).
+  useEffect(() => {
+    if (!parsed || !player) return;
+    const host = hostRef.current;
+    if (!host) return;
+    player.attach(host);
+    return () => {
+      player.detach(host);
+    };
+  }, [parsed?.type, parsed?.id, player]);
 
   // Empty state — centered prompt to add a Spotify link.
   if (!parsed) {
@@ -138,53 +151,20 @@ export default function SpotifyWidget({ config, onUpdateConfig }: SpotifyWidgetP
     );
   }
 
-  const embedUrl = buildEmbedUrl(parsed.type, parsed.id, isDark);
-
   return (
     <>
       <div
         className="group relative h-full w-full overflow-hidden no-drag flex items-center justify-center p-2"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Spotify's compact track embed renders at exactly 152px tall;
-            pinning the iframe to that height means the player content
-            fills the iframe instead of leaving Spotify's body background
-            visible below the player. Small p-2 on the wrapper above lets
-            the widget's own card surface peek around the iframe edges. */}
-        <iframe
-          src={embedUrl}
-          width="100%"
-          height="152"
-          allow="encrypted-media; autoplay; clipboard-write; picture-in-picture"
-          loading="eager"
-          title="Spotify Player"
-          onLoad={() => setIframeReady(true)}
-          style={{
-            border: 0,
-            display: "block",
-            width: "100%",
-            height: 152,
-            opacity: iframeReady ? 1 : 0,
-            transition: "opacity 200ms ease-out",
-          }}
+        {/* Host slot — the SpotifyPlayerProvider projects its singleton
+            iframe here. Sized like the old inline iframe so the surrounding
+            widget chrome stays unchanged. */}
+        <div
+          ref={hostRef}
+          className="w-full"
+          style={{ height: 152 }}
         />
-        {/* Skeleton row mirrors the compact embed's layout (square art
-            on the left, two text lines + a control row) so the widget
-            isn't a blank box while Spotify's iframe hydrates. Fades out
-            via onLoad above. */}
-        {!iframeReady && (
-          <div
-            className="absolute inset-2 flex items-center gap-3 px-3 pointer-events-none"
-            aria-hidden="true"
-          >
-            <div className="w-[88px] h-[88px] rounded-md bg-foreground/[0.06] animate-pulse shrink-0" />
-            <div className="flex-1 flex flex-col gap-2">
-              <div className="h-3 rounded-md bg-foreground/[0.08] animate-pulse w-2/3" />
-              <div className="h-2.5 rounded-md bg-foreground/[0.06] animate-pulse w-1/3" />
-              <div className="h-1 rounded-full bg-foreground/[0.05] animate-pulse w-full mt-2" />
-            </div>
-          </div>
-        )}
         {/* Edit affordance floats on top of the iframe corner so the user
             can swap the link without a visible header chrome. */}
         <button

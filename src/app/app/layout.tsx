@@ -5,6 +5,7 @@ import Sidebar from "@/components/layout/Sidebar";
 import MobileTabBar from "@/components/layout/MobileTabBar";
 import { TaskProvider } from "@/contexts/TaskContext";
 import { ToastProvider } from "@/contexts/ToastContext";
+import { SpotifyPlayerProvider } from "@/contexts/SpotifyPlayerContext";
 
 import { PresenceProvider } from "@/contexts/PresenceContext";
 
@@ -69,6 +70,7 @@ export default async function AppLayout({
       <ToastProvider>
           <PresenceProvider>
           <TaskProvider>
+            <SpotifyPlayerProvider>
             <Sidebar avatarUrl={avatarUrl} fullName={fullName} email={email} />
             <main
               suppressHydrationWarning
@@ -83,6 +85,7 @@ export default async function AppLayout({
             <CanvasTokenExpiredModal />
             {/* GlobalChatNotifier removed with CalChat */}
             <NewAssignmentsModal />
+            </SpotifyPlayerProvider>
           </TaskProvider>
           </PresenceProvider>
       </ToastProvider>
