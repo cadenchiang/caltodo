@@ -425,7 +425,7 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
                     key={course.name}
                     type="button"
                     onClick={() => toggleIcalCourse(course.name)}
-                    className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl bg-white text-foreground border-2 transition-colors duration-150 focus:outline-none ${
+                    className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl bg-white dark:bg-[#2a2a2c] text-foreground border-2 transition-colors duration-150 focus:outline-none ${
                       selected ? "border-[#0e89d6]" : "border-transparent hover:border-[#0e89d6]/30"
                     }`}
                   >
@@ -443,7 +443,7 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
                 );
               })}
               {icalCourses.length === 0 && (
-                <div className="px-3 py-4 text-center bg-white rounded-xl">
+                <div className="px-3 py-4 text-center bg-white dark:bg-[#2a2a2c] rounded-xl">
                   <p className="text-sm text-foreground font-semibold mb-2">
                     No courses found in your calendar feed.
                   </p>

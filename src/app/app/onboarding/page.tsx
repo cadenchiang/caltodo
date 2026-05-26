@@ -217,7 +217,7 @@ function DoneStep({
 
       {/* Top stats row: assignments + classes */}
       <div className="grid grid-cols-2 gap-3 mb-3">
-        <div className="bg-[#f6f5f4] rounded-2xl px-4 py-5">
+        <div className="bg-[#f6f5f4] dark:bg-[#202022] rounded-2xl px-4 py-5">
           <p className="text-4xl font-bold text-foreground tabular-nums tracking-tight">
             {stats?.total ?? 0}
           </p>
@@ -225,7 +225,7 @@ function DoneStep({
             {stats?.total === 1 ? "Assignment" : "Assignments"}
           </p>
         </div>
-        <div className="bg-[#f6f5f4] rounded-2xl px-4 py-5">
+        <div className="bg-[#f6f5f4] dark:bg-[#202022] rounded-2xl px-4 py-5">
           <p className="text-4xl font-bold text-foreground tabular-nums tracking-tight">
             {stats?.courses.length ?? 0}
           </p>
@@ -237,10 +237,10 @@ function DoneStep({
 
       {/* Per-source breakdown with logos */}
       {stats && stats.perSource.length > 0 && (
-        <div className="bg-[#f6f5f4] rounded-2xl p-3 mb-3">
+        <div className="bg-[#f6f5f4] dark:bg-[#202022] rounded-2xl p-3 mb-3">
           <div className="flex flex-col gap-2">
             {stats.perSource.map((row) => (
-              <div key={row.label} className="flex items-center gap-3 px-2 py-2 rounded-xl bg-white">
+              <div key={row.label} className="flex items-center gap-3 px-2 py-2 rounded-xl bg-white dark:bg-[#2a2a2c]">
                 <div className="w-7 h-7 flex items-center justify-center shrink-0">
                   <SourceLogo label={row.label} />
                 </div>
@@ -256,7 +256,7 @@ function DoneStep({
 
       {/* Classes list */}
       {stats && stats.courses.length > 0 && (
-        <div className="bg-[#f6f5f4] rounded-2xl px-4 py-4 mb-8 text-left">
+        <div className="bg-[#f6f5f4] dark:bg-[#202022] rounded-2xl px-4 py-4 mb-8 text-left">
           <p className="text-xs font-semibold text-foreground mb-2.5 uppercase tracking-wide">
             Your Classes
           </p>
@@ -264,7 +264,7 @@ function DoneStep({
             {stats.courses.slice(0, 14).map((name) => (
               <span
                 key={name}
-                className="text-xs font-medium px-2.5 py-1 rounded-lg bg-white text-foreground"
+                className="text-xs font-medium px-2.5 py-1 rounded-lg bg-white dark:bg-[#2a2a2c] text-foreground"
               >
                 {name}
               </span>
@@ -872,7 +872,7 @@ export default function OnboardingPage() {
       <div className="flex-1 overflow-y-auto">
         <div className={`min-h-full flex items-center justify-center px-6 ${isDoneStep ? "py-12" : "pt-4 pb-[20vh]"}`}>
           <div className={`w-full ${isDoneStep ? "max-w-lg" : "max-w-md"}`}>
-          <div key={currentStep} className={`animate-step-in ${isDoneStep ? "" : "bg-[#f6f5f4] rounded-2xl p-8 sm:p-10"}`}>
+          <div key={currentStep} className={`animate-step-in ${isDoneStep ? "" : "bg-[#f6f5f4] dark:bg-[#202022] rounded-2xl p-8 sm:p-10"}`}>
             {stepIndex > 0 && !isDoneStep && (
               <button
                 onClick={() => setCurrentStep(steps[stepIndex - 1])}
@@ -1002,7 +1002,7 @@ export default function OnboardingPage() {
                         key={opt.id}
                         type="button"
                         onClick={() => togglePlatform(opt.id)}
-                        className={` flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl bg-white text-foreground border-2 transition-colors duration-150 focus:outline-none ${
+                        className={` flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl bg-white dark:bg-[#2a2a2c] text-foreground border-2 transition-colors duration-150 focus:outline-none ${
                           selected
                             ? "border-[#0e89d6]"
                             : "border-transparent hover:border-[#0e89d6]/30"
@@ -1137,7 +1137,7 @@ export default function OnboardingPage() {
           onClick={() => setShowSkipModal(false)}
         >
           <div
-            className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl animate-drop-in"
+            className="w-full max-w-sm rounded-2xl bg-white dark:bg-[#1c1c1e] p-6 shadow-2xl animate-drop-in"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-lg font-bold text-foreground mb-2">

@@ -70,20 +70,20 @@ export default function CalendarStep({ onNext, onSkip }: CalendarStepProps) {
     <div>
       <div className="flex items-center gap-2 mb-1">
         <GoogleCalendarIcon size={22} />
-        <h2 className="text-lg font-bold text-gray-800 animate-drop-in">Sync to Google Calendar</h2>
+        <h2 className="text-lg font-bold text-foreground animate-drop-in">Sync to Google Calendar</h2>
       </div>
-      <p className="text-sm text-gray-500 mb-6 animate-drop-in delay-100">
+      <p className="text-sm text-muted-foreground mb-6 animate-drop-in delay-100">
         add your bCourses and Gradescope assignments to Google Calendar so deadlines show up alongside your classes.
       </p>
 
       {!enabled ? (
         <div className="animate-drop-in delay-200">
-          <div className="rounded-xl border border-gray-100 px-4 py-3 mb-5 text-xs text-gray-600 leading-relaxed">
+          <div className="rounded-xl border border-border px-4 py-3 mb-5 text-xs text-muted-foreground leading-relaxed">
             <p className="mb-2">
               enabling this creates an iCal feed URL that Google Calendar (or Apple Calendar)
               can subscribe to. your synced assignments and deadlines will automatically appear on your calendar.
             </p>
-            <p className="text-gray-400">
+            <p className="text-muted-foreground/70">
               Google Calendar refreshes subscriptions every 6-24 hours.
             </p>
           </div>
@@ -92,7 +92,7 @@ export default function CalendarStep({ onNext, onSkip }: CalendarStepProps) {
             <button
               onClick={handleEnable}
               disabled={enabling}
-              className="w-full px-4 py-2.5 bg-gray-800 text-white rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2 btn-elevated-primary"
+              className="w-full px-4 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2 btn-elevated-primary"
             >
               {enabling && <Loader2 size={14} className="animate-spin" />}
               {enabling ? "enabling..." : "sync to Google Calendar"}
@@ -101,24 +101,24 @@ export default function CalendarStep({ onNext, onSkip }: CalendarStepProps) {
         </div>
       ) : (
         <div className="animate-drop-in delay-200">
-          <div className="rounded-xl border border-gray-100 px-4 py-3 mb-4">
-            <p className="text-xs font-medium text-gray-800 mb-2">your feed URL:</p>
+          <div className="rounded-xl border border-border px-4 py-3 mb-4">
+            <p className="text-xs font-medium text-foreground mb-2">your feed URL:</p>
             <input
               type="text"
               readOnly
               value={feedUrl || ""}
-              className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs text-gray-600 focus:outline-none select-all"
+              className="w-full px-3 py-2 rounded-lg border border-border bg-white dark:bg-[#2a2a2c] text-xs text-foreground focus:outline-none select-all"
               onClick={(e) => (e.target as HTMLInputElement).select()}
             />
-            <p className="text-xs text-gray-400 mt-2">
+            <p className="text-xs text-muted-foreground/70 mt-2">
               copy this URL, then add it to Google Calendar via{" "}
-              <span className="font-medium text-gray-500">Other calendars &gt; From URL</span>.
+              <span className="font-medium text-muted-foreground">Other calendars &gt; From URL</span>.
             </p>
           </div>
 
           <button
             onClick={onNext}
-            className="w-full px-4 py-2.5 bg-gray-800 text-white rounded-xl text-sm font-semibold btn-elevated-primary"
+            className="w-full px-4 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-sm font-semibold btn-elevated-primary"
           >
             continue
           </button>
