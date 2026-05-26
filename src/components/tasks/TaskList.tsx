@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { ChevronRight, MoreVertical, Eye, Check, Trash2, Archive } from "lucide-react";
+import { ChevronRight, MoreVertical, Eye, Check, Trash2 } from "lucide-react";
 import type { Task, TaskInsert, PendingInvite } from "@/lib/types";
 import { useTaskContext } from "@/contexts/TaskContext";
 import TaskItem from "./TaskItem";
@@ -261,9 +261,6 @@ export default function TaskList({
   const [hiddenExpanded, setHiddenExpanded] = useState(false);
   const [showAllActive, setShowAllActive] = useState(false);
   const [showAllCompleted, setShowAllCompleted] = useState(false);
-  const [archiveExpanded, setArchiveExpanded] = useState(false);
-  const [showAllArchived, setShowAllArchived] = useState(false);
-  const [confirmClearArchive, setConfirmClearArchive] = useState(false);
   /** Ticks every 60s when Hidden section is expanded to refresh countdowns. */
   const [countdownTick, setCountdownTick] = useState(0);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
@@ -358,7 +355,7 @@ export default function TaskList({
     });
   }, []);
 
-  const { active, snoozed, completed, archived } = useMemo(() => {
+  const { active, snoozed, completed } = useMemo(() => {
     const now = Date.now();
     const activeList: Task[] = [];
     const snoozedList: Task[] = [];
@@ -374,23 +371,13 @@ export default function TaskList({
       }
     }
 
-    // Split completed tasks: recent (within auto-hide window) vs archived (older)
-    // hideHours=0 means "never hide" — all go to completed, none archived
-    // Archive cutoff: tasks completed more than 7 days ago
-    const ARCHIVE_CUTOFF_MS = 7 * 24 * 60 * 60 * 1000;
-    const archiveCutoff = now - ARCHIVE_CUTOFF_MS;
+    // Show completed tasks within the auto-hide window. hideHours=0 means
+    // never hide. Tasks beyond the window are silently filtered out.
     const recentCompleted: Task[] = [];
-    const archivedList: Task[] = [];
-
     for (const t of completedList) {
       const completedTime = t.completed_at ? new Date(t.completed_at).getTime() : now;
-      if (completedTime <= archiveCutoff) {
-        archivedList.push(t);
-      } else if (hideHours === 0 || !t.completed_at || completedTime > now - hideHours * 60 * 60 * 1000) {
+      if (hideHours === 0 || !t.completed_at || completedTime > now - hideHours * 60 * 60 * 1000) {
         recentCompleted.push(t);
-      } else {
-        // Between hideHours cutoff and 7-day archive cutoff — still show in archive
-        archivedList.push(t);
       }
     }
 
@@ -398,7 +385,6 @@ export default function TaskList({
       active: sortByDueDate(activeList),
       snoozed: sortByDueDate(snoozedList),
       completed: sortByDueDate(recentCompleted),
-      archived: sortByDueDate(archivedList),
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tasks, hideHours, countdownTick]);
@@ -491,7 +477,6 @@ export default function TaskList({
 
   const activeToShow = showAllActive ? active : active.slice(0, ITEMS_PER_SECTION);
   const completedToShow = showAllCompleted ? completed : completed.slice(0, ITEMS_PER_SECTION);
-  const archivedToShow = showAllArchived ? archived : archived.slice(0, ITEMS_PER_SECTION);
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
@@ -742,22 +727,24 @@ export default function TaskList({
       {/* Completed section (collapsible) */}
       {completed.length > 0 && (
         <div className="mt-1">
-          <div
-            className="flex items-center -ml-3 pl-3 pr-3 py-2 md:-ml-4 md:pl-4 md:pr-4 md:py-2.5 rounded-xl hover:bg-foreground/[0.035] dark:hover:bg-foreground/[0.07] transition-colors group cursor-pointer"
-            onClick={() => {
-              const next = !completedExpanded;
-              setCompletedExpanded(next);
-              try { localStorage.setItem("caltodo_completed_expanded", String(next)); } catch { /* ignore */ }
-            }}
-          >
-            <ChevronRight
-              size={12}
-              className={`shrink-0 text-secondary-foreground transition-transform duration-200 ${
-                completedExpanded ? "rotate-90" : ""
-              }`}
-            />
-            <span className="text-sm font-semibold text-foreground ml-0.5">Completed</span>
-            <span className="text-xs text-subtle-foreground ml-1.5">{completed.length}</span>
+          <div className="flex items-center py-2 md:py-2.5 group">
+            <div
+              className="inline-flex items-center px-1.5 py-0.5 -ml-1.5 rounded-md hover:bg-foreground/[0.035] dark:hover:bg-foreground/[0.07] transition-colors cursor-pointer"
+              onClick={() => {
+                const next = !completedExpanded;
+                setCompletedExpanded(next);
+                try { localStorage.setItem("caltodo_completed_expanded", String(next)); } catch { /* ignore */ }
+              }}
+            >
+              <ChevronRight
+                size={12}
+                className={`shrink-0 text-secondary-foreground transition-transform duration-200 ${
+                  completedExpanded ? "rotate-90" : ""
+                }`}
+              />
+              <span className="text-sm font-semibold text-foreground ml-0.5">Completed</span>
+              <span className="text-xs text-subtle-foreground ml-1.5">{completed.length}</span>
+            </div>
             <button
               ref={completedMenuBtnRef}
               type="button"
@@ -834,86 +821,6 @@ export default function TaskList({
         </div>
       )}
 
-      {/* Archive section — completed tasks older than 7 days, subtle at bottom */}
-      {archived.length > 0 && (
-        <div className="mt-1">
-          <div
-            className="flex items-center mx-0 pl-0 pr-1 py-1 rounded-lg hover:bg-accent/50 transition-colors group cursor-pointer"
-            onClick={() => setArchiveExpanded(!archiveExpanded)}
-          >
-            <ChevronRight
-              size={10}
-              className={`shrink-0 text-muted-foreground/50 transition-transform duration-200 ${
-                archiveExpanded ? "rotate-90" : ""
-              }`}
-            />
-            <Archive size={10} className="shrink-0 text-muted-foreground/50 ml-0.5" />
-            <span
-              className="text-xs font-medium text-muted-foreground/70 ml-1"
-              title="Auto-cleared after 30 days to save storage"
-            >
-              Archive
-            </span>
-            <span className="text-[10px] text-muted-foreground/40 ml-1">{archived.length}</span>
-            <span
-              className="text-[10px] text-muted-foreground/30 ml-1.5 hidden sm:inline"
-              title="Auto-cleared after 30 days to save storage"
-            >
-              · 30d
-            </span>
-            {archiveExpanded && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (!confirmClearArchive) {
-                    setConfirmClearArchive(true);
-                    // Auto-reset after 3 seconds if not confirmed
-                    setTimeout(() => setConfirmClearArchive(false), 3000);
-                    return;
-                  }
-                  // Second click — actually delete
-                  setConfirmClearArchive(false);
-                  for (const task of archived) {
-                    onDelete(task.id);
-                  }
-                }}
-                className={`ml-auto text-[10px] font-medium transition-colors px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 ${
-                  confirmClearArchive
-                    ? "text-red-500 opacity-100"
-                    : "text-muted-foreground/50 hover:text-red-500"
-                }`}
-              >
-                {confirmClearArchive ? `Delete ${archived.length} tasks?` : "Clear all"}
-              </button>
-            )}
-          </div>
-          {archiveExpanded && (
-            <div className="opacity-60">
-              {archivedToShow.map((task, i) => (
-                <div key={task.id} className="cv-auto-task">
-                  {/* Inter-task divider removed: tasks now render as cards. */}
-                  <TaskItem
-                    task={task}
-                    isSelected={selectedTaskId === task.id}
-                    onToggle={onToggle}
-                    onSelect={onSelect}
-                    onDelete={onDelete}
-                  />
-                </div>
-              ))}
-              {archived.length > ITEMS_PER_SECTION && (
-                <button
-                  onClick={() => setShowAllArchived(!showAllArchived)}
-                  className="px-8 py-2 text-[10px] text-muted-foreground/40 hover:text-muted-foreground/60 transition-colors w-full text-left"
-                >
-                  {showAllArchived ? "Show less" : `+${archived.length - ITEMS_PER_SECTION} more`}
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-      )}
       {/* Click-catcher below all sections — deselects only when the user
           clicks the empty vertical space under the last task. Anywhere
           beside a row (e.g. the right gutter of the list wrapper) stays
