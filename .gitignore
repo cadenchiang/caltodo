@@ -21,6 +21,7 @@
 # Claude Code internal worktrees & caches
 .claude/worktrees/
 .claude/local/
+.claude/settings.local.json
 
 # production
 /build
