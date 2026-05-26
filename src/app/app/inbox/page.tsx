@@ -701,7 +701,7 @@ export default function InboxPage() {
         {/* Tabs row — only List / Board now. Actions moved up into the
             filter bar above so this row stays focused on view switching. */}
         <div className="pl-4 pr-3 pb-2 md:pl-8 md:pr-6 md:pb-2 flex items-center">
-            <div className="flex items-center gap-1 min-w-0">
+            <div className="flex items-center gap-1 min-w-0 -ml-3">
               {/* In-page tabs for Board / List view modes, plus a third
                   tab for Calendar that navigates to /app/calendar (which
                   renders the same chrome with its own active tab). */}
@@ -807,15 +807,6 @@ export default function InboxPage() {
                 ? "pl-4 md:pl-8 pr-4 md:pr-6"
                 : "pl-4 md:pl-8 pr-4 md:pr-8"
             }`}
-            onClick={viewMode === "list"
-              ? () => {
-                  // Any click that reaches this wrapper is an empty-area
-                  // click — TaskItem.onClick stopPropagation already
-                  // intercepts row clicks, so reaching here means the
-                  // user clicked off the row. Deselect.
-                  setSelectedTask(null);
-                }
-              : undefined}
           >
             <div key={viewMode} className="animate-view-switch h-full">
               {viewMode === "list" ? (
@@ -853,6 +844,7 @@ export default function InboxPage() {
                   pendingInvites={pendingInvites}
                   onRespondInvite={handleRespondInvite}
                   onAcceptAllInvites={handleAcceptAllInvites}
+                  onDeselect={() => setSelectedTask(null)}
                 />
               ) : (
                 <TaskBoardView

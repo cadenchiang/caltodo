@@ -138,6 +138,8 @@ interface TaskListProps {
   onRespondInvite?: (shareId: string, action: "accept" | "decline") => void;
   /** Callback to accept all pending invites at once. */
   onAcceptAllInvites?: () => void;
+  /** Called when the user clicks the empty area below the list (deselects). */
+  onDeselect?: () => void;
 }
 
 /**
@@ -249,6 +251,7 @@ export default function TaskList({
   pendingInvites = [],
   onRespondInvite,
   onAcceptAllInvites,
+  onDeselect,
 }: TaskListProps) {
   const { unsnoozeTask } = useTaskContext();
   const { colorTheme } = useTheme();
@@ -910,6 +913,13 @@ export default function TaskList({
             </div>
           )}
         </div>
+      )}
+      {/* Click-catcher below all sections — deselects only when the user
+          clicks the empty vertical space under the last task. Anywhere
+          beside a row (e.g. the right gutter of the list wrapper) stays
+          inert so a stray click doesn't dismiss the open detail panel. */}
+      {onDeselect && (
+        <div className="flex-1 min-h-[24px]" onClick={onDeselect} />
       )}
     </div>
   );

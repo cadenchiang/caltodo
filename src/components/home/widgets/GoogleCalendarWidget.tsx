@@ -12,10 +12,9 @@
 
 import { useMemo } from "react";
 import useSWR from "swr";
-import { useRouter } from "next/navigation";
 import { Calendar } from "lucide-react";
 import { useCompactMode } from "@/hooks/useCompactMode";
-import { WidgetHeader, WidgetEmptyState } from "./WidgetPrimitives";
+import { WidgetHeader } from "./WidgetPrimitives";
 import { GCAL_DISPLAY_MAP } from "./gcal-displays";
 import { DEFAULT_GCAL_DISPLAY } from "@/lib/gcal-displays";
 import type { GCalEvent } from "@/lib/types";
@@ -112,6 +111,32 @@ function writeGCalCache(key: string, data: { events: GCalEvent[]; connected?: bo
   }
 }
 
+/**
+ * Kicks off the Google Calendar OAuth flow directly from the widget so
+ * the empty-state "Sync" button takes the user straight to Google's
+ * sign-in modal instead of forcing them through the Settings page first.
+ * Mirrors the desktop popup / mobile redirect behavior in
+ * GoogleCalendarSettings.handleConfirmConnect so both entry points feel
+ * identical.
+ */
+function startGCalConnect(): void {
+  if (typeof window === "undefined") return;
+  const isDesktop = window.innerWidth >= 768;
+  if (!isDesktop) {
+    window.location.href = "/api/gcal/auth";
+    return;
+  }
+  const width = 500;
+  const height = 600;
+  const left = window.screenX + (window.outerWidth - width) / 2;
+  const top = window.screenY + (window.outerHeight - height) / 2;
+  window.open(
+    "/api/gcal/auth",
+    "gcal-auth",
+    `width=${width},height=${height},left=${left},top=${top},popup=true`,
+  );
+}
+
 interface GoogleCalendarWidgetProps {
   config: Record<string, string>;
   editMode?: boolean;
@@ -119,7 +144,6 @@ interface GoogleCalendarWidgetProps {
 }
 
 export default function GoogleCalendarWidget({ config, editMode, onUpdateConfig }: GoogleCalendarWidgetProps) {
-  const router = useRouter();
   const viewMode = (config.viewMode as ViewMode) || "week";
   const { containerRef, compact } = useCompactMode(160);
   // Parse multi-calendar config: calendarIds (JSON) → calendarId (single) → ["primary"]
@@ -201,19 +225,23 @@ export default function GoogleCalendarWidget({ config, editMode, onUpdateConfig 
 
   if (connected === false) {
     return (
-      <WidgetEmptyState
-        icon={<Calendar size={24} />}
-        message="Connect to see your events"
-        action={
-          <button
-            type="button"
-            onClick={() => router.push("/app/settings?section=integrations")}
-            className="no-drag inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors cursor-pointer"
-          >
-            Sync Google Calendar
-          </button>
-        }
-      />
+      <div
+        className="h-full w-full flex flex-col items-center justify-center gap-2 text-foreground no-drag p-3"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <Calendar size={20} className="text-muted-foreground" />
+        <p className="text-xs text-muted-foreground">Not connected</p>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            startGCalConnect();
+          }}
+          className="px-3 py-1 text-xs rounded-full font-semibold bg-foreground text-background hover:opacity-90 transition-opacity"
+        >
+          Sync
+        </button>
+      </div>
     );
   }
 

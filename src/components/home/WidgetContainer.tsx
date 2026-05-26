@@ -109,7 +109,7 @@ export function RenderWidget({
     case "sticker":
       return <StickerWidget config={widget.config} onUpdateConfig={onUpdateConfig} />;
     case "spotify":
-      return <SpotifyWidget config={widget.config} />;
+      return <SpotifyWidget config={widget.config} onUpdateConfig={onUpdateConfig} />;
     case "mini-calendar":
       return <MiniCalendarWidget config={widget.config} />;
     case "daily-reminders":

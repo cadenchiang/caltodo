@@ -102,7 +102,7 @@ export default function SubscriptionSection() {
     return (
       <section className="space-y-3">
         <h2 className="text-lg font-semibold text-foreground">Subscription</h2>
-        <div className="h-40 rounded-3xl bg-[#f6f5f4] animate-pulse" />
+        <div className="h-40 rounded-3xl bg-[#f6f5f4] dark:bg-[#1a1a1a] animate-pulse" />
       </section>
     );
   }
@@ -161,7 +161,7 @@ export default function SubscriptionSection() {
         </p>
       </div>
 
-      <div className={`relative rounded-3xl bg-[#f6f5f4] p-6 sm:p-8 ${cardRing}`}>
+      <div className={`relative rounded-3xl bg-[#f6f5f4] dark:bg-[#1a1a1a] p-6 sm:p-8 ${cardRing}`}>
         <span
           className={`absolute top-4 right-4 inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-wide ${pillClass}`}
         >
@@ -214,7 +214,7 @@ export default function SubscriptionSection() {
             unless the app was started with `next dev`. The server route is also
             hard-gated to NODE_ENV=development, so this can never leak to prod. */}
         {isDevMode && (isFree || isTrial) && !isFounder && (
-          <div className="mt-3 -mx-2 px-3 py-2 rounded-xl border border-dashed border-black/15 bg-white/40 text-xs text-black/60 flex items-center justify-between gap-3">
+          <div className="mt-3 -mx-2 px-3 py-2 rounded-xl border border-dashed border-black/15 dark:border-white/15 bg-white/40 dark:bg-white/[0.04] text-xs text-black/60 dark:text-white/60 flex items-center justify-between gap-3">
             <span>Localhost dev tools (Stripe-free).</span>
             <button
               type="button"

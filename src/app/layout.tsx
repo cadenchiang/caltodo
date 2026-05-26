@@ -202,6 +202,14 @@ export default function RootLayout({
         */}
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <script dangerouslySetInnerHTML={{ __html: hiddenNavScript }} />
+        {/* Preconnect to Spotify embed + CDN domains so the SpotifyWidget's
+            iframe + album-art fetches don't pay DNS/TLS handshake cost
+            when the widget first renders. Cheap network hints; no-op for
+            users without the widget. */}
+        <link rel="preconnect" href="https://open.spotify.com" />
+        <link rel="preconnect" href="https://i.scdn.co" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://open.spotify.com" />
+        <link rel="dns-prefetch" href="https://i.scdn.co" />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${instrumentSerif.variable} antialiased`}

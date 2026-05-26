@@ -100,6 +100,33 @@ const TIMEZONE_OPTIONS = [
 
 const SEL = "w-full px-3 py-2 rounded-lg border border-input-border bg-card text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring";
 
+/**
+ * Widget types whose only edit affordance is *inside* the widget itself
+ * (click-to-edit text, plus buttons, etc.). The editor panel shows a
+ * gentle hint pointing the user back at the widget instead of an empty
+ * settings list.
+ */
+const INLINE_EDIT_WIDGETS = new Set<string>([
+  "notes",
+  "pomodoro",
+  "quick-links",
+  "daily-reminders",
+]);
+
+/**
+ * Widget types that have no settings at all — they render purely from
+ * the user's data (auth profile, tasks, courses). The editor panel
+ * shows a message acknowledging that.
+ */
+const DISPLAY_ONLY_WIDGETS = new Set<string>([
+  "profile",
+  "intro",
+  "cal-chat",
+  "weekly-heatmap",
+  "mini-calendar",
+  "courses",
+]);
+
 interface Props {
   widget: WidgetInstance;
   widgetRect: DOMRect;
@@ -403,10 +430,22 @@ export default function WidgetEditorPanel({
           <CollapsibleSection title="Spotify URL"><input type="text" placeholder="https://open.spotify.com/track/..." value={localConfig.spotifyUrl || ""} onChange={(e) => updateField("spotifyUrl", e.target.value)} className={SEL} /><p className="text-[10px] text-foreground mt-1">Paste a link to a track, album, playlist, or podcast from Spotify.</p></CollapsibleSection>
         )}
 
-        {/* Appearance / Border / Color / Font controls were removed —
-            every widget now uses the unified squircle chrome and the
-            theme system handles colors. Per-widget customization
-            previously lived here. */}
+        {/* Empty-state messages for widgets that have no panel settings:
+            click-to-edit widgets get pointed back at the widget itself,
+            pure-display widgets get a short note explaining there's
+            nothing to configure. Keeps the panel from opening onto a
+            blank screen and turning the delete button into the only
+            visible action. */}
+        {INLINE_EDIT_WIDGETS.has(widget.type) && (
+          <p className="text-xs text-muted-foreground px-1 py-2 leading-relaxed">
+            Click into the widget itself to edit its contents.
+          </p>
+        )}
+        {DISPLAY_ONLY_WIDGETS.has(widget.type) && (
+          <p className="text-xs text-muted-foreground px-1 py-2 leading-relaxed">
+            This widget renders automatically from your data. Nothing to configure here.
+          </p>
+        )}
 
       </div>
 
@@ -421,7 +460,8 @@ export default function WidgetEditorPanel({
         </button>
         <button
           onClick={handleDone}
-          className="px-5 py-2 text-sm font-semibold rounded-full bg-blue-500 text-white hover:bg-blue-600 shadow-sm active:scale-[0.97] transition-all duration-200"
+          style={{ height: 30 }}
+          className="px-4 text-sm font-semibold rounded-xl bg-blue-500 text-white hover:bg-blue-500/90 shadow-sm active:scale-[0.97] transition-all"
         >
           Done
         </button>

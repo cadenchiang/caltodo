@@ -2190,11 +2190,15 @@ textarea:-webkit-autofill {
   animation: editorPanelOutLeft 180ms cubic-bezier(0.4, 0, 1, 1) both;
 }
 
-/* Selected widget in edit mode — stops jiggle, shows blue ring */
+/* Selected widget in edit mode — stops jiggle, shows blue ring that
+   hugs the squircle card. Using `outline` instead of `box-shadow` so
+   the card's layered drop shadows (defined on .board-widget-card) stay
+   intact when a widget is selected. Modern browsers honor border-radius
+   on outline as long as the style isn't `auto`. */
 .widget-selected {
   animation: none !important;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.6);
-  border-radius: inherit;
+  outline: 2px solid rgba(59, 130, 246, 0.6);
+  outline-offset: 0;
 }
 
 /* Bottom sheet slide-up for mobile editor */

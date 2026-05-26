@@ -115,40 +115,21 @@ export default function CalendarGrid({
   // still stretch to fill available height when there's slack.
   const minRowHeight = isMobile ? "56px" : "64px";
 
-  // Weekday index for "today" (Mon=0 ... Sun=6, weekStartsOn:1).
-  const todayDow = (() => {
-    const d = new Date().getDay();
-    return d === 0 ? 6 : d - 1;
-  })();
-
   return (
     <div id="tour-calendar-grid" className="bg-card flex flex-col flex-1 min-h-0">
-      {/* Weekday header row — inside the rounded card. Current weekday is
-          bold + solid foreground; others stay muted. */}
-      <div className="grid grid-cols-7 border-b border-gray-200 dark:border-gray-700/50 bg-card shrink-0">
-        {labels.map((label, i) => (
-          <div
-            key={label}
-            className={`text-center text-[11px] py-2 tracking-wide ${
-              i === todayDow
-                ? "font-bold text-foreground"
-                : "font-medium text-muted-foreground"
-            }`}
-          >
-            {label}
-          </div>
-        ))}
-      </div>
-
       {/* Day grid — rows split the remaining vertical space equally
           (minmax(min, 1fr)) so the whole month fits without page
-          scroll. Tasks overflow each cell via the "+N more" link. */}
+          scroll. Tasks overflow each cell via the "+N more" link.
+          The MON/TUE/etc labels live inside the first row's cells via
+          CalendarDayCell's `weekdayLabel` prop, so there's no separate
+          header bar above the grid. */}
       <div
         className="grid grid-cols-7 flex-1 min-h-0"
         style={{ gridAutoRows: `minmax(${minRowHeight}, 1fr)` }}
       >
         {days.map((day, i) => {
           const dateStr = format(day, "yyyy-MM-dd");
+          const isFirstRow = i < 7;
           return (
             <CalendarDayCell
               key={dateStr}
@@ -162,6 +143,7 @@ export default function CalendarGrid({
               addingDate={addingDate}
               isLastCol={(i + 1) % 7 === 0}
               isSelected={selectedDate === dateStr}
+              weekdayLabel={isFirstRow ? labels[i] : undefined}
               onDayClick={onDayClick}
               onDaySelect={onDaySelect}
               onTaskClick={onTaskClick}

@@ -63,43 +63,16 @@ export default function AssignmentsWeekView({
 
   return (
     <div className="bg-card flex flex-col h-full overflow-hidden">
-      {/* Column headers */}
-      <div className="grid grid-cols-7 shrink-0 bg-card">
-        {days.map((day) => {
-          const dateStr = format(day, "yyyy-MM-dd");
-          const isToday = isSameDay(day, new Date());
-          return (
-            <div
-              key={dateStr}
-              className="flex flex-col items-center py-1.5 md:py-2.5 gap-0.5"
-            >
-              <span className={`text-[9px] md:text-[11px] font-semibold uppercase ${
-                isToday ? "text-[#0e89d6]" : "text-foreground/60"
-              }`}>
-                <span className="md:hidden">{format(day, "EEEEE")}</span>
-                <span className="hidden md:inline">{format(day, "EEE")}</span>
-              </span>
-              <span
-                className={`text-sm md:text-lg font-semibold inline-flex items-center justify-center ${
-                  isToday
-                    ? "w-6 h-6 md:w-8 md:h-8 rounded-full bg-[#0e89d6] text-white"
-                    : "text-foreground"
-                }`}
-              >
-                {format(day, "d")}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Task columns */}
-      <div className="grid grid-cols-7 flex-1 min-h-0 overflow-y-auto border-t border-gray-200 dark:border-gray-800">
+      {/* Day columns — each column owns its own header (weekday + date)
+          stacked above the task bars, so the header no longer lives in
+          a separate bar across the top. */}
+      <div className="grid grid-cols-7 flex-1 min-h-0 overflow-y-auto">
         {days.map((day, i) => {
           const dateStr = format(day, "yyyy-MM-dd");
           const dayTasks = tasksByDate[dateStr] ?? [];
           const dayInvites = invitesByDate[dateStr] ?? [];
           const isLastCol = i === 6;
+          const isToday = isSameDay(day, new Date());
           return (
             <div
               key={dateStr}
@@ -109,6 +82,23 @@ export default function AssignmentsWeekView({
                 onDayClick(dateStr, rect);
               }}
             >
+              <div className="flex flex-col items-center py-1.5 md:py-2.5 gap-0.5">
+                <span className={`text-[9px] md:text-[11px] font-semibold uppercase ${
+                  isToday ? "text-[#0e89d6]" : "text-foreground/60"
+                }`}>
+                  <span className="md:hidden">{format(day, "EEEEE")}</span>
+                  <span className="hidden md:inline">{format(day, "EEE")}</span>
+                </span>
+                <span
+                  className={`text-sm md:text-lg font-semibold inline-flex items-center justify-center ${
+                    isToday
+                      ? "w-6 h-6 md:w-8 md:h-8 rounded-full bg-[#0e89d6] text-white"
+                      : "text-foreground"
+                  }`}
+                >
+                  {format(day, "d")}
+                </span>
+              </div>
               {dayTasks.map((task) => (
                 <CalendarTaskBar key={task.id} task={task} onClick={onTaskClick} isActive={task.id === activeTaskId} />
               ))}

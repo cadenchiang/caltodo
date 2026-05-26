@@ -96,15 +96,6 @@ export default function CalendarWeekView({
     return { allDayByDate: allDay, timedByDate: timed };
   }, [gcalEvents]);
 
-  // Check if there are any all-day items (tasks, all-day events, or adding placeholder)
-  const hasAllDayContent = days.some((day) => {
-    const dateStr = format(day, "yyyy-MM-dd");
-    return (tasksByDate[dateStr]?.length ?? 0) > 0 ||
-           (allDayByDate[dateStr]?.length ?? 0) > 0 ||
-           (invitesByDate[dateStr]?.length ?? 0) > 0 ||
-           addingDate === dateStr;
-  });
-
   // Build time grid columns
   const timeGridColumns = useMemo(() => {
     return days.map((day) => {
@@ -122,78 +113,80 @@ export default function CalendarWeekView({
 
   return (
     <div className="bg-card flex flex-col h-full overflow-hidden">
-      {/* Column headers */}
-      <div className="grid grid-cols-7 shrink-0 bg-card" style={{ marginLeft: !isMobile ? "56px" : "0" }}>
-        {days.map((day) => {
+      {/* Header + all-day section combined: each day column owns its own
+          weekday/date header stacked above any task bars or all-day events.
+          The mobile fallback skips all-day content (matching the prior
+          behavior) but keeps the per-column headers. */}
+      <div
+        className="grid grid-cols-7 border-b border-gray-200 dark:border-gray-700/50 shrink-0 bg-card"
+        style={{ marginLeft: !isMobile ? "56px" : "0" }}
+      >
+        {days.map((day, i) => {
           const dateStr = format(day, "yyyy-MM-dd");
           const isToday = isSameDay(day, new Date());
+          const dayTasks = tasksByDate[dateStr] ?? [];
+          const dayAllDayEvents = allDayByDate[dateStr] ?? [];
+          const dayInvites = invitesByDate[dateStr] ?? [];
+          const isLastCol = i === 6;
+          const showAllDay = !isMobile && (
+            dayTasks.length > 0 ||
+            dayAllDayEvents.length > 0 ||
+            dayInvites.length > 0 ||
+            addingDate === dateStr
+          );
           return (
             <div
               key={dateStr}
-              className="flex flex-col items-center py-1.5 md:py-2.5 gap-0.5"
+              className={`p-1 flex flex-col gap-0.5 ${isLastCol ? "" : "border-r"} border-gray-200 dark:border-gray-700/50`}
+              onDoubleClick={(e) => {
+                const rect = new DOMRect(e.clientX - 40, e.clientY, 80, 1);
+                onDayClick(dateStr, rect);
+              }}
             >
-              <span className={`text-[9px] md:text-[11px] font-semibold uppercase ${
-                isToday ? "text-[#0e89d6]" : "text-foreground/60"
-              }`}>
-                <span className="md:hidden">{format(day, "EEEEE")}</span>
-                <span className="hidden md:inline">{format(day, "EEE")}</span>
-              </span>
-              <span
-                className={`text-sm md:text-lg font-semibold inline-flex items-center justify-center ${
-                  isToday
-                    ? "w-6 h-6 md:w-8 md:h-8 rounded-full bg-[#0e89d6] text-white"
-                    : "text-foreground"
-                }`}
-              >
-                {format(day, "d")}
-              </span>
+              <div className="flex flex-col items-center py-1.5 md:py-2.5 gap-0.5">
+                <span className={`text-[9px] md:text-[11px] font-semibold uppercase ${
+                  isToday ? "text-[#0e89d6]" : "text-foreground/60"
+                }`}>
+                  <span className="md:hidden">{format(day, "EEEEE")}</span>
+                  <span className="hidden md:inline">{format(day, "EEE")}</span>
+                </span>
+                <span
+                  className={`text-sm md:text-lg font-semibold inline-flex items-center justify-center ${
+                    isToday
+                      ? "w-6 h-6 md:w-8 md:h-8 rounded-full bg-[#0e89d6] text-white"
+                      : "text-foreground"
+                  }`}
+                >
+                  {format(day, "d")}
+                </span>
+              </div>
+              {showAllDay && (
+                <>
+                  {dayTasks.map((task) => (
+                    <CalendarTaskBar key={task.id} task={task} onClick={onTaskClick} isActive={task.id === activeTaskId} />
+                  ))}
+                  {dayInvites.map((invite) => (
+                    <CalendarTaskBar
+                      key={invite.shareId}
+                      task={pendingInviteToPseudoTask(invite)}
+                      onClick={() => {}}
+                      isPending
+                    />
+                  ))}
+                  {dayAllDayEvents.map((event) => (
+                    <CalendarGCalItem key={event.id} event={event} calendarColor={calendarColors[event.calendarId ?? ""]} />
+                  ))}
+                  {addingDate === dateStr && (
+                    <div className="bg-blue-500 text-white text-[10px] font-medium px-1.5 py-0.5 rounded truncate">
+                      (No title)
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           );
         })}
       </div>
-
-      {/* All-day section: task bars + all-day GCal events */}
-      {hasAllDayContent && !isMobile && (
-        <div className="grid grid-cols-7 border-b border-gray-200 dark:border-gray-700/50 shrink-0 bg-card" style={{ marginLeft: !isMobile ? "56px" : "0" }}>
-          {days.map((day, i) => {
-            const dateStr = format(day, "yyyy-MM-dd");
-            const dayTasks = tasksByDate[dateStr] ?? [];
-            const dayAllDayEvents = allDayByDate[dateStr] ?? [];
-            const dayInvites = invitesByDate[dateStr] ?? [];
-            const isLastCol = i === 6;
-            return (
-              <div
-                key={dateStr}
-                className={`p-1 flex flex-col gap-0.5 ${isLastCol ? "" : "border-r"} border-gray-200 dark:border-gray-700/50`}
-                onDoubleClick={(e) => {
-                  const rect = new DOMRect(e.clientX - 40, e.clientY, 80, 1);
-                  onDayClick(dateStr, rect);
-                }}
-              >
-                {dayTasks.map((task) => (
-                  <CalendarTaskBar key={task.id} task={task} onClick={onTaskClick} isActive={task.id === activeTaskId} />
-                ))}
-                {dayInvites.map((invite) => (
-                  <CalendarTaskBar
-                    key={invite.shareId}
-                    task={pendingInviteToPseudoTask(invite)}
-                    onClick={() => {}}
-                    isPending
-                  />
-                ))}
-                {dayAllDayEvents.map((event) => (
-                  <CalendarGCalItem key={event.id} event={event} calendarColor={calendarColors[event.calendarId ?? ""]} />
-                ))}
-                {addingDate === dateStr && (
-                  <div className="bg-blue-500 text-white text-[10px] font-medium px-1.5 py-0.5 rounded truncate">
-                    (No title)
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
 
       {/* Time grid (desktop) or simplified dots (mobile) */}
       {isMobile ? (

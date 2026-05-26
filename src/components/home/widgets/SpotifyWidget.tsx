@@ -1,20 +1,23 @@
 "use client";
 
 /**
- * Spotify embed widget — Jerrod-style "Now Playing" chrome around the
- * official Spotify embed iframe. A small "01 :: NOW PLAYING" label at
- * the top-left, the player below filling the rest of the card. Empty
- * state directs the user to paste a Spotify URL via settings.
+ * Spotify widget — renders Spotify's official embed iframe inside the
+ * standard widget card. The widget background uses the default card
+ * surface (var(--card)) so the player sits on the same tone as every
+ * other widget; a small uniform padding lets that surface show around
+ * the iframe edges since Spotify's compact embed has its own corners.
  *
- * Audio playback continues to come from Spotify's iframe — we just
- * wrap it in matching typography so the widget visually slots into
- * the Jerrod-style dashboard.
+ * Trade-off note: the Spotify iframe is rendered by Spotify on their
+ * own origin, so its internal UI (green background, branding, controls)
+ * can't be restyled from here. We only own the chrome around it.
  *
  * @module SpotifyWidget
  */
 
-import { useState } from "react";
-import { Music } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Music, Pencil } from "lucide-react";
+import SpotifyLinkModal from "./SpotifyLinkModal";
+import { useTheme } from "@/contexts/ThemeContext";
 
 interface SpotifyWidgetProps {
   config: Record<string, string>;
@@ -22,130 +25,187 @@ interface SpotifyWidgetProps {
 }
 
 /**
- * Parses a Spotify URL or URI and extracts the content type and ID.
+ * Parses a Spotify URL, URI, or full iframe embed snippet and extracts
+ * the content type and ID.
  *
  * Supported formats:
  * - https://open.spotify.com/track/abc123
  * - https://open.spotify.com/track/abc123?si=xyz
+ * - https://open.spotify.com/embed/track/abc123?utm_source=generator
  * - spotify:track:abc123
+ * - Full <iframe ... src="https://open.spotify.com/embed/track/abc123" ...> snippet
  *
- * @param url - Raw Spotify URL or URI string
+ * @param url - Raw Spotify URL, URI, or iframe HTML string
  * @returns Object with type and id, or null if invalid
  */
 export function parseSpotifyUrl(
-  url: string
+  url: string,
 ): { type: string; id: string } | null {
   if (!url) return null;
 
-  const trimmed = url.trim();
+  let trimmed = url.trim();
 
-  // Handle spotify: URI format (spotify:track:abc123)
+  if (trimmed.startsWith("<")) {
+    const srcMatch = trimmed.match(/src=["']([^"']+)["']/i);
+    if (!srcMatch) return null;
+    trimmed = srcMatch[1];
+  }
+
   const uriMatch = trimmed.match(/^spotify:(\w+):([a-zA-Z0-9]+)/);
   if (uriMatch) {
     return { type: uriMatch[1], id: uriMatch[2] };
   }
 
-  // Handle open.spotify.com URL format
   try {
     const parsed = new URL(trimmed);
     if (!parsed.hostname.includes("spotify.com")) return null;
 
-    // Path format: /track/abc123 or /embed/track/abc123
     const segments = parsed.pathname.split("/").filter(Boolean);
-
-    // Skip "embed" prefix if present
     const start = segments[0] === "embed" ? 1 : 0;
     const type = segments[start];
     const id = segments[start + 1];
 
     if (type && id) {
-      // Strip query params from id
       return { type, id: id.split("?")[0] };
     }
   } catch {
-    // Not a valid URL
+    /* not a valid URL */
   }
 
   return null;
 }
 
 /**
- * Builds the Spotify embed iframe URL from a parsed type and ID. The
- * widget always renders the light-mode theme so the embed surfaces
- * sit on white like the rest of the dashboard.
+ * Builds the Spotify embed iframe URL. Spotify only exposes one color
+ * knob via the `theme` query param: 0 = dark variant (green/black),
+ * 1 = light variant (white compact). Nothing else about the iframe's
+ * interior can be themed from our side.
  *
  * @param type - Content type (track, album, playlist, episode, show)
  * @param id - Spotify content ID
+ * @param dark - True to request the dark embed variant
  * @returns Full embed URL string
  */
-function buildEmbedUrl(type: string, id: string): string {
-  return `https://open.spotify.com/embed/${type}/${id}?theme=1`;
+function buildEmbedUrl(type: string, id: string, dark: boolean): string {
+  const theme = dark ? 0 : 1;
+  return `https://open.spotify.com/embed/${type}/${id}?theme=${theme}`;
 }
 
 export default function SpotifyWidget({ config, onUpdateConfig }: SpotifyWidgetProps) {
-  const parsed = parseSpotifyUrl(config.spotifyUrl || "");
-  // Inline-edit state for the empty case so the user can paste a URL
-  // straight into the widget without opening the settings modal.
-  const [draft, setDraft] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const rawUrl = config.spotifyUrl || "";
+  const parsed = parseSpotifyUrl(rawUrl);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [iframeReady, setIframeReady] = useState(false);
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
 
-  function submitDraft() {
-    const valid = parseSpotifyUrl(draft);
-    if (!valid) {
-      setError("Not a valid Spotify URL");
-      return;
-    }
-    setError(null);
-    onUpdateConfig?.({ spotifyUrl: draft.trim() });
-  }
+  // Reset the loading skeleton whenever the embed URL changes so each
+  // new track gets its own load-in indicator.
+  useEffect(() => {
+    setIframeReady(false);
+  }, [parsed?.type, parsed?.id, isDark]);
 
+  // Empty state — centered prompt to add a Spotify link.
   if (!parsed) {
     return (
-      <div className="h-full w-full flex flex-col px-5 py-4 gap-3">
-        <div className="text-sm font-bold tracking-tight text-foreground">Now Playing</div>
-        <div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-3 text-foreground">
-          <Music size={28} />
-          <p className="text-sm font-semibold tracking-tight">Paste a Spotify link</p>
-          <div className="w-full flex items-center gap-2 no-drag" onClick={(e) => e.stopPropagation()}>
-            <input
-              type="url"
-              value={draft}
-              onChange={(e) => { setDraft(e.target.value); setError(null); }}
-              onKeyDown={(e) => { if (e.key === "Enter") submitDraft(); }}
-              placeholder="https://open.spotify.com/track/..."
-              className="flex-1 min-w-0 px-3 py-1.5 text-xs rounded-lg border border-input-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); submitDraft(); }}
-              disabled={!draft.trim()}
-              className="shrink-0 px-3 py-1.5 text-xs rounded-lg bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              Add
-            </button>
-          </div>
-          {error && <p className="text-[11px] text-red-500">{error}</p>}
+      <>
+        <div
+          className="h-full w-full flex flex-col items-center justify-center gap-2 text-foreground no-drag p-3"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Music size={20} className="text-muted-foreground" />
+          <p className="text-xs text-muted-foreground">No track yet</p>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setModalOpen(true);
+            }}
+            className="px-3 py-1 text-xs rounded-full font-semibold bg-foreground text-background hover:opacity-90 transition-opacity"
+          >
+            Add link
+          </button>
         </div>
-      </div>
+        <SpotifyLinkModal
+          open={modalOpen}
+          onClose={() => setModalOpen(false)}
+          onSubmit={(url) => {
+            onUpdateConfig?.({ spotifyUrl: url });
+            setModalOpen(false);
+          }}
+        />
+      </>
     );
   }
 
-  const embedUrl = buildEmbedUrl(parsed.type, parsed.id);
+  const embedUrl = buildEmbedUrl(parsed.type, parsed.id, isDark);
 
   return (
-    <div className="h-full w-full flex flex-col gap-3 px-5 pt-4 pb-2">
-      <div className="text-sm font-bold tracking-tight text-foreground">Now Playing</div>
-      <div className="flex-1 min-h-0 overflow-hidden rounded-xl">
+    <>
+      <div
+        className="group relative h-full w-full overflow-hidden no-drag flex items-center justify-center p-2"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Spotify's compact track embed renders at exactly 152px tall;
+            pinning the iframe to that height means the player content
+            fills the iframe instead of leaving Spotify's body background
+            visible below the player. Small p-2 on the wrapper above lets
+            the widget's own card surface peek around the iframe edges. */}
         <iframe
           src={embedUrl}
           width="100%"
-          height="100%"
-          allow="encrypted-media"
-          loading="lazy"
+          height="152"
+          allow="encrypted-media; autoplay; clipboard-write; picture-in-picture"
+          loading="eager"
           title="Spotify Player"
-          style={{ border: 0 }}
+          onLoad={() => setIframeReady(true)}
+          style={{
+            border: 0,
+            display: "block",
+            width: "100%",
+            height: 152,
+            opacity: iframeReady ? 1 : 0,
+            transition: "opacity 200ms ease-out",
+          }}
         />
+        {/* Skeleton row mirrors the compact embed's layout (square art
+            on the left, two text lines + a control row) so the widget
+            isn't a blank box while Spotify's iframe hydrates. Fades out
+            via onLoad above. */}
+        {!iframeReady && (
+          <div
+            className="absolute inset-2 flex items-center gap-3 px-3 pointer-events-none"
+            aria-hidden="true"
+          >
+            <div className="w-[88px] h-[88px] rounded-md bg-foreground/[0.06] animate-pulse shrink-0" />
+            <div className="flex-1 flex flex-col gap-2">
+              <div className="h-3 rounded-md bg-foreground/[0.08] animate-pulse w-2/3" />
+              <div className="h-2.5 rounded-md bg-foreground/[0.06] animate-pulse w-1/3" />
+              <div className="h-1 rounded-full bg-foreground/[0.05] animate-pulse w-full mt-2" />
+            </div>
+          </div>
+        )}
+        {/* Edit affordance floats on top of the iframe corner so the user
+            can swap the link without a visible header chrome. */}
+        <button
+          type="button"
+          onClick={() => setModalOpen(true)}
+          aria-label="Change Spotify link"
+          className="absolute top-2 left-2 w-7 h-7 rounded-md flex items-center justify-center bg-background/80 backdrop-blur-sm text-foreground/70 hover:text-foreground hover:bg-background opacity-0 group-hover:opacity-100 transition-all shadow-sm"
+        >
+          <Pencil size={12} />
+        </button>
       </div>
-    </div>
+
+      <SpotifyLinkModal
+        open={modalOpen}
+        initialUrl={rawUrl}
+        onClose={() => setModalOpen(false)}
+        onSubmit={(url) => {
+          onUpdateConfig?.({ spotifyUrl: url });
+          setModalOpen(false);
+        }}
+      />
+    </>
   );
 }

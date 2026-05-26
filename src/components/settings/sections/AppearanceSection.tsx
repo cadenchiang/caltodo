@@ -121,16 +121,19 @@ const THEME_OPTIONS: ThemeOption[] = [
  */
 export default function AppearanceSection() {
   const { colorTheme, setColorTheme } = useTheme();
-  const { isPro } = useEntitlement();
+  const { isPro, loading: entitlementLoading } = useEntitlement();
   const [showUpgrade, setShowUpgrade] = useState(false);
 
   // Miffy is the only Pro-gated theme. If a free user somehow has it active
   // (e.g. trial expired), reset to default. Other themes apply freely.
+  // Wait for the entitlement fetch to resolve so Pro users don't have Miffy
+  // wiped during the brief window where isPro is still false on first paint.
   useEffect(() => {
+    if (entitlementLoading) return;
     if (!isPro && colorTheme === "miffy") {
       setColorTheme(null);
     }
-  }, [isPro, colorTheme, setColorTheme]);
+  }, [entitlementLoading, isPro, colorTheme, setColorTheme]);
 
   /**
    * Handles clicking a theme card. Toggles active theme, or shows the upgrade
