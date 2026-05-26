@@ -45,19 +45,6 @@ export default function TemplateWidgetMock({ type, w, h }: { type: string; w: nu
           ))}
         </div>
       );
-    case "clock":
-      return (
-        <div className="flex flex-col items-center justify-center h-full">
-          <div className="flex items-baseline gap-0.5">
-            <span className="text-xl font-extralight text-foreground/80 tabular-nums">11</span>
-            <span className="text-xl font-extralight text-foreground/80 tabular-nums">52</span>
-          </div>
-          <div className="flex gap-2 text-[6px] text-foreground mt-0.5">
-            <span>AM</span>
-            <span>MON</span>
-          </div>
-        </div>
-      );
     case "weather":
       return (
         <div className="p-2 flex flex-col justify-between h-full">

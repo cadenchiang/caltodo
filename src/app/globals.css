@@ -2409,6 +2409,70 @@ input[type="range"].slider-blue::-moz-range-track {
   50% { opacity: 0; }
 }
 
+/* Flip-clock colon blink — two dots between the hour/minute cards fade
+   out for half each second so the time reads as "ticking" without any
+   layout movement. 1.6s cycle feels alive without being distracting. */
+.animate-clock-blink {
+  animation: colonBlink 1.6s ease-in-out infinite;
+}
+
+/* Flip-clock card colors — inverted by default (card uses --foreground
+   for its bg and --background for its text) so the cards read as black
+   on white in light mode and white on black in dark mode. Themed
+   variants override these vars to use the theme's accent palette. */
+:root {
+  --flipcard-bg: var(--foreground);
+  --flipcard-text: var(--background);
+}
+.theme-miffy {
+  --flipcard-bg: #e8729a;
+  --flipcard-text: #ffffff;
+}
+.theme-forest {
+  --flipcard-bg: #2f5d4a;
+  --flipcard-text: #ffffff;
+}
+.theme-sunset {
+  --flipcard-bg: #e85a4f;
+  --flipcard-text: #ffffff;
+}
+.theme-lavender {
+  --flipcard-bg: #8b6fb8;
+  --flipcard-text: #ffffff;
+}
+.theme-nord {
+  --flipcard-bg: #5e81ac;
+  --flipcard-text: #ffffff;
+}
+.theme-rosewood {
+  --flipcard-bg: #6b2737;
+  --flipcard-text: #ffffff;
+}
+.theme-midnight {
+  --flipcard-bg: #1e2a44;
+  --flipcard-text: #ffffff;
+}
+.theme-matcha {
+  --flipcard-bg: #6b8e4e;
+  --flipcard-text: #ffffff;
+}
+.theme-dracula {
+  --flipcard-bg: #bd93f9;
+  --flipcard-text: #1a1a2e;
+}
+.theme-cyber {
+  --flipcard-bg: #ff006e;
+  --flipcard-text: #ffffff;
+}
+.theme-sandstone {
+  --flipcard-bg: #c69963;
+  --flipcard-text: #ffffff;
+}
+.theme-tokyo-night {
+  --flipcard-bg: #7aa2f7;
+  --flipcard-text: #1a1b26;
+}
+
 @keyframes editHint {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }

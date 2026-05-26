@@ -100,7 +100,15 @@ export function useWidgetLayout() {
    * Extracted to avoid duplication between localStorage and server hydration.
    */
   const applyLayout = useCallback((p: PersistedLayout) => {
-    setWidgets(p.widgets || []);
+    // Filter out retired widget types (e.g. clock) from any persisted
+    // layout so users whose saved board still references them don't see
+    // a broken / empty card at the bottom of the dashboard. Layout
+    // entries pointing at removed IDs become orphans and are ignored by
+    // react-grid-layout. Cast through string because the retired types
+    // are no longer in WidgetType's union.
+    const RETIRED = new Set<string>(["clock"]);
+    const clean = (p.widgets || []).filter((w) => !RETIRED.has(w.type as unknown as string));
+    setWidgets(clean);
     setLayoutsState(p.layouts || { lg: [], md: [], sm: [] });
     const title = p.boardTitle || "My Board";
     const desc = p.boardDescription || "";

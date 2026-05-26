@@ -17,7 +17,6 @@ import { useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "@/contexts/ThemeContext";
 import type { WidgetInstance } from "@/lib/widget-types";
-import ClockWidget from "@/components/home/widgets/ClockWidget";
 import ProfileWidget from "@/components/home/widgets/ProfileWidget";
 import IntroWidget from "@/components/home/widgets/IntroWidget";
 import TasksTodayWidget from "@/components/home/widgets/TasksTodayWidget";
@@ -76,8 +75,6 @@ export function RenderWidget({
       return <ProfileWidget config={widget.config} />;
     case "intro":
       return <IntroWidget config={widget.config} />;
-    case "clock":
-      return <ClockWidget config={widget.config} />;
     case "tasks-today":
       return <TasksTodayWidget config={widget.config} />;
     case "class-progress":

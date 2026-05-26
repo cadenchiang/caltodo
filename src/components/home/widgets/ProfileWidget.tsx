@@ -63,7 +63,10 @@ export default function ProfileWidget({ config }: ProfileWidgetProps) {
 
   const fullName = (profile?.fullName ?? "").trim();
   const initial = (fullName || profile?.email || "?").slice(0, 1).toUpperCase();
-  const role = config?.role || "Student";
+  // School inferred from the email domain. config.role still wins if the
+  // user manually set it; otherwise default to "<School> student" when
+  // we recognize the domain, falling back to "Student" when we don't.
+  const role = config?.role || schoolFromEmail(profile?.email) || "Student";
 
   return (
     <div className="h-full w-full flex flex-col p-4 gap-3 text-foreground">
@@ -102,4 +105,59 @@ export default function ProfileWidget({ config }: ProfileWidgetProps) {
       </div>
     </div>
   );
+}
+
+/**
+ * Map of known email domains → short school name used in the role line.
+ * Covers the universities our users come from. Add entries here as new
+ * schools onboard; lookups are exact-match on the domain segment after
+ * the @ sign (so subdomains like `cs.berkeley.edu` need their own row
+ * if we want to handle them differently).
+ */
+const SCHOOL_BY_DOMAIN: Record<string, string> = {
+  "berkeley.edu": "UC Berkeley",
+  "stanford.edu": "Stanford",
+  "mit.edu": "MIT",
+  "harvard.edu": "Harvard",
+  "princeton.edu": "Princeton",
+  "yale.edu": "Yale",
+  "cornell.edu": "Cornell",
+  "columbia.edu": "Columbia",
+  "upenn.edu": "Penn",
+  "brown.edu": "Brown",
+  "dartmouth.edu": "Dartmouth",
+  "cmu.edu": "CMU",
+  "ucla.edu": "UCLA",
+  "ucsd.edu": "UC San Diego",
+  "ucsb.edu": "UC Santa Barbara",
+  "uci.edu": "UC Irvine",
+  "ucdavis.edu": "UC Davis",
+  "usc.edu": "USC",
+  "nyu.edu": "NYU",
+  "northwestern.edu": "Northwestern",
+  "duke.edu": "Duke",
+  "uchicago.edu": "UChicago",
+  "umich.edu": "Michigan",
+  "gatech.edu": "Georgia Tech",
+  "uiuc.edu": "UIUC",
+  "rice.edu": "Rice",
+  "utexas.edu": "UT Austin",
+  "tamu.edu": "Texas A&M",
+};
+
+/**
+ * Returns a "<School> student" string when the email matches a known
+ * university domain, or null when no match. The Profile widget uses the
+ * null branch to fall back to a generic "Student" label.
+ *
+ * @param email - User's email address, or null/undefined
+ * @returns Formatted role string, or null when the domain isn't known
+ */
+function schoolFromEmail(email: string | null | undefined): string | null {
+  if (!email) return null;
+  const at = email.lastIndexOf("@");
+  if (at < 0) return null;
+  const domain = email.slice(at + 1).toLowerCase();
+  const school = SCHOOL_BY_DOMAIN[domain];
+  return school ? `${school} student` : null;
 }

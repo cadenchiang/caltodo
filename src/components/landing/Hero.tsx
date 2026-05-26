@@ -124,21 +124,20 @@ export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
                   Gradescope
                 </div>
               </div>
-              {/* caltodo — center, lowest (bottom of V) — appears first, platforms emerge from behind */}
-              <div
-                className="relative flex flex-col items-center z-20 cluster-center-in"
+              {/* caltodo — center, lowest (bottom of V). No wrapping div so
+                  the calendar shape sits directly on the page background
+                  (no inherited bg or z-context). The cluster animation is
+                  applied to the Image element itself instead. */}
+              <Image
+                src="/logo.png"
+                alt="caltodo"
+                width={512}
+                height={536}
+                priority
+                sizes="(min-width: 640px) 96px, 48px"
+                className="h-12 sm:h-24 w-auto relative z-20 cluster-center-in"
                 style={{ animationDelay: "0ms" }}
-              >
-                <Image
-                  src="/logo.png"
-                  alt="caltodo"
-                  width={512}
-                  height={536}
-                  priority
-                  sizes="(min-width: 640px) 96px, 48px"
-                  className="h-12 sm:h-24 w-auto relative z-10"
-                />
-              </div>
+              />
               {/* Pensieve — inner right, mid */}
               <div
                 className="group relative cursor-pointer flex flex-col items-center -ml-1 sm:-ml-3 z-10 cluster-emerge"
@@ -494,6 +493,7 @@ export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
             alt="caltodo"
             width={512}
             height={536}
+            priority
             sizes="48px"
             className="h-12 w-auto mb-10"
           />

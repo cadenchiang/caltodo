@@ -90,7 +90,13 @@ export default function IntroWidget({ config }: IntroWidgetProps) {
     month: "long",
     day: "numeric",
   });
-  const hh = String(now.getHours()).padStart(2, "0");
+  // 12-hour clock with am/pm suffix. `getHours()` returns 0-23, so we
+  // wrap into 1-12 and pick the right meridiem. 0 maps to 12am, 13 to
+  // 1pm, etc. Lowercase suffix to match the rest of the widget's voice.
+  const rawHour = now.getHours();
+  const meridiem = rawHour >= 12 ? "pm" : "am";
+  const hour12 = rawHour % 12 === 0 ? 12 : rawHour % 12;
+  const hh = String(hour12).padStart(2, "0");
   const mm = String(now.getMinutes()).padStart(2, "0");
 
   // Day-of-year — fills the card with one more piece of subtle context
@@ -108,7 +114,10 @@ export default function IntroWidget({ config }: IntroWidgetProps) {
           <div className="text-xs font-medium mt-1 truncate">{dateStr}</div>
         </div>
         <div className="text-2xl font-bold tabular-nums shrink-0 leading-none">
-          {hh}:{mm}
+          {Number(hh)}
+          <span className="animate-clock-blink mx-0.5">:</span>
+          {mm}
+          <span className="text-sm font-semibold ml-1 align-baseline">{meridiem}</span>
         </div>
       </div>
 
@@ -122,3 +131,4 @@ export default function IntroWidget({ config }: IntroWidgetProps) {
     </div>
   );
 }
+

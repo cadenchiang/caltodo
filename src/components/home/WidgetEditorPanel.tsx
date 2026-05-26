@@ -8,7 +8,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
-  X, Camera, Trash2, CheckSquare, Clock, ImageIcon, GraduationCap,
+  X, Camera, Trash2, CheckSquare, ImageIcon, GraduationCap,
   Calendar, FileText, CloudSun, MessagesSquare, Timer,
   Hourglass, Link, Flame, Quote, BarChart3, Grid3X3, Smile, Music,
 } from "lucide-react";
@@ -22,7 +22,6 @@ import ColorPickerPopover from "@/components/ui/ColorPickerPopover";
 import { useTheme } from "@/contexts/ThemeContext";
 import CalendarPicker from "@/components/home/CalendarPicker";
 import CollapsibleSection from "@/components/home/CollapsibleSection";
-import ClockFacePicker from "@/components/home/ClockFacePicker";
 import WeatherDisplayPicker from "@/components/home/WeatherDisplayPicker";
 import GCalDisplayPicker from "@/components/home/GCalDisplayPicker";
 import NotesStylePicker from "@/components/home/NotesStylePicker";
@@ -66,7 +65,7 @@ const WIDGET_ACCENT_DEFAULTS: Record<string, string> = {
 };
 
 const WIDGET_LABELS: Record<string, string> = {
-  clock: "Clock", "tasks-today": "Tasks Widget", "class-progress": "Class Progress",
+  "tasks-today": "Tasks Widget", "class-progress": "Class Progress",
   "google-calendar": "Google Calendar", image: "Image",
   notes: "Notes", weather: "Weather", "cal-chat": "Cal Chat", pomodoro: "Pomodoro",
   countdown: "Countdown", "quick-links": "Quick Links", "habit-tracker": "Habit Tracker",
@@ -76,7 +75,7 @@ const WIDGET_LABELS: Record<string, string> = {
 
 /** Maps widget type to its lucide-react icon component for the editor header. */
 const WIDGET_ICONS: Record<string, LucideIcon> = {
-  clock: Clock, "tasks-today": CheckSquare, "class-progress": GraduationCap,
+  "tasks-today": CheckSquare, "class-progress": GraduationCap,
   "google-calendar": Calendar, image: ImageIcon,
   notes: FileText, weather: CloudSun, "cal-chat": MessagesSquare, pomodoro: Timer,
   countdown: Hourglass, "quick-links": Link, "habit-tracker": Flame,
@@ -314,13 +313,6 @@ export default function WidgetEditorPanel({
 
       {/* Body — scrollable settings */}
       <div className="p-3 space-y-3 overflow-y-auto flex-1 text-sm">
-        {/* Clock — single view, only timezone / format / weight remain. */}
-        {widget.type === "clock" && <>
-          <CollapsibleSection title="Time Format" hint={localConfig.clockFormat === "24" ? "24h" : "12h"}><SegmentedControl options={[{ value: "12", label: "12h" }, { value: "24", label: "24h" }]} value={localConfig.clockFormat || "12"} onChange={(v) => updateField("clockFormat", v)} /></CollapsibleSection>
-          <CollapsibleSection title="Timezone"><select value={localConfig.clockTimezone || ""} onChange={(e) => updateField("clockTimezone", e.target.value)} className={SEL}>{TIMEZONE_OPTIONS.map((tz) => <option key={tz.value} value={tz.value}>{tz.label}</option>)}</select></CollapsibleSection>
-          <CollapsibleSection title="Font Weight"><select value={localConfig.clockFontWeight || "300"} onChange={(e) => updateField("clockFontWeight", e.target.value)} className={SEL}>{WEIGHT_OPTIONS.map((w) => <option key={w.value} value={w.value}>{w.label}</option>)}</select></CollapsibleSection>
-        </>}
-
         {/* Tasks — single view, only the show-completed toggle remains. */}
         {widget.type === "tasks-today" && (
           <CollapsibleSection title="Show Completed"><SegmentedControl options={[{ value: "true", label: "Show" }, { value: "false", label: "Hide" }]} value={localConfig.showCompleted ?? "true"} onChange={(v) => updateField("showCompleted", v)} /></CollapsibleSection>

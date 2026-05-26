@@ -6,11 +6,42 @@
  * MobileTabBar. URLs remain accessible if typed directly.
  */
 
-import { NAV_ITEMS } from "@/lib/constants";
+import { useEffect, useState } from "react";
+import { NAV_ITEMS, isNotesAllowed } from "@/lib/constants";
 import { useHiddenNavItems } from "@/hooks/useHiddenNavItems";
+
+/**
+ * Reads the cached user email from the profile cache the Sidebar writes
+ * on mount. Same pattern as AccountSection / ProfileSection so we don't
+ * have to refetch the auth user just to gate one nav row.
+ */
+function readCachedEmail(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem("caltodo_user_profile");
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { email?: string | null };
+    return parsed.email ?? null;
+  } catch {
+    return null;
+  }
+}
 
 export default function NavigationSection() {
   const { isHidden, toggle } = useHiddenNavItems();
+  const [email, setEmail] = useState<string | null>(null);
+
+  // Hydrate the email after mount so SSR doesn't render the Notes row
+  // for everyone and then flicker it away. The cache is populated by
+  // the Sidebar on first paint, so reading it here is reliable.
+  useEffect(() => {
+    setEmail(readCachedEmail());
+  }, []);
+
+  const notesAllowed = isNotesAllowed(email);
+  const visibleItems = NAV_ITEMS.filter(
+    (item) => item.href !== "/app/notes" || notesAllowed,
+  );
 
   return (
     <div className="space-y-6">
@@ -23,7 +54,7 @@ export default function NavigationSection() {
       </div>
 
       <div className="border border-border rounded-xl divide-y divide-border overflow-hidden">
-        {NAV_ITEMS.map((item) => {
+        {visibleItems.map((item) => {
           const Icon = item.icon;
           const hidden = isHidden(item.href);
           return (

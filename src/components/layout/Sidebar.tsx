@@ -4,7 +4,7 @@ import { useState, useEffect, useTransition } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useRouter } from "next/navigation";
 import { Inbox, Sun, CalendarRange, ChevronLeft } from "lucide-react";
-import { NAV_ITEMS } from "@/lib/constants";
+import { NAV_ITEMS, isNotesAllowed } from "@/lib/constants";
 import { SETTINGS_SECTIONS, SETTINGS_GROUPS, DEFAULT_SECTION, type SettingsSectionId } from "@/lib/settingsConfig";
 import SidebarNavItem, { navItemClasses, SidebarActivePill } from "./SidebarNavItem";
 import ProfilePopup from "./ProfilePopup";
@@ -71,13 +71,11 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
   // CalChat removed — no unread badge to compute.
   useOnboardingStatus();
   const { isHidden: isNavItemHidden } = useHiddenNavItems();
-  // "Notes" is gated to a short allowlist (Chenfei + victoriachow). Everyone
+  // "Notes" is gated to a short allowlist (see constants.ts). Everyone
   // else doesn't see the sidebar item at all. The route itself is still
   // reachable by URL for users who somehow have notes already, but the
   // navigation entry is hidden.
-  const NOTES_ALLOWLIST = ["chenfei", "victoriachow"];
-  const emailLower = (email ?? "").toLowerCase();
-  const isNotesAllowed = NOTES_ALLOWLIST.some((name) => emailLower.includes(name));
+  const notesAllowed = isNotesAllowed(email);
 
   // Active settings section: URL is the source of truth, but we keep an
   // optimistic local override that updates synchronously on click. Without
@@ -186,7 +184,7 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
               .filter((item) => !isNavItemHidden(item.href))
               // Notes is allowlist-gated — only Chenfei + victoriachow see
               // it in the sidebar. URL still resolves for anyone.
-              .filter((item) => item.href !== "/app/notes" || isNotesAllowed)
+              .filter((item) => item.href !== "/app/notes" || notesAllowed)
               .map((item) => {
               const isInbox = item.href === "/app/inbox";
               return (

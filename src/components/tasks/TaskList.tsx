@@ -743,7 +743,7 @@ export default function TaskList({
       {completed.length > 0 && (
         <div className="mt-1">
           <div
-            className="flex items-center mx-0 pl-0 pr-1 py-1.5 rounded-lg hover:bg-accent transition-colors group cursor-pointer"
+            className="flex items-center -ml-3 pl-3 pr-3 py-2 md:-ml-4 md:pl-4 md:pr-4 md:py-2.5 rounded-xl hover:bg-foreground/[0.035] dark:hover:bg-foreground/[0.07] transition-colors group cursor-pointer"
             onClick={() => {
               const next = !completedExpanded;
               setCompletedExpanded(next);

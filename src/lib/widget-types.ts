@@ -12,7 +12,6 @@ export type WidgetType =
   | "profile"
   | "intro"
   | "tasks-today"
-  | "clock"
   | "image"
   | "class-progress"
   | "google-calendar"
@@ -95,16 +94,6 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     category: "popular",
     minW: 2, minH: 2, maxW: 4, maxH: 4,
     defaultW: 2, defaultH: 2,
-  },
-  clock: {
-    type: "clock",
-    label: "Clock",
-    description: "Live time and date",
-    iconName: "Clock",
-    category: "popular",
-    minW: 2, minH: 2, maxW: 4, maxH: 3,
-    defaultW: 2, defaultH: 2,
-    hidden: true,
   },
   image: {
     type: "image",

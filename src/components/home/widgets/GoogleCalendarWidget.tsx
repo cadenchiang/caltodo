@@ -250,7 +250,7 @@ export default function GoogleCalendarWidget({ config, editMode, onUpdateConfig 
   const DisplayComponent = GCAL_DISPLAY_MAP[displayId] || GCAL_DISPLAY_MAP.list;
 
   return (
-    <div ref={containerRef} className="h-full w-full flex flex-col px-5 py-4 overflow-hidden">
+    <div ref={containerRef} className="relative h-full w-full flex flex-col px-5 py-4 overflow-hidden">
       <WidgetHeader
         title="Google Calendar"
         right={
@@ -273,6 +273,16 @@ export default function GoogleCalendarWidget({ config, editMode, onUpdateConfig 
           calendarColors={calendarColors}
           fallbackColor={accentFallback}
           compact={compact}
+        />
+      )}
+      {/* Subtle fade at the bottom edge — tells the user the event list
+          continues offscreen when it overflows, without adding a visible
+          scrollbar or harsh edge. Sits above the list content but lets
+          clicks pass through so events stay interactive. */}
+      {events.length > 0 && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute left-0 right-0 bottom-0 h-12 bg-gradient-to-b from-transparent to-[var(--card)]"
         />
       )}
     </div>
