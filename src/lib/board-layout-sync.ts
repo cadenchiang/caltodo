@@ -180,3 +180,25 @@ export function debouncedServerSave(data: object): void {
     saveWithRetry(data);
   }, 500);
 }
+
+/**
+ * Decides whether an onLayoutChange event should be persisted to the server.
+ *
+ * react-grid-layout fires onLayoutChange automatically on mount, before the
+ * user has done anything. Persisting that would write a frozen copy of the
+ * template-fallback layout into the user's own row, detaching them from
+ * future template updates. We therefore persist a layout-change ONLY when
+ * both gates are open: initial hydration has completed (so we don't clobber
+ * server state with stale defaults) AND the user has genuinely interacted
+ * (drag/resize/add/remove/edit) this session.
+ *
+ * @param hydrationComplete - Whether the initial server fetch has finished
+ * @param interacted - Whether the user has made a genuine edit this session
+ * @returns true only when both gates are open
+ */
+export function shouldPersistLayoutChange(
+  hydrationComplete: boolean,
+  interacted: boolean
+): boolean {
+  return hydrationComplete && interacted;
+}

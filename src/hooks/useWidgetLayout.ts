@@ -23,6 +23,7 @@ import {
   fetchServerLayout,
   debouncedServerSave,
   registerSaveErrorHandler,
+  shouldPersistLayoutChange,
 } from "@/lib/board-layout-sync";
 import { readPersistedLayout, writeLayoutCache } from "@/lib/board-layout-cache";
 import {
@@ -82,6 +83,17 @@ export function useWidgetLayout() {
 
   /** Instance-level gate: prevents server saves before initial fetch completes. */
   const hydrationCompleteRef = useRef(false);
+
+  /**
+   * Tracks whether the user has made a genuine edit (drag, resize, add,
+   * remove, or any explicit board change) this session. Stays false on
+   * plain view/load so the automatic onLayoutChange that react-grid-layout
+   * fires on mount never persists a copy of the template-fallback layout.
+   * Without this, simply opening the board would write a frozen snapshot,
+   * detaching the user from future template updates. Once true, the
+   * layout-change path persists normally.
+   */
+  const interactedRef = useRef(false);
 
   /** Current Supabase user id, stored in cache envelope for debuggability. Null until the async auth lookup resolves. */
   const userIdRef = useRef<string | null>(null);
@@ -189,6 +201,10 @@ export function useWidgetLayout() {
         savedImages: overrides.savedImages ?? savedImagesRef.current,
         updatedAt: Date.now(),
       };
+      // Any call to persistLayout is a deliberate edit (add/remove/title/
+      // drag-driven save), so mark the session as interacted. This keeps the
+      // onLayoutChange auto-fire path persisting once real editing begins.
+      interactedRef.current = true;
       writeLayoutCache(data, userIdRef.current ?? undefined);
       if (hydrationCompleteRef.current) {
         debouncedServerSave(data);
@@ -196,6 +212,15 @@ export function useWidgetLayout() {
     },
     []
   );
+
+  /**
+   * Marks that the user has begun a genuine grid interaction (drag/resize
+   * start). Call from the grid's drag/resize start handlers so the
+   * subsequent onLayoutChange persists the result. No-op once already set.
+   */
+  const markInteracted = useCallback(() => {
+    interactedRef.current = true;
+  }, []);
 
   // Server-authoritative hydration with instant cache paint.
   //
@@ -302,10 +327,17 @@ export function useWidgetLayout() {
     (_currentLayout: Layout, allLayouts: ResponsiveLayouts<string>) => {
       setLayoutsState((prev) => {
         if (prev === allLayouts) return prev;
-        setWidgets((prevWidgets) => {
-          persistLayout(prevWidgets, allLayouts);
-          return prevWidgets;
-        });
+        // Always update local state so the grid renders, but only persist
+        // once hydration is done AND the user has genuinely interacted.
+        // react-grid-layout fires onLayoutChange automatically on mount;
+        // persisting that would write a frozen copy of the template-fallback
+        // layout and detach the user from future template updates.
+        if (shouldPersistLayoutChange(hydrationCompleteRef.current, interactedRef.current)) {
+          setWidgets((prevWidgets) => {
+            persistLayout(prevWidgets, allLayouts);
+            return prevWidgets;
+          });
+        }
         return allLayouts;
       });
     },
@@ -580,7 +612,7 @@ export function useWidgetLayout() {
     titleFontFamily, titleTextColor, titleFontSize,
     coverHeight, coverPositionY,
     dividerColor, dividerThickness, dividerText, dividerVisible,
-    setLayouts, addWidget, removeWidget,
+    setLayouts, markInteracted, addWidget, removeWidget,
     updateWidgetConfig, updateAllWidgetConfigs,
     setBoardTitle, setBoardDescription, setCoverImageUrl,
     setBoardEmoji, setIconSize, setTitleConfig, setCoverConfig,

@@ -66,6 +66,8 @@ interface WidgetGridProps {
   onDragStart?: () => void;
   /** Called when a widget drag ends (to re-enable parent scroll). */
   onDragStop?: () => void;
+  /** Called when a widget resize starts (to mark genuine interaction). */
+  onResizeStart?: () => void;
   /** ID of the widget currently open in the editor panel. */
   selectedWidgetId?: string | null;
   /** Whether to accept external drops (drag-from-gallery). */
@@ -84,6 +86,7 @@ export default function WidgetGrid({
   onUpdateWidgetConfig,
   onDragStart,
   onDragStop,
+  onResizeStart,
   selectedWidgetId,
   acceptDrop,
   onExternalDrop,
@@ -307,6 +310,7 @@ export default function WidgetGrid({
           onLayoutChange={handleLayoutChange}
           onDragStart={onDragStart}
           onDragStop={onDragStop}
+          onResizeStart={onResizeStart}
         >
           {gridItems}
         </ResponsiveGridLayout>

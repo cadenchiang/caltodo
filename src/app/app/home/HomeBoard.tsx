@@ -53,6 +53,7 @@ export default function HomeBoard({ embedded = false }: HomeBoardProps = {}) {
     boardEmoji,
     iconSize,
     setLayouts,
+    markInteracted,
     addWidget,
     removeWidget,
     updateWidgetConfig,
@@ -384,8 +385,9 @@ export default function HomeBoard({ embedded = false }: HomeBoardProps = {}) {
             onRemoveWidget={removeWidget}
             onWidgetSettings={handleWidgetSettings}
             onUpdateWidgetConfig={updateWidgetConfig}
-            onDragStart={() => setIsDragging(true)}
+            onDragStart={() => { markInteracted(); setIsDragging(true); }}
             onDragStop={() => setIsDragging(false)}
+            onResizeStart={markInteracted}
             selectedWidgetId={settingsWidget?.id}
             acceptDrop={!!draggingType}
             onExternalDrop={handleExternalDrop}
