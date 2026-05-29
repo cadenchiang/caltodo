@@ -103,11 +103,11 @@ export default function ClassGroupHeader({
   }
 
   return (
-    <div className="flex items-center pl-2.5 pr-2 py-1.5 mx-2 mt-1 rounded-lg group">
-      {/* Chevron toggle */}
+    <div className="flex items-center -ml-3 pl-3 pr-3 py-1.5 mt-1 rounded-xl group">
+      {/* Chevron toggle - pulled into left padding zone so title aligns with TaskCheckbox */}
       <button
         onClick={onToggle}
-        className="shrink-0 p-0.5 hover:opacity-80 transition-opacity"
+        className="shrink-0 -ml-4 p-0.5 hover:opacity-80 transition-opacity"
         aria-label={isCollapsed ? "Expand group" : "Collapse group"}
       >
         <ChevronRight
@@ -129,12 +129,12 @@ export default function ClassGroupHeader({
             if (e.key === "Enter") commitRename();
             if (e.key === "Escape") { setEditValue(displayName); setEditing(false); }
           }}
-          className="text-sm font-semibold text-foreground bg-transparent border-b border-blue-500 outline-none min-w-0 ml-0.5 py-0 flex-1"
+          className="text-sm font-semibold text-foreground bg-transparent border-b border-blue-500 outline-none min-w-0 py-0 flex-1"
         />
       ) : (
         <button
           onClick={onToggle}
-          className="text-sm font-semibold text-foreground ml-0.5 truncate text-left hover:opacity-80 transition-opacity"
+          className="text-sm font-semibold text-foreground truncate text-left hover:opacity-80 transition-opacity"
         >
           {displayName}
         </button>

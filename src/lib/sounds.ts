@@ -173,6 +173,91 @@ export function playMessageSent(): void {
 }
 
 /**
+ * Plays a mechanical clock tick for pomodoro button presses.
+ * Short noise burst through a bandpass filter at 3200Hz.
+ */
+export function playPomodoroClick(): void {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+
+  function play() {
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    const bufferSize = Math.floor(ctx.sampleRate * 0.015);
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
+    }
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    const filter = ctx.createBiquadFilter();
+    filter.type = "bandpass";
+    filter.frequency.value = 3200;
+    filter.Q.value = 5;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.8, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+    noise.connect(filter).connect(gain).connect(ctx.destination);
+    noise.start(t);
+    noise.stop(t + 0.03);
+  }
+
+  if (ctx.state === "suspended") {
+    ctx.resume().then(play).catch(() => {});
+  } else {
+    play();
+  }
+}
+
+/**
+ * Plays a classic twin-bell alarm clock ring. 8 alternating strikes
+ * at 2200Hz/2600Hz with metallic overtones. Used when a pomodoro
+ * timer finishes.
+ */
+export function playPomodoroAlarm(): void {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+
+  function play() {
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    const strikes = 8;
+    const interval = 0.12;
+    for (let i = 0; i < strikes; i++) {
+      const offset = t + i * interval;
+      const freq = i % 2 === 0 ? 2200 : 2600;
+      const osc = ctx.createOscillator();
+      osc.type = "square";
+      osc.frequency.value = freq;
+      const osc2 = ctx.createOscillator();
+      osc2.type = "sine";
+      osc2.frequency.value = freq * 2.76;
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0, offset);
+      gain.gain.linearRampToValueAtTime(0.6, offset + 0.005);
+      gain.gain.exponentialRampToValueAtTime(0.001, offset + 0.09);
+      const gain2 = ctx.createGain();
+      gain2.gain.setValueAtTime(0, offset);
+      gain2.gain.linearRampToValueAtTime(0.2, offset + 0.005);
+      gain2.gain.exponentialRampToValueAtTime(0.001, offset + 0.07);
+      osc.connect(gain).connect(ctx.destination);
+      osc2.connect(gain2).connect(ctx.destination);
+      osc.start(offset);
+      osc.stop(offset + 0.1);
+      osc2.start(offset);
+      osc2.stop(offset + 0.1);
+    }
+  }
+
+  if (ctx.state === "suspended") {
+    ctx.resume().then(play).catch(() => {});
+  } else {
+    play();
+  }
+}
+
+/**
  * Plays the iMessage-style "received" sound — a short descending tri-tone.
  * Fires when a new message arrives from another user.
  */

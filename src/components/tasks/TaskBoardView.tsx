@@ -113,6 +113,25 @@ const COLUMN_PALETTE: Array<{ dot: string; bg: string; subtle: string; text: str
 ];
 const NEUTRAL_ACCENT = { dot: "#9CA3AF", bg: "rgba(156,163,175,0.16)", subtle: "rgba(156,163,175,0.03)", text: "#374151" };
 
+/** Date-bucket column names; these keep the fixed palette regardless of task colors. */
+const DATE_BUCKET_SET = new Set(["Today", "Next 3 Days", "Next 7 Days", "Later"]);
+
+/** Builds an accent palette from an arbitrary hex color so board columns match list-view task colors. */
+function accentFromHex(hex: string): { dot: string; bg: string; subtle: string; text: string } {
+  const clean = hex.replace("#", "");
+  if (clean.length !== 6) return NEUTRAL_ACCENT;
+  const r = parseInt(clean.substring(0, 2), 16);
+  const g = parseInt(clean.substring(2, 4), 16);
+  const b = parseInt(clean.substring(4, 6), 16);
+  if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return NEUTRAL_ACCENT;
+  return {
+    dot: hex,
+    bg: `rgba(${r},${g},${b},0.16)`,
+    subtle: `rgba(${r},${g},${b},0.03)`,
+    text: hex,
+  };
+}
+
 /**
  * Returns the column accent for a given column name. Date-bucket names get
  * fixed slots in the palette; everything else (class names, "General") gets
@@ -845,10 +864,12 @@ function BoardColumn({
     };
   }, [tasks]);
 
-  // Column accent — soft tinted pill + colored dot, picked deterministically
-  // from the column name so each class keeps its color across renders. Only
-  // applies to class-grouped columns; date buckets use a neutral palette.
-  const accent = getColumnAccent(name);
+  // Column accent — for class columns, derive from the dominant task color
+  // so the board matches the list view's class color. Date buckets keep the
+  // fixed chronological gradient palette.
+  const accent = (!DATE_BUCKET_SET.has(name) && columnColor)
+    ? accentFromHex(columnColor)
+    : getColumnAccent(name);
 
   // The whole column wrapper is the drag handle now — listeners go on the
   // root div. PointerSensor's 5px activation distance still keeps task-card

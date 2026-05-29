@@ -14,7 +14,7 @@ describe("pickLandingPath — Pro user", () => {
   it("falls through past multiple hidden items", () => {
     expect(
       pickLandingPath({ hidden_nav_items: ["/app/home", "/app/inbox", "/app/calendar"] }, true),
-    ).toBe("/app/discussions");
+    ).toBe("/app/pomodoro");
   });
 
   it("returns /app/inbox fallback when every nav item is hidden", () => {
@@ -25,6 +25,7 @@ describe("pickLandingPath — Pro user", () => {
             "/app/home",
             "/app/inbox",
             "/app/calendar",
+            "/app/pomodoro",
             "/app/discussions",
           ],
         },
@@ -63,7 +64,7 @@ describe("pickLandingPath — Free user (default)", () => {
   it("returns fallback when everything (including home) is unreachable", () => {
     expect(
       pickLandingPath({
-        hidden_nav_items: ["/app/inbox", "/app/calendar", "/app/discussions"],
+        hidden_nav_items: ["/app/inbox", "/app/calendar", "/app/pomodoro", "/app/discussions"],
       }),
     ).toBe("/app/inbox");
   });

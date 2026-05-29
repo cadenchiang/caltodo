@@ -55,7 +55,7 @@ export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: Tas
           <img
             src="/empty-task-illustration.png"
             alt=""
-            className="w-72 h-auto select-none pointer-events-none"
+            className="w-72 h-auto select-none pointer-events-none dark:invert dark:opacity-80"
             draggable={false}
           />
         )}

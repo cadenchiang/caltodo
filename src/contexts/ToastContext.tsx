@@ -50,12 +50,12 @@ const ToastContext = createContext<ToastContextValue | null>(null);
 
 const DEFAULT_DURATION = 6000;
 const DISMISS_ANIMATION_MS = 300;
-/** Maximum number of toasts visible at once. */
-const MAX_TOASTS = 3;
+/** Maximum number of toasts visible at once. Only one toast renders; new toasts replace the current one. */
+const MAX_TOASTS = 1;
 
 /**
  * Provides toast notification state and rendering to the component tree.
- * Supports stacking multiple toasts; oldest auto-dismissed when exceeding MAX_TOASTS.
+ * Only one toast is visible at a time; a new toast replaces any existing one immediately.
  *
  * @param children - Child components that can call useToast()
  */

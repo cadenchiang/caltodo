@@ -24,17 +24,9 @@ import GoogleCalendarWidget from "@/components/home/widgets/GoogleCalendarWidget
 import ImageWidget from "@/components/home/widgets/ImageWidget";
 import ClassProgressWidget from "@/components/home/widgets/ClassProgressWidget";
 import WeatherWidget from "@/components/home/widgets/WeatherWidget";
-import CalChatWidget from "@/components/home/widgets/CalChatWidget";
 import PomodoroWidget from "@/components/home/widgets/PomodoroWidget";
-import CountdownWidget from "@/components/home/widgets/CountdownWidget";
-import QuickLinksWidget from "@/components/home/widgets/QuickLinksWidget";
-import HabitTrackerWidget from "@/components/home/widgets/HabitTrackerWidget";
-import QuoteWidget from "@/components/home/widgets/QuoteWidget";
-import StatsWidget from "@/components/home/widgets/StatsWidget";
 import WeeklyHeatmapWidget from "@/components/home/widgets/WeeklyHeatmapWidget";
-import StickerWidget from "@/components/home/widgets/StickerWidget";
 import SpotifyWidget from "@/components/home/widgets/SpotifyWidget";
-import MiniCalendarWidget from "@/components/home/widgets/MiniCalendarWidget";
 import DailyRemindersWidget from "@/components/home/widgets/DailyRemindersWidget";
 import CoursesWidget from "@/components/home/widgets/CoursesWidget";
 
@@ -53,9 +45,7 @@ interface WidgetContainerProps {
 /** Navigation targets for widget click-through in view mode.
  * Note: "tasks-today" intentionally excluded — it has its own
  * built-in TaskPreviewPopover for inline task viewing. */
-const CLICK_TARGETS: Partial<Record<string, string>> = {
-  "cal-chat": "/app/discussions",
-};
+const CLICK_TARGETS: Partial<Record<string, string>> = {};
 
 /** Maps widget type to its React component. Exported for gallery previews. */
 export function RenderWidget({
@@ -84,28 +74,12 @@ export function RenderWidget({
       return <ImageWidget config={widget.config} widgetId={widget.id} onUpdateConfig={editMode ? onUpdateConfig : undefined} onOpenSettings={onOpenSettings} />;
     case "weather":
       return <WeatherWidget config={widget.config} editMode={editMode} />;
-    case "cal-chat":
-      return <CalChatWidget config={widget.config} />;
     case "pomodoro":
       return <PomodoroWidget config={widget.config} onUpdateConfig={onUpdateConfig} editMode={editMode} />;
-    case "countdown":
-      return <CountdownWidget config={widget.config} />;
-    case "quick-links":
-      return <QuickLinksWidget config={widget.config} onUpdateConfig={onUpdateConfig} />;
-    case "habit-tracker":
-      return <HabitTrackerWidget config={widget.config} onUpdateConfig={onUpdateConfig} />;
-    case "quote":
-      return <QuoteWidget config={widget.config} onUpdateConfig={onUpdateConfig} />;
-    case "stats":
-      return <StatsWidget config={widget.config} />;
     case "weekly-heatmap":
       return <WeeklyHeatmapWidget config={widget.config} />;
-    case "sticker":
-      return <StickerWidget config={widget.config} onUpdateConfig={onUpdateConfig} />;
     case "spotify":
       return <SpotifyWidget config={widget.config} onUpdateConfig={onUpdateConfig} />;
-    case "mini-calendar":
-      return <MiniCalendarWidget config={widget.config} />;
     case "daily-reminders":
       return <DailyRemindersWidget config={widget.config} onUpdateConfig={onUpdateConfig} />;
     case "courses":

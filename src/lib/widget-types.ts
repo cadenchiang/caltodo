@@ -16,17 +16,9 @@ export type WidgetType =
   | "class-progress"
   | "google-calendar"
   | "weather"
-  | "cal-chat"
   | "pomodoro"
-  | "countdown"
-  | "quick-links"
-  | "habit-tracker"
-  | "quote"
-  | "stats"
   | "weekly-heatmap"
-  | "sticker"
   | "spotify"
-  | "mini-calendar"
   | "daily-reminders"
   | "courses";
 
@@ -130,19 +122,6 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     minW: 2, minH: 2, maxW: 4, maxH: 4,
     defaultW: 2, defaultH: 2,
   },
-  "cal-chat": {
-    type: "cal-chat",
-    label: "Cal Chat",
-    description: "Recent messages from Cal Chat",
-    iconName: "MessagesSquare",
-    category: "social",
-    minW: 2, minH: 2, maxW: 4, maxH: 4,
-    defaultW: 2, defaultH: 2,
-    // CalChat was removed from the product — keep the type registered
-    // so any historical widget instances in the DB still resolve, but
-    // hide from the gallery so nobody can add new ones.
-    hidden: true,
-  },
   pomodoro: {
     type: "pomodoro",
     label: "Pomodoro",
@@ -151,56 +130,6 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     category: "popular",
     minW: 2, minH: 2, maxW: 4, maxH: 4,
     defaultW: 2, defaultH: 2,
-  },
-  countdown: {
-    type: "countdown",
-    label: "Countdown",
-    description: "Days until your next deadline or event",
-    iconName: "Hourglass",
-    category: "productivity",
-    minW: 2, minH: 2, maxW: 4, maxH: 3,
-    defaultW: 2, defaultH: 1,
-    hidden: true,
-  },
-  "quick-links": {
-    type: "quick-links",
-    label: "Quick Links",
-    description: "Pinned bookmarks with favicons",
-    iconName: "Link",
-    category: "productivity",
-    minW: 2, minH: 2, maxW: 4, maxH: 4,
-    defaultW: 2, defaultH: 2,
-    hidden: true,
-  },
-  "habit-tracker": {
-    type: "habit-tracker",
-    label: "Habit Tracker",
-    description: "GitHub-style heatmap with streaks",
-    iconName: "Flame",
-    category: "productivity",
-    minW: 2, minH: 2, maxW: 4, maxH: 3,
-    defaultW: 2, defaultH: 2,
-    hidden: true,
-  },
-  quote: {
-    type: "quote",
-    label: "Quote",
-    description: "Daily motivational quotes",
-    iconName: "Quote",
-    category: "media",
-    minW: 2, minH: 2, maxW: 4, maxH: 3,
-    defaultW: 2, defaultH: 1,
-    hidden: true,
-  },
-  stats: {
-    type: "stats",
-    label: "Stats",
-    description: "Task completion metrics and trends",
-    iconName: "BarChart3",
-    category: "info",
-    minW: 2, minH: 2, maxW: 4, maxH: 3,
-    defaultW: 2, defaultH: 1,
-    hidden: true,
   },
   "weekly-heatmap": {
     type: "weekly-heatmap",
@@ -211,16 +140,6 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     minW: 2, minH: 2, maxW: 4, maxH: 3,
     defaultW: 2, defaultH: 2,
   },
-  sticker: {
-    type: "sticker",
-    label: "Sticker",
-    description: "Decorative emoji or text",
-    iconName: "Smile",
-    category: "media",
-    minW: 2, minH: 2, maxW: 4, maxH: 4,
-    defaultW: 2, defaultH: 2,
-    hidden: true,
-  },
   spotify: {
     type: "spotify",
     label: "Spotify",
@@ -229,16 +148,6 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     category: "media",
     minW: 2, minH: 2, maxW: 4, maxH: 4,
     defaultW: 2, defaultH: 2,
-  },
-  "mini-calendar": {
-    type: "mini-calendar",
-    label: "Mini Calendar",
-    description: "Current month grid with today highlighted",
-    iconName: "CalendarDays",
-    category: "info",
-    minW: 2, minH: 2, maxW: 2, maxH: 2,
-    defaultW: 2, defaultH: 2,
-    hidden: true,
   },
   "daily-reminders": {
     type: "daily-reminders",

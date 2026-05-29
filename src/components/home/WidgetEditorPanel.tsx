@@ -9,8 +9,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
   X, Camera, Trash2, CheckSquare, ImageIcon, GraduationCap,
-  Calendar, CloudSun, MessagesSquare, Timer,
-  Hourglass, Link, Flame, Quote, BarChart3, Grid3X3, Smile, Music,
+  Calendar, CloudSun, Timer, Grid3X3, Music,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { WidgetInstance } from "@/lib/widget-types";
@@ -58,17 +57,13 @@ const WIDGET_ACCENT_DEFAULTS: Record<string, string> = {
   "class-progress": "#0e89d6",
   "google-calendar": "#4285F4",
   pomodoro: "#4285F4",
-  quote: "#4285F4",
-  stats: "#4285F4",
-  countdown: "#4285F4",
 };
 
 const WIDGET_LABELS: Record<string, string> = {
   "tasks-today": "Tasks Widget", "class-progress": "Class Progress",
   "google-calendar": "Google Calendar", image: "Image",
-  weather: "Weather", "cal-chat": "Cal Chat", pomodoro: "Pomodoro",
-  countdown: "Countdown", "quick-links": "Quick Links", "habit-tracker": "Habit Tracker",
-  quote: "Quote", stats: "Stats", "weekly-heatmap": "Activity", sticker: "Sticker", spotify: "Spotify",
+  weather: "Weather", pomodoro: "Pomodoro",
+  "weekly-heatmap": "Activity", spotify: "Spotify",
   courses: "Courses",
 };
 
@@ -76,9 +71,8 @@ const WIDGET_LABELS: Record<string, string> = {
 const WIDGET_ICONS: Record<string, LucideIcon> = {
   "tasks-today": CheckSquare, "class-progress": GraduationCap,
   "google-calendar": Calendar, image: ImageIcon,
-  weather: CloudSun, "cal-chat": MessagesSquare, pomodoro: Timer,
-  countdown: Hourglass, "quick-links": Link, "habit-tracker": Flame,
-  quote: Quote, stats: BarChart3, "weekly-heatmap": Grid3X3, sticker: Smile, spotify: Music,
+  weather: CloudSun, pomodoro: Timer,
+  "weekly-heatmap": Grid3X3, spotify: Music,
   courses: GraduationCap,
 };
 
@@ -106,7 +100,6 @@ const SEL = "w-full px-3 py-2 rounded-lg border border-input-border bg-card text
  */
 const INLINE_EDIT_WIDGETS = new Set<string>([
   "pomodoro",
-  "quick-links",
   "daily-reminders",
 ]);
 
@@ -118,9 +111,7 @@ const INLINE_EDIT_WIDGETS = new Set<string>([
 const DISPLAY_ONLY_WIDGETS = new Set<string>([
   "profile",
   "intro",
-  "cal-chat",
   "weekly-heatmap",
-  "mini-calendar",
   "courses",
 ]);
 
@@ -379,39 +370,6 @@ export default function WidgetEditorPanel({
         {widget.type === "weather" && (
           <CollapsibleSection title="Temperature" hint={localConfig.tempUnit === "C" ? "\u00b0C" : "\u00b0F"}><SegmentedControl options={[{ value: "F", label: "\u00b0F" }, { value: "C", label: "\u00b0C" }]} value={localConfig.tempUnit || "F"} onChange={(v) => updateField("tempUnit", v)} /></CollapsibleSection>
         )}
-
-        {/* Countdown */}
-        {widget.type === "countdown" && <>
-          <CollapsibleSection title="Mode" hint={localConfig.countdownMode || "auto"}>
-            <SegmentedControl options={[{ value: "auto", label: "Auto" }, { value: "custom", label: "Custom" }]} value={localConfig.countdownMode || "auto"} onChange={(v) => updateField("countdownMode", v)} />
-            {(localConfig.countdownMode || "auto") === "auto" && <p className="text-xs text-foreground mt-2">Automatically shows your next upcoming deadline.</p>}
-          </CollapsibleSection>
-          {localConfig.countdownMode === "custom" && <>
-            <CollapsibleSection title="Target Date"><input type="date" value={localConfig.countdownDate || ""} onChange={(e) => updateField("countdownDate", e.target.value)} className={SEL} /></CollapsibleSection>
-            <CollapsibleSection title="Label"><input type="text" placeholder="e.g. Spring Break" value={localConfig.countdownLabel || ""} onChange={(e) => updateField("countdownLabel", e.target.value)} className={SEL} /></CollapsibleSection>
-          </>}
-        </>}
-
-        {/* Habit Tracker */}
-        {widget.type === "habit-tracker" && (
-          <CollapsibleSection title="Habit Name"><input type="text" placeholder="e.g. Study 2 hours" value={localConfig.habitName || ""} onChange={(e) => updateField("habitName", e.target.value)} className={SEL} /></CollapsibleSection>
-        )}
-
-        {/* Quote */}
-        {widget.type === "quote" && (
-          <CollapsibleSection title="Category" hint={localConfig.quoteCategory || "all"}><select value={localConfig.quoteCategory || "all"} onChange={(e) => updateField("quoteCategory", e.target.value)} className={SEL}><option value="all">All</option><option value="motivation">Motivation</option><option value="study">Study</option><option value="productivity">Productivity</option></select></CollapsibleSection>
-        )}
-
-        {/* Stats */}
-        {widget.type === "stats" && (
-          <CollapsibleSection title="Metric"><select value={localConfig.statsMetric || "completion"} onChange={(e) => updateField("statsMetric", e.target.value)} className={SEL}><option value="completion">Completion Rate</option><option value="completed-week">Completed This Week</option><option value="streak">Day Streak</option><option value="pending">Tasks Remaining</option></select></CollapsibleSection>
-        )}
-
-        {/* Sticker */}
-        {widget.type === "sticker" && <>
-          <CollapsibleSection title="Emoji" hint={localConfig.stickerEmoji || ""}><input type="text" value={localConfig.stickerEmoji || "✨"} onChange={(e) => updateField("stickerEmoji", e.target.value)} className={SEL} maxLength={4} /></CollapsibleSection>
-          <CollapsibleSection title="Caption"><input type="text" placeholder="Optional text" value={localConfig.stickerText || ""} onChange={(e) => updateField("stickerText", e.target.value)} className={SEL} /></CollapsibleSection>
-        </>}
 
         {/* Spotify — only the URL remains; the player uses one default theme. */}
         {widget.type === "spotify" && (

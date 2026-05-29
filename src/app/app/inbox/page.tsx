@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Inbox, X, Sun, CalendarRange, CalendarDays, GraduationCap, MoreVertical, List, LayoutGrid, ArrowUpDown, RefreshCw, Plus, ChevronDown } from "lucide-react";
 import { useTaskContext } from "@/contexts/TaskContext";
+import { useToast } from "@/contexts/ToastContext";
 import { expandRepeatingTasks, getRealTaskId } from "@/lib/expand-repeating-tasks";
 import TaskList from "@/components/tasks/TaskList";
 import TaskBoardView from "@/components/tasks/TaskBoardView";
@@ -190,11 +191,12 @@ export default function InboxPage() {
     tasks, loading, error, addTask, toggleComplete: rawToggle, deleteTask: rawDelete, updateTask: rawUpdate,
     syncing, triggerSync, reorderTasks, fetchTasks, lastSyncedAt, courseColors,
   } = useTaskContext();
+  const { showToast } = useToast();
 
   /** Wraps toggleComplete to resolve virtual repeat instance IDs to real task IDs. */
   const toggleComplete = useCallback((id: string) => rawToggle(getRealTaskId(id)), [rawToggle]);
   /** Wraps deleteTask to resolve virtual repeat instance IDs to real task IDs. */
-  const deleteTask = useCallback((id: string) => rawDelete(getRealTaskId(id)), [rawDelete]);
+  const deleteTask = useCallback((id: string, opts?: { silent?: boolean }) => rawDelete(getRealTaskId(id), opts), [rawDelete]);
   /** Wraps updateTask to resolve virtual repeat instance IDs to real task IDs. */
   const updateTask = useCallback(
     (id: string, updates: Parameters<typeof rawUpdate>[1]) => rawUpdate(getRealTaskId(id), updates),
@@ -618,7 +620,7 @@ export default function InboxPage() {
 
   return (
     <PageTransition>
-      <div className="flex flex-row -m-4 md:-m-10 h-full max-h-full overflow-hidden">
+      <div className="flex flex-row -m-4 md:-m-10 h-[calc(100%+2rem)] md:h-[calc(100%+5rem)] overflow-hidden">
         {/* Left column — filter bar, tabs row, and task list. */}
         <div className="flex flex-col flex-1 min-w-0 min-h-0">
         {/* Filter + actions bar — Inbox dropdown left, action buttons
@@ -834,7 +836,14 @@ export default function InboxPage() {
                       (t) => (t.course_name || "General") === courseName
                     );
                     for (const t of matching) {
-                      await deleteTask(t.id);
+                      await deleteTask(t.id, { silent: true });
+                    }
+                    if (matching.length > 0) {
+                      showToast(
+                        matching.length === 1
+                          ? "Task deleted"
+                          : `${matching.length} tasks deleted`
+                      );
                     }
                   }}
                   onAddTaskToClass={(courseName) => {
@@ -873,7 +882,14 @@ export default function InboxPage() {
                       (t) => (t.course_name || "General") === courseName
                     );
                     for (const t of matching) {
-                      await deleteTask(t.id);
+                      await deleteTask(t.id, { silent: true });
+                    }
+                    if (matching.length > 0) {
+                      showToast(
+                        matching.length === 1
+                          ? "Task deleted"
+                          : `${matching.length} tasks deleted`
+                      );
                     }
                   }}
                 />

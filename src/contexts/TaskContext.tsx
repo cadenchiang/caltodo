@@ -128,7 +128,7 @@ interface TaskContextValue {
   addTask: (data: TaskInsert) => Promise<void>;
   updateTask: (id: string, updates: TaskUpdate) => Promise<void>;
   toggleComplete: (id: string) => Promise<void>;
-  deleteTask: (id: string) => Promise<void>;
+  deleteTask: (id: string, opts?: { silent?: boolean }) => Promise<void>;
   deleteTasksBySource: (source: "canvas" | "gradescope" | "pensieve" | "syllabus") => Promise<void>;
   /** Deletes all syllabus tasks for a specific course_name. */
   deleteSyllabusTasksByCourse: (courseName: string) => Promise<void>;
@@ -789,8 +789,10 @@ export function TaskProvider({ children }: { children: ReactNode }) {
    * Deletes a task. Synced tasks (with source + external_id) are soft-deleted
    * by setting dismissed_at so the sync engine won't resurrect them.
    * Manual tasks are hard-deleted since they can't be recreated by sync.
+   *
+   * @param opts.silent - When true, suppresses the per-task toast (used by bulk delete callers).
    */
-  async function deleteTask(id: string) {
+  async function deleteTask(id: string, opts?: { silent?: boolean }) {
     trackEvent("task_deleted");
     const taskToDelete = tasks.find((t) => t.id === id);
     const previousIndex = tasks.findIndex((t) => t.id === id);
@@ -809,7 +811,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     // clearing dismissed_at (the row still exists). Manual tasks are
     // re-inserted with the same id so any other UI references still work —
     // Supabase will accept the same UUID since the original row was deleted.
-    if (taskToDelete) {
+    if (taskToDelete && !opts?.silent) {
       showToast("Task deleted", {
         action: {
           label: "Undo",

@@ -13,23 +13,16 @@ import {
 describe("WIDGET_REGISTRY", () => {
   it("should contain all widget types", () => {
     const expectedTypes: WidgetType[] = [
+      "profile",
+      "intro",
       "tasks-today",
-      "clock",
       "image",
       "class-progress",
       "google-calendar",
       "weather",
-      "cal-chat",
       "pomodoro",
-      "countdown",
-      "quick-links",
-      "habit-tracker",
-      "quote",
-      "stats",
       "weekly-heatmap",
-      "sticker",
       "spotify",
-      "mini-calendar",
       "daily-reminders",
       "courses",
     ];
@@ -71,16 +64,19 @@ describe("generateWidgetId", () => {
 });
 
 describe("getDefaultLayout", () => {
-  it("should return an empty default layout (clean slate)", () => {
+  it("should return the curated starter widget set", () => {
     const { widgets } = getDefaultLayout();
-    expect(widgets).toHaveLength(0);
+    expect(widgets.length).toBeGreaterThan(0);
+    const types = widgets.map((w) => w.type);
+    expect(types).toContain("profile");
+    expect(types).toContain("spotify");
   });
 
-  it("should return empty layouts for all breakpoints", () => {
+  it("should return a layout for every breakpoint", () => {
     const { layouts } = getDefaultLayout();
-    expect(layouts.lg).toEqual([]);
-    expect(layouts.md).toEqual([]);
-    expect(layouts.sm).toEqual([]);
+    expect(layouts.lg!.length).toBeGreaterThan(0);
+    expect(layouts.md!.length).toBeGreaterThan(0);
+    expect(layouts.sm!.length).toBeGreaterThan(0);
   });
 
   it("should have a layout entry for every widget", () => {
