@@ -1,13 +1,14 @@
 # caltodo
 
-ai-assisted calendar and to-do app that turns your plans into scheduled tasks.
+calendar and to-do app for students. it pulls all your coursework into one place by integrating canvas, gradescope, and pensive, and uses ai to read your syllabi and extract every deadline.
 
-**600+ users.**
+**600+ users.** live at [caltodo.me](https://caltodo.me)
 
 ## what it does
-- write what you need to do in plain language and get it scheduled
-- ai helps break plans down into calendar tasks
-- to-dos and calendar live in one view
+- sync assignments and deadlines from canvas and gradescope
+- ai reads your course syllabi and pulls out the full schedule of deadlines
+- bring in tasks from pensive
+- see everything in one calendar + to-do view
 
 ## built with
 - next.js
