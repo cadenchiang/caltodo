@@ -6,7 +6,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { Inbox, X, Sun, CalendarRange, CalendarDays, GraduationCap, MoreVertical, List, LayoutGrid, ArrowUpDown, RefreshCw, Plus, ChevronDown } from "lucide-react";
 import { useTaskContext } from "@/contexts/TaskContext";
 import { useToast } from "@/contexts/ToastContext";
-import { expandRepeatingTasks, getRealTaskId } from "@/lib/expand-repeating-tasks";
+import { getRealTaskId } from "@/lib/expand-repeating-tasks";
 import TaskList from "@/components/tasks/TaskList";
 import TaskBoardView from "@/components/tasks/TaskBoardView";
 import TaskDetailPanel from "@/components/tasks/TaskDetailPanel";
@@ -42,50 +42,33 @@ function toDateStr(date: Date): string {
 
 /**
  * Filters tasks by due date relative to today.
- * Expands repeating tasks into virtual instances so they appear
- * on the appropriate dates in the inbox.
+ *
+ * Repeating tasks are NOT expanded into virtual instances here: the base
+ * row's due_date always holds the next occurrence (completing advances it),
+ * so each repeating task appears exactly once in the list. The calendar is
+ * the only view that expands future occurrences.
  *
  * @param tasks - Array of tasks to filter
  * @param filter - Time window filter ("all" = no filter, "today" = due today or earlier + undated, "7days" = next 7 days)
- * @returns Filtered tasks including virtual repeat instances
+ * @returns Filtered tasks
  */
 function filterTasksByDate(tasks: Task[], filter: InboxFilter): Task[] {
   const now = new Date();
   now.setHours(0, 0, 0, 0);
   const todayStr = toDateStr(now);
 
-  // Determine expansion range based on filter
-  let rangeEnd: Date;
   if (filter === "today") {
-    rangeEnd = new Date(now);
-  } else if (filter === "7days") {
-    rangeEnd = new Date(now);
-    rangeEnd.setDate(rangeEnd.getDate() + 7);
-  } else {
-    // "all" — expand 30 days ahead for upcoming repeat instances
-    rangeEnd = new Date(now);
-    rangeEnd.setDate(rangeEnd.getDate() + 30);
-  }
-
-  const rangeEndStr = toDateStr(rangeEnd);
-  const expanded = expandRepeatingTasks(tasks, todayStr, rangeEndStr);
-
-  if (filter === "all") {
-    return expanded.filter((t) => {
-      if (!t.due_date) return true;
-      return t.due_date <= rangeEndStr;
-    });
-  }
-
-  if (filter === "today") {
-    return expanded.filter((t) => {
+    return tasks.filter((t) => {
       if (!t.due_date) return true;
       return t.due_date <= todayStr;
     });
   }
 
-  // "7days"
-  return expanded.filter((t) => {
+  // "all" looks 30 days ahead, "7days" one week.
+  const rangeEnd = new Date(now);
+  rangeEnd.setDate(rangeEnd.getDate() + (filter === "7days" ? 7 : 30));
+  const rangeEndStr = toDateStr(rangeEnd);
+  return tasks.filter((t) => {
     if (!t.due_date) return true;
     return t.due_date <= rangeEndStr;
   });
