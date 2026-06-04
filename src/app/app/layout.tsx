@@ -17,6 +17,7 @@ import TrialBanner from "@/components/ui/TrialBanner";
 import HiddenRouteRedirect from "@/components/layout/HiddenRouteRedirect";
 import PostHogIdentify from "@/components/PostHogIdentify";
 import PomodoroTitleSync from "@/components/pomodoro/PomodoroTitleSync";
+import DeferredFonts from "@/components/layout/DeferredFonts";
 import PostHogPageView from "@/components/PostHogPageView";
 import ResumePendingUpgrade from "@/components/auth/ResumePendingUpgrade";
 
@@ -60,10 +61,9 @@ export default async function AppLayout({
       */}
       <link rel="preconnect" href="https://fonts.googleapis.com" />
       <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-      <link
-        href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Serif+Display&family=Manrope:wght@300;400;500;600;700&family=Nunito:wght@300;400;600;700&family=Outfit:wght@200;300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Quicksand:wght@300;400;500;600;700&family=Sora:wght@200;300;400;500;600;700&family=Source+Serif+4:wght@300;400;500;600;700&family=Urbanist:wght@200;300;400;500;600;700&family=Varela+Round&display=swap"
-        rel="stylesheet"
-      />
+      {/* Customization fonts load after first paint (see DeferredFonts) so a
+          12-family stylesheet never blocks initial render of the app. */}
+      <DeferredFonts />
       <TrialBanner />
       <div className="flex flex-col md:flex-row flex-1 min-h-0">
       <PostHogIdentify userId={session.user.id} email={email} fullName={fullName} />

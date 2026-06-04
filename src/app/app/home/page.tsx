@@ -9,11 +9,14 @@ import HomeBoard from "./HomeBoard";
  * + BoardLockedScreen were removed; the only check left is authentication.
  */
 export default async function HomePage() {
+  // Middleware already authenticated this request with auth.getUser() (and
+  // refreshed tokens); reading the cookie session here avoids a second
+  // Supabase network round-trip on every fresh tab.
   const supabase = await createClient();
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session) redirect("/login");
 
   return <HomeBoard />;
 }
