@@ -16,6 +16,7 @@ import NewAssignmentsModal from "@/components/ui/NewAssignmentsModal";
 import TrialBanner from "@/components/ui/TrialBanner";
 import HiddenRouteRedirect from "@/components/layout/HiddenRouteRedirect";
 import PostHogIdentify from "@/components/PostHogIdentify";
+import PomodoroTitleSync from "@/components/pomodoro/PomodoroTitleSync";
 import PostHogPageView from "@/components/PostHogPageView";
 import ResumePendingUpgrade from "@/components/auth/ResumePendingUpgrade";
 
@@ -67,6 +68,7 @@ export default async function AppLayout({
       <div className="flex flex-col md:flex-row flex-1 min-h-0">
       <PostHogIdentify userId={session.user.id} email={email} fullName={fullName} />
       <PostHogPageView />
+      <PomodoroTitleSync />
       <ToastProvider>
           <PresenceProvider>
           <TaskProvider>
