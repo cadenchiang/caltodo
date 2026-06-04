@@ -1,4 +1,4 @@
-import { Tag, AlignLeft, BookOpen } from "lucide-react";
+import { Tag, AlignLeft, BookOpen, Repeat } from "lucide-react";
 
 /** Default icon size matching the ICON_SIZE constant in detail views. */
 const DEFAULT_ICON_SIZE = 20;
@@ -56,8 +56,14 @@ interface TaskRepeatLabelProps {
 export function TaskRepeatLabel({ repeatLabel }: TaskRepeatLabelProps) {
   if (!repeatLabel) return null;
   return (
-    <div className="pl-9 text-sm text-secondary-foreground mt-0.5">
-      {repeatLabel}
+    <div className="pl-9 mt-1.5">
+      <span
+        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[12px] font-semibold text-purple-400"
+        style={{ backgroundColor: "color-mix(in srgb, currentColor 14%, transparent)" }}
+      >
+        <Repeat size={11} strokeWidth={2.5} />
+        {repeatLabel}
+      </span>
     </div>
   );
 }

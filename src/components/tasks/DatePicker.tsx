@@ -371,7 +371,7 @@ export default function DatePicker({
                           onRepeatChange(null, null);
                           setShowCustomRepeat(false);
                         }}
-                        className="text-[10px] text-subtle-foreground hover:text-secondary-foreground transition-colors"
+                        className="text-xs text-subtle-foreground hover:text-secondary-foreground transition-colors"
                       >
                         Clear
                       </button>
@@ -388,7 +388,7 @@ export default function DatePicker({
                           onRepeatChange(p.interval, p.unit);
                           setShowCustomRepeat(false);
                         }}
-                        className={`text-xs py-1.5 px-2 rounded-lg transition-all ${
+                        className={`text-xs font-medium py-2 px-2 rounded-lg transition-all ${
                           isRepeatPresetActive(p)
                             ? "bg-blue-500 text-white"
                             : "bg-accent text-secondary-foreground hover:bg-blue-50 dark:hover:bg-blue-900/30"
