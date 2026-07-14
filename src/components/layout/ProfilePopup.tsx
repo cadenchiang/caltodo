@@ -7,7 +7,6 @@ import { Settings, MessageCircle, Check } from "lucide-react";
 import ContactModal from "@/components/ui/ContactModal";
 import EditProfileModal from "@/components/ui/EditProfileModal";
 import SignOutConfirmModal from "@/components/ui/SignOutConfirmModal";
-import { useEntitlement } from "@/hooks/useEntitlement";
 import { clearLayoutCache } from "@/lib/board-layout-cache";
 
 interface ProfilePopupProps {
@@ -25,7 +24,6 @@ interface ProfilePopupProps {
  * @param email - User's email address
  */
 export default function ProfilePopup({ avatarUrl, fullName, email }: ProfilePopupProps) {
-  const { entitlement, isTrial, trialDaysLeft } = useEntitlement();
   const [open, setOpen] = useState(false);
   const [imgError, setImgError] = useState(false);
   const [showContact, setShowContact] = useState(false);
@@ -167,9 +165,11 @@ export default function ProfilePopup({ avatarUrl, fullName, email }: ProfilePopu
                     {fullName}
                   </p>
                 )}
-                <p className="text-xs text-muted-foreground truncate leading-tight mt-0.5">
-                  {entitlement ? planLabel(entitlement.effectivePlan, entitlement.founder, isTrial ? trialDaysLeft : null) : "Free Plan"}
-                </p>
+                {email && (
+                  <p className="text-xs text-muted-foreground truncate leading-tight mt-0.5">
+                    {email}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -244,25 +244,4 @@ export default function ProfilePopup({ avatarUrl, fullName, email }: ProfilePopu
       )}
     </div>
   );
-}
-
-/**
- * Returns the plain-text plan label shown under the user's name in the
- * Notion-style popup header.
- *   - Founder → "Founder · Pro for life"
- *   - Pro     → "Pro Plan"
- *   - Trial   → "Pro trial · Nd left"
- *   - Free    → "Free Plan"
- */
-function planLabel(
-  plan: "free" | "trial" | "pro",
-  founder: boolean,
-  trialDaysLeft: number | null,
-): string {
-  if (founder) return "Founder · Pro for life";
-  if (plan === "pro") return "Pro Plan";
-  if (plan === "trial") {
-    return trialDaysLeft !== null ? `Pro trial · ${trialDaysLeft}d left` : "Pro trial";
-  }
-  return "Free Plan";
 }

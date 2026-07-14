@@ -130,9 +130,6 @@ const SECTIONS: Section[] = [
           <li>
             <span className="font-semibold">Vercel:</span> for hosting and analytics.
           </li>
-          <li>
-            <span className="font-semibold">Stripe:</span> for processing Pro subscription payments.
-          </li>
         </ul>
       </>
     ),

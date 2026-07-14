@@ -13,13 +13,11 @@ import CanvasTokenExpiredModal from "@/components/ui/CanvasTokenExpiredModal";
 // GlobalChatNotifier import removed — CalChat was deleted from the
 // product. The notifier file is left on disk but no longer mounted.
 import NewAssignmentsModal from "@/components/ui/NewAssignmentsModal";
-import TrialBanner from "@/components/ui/TrialBanner";
 import HiddenRouteRedirect from "@/components/layout/HiddenRouteRedirect";
 import PostHogIdentify from "@/components/PostHogIdentify";
 import PomodoroTitleSync from "@/components/pomodoro/PomodoroTitleSync";
 import DeferredFonts from "@/components/layout/DeferredFonts";
 import PostHogPageView from "@/components/PostHogPageView";
-import ResumePendingUpgrade from "@/components/auth/ResumePendingUpgrade";
 
 /**
  * Prevent search engines from indexing any authenticated app routes.
@@ -64,7 +62,6 @@ export default async function AppLayout({
       {/* Customization fonts load after first paint (see DeferredFonts) so a
           12-family stylesheet never blocks initial render of the app. */}
       <DeferredFonts />
-      <TrialBanner />
       <div className="flex flex-col md:flex-row flex-1 min-h-0">
       <PostHogIdentify userId={session.user.id} email={email} fullName={fullName} />
       <PostHogPageView />
@@ -83,7 +80,6 @@ export default async function AppLayout({
             <MobileTabBar />
 
             <HiddenRouteRedirect />
-            <ResumePendingUpgrade />
             <CanvasTokenExpiredModal />
             {/* GlobalChatNotifier removed with CalChat */}
             <NewAssignmentsModal />
