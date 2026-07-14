@@ -11,7 +11,9 @@ import type Stripe from "stripe";
  * cache TTL would otherwise hold a stale value for up to 60s.
  */
 function invalidateEntitlement(userId: string): void {
-  revalidateTag(`entitlement:${userId}`);
+  // Next 16's revalidateTag requires a cache profile as the second argument.
+  // "max" expires all cached entries carrying this tag immediately.
+  revalidateTag(`entitlement:${userId}`, "max");
 }
 
 /**

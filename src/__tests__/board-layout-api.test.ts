@@ -14,6 +14,11 @@ const mockSingle = vi.fn();
 const mockUpsert = vi.fn();
 const mockFrom = vi.fn();
 
+// Admin client is used only for the template-owner fallback when a user has
+// no row of their own. Its own single-result mock lets tests control whether
+// a template layout exists.
+const mockTemplateSingle = vi.fn();
+
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(() =>
     Promise.resolve({
@@ -21,6 +26,16 @@ vi.mock("@/lib/supabase/server", () => ({
       from: mockFrom,
     })
   ),
+}));
+
+vi.mock("@/lib/supabase/admin", () => ({
+  createAdminClient: vi.fn(() => ({
+    from: vi.fn(() => ({
+      select: vi.fn(() => ({
+        eq: vi.fn(() => ({ single: mockTemplateSingle })),
+      })),
+    })),
+  })),
 }));
 
 vi.mock("@/lib/logger", () => ({
@@ -40,8 +55,10 @@ function setupMocks(options: {
   authenticated?: boolean;
   selectResult?: { data: unknown; error: unknown };
   upsertResult?: { error: unknown };
+  /** Result of the template-owner fallback query. Defaults to "no template". */
+  templateResult?: { data: unknown; error: unknown };
 }) {
-  const { authenticated = true, selectResult, upsertResult } = options;
+  const { authenticated = true, selectResult, upsertResult, templateResult } = options;
 
   if (authenticated) {
     mockGetUser.mockResolvedValue({ data: { user: { id: TEST_USER_ID } }, error: null });
@@ -53,6 +70,7 @@ function setupMocks(options: {
   mockEq.mockReturnValue({ single: mockSingle });
   mockSelect.mockReturnValue({ eq: mockEq });
   mockUpsert.mockResolvedValue(upsertResult ?? { error: null });
+  mockTemplateSingle.mockResolvedValue(templateResult ?? { data: null, error: { code: "PGRST116" } });
 
   mockFrom.mockReturnValue({
     select: mockSelect,
