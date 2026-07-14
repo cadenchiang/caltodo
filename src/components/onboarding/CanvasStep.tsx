@@ -337,15 +337,7 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
             <div className="flex items-center gap-3 px-2 py-2">
               <span className="w-7 h-7 rounded-full bg-foreground text-background flex items-center justify-center text-xs font-bold shrink-0">1</span>
               <span className="text-sm font-medium text-foreground">
-                Go to your{" "}
-                <a
-                  href="https://bcourses.berkeley.edu/calendar#view_name=month"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-foreground hover:opacity-70 transition-opacity"
-                >
-                  Canvas calendar
-                </a>
+                Go to your Canvas calendar
               </span>
             </div>
             <div className="flex items-center gap-3 px-2 py-2">

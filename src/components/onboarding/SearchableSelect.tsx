@@ -64,10 +64,19 @@ export default function SearchableSelect({
     if (open) inputRef.current?.focus();
   }, [open]);
 
+  const trimmed = query.trim();
   const filtered = options.filter((opt) =>
     opt.toLowerCase().includes(query.toLowerCase()),
   );
-  const showOther = allowOther && query.trim().length > 0 && filtered.length === 0;
+  // Offer a "use my own" row whenever the user has typed something that isn't
+  // already an exact option — even when there ARE partial matches — so they can
+  // always create their own school instead of being forced to pick a match.
+  const showOther =
+    allowOther &&
+    trimmed.length > 0 &&
+    !options.some((o) => o.toLowerCase() === trimmed.toLowerCase());
+  /** Index of the create row in the navigable list (after the filtered items). */
+  const createIndex = filtered.length;
 
   const commit = useCallback(
     (next: string) => {
@@ -86,18 +95,22 @@ export default function SearchableSelect({
    * @param e - The keyboard event from the search input.
    */
   function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    const lastIndex = filtered.length - 1 + (showOther ? 1 : 0);
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setHighlight((h) => Math.min(h + 1, Math.max(filtered.length - 1, 0)));
+      setHighlight((h) => Math.min(h + 1, Math.max(lastIndex, 0)));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       setHighlight((h) => Math.max(h - 1, 0));
     } else if (e.key === "Enter") {
       e.preventDefault();
-      if (filtered.length > 0) {
-        commit(filtered[highlight] ?? filtered[0]);
+      // Enter on the create row (or when there are no matches) commits the typed text.
+      if (showOther && highlight === createIndex) {
+        commit(trimmed);
+      } else if (filtered.length > 0) {
+        commit(filtered[Math.min(highlight, filtered.length - 1)] ?? filtered[0]);
       } else if (showOther) {
-        commit(query.trim());
+        commit(trimmed);
       }
     } else if (e.key === "Escape") {
       setOpen(false);
@@ -149,39 +162,53 @@ export default function SearchableSelect({
             />
           </div>
           <div className="max-h-64 overflow-y-auto py-1">
-            {filtered.length > 0 ? (
-              filtered.map((opt, i) => (
-                <button
-                  key={opt}
-                  type="button"
-                  onMouseEnter={() => setHighlight(i)}
-                  onClick={() => commit(opt)}
-                  className={`w-full flex items-center justify-between px-4 py-2 text-sm text-left transition-colors ${
-                    i === highlight
-                      ? "bg-black/5 dark:bg-white/5"
-                      : "hover:bg-black/5 dark:hover:bg-white/5"
-                  }`}
-                >
-                  <span className="text-foreground">{opt}</span>
-                  {value === opt && (
-                    <Check size={14} className="text-[#0e89d6]" />
-                  )}
-                </button>
-              ))
-            ) : showOther ? (
+            {filtered.map((opt, i) => (
+              <button
+                key={opt}
+                type="button"
+                onMouseEnter={() => setHighlight(i)}
+                onClick={() => commit(opt)}
+                className={`w-full flex items-center justify-between px-4 py-2 text-sm text-left transition-colors ${
+                  i === highlight
+                    ? "bg-black/5 dark:bg-white/5"
+                    : "hover:bg-black/5 dark:hover:bg-white/5"
+                }`}
+              >
+                <span className="text-foreground">{opt}</span>
+                {value === opt && <Check size={14} className="text-[#0e89d6]" />}
+              </button>
+            ))}
+
+            {/* Create-your-own row — always available once the user types
+                something that isn't already an option. */}
+            {showOther && (
               <button
                 type="button"
-                onClick={() => commit(query.trim())}
-                className="w-full px-4 py-2 text-sm text-left bg-black/5 dark:bg-white/5"
+                onMouseEnter={() => setHighlight(createIndex)}
+                onClick={() => commit(trimmed)}
+                className={`w-full flex items-center gap-2 px-4 py-2 text-sm text-left transition-colors ${
+                  highlight === createIndex
+                    ? "bg-black/5 dark:bg-white/5"
+                    : "hover:bg-black/5 dark:hover:bg-white/5"
+                }`}
               >
-                Use &ldquo;<span className="font-semibold">{query.trim()}</span>&rdquo;
+                <span className="text-muted-foreground">Use</span>
+                <span className="font-semibold text-foreground">&ldquo;{trimmed}&rdquo;</span>
               </button>
-            ) : (
+            )}
+
+            {filtered.length === 0 && !showOther && (
               <div className="px-4 py-3 text-sm text-muted-foreground">
-                No matches
+                {allowOther ? "Start typing to add your own" : "No matches"}
               </div>
             )}
           </div>
+
+          {allowOther && (
+            <div className="px-4 py-2 border-t border-black/5 dark:border-white/5 text-xs text-muted-foreground">
+              Don&rsquo;t see yours? Just type it and press Enter.
+            </div>
+          )}
         </div>
       )}
     </div>

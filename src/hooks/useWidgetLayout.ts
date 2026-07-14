@@ -236,8 +236,12 @@ export function useWidgetLayout() {
     const localLayout = readPersistedLayout();
     if (localLayout) {
       applyLayout(localLayout);
-      setHydrated(true);
     }
+    // Paint immediately either way — with the cached layout if present,
+    // otherwise the default board (already in state) — so a first-time or
+    // just-onboarded user lands on the board instead of a pulsing skeleton
+    // while the server layout loads. The fetch below reconciles (server wins).
+    setHydrated(true);
 
     fetchServerLayout().then(({ layout: serverData, updatedAt: serverUpdatedAt }) => {
       if (serverData) {

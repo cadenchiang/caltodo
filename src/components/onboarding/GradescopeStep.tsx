@@ -229,9 +229,9 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
       {/* Login inputs (no courses loaded yet) */}
       {!courses && (
         <>
-          <p className="text-xs text-muted-foreground mb-4 animate-drop-in delay-100 flex items-center justify-center gap-1">
-            <ShieldCheck size={12} />
-            Your password is encrypted with AES-256. No one can see it — not even us.
+          <p className="text-xs text-muted-foreground mb-4 animate-drop-in delay-100 flex items-center justify-center gap-1.5">
+            <ShieldCheck size={13} className="shrink-0" />
+            <span>AES-256 encrypted — only you can see it.</span>
           </p>
 
           <div className="flex flex-col gap-3 mb-5 animate-drop-in delay-200">

@@ -88,7 +88,7 @@ export default function LoginRightPanel() {
     <div className="relative w-full h-full flex flex-col items-center px-10 pt-10 pb-12 overflow-hidden">
       {/* Top: compact scrolling school marquee with edge fade */}
       <div
-        className="w-full overflow-hidden mb-8 animate-fade-left"
+        className="w-full overflow-hidden mb-8"
         style={{
           animationDelay: "0ms",
           maskImage: "linear-gradient(to right, transparent 0%, black 12%, black 88%, transparent 100%)",
@@ -118,21 +118,20 @@ export default function LoginRightPanel() {
         <img
           src="/login-bear.png"
           alt=""
-          className="w-56 h-auto select-none pointer-events-none animate-fade-left"
+          className="w-56 h-auto select-none pointer-events-none"
           style={{ animationDelay: "150ms" }}
           draggable={false}
         />
 
         {/* Rotating quote — fixed height so the bear above never shifts when quotes change */}
         <div
-          className="text-center max-w-md h-32 flex flex-col items-center justify-center w-full animate-fade-left"
+          className="text-center max-w-md h-32 flex flex-col items-center justify-center w-full"
           style={{ animationDelay: "300ms" }}
         >
           <div
             style={{
               opacity: fading ? 0 : 1,
-              transform: fading ? "translateX(-3px)" : "translateX(0)",
-              transition: `opacity ${FADE_DURATION}ms cubic-bezier(0.4, 0, 0.2, 1), transform ${FADE_DURATION}ms cubic-bezier(0.4, 0, 0.2, 1)`,
+              transition: `opacity ${FADE_DURATION}ms cubic-bezier(0.4, 0, 0.2, 1)`,
             }}
           >
             <p className="text-base text-gray-900 leading-relaxed mb-4">

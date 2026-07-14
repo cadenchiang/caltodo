@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { createPortal } from "react-dom";
 
 interface Props {
@@ -12,11 +13,10 @@ interface Props {
 }
 
 /**
- * Pre-flight notice shown before Google OAuth opens. Restyled to match
- * the landing-page / Notion-style modals used elsewhere in the app:
- * Playfair Display headline, generous spacing, no alarming icons. The
- * goal is to read as informational, not as a warning the user should
- * abort. Portaled to document.body.
+ * Pre-flight notice shown before Google OAuth opens. Styled to match the
+ * app's standard popup modal (e.g. the "Request a platform" / Contact modal):
+ * compact card, sans-serif title + subtitle, right-aligned Cancel/primary
+ * buttons. Reads as informational, not alarming. Portaled to document.body.
  *
  * @param open - Controls visibility
  * @param onContinue - Fires when user clicks "Continue"
@@ -27,45 +27,54 @@ export default function GoogleAuthWarningModal({
   onContinue,
   onCancel,
 }: Props) {
+  // Close on Escape.
+  useEffect(() => {
+    if (!open) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onCancel();
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open, onCancel]);
+
   if (!open || typeof document === "undefined") return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center">
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+      onClick={onCancel}
+    >
       <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-announce-backdrop-in"
-        onClick={onCancel}
-      />
-      <div className="relative bg-popover rounded-2xl border border-border shadow-2xl w-[calc(100%-2rem)] max-w-md p-8 animate-announce-card-in">
-        <h2
-          className="text-foreground mb-3 leading-tight"
-          style={{ fontFamily: "Playfair Display, serif", fontSize: "28px", fontWeight: 600 }}
-        >
-          One quick note.
-        </h2>
-        <p className="text-sm text-muted-foreground leading-relaxed mb-5">
-          On the next screen Google may say &ldquo;Google hasn&rsquo;t
-          verified this app.&rdquo; That&rsquo;s expected while our
-          verification is in review — your data stays private and the
-          connection is secure.
+        className="w-full max-w-md rounded-2xl bg-popover border border-border shadow-xl p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 className="text-base font-semibold text-foreground mb-1">
+          One quick note
+        </h3>
+        <p className="text-xs text-subtle-foreground mb-4">
+          On the next screen Google may say &ldquo;Google hasn&rsquo;t verified this
+          app.&rdquo; That&rsquo;s expected while our verification is in review — your
+          data stays private and the connection is secure.
         </p>
-        <div className="text-sm text-foreground leading-relaxed mb-7 bg-muted/40 rounded-xl px-4 py-3 border border-border/60">
-          To proceed: tap{" "}
-          <span className="font-semibold">Advanced</span>
-          <span className="opacity-50 mx-1">→</span>
+
+        <div className="rounded-lg border border-border bg-muted/40 px-3 py-2.5 text-sm text-foreground">
+          To proceed, tap <span className="font-semibold">Advanced</span>
+          <span className="mx-1 opacity-50">→</span>
           <span className="font-semibold">Go to CalTodo (unsafe)</span>.
         </div>
-        <div className="flex items-center gap-2">
+
+        <div className="mt-5 flex items-center justify-end gap-2">
           <button
             type="button"
             onClick={onCancel}
-            className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            className="px-4 py-1.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-accent transition-colors"
           >
             Cancel
           </button>
           <button
             type="button"
             onClick={onContinue}
-            className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-foreground hover:opacity-90 transition-opacity"
+            className="px-4 py-1.5 rounded-lg bg-[#0e89d6] text-white text-sm font-medium hover:bg-[#3D8FE8] transition-colors"
           >
             Continue
           </button>
