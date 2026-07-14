@@ -378,6 +378,35 @@ export function TaskProvider({ children }: { children: ReactNode }) {
           setSyncResult(result);
           setLastSyncedAt(result.last_synced_at);
 
+          // Transparency: surface per-source failures on background syncs too.
+          // Previously these were stored in state but never shown, so an
+          // expired Canvas token / Gradescope login / dead iCal URL made new
+          // assignments silently stop appearing with no explanation. Show a
+          // toast once per unique error-set per session so it isn't spammy.
+          const syncErrors = [
+            ...result.canvas.errors,
+            ...result.gradescope.errors,
+            ...result.pensieve.errors,
+            ...result.brightspace.errors,
+          ];
+          if (syncErrors.length > 0) {
+            const key = `sync-error-shown:${syncErrors.join("|")}`;
+            let alreadyShown = false;
+            try {
+              alreadyShown = sessionStorage.getItem(key) === "1";
+              sessionStorage.setItem(key, "1");
+            } catch { /* private browsing — show anyway */ }
+            if (!alreadyShown) {
+              showToast(`Some classes couldn't sync: ${syncErrors.join(" ")}`, {
+                duration: 10_000,
+                action: {
+                  label: "Fix in Settings",
+                  onClick: () => { window.location.href = "/app/settings?section=integrations"; },
+                },
+              });
+            }
+          }
+
           const freshTasks = await fetchTasks();
           if (!mounted || abortController.signal.aborted) return;
 

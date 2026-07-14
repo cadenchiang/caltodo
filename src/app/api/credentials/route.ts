@@ -14,7 +14,7 @@ import { isAllowedCanvasUrl } from "@/lib/canvas-url-validation";
 import type { IntegrationCredentials, CredentialsSavePayload, AdditionalCanvasAccount } from "@/lib/types";
 
 /** Base columns selected from integration_credentials (excludes additional_canvas_accounts for fallback). */
-const BASE_SELECT = "canvas_token, canvas_base_url, canvas_ical_url, gradescope_email, gradescope_password_encrypted, last_synced_at, selected_canvas_courses, selected_gradescope_courses, selected_pensieve_courses, google_access_token_encrypted, google_calendar_id, google_email, google_photo_url, canvas_token_created_at, is_founding_member, pensieve_calendar_url, brightspace_calendar_url, gradescope_auth_failed, email_digest_enabled, email_digest_hour, email_digest_address, dismissed_canvas_course_ids, dismissed_modals";
+const BASE_SELECT = "canvas_token, canvas_base_url, canvas_ical_url, gradescope_email, gradescope_password_encrypted, last_synced_at, selected_canvas_courses, selected_gradescope_courses, selected_pensieve_courses, google_access_token_encrypted, google_auth_failed, google_calendar_id, google_email, google_photo_url, canvas_token_created_at, is_founding_member, pensieve_calendar_url, brightspace_calendar_url, gradescope_auth_failed, email_digest_enabled, email_digest_hour, email_digest_address, dismissed_canvas_course_ids, dismissed_modals";
 
 /**
  * GET /api/credentials
@@ -112,6 +112,10 @@ export async function GET() {
     selected_pensieve_courses: data?.selected_pensieve_courses ?? null,
     dismissed_canvas_course_ids: data?.dismissed_canvas_course_ids ?? [],
     has_google_calendar: !!data?.google_access_token_encrypted,
+    // Only meaningful while tokens still exist; a genuine revocation clears the
+    // tokens and flips has_google_calendar false. The flag lets the UI say
+    // "reconnect" (revoked) rather than a plain "not connected".
+    google_auth_failed: data?.google_auth_failed ?? false,
     google_calendar_id: data?.google_calendar_id ?? null,
     google_email: data?.google_email ?? null,
     google_photo_url: data?.google_photo_url ?? null,
@@ -397,6 +401,7 @@ export async function PUT(request: Request) {
     selected_gradescope_courses: updated?.selected_gradescope_courses ?? null,
     selected_pensieve_courses: updated?.selected_pensieve_courses ?? null,
     has_google_calendar: !!updated?.google_access_token_encrypted,
+    google_auth_failed: updated?.google_auth_failed ?? false,
     google_calendar_id: updated?.google_calendar_id ?? null,
     google_email: updated?.google_email ?? null,
     google_photo_url: updated?.google_photo_url ?? null,

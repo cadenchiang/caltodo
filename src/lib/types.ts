@@ -153,6 +153,8 @@ export interface IntegrationCredentials {
   selected_pensieve_courses: Array<{ id: string; name: string }> | null;
   dismissed_canvas_course_ids: number[];
   has_google_calendar: boolean;
+  /** Whether Google Calendar access was revoked (refresh token invalid_grant). */
+  google_auth_failed: boolean;
   google_calendar_id: string | null;
   google_email: string | null;
   google_photo_url: string | null;

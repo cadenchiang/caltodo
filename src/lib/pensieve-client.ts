@@ -159,9 +159,21 @@ function detectSubmitted(status: string | null, description: string | null): boo
     if (s === "COMPLETED" || s === "CANCELLED") return true;
   }
   if (description) {
-    // Unescape iCal text so \n becomes real newline for accurate word boundary matching
+    // Unescape iCal text so \n becomes real newline for accurate matching.
     const text = unescapeICalText(description);
-    if (/\b(submitted|graded|completed)\b/i.test(text)) return true;
+    // Only treat the description as "submitted" when it reads like an explicit
+    // status marker, not just any prose that happens to contain the word. The
+    // old `\b(submitted|graded|completed)\b` match auto-completed (and hid)
+    // tasks whose description said things like "must be completed before lab"
+    // or "will be graded next week". Require either a status-label form
+    // (line-start, optionally "Status: ") or a "…on <date>" form — both of
+    // which "completed on 2026-02-28" satisfies while the prose cases don't.
+    if (
+      /(?:^|\n)\s*(?:status:\s*)?(?:submitted|graded|completed)\b/i.test(text) ||
+      /\b(?:submitted|graded|completed)\s+on\b/i.test(text)
+    ) {
+      return true;
+    }
   }
   return false;
 }

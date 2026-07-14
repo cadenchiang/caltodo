@@ -199,11 +199,17 @@ export function generateICalFeed(tasks: Task[], calendarName = "caltodo"): strin
     lines.push(`UID:${task.id}@caltodo`);
     lines.push(`DTSTAMP:${stamp}`);
 
-    // SEQUENCE and LAST-MODIFIED help Google Calendar detect event updates
+    // SEQUENCE and LAST-MODIFIED help Google Calendar detect event updates.
+    // SEQUENCE must increase monotonically per UID (RFC 5545 §3.8.7.4) — a
+    // client ignores an update whose SEQUENCE is not greater than the last one
+    // it saw. The previous `% 100000` wrapped roughly every 27 hours, so a
+    // later edit often emitted a *lower* SEQUENCE than an earlier one and
+    // Google silently dropped the update. Use the full epoch-seconds value
+    // (always increasing) instead.
     const updatedAt = task.updated_at ? new Date(task.updated_at) : new Date();
     const lastMod = formatDTStampFromDate(updatedAt);
     lines.push(`LAST-MODIFIED:${lastMod}`);
-    lines.push(`SEQUENCE:${Math.floor(updatedAt.getTime() / 1000) % 100000}`);
+    lines.push(`SEQUENCE:${Math.floor(updatedAt.getTime() / 1000)}`);
 
     // Always all-day: DTEND must be exclusive (next day) per RFC 5545
     lines.push(`DTSTART;VALUE=DATE:${formatICalDate(task.due_date)}`);

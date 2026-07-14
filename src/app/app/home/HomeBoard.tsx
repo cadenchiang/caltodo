@@ -17,8 +17,11 @@ import BoardCover from "@/components/home/BoardCover";
 import BoardTitle from "@/components/home/BoardTitle";
 import BoardDescription from "@/components/home/BoardDescription";
 import BoardDivider from "@/components/home/BoardDivider";
-import EmojiPicker, { LUCIDE_ICON_MAP, isFilledIcon } from "@/components/home/EmojiPicker";
-import { ICON_SIZES } from "@/components/home/emoji-picker-data";
+// Import the icon-map helpers from the lightweight data module directly. The
+// EmojiPicker component (which statically pulls in the ~432KB @emoji-mart/data
+// dataset) is not rendered on this board, so importing it here would bloat the
+// first-load /app/home bundle for no reason.
+import { LUCIDE_ICON_MAP, isFilledIcon, ICON_SIZES } from "@/components/home/emoji-picker-data";
 import { useWidgetLayout } from "@/hooks/useWidgetLayout";
 import { useToast } from "@/contexts/ToastContext";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -85,7 +88,6 @@ export default function HomeBoard({ embedded = false }: HomeBoardProps = {}) {
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [settingsWidget, setSettingsWidget] = useState<WidgetInstance | null>(null);
   const [settingsWidgetRect, setSettingsWidgetRect] = useState<DOMRect | null>(null);
-  const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   /** Widget type being dragged from gallery (null when not drag-to-placing). */
   const [draggingType, setDraggingType] = useState<WidgetType | null>(null);

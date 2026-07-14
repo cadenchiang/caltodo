@@ -63,6 +63,7 @@ const EMPTY_CREDENTIALS: IntegrationCredentials = {
   selected_pensieve_courses: null,
   dismissed_canvas_course_ids: [],
   has_google_calendar: false,
+  google_auth_failed: false,
   google_calendar_id: null,
   google_email: null,
   google_photo_url: null,

@@ -6,7 +6,6 @@ import Image from "next/image";
 import { RefreshCw, CalendarDays, LayoutGrid, ArrowRight } from "lucide-react";
 import GoogleOneTap from "@/components/auth/GoogleOneTap";
 import FadeIn from "@/components/landing/FadeIn";
-import Pricing_04 from "@/components/ui/ruixen-pricing-04";
 
 
 interface HeroProps {
@@ -427,15 +426,6 @@ export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Pricing — Free vs Pro. The actual scroll anchor (id="pricing") lives
-          inside Pricing_04 on the heading itself so the user lands at the
-          heading instead of below the section's top padding. */}
-      <div className="w-full bg-white">
-        <FadeIn>
-          <Pricing_04 />
-        </FadeIn>
       </div>
 
       {/* Footer */}

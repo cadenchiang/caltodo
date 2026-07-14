@@ -91,26 +91,27 @@ export async function getEntitlement(userId: string): Promise<Entitlement> {
 }
 
 /**
- * True when the user currently has access to Pro features (paid, trialing,
- * or founder). Use this from server-side gated endpoints.
+ * Every feature is free forever, so all users have full access.
  *
- * @param userId - The auth.users id to check.
- * @returns True if the user can use Pro features right now.
+ * Retained (rather than deleted at each call site) so the existing gated
+ * endpoints keep compiling while the Stripe/entitlement plumbing sits
+ * dormant. Always resolves true.
+ *
+ * @param _userId - Unused; kept for call-site compatibility.
+ * @returns Always true.
  */
-export async function isPro(userId: string): Promise<boolean> {
-  const e = await getEntitlement(userId);
-  return e.effectivePlan === "pro" || e.effectivePlan === "trial";
+export async function isPro(_userId: string): Promise<boolean> {
+  return true;
 }
 
 /**
- * Convenience: throws/returns a structured error to the caller when the user
- * does not have Pro access. Designed for use inside Next.js route handlers.
+ * Companion to {@link isPro}: every feature is free, so this always allows.
  *
- * @param userId - The user to check.
- * @returns { ok: true } when allowed; { ok: false, reason } when not.
+ * @param _userId - Unused; kept for call-site compatibility.
+ * @returns Always { ok: true }.
  */
 export async function requirePro(
-  userId: string,
+  _userId: string,
 ): Promise<{ ok: true } | { ok: false; reason: "free" }> {
-  return (await isPro(userId)) ? { ok: true } : { ok: false, reason: "free" };
+  return { ok: true };
 }

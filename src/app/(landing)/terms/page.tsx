@@ -65,14 +65,12 @@ const SECTIONS: Section[] = [
     ),
   },
   {
-    title: "5. Subscriptions and Billing",
+    title: "5. Pricing",
     body: (
       <>
-        Pro subscriptions are billed monthly or annually through Stripe at the prices listed on
-        the pricing page. You can cancel your subscription at any time from Settings; you keep
-        Pro access until the end of your current billing period and are not charged again. Pricing
-        and feature availability may change with prior notice on this page. Refunds are handled on
-        a case-by-case basis, contact us if you need help.
+        caltodo is free for students, forever. Every feature is available at no cost, with no
+        subscription, trial, or payment required. If this ever changes, we will give you prior
+        notice on this page.
       </>
     ),
   },
@@ -90,8 +88,8 @@ const SECTIONS: Section[] = [
     title: "7. Third-Party Integrations",
     body: (
       <>
-        The Service integrates with third-party platforms including Google, Canvas, Gradescope,
-        and Stripe. Your use of these integrations is subject to the respective third-party terms
+        The Service integrates with third-party platforms including Google, Canvas, and Gradescope.
+        Your use of these integrations is subject to the respective third-party terms
         of service. We are not responsible for the availability or content of third-party services.
       </>
     ),

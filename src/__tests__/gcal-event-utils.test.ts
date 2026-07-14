@@ -39,7 +39,9 @@ describe("parseEventDate", () => {
 
 describe("hexToRgba", () => {
   it("should convert hex with # to rgba", () => {
-    expect(hexToRgba("#0e89d6", 0.5)).toBe("rgba(59, 130, 246, 0.5)");
+    // #0e89d6 === rgb(14, 137, 214). (A prior brand-color find/replace had
+    // rewritten the input hex but left the old expected rgba values.)
+    expect(hexToRgba("#0e89d6", 0.5)).toBe("rgba(14, 137, 214, 0.5)");
   });
 
   it("should convert hex without # to rgba", () => {

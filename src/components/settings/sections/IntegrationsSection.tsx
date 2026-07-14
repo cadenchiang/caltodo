@@ -6,6 +6,7 @@ import { Plus, FileText } from "lucide-react";
 import GoogleCalendarSettings from "@/components/settings/GoogleCalendarSettings";
 import IntegrationSettings, { useCredentials } from "@/components/settings/IntegrationSettings";
 import SyllabusSettings from "@/components/settings/SyllabusSettings";
+import IntegrationHealthBanner from "@/components/settings/IntegrationHealthBanner";
 
 /**
  * Inline Google Calendar logo SVG for the add-integration dropdown.
@@ -140,6 +141,7 @@ export default function IntegrationsSection() {
       <p className="text-xs text-subtle-foreground mb-4">
         Connect your accounts to sync assignments and events.
       </p>
+      <IntegrationHealthBanner />
       <div className="space-y-3">
         <GoogleCalendarSettings />
         <IntegrationSettings />

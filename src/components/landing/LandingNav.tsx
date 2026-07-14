@@ -80,58 +80,18 @@ export default function LandingNav({ loggedIn: loggedInProp }: LandingNavProps =
     };
   }, [mobileMenuOpen]);
 
-  /**
-   * Observe the on-page #pricing section when we're on the home route so the
-   * nav can highlight "Pricing" automatically as the user scrolls past it.
-   *
-   * If we just landed on home via an off-route hash-link click, sessionStorage
-   * tells us where the user is scrolling to. We pre-set activeHash so Pricing
-   * highlights immediately, and lock the observer for a short window so its
-   * initial "not intersecting" callback doesn't flip the nav back to Home.
-   */
+  // Clear any section highlight when leaving the home route.
   useEffect(() => {
-    if (pathname !== "/") {
-      setActiveHash("");
-      return;
-    }
-
-    // Pre-highlight any pending scroll target so the nav doesn't flicker.
-    try {
-      const pending = sessionStorage.getItem("caltodo_pending_scroll");
-      if (pending) {
-        setActiveHash(`#${pending}`);
-        scrollLockUntilRef.current = Date.now() + 1500;
-      }
-    } catch {
-      /* sessionStorage may throw in private browsing */
-    }
-
-    const el = document.getElementById("pricing");
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (Date.now() < scrollLockUntilRef.current) return;
-        if (entry.isIntersecting && entry.intersectionRatio > 0.25) {
-          setActiveHash("#pricing");
-        } else if (!entry.isIntersecting) {
-          setActiveHash("");
-        }
-      },
-      { threshold: [0, 0.25, 0.6, 1] },
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
+    if (pathname !== "/") setActiveHash("");
   }, [pathname]);
 
   // Middleware redirects authenticated users from `/` straight to /app/home.
   // The `?landing=1` query opts out of that redirect, so logged-in users can
   // still browse the marketing site by clicking nav links here.
   const homeHref = loggedIn ? "/?landing=1" : "/";
-  const pricingHref = loggedIn ? "/?landing=1#pricing" : "/#pricing";
 
   const links: Array<{ label: string; href: string }> = [
     { label: "Home", href: homeHref },
-    { label: "Pricing", href: pricingHref },
     { label: "About", href: "/about" },
     { label: "Contact", href: "/contact" },
   ];

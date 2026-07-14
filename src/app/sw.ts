@@ -1,3 +1,7 @@
+/// <reference lib="webworker" />
+// The project tsconfig ships the "dom" lib for app code; this service-worker
+// entry runs in a worker context, so pull in the WebWorker lib here to get
+// ServiceWorkerGlobalScope / PushEvent / NotificationEvent / WindowClient.
 import { defaultCache } from "@serwist/next/worker";
 import type { PrecacheEntry, SerwistGlobalConfig } from "serwist";
 import { Serwist } from "serwist";

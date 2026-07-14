@@ -1114,6 +1114,7 @@ export default function OnboardingPage() {
                 onSkip={() => { trackEvent("onboarding_step_skipped", { step: "syllabus" }); setCurrentStep(nextStepAfter("syllabus")); }}
                 error={error}
                 setError={setError}
+                saving={saving}
               />
             )}
 

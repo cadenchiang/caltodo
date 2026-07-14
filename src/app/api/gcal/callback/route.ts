@@ -172,6 +172,8 @@ export async function GET(request: NextRequest) {
         google_token_expires_at: expiresAt,
         google_email: googleEmail,
         google_photo_url: googlePhotoUrl,
+        // A fresh connect clears any prior "access revoked" flag.
+        google_auth_failed: false,
       },
       { onConflict: "user_id" }
     );

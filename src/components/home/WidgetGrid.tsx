@@ -300,7 +300,6 @@ export default function WidgetGrid({
           margin={MARGIN}
           containerPadding={[0, 0]}
           maxRows={MAX_ROWS}
-          isBounded={true}
           dragConfig={{ enabled: editMode, cancel: ".no-drag" }}
           resizeConfig={{ enabled: editMode, handles: ["se", "sw", "ne", "nw"] }}
           dropConfig={{ enabled: !!acceptDrop, defaultItem: { w: 2, h: 2 } }}

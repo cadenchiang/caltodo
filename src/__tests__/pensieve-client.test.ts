@@ -161,6 +161,18 @@ describe("parseICalEvents — is_submitted detection", () => {
     expect(result.is_submitted).toBe(false);
   });
 
+  it("should NOT mark submitted when 'completed'/'graded' appear only in prose", () => {
+    // Regression: "must be completed before lab" and "will be graded" used to
+    // trip the naive \bcompleted\b / \bgraded\b match and auto-hide the task.
+    const ical = makeIcal({
+      summary: "Lab 3 - CS61A",
+      dtstart: "20260301",
+      description: "class: CS61A\\nThis must be completed before lab; it will be graded next week.",
+    });
+    const [result] = parseICalEvents(ical);
+    expect(result.is_submitted).toBe(false);
+  });
+
   it("should set is_submitted false when STATUS is CONFIRMED", () => {
     const ical = makeIcal({
       summary: "Homework 2 - CS61A",

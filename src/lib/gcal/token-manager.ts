@@ -13,11 +13,30 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 /** Buffer before token expiry to trigger preemptive refresh (5 minutes). */
 const EXPIRY_BUFFER_MS = 5 * 60 * 1000;
 
+/**
+ * Outcome of a token refresh.
+ *  - `ok`        — got a fresh access token.
+ *  - `revoked`   — Google returned `invalid_grant`: the refresh token is dead
+ *                  (user revoked access, token expired, or password changed).
+ *                  The stored tokens should be cleared and the user prompted
+ *                  to reconnect.
+ *  - `transient` — a 5xx / network / config error. The refresh token is
+ *                  probably still fine; keep it and retry on the next sync.
+ *                  NEVER wipe the user's tokens on this outcome.
+ */
+type RefreshOutcome =
+  | { status: "ok"; accessToken: string; expiresIn: number; refreshToken?: string }
+  | { status: "revoked" }
+  | { status: "transient" };
+
 /** Per-user mutex map to prevent concurrent token refreshes for the same user. */
-const refreshPromises = new Map<string, Promise<{ accessToken: string; expiresIn: number; refreshToken?: string } | null>>();
+const refreshPromises = new Map<string, Promise<RefreshOutcome>>();
 
 /** Google OAuth2 token endpoint. */
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
+
+/** How many times to retry a transient (5xx / network) refresh failure. */
+const REFRESH_MAX_ATTEMPTS = 3;
 
 /**
  * Response shape from Google's OAuth2 token endpoint.
@@ -32,46 +51,75 @@ interface GoogleTokenResponse {
 /**
  * Refreshes an access token using a refresh token via Google's OAuth2 endpoint.
  *
+ * Distinguishes a genuine revocation (`invalid_grant`) from a transient Google
+ * outage. Transient failures (5xx, network errors) are retried a few times with
+ * a short backoff before giving up as `transient` — the caller must NOT clear
+ * the user's stored tokens in that case, or a momentary Google blip would
+ * permanently disconnect the user.
+ *
  * @param refreshToken - The decrypted refresh token
- * @returns New access token and expiry, or null on failure
+ * @returns A {@link RefreshOutcome} describing success, revocation, or a
+ *          transient failure.
  */
-export async function refreshAccessToken(
-  refreshToken: string
-): Promise<{ accessToken: string; expiresIn: number; refreshToken?: string } | null> {
+export async function refreshAccessToken(refreshToken: string): Promise<RefreshOutcome> {
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
 
   if (!clientId || !clientSecret) {
+    // A server misconfiguration is not the user's fault — treat as transient so
+    // we don't wipe every user's tokens if an env var goes missing.
     logger.error("refreshAccessToken: missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET");
-    return null;
+    return { status: "transient" };
   }
 
-  const res = await fetch(GOOGLE_TOKEN_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: clientId,
-      client_secret: clientSecret,
-      refresh_token: refreshToken,
-      grant_type: "refresh_token",
-    }),
-  });
+  for (let attempt = 1; attempt <= REFRESH_MAX_ATTEMPTS; attempt++) {
+    let res: Response;
+    try {
+      res = await fetch(GOOGLE_TOKEN_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          client_id: clientId,
+          client_secret: clientSecret,
+          refresh_token: refreshToken,
+          grant_type: "refresh_token",
+        }),
+      });
+    } catch (err) {
+      // Network error — transient. Retry.
+      logger.warn("refreshAccessToken: network error", {
+        attempt,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      if (attempt < REFRESH_MAX_ATTEMPTS) continue;
+      return { status: "transient" };
+    }
 
-  if (!res.ok) {
+    if (res.ok) {
+      const data: GoogleTokenResponse = await res.json();
+      return {
+        status: "ok",
+        accessToken: data.access_token,
+        expiresIn: data.expires_in,
+        ...(data.refresh_token ? { refreshToken: data.refresh_token } : {}),
+      };
+    }
+
     const body = await res.text();
-    logger.error("refreshAccessToken: Google token refresh failed", {
-      status: res.status,
-      body,
-    });
-    return null;
+
+    // A 4xx invalid_grant is a definitive revocation — do not retry.
+    if (res.status >= 400 && res.status < 500 && body.includes("invalid_grant")) {
+      logger.warn("refreshAccessToken: refresh token revoked (invalid_grant)", { status: res.status });
+      return { status: "revoked" };
+    }
+
+    // Other 4xx (e.g. invalid_client) and all 5xx: log and retry as transient.
+    logger.error("refreshAccessToken: Google token refresh failed", { status: res.status, body, attempt });
+    if (attempt < REFRESH_MAX_ATTEMPTS) continue;
+    return { status: "transient" };
   }
 
-  const data: GoogleTokenResponse = await res.json();
-  return {
-    accessToken: data.access_token,
-    expiresIn: data.expires_in,
-    ...(data.refresh_token ? { refreshToken: data.refresh_token } : {}),
-  };
+  return { status: "transient" };
 }
 
 /**
@@ -102,14 +150,28 @@ export async function getValidAccessToken(
     : 0;
   const now = Date.now();
 
+  // Decrypt failures (e.g. the encryption key was rotated) must not wipe the
+  // stored tokens — that would be unrecoverable. Treat as a transient miss.
+  let decryptedAccess: string;
+  let refreshToken: string;
+  try {
+    decryptedAccess = decrypt(data.google_access_token_encrypted);
+    refreshToken = decrypt(data.google_refresh_token_encrypted);
+  } catch (err) {
+    logger.error("getValidAccessToken: failed to decrypt stored tokens", {
+      userId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return null;
+  }
+
   // Token is still valid (with buffer)
   if (expiresAt - now > EXPIRY_BUFFER_MS) {
-    return decrypt(data.google_access_token_encrypted);
+    return decryptedAccess;
   }
 
   // Token expired or near expiry — refresh it (with mutex to prevent concurrent refreshes)
   logger.info("getValidAccessToken: refreshing expired token", { userId });
-  const refreshToken = decrypt(data.google_refresh_token_encrypted);
   if (!refreshPromises.has(userId)) {
     refreshPromises.set(
       userId,
@@ -120,25 +182,35 @@ export async function getValidAccessToken(
   }
   const refreshed = await refreshPromises.get(userId)!;
 
-  if (!refreshed) {
-    // Refresh failed — user likely revoked access. Clear tokens.
-    logger.warn("getValidAccessToken: refresh failed, clearing tokens", { userId });
+  if (refreshed.status === "revoked") {
+    // Genuine revocation — clear the dead tokens and flag it so Settings can
+    // prompt the user to reconnect (instead of silently never syncing again).
+    logger.warn("getValidAccessToken: access revoked, clearing tokens", { userId });
     await supabase
       .from("integration_credentials")
       .update({
         google_access_token_encrypted: null,
         google_refresh_token_encrypted: null,
         google_token_expires_at: null,
+        google_auth_failed: true,
       })
       .eq("user_id", userId);
     return null;
   }
 
-  // Save refreshed token (and new refresh token if Google rotated it)
+  if (refreshed.status === "transient") {
+    // Google hiccup / network error — keep the tokens and try again next sync.
+    logger.warn("getValidAccessToken: transient refresh failure, keeping tokens", { userId });
+    return null;
+  }
+
+  // Save refreshed token (and new refresh token if Google rotated it). Clear
+  // any stale auth-failed flag since the connection is demonstrably working.
   const newExpiresAt = new Date(now + refreshed.expiresIn * 1000).toISOString();
-  const updatePayload: Record<string, string> = {
+  const updatePayload: Record<string, string | boolean> = {
     google_access_token_encrypted: encrypt(refreshed.accessToken),
     google_token_expires_at: newExpiresAt,
+    google_auth_failed: false,
   };
   if (refreshed.refreshToken) {
     updatePayload.google_refresh_token_encrypted = encrypt(refreshed.refreshToken);

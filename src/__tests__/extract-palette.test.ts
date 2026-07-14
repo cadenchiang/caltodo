@@ -21,7 +21,9 @@ describe("rgbToHex", () => {
   });
 
   it("should convert a typical color correctly", () => {
-    expect(rgbToHex(59, 130, 246)).toBe("#0e89d6");
+    // (59, 130, 246) === 0x3b82f6. (A prior brand-color find/replace had
+    // wrongly rewritten this expected literal to the new brand hex.)
+    expect(rgbToHex(59, 130, 246)).toBe("#3b82f6");
   });
 
   it("should pad single-digit hex values with leading zero", () => {
