@@ -19,6 +19,23 @@ interface WeeklyHeatmapWidgetProps {
 /** Month abbreviations for the top axis labels. */
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
+/** Weekday row labels. Rows run Mon→Sun (see grid build), so M/W/F sit on
+ *  rows 0/2/4 — the grid starts on a Monday. */
+const DAY_LABELS = ["M", "", "W", "", "F", "", ""];
+
+/**
+ * Local calendar-day key (YYYY-MM-DD) from a Date, using the browser's local
+ * timezone. Both the grid and the completion counts key off this so a task
+ * completed at, say, 11pm local lands on the correct local day instead of
+ * being shoved onto the UTC day (the old toISOString bug).
+ */
+function localDayKey(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 /**
  * Returns the intensity level (0-4) for a given completion count.
  *
@@ -38,30 +55,31 @@ export default function WeeklyHeatmapWidget({ config }: WeeklyHeatmapWidgetProps
   const accentColor = config?.accentColor || "#22c55e";
   const weeks = 12;
 
-  // Build completion count map from tasks
+  // Build completion count map keyed by LOCAL day.
   const completionMap = useMemo(() => {
     const map = new Map<string, number>();
     for (const t of tasks) {
       if (t.is_completed && t.completed_at && !t.dismissed_at) {
-        const day = t.completed_at.split("T")[0];
-        map.set(day, (map.get(day) || 0) + 1);
+        const key = localDayKey(new Date(t.completed_at));
+        map.set(key, (map.get(key) || 0) + 1);
       }
     }
     return map;
   }, [tasks]);
 
-  // Generate grid of dates
-  const { grid, monthLabels, totalCompleted, bestDay } = useMemo(() => {
+  // Generate the 12-week grid of local dates plus month labels keyed by column.
+  const { grid, monthByCol, totalCompleted } = useMemo(() => {
     const today = new Date();
-    const g: { date: string; count: number }[][] = [];
+    today.setHours(0, 0, 0, 0); // normalize so time-of-day never shifts a cell
 
+    // Monday of the earliest visible week (weeks-1 weeks before this week's Monday).
     const start = new Date(today);
     start.setDate(start.getDate() - ((start.getDay() + 6) % 7) - (weeks - 1) * 7);
 
-    const labels: { label: string; col: number }[] = [];
+    const g: { date: string; count: number }[][] = [];
+    const monthCol = new Map<number, string>();
     let lastMonth = -1;
     let total = 0;
-    let best = 0;
 
     for (let w = 0; w < weeks; w++) {
       const week: { date: string; count: number }[] = [];
@@ -70,22 +88,22 @@ export default function WeeklyHeatmapWidget({ config }: WeeklyHeatmapWidgetProps
         date.setDate(start.getDate() + w * 7 + d);
         if (date > today) {
           week.push({ date: "", count: 0 });
-        } else {
-          const key = date.toISOString().split("T")[0];
-          const count = completionMap.get(key) || 0;
-          week.push({ date: key, count });
-          total += count;
-          if (count > best) best = count;
-          if (date.getMonth() !== lastMonth) {
-            lastMonth = date.getMonth();
-            labels.push({ label: MONTHS[lastMonth], col: w });
-          }
+          continue;
+        }
+        const key = localDayKey(date);
+        const count = completionMap.get(key) || 0;
+        week.push({ date: key, count });
+        total += count;
+        // Label the column where a new month first appears.
+        if (date.getMonth() !== lastMonth) {
+          lastMonth = date.getMonth();
+          if (!monthCol.has(w)) monthCol.set(w, MONTHS[lastMonth]);
         }
       }
       g.push(week);
     }
 
-    return { grid: g, monthLabels: labels, totalCompleted: total, bestDay: best };
+    return { grid: g, monthByCol: monthCol, totalCompleted: total };
   }, [completionMap, weeks]);
 
   /**
@@ -107,48 +125,46 @@ export default function WeeklyHeatmapWidget({ config }: WeeklyHeatmapWidgetProps
         title="Activity"
         right={
           <span className="text-xs text-foreground tabular-nums">
-            {totalCompleted} tasks completed
+            {totalCompleted} task{totalCompleted === 1 ? "" : "s"} completed
           </span>
         }
       />
 
-      {/* Month labels */}
-      <div className="flex gap-0.5 ml-4 mb-1">
-        {monthLabels.map((m, i) => (
-          <span
-            key={i}
-            className="text-xs text-foreground"
-            style={{
-              marginLeft: i === 0 ? `${m.col * 14}px` : undefined,
-              width: i < monthLabels.length - 1
-                ? `${(monthLabels[i + 1].col - m.col) * 14}px`
-                : undefined,
-            }}
-          >
-            {m.label}
-          </span>
-        ))}
+      {/* Month labels — share the exact column grid as the heatmap so they
+          always line up with the week columns beneath them. */}
+      <div className="flex mb-1">
+        <div className="w-4 mr-1 shrink-0" aria-hidden />
+        <div className="flex-1 flex gap-0.5">
+          {grid.map((_, wi) => (
+            <div
+              key={wi}
+              className="flex-1 min-w-0 text-xs text-foreground leading-none whitespace-nowrap"
+              style={{ overflow: "visible" }}
+            >
+              {monthByCol.get(wi) ?? ""}
+            </div>
+          ))}
+        </div>
       </div>
 
-      {/* Heatmap */}
-      <div className="flex-1 flex gap-0.5 overflow-hidden">
-        {/* Day labels */}
-        <div className="flex flex-col gap-0.5 shrink-0 mr-1">
-          {["", "M", "", "W", "", "F", ""].map((label, i) => (
-            <div key={i} className="h-[11px] flex items-center justify-end">
+      {/* Heatmap: fixed-width day-label column + 12 equal week columns. Rows
+          use flex-1 in both columns so weekday labels align with cell rows. */}
+      <div className="flex-1 flex min-h-0">
+        <div className="flex flex-col gap-0.5 shrink-0 mr-1 w-4">
+          {DAY_LABELS.map((label, i) => (
+            <div key={i} className="flex-1 flex items-center justify-end">
               <span className="text-xs text-foreground leading-none">{label}</span>
             </div>
           ))}
         </div>
 
-        {/* Grid */}
-        <div className="flex-1 flex gap-0.5 overflow-x-auto">
+        <div className="flex-1 flex gap-0.5">
           {grid.map((week, wi) => (
             <div key={wi} className="flex flex-col gap-0.5 flex-1 min-w-0">
               {week.map((cell, di) => (
                 <div
                   key={di}
-                  className="w-full aspect-square rounded-[2px] transition-colors"
+                  className="w-full flex-1 rounded-[2px] transition-colors"
                   style={{
                     backgroundColor: cell.date
                       ? getCellStyle(getIntensity(cell.count))

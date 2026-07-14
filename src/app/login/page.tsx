@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import Link from "next/link";
 import LoginForm from "@/components/auth/LoginForm";
 import LoginRightPanel from "@/components/auth/LoginRightPanel";
 import GoogleOneTap from "@/components/auth/GoogleOneTap";
@@ -33,7 +34,15 @@ export default function LoginPage() {
     <ToastProvider>
       {/* Native Google One Tap prompt — appears top-right on desktop if user has a Google session */}
       <GoogleOneTap />
-      <div className="min-h-dvh md:h-dvh md:overflow-hidden flex flex-col md:flex-row bg-white force-light">
+      <div className="relative min-h-dvh md:h-dvh md:overflow-hidden flex flex-col md:flex-row bg-white force-light">
+        {/* Logo — links back to the landing page. */}
+        <Link
+          href="/"
+          aria-label="Back to caltodo home"
+          className="absolute top-5 left-5 sm:top-6 sm:left-6 z-20 inline-flex items-center hover:opacity-70 transition-opacity"
+        >
+          <img src="/logo.png" alt="caltodo" className="h-7 sm:h-8 w-auto" />
+        </Link>
         {/* Left: form sitting on a glass modal card. Full width on mobile,
             half-width once the right panel becomes visible at md. */}
         <div className="w-full md:basis-1/2 min-w-0 flex flex-col items-center justify-center px-5 sm:px-6 py-10 md:py-8 relative">

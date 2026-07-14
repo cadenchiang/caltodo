@@ -76,25 +76,24 @@ export default function CalendarHeader({
   onAddClick,
 }: CalendarHeaderProps) {
   const { showToast } = useToast();
-  const { hasCompletedOnboarding, loading: onboardingLoading } = useOnboardingStatus();
-  const [syncBadgeDismissed, setSyncBadgeDismissed] = useState(true);
+  const { hasCompletedOnboarding } = useOnboardingStatus();
+  // Read dismissal flags synchronously on first render (from localStorage) so
+  // the Sync Classes / GCal badges appear immediately with the page instead of
+  // popping in after a mount effect flips them.
+  const [syncBadgeDismissed, setSyncBadgeDismissed] = useState(() => {
+    try { return localStorage.getItem(SYNC_BADGE_DISMISSED_KEY) === "true"; } catch { return false; }
+  });
   const [gcalConnected, setGcalConnected] = useState<boolean | null>(null);
   const [gcalEmail, setGcalEmail] = useState<string | null>(null);
   const [gcalPhotoUrl, setGcalPhotoUrl] = useState<string | null>(null);
   const [showPopover, setShowPopover] = useState(false);
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
-  const [badgeDismissed, setBadgeDismissed] = useState(true);
+  const [badgeDismissed, setBadgeDismissed] = useState(() => {
+    try { return localStorage.getItem(GCAL_BADGE_DISMISSED_KEY) === "true"; } catch { return false; }
+  });
   const buttonRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
-
-  // Restore badge dismissal state from localStorage
-  useEffect(() => {
-    try {
-      setBadgeDismissed(localStorage.getItem(GCAL_BADGE_DISMISSED_KEY) === "true");
-      setSyncBadgeDismissed(localStorage.getItem(SYNC_BADGE_DISMISSED_KEY) === "true");
-    } catch { /* ignore */ }
-  }, []);
 
   useEffect(() => {
     try {
@@ -209,8 +208,12 @@ export default function CalendarHeader({
         </button>
         <h1 className="text-base md:text-xl font-bold text-foreground truncate ml-0.5 md:ml-1">{title}</h1>
 
-        {/* "Sync classes" badge for unonboarded users — hidden on mobile */}
-        {!hasCompletedOnboarding && !syncBadgeDismissed && !onboardingLoading && (
+        {/* "Sync classes" badge for unonboarded users — hidden on mobile.
+            Not gated on onboardingLoading: unonboarded users never get a cached
+            status, so gating made the badge wait on a fetch every time. The
+            onboarding hook seeds `completed` from cache, so onboarded users
+            still don't see it flash on repeat visits. */}
+        {!hasCompletedOnboarding && !syncBadgeDismissed && (
           <div className="relative shrink-0 hidden md:flex items-center group/sync ml-2">
             <a
               href="/app/settings?section=integrations"

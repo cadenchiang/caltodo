@@ -3,7 +3,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from "react";
 import { trackEvent } from "@/lib/analytics";
 import { isDarkBySun } from "@/lib/solar";
-import { getCachedCoords, getUserCoords } from "@/lib/geolocation";
+import { getCachedCoords } from "@/lib/geolocation";
 
 /** localStorage key for persisting theme preference. */
 const THEME_KEY = "caltodo_theme";
@@ -226,18 +226,19 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     applyColorTheme(storedColor);
   }, []);
 
-  // When preference is "auto": fetch fresh coords, poll solar position every 60s.
+  // When preference is "auto": resolve from cached/default coords, poll solar
+  // position every 60s.
   useEffect(() => {
     if (preference !== "auto") return;
 
-    // Fetch fresh geolocation (async, updates cache for next check)
-    getUserCoords().then(() => {
-      // Guard: preference may have changed while coords were loading
-      if (preferenceRef.current !== "auto") return;
-      const next = resolveTheme("auto");
-      setResolvedTheme(next);
-      applyTheme(next);
-    });
+    // Resolve immediately from cached (or default) coords. We deliberately do
+    // NOT call getUserCoords() here — that would pop the browser's location
+    // permission prompt on every page, including the public landing page.
+    // Location is only ever requested by the weather widget; if the user
+    // grants it there, resolveTheme picks up the cached coords automatically.
+    const initial = resolveTheme("auto");
+    setResolvedTheme(initial);
+    applyTheme(initial);
 
     const interval = setInterval(() => {
       // Only update if still in auto mode
