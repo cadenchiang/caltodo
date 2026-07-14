@@ -34,6 +34,13 @@ async function sendEmailNotification(
     return { success: false, error: "RESEND_API_KEY not configured" };
   }
 
+  // Platform requests come in prefixed with "[Platform request]" — give them a
+  // clear subject so they're easy to spot in the inbox.
+  const isPlatformRequest = message.startsWith("[Platform request]");
+  const subject = isPlatformRequest
+    ? `[caltodo] Platform request`
+    : `[caltodo] New message from ${senderName || "Anonymous"}`;
+
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
@@ -43,7 +50,7 @@ async function sendEmailNotification(
     body: JSON.stringify({
       from: "caltodo <noreply@caltodo.me>",
       to: [DESTINATION_EMAIL],
-      subject: `[caltodo] New message from ${senderName || "Anonymous"}`,
+      subject,
       text: `From: ${senderName || "Anonymous"} (${senderEmail})\n\n${message}`,
     }),
   });

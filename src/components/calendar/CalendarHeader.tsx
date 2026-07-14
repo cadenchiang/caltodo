@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight, Unlink, XCircle, Check, Plus } from "lucide-react";
 import CalendarSettingsPopover from "./CalendarSettingsPopover";
+import CalendarClassesButton from "./CalendarClassesButton";
 import { useToast } from "@/contexts/ToastContext";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 
@@ -242,6 +243,10 @@ export default function CalendarHeader({
             </button>
           </div>
         )}
+
+        {/* "N classes" pill — shown once the user has synced classes; opens a
+            modal to view/edit them. Renders nothing when no classes synced. */}
+        <CalendarClassesButton />
 
         {/* GCal synced indicator — just the logo + a green checkmark,
             no "Synced" copy. Hidden on mobile. Click opens the
