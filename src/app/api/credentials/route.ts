@@ -13,8 +13,27 @@ import { rateLimit } from "@/lib/rate-limit";
 import { isAllowedCanvasUrl } from "@/lib/canvas-url-validation";
 import type { IntegrationCredentials, CredentialsSavePayload, AdditionalCanvasAccount } from "@/lib/types";
 
-/** Base columns selected from integration_credentials (excludes additional_canvas_accounts for fallback). */
-const BASE_SELECT = "canvas_token, canvas_base_url, canvas_ical_url, gradescope_email, gradescope_password_encrypted, last_synced_at, selected_canvas_courses, selected_gradescope_courses, selected_pensieve_courses, google_access_token_encrypted, google_auth_failed, google_calendar_id, google_email, google_photo_url, canvas_token_created_at, is_founding_member, pensieve_calendar_url, brightspace_calendar_url, gradescope_auth_failed, email_digest_enabled, email_digest_hour, email_digest_address, dismissed_canvas_course_ids, dismissed_modals";
+/**
+ * Columns guaranteed to exist in every deployed environment. Anything that was
+ * added by a recent migration lives in OPTIONAL_SELECT so a prod database that
+ * hasn't run that migration yet degrades gracefully (the column defaults) instead
+ * of the whole GET 500ing. See the two-tier select in GET below.
+ */
+const CORE_SELECT = "canvas_token, canvas_base_url, canvas_ical_url, gradescope_email, gradescope_password_encrypted, last_synced_at, selected_canvas_courses, selected_gradescope_courses, selected_pensieve_courses, google_access_token_encrypted, google_calendar_id, google_email, google_photo_url, canvas_token_created_at, is_founding_member, pensieve_calendar_url, brightspace_calendar_url, gradescope_auth_failed, email_digest_enabled, email_digest_hour, email_digest_address, dismissed_canvas_course_ids, dismissed_modals";
+
+/**
+ * Recently-migrated columns that may not exist in a lagging environment. Kept
+ * separate so a missing-column error triggers a fallback to CORE_SELECT rather
+ * than a 500. Each is optional in IntegrationCredentials (defaults applied below).
+ */
+const OPTIONAL_SELECT = "google_auth_failed, additional_canvas_accounts";
+const FULL_SELECT = `${CORE_SELECT}, ${OPTIONAL_SELECT}`;
+
+/** Postgres "undefined column" (42703) or the PostgREST message that carries it. */
+function isMissingColumnError(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  return error.code === "42703" || /does not exist|could not find/i.test(error.message ?? "");
+}
 
 /**
  * GET /api/credentials
@@ -36,16 +55,19 @@ export async function GET() {
 
   let { data, error } = await supabase
     .from("integration_credentials")
-    .select(`${BASE_SELECT}, additional_canvas_accounts`)
+    .select(FULL_SELECT)
     .eq("user_id", user.id)
     .single();
 
-  // If the additional_canvas_accounts column doesn't exist yet, retry without it
-  if (error && error.code !== "PGRST116" && error.message?.includes("additional_canvas_accounts")) {
-    logger.warn("GET /api/credentials — additional_canvas_accounts column missing, retrying without it", { userId: user.id });
+  // If a recently-migrated column doesn't exist yet in this environment
+  // (e.g. prod hasn't run the latest migration), retry with only the columns
+  // guaranteed to exist. The optional columns fall back to their defaults
+  // below, so the endpoint keeps working instead of 500ing every home load.
+  if (error && error.code !== "PGRST116" && isMissingColumnError(error)) {
+    logger.warn("GET /api/credentials — optional column missing, retrying with CORE_SELECT", { userId: user.id, error: error.message });
     ({ data, error } = await supabase
       .from("integration_credentials")
-      .select(BASE_SELECT)
+      .select(CORE_SELECT)
       .eq("user_id", user.id)
       .single());
   }
@@ -350,16 +372,16 @@ export async function PUT(request: Request) {
   // Return updated credentials
   let { data: updated, error: readError } = await supabase
     .from("integration_credentials")
-    .select(`${BASE_SELECT}, additional_canvas_accounts`)
+    .select(FULL_SELECT)
     .eq("user_id", user.id)
     .single();
 
-  // Retry without additional_canvas_accounts if column doesn't exist yet
-  if (readError && readError.message?.includes("additional_canvas_accounts")) {
-    logger.warn("PUT /api/credentials — additional_canvas_accounts column missing, retrying without it", { userId: user.id });
+  // Retry with only guaranteed columns if a recently-migrated one is missing.
+  if (readError && isMissingColumnError(readError)) {
+    logger.warn("PUT /api/credentials — optional column missing, retrying with CORE_SELECT", { userId: user.id, error: readError.message });
     ({ data: updated, error: readError } = await supabase
       .from("integration_credentials")
-      .select(BASE_SELECT)
+      .select(CORE_SELECT)
       .eq("user_id", user.id)
       .single());
   }
