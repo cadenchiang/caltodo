@@ -5,8 +5,24 @@ const withSerwist = withSerwistInit({
   swSrc: "src/app/sw.ts",
   swDest: "public/sw.js",
   cacheOnNavigation: true,
-  reloadOnOnline: true,
+  // Do NOT reload the window when the browser fires an `online` event. That
+  // event fires spuriously right after the initial connection settles, which
+  // produced a visible full-page reload during first load (the "glitchy"
+  // feeling). Runtime caching still works offline without this.
+  reloadOnOnline: false,
   disable: process.env.NODE_ENV === "development",
+  // Keep the install-time precache lean so the first visit isn't front-loaded
+  // with the entire build output competing for bandwidth with the page the
+  // user is actually waiting for. Large chunks and all images are served/
+  // cached on demand by the runtimeCaching recipe (defaultCache) instead.
+  maximumFileSizeToCacheInBytes: 1_500_000,
+  exclude: [
+    /\.map$/,
+    /^manifest.*\.js$/,
+    // Images don't need to be in the eager precache — runtimeCaching picks
+    // them up the first time they're actually requested.
+    /\.(?:png|jpg|jpeg|gif|webp|avif|svg|ico)$/,
+  ],
 });
 
 const nextConfig: NextConfig = {

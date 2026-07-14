@@ -10,15 +10,29 @@
 
 import { useEffect, useState } from "react";
 
-export default function PageTransition({ children }: { children: React.ReactNode }) {
-  const [mounted, setMounted] = useState(false);
+/**
+ * Tracks whether the app has already painted its first page this page-load.
+ * The very first `/app/*` page a user lands on (a hard load) should appear
+ * instantly — starting it at opacity:0 and fading in just stacked a 350ms
+ * fade on top of the skeleton, which read as slow/glitchy first-load. Only
+ * client-side route changes (the 2nd+ mount) get the fade.
+ */
+let hasPaintedFirstPage = false;
 
-  // Schedule the opacity flip on the SECOND animation frame so the
-  // browser actually paints the initial opacity:0 state before the
-  // transition kicks in. A single requestAnimationFrame fires before
-  // the first paint commits, so the previous behavior went straight
-  // to opacity:1 and the user saw no fade at all.
+export default function PageTransition({ children }: { children: React.ReactNode }) {
+  // On the first page of a load, render visible immediately (no fade). On
+  // subsequent route changes, start hidden and fade in.
+  const isFirstPage = !hasPaintedFirstPage;
+  const [mounted, setMounted] = useState(isFirstPage);
+
   useEffect(() => {
+    if (isFirstPage) {
+      hasPaintedFirstPage = true;
+      return; // already visible — nothing to animate
+    }
+    // Schedule the opacity flip on the SECOND animation frame so the browser
+    // actually paints the initial opacity:0 state before the transition kicks
+    // in (a single rAF fires before the first paint commits).
     let raf2 = 0;
     const raf1 = requestAnimationFrame(() => {
       raf2 = requestAnimationFrame(() => setMounted(true));
@@ -27,7 +41,7 @@ export default function PageTransition({ children }: { children: React.ReactNode
       cancelAnimationFrame(raf1);
       cancelAnimationFrame(raf2);
     };
-  }, []);
+  }, [isFirstPage]);
 
   return (
     <div
