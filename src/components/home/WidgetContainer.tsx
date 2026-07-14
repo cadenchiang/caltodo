@@ -15,20 +15,38 @@
 
 import { useRef } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { useTheme } from "@/contexts/ThemeContext";
 import type { WidgetInstance } from "@/lib/widget-types";
-import ProfileWidget from "@/components/home/widgets/ProfileWidget";
-import IntroWidget from "@/components/home/widgets/IntroWidget";
-import TasksTodayWidget from "@/components/home/widgets/TasksTodayWidget";
-import GoogleCalendarWidget from "@/components/home/widgets/GoogleCalendarWidget";
-import ImageWidget from "@/components/home/widgets/ImageWidget";
-import ClassProgressWidget from "@/components/home/widgets/ClassProgressWidget";
-import WeatherWidget from "@/components/home/widgets/WeatherWidget";
-import PomodoroWidget from "@/components/home/widgets/PomodoroWidget";
-import WeeklyHeatmapWidget from "@/components/home/widgets/WeeklyHeatmapWidget";
-import SpotifyWidget from "@/components/home/widgets/SpotifyWidget";
-import DailyRemindersWidget from "@/components/home/widgets/DailyRemindersWidget";
-import CoursesWidget from "@/components/home/widgets/CoursesWidget";
+
+/**
+ * Skeleton shown while a widget's code chunk loads. Fills its grid cell so a
+ * lazily-loaded widget never shifts the layout when it pops in.
+ */
+function WidgetSkeleton() {
+  return <div className="h-full w-full animate-pulse rounded-xl bg-muted/40" />;
+}
+
+// Widgets are code-split so the first /app/home load only downloads the widget
+// types actually on the user's board, not all twelve. `ssr: false` because
+// these are interactive, client-only dashboard widgets (no SEO value) and the
+// board itself is behind auth. A fixed-size skeleton reserves the cell so the
+// board doesn't jump as each chunk arrives.
+const dynamicWidget = <P,>(loader: () => Promise<{ default: React.ComponentType<P> }>) =>
+  dynamic(loader, { ssr: false, loading: () => <WidgetSkeleton /> });
+
+const ProfileWidget = dynamicWidget(() => import("@/components/home/widgets/ProfileWidget"));
+const IntroWidget = dynamicWidget(() => import("@/components/home/widgets/IntroWidget"));
+const TasksTodayWidget = dynamicWidget(() => import("@/components/home/widgets/TasksTodayWidget"));
+const GoogleCalendarWidget = dynamicWidget(() => import("@/components/home/widgets/GoogleCalendarWidget"));
+const ImageWidget = dynamicWidget(() => import("@/components/home/widgets/ImageWidget"));
+const ClassProgressWidget = dynamicWidget(() => import("@/components/home/widgets/ClassProgressWidget"));
+const WeatherWidget = dynamicWidget(() => import("@/components/home/widgets/WeatherWidget"));
+const PomodoroWidget = dynamicWidget(() => import("@/components/home/widgets/PomodoroWidget"));
+const WeeklyHeatmapWidget = dynamicWidget(() => import("@/components/home/widgets/WeeklyHeatmapWidget"));
+const SpotifyWidget = dynamicWidget(() => import("@/components/home/widgets/SpotifyWidget"));
+const DailyRemindersWidget = dynamicWidget(() => import("@/components/home/widgets/DailyRemindersWidget"));
+const CoursesWidget = dynamicWidget(() => import("@/components/home/widgets/CoursesWidget"));
 
 /** Drag threshold in pixels — mouse must stay within this to count as a click. */
 const DRAG_THRESHOLD = 5;
