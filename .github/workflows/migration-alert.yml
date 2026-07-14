@@ -1,0 +1,75 @@
+name: Migration Alert
+
+# Modeled on the Pensive monorepo's drizzle-migration-alert. When a PR adds a
+# new Supabase migration, drop (or update) a single comment flagging it so
+# migrations get a deliberate review before they auto-apply to production on
+# merge (see db-migrate.yml). The comment is removed again if the migration
+# files are dropped from the PR.
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, ready_for_review]
+    paths:
+      - "supabase/migrations/**/*.sql"
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: migration-alert-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  notify:
+    if: ${{ !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Comment on migration PRs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+
+          # Newly-added migration files in this PR.
+          mapfile -t files < <(
+            gh api --paginate "repos/$REPO/pulls/$PR_NUMBER/files" \
+              --jq '.[] | select(.status == "added" and (.filename | startswith("supabase/migrations/")) and (.filename | endswith(".sql"))) | .filename'
+          )
+
+          marker="<!-- migration-alert -->"
+          mapfile -t comment_ids < <(
+            gh api --paginate "repos/$REPO/issues/$PR_NUMBER/comments" \
+              --jq ".[] | select(.user.login == \"github-actions[bot]\" and (.body | contains(\"$marker\"))) | .id"
+          )
+          comment_id="${comment_ids[0]:-}"
+          # Clean up any duplicate bot comments from earlier runs.
+          for duplicate_comment_id in "${comment_ids[@]:1}"; do
+            gh api --method DELETE "repos/$REPO/issues/comments/$duplicate_comment_id" >/dev/null
+          done
+
+          # No migration files left in the PR — remove the alert if present.
+          if [ "${#files[@]}" -eq 0 ]; then
+            if [ -n "$comment_id" ]; then
+              gh api --method DELETE "repos/$REPO/issues/comments/$comment_id" >/dev/null
+            fi
+            exit 0
+          fi
+
+          body_file="$(mktemp)"
+          {
+            echo "$marker"
+            echo "@cadenchiang ⚠️ This PR adds a database migration that will **auto-apply to production** when merged (\`db-migrate.yml\`). Review it carefully — prefer backward-compatible (expand/contract) changes."
+            echo ""
+            echo "New migration file(s):"
+            for f in "${files[@]}"; do echo "- \`$f\`"; done
+          } > "$body_file"
+
+          if [ -n "$comment_id" ]; then
+            gh api --method PATCH "repos/$REPO/issues/comments/$comment_id" --field body=@"$body_file" >/dev/null
+          else
+            gh api --method POST "repos/$REPO/issues/$PR_NUMBER/comments" --field body=@"$body_file" >/dev/null
+          fi
