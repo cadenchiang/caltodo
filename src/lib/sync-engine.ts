@@ -402,6 +402,22 @@ async function syncGradescope(
     return { synced: 0, errors: ["Gradescope login failed. Please update your password in Settings."] };
   }
 
+  // Enforce a login cooldown. Gradescope's anti-abuse system reacts to frequent
+  // programmatic logins by locking the account / sending password-reset emails,
+  // which kills sync for the rest of the semester. Auto-syncs (force=false)
+  // that ran a successful login recently are skipped entirely (not an error);
+  // manual syncs (force=true) always go through. Without this the client's
+  // on-mount + 30-min + on-focus auto-sync, multiplied across tabs/devices,
+  // hammered the login endpoint. See route: forceGradescope.
+  const GRADESCOPE_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
+  if (!force && creds.last_gradescope_synced_at) {
+    const elapsed = Date.now() - new Date(creds.last_gradescope_synced_at).getTime();
+    if (elapsed < GRADESCOPE_COOLDOWN_MS) {
+      logger.info("syncGradescope skipped: within login cooldown", { userId, elapsedMs: elapsed });
+      return { synced: 0, errors: [] };
+    }
+  }
+
   try {
     const password = decrypt(creds.gradescope_password_encrypted);
     const selectedCourses = creds.selected_gradescope_courses;

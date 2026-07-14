@@ -31,6 +31,7 @@ describe("refreshAccessToken", () => {
     const result = await refreshAccessToken("test-refresh-token");
 
     expect(result).toEqual({
+      status: "ok",
       accessToken: "new-access-token",
       expiresIn: 3600,
     });
@@ -40,7 +41,7 @@ describe("refreshAccessToken", () => {
     );
   });
 
-  it("should return null on failed refresh", async () => {
+  it("should report revoked on invalid_grant (no retry)", async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 400,
@@ -48,14 +49,29 @@ describe("refreshAccessToken", () => {
     });
 
     const result = await refreshAccessToken("bad-refresh-token");
-    expect(result).toBeNull();
+    expect(result).toEqual({ status: "revoked" });
+    // invalid_grant is definitive — must not retry.
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
 
-  it("should return null when env vars are missing", async () => {
+  it("should report transient (and retry) on a 5xx", async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 503,
+      text: () => Promise.resolve("service unavailable"),
+    });
+
+    const result = await refreshAccessToken("test-refresh-token");
+    expect(result).toEqual({ status: "transient" });
+    // Transient failures are retried up to REFRESH_MAX_ATTEMPTS (3).
+    expect(fetch).toHaveBeenCalledTimes(3);
+  });
+
+  it("should report transient when env vars are missing", async () => {
     delete process.env.GOOGLE_CLIENT_ID;
 
     const result = await refreshAccessToken("test-refresh-token");
-    expect(result).toBeNull();
+    expect(result).toEqual({ status: "transient" });
   });
 });
 
@@ -160,8 +176,37 @@ describe("getValidAccessToken", () => {
 
     const result = await getValidAccessToken(supabase as never, "user-123");
     expect(result).toBeNull();
-    // Verify tokens were cleared
-    expect(supabase.from).toHaveBeenCalled();
+    // Verify tokens were cleared (update called with nulled token columns)
+    expect(supabase._updateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        google_access_token_encrypted: null,
+        google_auth_failed: true,
+      })
+    );
+  });
+
+  it("should NOT clear tokens on a transient refresh failure", async () => {
+    const { encrypt } = await import("@/lib/crypto");
+    const encryptedAccess = encrypt("old-access-token");
+    const encryptedRefresh = encrypt("still-valid-refresh-token");
+
+    const supabase = createMockSupabase({
+      google_access_token_encrypted: encryptedAccess,
+      google_refresh_token_encrypted: encryptedRefresh,
+      google_token_expires_at: new Date(Date.now() - 1000).toISOString(), // expired
+    });
+
+    // Google returns 500 on every attempt — a transient outage, not a revocation.
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      text: () => Promise.resolve("internal error"),
+    });
+
+    const result = await getValidAccessToken(supabase as never, "user-123");
+    expect(result).toBeNull();
+    // Tokens must be preserved so a momentary Google blip doesn't disconnect the user.
+    expect(supabase._updateMock).not.toHaveBeenCalled();
   });
 });
 

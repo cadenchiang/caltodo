@@ -55,7 +55,7 @@ export async function POST(request: Request) {
     const forceGradescope = !!courseOverrides || body.forceGradescope === true;
 
     // Optional platform filter — only sync specific platforms
-    const VALID_PLATFORMS = new Set<SyncPlatform>(["canvas", "gradescope", "pensieve"]);
+    const VALID_PLATFORMS = new Set<SyncPlatform>(["canvas", "gradescope", "pensieve", "brightspace"]);
     const platforms: SyncPlatform[] | undefined = Array.isArray(body.platforms)
       ? (body.platforms as string[]).filter((p): p is SyncPlatform => VALID_PLATFORMS.has(p as SyncPlatform))
       : undefined;
