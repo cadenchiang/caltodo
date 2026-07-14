@@ -8,6 +8,7 @@ import ContactModal from "@/components/ui/ContactModal";
 import EditProfileModal from "@/components/ui/EditProfileModal";
 import SignOutConfirmModal from "@/components/ui/SignOutConfirmModal";
 import { clearLayoutCache } from "@/lib/board-layout-cache";
+import { clearSWRCache } from "@/components/SWRProvider";
 
 interface ProfilePopupProps {
   avatarUrl: string | null;
@@ -76,6 +77,7 @@ export default function ProfilePopup({ avatarUrl, fullName, email }: ProfilePopu
     setSigningOut(true);
     try {
       clearLayoutCache();
+      clearSWRCache();
       await fetch("/auth/signout", { method: "POST" });
     } catch {
       /* even if the server roundtrip fails we still want to drop the user
