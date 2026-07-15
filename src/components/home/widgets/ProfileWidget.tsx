@@ -14,7 +14,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { getCurrentUser } from "@/lib/supabase/current-user";
 
 interface ProfileWidgetProps {
   config?: Record<string, string>;
@@ -46,8 +46,7 @@ export default function ProfileWidget({ config }: ProfileWidgetProps) {
     let cancelled = false;
     (async () => {
       try {
-        const supabase = createClient();
-        const { data: { user } } = await supabase.auth.getUser();
+        const user = await getCurrentUser();
         if (cancelled || !user) return;
         setProfile({
           email: user.email ?? null,

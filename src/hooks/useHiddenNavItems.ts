@@ -10,6 +10,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { getCurrentUser } from "@/lib/supabase/current-user";
 
 const STORAGE_KEY = "caltodo_hidden_nav_items";
 const CHANGE_EVENT = "caltodo-hidden-nav-change";
@@ -73,11 +74,10 @@ export function useHiddenNavItems() {
     if (style) style.remove();
 
     let cancelled = false;
-    const supabase = createClient();
-    supabase.auth.getUser().then(({ data, error }) => {
+    getCurrentUser().then((user) => {
       if (cancelled) return;
-      if (error || !data.user) return;
-      const meta = data.user.user_metadata as { [META_KEY]?: unknown } | null;
+      if (!user) return;
+      const meta = user.user_metadata as { [META_KEY]?: unknown } | null;
       const remoteRaw = meta?.[META_KEY];
       if (!Array.isArray(remoteRaw)) return;
       const remote = new Set(remoteRaw.filter((v): v is string => typeof v === "string"));

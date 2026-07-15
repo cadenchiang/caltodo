@@ -33,6 +33,7 @@ import {
   type PersistedLayout,
 } from "@/lib/board-layout-types";
 import { createClient } from "@/lib/supabase/client";
+import { getCurrentUser } from "@/lib/supabase/current-user";
 import { ensureRealtimeAuth } from "@/lib/supabase/realtime-auth";
 import { useToast } from "@/contexts/ToastContext";
 
@@ -273,7 +274,7 @@ export function useWidgetLayout() {
     let channel: RealtimeChannel | null = null;
 
     async function subscribe() {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUser();
       if (!user) return;
 
       // Capture user id so subsequent cache writes tag the envelope.
