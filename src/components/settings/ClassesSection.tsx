@@ -113,7 +113,14 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
   const cachedTotals = getCachedTotals();
 
   if (!hasCanvas && !hasGradescope && !hasPensieve && !hasSyllabus && totalSelected === 0) {
-    return null;
+    return (
+      <div className="rounded-xl border border-dashed border-border px-5 py-8 text-center">
+        <p className="text-sm font-medium text-foreground">No classes yet</p>
+        <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto">
+          Connect Canvas, Gradescope, or Pensive above to sync your classes, or upload a syllabus.
+        </p>
+      </div>
+    );
   }
 
   /**

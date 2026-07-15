@@ -678,44 +678,28 @@ export default function InboxPage() {
                     <ArrowUpDown size={18} />
                   </button>
                 </div>
+                {/* View toggle — a single icon button that flips List <-> Board,
+                    replacing the old two-pill tab row. Shows the current view's
+                    icon; the tooltip names the action. */}
+                <button
+                  onClick={() => {
+                    const next: ViewMode = viewMode === "list" ? "board" : "list";
+                    trackEvent("view_mode_changed", { mode: next });
+                    setViewMode(next);
+                  }}
+                  className="p-1.5 text-foreground hover:bg-foreground/[0.05] rounded-lg transition-colors"
+                  title={viewMode === "list" ? "Switch to board view" : "Switch to list view"}
+                  aria-label={viewMode === "list" ? "Switch to board view" : "Switch to list view"}
+                >
+                  {viewMode === "list" ? <List size={18} /> : <LayoutGrid size={18} />}
+                </button>
               </div>
             </div>
           );
         })()}
 
-        {/* Tabs row — only List / Board now. Actions moved up into the
-            filter bar above so this row stays focused on view switching. */}
-        <div className="pl-4 pr-3 pb-2 md:pl-8 md:pr-6 md:pb-2 flex items-center">
-            <div className="flex items-center gap-1 min-w-0 -ml-3">
-              {/* In-page tabs for Board / List view modes, plus a third
-                  tab for Calendar that navigates to /app/calendar (which
-                  renders the same chrome with its own active tab). */}
-              {([
-                { key: "list" as const, label: "List", icon: List },
-                { key: "board" as const, label: "Board", icon: LayoutGrid },
-              ]).map(({ key, label, icon: Icon }) => {
-                const isActive = viewMode === key;
-                return (
-                  <button
-                    key={key}
-                    onClick={() => {
-                      trackEvent("view_mode_changed", { mode: key });
-                      setViewMode(key);
-                    }}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold transition-colors ${
-                      isActive
-                        ? "bg-black/[0.05] dark:bg-white/[0.07] text-foreground"
-                        : "text-muted-foreground hover:text-foreground hover:bg-black/[0.03] dark:hover:bg-white/[0.05]"
-                    }`}
-                  >
-                    <Icon size={15} strokeWidth={isActive ? 2.25 : 2} />
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
-
-          </div>
+        {/* View switching moved into the action group above (single toggle
+            button), replacing the old List/Board pill row. */}
 
         {/* Sort / view dropdowns — portaled, anchored to the action
             buttons in the filter bar above. */}
