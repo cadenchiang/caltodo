@@ -1,0 +1,40 @@
+name: Lighthouse CI
+
+# Runs Lighthouse against the public routes (/, /login) on every PR and
+# fails if Core Web Vitals regress past the budget in .lighthouserc.json.
+# This is the guardrail for "the site quietly got slow" — CLS/LCP/perf are
+# checked automatically so a regression shows up on the PR, not from users.
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  lighthouse:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      # Public routes don't touch the real database, so placeholder Supabase
+      # env is enough to build + boot the server for the audit.
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: placeholder-service-key
+          NEXT_PUBLIC_SITE_URL: http://localhost:3000
+
+      - name: Run Lighthouse CI
+        run: npx @lhci/cli autorun
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key

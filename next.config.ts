@@ -1,5 +1,12 @@
 import type { NextConfig } from "next";
 import withSerwistInit from "@serwist/next";
+import withBundleAnalyzer from "@next/bundle-analyzer";
+
+// Bundle analyzer: `npm run analyze` sets ANALYZE=true and opens an
+// interactive treemap of every chunk after the build. No-op otherwise.
+const bundleAnalyzer = withBundleAnalyzer({
+  enabled: process.env.ANALYZE === "true",
+});
 
 const withSerwist = withSerwistInit({
   swSrc: "src/app/sw.ts",
@@ -108,4 +115,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withSerwist(nextConfig);
+export default bundleAnalyzer(withSerwist(nextConfig));

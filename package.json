@@ -9,7 +9,14 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "sync-logo": "node scripts/sync-logo.mjs"
+    "sync-logo": "node scripts/sync-logo.mjs",
+    "gen-icons": "node scripts/gen-brand-icons.mjs",
+    "analyze": "ANALYZE=true next build --webpack",
+    "lhci": "lhci autorun",
+    "knip": "knip",
+    "scan": "react-scan http://localhost:3000",
+    "e2e": "playwright test",
+    "trace": "playwright test --trace on"
   },
   "engines": {
     "node": ">=24"
