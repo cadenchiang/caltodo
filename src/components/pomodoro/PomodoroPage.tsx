@@ -187,7 +187,8 @@ export default function PomodoroPage() {
         : "Take a long break";
 
   return (
-    <div className="flex flex-col lg:flex-row gap-8 max-w-5xl mx-auto py-6 pb-24 md:pb-6">
+    <div className="min-h-full flex items-center justify-center py-8 pb-24 md:pb-8">
+      <div className="w-full max-w-5xl flex flex-col lg:flex-row lg:items-center gap-10 lg:gap-16">
       {/* Timer Section */}
       <div className="flex-1 flex flex-col items-center">
         <h1 className="text-lg font-semibold text-foreground mb-6">
@@ -379,6 +380,7 @@ export default function PomodoroPage() {
           <Plus size={16} />
           Add Task
         </button>
+      </div>
       </div>
 
       <TaskPickerModal

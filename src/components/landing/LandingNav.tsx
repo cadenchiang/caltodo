@@ -183,7 +183,7 @@ export default function LandingNav({ loggedIn: loggedInProp }: LandingNavProps =
   return (
     <>
       <nav
-        className={`sticky top-0 z-40 w-full px-4 sm:px-8 py-3 sm:py-4 grid grid-cols-3 items-center bg-white border-b transition-colors duration-200 ${
+        className={`sticky top-0 z-40 w-full px-4 sm:px-8 py-3 sm:py-4 grid grid-cols-3 items-center border-b transition-colors duration-200 supports-[backdrop-filter]:bg-white/60 bg-white/90 backdrop-blur-xl backdrop-saturate-150 ${
           scrolled ? "border-black/5" : "border-transparent"
         }`}
       >
