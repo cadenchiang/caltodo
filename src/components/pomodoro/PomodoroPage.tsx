@@ -302,8 +302,9 @@ export default function PomodoroPage() {
         )}
       </div>
 
-      {/* Tasks Section */}
-      <div className="lg:w-96 shrink-0">
+      {/* Tasks Section — given the app's card treatment so it reads as a
+          defined panel beside the timer hero, instead of floating text. */}
+      <div className="lg:w-96 shrink-0 rounded-2xl border border-border bg-card p-5">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-semibold text-foreground">Tasks</h2>
           <span className="text-xs text-muted-foreground">
