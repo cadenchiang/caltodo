@@ -1,0 +1,35 @@
+# CodeRabbit config — AI code review on every PR.
+# Free for public repos: install the CodeRabbit GitHub App at
+# https://github.com/apps/coderabbitai and it picks this up automatically.
+# https://docs.coderabbit.ai/guides/configure-coderabbit
+language: en-US
+reviews:
+  profile: chill            # concise, high-signal comments (not nitpicky)
+  request_changes_workflow: false
+  high_level_summary: true
+  review_status: true
+  poem: false
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - main
+  path_filters:
+    - "!**/*.lock"
+    - "!**/node_modules/**"
+    - "!**/.next/**"
+    - "!**/*.snap"
+  path_instructions:
+    - path: "src/lib/**"
+      instructions: >-
+        This is server-side + shared logic (integration clients, sync engine,
+        crypto). Flag silent error-swallowing, missing pagination on Supabase
+        queries (>1000-row cap), timezone/all-day date bugs, and any place a
+        failed external fetch is treated as success.
+    - path: "supabase/migrations/**"
+      instructions: >-
+        Migrations auto-apply on merge. Flag anything destructive or
+        backward-incompatible (dropping columns, non-IF-NOT-EXISTS adds,
+        NOT NULL without a default on a populated table).
+chat:
+  auto_reply: true
