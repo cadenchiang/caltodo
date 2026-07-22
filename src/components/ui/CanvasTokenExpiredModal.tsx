@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle } from "lucide-react";
 import type { IntegrationCredentials } from "@/lib/types";
+import { getCredentials } from "@/lib/credentials-client";
 
 /** localStorage key to suppress modal for 24 hours after dismissal. */
 const DISMISS_KEY = "caltodo_canvas_token_expired_dismissed";
@@ -45,9 +46,8 @@ export default function CanvasTokenExpiredModal() {
 
     async function checkExpiration() {
       try {
-        const res = await fetch("/api/credentials");
-        if (!res.ok) return;
-        const creds: IntegrationCredentials = await res.json();
+        const creds = (await getCredentials()) as IntegrationCredentials | null;
+        if (!creds) return;
 
         // Only show if user has a canvas token AND it has a creation date
         if (!creds.canvas_token || !creds.canvas_token_created_at) return;
