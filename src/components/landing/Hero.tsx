@@ -6,6 +6,7 @@ import Image from "next/image";
 import { RefreshCw, CalendarDays, LayoutGrid, ArrowRight } from "lucide-react";
 import GoogleOneTap from "@/components/auth/GoogleOneTap";
 import FadeIn from "@/components/landing/FadeIn";
+import SyncedCounter from "@/components/landing/SyncedCounter";
 
 
 interface HeroProps {
@@ -200,7 +201,7 @@ export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
               animationDelay: "1200ms",
             }}
           >
-            <span className="font-bold">Stay ahead.</span>
+            <SyncedCounter />
           </h2>
 
           {/* Subtitle */}

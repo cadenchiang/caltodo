@@ -28,14 +28,23 @@ export async function GET() {
 
     if (error) {
       logger.error("GET /api/stats: failed to count users", { error: error.message });
-      return NextResponse.json({ count: 0 });
+      return NextResponse.json({ count: 0, tasksSynced: 0 });
     }
 
     // listUsers returns total count in the response
     const count = data.total ?? data.users.length;
 
+    // Total assignments/tasks synced across all users — powers the landing
+    // hero counter. head:true fetches only the count, not the rows.
+    const { count: tasksSynced, error: tasksError } = await supabase
+      .from("tasks")
+      .select("*", { count: "exact", head: true });
+    if (tasksError) {
+      logger.error("GET /api/stats: failed to count tasks", { error: tasksError.message });
+    }
+
     return NextResponse.json(
-      { count },
+      { count, tasksSynced: tasksSynced ?? 0 },
       { headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=60" } }
     );
   } catch (err) {
