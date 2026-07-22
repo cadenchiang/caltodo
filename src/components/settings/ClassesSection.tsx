@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Pencil, Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Pencil, Loader2, GraduationCap } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 import { useTaskContext } from "@/contexts/TaskContext";
 import CourseSelectModal from "@/components/ui/CourseSelectModal";
@@ -73,6 +74,7 @@ function setCachedTotals(totals: CourseTotals): void {
  * @param onUpdate - Callback with updated credentials after save
  */
 export default function ClassesSection({ credentials, onUpdate }: ClassesSectionProps) {
+  const router = useRouter();
   const { showToast } = useToast();
   const { tasks, fetchTasks, dismissTasksByCourseNames, undismissTasksByCourseNames } = useTaskContext();
   const [loading, setLoading] = useState(false);
@@ -112,8 +114,27 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
   const platformCount = (hasCanvas ? 1 : 0) + (hasGradescope ? 1 : 0) + (hasPensieve ? 1 : 0) + (hasSyllabus ? 1 : 0);
   const cachedTotals = getCachedTotals();
 
+  // No integrations connected and nothing selected: show an actionable empty
+  // state instead of a blank section, pointing the user at Integrations to
+  // connect a platform.
   if (!hasCanvas && !hasGradescope && !hasPensieve && !hasSyllabus && totalSelected === 0) {
-    return null;
+    return (
+      <div className="flex flex-col items-center justify-center text-center rounded-2xl border border-dashed border-border bg-card px-6 py-10">
+        <div className="w-11 h-11 rounded-full bg-muted flex items-center justify-center mb-3">
+          <GraduationCap size={20} className="text-muted-foreground" />
+        </div>
+        <p className="text-sm font-medium text-foreground">No classes synced</p>
+        <p className="text-xs text-subtle-foreground mt-1 mb-4 max-w-xs">
+          Connect bCourses, Gradescope, or Pensive to start syncing your assignments.
+        </p>
+        <button
+          onClick={() => router.push("/app/settings?section=integrations")}
+          className="px-4 py-2 rounded-xl bg-[#0e89d6] text-white text-sm font-medium hover:bg-[#3D8FE8] transition-colors active:scale-[0.98]"
+        >
+          Sync classes
+        </button>
+      </div>
+    );
   }
 
   /**

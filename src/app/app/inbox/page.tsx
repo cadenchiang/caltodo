@@ -253,6 +253,10 @@ export default function InboxPage() {
   const [showViewMenu, setShowViewMenu] = useState(false);
   const viewMenuRef = useRef<HTMLButtonElement>(null);
   const viewMenuDropdownRef = useRef<HTMLDivElement>(null);
+  // View switcher (List / Board) is now a single pill that opens a dropdown
+  // instead of two always-visible tabs.
+  const [showViewDropdown, setShowViewDropdown] = useState(false);
+  const viewToggleRef = useRef<HTMLDivElement>(null);
   const [sortMode, setSortMode] = useState<SortMode>("date");
   const [showSortMenu, setShowSortMenu] = useState(false);
   const sortMenuRef = useRef<HTMLButtonElement>(null);
@@ -495,6 +499,17 @@ export default function InboxPage() {
     };
   }, [showViewMenu]);
 
+  // Close view switcher dropdown on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (viewToggleRef.current && !viewToggleRef.current.contains(e.target as Node)) {
+        setShowViewDropdown(false);
+      }
+    }
+    if (showViewDropdown) document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showViewDropdown]);
+
 
   /**
    * Opens the sync modal and loads ALL available courses from Canvas and Gradescope.
@@ -683,39 +698,59 @@ export default function InboxPage() {
           );
         })()}
 
-        {/* Tabs row — only List / Board now. Actions moved up into the
-            filter bar above so this row stays focused on view switching. */}
-        <div className="pl-4 pr-3 pb-2 md:pl-8 md:pr-6 md:pb-2 flex items-center">
-            <div className="flex items-center gap-1 min-w-0 -ml-3">
-              {/* In-page tabs for Board / List view modes, plus a third
-                  tab for Calendar that navigates to /app/calendar (which
-                  renders the same chrome with its own active tab). */}
-              {([
-                { key: "list" as const, label: "List", icon: List },
-                { key: "board" as const, label: "Board", icon: LayoutGrid },
-              ]).map(({ key, label, icon: Icon }) => {
-                const isActive = viewMode === key;
-                return (
-                  <button
-                    key={key}
-                    onClick={() => {
-                      trackEvent("view_mode_changed", { mode: key });
-                      setViewMode(key);
-                    }}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold transition-colors ${
-                      isActive
-                        ? "bg-black/[0.05] dark:bg-white/[0.07] text-foreground"
-                        : "text-muted-foreground hover:text-foreground hover:bg-black/[0.03] dark:hover:bg-white/[0.05]"
-                    }`}
-                  >
-                    <Icon size={15} strokeWidth={isActive ? 2.25 : 2} />
-                    {label}
-                  </button>
-                );
-              })}
+        {/* View switcher: a single pill showing the active view that opens
+            a dropdown to pick List or Board (previously two always-visible
+            pills sitting out in the open). */}
+        {(() => {
+          const VIEW_OPTIONS = [
+            { key: "list" as const, label: "List", icon: List },
+            { key: "board" as const, label: "Board", icon: LayoutGrid },
+          ];
+          const active = VIEW_OPTIONS.find((o) => o.key === viewMode) ?? VIEW_OPTIONS[0];
+          const ActiveIcon = active.icon;
+          return (
+            <div className="pl-4 pr-3 pb-2 md:pl-8 md:pr-6 md:pb-2 flex items-center">
+              <div className="relative" ref={viewToggleRef}>
+                <button
+                  type="button"
+                  onClick={() => setShowViewDropdown((v) => !v)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 -ml-3 rounded-full text-sm font-semibold text-foreground hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
+                >
+                  <ActiveIcon size={15} strokeWidth={2.25} />
+                  {active.label}
+                  <ChevronDown
+                    size={14}
+                    className={`text-muted-foreground transition-transform ${showViewDropdown ? "rotate-180" : ""}`}
+                  />
+                </button>
+                {showViewDropdown && (
+                  <div className="absolute top-full left-0 mt-1 z-50 rounded-xl shadow-2xl border border-border overflow-hidden min-w-[150px] bg-popover">
+                    {VIEW_OPTIONS.map((opt) => {
+                      const Icon = opt.icon;
+                      const isActive = opt.key === viewMode;
+                      return (
+                        <button
+                          key={opt.key}
+                          onClick={() => {
+                            trackEvent("view_mode_changed", { mode: opt.key });
+                            setViewMode(opt.key);
+                            setShowViewDropdown(false);
+                          }}
+                          className={`flex items-center gap-2 w-full text-left px-3 py-2 text-sm transition-colors ${
+                            isActive ? "bg-foreground/[0.06] font-semibold" : "hover:bg-foreground/[0.04]"
+                          }`}
+                        >
+                          <Icon size={14} className="text-foreground" />
+                          <span className="text-foreground">{opt.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
-
-          </div>
+          );
+        })()}
 
         {/* Sort / view dropdowns — portaled, anchored to the action
             buttons in the filter bar above. */}

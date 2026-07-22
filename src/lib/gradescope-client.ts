@@ -136,18 +136,25 @@ export async function fetchGradescopeCourses(
   const courses: GradescopeCourse[] = [];
   const seen = new Set<string>();
 
+  // Gradescope renders one `.courseList--coursesForTerm` block PER TERM, so a
+  // student enrolled across multiple terms produces several blocks. Scrape
+  // every student block (not just the first) so no term is silently dropped.
   const courseLists = $(".courseList--coursesForTerm");
   let courseBoxes = $(".courseBox");
 
-  if (courseLists.length > 1) {
+  if (courseLists.length >= 1) {
     const accountText = $("#account-show").text();
-    if (accountText.includes("Instructor Courses")) {
-      courseBoxes = courseLists.eq(1).find(".courseBox");
-    } else {
-      courseBoxes = courseLists.first().find(".courseBox");
-    }
-  } else if (courseLists.length === 1) {
-    courseBoxes = courseLists.first().find(".courseBox");
+    const hasInstructorCourses = accountText.includes("Instructor Courses");
+    // Instructor courses render before student courses. We can't tell how many
+    // term-blocks belong to the instructor role from the flat list, so when an
+    // instructor role is present drop the first block (the instructor's list)
+    // and keep the rest — this surfaces the student's courses across all their
+    // terms instead of picking one hardcoded index (which dropped whole terms).
+    const studentLists =
+      hasInstructorCourses && courseLists.length > 1
+        ? courseLists.slice(1)
+        : courseLists;
+    courseBoxes = studentLists.find(".courseBox");
   }
 
   if (courseBoxes.length > 0) {

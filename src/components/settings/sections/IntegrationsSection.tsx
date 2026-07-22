@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, FileText } from "lucide-react";
 import GoogleCalendarSettings from "@/components/settings/GoogleCalendarSettings";
@@ -188,14 +188,31 @@ function RequestPlatformForm() {
   );
 }
 
+/** Duration the exit animation runs (matches .animate-announce-card-out in globals.css). */
+const CLOSE_ANIM_MS = 220;
+
 /**
- * Centered popup modal with the platform-request form.
+ * Centered popup modal with the platform-request form. Matches the Contact Us
+ * modal's size + open/close animation for visual consistency.
  * Closes on Escape, on backdrop click, and after a successful submission.
+ * Submits to /api/contact with a "[Platform request]" prefix so it emails via
+ * Resend with a dedicated subject.
  */
 function RequestPlatformModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [message, setMessage] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [closing, setClosing] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  /** Play the exit animation, then call the parent's onClose. */
+  const requestClose = useCallback(() => {
+    if (closing) return;
+    setClosing(true);
+    setTimeout(() => {
+      setClosing(false);
+      onClose();
+    }, CLOSE_ANIM_MS);
+  }, [closing, onClose]);
 
   useEffect(() => {
     if (open && textareaRef.current) {
@@ -204,17 +221,18 @@ function RequestPlatformModal({ open, onClose }: { open: boolean; onClose: () =>
     if (!open) {
       setMessage("");
       setStatus("idle");
+      setClosing(false);
     }
   }, [open]);
 
   useEffect(() => {
     if (!open) return;
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") requestClose();
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [open, onClose]);
+  }, [open, requestClose]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -232,7 +250,7 @@ function RequestPlatformModal({ open, onClose }: { open: boolean; onClose: () =>
       });
       if (!res.ok) throw new Error("Submission failed");
       setStatus("sent");
-      setTimeout(onClose, 800);
+      setTimeout(requestClose, 800);
     } catch {
       setStatus("error");
     }
@@ -241,12 +259,13 @@ function RequestPlatformModal({ open, onClose }: { open: boolean; onClose: () =>
   if (!open) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-      onClick={onClose}
-    >
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center">
       <div
-        className="w-full max-w-md rounded-2xl bg-popover border border-border shadow-xl p-6"
+        className={`absolute inset-0 bg-black/50 backdrop-blur-sm ${closing ? "animate-announce-backdrop-out" : "animate-announce-backdrop-in"}`}
+        onClick={requestClose}
+      />
+      <div
+        className={`relative w-full w-[calc(100%-2rem)] max-w-lg rounded-2xl bg-card border border-border shadow-2xl p-6 ${closing ? "animate-announce-card-out" : "animate-announce-card-in"}`}
         onClick={(e) => e.stopPropagation()}
       >
         <h3 className="text-base font-semibold text-foreground mb-1">
@@ -261,20 +280,20 @@ function RequestPlatformModal({ open, onClose }: { open: boolean; onClose: () =>
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             placeholder="e.g. Schoology, Brightspace, Moodle..."
-            rows={3}
+            rows={4}
             maxLength={2000}
             disabled={status === "sending"}
-            className="w-full rounded-lg border border-input-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent disabled:opacity-50"
+            className="w-full rounded-xl border border-input-border bg-transparent px-3.5 py-3 text-sm text-foreground placeholder:text-subtle-foreground resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all disabled:opacity-50"
           />
           <div className="flex items-center justify-between gap-3">
             <p className="text-xs text-subtle-foreground">
-              {status === "sent" && "Thanks — we got it."}
+              {status === "sent" && "Thanks, we got it."}
               {status === "error" && "Something went wrong. Try again."}
             </p>
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={onClose}
+                onClick={requestClose}
                 className="px-4 py-1.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-accent transition-colors"
               >
                 Cancel

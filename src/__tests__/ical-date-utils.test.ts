@@ -21,7 +21,7 @@ describe("parseDueDateWithTzid", () => {
 
   it("should parse DATE-only format", () => {
     expect(parseDueDateWithTzid("20260320", null)).toBe(
-      "2026-03-20T00:00:00Z"
+      "2026-03-20T12:00:00Z"
     );
   });
 
@@ -69,7 +69,7 @@ describe("parseDueDateWithTzid", () => {
 
   it("should ignore TZID for DATE-only format", () => {
     expect(parseDueDateWithTzid("20260320", "America/Los_Angeles")).toBe(
-      "2026-03-20T00:00:00Z"
+      "2026-03-20T12:00:00Z"
     );
   });
 });

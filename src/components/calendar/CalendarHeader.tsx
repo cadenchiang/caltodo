@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight, Unlink, XCircle, Check, Plus } from "lucide-react";
 import CalendarSettingsPopover from "./CalendarSettingsPopover";
 import CalendarClassesButton from "./CalendarClassesButton";
+import SyncClassesModal from "./SyncClassesModal";
 import { useToast } from "@/contexts/ToastContext";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 
@@ -84,6 +85,7 @@ export default function CalendarHeader({
   const [syncBadgeDismissed, setSyncBadgeDismissed] = useState(() => {
     try { return localStorage.getItem(SYNC_BADGE_DISMISSED_KEY) === "true"; } catch { return false; }
   });
+  const [showSyncClassesModal, setShowSyncClassesModal] = useState(false);
   const [gcalConnected, setGcalConnected] = useState<boolean | null>(null);
   const [gcalEmail, setGcalEmail] = useState<string | null>(null);
   const [gcalPhotoUrl, setGcalPhotoUrl] = useState<string | null>(null);
@@ -216,15 +218,16 @@ export default function CalendarHeader({
             still don't see it flash on repeat visits. */}
         {!hasCompletedOnboarding && !syncBadgeDismissed && (
           <div className="relative shrink-0 hidden md:flex items-center group/sync ml-2">
-            <a
-              href="/app/settings?section=integrations"
+            <button
+              type="button"
+              onClick={() => setShowSyncClassesModal(true)}
               title="Connect your class platforms"
               className="active:scale-95 transition-all relative"
             >
               <div className="rounded-full bg-[#0e89d6] pl-2.5 pr-3 py-1.5 flex items-center gap-1.5 hover:opacity-80 transition-opacity">
                 <span className="text-xs font-semibold text-white">Sync Classes</span>
               </div>
-            </a>
+            </button>
             <button
               onClick={(e) => {
                 e.preventDefault();
@@ -305,6 +308,8 @@ export default function CalendarHeader({
       {/* Right: Add + View mode (settings gear / view-mode toggle removed —
           assignments mode is the only supported view). */}
       <div className="flex items-center gap-2 shrink-0">
+
+        <SyncClassesModal open={showSyncClassesModal} onClose={() => setShowSyncClassesModal(false)} />
 
         {/* View mode: Month / Week / Day */}
         <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800">

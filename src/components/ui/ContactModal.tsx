@@ -116,7 +116,7 @@ export default function ContactModal({ open, onClose, userName, userEmail }: Con
       />
 
       {/* Modal */}
-      <div className={`relative bg-card rounded-2xl border border-border shadow-2xl w-full w-[calc(100%-2rem)] max-w-md ${closing ? "animate-announce-card-out" : "animate-announce-card-in"}`}>
+      <div className={`relative bg-card rounded-2xl border border-border shadow-2xl w-full w-[calc(100%-2rem)] max-w-lg ${closing ? "animate-announce-card-out" : "animate-announce-card-in"}`}>
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <div className="flex items-center gap-2">
@@ -156,9 +156,9 @@ export default function ContactModal({ open, onClose, userName, userEmail }: Con
             <button
               type="submit"
               disabled={!message.trim() || submitting}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium bg-foreground text-background hover:bg-foreground/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium bg-foreground text-background hover:bg-foreground/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
             >
-              <Send size={14} />
+              <Send size={13} />
               {submitting ? "Sending..." : "Send"}
             </button>
           </div>

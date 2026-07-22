@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { IntegrationProvider } from "@/components/settings/IntegrationSettings";
+import { getSettingsReturnPath } from "@/lib/settings-return";
 import PageTransition from "@/components/ui/PageTransition";
 import IntegrationsSection from "@/components/settings/sections/IntegrationsSection";
 import ClassesSectionWrapper from "@/components/settings/sections/ClassesSectionWrapper";
@@ -207,7 +208,7 @@ export default function SettingsContent() {
                   {/* Mobile: section list menu */}
                   <div className="px-4 pt-4 pb-2 animate-stagger stagger-1">
                     <button
-                      onClick={() => router.push("/app/inbox")}
+                      onClick={() => router.push(getSettingsReturnPath())}
                       className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-sm font-medium transition-colors text-muted-foreground hover:bg-accent hover:text-foreground cursor-pointer active:scale-[0.98]"
                     >
                       <ChevronLeft size={16} />

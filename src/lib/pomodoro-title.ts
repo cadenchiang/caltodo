@@ -1,9 +1,10 @@
 /**
  * Shared helpers for the global Pomodoro tab-title countdown.
  *
- * Two independent timers persist to localStorage:
- *  - the full Pomodoro page (`caltodo_focus_session`) stores a wall-clock
- *    `endTime`, so remaining time is `endTime - now`
+ * Two independent timers may persist to localStorage:
+ *  - a legacy focus-session (`caltodo_focus_session`) stored a wall-clock
+ *    `endTime`, so remaining time is `endTime - now` (no longer written since
+ *    the standalone Focus page was removed, but still read for back-compat)
  *  - the home-screen widget (`caltodo_pomodoro_state`) stores `secondsLeft`
  *    plus the `savedAt` timestamp of the last write, so remaining time is
  *    `secondsLeft - elapsedSince(savedAt)`
@@ -13,7 +14,7 @@
  * in the app, a stub in tests).
  */
 
-/** localStorage key used by the Pomodoro page (see PomodoroPage.tsx). */
+/** Legacy localStorage key from the removed standalone Focus page; still read for back-compat. */
 export const FOCUS_SESSION_KEY = "caltodo_focus_session";
 /** localStorage key used by the home Pomodoro widget (see PomodoroWidget.tsx). */
 export const WIDGET_POMO_KEY = "caltodo_pomodoro_state";

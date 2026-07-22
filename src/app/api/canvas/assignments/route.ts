@@ -11,6 +11,19 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { logger } from "@/lib/logger";
 
+/**
+ * Parses the `rel="next"` URL from a Canvas `Link` response header for
+ * pagination. Returns null when there is no next page.
+ */
+function parseNextLink(linkHeader: string | null): string | null {
+  if (!linkHeader) return null;
+  for (const part of linkHeader.split(",")) {
+    const match = part.match(/<([^>]+)>\s*;\s*rel="next"/);
+    if (match) return match[1];
+  }
+  return null;
+}
+
 export async function GET() {
   const supabase = await createClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -73,27 +86,39 @@ export async function GET() {
       const uniqueCourseIds = [...new Set(candidates.map((a) => a.courseId))];
       const headers = { Authorization: `Bearer ${canvasToken}` };
 
-      // Fetch assignments per course in parallel to get submission_types
+      // Fetch assignments per course in parallel to get submission_types.
+      // Fail OPEN on any error (HTTP non-2xx OR thrown) so a rate-limited /
+      // transient failure never silently drops a whole course's assignments
+      // from the submit picker. Follow Link rel="next" so courses with >100
+      // assignments aren't truncated to the first page.
       const uploadableIds = new Set<number>();
+      const keepAllForCourse = (cId: number | null) => {
+        for (const a of candidates) {
+          if (a.courseId === cId) uploadableIds.add(a.id);
+        }
+      };
       await Promise.all(
         uniqueCourseIds.map(async (cId) => {
           try {
-            const res = await fetch(
-              `${canvasBaseUrl}/api/v1/courses/${cId}/assignments?per_page=100`,
-              { headers, signal: AbortSignal.timeout(10_000) }
-            );
-            if (!res.ok) return;
-            const data = await res.json();
-            for (const a of data) {
-              if (Array.isArray(a.submission_types) && a.submission_types.includes("online_upload")) {
-                uploadableIds.add(a.id);
+            let url: string | null = `${canvasBaseUrl}/api/v1/courses/${cId}/assignments?per_page=100`;
+            while (url) {
+              const res: Response = await fetch(url, { headers, signal: AbortSignal.timeout(10_000) });
+              if (!res.ok) {
+                keepAllForCourse(cId); // HTTP error: fail open, not closed
+                break;
               }
+              const data = await res.json();
+              if (Array.isArray(data)) {
+                for (const a of data) {
+                  if (Array.isArray(a.submission_types) && a.submission_types.includes("online_upload")) {
+                    uploadableIds.add(a.id);
+                  }
+                }
+              }
+              url = parseNextLink(res.headers.get("link"));
             }
           } catch {
-            // On failure, keep all assignments from this course (fail open)
-            for (const a of candidates) {
-              if (a.courseId === cId) uploadableIds.add(a.id);
-            }
+            keepAllForCourse(cId); // network/timeout: fail open
           }
         })
       );

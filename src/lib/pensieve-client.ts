@@ -88,8 +88,12 @@ export function parseICalEvents(icsText: string): NormalizedAssignment[] {
       });
     }
 
-    // Parse the due date from DTSTART or DTEND
-    const endOrStart = dtend ?? dtstart;
+    // Parse the due date. Prefer DTEND for timed events, but for all-day
+    // (VALUE=DATE, YYYYMMDD) events an RFC 5545 DTEND is EXCLUSIVE — it points
+    // at the day AFTER the event — so using it directly makes the due date one
+    // day late. In that case fall back to DTSTART (the actual due day).
+    const dtendIsAllDay = dtend ? /^\d{8}$/.test(dtend.value) : false;
+    const endOrStart = dtend && !dtendIsAllDay ? dtend : (dtstart ?? dtend);
     const dueDate = parseDueDateWithTzid(
       endOrStart?.value ?? null,
       endOrStart?.tzid ?? null
@@ -98,7 +102,11 @@ export function parseICalEvents(icsText: string): NormalizedAssignment[] {
     // Extract late_due_date from description before cleaning
     let lateDueDate: string | null = null;
     if (description) {
-      const lateDueMatch = description.match(/late\s*due[:\s]+(\S+)/i);
+      // Stop the capture at whitespace OR a backslash: the description is the
+      // RAW iCal value, where a line break is the literal escape "\n" (two
+      // chars). \S+ would consume past that escape into the next line, so use
+      // [^\s\\]+ to end at the backslash of the escape.
+      const lateDueMatch = description.match(/late\s*due[:\s]+([^\s\\]+)/i);
       if (lateDueMatch) {
         const candidate = lateDueMatch[1];
         // Validate it looks like a date (ISO format or iCal YYYYMMDD/YYYYMMDDTHHmmss)

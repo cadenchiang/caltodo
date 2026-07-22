@@ -77,7 +77,7 @@ describe("parseCanvasICalEvents", () => {
   });
 
   it("should parse date-only due dates", () => {
-    expect(events[1].due_date).toBe("2026-02-13T00:00:00Z");
+    expect(events[1].due_date).toBe("2026-02-13T12:00:00Z");
   });
 
   it("should extract source URL", () => {

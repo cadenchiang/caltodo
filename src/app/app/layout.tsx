@@ -14,6 +14,7 @@ import CanvasTokenExpiredModal from "@/components/ui/CanvasTokenExpiredModal";
 // product. The notifier file is left on disk but no longer mounted.
 import NewAssignmentsModal from "@/components/ui/NewAssignmentsModal";
 import HiddenRouteRedirect from "@/components/layout/HiddenRouteRedirect";
+import RouteHistoryTracker from "@/components/layout/RouteHistoryTracker";
 import PostHogIdentify from "@/components/PostHogIdentify";
 import PomodoroTitleSync from "@/components/pomodoro/PomodoroTitleSync";
 import DeferredFonts from "@/components/layout/DeferredFonts";
@@ -80,6 +81,7 @@ export default async function AppLayout({
             <MobileTabBar />
 
             <HiddenRouteRedirect />
+            <RouteHistoryTracker />
             <CanvasTokenExpiredModal />
             {/* GlobalChatNotifier removed with CalChat */}
             <NewAssignmentsModal />

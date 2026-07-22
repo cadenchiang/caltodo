@@ -14,7 +14,7 @@ describe("pickLandingPath", () => {
   it("falls through past multiple hidden items", () => {
     expect(
       pickLandingPath({ hidden_nav_items: ["/app/home", "/app/inbox", "/app/calendar"] }),
-    ).toBe("/app/pomodoro");
+    ).toBe("/app/discussions");
   });
 
   it("returns /app/inbox fallback when every nav item is hidden", () => {
@@ -24,7 +24,6 @@ describe("pickLandingPath", () => {
           "/app/home",
           "/app/inbox",
           "/app/calendar",
-          "/app/pomodoro",
           "/app/discussions",
         ],
       }),

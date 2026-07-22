@@ -151,6 +151,17 @@ export async function POST(request: Request) {
           headers,
           signal: AbortSignal.timeout(TIMEOUT_MS),
         });
+        // Check the confirmation status before parsing: a non-2xx / HTML error
+        // page here would make .json() throw and collapse into the generic
+        // "unexpected failure", masking the real cause (bytes may have uploaded).
+        if (!confirmRes.ok) {
+          const errText = await confirmRes.text().catch(() => "");
+          logger.error("canvas-submit:confirm-failed", { status: confirmRes.status, body: errText.slice(0, 500) });
+          return NextResponse.json(
+            { error: `File upload confirmation failed: ${confirmRes.status}` },
+            { status: 502 }
+          );
+        }
         const confirmData = await confirmRes.json();
         fileId = confirmData.id;
       }

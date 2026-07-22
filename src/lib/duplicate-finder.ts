@@ -52,6 +52,24 @@ export function normalizeTitle(title: string): string[] {
 }
 
 /**
+ * Fallback normalization that does NOT strip course-code-shaped tokens, so
+ * titles like "Quiz 10" / "Lab 05" keep their number. Used only when the
+ * primary normalizeTitle() erases a title to nothing — otherwise "Quiz 10"
+ * and "Quiz 11" would both reduce to [] and score as identical.
+ *
+ * @param title - Raw task title
+ * @returns Array of normalized tokens (numbers preserved)
+ */
+export function normalizeTitleKeepNumbers(title: string): string[] {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .map((t) => t.trim())
+    .filter((t) => t.length > 0 && !NOISE_TOKENS.has(t));
+}
+
+/**
  * Jaccard similarity (|A ∩ B| / |A ∪ B|) between two token arrays.
  * Returns 1 when both are empty (treated as identical empty titles).
  *
@@ -100,7 +118,16 @@ export function isLikelyDuplicate(a: Task, b: Task): boolean {
   if (a.source === b.source) return false;
   if (a.due_date !== b.due_date) return false;
   if (!sameCourse(a.course_name, b.course_name)) return false;
-  const sim = tokenSimilarity(normalizeTitle(a.title), normalizeTitle(b.title));
+  let tokensA = normalizeTitle(a.title);
+  let tokensB = normalizeTitle(b.title);
+  // If course-code stripping erased either title (e.g. "Quiz 10" -> []),
+  // re-normalize both keeping numbers so distinct items don't collapse into
+  // a spurious empty-vs-empty match (tokenSimilarity([],[]) === 1).
+  if (tokensA.length === 0 || tokensB.length === 0) {
+    tokensA = normalizeTitleKeepNumbers(a.title);
+    tokensB = normalizeTitleKeepNumbers(b.title);
+  }
+  const sim = tokenSimilarity(tokensA, tokensB);
   return sim >= TITLE_SIMILARITY_THRESHOLD;
 }
 

@@ -21,7 +21,6 @@ const GUARDED_HREFS = [
   "/app/home",
   "/app/inbox",
   "/app/calendar",
-  "/app/pomodoro",
   "/app/discussions",
 ] as const;
 

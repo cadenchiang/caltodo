@@ -54,12 +54,16 @@ export function parseDueDateWithTzid(
 ): string | null {
   if (!raw) return null;
 
-  // DATE format: YYYYMMDD (all-day event, no timezone conversion needed)
+  // DATE format: YYYYMMDD (all-day event). Anchor at NOON UTC, not midnight:
+  // midnight UTC lands on the *previous* calendar day once rendered in any
+  // west-of-UTC timezone (e.g. America/Los_Angeles, the bCourses audience),
+  // which made all-day assignments show up a day early. Noon UTC keeps the
+  // same calendar day for every offset from UTC-12 through UTC+11.
   if (/^\d{8}$/.test(raw)) {
     const y = raw.slice(0, 4);
     const m = raw.slice(4, 6);
     const d = raw.slice(6, 8);
-    return `${y}-${m}-${d}T00:00:00Z`;
+    return `${y}-${m}-${d}T12:00:00Z`;
   }
 
   // DATETIME format: YYYYMMDDTHHmmss with optional Z suffix

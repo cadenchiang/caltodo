@@ -5,6 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useRouter } from "next/navigation";
 import { Inbox, Sun, CalendarRange, ChevronLeft } from "lucide-react";
 import { NAV_ITEMS } from "@/lib/constants";
+import { getSettingsReturnPath } from "@/lib/settings-return";
 import { SETTINGS_SECTIONS, SETTINGS_GROUPS, DEFAULT_SECTION, type SettingsSectionId } from "@/lib/settingsConfig";
 import SidebarNavItem, { navItemClasses, SidebarActivePill } from "./SidebarNavItem";
 import ProfilePopup from "./ProfilePopup";
@@ -131,7 +132,7 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-3 px-3 py-2.5">
               <button
-                onClick={() => router.push("/app/inbox")}
+                onClick={() => router.push(getSettingsReturnPath())}
                 className="w-7 h-7 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors cursor-pointer active:scale-[0.95] shrink-0"
                 title="Back"
                 aria-label="Back"
