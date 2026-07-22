@@ -14,6 +14,7 @@ import CanvasTokenExpiredModal from "@/components/ui/CanvasTokenExpiredModal";
 // product. The notifier file is left on disk but no longer mounted.
 import NewAssignmentsModal from "@/components/ui/NewAssignmentsModal";
 import HiddenRouteRedirect from "@/components/layout/HiddenRouteRedirect";
+import GlobalHealthBanner from "@/components/layout/GlobalHealthBanner";
 import RouteHistoryTracker from "@/components/layout/RouteHistoryTracker";
 import PostHogIdentify from "@/components/PostHogIdentify";
 import PomodoroTitleSync from "@/components/pomodoro/PomodoroTitleSync";
@@ -76,6 +77,7 @@ export default async function AppLayout({
               suppressHydrationWarning
               className="flex-1 overflow-y-auto overflow-x-hidden px-4 md:px-10 pt-[max(1rem,env(safe-area-inset-top))] md:pt-[max(2.5rem,env(safe-area-inset-top))] pb-0 board-wallpaper relative miffy-glow miffy-watermark"
             >
+              <GlobalHealthBanner />
               {children}
             </main>
             <MobileTabBar />

@@ -52,6 +52,15 @@ export default function IntegrationHealthBanner() {
       actionLabel: "Reconnect",
       onAction: () => router.push("/app/onboarding?setup=canvas"),
     });
+  } else if (credentials.canvas_token_expiring_soon) {
+    // Proactive warning BEFORE the token dies, so sync never silently stops.
+    issues.push({
+      id: "canvas-expiring",
+      label: "bCourses / Canvas",
+      detail: "Your access token expires within a week. Reconnect now so assignment sync doesn't stop.",
+      actionLabel: "Reconnect",
+      onAction: () => router.push("/app/onboarding?setup=canvas"),
+    });
   }
 
   if (credentials.gradescope_auth_failed) {
