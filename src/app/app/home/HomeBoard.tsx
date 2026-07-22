@@ -17,11 +17,13 @@ import BoardCover from "@/components/home/BoardCover";
 import BoardTitle from "@/components/home/BoardTitle";
 import BoardDescription from "@/components/home/BoardDescription";
 import BoardDivider from "@/components/home/BoardDivider";
-// Import the icon-map helpers from the lightweight data module directly. The
-// EmojiPicker component (which statically pulls in the ~432KB @emoji-mart/data
-// dataset) is not rendered on this board, so importing it here would bloat the
-// first-load /app/home bundle for no reason.
+// Import the icon-map helpers from the lightweight data module directly.
 import { LUCIDE_ICON_MAP, isFilledIcon, ICON_SIZES } from "@/components/home/emoji-picker-data";
+// EmojiPicker statically pulls in the ~432KB @emoji-mart/data dataset, so load
+// it lazily (client-only, no SSR) — it only mounts when the user opens it in
+// edit mode, keeping the first-load /app/home bundle light.
+import dynamic from "next/dynamic";
+const EmojiPicker = dynamic(() => import("@/components/home/EmojiPicker"), { ssr: false });
 import { useWidgetLayout } from "@/hooks/useWidgetLayout";
 import { useToast } from "@/contexts/ToastContext";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -86,6 +88,7 @@ export default function HomeBoard({ embedded = false }: HomeBoardProps = {}) {
   const { showToast } = useToast();
   const [editMode, setEditMode] = useState(false);
   const [galleryOpen, setGalleryOpen] = useState(false);
+  const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [settingsWidget, setSettingsWidget] = useState<WidgetInstance | null>(null);
   const [settingsWidgetRect, setSettingsWidgetRect] = useState<DOMRect | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -340,45 +343,81 @@ export default function HomeBoard({ embedded = false }: HomeBoardProps = {}) {
     <PageTransition>
       <div className={`h-full overflow-hidden ${escapeMargins}`}>
       <div
-        className="relative h-full flex flex-col board-wallpaper overflow-hidden"
+        className={`relative h-full flex flex-col board-wallpaper ${isDragging ? "overflow-hidden" : "overflow-y-auto"}`}
       >
-        {/* Floating top-right controls — Add Widget (edit mode only) +
-            the edit-mode toggle. The old cover banner / emoji / board
-            title / description / divider block was removed; the home
-            page is now a pure wallpaper-and-cards layout. */}
-        {/* Toolbar — right-aligned with the widget grid's outer edge
-            (same px-6 md:px-10 as WidgetGrid) and locked to a fixed
-            height so toggling edit mode never shifts the widgets
-            below. The Add Widget button matches EditToggleButton's
-            exact 30px height. */}
-        <div
-          className="sticky top-0 z-30 flex items-center justify-end gap-2 px-6 md:px-10 pt-4 pb-2 shrink-0"
-          style={{ height: 56 }}
-        >
-          {editMode && (
+        {/* Cover banner — full-bleed image at the very top (Notion-style). */}
+        <BoardCover
+          coverImageUrl={coverImageUrl}
+          editMode={editMode}
+          onChangeCover={(url) => { setCoverImageUrl(url); showToast(url ? "Banner updated" : "Banner removed"); }}
+          coverHeight={coverHeight}
+          coverPositionY={coverPositionY}
+          onChangeCoverConfig={setCoverConfig}
+        />
+
+        {/* Header: emoji icon overlapping the cover, then the title row with
+            the Add Widget / edit controls right-aligned to the grid edge. */}
+        <div className="px-6 md:px-10 shrink-0">
+          {/* Board icon — overlaps the bottom of the cover for the Notion look */}
+          <div className="relative mb-2.5" style={{ marginTop: -(((ICON_SIZES.find((s) => s.value === iconSize)?.px ?? 64) / 2)) }}>
             <button
-              id="add-widget-btn"
-              onClick={() => setGalleryOpen(true)}
-              style={{ height: 30 }}
-              className="flex items-center gap-1.5 px-3.5 text-sm font-semibold rounded-xl border border-border bg-white/85 dark:bg-gray-800/85 backdrop-blur-md text-foreground hover:bg-white dark:hover:bg-gray-700 shadow-sm transition-colors"
+              onClick={() => { if (editMode) setEmojiPickerOpen((p) => !p); }}
+              className={`leading-none ${editMode ? "cursor-pointer hover:opacity-80 transition-opacity animate-edit-hint" : "cursor-default"}`}
+              aria-label="Board icon"
             >
-              <Plus size={14} />
-              Add Widget
+              {(() => {
+                const sizePx = ICON_SIZES.find((s) => s.value === iconSize)?.px ?? 64;
+                if (boardEmoji.startsWith("lucide:")) {
+                  const iconName = boardEmoji.slice(7);
+                  const LucideIcon = LUCIDE_ICON_MAP[iconName];
+                  if (LucideIcon) {
+                    return <LucideIcon size={sizePx} strokeWidth={1.5} fill={isFilledIcon(iconName) ? "currentColor" : "none"} className="text-foreground" />;
+                  }
+                }
+                return <span style={{ fontSize: sizePx, lineHeight: 1 }}>{boardEmoji}</span>;
+              })()}
             </button>
-          )}
-          <EditToggleButton
-            id="edit-toggle-btn"
-            editing={editMode}
-            onToggle={() => setEditMode((prev) => !prev)}
-          />
+            {emojiPickerOpen && (
+              <EmojiPicker
+                open={emojiPickerOpen}
+                onSelect={setBoardEmoji}
+                onClose={() => setEmojiPickerOpen(false)}
+              />
+            )}
+          </div>
+
+          {/* Title row + controls */}
+          <div className="flex items-center justify-between mb-4">
+            <BoardTitle
+              title={boardTitle}
+              editMode={editMode}
+              titleConfig={{ fontFamily: titleFontFamily, textColor: titleTextColor, fontSize: titleFontSize }}
+              onTitleChange={setBoardTitle}
+              onTitleConfigChange={(cfg) => setTitleConfig(cfg.fontFamily || "", cfg.textColor || "", cfg.fontSize || "lg")}
+            />
+            <div className="flex items-center gap-2.5 shrink-0">
+              {editMode && (
+                <button
+                  id="add-widget-btn"
+                  onClick={() => setGalleryOpen(true)}
+                  style={{ height: 30 }}
+                  className="flex items-center gap-1.5 px-3.5 text-sm font-semibold rounded-xl border border-border bg-white/85 dark:bg-gray-800/85 backdrop-blur-md text-foreground hover:bg-white dark:hover:bg-gray-700 shadow-sm transition-colors"
+                >
+                  <Plus size={14} />
+                  Add Widget
+                </button>
+              )}
+              <EditToggleButton
+                id="edit-toggle-btn"
+                editing={editMode}
+                onToggle={() => setEditMode((prev) => !prev)}
+              />
+            </div>
+          </div>
         </div>
 
-        {/* Widget Grid — sits on top of the wallpaper background. The
-            pb-20 on mobile clears the MobileTabBar; desktop has no
-            extra bottom padding so the grid fills the viewport
-            edge-to-edge. overflow-hidden so any sub-pixel overflow
-            from react-grid-layout stays inside the visible board. */}
-        <div id="widget-grid" className="flex-1 min-h-0 pb-20 md:pb-0 overflow-hidden">
+        {/* Widget Grid — sits below the Notion header on the wallpaper. */}
+        <div id="widget-grid" className="flex-1 min-h-0 pb-20 md:pb-0">
           <WidgetGrid
             widgets={widgets}
             layouts={layouts}
