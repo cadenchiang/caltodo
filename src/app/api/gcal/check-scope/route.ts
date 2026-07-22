@@ -42,7 +42,10 @@ export async function GET() {
         userId: user.id,
         status: res.status,
       });
-      return NextResponse.json({ needsReconnect: false, reason: "tokeninfo_failed" });
+      // Can't determine scope — report UNKNOWN rather than asserting write
+      // access is fine (which would leave a read-only grant looking healthy
+      // while every write silently 403s).
+      return NextResponse.json({ needsReconnect: false, scopeUnknown: true, reason: "tokeninfo_failed" });
     }
 
     const data = await res.json();
@@ -63,6 +66,6 @@ export async function GET() {
       userId: user.id,
       error: err instanceof Error ? err.message : String(err),
     });
-    return NextResponse.json({ needsReconnect: false, reason: "error" });
+    return NextResponse.json({ needsReconnect: false, scopeUnknown: true, reason: "error" });
   }
 }

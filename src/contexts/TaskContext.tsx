@@ -17,6 +17,51 @@ import { playTaskComplete, playTaskCreated } from "@/lib/sounds";
 const CACHE_KEY = "caltodo_tasks_cache";
 const CACHE_VERSION = 1;
 
+/** localStorage key mirroring the GCal connection status cache (see CalendarHeader). */
+const GCAL_STATUS_KEY = "gcal_status";
+
+/**
+ * Best-effort read of whether Google Calendar is connected, from the status
+ * cache the calendar header keeps. Used to avoid firing per-edit GCal sync
+ * requests for the majority of users who never connected GCal.
+ */
+function isGCalConnected(): boolean {
+  try {
+    const raw = localStorage.getItem(GCAL_STATUS_KEY);
+    return raw ? JSON.parse(raw).connected === true : false;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Fire-and-forget: propagate a single task change to Google Calendar via
+ * /api/gcal/sync. The endpoint no-ops server-side when GCal isn't connected,
+ * and this never throws into the caller — GCal sync must never block or break
+ * a local task edit. This is what makes edits/completions/deletes actually
+ * reach Google (previously only brand-new tasks were ever pushed).
+ *
+ * @param action - create | update | delete
+ * @param taskId - The task's id
+ * @param googleEventId - Existing GCal event id (required for delete)
+ */
+function pushTaskToGCal(
+  action: "create" | "update" | "delete",
+  taskId: string,
+  googleEventId?: string | null,
+): void {
+  // Skip when clearly not applicable: not connected AND this task has no
+  // existing GCal event to update/remove.
+  if (!isGCalConnected() && !googleEventId) return;
+  fetch("/api/gcal/sync", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action, taskId, googleEventId: googleEventId ?? undefined }),
+  }).catch(() => {
+    /* best-effort; autoSync reconciles creates later */
+  });
+}
+
 interface CachedTasks {
   version: number;
   tasks: Task[];
@@ -619,6 +664,10 @@ export function TaskProvider({ children }: { children: ReactNode }) {
         return updated;
       });
 
+      // Fire-and-forget: push the new task to Google Calendar (no-op if GCal
+      // isn't connected or the task has no due date — the endpoint decides).
+      if (data.due_date) pushTaskToGCal("create", data.id);
+
       // Fire-and-forget: send invites if any emails were provided
       if (inviteEmails && inviteEmails.length > 0) {
         for (const email of inviteEmails) {
@@ -676,7 +725,15 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     if (updateError) {
       setError(updateError.message);
       fetchTasks();
+      return;
     }
+
+    // Fire-and-forget: propagate the edit (title, due date/time, completion
+    // strikethrough) to Google Calendar. The endpoint creates the event if it
+    // doesn't exist yet, updates it, or removes it when the due date is
+    // cleared. Covers toggleComplete since that routes through updateTask.
+    const current = tasks.find((t) => t.id === id);
+    pushTaskToGCal("update", id, current?.google_event_id);
   }
 
   async function toggleComplete(id: string) {
@@ -869,6 +926,9 @@ export function TaskProvider({ children }: { children: ReactNode }) {
                 fetchTasks();
               }
             }
+            // Re-create the GCal event we removed on delete (the old
+            // google_event_id is stale now, so create makes a fresh one).
+            if (taskToDelete.due_date) pushTaskToGCal("create", taskToDelete.id);
           },
         },
       });
@@ -887,6 +947,13 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     if (deleteError) {
       setError(deleteError.message);
       fetchTasks();
+      return;
+    }
+
+    // Fire-and-forget: remove the task's Google Calendar event so deletes
+    // don't leave orphaned events on the calendar forever.
+    if (taskToDelete?.google_event_id) {
+      pushTaskToGCal("delete", id, taskToDelete.google_event_id);
     }
   }
 

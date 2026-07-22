@@ -60,33 +60,49 @@ async function fetchCalendarEvents(
   timeMin: string,
   timeMax: string
 ): Promise<GCalEvent[] | null> {
-  const params = new URLSearchParams({
-    timeMin,
-    timeMax,
-    singleEvents: "true",
-    orderBy: "startTime",
-    maxResults: "50",
-    conferenceDataVersion: "1",
-  });
+  // Page through the window with nextPageToken. A single 50-result page
+  // silently dropped the later events of any busy calendar (month views can
+  // hold 100+ events); paginate up to a sane cap so nothing disappears.
+  const items: GCalEventItem[] = [];
+  let pageToken: string | undefined;
+  let pages = 0;
+  const MAX_PAGES = 10; // 10 * 250 = 2500 events per calendar/window — ample
 
-  const url = `${GCAL_EVENTS_URL}/${encodeURIComponent(calendarId)}/events?${params}`;
-
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-
-  if (!res.ok) {
-    const body = await res.text();
-    logger.warn("gcal/events: calendar fetch failed", {
-      calendarId,
-      status: res.status,
-      body: body.slice(0, 500),
+  do {
+    const params = new URLSearchParams({
+      timeMin,
+      timeMax,
+      singleEvents: "true",
+      orderBy: "startTime",
+      maxResults: "250",
+      conferenceDataVersion: "1",
     });
-    return null;
-  }
+    if (pageToken) params.set("pageToken", pageToken);
+    const url = `${GCAL_EVENTS_URL}/${encodeURIComponent(calendarId)}/events?${params}`;
 
-  const data = await res.json();
-  const items: GCalEventItem[] = data.items || [];
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+
+    if (!res.ok) {
+      const body = await res.text();
+      logger.warn("gcal/events: calendar fetch failed", {
+        calendarId,
+        status: res.status,
+        page: pages,
+        body: body.slice(0, 500),
+      });
+      // First page failed → no data to show. Later page failed → return what
+      // we already gathered rather than dropping the whole calendar.
+      if (pages === 0) return null;
+      break;
+    }
+
+    const data = await res.json();
+    items.push(...((data.items as GCalEventItem[]) || []));
+    pageToken = data.nextPageToken;
+    pages++;
+  } while (pageToken && pages < MAX_PAGES);
 
   return items.map((item) => {
     const selfAttendee = item.attendees?.find((a) => a.self);
@@ -210,7 +226,12 @@ export async function GET(request: NextRequest) {
       eventCount: allEvents.length,
     });
 
-    return NextResponse.json({ events: allEvents, calendarColors: calColorMap, connected: true });
+    return NextResponse.json(
+      { events: allEvents, calendarColors: calColorMap, connected: true },
+      // Short private cache so back-nav / quick re-mounts don't re-hit Google
+      // (each miss costs a token refresh + N events.list + calendarList calls).
+      { headers: { "Cache-Control": "private, max-age=30, stale-while-revalidate=300" } },
+    );
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     logger.error("gcal/events: fetch failed", {

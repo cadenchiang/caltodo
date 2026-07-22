@@ -131,38 +131,39 @@ async function syncWithToken(
   calendarId: string,
   syncToken: string
 ): Promise<{ syncToken: string } | "gone" | null> {
-  const params = new URLSearchParams({ syncToken });
-  const url = `${GCAL_EVENTS_URL}/${encodeURIComponent(calendarId)}/events?${params}`;
+  // Google's incremental sync: the FIRST request carries the syncToken; each
+  // subsequent page carries ONLY the pageToken (sending syncToken + pageToken
+  // together is rejected with 400 invalid_argument). A 410 (expired syncToken)
+  // can arrive on ANY page and must trigger a full resync, so check it every
+  // iteration — not just the first request.
+  let pageToken: string | undefined;
+  let latestSyncToken: string | undefined;
 
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
+  do {
+    const params = pageToken
+      ? new URLSearchParams({ pageToken })
+      : new URLSearchParams({ syncToken });
+    const url = `${GCAL_EVENTS_URL}/${encodeURIComponent(calendarId)}/events?${params}`;
 
-  if (res.status === 410) return "gone";
-
-  if (!res.ok) {
-    const body = await res.text();
-    logger.error("syncWithToken: failed", { calendarId, status: res.status, body: body.slice(0, 500) });
-    return null;
-  }
-
-  // Paginate if needed (rare for incremental)
-  let data = await res.json();
-  while (data.nextPageToken) {
-    const nextParams = new URLSearchParams({
-      syncToken,
-      pageToken: data.nextPageToken,
-    });
-    const nextUrl = `${GCAL_EVENTS_URL}/${encodeURIComponent(calendarId)}/events?${nextParams}`;
-    const nextRes = await fetch(nextUrl, {
+    const res = await fetch(url, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
-    if (!nextRes.ok) break;
-    data = await nextRes.json();
-  }
 
-  if (!data.nextSyncToken) return null;
-  return { syncToken: data.nextSyncToken };
+    if (res.status === 410) return "gone";
+    if (!res.ok) {
+      const body = await res.text();
+      logger.error("syncWithToken: failed", { calendarId, status: res.status, body: body.slice(0, 500) });
+      return null;
+    }
+
+    const data = await res.json();
+    // nextSyncToken is only present on the final page.
+    if (data.nextSyncToken) latestSyncToken = data.nextSyncToken;
+    pageToken = data.nextPageToken;
+  } while (pageToken);
+
+  if (!latestSyncToken) return null;
+  return { syncToken: latestSyncToken };
 }
 
 /**
