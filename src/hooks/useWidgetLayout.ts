@@ -245,6 +245,17 @@ export function useWidgetLayout() {
     setHydrated(true);
 
     fetchServerLayout().then(({ layout: serverData, updatedAt: serverUpdatedAt }) => {
+      // If the user already made a genuine edit while this fetch was in flight,
+      // do NOT overwrite their work with the server copy (that edit was saved to
+      // the local cache but couldn't reach the server yet because saving was
+      // gated on hydration). Unlock saving and flush their pending edit instead.
+      if (interactedRef.current) {
+        hydrationCompleteRef.current = true;
+        setHydrated(true);
+        const pending = readPersistedLayout();
+        if (pending) debouncedServerSave(pending);
+        return;
+      }
       if (serverData) {
         // Server has data — always apply it (server wins)
         const serverLayout = serverData as unknown as PersistedLayout;
@@ -350,18 +361,16 @@ export function useWidgetLayout() {
   );
 
   /**
-   * Replaces the entire board with a curated template's widgets + layouts,
-   * then persists it. Marks the board as interacted so subsequent edits save.
+   * Resets the board to the original default layout (getDefaultLayout).
+   * Marks the board as interacted so the reset persists to the server.
    */
-  const applyTemplate = useCallback(
-    (templateWidgets: WidgetInstance[], templateLayouts: ResponsiveLayouts<string>) => {
-      markInteracted();
-      setWidgets(templateWidgets);
-      setLayoutsState(templateLayouts);
-      persistLayout(templateWidgets, templateLayouts);
-    },
-    [markInteracted, persistLayout],
-  );
+  const resetToDefault = useCallback(() => {
+    const { widgets: dw, layouts: dl } = getDefaultLayout();
+    markInteracted();
+    setWidgets(dw);
+    setLayoutsState(dl);
+    persistLayout(dw, dl);
+  }, [markInteracted, persistLayout]);
 
   /**
    * Adds a new widget and places it in the first empty slot that fits
@@ -377,8 +386,11 @@ export function useWidgetLayout() {
    */
   const addWidget = useCallback(
     (type: WidgetType, config: Record<string, string> = {}, position?: { x: number; y: number }): string => {
-      const id = generateWidgetId();
       const reg = WIDGET_REGISTRY[type];
+      // Unknown / retired widget type (e.g. a stale saved config): no-op rather
+      // than crash on reg.minW below.
+      if (!reg) return "";
+      const id = generateWidgetId();
       const newWidget: WidgetInstance = { id, type, config };
       const MAX_ROWS = 8;
       const COLS = { lg: 8, md: 4, sm: 2 } as const;
@@ -399,12 +411,18 @@ export function useWidgetLayout() {
             /**
              * Walk rows top-to-bottom, columns left-to-right. The first
              * w×h block with no overlap against existing items AND
-             * whose bottom edge is still <= MAX_ROWS wins. Falls back
-             * to (0, max(0, MAX_ROWS - h)) so the new widget is at
-             * least visible if hasRoomFor was bypassed.
+             * whose bottom edge is still <= MAX_ROWS wins. If the board is
+             * already full, fall back to appending directly BELOW every
+             * existing item so the board grows by a row instead of the add
+             * being refused (or overlapping) — this is what lets the user add
+             * a widget "underneath" a full board.
              */
+            const maxBottom = items.reduce(
+              (m, it) => Math.max(m, (it.y ?? 0) + (it.h ?? 1)),
+              0
+            );
             let placedX = 0;
-            let placedY = Math.max(0, MAX_ROWS - h);
+            let placedY = maxBottom;
             outer: for (let y = 0; y + h <= MAX_ROWS; y++) {
               for (let x = 0; x + w <= cols; x++) {
                 const collides = items.some((it) => {
@@ -631,7 +649,7 @@ export function useWidgetLayout() {
     titleFontFamily, titleTextColor, titleFontSize,
     coverHeight, coverPositionY,
     dividerColor, dividerThickness, dividerText, dividerVisible,
-    setLayouts, markInteracted, applyTemplate, addWidget, removeWidget,
+    setLayouts, markInteracted, resetToDefault, addWidget, removeWidget,
     updateWidgetConfig, updateAllWidgetConfigs,
     setBoardTitle, setBoardDescription, setCoverImageUrl,
     setBoardEmoji, setIconSize, setTitleConfig, setCoverConfig,

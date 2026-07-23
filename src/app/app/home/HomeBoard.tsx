@@ -7,12 +7,11 @@
  */
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import { Plus, LayoutTemplate } from "lucide-react";
+import { Plus, RotateCcw } from "lucide-react";
 import PageTransition from "@/components/ui/PageTransition";
 import EditToggleButton from "@/components/ui/EditToggleButton";
 import WidgetGrid from "@/components/home/WidgetGrid";
 import WidgetGalleryModal from "@/components/home/WidgetGalleryModal";
-import TemplateGalleryModal from "@/components/home/TemplateGalleryModal";
 import WidgetEditorPanel from "@/components/home/WidgetEditorPanel";
 import BoardCover from "@/components/home/BoardCover";
 import BoardTitle from "@/components/home/BoardTitle";
@@ -61,7 +60,7 @@ export default function HomeBoard({ embedded = false }: HomeBoardProps = {}) {
     setLayouts,
     markInteracted,
     addWidget,
-    applyTemplate,
+    resetToDefault,
     removeWidget,
     updateWidgetConfig,
     updateAllWidgetConfigs,
@@ -90,7 +89,6 @@ export default function HomeBoard({ embedded = false }: HomeBoardProps = {}) {
   const { showToast } = useToast();
   const [editMode, setEditMode] = useState(false);
   const [galleryOpen, setGalleryOpen] = useState(false);
-  const [templatesOpen, setTemplatesOpen] = useState(false);
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [settingsWidget, setSettingsWidget] = useState<WidgetInstance | null>(null);
   const [settingsWidgetRect, setSettingsWidgetRect] = useState<DOMRect | null>(null);
@@ -223,14 +221,12 @@ export default function HomeBoard({ embedded = false }: HomeBoardProps = {}) {
    *  notification when the board is out of room. */
   const handleAddWidget = useCallback(
     (type: WidgetType) => {
-      if (!hasRoomFor(type)) {
-        showToast("No space — remove a widget first");
-        return;
-      }
+      // addWidget now grows the board (appends below) when the grid is full,
+      // so a gallery add always succeeds — no "no room" refusal.
       addWidget(type);
       showToast("Widget added");
     },
-    [addWidget, showToast, hasRoomFor]
+    [addWidget, showToast]
   );
 
   /** Ref to prevent double-add from both onDrop and dragend firing. */
@@ -401,13 +397,18 @@ export default function HomeBoard({ embedded = false }: HomeBoardProps = {}) {
               {editMode && (
                 <>
                   <button
-                    id="templates-btn"
-                    onClick={() => setTemplatesOpen(true)}
+                    id="reset-board-btn"
+                    onClick={() => {
+                      if (window.confirm("Reset your board to the default layout? This replaces your current widgets.")) {
+                        resetToDefault();
+                        showToast("Board reset to default");
+                      }
+                    }}
                     style={{ height: 30 }}
                     className="flex items-center gap-1.5 px-3.5 text-sm font-semibold rounded-xl border border-border bg-white/85 dark:bg-gray-800/85 backdrop-blur-md text-foreground hover:bg-white dark:hover:bg-gray-700 shadow-sm transition-colors"
                   >
-                    <LayoutTemplate size={14} />
-                    Templates
+                    <RotateCcw size={14} />
+                    Reset
                   </button>
                   <button
                     id="add-widget-btn"
@@ -487,12 +488,6 @@ export default function HomeBoard({ embedded = false }: HomeBoardProps = {}) {
             onDragStart={handleGalleryDragStart}
           />
         </div>
-
-        <TemplateGalleryModal
-          open={templatesOpen}
-          onClose={() => setTemplatesOpen(false)}
-          onApply={(tpl) => { applyTemplate(tpl.widgets, tpl.layouts); showToast(`Applied the ${tpl.name} template`); }}
-        />
 
         {/* Backdrop: click catcher (transparent) + spotlight over selected widget */}
         {settingsWidget && (
