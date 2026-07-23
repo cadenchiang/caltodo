@@ -32,12 +32,15 @@ export async function PATCH(
   const { taskId } = await params;
   const body = await req.json();
 
-  // Allowlist the fields a client may edit. Never let the client set user_id,
-  // id, source, external_id, is_submitted, or timestamps — spreading raw body
-  // into .update() was a mass-assignment vector (e.g. reassigning user_id).
+  // Allowlist the fields a client may edit — the canonical TaskUpdate editable
+  // set (src/lib/types.ts). Never let the client set user_id/id/source/
+  // external_id/is_submitted — spreading raw body into .update() was a
+  // mass-assignment vector (e.g. reassigning user_id).
   const ALLOWED = [
-    "title", "description", "due_date", "due_time", "color",
-    "snoozed_until", "dismissed_at", "sort_order", "completed_at",
+    "title", "description", "due_date", "due_time", "is_completed", "color",
+    "repeat_interval", "repeat_unit", "repeat_end_date", "repeat_end_count",
+    "completed_at", "tags", "snoozed_until", "sort_order", "course_name",
+    "dismissed_at",
   ] as const;
   const update: Record<string, unknown> = {};
   for (const key of ALLOWED) {

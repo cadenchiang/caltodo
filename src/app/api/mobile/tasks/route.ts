@@ -62,8 +62,9 @@ export async function POST(req: NextRequest) {
   // external_id/is_submitted/timestamps on its own rows. user_id is forced
   // to the authenticated user.
   const ALLOWED = [
-    "title", "description", "due_date", "due_time", "color",
-    "snoozed_until", "sort_order",
+    "title", "description", "due_date", "due_time", "is_completed", "color",
+    "repeat_interval", "repeat_unit", "repeat_end_date", "repeat_end_count",
+    "completed_at", "tags", "snoozed_until", "sort_order", "course_name",
   ] as const;
   const insert: Record<string, unknown> = { user_id: user.id };
   for (const key of ALLOWED) {
