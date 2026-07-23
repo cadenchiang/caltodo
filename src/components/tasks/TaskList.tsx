@@ -727,24 +727,22 @@ export default function TaskList({
       {/* Completed section (collapsible) */}
       {completed.length > 0 && (
         <div className="mt-1">
-          <div className="flex items-center py-2 md:py-2.5 group">
-            <div
-              className="inline-flex items-center px-1.5 py-0.5 -ml-1.5 rounded-md hover:bg-foreground/[0.035] dark:hover:bg-foreground/[0.07] transition-colors cursor-pointer"
-              onClick={() => {
-                const next = !completedExpanded;
-                setCompletedExpanded(next);
-                try { localStorage.setItem("caltodo_completed_expanded", String(next)); } catch { /* ignore */ }
-              }}
-            >
-              <ChevronRight
-                size={12}
-                className={`shrink-0 text-secondary-foreground transition-transform duration-200 ${
-                  completedExpanded ? "rotate-90" : ""
-                }`}
-              />
-              <span className="text-sm font-semibold text-foreground ml-0.5">Completed</span>
-              <span className="text-xs text-subtle-foreground ml-1.5">{completed.length}</span>
-            </div>
+          <div
+            className="flex items-center py-2 md:py-2.5 px-1.5 -mx-1.5 rounded-md group cursor-pointer hover:bg-foreground/[0.035] dark:hover:bg-foreground/[0.07] transition-colors"
+            onClick={() => {
+              const next = !completedExpanded;
+              setCompletedExpanded(next);
+              try { localStorage.setItem("caltodo_completed_expanded", String(next)); } catch { /* ignore */ }
+            }}
+          >
+            <ChevronRight
+              size={12}
+              className={`shrink-0 text-secondary-foreground transition-transform duration-200 ${
+                completedExpanded ? "rotate-90" : ""
+              }`}
+            />
+            <span className="text-sm font-semibold text-foreground ml-0.5">Completed</span>
+            <span className="text-xs text-subtle-foreground ml-1.5">{completed.length}</span>
             <button
               ref={completedMenuBtnRef}
               type="button"

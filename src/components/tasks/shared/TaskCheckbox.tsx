@@ -73,7 +73,7 @@ export default function TaskCheckbox({
           height={svgHeight}
           viewBox="0 0 10 8"
           fill="none"
-          className="opacity-0 group-hover/check:opacity-40 transition-opacity"
+          className="opacity-0 group-hover:opacity-70 group-hover/check:opacity-100 transition-opacity"
         >
           <path
             d="M1 4L3.5 6.5L9 1"

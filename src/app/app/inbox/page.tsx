@@ -675,6 +675,46 @@ export default function InboxPage() {
               </div>
 
               <div className="flex items-center gap-1">
+                {/* View switcher (List / Board) — icon-only, opens a dropdown.
+                    Lives here with the other toolbar icons instead of a labeled
+                    pill below the header. */}
+                <div className="relative" ref={viewToggleRef}>
+                  <button
+                    type="button"
+                    onClick={() => setShowViewDropdown((v) => !v)}
+                    className="p-1.5 text-foreground hover:bg-foreground/[0.05] rounded-lg transition-colors"
+                    title={viewMode === "list" ? "List view" : "Board view"}
+                    aria-label="Switch view"
+                  >
+                    {viewMode === "list" ? <List size={18} /> : <LayoutGrid size={18} />}
+                  </button>
+                  {showViewDropdown && (
+                    <div className="absolute top-full right-0 mt-1 z-50 rounded-xl shadow-2xl border border-border overflow-hidden min-w-[150px] bg-popover">
+                      {([
+                        { key: "list" as const, label: "List", Icon: List },
+                        { key: "board" as const, label: "Board", Icon: LayoutGrid },
+                      ]).map((opt) => {
+                        const isActive = opt.key === viewMode;
+                        return (
+                          <button
+                            key={opt.key}
+                            onClick={() => {
+                              trackEvent("view_mode_changed", { mode: opt.key });
+                              setViewMode(opt.key);
+                              setShowViewDropdown(false);
+                            }}
+                            className={`flex items-center gap-2 w-full text-left px-3 py-2 text-sm transition-colors ${
+                              isActive ? "bg-foreground/[0.06] font-semibold" : "hover:bg-foreground/[0.04]"
+                            }`}
+                          >
+                            <opt.Icon size={14} className="text-foreground" />
+                            <span className="text-foreground">{opt.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
                 <button
                   id="tour-add-task"
                   onClick={() => setShowAddModal(true)}
@@ -693,60 +733,6 @@ export default function InboxPage() {
                     <ArrowUpDown size={18} />
                   </button>
                 </div>
-              </div>
-            </div>
-          );
-        })()}
-
-        {/* View switcher: a single pill showing the active view that opens
-            a dropdown to pick List or Board (previously two always-visible
-            pills sitting out in the open). */}
-        {(() => {
-          const VIEW_OPTIONS = [
-            { key: "list" as const, label: "List", icon: List },
-            { key: "board" as const, label: "Board", icon: LayoutGrid },
-          ];
-          const active = VIEW_OPTIONS.find((o) => o.key === viewMode) ?? VIEW_OPTIONS[0];
-          const ActiveIcon = active.icon;
-          return (
-            <div className="pl-4 pr-3 pb-2 md:pl-8 md:pr-6 md:pb-2 flex items-center">
-              <div className="relative" ref={viewToggleRef}>
-                <button
-                  type="button"
-                  onClick={() => setShowViewDropdown((v) => !v)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 -ml-3 rounded-full text-sm font-semibold text-foreground hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
-                >
-                  <ActiveIcon size={15} strokeWidth={2.25} />
-                  {active.label}
-                  <ChevronDown
-                    size={14}
-                    className={`text-muted-foreground transition-transform ${showViewDropdown ? "rotate-180" : ""}`}
-                  />
-                </button>
-                {showViewDropdown && (
-                  <div className="absolute top-full left-0 mt-1 z-50 rounded-xl shadow-2xl border border-border overflow-hidden min-w-[150px] bg-popover">
-                    {VIEW_OPTIONS.map((opt) => {
-                      const Icon = opt.icon;
-                      const isActive = opt.key === viewMode;
-                      return (
-                        <button
-                          key={opt.key}
-                          onClick={() => {
-                            trackEvent("view_mode_changed", { mode: opt.key });
-                            setViewMode(opt.key);
-                            setShowViewDropdown(false);
-                          }}
-                          className={`flex items-center gap-2 w-full text-left px-3 py-2 text-sm transition-colors ${
-                            isActive ? "bg-foreground/[0.06] font-semibold" : "hover:bg-foreground/[0.04]"
-                          }`}
-                        >
-                          <Icon size={14} className="text-foreground" />
-                          <span className="text-foreground">{opt.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
               </div>
             </div>
           );
