@@ -182,28 +182,85 @@ export default function LandingNav({ loggedIn: loggedInProp }: LandingNavProps =
 
   return (
     <>
-      <nav
-        className={`sticky top-0 z-40 w-full px-4 sm:px-8 py-3 sm:py-4 grid grid-cols-3 items-center border-b transition-colors duration-200 supports-[backdrop-filter]:bg-white/60 bg-white/90 backdrop-blur-xl backdrop-saturate-150 ${
-          scrolled ? "border-black/5" : "border-transparent"
+      {/* iOS-style progressive (variable) blur at the very top edge — the
+          SwiftUI "scroll edge effect" / iOS 26 Liquid Glass look. Instead of a
+          hard divider or a flat frosted rectangle, several backdrop-blur layers
+          at increasing radii are each masked to a band anchored at the top, so
+          the blur is strongest right at the top edge and ramps to zero just
+          below, with a soft white tint. Fades in on scroll (nothing to blur at
+          the very top of the page). pointer-events-none so it never eats clicks. */}
+      <div
+        aria-hidden
+        className={`pointer-events-none fixed inset-x-0 top-0 z-30 h-28 sm:h-32 transition-opacity duration-300 ${
+          scrolled ? "opacity-100" : "opacity-0"
         }`}
       >
-        {/* Left: hamburger on mobile, logo on desktop */}
+        {/* Painted lightest-first so the HEAVIEST blur is on top and dominates
+            the very top edge; each layer is masked to a band anchored at the
+            top and every band fades to transparent by ~82% of the height, so
+            the blur ramps down and fully vanishes — nothing below it is blurred
+            (the bottom ~18% is a guaranteed-sharp zone).
+
+            Two variants: a rich 5-layer stack on desktop (hidden sm:block), and
+            a cheap 2-layer stack on mobile (sm:hidden). Five stacked
+            backdrop-filters recomposite every scroll frame and cause visible
+            jank on phone GPUs, so mobile gets a lighter version that still reads
+            as a soft top fade. */}
+        <div className="hidden sm:block absolute inset-0">
+          {([
+            [3, 84],
+            [8, 68],
+            [18, 52],
+            [34, 38],
+            [56, 26],
+          ] as const).map(([blurPx, fadeEnd]) => (
+            <div
+              key={blurPx}
+              className="absolute inset-0"
+              style={{
+                backdropFilter: `blur(${blurPx}px)`,
+                WebkitBackdropFilter: `blur(${blurPx}px)`,
+                maskImage: `linear-gradient(to bottom, black 0%, black ${Math.round(fadeEnd * 0.5)}%, transparent ${fadeEnd}%)`,
+                WebkitMaskImage: `linear-gradient(to bottom, black 0%, black ${Math.round(fadeEnd * 0.5)}%, transparent ${fadeEnd}%)`,
+              }}
+            />
+          ))}
+        </div>
+        <div className="sm:hidden absolute inset-0">
+          {([
+            [6, 70],
+            [20, 34],
+          ] as const).map(([blurPx, fadeEnd]) => (
+            <div
+              key={blurPx}
+              className="absolute inset-0"
+              style={{
+                backdropFilter: `blur(${blurPx}px)`,
+                WebkitBackdropFilter: `blur(${blurPx}px)`,
+                maskImage: `linear-gradient(to bottom, black 0%, black ${Math.round(fadeEnd * 0.5)}%, transparent ${fadeEnd}%)`,
+                WebkitMaskImage: `linear-gradient(to bottom, black 0%, black ${Math.round(fadeEnd * 0.5)}%, transparent ${fadeEnd}%)`,
+              }}
+            />
+          ))}
+        </div>
+        {/* Soft light tint, strongest at the top, fading out with the blur. */}
+        <div className="absolute inset-0 bg-gradient-to-b from-white/80 via-white/25 to-transparent" />
+      </div>
+
+      <nav
+        className="sticky top-0 z-40 w-full px-4 sm:px-8 py-3 sm:py-4 grid grid-cols-3 items-center bg-transparent"
+      >
+        {/* Left: hamburger on mobile only. No logo — the hero owns the brand. */}
         <div className="justify-self-start flex items-center">
           <button
             type="button"
             onClick={() => setMobileMenuOpen((v) => !v)}
             aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
             aria-expanded={mobileMenuOpen}
-            className="sm:hidden -ml-1 mr-2 inline-flex items-center justify-center w-9 h-9 rounded-lg text-black hover:bg-black/5 transition-colors"
+            className="sm:hidden -ml-1 inline-flex items-center justify-center w-10 h-10 rounded-lg text-black active:bg-black/5 transition-colors"
           >
-            {mobileMenuOpen ? <X size={20} strokeWidth={2} /> : <Menu size={20} strokeWidth={2} />}
+            {mobileMenuOpen ? <X size={22} strokeWidth={2} /> : <Menu size={22} strokeWidth={2} />}
           </button>
-          <Link
-            href={loggedIn ? "/app/home" : "/"}
-            className="flex items-center hover:opacity-70 transition-opacity"
-          >
-            <img src="/logo.png" alt="caltodo" className="h-7 sm:h-9 w-auto" />
-          </Link>
         </div>
 
         {/* Center: nav links — desktop only */}

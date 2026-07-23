@@ -81,8 +81,11 @@ export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
 
       {/* Hero content */}
       <main className="flex-1 flex flex-col items-center px-6 lg:px-10 relative pb-8 sm:pb-10">
-        {/* Above-the-fold section — fills viewport on mobile, normal flow on desktop */}
-        <div className="min-h-[calc(100dvh-8rem)] sm:min-h-0 flex flex-col items-center justify-center sm:justify-start w-full relative">
+        {/* Above-the-fold section — fills viewport on mobile, normal flow on desktop.
+            Uses svh (small viewport height) not dvh: on iOS Safari the dynamic
+            viewport height changes as the address bar collapses on scroll, which
+            would resize this section mid-scroll and read as jank. svh is stable. */}
+        <div className="min-h-[calc(100svh-4.5rem)] sm:min-h-0 flex flex-col items-center justify-center sm:justify-start w-full relative">
           {/* Logo with integration icons behind */}
           <div className="flex flex-col items-center mt-6 sm:mt-14 mb-3 sm:mb-4">
             <div className="relative flex items-end justify-center" style={{ gap: 0 }}>
