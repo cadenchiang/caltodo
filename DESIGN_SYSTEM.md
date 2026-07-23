@@ -356,8 +356,10 @@ focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 placeholder-subtle-for
 ```
 bg-card rounded-2xl border border-border
 ```
-Padding `p-4` or `px-6 py-4`. Board widget cards additionally use the `.board-widget-card` class for
-the floating shadow.
+Padding `p-4` or `px-6 py-4`. Board widget cards use the `.board-widget-card` class
+(`globals.css:2529`), which matches this recipe exactly: 16px radius, `--border`, and a subtle
+single-layer elevation — so the Home board shares the same surface language as the rest of the app
+(previously it was 24px + a heavy 4-layer floating shadow, which read as inconsistent).
 
 ### Modal (canonical)
 ```tsx
