@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Terms of Service - caltodo",
@@ -161,6 +163,14 @@ export default function TermsPage() {
   return (
     <main className="flex-1 px-6 lg:px-10">
       <div className="max-w-2xl mx-auto pt-12 sm:pt-16 pb-24">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1.5 text-sm text-black/50 hover:text-black mb-8 transition-colors animate-fade-up"
+          style={{ animationDelay: "0ms" }}
+        >
+          <ArrowLeft size={16} strokeWidth={2} />
+          Back
+        </Link>
         <h1
           className="text-3xl sm:text-4xl font-bold text-black mb-2 tracking-tight animate-fade-up"
           style={{ animationDelay: "0ms" }}

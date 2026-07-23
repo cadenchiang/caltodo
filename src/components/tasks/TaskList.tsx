@@ -797,7 +797,10 @@ export default function TaskList({
           {completedExpanded && (
             <>
               {completedToShow.map((task, i) => (
-                <div key={task.id} className="cv-auto-task">
+                // px-4 -mx-4 widens the content-visibility:auto paint box into
+                // the left gutter so TaskItem's -ml hover background isn't
+                // clipped by `contain: paint` (net-zero on content position).
+                <div key={task.id} className="cv-auto-task px-4 -mx-4">
                   {/* Inter-task divider removed: tasks now render as cards. */}
                   <TaskItem
                     task={task}
