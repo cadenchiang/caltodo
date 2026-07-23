@@ -16,6 +16,7 @@ import { isAllowedCanvasUrl } from "@/lib/canvas-url-validation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { syncCourseEnrollments, gatherEnrollableCourses } from "@/lib/course-enrollment";
 import { buildCourseNameMap, getCanonicalName } from "@/lib/course-name-merge";
+import { reportSyncFailures } from "@/lib/integration-alerts";
 import type { SyncResult, SyncSourceResult, AdditionalCanvasAccount } from "@/lib/types";
 
 const UPSERT_BATCH_SIZE = 50;
@@ -206,7 +207,7 @@ export async function runSync(
     }
   }
 
-  return {
+  const syncResult: SyncResult = {
     canvas: canvasResult,
     gradescope: gradescopeResult,
     pensieve: pensieveResult,
@@ -214,6 +215,13 @@ export async function runSync(
     last_synced_at: now,
     ...(newCanvasCourses?.length ? { new_canvas_courses: newCanvasCourses } : {}),
   };
+
+  // Fire-and-forget: email a throttled bug report for any source that failed,
+  // so integration breakage is visible instead of silent. Never blocks or
+  // breaks the sync response.
+  void reportSyncFailures(syncResult, userId);
+
+  return syncResult;
 }
 
 /**
