@@ -9,6 +9,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { logger } from "@/lib/logger";
+import { isAllowedCanvasUrl } from "@/lib/canvas-url-validation";
 
 interface SubscribeBody {
   subscription?: {
@@ -49,25 +50,12 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // SSRF guard: the reminder cron POSTs to this endpoint server-side. Require a
-  // real HTTPS push-service URL and reject internal/metadata hosts so a user
-  // can't point it at internal infra. (Real push endpoints are public HTTPS on
-  // FCM / Mozilla / WNS / Apple.)
-  try {
-    const u = new URL(endpoint);
-    const host = u.hostname.toLowerCase();
-    if (
-      u.protocol !== "https:" ||
-      host === "localhost" || host === "0.0.0.0" || host === "[::1]" ||
-      host.startsWith("127.") || host.startsWith("10.") || host.startsWith("192.168.") ||
-      host.startsWith("169.254.") || host.startsWith("0.") ||
-      /^172\.(1[6-9]|2\d|3[01])\./.test(host) ||
-      /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(host) ||
-      /^\d{1,3}(\.\d{1,3}){3}$/.test(host) || host.includes(":")
-    ) {
-      return NextResponse.json({ error: "Invalid push endpoint" }, { status: 400 });
-    }
-  } catch {
+  // SSRF guard: the reminder cron POSTs to this endpoint server-side. Reuse the
+  // canonical validator (HTTPS-only + rejects every IP-literal encoding —
+  // dotted, decimal, hex, octal, IPv6 — plus private/metadata ranges) rather
+  // than a hand-rolled check that a bare-decimal host like 2130706433 slips
+  // past. Real push endpoints are public HTTPS DNS names (FCM/Mozilla/etc).
+  if (!isAllowedCanvasUrl(endpoint)) {
     return NextResponse.json({ error: "Invalid push endpoint" }, { status: 400 });
   }
 

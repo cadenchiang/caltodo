@@ -67,23 +67,27 @@ export async function POST(request: NextRequest) {
 
   const userId = creds.user_id;
 
-  // Get access token and perform incremental sync
-  const accessToken = await getValidAccessToken(supabase, userId);
-  if (!accessToken) {
-    logger.warn("gcal/webhook: no valid access token", { userId });
-    return NextResponse.json({ ok: true });
+  // Always ACK with 200, even on a per-user sync failure — Google retries
+  // webhooks with backoff on any 5xx, so an unhandled throw here (bad sync
+  // token, transient Google 4xx surfaced as an exception) would trigger a
+  // retry storm for that user instead of a clean ack.
+  try {
+    const accessToken = await getValidAccessToken(supabase, userId);
+    if (!accessToken) {
+      logger.warn("gcal/webhook: no valid access token", { userId });
+      return NextResponse.json({ ok: true });
+    }
+
+    const calendarId = resolveCalendarId(creds.google_calendar_id);
+    await performIncrementalSync(supabase, userId, accessToken, calendarId);
+
+    logger.info("gcal/webhook: processed notification", { userId, resourceState, calendarId });
+  } catch (err) {
+    logger.error("gcal/webhook: sync failed", {
+      userId,
+      error: err instanceof Error ? err.message : String(err),
+    });
   }
-
-  // Resolve the primary calendar ID for sync
-  const calendarId = resolveCalendarId(creds.google_calendar_id);
-
-  await performIncrementalSync(supabase, userId, accessToken, calendarId);
-
-  logger.info("gcal/webhook: processed notification", {
-    userId,
-    resourceState,
-    calendarId,
-  });
 
   return NextResponse.json({ ok: true });
 }

@@ -30,7 +30,12 @@ export async function PATCH(
   }
 
   const { taskId } = await params;
-  const body = await req.json();
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
 
   // Allowlist the fields a client may edit — the canonical TaskUpdate editable
   // set (src/lib/types.ts). Never let the client set user_id/id/source/
