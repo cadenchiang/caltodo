@@ -37,6 +37,20 @@ function sanitizeExtractedText(raw: string, maxLength = 200): string {
 /** Timeout in milliseconds for external Gradescope HTTP calls. */
 const FETCH_TIMEOUT_MS = 30_000;
 
+/**
+ * Browser-like headers for every Gradescope request. Gradescope sits behind
+ * Cloudflare, which serves a challenge/403 to the default `node` undici
+ * User-Agent — that surfaces as "CSRF token missing / page structure changed"
+ * or an outright block. A realistic UA + Accept headers dramatically improve
+ * the odds of getting the real page.
+ */
+const BROWSER_HEADERS: Record<string, string> = {
+  "User-Agent":
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+  Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+  "Accept-Language": "en-US,en;q=0.9",
+};
+
 interface GradescopeCourse {
   id: string;
   name: string;
@@ -62,6 +76,7 @@ export async function gradescopeLogin(
   const fetchWithCookies = fetchCookie(fetch, jar);
 
   const loginPageRes = await fetchWithCookies(`${GRADESCOPE_BASE}/login`, {
+    headers: BROWSER_HEADERS,
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   });
   if (!loginPageRes.ok) {
@@ -84,6 +99,7 @@ export async function gradescopeLogin(
   const loginRes = await fetchWithCookies(`${GRADESCOPE_BASE}/login`, {
     method: "POST",
     headers: {
+      ...BROWSER_HEADERS,
       "Content-Type": "application/x-www-form-urlencoded",
       "X-CSRF-Token": csrfToken,
     },
@@ -97,14 +113,22 @@ export async function gradescopeLogin(
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   });
 
+  const credentialsError =
+    "Gradescope login failed. Check your email and password. " +
+    "If you sign in with Google or SSO, you'll need to reset your Gradescope password first.";
+
+  // A successful login 302-redirects to the account/dashboard. A FAILED login
+  // also 302s — back to /login with a flash. So a bare 302 is not proof of
+  // success: verify the redirect target isn't the login page again.
   if (loginRes.status !== 302) {
-    throw new Error(
-      "Gradescope login failed. Check your email and password. " +
-      "If you sign in with Google or SSO, you'll need to reset your Gradescope password first."
-    );
+    throw new Error(credentialsError);
+  }
+  const location = loginRes.headers?.get?.("location") || "";
+  if (/\/login(\?|$)/.test(location) || /\/users\/sign_in/.test(location)) {
+    throw new Error(credentialsError);
   }
 
-  logger.info("gradescopeLogin", { email, success: true });
+  logger.info("gradescopeLogin", { success: true });
   return jar;
 }
 
@@ -122,6 +146,7 @@ export async function fetchGradescopeCourses(
   const fetchWithCookies = fetchCookie(fetch, jar);
 
   const dashboardRes = await fetchWithCookies(GRADESCOPE_BASE, {
+    headers: BROWSER_HEADERS,
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   });
   if (!dashboardRes.ok) {
@@ -210,7 +235,7 @@ export async function fetchGradescopeAssignments(
 
   const pageRes = await fetchWithCookies(
     `${GRADESCOPE_BASE}/courses/${courseId}`,
-    { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) }
+    { headers: BROWSER_HEADERS, signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) }
   );
   if (!pageRes.ok) {
     throw new Error(

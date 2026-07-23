@@ -51,8 +51,13 @@ export async function POST(request: Request) {
           }
         : undefined;
 
-    // Manual syncs (with overrides or explicit force flag) bypass the Gradescope 30-min cooldown
-    const forceGradescope = !!courseOverrides || body.forceGradescope === true;
+    // Only an EXPLICIT user-initiated force bypasses the Gradescope 30-min
+    // login cooldown. Previously the mere presence of course overrides forced
+    // it, so the onboarding course-selection flow (which sends overrides) could
+    // trigger repeated logins in minutes and trip Gradescope's anti-abuse
+    // lockout. Overrides still change WHICH courses sync; they just no longer
+    // bypass the cooldown. First-ever sync passes anyway (no prior timestamp).
+    const forceGradescope = body.forceGradescope === true;
 
     // Optional platform filter — only sync specific platforms
     const VALID_PLATFORMS = new Set<SyncPlatform>(["canvas", "gradescope", "pensieve", "brightspace"]);
