@@ -69,7 +69,11 @@ export default function CanvasSettings({ credentials, onUpdate }: CanvasSettings
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-foreground">Canvas</p>
-          <p className="text-xs text-muted-foreground truncate">Sync assignments from your Canvas account</p>
+          <p className="text-xs text-muted-foreground truncate">
+            {isConnected
+              ? (credentials.canvas_token ? "Connected via API token" : "Connected via calendar feed")
+              : "Sync assignments from your Canvas account"}
+          </p>
         </div>
         {isConnected ? (
           isExpired ? (

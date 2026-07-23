@@ -97,7 +97,12 @@ export function tzOffsetMinutes(instant: Date, tz: string): number {
 export function uniqueDays(range: [Date, Date]): string[] {
   const set = new Set<string>();
   const day = 24 * 60 * 60 * 1000;
-  for (let t = range[0].getTime(); t <= range[1].getTime() + day; t += day) {
+  // Pad ONE day on BOTH sides. due_date is stored as the user's LOCAL calendar
+  // date, but this range is in UTC; for a timezone west of UTC a task due late
+  // local time maps to the next UTC day, so its local due_date is the previous
+  // UTC day. Without the backward pad, `due_date IN (...)` dropped those tasks
+  // and their before-deadline reminders silently never fired.
+  for (let t = range[0].getTime() - day; t <= range[1].getTime() + day; t += day) {
     set.add(new Date(t).toISOString().slice(0, 10));
   }
   return [...set];
