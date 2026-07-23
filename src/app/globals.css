@@ -990,6 +990,11 @@ body[data-route="settings"] .miffy-glow::before {
 html {
   overscroll-behavior-y: none;
   scroll-behavior: smooth;
+  /* Never allow a horizontal scrollbar. Hero cluster animations and a couple
+     of scaled marketing images can momentarily extend past the viewport on
+     mobile; `clip` suppresses the overflow without creating a scroll
+     container (so it can't be swiped sideways and won't cause scroll jank). */
+  overflow-x: clip;
 }
 
 body {
