@@ -25,7 +25,7 @@ import { LUCIDE_ICON_MAP, isFilledIcon, ICON_SIZES } from "@/components/home/emo
 import { useWidgetLayout } from "@/hooks/useWidgetLayout";
 import { useToast } from "@/contexts/ToastContext";
 import { useTheme } from "@/contexts/ThemeContext";
-import { createClient } from "@/lib/supabase/client";
+import { getCurrentUser } from "@/lib/supabase/current-user";
 import { STORAGE_KEY, TEMPLATE_USER_ID } from "@/lib/board-layout-types";
 import { WIDGET_REGISTRY, getDefaultLayout, type WidgetType, type WidgetInstance } from "@/lib/widget-types";
 
@@ -132,8 +132,7 @@ export default function HomeBoard({ embedded = false }: HomeBoardProps = {}) {
         if (typeof window === "undefined") return;
         if (localStorage.getItem(TEMPLATE_SEED_FLAG)) return;
 
-        const supabase = createClient();
-        const { data: { user } } = await supabase.auth.getUser();
+        const user = await getCurrentUser();
         if (cancelled || !user) return;
         if (user.id !== TEMPLATE_USER_ID) {
           localStorage.setItem(TEMPLATE_SEED_FLAG, "skipped");

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { getCurrentUser } from "@/lib/supabase/current-user";
 import { ensureRealtimeAuth } from "@/lib/supabase/realtime-auth";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { playMessageReceived } from "@/lib/sounds";
@@ -221,8 +222,8 @@ export default function GlobalChatNotifier() {
     // Get current user ID before subscribing — prevents race condition where
     // Realtime events arrive before userIdRef is set, causing own messages
     // to trigger notification banners.
-    supabase.auth.getUser().then(({ data }) => {
-      userIdRef.current = data.user?.id ?? null;
+    getCurrentUser().then((user) => {
+      userIdRef.current = user?.id ?? null;
       const boards = getCourseIdsFromCache();
       if (boards.length > 0) {
         subscribeToBoards(boards, supabase);

@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef, type ReactNode } from "react";
 import { Undo2, Eye, Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { getCurrentUser } from "@/lib/supabase/current-user";
 import { useToast } from "@/contexts/ToastContext";
 
 import type { Task, TaskInsert, TaskUpdate, SyncResult } from "@/lib/types";
@@ -316,7 +317,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     }
     setError(null);
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getCurrentUser();
     if (user) {
       setUserId(user.id);
     }
