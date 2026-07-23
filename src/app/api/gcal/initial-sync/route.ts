@@ -10,7 +10,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getValidAccessToken, getCalendarId } from "@/lib/gcal/token-manager";
-import { createCalendarEvent } from "@/lib/gcal/calendar-sync";
+import { createCalendarEvent, deleteCalendarEvent } from "@/lib/gcal/calendar-sync";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
 import type { Task } from "@/lib/types";
@@ -79,8 +79,23 @@ export async function POST() {
           try {
             const eventId = await createCalendarEvent(accessToken!, calendarId!, task);
             if (eventId) {
-              await supabase.from("tasks").update({ google_event_id: eventId }).eq("id", task.id);
-              synced++;
+              // Attach the event only if the task still has no google_event_id.
+              // Two concurrent initial-syncs (e.g. Settings auto-sync racing the
+              // TaskContext sync) would otherwise each create an event and orphan
+              // one. The conditional update lets exactly one win; the loser
+              // deletes the duplicate event it just created.
+              const { data: won } = await supabase
+                .from("tasks")
+                .update({ google_event_id: eventId })
+                .eq("id", task.id)
+                .is("google_event_id", null)
+                .select("id")
+                .maybeSingle();
+              if (won) {
+                synced++;
+              } else {
+                await deleteCalendarEvent(accessToken!, calendarId!, eventId).catch(() => {});
+              }
               lastError = null;
               break;
             }

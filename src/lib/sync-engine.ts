@@ -863,20 +863,27 @@ async function upsertAssignments(
   // Only targets tasks that were part of the current sync batch to avoid
   // affecting tasks from other syncs or manual entries.
   if (upsertedExternalIds.length > 0) {
-    const { error: autoCompleteError } = await supabase
-      .from("tasks")
-      .update({ is_completed: true, completed_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-      .eq("user_id", userId)
-      .eq("source", source)
-      .eq("is_submitted", true)
-      .eq("is_completed", false)
-      .in("external_id", upsertedExternalIds);
+    // Chunk the .in() filter: a single .in() with thousands of ids serializes
+    // into the request URL and can exceed proxy URL limits (~8-16KB) for a
+    // heavy account, silently failing the auto-complete.
+    const IN_CHUNK = 200;
+    for (let i = 0; i < upsertedExternalIds.length; i += IN_CHUNK) {
+      const idsChunk = upsertedExternalIds.slice(i, i + IN_CHUNK);
+      const { error: autoCompleteError } = await supabase
+        .from("tasks")
+        .update({ is_completed: true, completed_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+        .eq("user_id", userId)
+        .eq("source", source)
+        .eq("is_submitted", true)
+        .eq("is_completed", false)
+        .in("external_id", idsChunk);
 
-    if (autoCompleteError) {
-      logger.error("upsertAssignments auto-complete failed", {
-        source,
-        error: autoCompleteError.message,
-      });
+      if (autoCompleteError) {
+        logger.error("upsertAssignments auto-complete failed", {
+          source,
+          error: autoCompleteError.message,
+        });
+      }
     }
   }
 
@@ -950,19 +957,28 @@ async function dismissMissingTasks(
 
     if (toDismiss.length === 0) return;
 
-    const { error: updateError } = await supabase
-      .from("tasks")
-      .update({ dismissed_at: new Date().toISOString() })
-      .in("id", toDismiss);
+    // Chunk the .in() so a large deletion set can't overflow the request URL.
+    // Note: we deliberately do NOT set dismissed_by_user here — leaving it at
+    // its existing value means a genuinely auto-dismissed task (default false)
+    // can revive if it returns to the source, while a task the user had already
+    // deleted (true) stays gone.
+    const DISMISS_IN_CHUNK = 200;
+    for (let i = 0; i < toDismiss.length; i += DISMISS_IN_CHUNK) {
+      const idsChunk = toDismiss.slice(i, i + DISMISS_IN_CHUNK);
+      const { error: updateError } = await supabase
+        .from("tasks")
+        .update({ dismissed_at: new Date().toISOString() })
+        .in("id", idsChunk);
 
-    if (updateError) {
-      logger.error("dismissMissingTasks: dismiss update failed", {
-        userId,
-        source,
-        count: toDismiss.length,
-        error: updateError.message,
-      });
-      return;
+      if (updateError) {
+        logger.error("dismissMissingTasks: dismiss update failed", {
+          userId,
+          source,
+          count: idsChunk.length,
+          error: updateError.message,
+        });
+        return;
+      }
     }
 
     logger.info("dismissMissingTasks: dismissed source-deleted tasks", {
