@@ -248,7 +248,7 @@ export default function LandingNav({ loggedIn: loggedInProp }: LandingNavProps =
       </div>
 
       <nav
-        className="sticky top-0 z-40 w-full px-4 sm:px-8 py-3 sm:py-4 grid grid-cols-3 items-center bg-transparent"
+        className="sticky top-0 z-40 w-full px-4 sm:px-8 py-3 sm:py-4 flex items-center justify-between sm:grid sm:grid-cols-3 bg-transparent"
       >
         {/* Left: hamburger on mobile only. No logo — the hero owns the brand. */}
         <div className="justify-self-start flex items-center">
