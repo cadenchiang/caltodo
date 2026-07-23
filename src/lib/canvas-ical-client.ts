@@ -77,7 +77,12 @@ export function parseCanvasICalEvents(
 
     if (!uid || !summary) continue;
 
-    const endOrStart = dtend ?? dtstart;
+    // All-day events use an EXCLUSIVE DTEND (the day AFTER the event) per
+    // RFC 5545. When DTEND is a date-only value (YYYYMMDD, no time component),
+    // using it would render the due date one day late — fall back to DTSTART.
+    // Mirrors the pensieve-client fix; timed events (with a T) are unaffected.
+    const dtendIsDateOnly = !!dtend && /^\d{8}$/.test(dtend.value.trim());
+    const endOrStart = dtendIsDateOnly ? dtstart : (dtend ?? dtstart);
     const dueDate = parseDueDateWithTzid(
       endOrStart?.value ?? null,
       endOrStart?.tzid ?? null

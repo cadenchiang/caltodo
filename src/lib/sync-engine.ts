@@ -16,6 +16,7 @@ import { isAllowedCanvasUrl } from "@/lib/canvas-url-validation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { syncCourseEnrollments, gatherEnrollableCourses } from "@/lib/course-enrollment";
 import { buildCourseNameMap, getCanonicalName } from "@/lib/course-name-merge";
+import { after } from "next/server";
 import { reportSyncFailures } from "@/lib/integration-alerts";
 import type { SyncResult, SyncSourceResult, AdditionalCanvasAccount } from "@/lib/types";
 
@@ -216,10 +217,17 @@ export async function runSync(
     ...(newCanvasCourses?.length ? { new_canvas_courses: newCanvasCourses } : {}),
   };
 
-  // Fire-and-forget: email a throttled bug report for any source that failed,
-  // so integration breakage is visible instead of silent. Never blocks or
-  // breaks the sync response.
-  void reportSyncFailures(syncResult, userId);
+  // Email a throttled bug report for any source that failed, so integration
+  // breakage is visible instead of silent. Use next/server `after()` so the
+  // work runs AFTER the response is sent but is still awaited by the runtime —
+  // a plain fire-and-forget promise is frozen/killed on serverless before the
+  // Resend call completes. Falls back to fire-and-forget outside a request
+  // scope (e.g. scripts/crons that call runSync directly).
+  try {
+    after(() => reportSyncFailures(syncResult, userId));
+  } catch {
+    void reportSyncFailures(syncResult, userId);
+  }
 
   return syncResult;
 }
@@ -670,6 +678,18 @@ async function upsertAssignments(
   assignments: NormalizedAssignment[],
   timezone: string
 ): Promise<{ synced: number; errors: string[] }> {
+  // Dedupe by external_id first. A single INSERT ... ON CONFLICT that contains
+  // two rows with the same (user_id, source, external_id) throws "cannot affect
+  // row a second time" and fails the WHOLE batch (up to 50 real assignments).
+  // Canvas iCal can emit a base + per-section "override-" event that both
+  // resolve to the same id — keep the last occurrence.
+  {
+    const byId = new Map<string, NormalizedAssignment>();
+    for (const a of assignments) byId.set(a.external_id, a);
+    if (byId.size !== assignments.length) {
+      assignments = Array.from(byId.values());
+    }
+  }
   let totalUpserted = 0;
   let failedBatches = 0;
   const BRIGHTSPACE_COLOR = "#E87040"; // D2L orange
@@ -687,13 +707,13 @@ async function upsertAssignments(
   // user with >1000 synced tasks in one source would otherwise have the
   // overflow rows treated as "new" — clobbering their custom colors and
   // manually-edited due dates/times on every sync.
-  type ExistingRow = { external_id: string | null; due_date_manually_edited_at: string | null; due_time_manually_edited_at: string | null };
+  type ExistingRow = { external_id: string | null; due_date_manually_edited_at: string | null; due_time_manually_edited_at: string | null; dismissed_by_user: boolean | null };
   const existingTaskRows: ExistingRow[] = [];
   const EXISTING_PAGE = 1000;
   for (let from = 0; ; from += EXISTING_PAGE) {
     const { data: page, error: pageError } = await supabase
       .from("tasks")
-      .select("external_id, due_date_manually_edited_at, due_time_manually_edited_at")
+      .select("external_id, due_date_manually_edited_at, due_time_manually_edited_at, dismissed_by_user")
       .eq("user_id", userId)
       .eq("source", source)
       .range(from, from + EXISTING_PAGE - 1);
@@ -716,6 +736,14 @@ async function upsertAssignments(
       .filter((r) => r.due_time_manually_edited_at != null)
       .map((r) => r.external_id)
   );
+  // Tasks the USER explicitly deleted/dismissed (not auto-dismissed by
+  // dismissMissingTasks). Their dismissed_at must be preserved through the
+  // upsert so they don't resurrect while still present on the source.
+  const userDismissedIds = new Set(
+    (existingTaskRows ?? [])
+      .filter((r) => r.dismissed_by_user === true)
+      .map((r) => r.external_id)
+  );
 
   for (let i = 0; i < assignments.length; i += UPSERT_BATCH_SIZE) {
     const batch = assignments.slice(i, i + UPSERT_BATCH_SIZE);
@@ -735,30 +763,27 @@ async function upsertAssignments(
       late_due_date: a.late_due_date ? toLocalDateString(a.late_due_date, timezone) : null,
       description: a.description || "",
       updated_at: new Date().toISOString(),
-      // Clear dismissed_at so previously deleted tasks reappear on resync.
-      // If the assignment exists on the source platform, it should show in caltodo.
+      // Clear dismissed_at so an AUTO-dismissed task (one that had vanished from
+      // the source and is now back) reappears. User-deleted tasks are protected
+      // below by stripping this field for external_ids in userDismissedIds.
       dismissed_at: null,
     }));
 
     // Split into new (include color) vs existing (omit color to preserve user changes).
-    // For existing rows, also strip due_date / due_time when the user has
-    // manually edited them — sync must not clobber the user's own changes.
+    // For existing rows, drop fields the sync must NOT overwrite: manually-edited
+    // due date/time, and dismissed_at for tasks the user deliberately deleted.
     const newRows = baseRows
       .filter((r) => !existingIds.has(r.external_id))
       .map((r) => ({ ...r, color }));
     const existingRows = baseRows
       .filter((r) => existingIds.has(r.external_id))
       .map((r) => {
-        const dateLocked = dueDateLockedIds.has(r.external_id);
-        const timeLocked = dueTimeLockedIds.has(r.external_id);
-        if (!dateLocked && !timeLocked) return r;
-        // Drop locked fields entirely so the upsert leaves them untouched.
-        const { due_date, due_time, ...rest } = r;
-        return {
-          ...rest,
-          ...(dateLocked ? {} : { due_date }),
-          ...(timeLocked ? {} : { due_time }),
-        };
+        const row: Record<string, unknown> = { ...r };
+        if (dueDateLockedIds.has(r.external_id)) delete row.due_date;
+        if (dueTimeLockedIds.has(r.external_id)) delete row.due_time;
+        // User-deleted → leave the existing dismissed_at untouched so it stays hidden.
+        if (userDismissedIds.has(r.external_id)) delete row.dismissed_at;
+        return row;
       });
 
     let batchFailed = false;

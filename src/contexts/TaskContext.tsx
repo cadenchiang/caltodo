@@ -914,7 +914,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
             if (isSyncedTask) {
               await supabase
                 .from("tasks")
-                .update({ dismissed_at: null })
+                .update({ dismissed_at: null, dismissed_by_user: false })
                 .eq("id", taskToDelete.id);
             } else {
               const { dismissed_at: _ignored, ...row } = taskToDelete;
@@ -935,7 +935,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     const { error: deleteError } = isSyncedTask
       ? await supabase
           .from("tasks")
-          .update({ dismissed_at: new Date().toISOString() })
+          .update({ dismissed_at: new Date().toISOString(), dismissed_by_user: true })
           .eq("id", id)
       : await supabase
           .from("tasks")
@@ -1196,7 +1196,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
 
     const { error: dismissError } = await supabase
       .from("tasks")
-      .update({ dismissed_at: new Date().toISOString() })
+      .update({ dismissed_at: new Date().toISOString(), dismissed_by_user: true })
       .eq("user_id", userId)
       .in("course_name", courseNames)
       .is("dismissed_at", null);
@@ -1224,7 +1224,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
 
     const { data, error: undismissError } = await supabase
       .from("tasks")
-      .update({ dismissed_at: null })
+      .update({ dismissed_at: null, dismissed_by_user: false })
       .eq("user_id", userId)
       .in("course_name", courseNames)
       .not("dismissed_at", "is", null)
@@ -1347,7 +1347,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     const [softDeleteResult, hardDeleteResult] = await Promise.all([
       supabase
         .from("tasks")
-        .update({ dismissed_at: new Date().toISOString() })
+        .update({ dismissed_at: new Date().toISOString(), dismissed_by_user: true })
         .eq("user_id", userId)
         .not("source", "is", null),
       supabase
