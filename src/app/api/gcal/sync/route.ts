@@ -117,7 +117,21 @@ async function handleCreate(
     return NextResponse.json({ synced: false, error: "Failed to create event" } satisfies GCalSyncResponse);
   }
 
-  await supabase.from("tasks").update({ google_event_id: eventId }).eq("id", task.id);
+  // Attach only if the task still has no google_event_id. A quick add-then-edit
+  // fires create + update as two independent fire-and-forget requests; if the
+  // update's create-fallback races this create, both would mint an event and
+  // orphan one. The conditional update lets one win; the loser deletes its dup.
+  const { data: won } = await supabase
+    .from("tasks")
+    .update({ google_event_id: eventId })
+    .eq("id", task.id)
+    .is("google_event_id", null)
+    .select("id")
+    .maybeSingle();
+  if (!won) {
+    await deleteCalendarEvent(accessToken, calendarId, eventId).catch(() => {});
+    return NextResponse.json({ synced: true } satisfies GCalSyncResponse);
+  }
   return NextResponse.json({ synced: true, googleEventId: eventId } satisfies GCalSyncResponse);
 }
 

@@ -61,7 +61,9 @@ export async function registerWatchChannel(
       id: channelId,
       type: "web_hook",
       address: webhookUrl,
-      token: userId,
+      // Channel token is the random channel UUID (a secret), NOT the user_id —
+      // the webhook resolves the user by looking up this channel id.
+      token: channelId,
       expiration,
     }),
   });

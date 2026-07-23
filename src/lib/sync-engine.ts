@@ -928,6 +928,17 @@ async function dismissMissingTasks(
   try {
     const seenIds = new Set<string | null>(syncedAssignments.map((a) => a.external_id));
     const scopedCourses = new Set(syncedAssignments.map((a) => a.course_name));
+    // Namespace of an external_id: additional Canvas accounts namespace their
+    // ids as "<accountId>:<id>" while the primary account uses plain ids. Only
+    // dismiss rows in the SAME namespace as this sync's assignments — otherwise
+    // syncing a second Canvas account (namespaced ids) would dismiss the primary
+    // account's live tasks whenever a canonical course name collides.
+    const idNamespace = (id: string | null): string => {
+      if (!id) return "";
+      const i = id.indexOf(":");
+      return i === -1 ? "" : id.slice(0, i);
+    };
+    const syncedNamespaces = new Set(syncedAssignments.map((a) => idNamespace(a.external_id)));
 
     // Paginate past PostgREST's ~1000-row default so users with many active
     // tasks in one source still have all stale rows considered for dismissal.
@@ -958,6 +969,7 @@ async function dismissMissingTasks(
 
     const toDismiss = (existing ?? [])
       .filter((row) => row.course_name != null && scopedCourses.has(row.course_name))
+      .filter((row) => syncedNamespaces.has(idNamespace(row.external_id)))
       .filter((row) => !seenIds.has(row.external_id))
       .map((row) => row.id);
 

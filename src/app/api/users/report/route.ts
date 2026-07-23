@@ -86,15 +86,22 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "userId is required" }, { status: 400 });
   }
 
+  // Validate the reported id is a UUID so bogus strings can't be emailed.
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(reportedUserId)) {
+    return NextResponse.json({ error: "Invalid userId" }, { status: 400 });
+  }
+
   // Prevent self-reporting
   if (reportedUserId === user.id) {
     return NextResponse.json({ error: "Cannot report yourself" }, { status: 400 });
   }
 
+  // Cap the free-text reason so it can't bloat the notification email.
+  const reason = body.reason?.trim().slice(0, 1000);
   const emailResult = await sendUserReportEmail(
     user.email ?? "unknown",
     reportedUserId,
-    body.reason?.trim()
+    reason
   );
 
   if (!emailResult.success) {

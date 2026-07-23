@@ -49,6 +49,28 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // SSRF guard: the reminder cron POSTs to this endpoint server-side. Require a
+  // real HTTPS push-service URL and reject internal/metadata hosts so a user
+  // can't point it at internal infra. (Real push endpoints are public HTTPS on
+  // FCM / Mozilla / WNS / Apple.)
+  try {
+    const u = new URL(endpoint);
+    const host = u.hostname.toLowerCase();
+    if (
+      u.protocol !== "https:" ||
+      host === "localhost" || host === "0.0.0.0" || host === "[::1]" ||
+      host.startsWith("127.") || host.startsWith("10.") || host.startsWith("192.168.") ||
+      host.startsWith("169.254.") || host.startsWith("0.") ||
+      /^172\.(1[6-9]|2\d|3[01])\./.test(host) ||
+      /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(host) ||
+      /^\d{1,3}(\.\d{1,3}){3}$/.test(host) || host.includes(":")
+    ) {
+      return NextResponse.json({ error: "Invalid push endpoint" }, { status: 400 });
+    }
+  } catch {
+    return NextResponse.json({ error: "Invalid push endpoint" }, { status: 400 });
+  }
+
   const { error } = await supabase
     .from("push_subscriptions")
     .upsert(
