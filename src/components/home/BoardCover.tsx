@@ -16,7 +16,6 @@ import { Camera, X, Image as ImageIcon, Pencil } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { compressImage } from "@/lib/compress-image";
 import { extractPalette } from "@/lib/extract-palette";
-import ImageCropModal from "@/components/ui/ImageCropModal";
 import {
   SOLID_COVERS,
   GRADIENT_COVERS,
@@ -49,7 +48,6 @@ export default function BoardCover({
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
-  const [cropSrc, setCropSrc] = useState<string | null>(null);
   const [imgError, setImgError] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
 
@@ -72,23 +70,32 @@ export default function BoardCover({
   /** Whether the current cover is a photo (custom upload or photo preset) — needs position control. */
   const isImageCover = hasCustomImage || (hasPresetCover && coverImageUrl.startsWith("preset:p"));
 
-  /** Opens file picker, then shows crop modal with selected image. */
-  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+  /**
+   * Compresses the selected image and uploads it directly — no pre-crop.
+   * The old flow force-cropped to 4:1, then the banner re-cropped that with
+   * object-cover to a different (width-dependent) ratio, so the framing the
+   * user chose was thrown away. Now the full image is stored and framed live
+   * via object-position, so the modal preview is truly WYSIWYG.
+   */
+  async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
-    const url = URL.createObjectURL(f);
-    setCropSrc(url);
     e.target.value = "";
+    try {
+      const compressed = await compressImage(f, { maxDimension: 1920, quality: 0.85 });
+      await uploadCover(compressed);
+    } catch (err) {
+      console.error("Cover select error:", err);
+    }
   }
 
   /**
-   * Uploads a cropped Blob to Supabase Storage and updates cover.
+   * Uploads an image Blob to Supabase Storage and sets it as the cover.
    *
-   * @param blob - Cropped image blob from ImageCropModal
+   * @param blob - The (compressed) image blob to upload
    */
-  const handleCroppedUpload = useCallback(
+  const uploadCover = useCallback(
     async (blob: Blob) => {
-      setCropSrc(null);
       setUploading(true);
       try {
         const supabase = createClient();
@@ -240,7 +247,7 @@ export default function BoardCover({
               {isImageCover && (
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs font-medium text-foreground">Image Position</label>
+                    <label className="text-xs font-medium text-foreground">Vertical position</label>
                     <span className="text-[10px] tabular-nums text-foreground">{coverPositionY}%</span>
                   </div>
                   <input
@@ -460,18 +467,6 @@ export default function BoardCover({
         accept="image/jpeg,image/png,image/webp"
         className="hidden"
         onChange={handleFileSelect}
-      />
-
-      {/* Crop modal for uploaded banner images */}
-      <ImageCropModal
-        open={!!cropSrc}
-        imageSrc={cropSrc || ""}
-        aspect={16 / 4}
-        onCrop={handleCroppedUpload}
-        onClose={() => {
-          if (cropSrc) URL.revokeObjectURL(cropSrc);
-          setCropSrc(null);
-        }}
       />
     </>
   );

@@ -350,6 +350,20 @@ export function useWidgetLayout() {
   );
 
   /**
+   * Replaces the entire board with a curated template's widgets + layouts,
+   * then persists it. Marks the board as interacted so subsequent edits save.
+   */
+  const applyTemplate = useCallback(
+    (templateWidgets: WidgetInstance[], templateLayouts: ResponsiveLayouts<string>) => {
+      markInteracted();
+      setWidgets(templateWidgets);
+      setLayoutsState(templateLayouts);
+      persistLayout(templateWidgets, templateLayouts);
+    },
+    [markInteracted, persistLayout],
+  );
+
+  /**
    * Adds a new widget and places it in the first empty slot that fits
    * within the fixed-row board (MAX_ROWS = 6 at the lg breakpoint).
    * Uses each widget type's registry-defined default size instead of
@@ -617,7 +631,7 @@ export function useWidgetLayout() {
     titleFontFamily, titleTextColor, titleFontSize,
     coverHeight, coverPositionY,
     dividerColor, dividerThickness, dividerText, dividerVisible,
-    setLayouts, markInteracted, addWidget, removeWidget,
+    setLayouts, markInteracted, applyTemplate, addWidget, removeWidget,
     updateWidgetConfig, updateAllWidgetConfigs,
     setBoardTitle, setBoardDescription, setCoverImageUrl,
     setBoardEmoji, setIconSize, setTitleConfig, setCoverConfig,
