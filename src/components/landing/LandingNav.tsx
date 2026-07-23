@@ -182,10 +182,42 @@ export default function LandingNav({ loggedIn: loggedInProp }: LandingNavProps =
 
   return (
     <>
-      <nav
-        className={`sticky top-0 z-40 w-full px-4 sm:px-8 py-3 sm:py-4 grid grid-cols-3 items-center bg-white border-b transition-colors duration-200 ${
-          scrolled ? "border-black/5" : "border-transparent"
+      {/* iOS-style progressive (variable) blur at the very top edge — the
+          SwiftUI "scroll edge effect" / iOS 26 Liquid Glass look. Instead of a
+          hard divider or a flat frosted rectangle, several backdrop-blur layers
+          at increasing radii are each masked to a band anchored at the top, so
+          the blur is strongest right at the top edge and ramps to zero just
+          below, with a soft white tint. Fades in on scroll (nothing to blur at
+          the very top of the page). pointer-events-none so it never eats clicks. */}
+      <div
+        aria-hidden
+        className={`pointer-events-none fixed inset-x-0 top-0 z-30 h-24 sm:h-28 transition-opacity duration-300 ${
+          scrolled ? "opacity-100" : "opacity-0"
         }`}
+      >
+        {([
+          [12, 30],
+          [6, 50],
+          [3, 72],
+          [1, 100],
+        ] as const).map(([blurPx, fadeEnd]) => (
+          <div
+            key={blurPx}
+            className="absolute inset-0"
+            style={{
+              backdropFilter: `blur(${blurPx}px)`,
+              WebkitBackdropFilter: `blur(${blurPx}px)`,
+              maskImage: `linear-gradient(to bottom, black 0%, black ${fadeEnd / 2}%, transparent ${fadeEnd}%)`,
+              WebkitMaskImage: `linear-gradient(to bottom, black 0%, black ${fadeEnd / 2}%, transparent ${fadeEnd}%)`,
+            }}
+          />
+        ))}
+        {/* Soft light tint, strongest at the very top, like the iOS material. */}
+        <div className="absolute inset-0 bg-gradient-to-b from-white/85 via-white/40 to-transparent" />
+      </div>
+
+      <nav
+        className="sticky top-0 z-40 w-full px-4 sm:px-8 py-3 sm:py-4 grid grid-cols-3 items-center bg-transparent"
       >
         {/* Left: hamburger on mobile, logo on desktop */}
         <div className="justify-self-start flex items-center">
