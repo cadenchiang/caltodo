@@ -245,17 +245,12 @@ export function useWidgetLayout() {
     setHydrated(true);
 
     fetchServerLayout().then(({ layout: serverData, updatedAt: serverUpdatedAt }) => {
-      // If the user already made a genuine edit while this fetch was in flight,
-      // do NOT overwrite their work with the server copy (that edit was saved to
-      // the local cache but couldn't reach the server yet because saving was
-      // gated on hydration). Unlock saving and flush their pending edit instead.
-      if (interactedRef.current) {
-        hydrationCompleteRef.current = true;
-        setHydrated(true);
-        const pending = readPersistedLayout();
-        if (pending) debouncedServerSave(pending);
-        return;
-      }
+      // Server always wins on hydration. (A previous attempt to preserve
+      // in-flight edits keyed off interactedRef, but that flag is flipped by
+      // mount-time programmatic effects — notably the color-theme reset that
+      // fires when colorTheme goes null->saved — so it silently discarded the
+      // server board and overwrote it with a color-stripped local copy for any
+      // themed user on every load. Server-wins is the safe behavior.)
       if (serverData) {
         // Server has data — always apply it (server wins)
         const serverLayout = serverData as unknown as PersistedLayout;

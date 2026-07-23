@@ -250,11 +250,20 @@ export async function fetchCanvasAssignmentsForCourses(
         });
       }
     } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
       logger.error("Failed to fetch assignments for selected course", {
         courseId: course.id,
         courseName: course.name,
-        error: err instanceof Error ? err.message : String(err),
+        error: msg,
       });
+      // A 401/invalid-token is an ACCOUNT-level failure, not a per-course one:
+      // every course will fail the same way. Rethrow so the sync surfaces it
+      // (sets canvas_auth_failed + the reconnect banner) instead of silently
+      // returning 0 assignments. Non-auth per-course errors stay swallowed so
+      // one bad course doesn't sink the others.
+      if (/invalid or expired|token is invalid|\b401\b|unauthorized/i.test(msg)) {
+        throw err;
+      }
     }
   }
 

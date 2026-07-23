@@ -301,8 +301,10 @@ async function syncCanvas(
     // whose course we just successfully synced but whose external_id wasn't
     // in the fresh API response is no longer real.
     await dismissMissingTasks(supabase, userId, "canvas", merged);
-    // Token sync succeeded — clear any prior auth-failure flag.
-    if (creds.canvas_token) {
+    // Token sync succeeded — clear any prior auth-failure flag. Gate on the
+    // token path actually running (not just a token existing) so a dual-
+    // configured user syncing via iCal doesn't touch the token flag.
+    if (!creds.canvas_ical_url && creds.canvas_token) {
       await supabase
         .from("integration_credentials")
         .update({ canvas_auth_failed: false })
@@ -312,10 +314,14 @@ async function syncCanvas(
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     logger.error("syncCanvas failed", { userId, error: message });
-    // Persist a genuine auth failure (401 → "invalid or expired") so the UI can
-    // prompt a reconnect even before the 120-day time heuristic trips. Only the
-    // token path can 401; iCal failures are surfaced as errors, not auth flags.
-    if (creds.canvas_token && /invalid or expired|token is invalid/i.test(message)) {
+    // Persist a genuine auth failure so the UI can prompt a reconnect even
+    // before the 120-day time heuristic trips. Covers both the sync-all message
+    // ("...invalid or expired") and the selected-courses message ("Canvas
+    // returned 401 ...") now that the latter is rethrown. Only the token path
+    // 401s; iCal failures ("...fetch failed: 401") are surfaced as errors, and
+    // are excluded here so an iCal-only user isn't flagged.
+    if (!creds.canvas_ical_url && creds.canvas_token &&
+        /invalid or expired|token is invalid|\b401\b|unauthorized/i.test(message)) {
       await supabase
         .from("integration_credentials")
         .update({ canvas_auth_failed: true })

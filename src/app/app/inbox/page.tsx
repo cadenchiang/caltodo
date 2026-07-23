@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Inbox, X, Sun, CalendarRange, CalendarDays, GraduationCap, MoreVertical, List, LayoutGrid, ArrowUpDown, RefreshCw, Plus, ChevronDown } from "lucide-react";
+import { Inbox, X, Sun, CalendarRange, CalendarDays, GraduationCap, List, LayoutGrid, ArrowUpDown, RefreshCw, Plus, ChevronDown } from "lucide-react";
 import { useTaskContext } from "@/contexts/TaskContext";
 import { useToast } from "@/contexts/ToastContext";
 import { getRealTaskId } from "@/lib/expand-repeating-tasks";
