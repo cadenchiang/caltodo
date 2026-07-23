@@ -79,6 +79,12 @@ export async function GET(request: NextRequest) {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     logger.error("GET /api/canvas/courses failed", { userId: user.id, error: message });
+    // Preserve the auth/rate-limit STATUS the onboarding UI branches on (401 ->
+    // "Invalid access token", 403 -> rate limit) while keeping the body generic.
+    const isAuth = /invalid or expired|token is invalid|\b401\b|unauthorized/i.test(message);
+    const isRate = /rate limit|\b403\b/i.test(message);
+    if (isAuth) return NextResponse.json({ error: "Canvas token is invalid or expired." }, { status: 401 });
+    if (isRate) return NextResponse.json({ error: "Canvas rate limit exceeded. Try again later." }, { status: 403 });
     return NextResponse.json({ error: "Failed to load Canvas courses" }, { status: 500 });
   }
 }

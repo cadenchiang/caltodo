@@ -72,6 +72,6 @@ export async function GET() {
       userId: user.id,
       error: message,
     });
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: "Failed to load Pensieve courses" }, { status: 500 });
   }
 }

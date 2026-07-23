@@ -55,10 +55,15 @@ export async function PATCH(
     .update(update)
     .eq("id", taskId)
     .select()
-    .single();
+    .maybeSingle();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "Failed to update task" }, { status: 500 });
+  }
+  // RLS scopes to the owner: a missing/foreign task matches 0 rows → 404, not a
+  // raw 500 from .single().
+  if (!data) {
+    return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
 
   return NextResponse.json(data);
@@ -79,13 +84,19 @@ export async function DELETE(
 
   const { taskId } = await params;
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("tasks")
-    .update({ dismissed_at: new Date().toISOString() })
-    .eq("id", taskId);
+    .update({ dismissed_at: new Date().toISOString(), dismissed_by_user: true })
+    .eq("id", taskId)
+    .select("id");
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "Failed to delete task" }, { status: 500 });
+  }
+  // 0 rows affected (missing/foreign task under RLS) → 404 instead of a
+  // misleading success.
+  if (!data || data.length === 0) {
+    return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
 
   return NextResponse.json({ success: true });
