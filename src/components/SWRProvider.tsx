@@ -50,7 +50,12 @@ function localStorageProvider(_parentCache: Readonly<Cache>): Cache {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
-        stored = JSON.parse(raw);
+        const parsed = JSON.parse(raw);
+        // Must be an array of [key, value] entries for `new Map(...)`. A valid
+        // JSON value of the wrong shape (e.g. {} or a number from a stale/other
+        // version) parses fine but throws "not iterable" in the Map ctor below,
+        // crashing the whole app on mount — guard the shape here.
+        if (Array.isArray(parsed)) stored = parsed;
       }
     } catch {
       // Corrupted or unavailable localStorage — start fresh

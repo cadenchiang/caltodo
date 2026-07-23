@@ -230,7 +230,10 @@ export async function GET(request: NextRequest) {
       { events: allEvents, calendarColors: calColorMap, connected: true },
       // Short private cache so back-nav / quick re-mounts don't re-hit Google
       // (each miss costs a token refresh + N events.list + calendarList calls).
-      { headers: { "Cache-Control": "private, max-age=30, stale-while-revalidate=300" } },
+      // no-store: the webhook→poll→mutate() realtime path re-fetches this URL
+      // when the calendar changes; a browser HTTP cache (max-age/stale-while-
+      // revalidate) would serve a stale copy and defeat that, so always revalidate.
+      { headers: { "Cache-Control": "private, no-store" } },
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
