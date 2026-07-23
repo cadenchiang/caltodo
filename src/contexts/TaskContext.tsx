@@ -13,6 +13,7 @@ import { computeNextDueDate, shouldSpawnNext } from "@/lib/repeat";
 import { showNewAssignmentsModal } from "@/components/ui/NewAssignmentsModal";
 import { readSyncStream } from "@/lib/gcal/read-sync-stream";
 import { playTaskComplete, playTaskCreated } from "@/lib/sounds";
+import { getCredentials } from "@/lib/credentials-client";
 
 /** localStorage key and version for stale-while-revalidate task caching. */
 const CACHE_KEY = "caltodo_tasks_cache";
@@ -367,15 +368,11 @@ export function TaskProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const fetchLastSynced = useCallback(async () => {
-    try {
-      const res = await fetch("/api/credentials");
-      if (res.ok) {
-        const creds = await res.json();
-        setLastSyncedAt(creds.last_synced_at);
-      }
-    } catch {
-      // Non-critical, silently ignore
-    }
+    // Shared deduped client — collapses the many concurrent /api/credentials
+    // reads across TaskContext + onboarding/dismissed-modal/canvas-token hooks
+    // into a single request on load.
+    const creds = await getCredentials();
+    if (creds) setLastSyncedAt((creds.last_synced_at as string | null) ?? null);
   }, []);
 
   useEffect(() => {

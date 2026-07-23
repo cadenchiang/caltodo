@@ -105,6 +105,10 @@ export default function SWRProvider({ children }: { children: ReactNode }) {
         keepPreviousData: true,
         dedupingInterval: 5000,
         revalidateOnFocus: true,
+        // Cap focus-revalidation to once per key per minute so alt-tabbing back
+        // doesn't re-fire every widget's fetch (gcal events, weather, invites)
+        // on each focus — a big contributor to the "feels slow on return" lag.
+        focusThrottleInterval: 60_000,
         revalidateOnReconnect: true,
       }}
     >

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import type { DismissedModals } from "@/lib/types";
+import { getCredentials } from "@/lib/credentials-client";
 
 /**
  * Maps server-side modal keys to their corresponding localStorage keys.
@@ -83,11 +84,10 @@ export function useDismissedModals() {
 
     const localModals = readLocalStorage();
 
-    fetch("/api/credentials")
-      .then((res) => (res.ok ? res.json() : null))
+    getCredentials()
       .then((data) => {
         if (!data) return;
-        const serverModals: DismissedModals = data.dismissed_modals ?? {};
+        const serverModals: DismissedModals = (data.dismissed_modals as DismissedModals) ?? {};
         // Merge: server wins, but also include any localStorage-only dismissals
         const merged = { ...localModals, ...serverModals };
         cachedModals = merged;

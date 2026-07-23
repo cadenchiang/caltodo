@@ -189,7 +189,10 @@ export default function GoogleCalendarWidget({ config, editMode, onUpdateConfig 
       return res.json();
     },
     {
-      revalidateOnFocus: true,
+      // No focus revalidation: this widget already has a localStorage cache
+      // (instant paint) + a 5-min refreshInterval, so re-fetching the ~800ms
+      // Google events payload on every tab focus is pure waste.
+      revalidateOnFocus: false,
       dedupingInterval: 60000,
       refreshInterval: 300000,
       fallbackData: cachedGcalData ?? undefined,

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { getCredentials } from "@/lib/credentials-client";
 
 /** SessionStorage key for caching onboarding status. */
 const CACHE_KEY = "caltodo_onboarding_status";
@@ -70,8 +71,7 @@ export function useOnboardingStatus(options?: { skipCache?: boolean }): {
 
   const fetchStatus = useCallback(() => {
     setLoading(true);
-    fetch("/api/credentials")
-      .then((res) => (res.ok ? res.json() : null))
+    getCredentials()
       .then((data) => {
         if (!data) return;
         const value = !!data.has_completed_onboarding;
