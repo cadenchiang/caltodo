@@ -61,12 +61,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Canvas not connected" }, { status: 400 });
   }
 
-  const formData = await request.formData();
-  const file = formData.get("file") as File | null;
+  let formData: FormData;
+  try {
+    formData = await request.formData();
+  } catch {
+    return NextResponse.json({ error: "Invalid form data" }, { status: 400 });
+  }
+  const file = formData.get("file");
   const courseId = formData.get("courseId") as string | null;
   const assignmentId = formData.get("assignmentId") as string | null;
 
-  if (!file || !courseId || !assignmentId) {
+  // Verify `file` is an actual File — a string field named "file" would pass a
+  // truthy check and send { name: undefined, size: undefined } to Canvas.
+  if (!(file instanceof File) || !courseId || !assignmentId) {
     return NextResponse.json({ error: "Missing file, courseId, or assignmentId" }, { status: 400 });
   }
 

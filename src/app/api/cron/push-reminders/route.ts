@@ -251,13 +251,20 @@ async function processBeforeDeadline(
         { title: task.title || "Upcoming deadline", body, url: "/app/today", tag: `task-${task.id}` },
         onDrop
       ));
-    // Always record the dispatch so we don't loop even if no subs.
-    await supabase.from("notification_dispatches").insert({
+    // Always record the dispatch so we don't loop even if no subs. Log a failed
+    // insert — if the ledger row isn't written, the same (rule, task) is
+    // re-eligible next tick and the user gets a duplicate push.
+    const { error: dispatchError } = await supabase.from("notification_dispatches").insert({
       user_id: rule.user_id,
       rule_id: rule.id,
       task_id: task.id,
       bucket: "",
     });
+    if (dispatchError) {
+      logger.error("push-reminders: failed to record dispatch (risk of duplicate send)", {
+        ruleId: rule.id, taskId: task.id, error: dispatchError.message,
+      });
+    }
     if (delivered) sentCount++;
   }
   return sentCount;

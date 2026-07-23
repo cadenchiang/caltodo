@@ -360,11 +360,16 @@ export async function PUT(request: Request) {
     .single();
 
   if (!existing) {
-    // New user — check if we're still under 500 total users (founding member spots)
+    // New user — grant founding-member only if we can CONFIRM we're under 500
+    // total users. `listUsers` with perPage:1 returns users.length === 1, so
+    // relying on that as a fallback would flag every new user as founding.
+    // Read the real `total`; if it isn't present, fail closed (don't grant).
     const admin = createAdminClient();
     const { data: authData } = await admin.auth.admin.listUsers({ perPage: 1, page: 1 });
-    const totalUsers = (authData && "total" in authData ? authData.total : authData?.users.length) ?? 0;
-    updateData.is_founding_member = totalUsers <= 500;
+    const total = authData && typeof (authData as { total?: number }).total === "number"
+      ? (authData as { total?: number }).total!
+      : null;
+    updateData.is_founding_member = total !== null && total <= 500;
   }
 
   const { error } = await supabase

@@ -11,5 +11,7 @@ export async function POST(request: NextRequest) {
 
   const url = request.nextUrl.clone();
   url.pathname = "/";
-  return NextResponse.redirect(url);
+  // 303 so the browser follows with GET — a default 307 preserves POST and
+  // re-POSTs to "/" (a GET-only route → spurious 405).
+  return NextResponse.redirect(url, 303);
 }

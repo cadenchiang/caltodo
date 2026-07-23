@@ -69,11 +69,16 @@ export async function GET() {
         "canvas_token, gradescope_email, google_calendar_id, pensieve_calendar_url"
       );
 
+    // Track whether any query failed so the dashboard can flag under-reported
+    // numbers instead of presenting partial/zeroed data as authoritative.
+    let partial = false;
+
     if (credError) {
       logger.error(
         "GET /api/admin/overview — integration_credentials query failed",
         { error: credError.message }
       );
+      partial = true;
     }
 
     const platforms: PlatformAdoptionData = {
@@ -108,6 +113,7 @@ export async function GET() {
           error: taskError.message,
           offset,
         });
+        partial = true;
         break;
       }
 
@@ -153,7 +159,7 @@ export async function GET() {
     });
 
     return NextResponse.json(
-      { platforms, taskStats },
+      { platforms, taskStats, partial },
       {
         headers: {
           "Cache-Control": "private, max-age=300, stale-while-revalidate=60",

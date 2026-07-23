@@ -32,7 +32,12 @@ export async function POST(req: NextRequest) {
     if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
     const body = (await req.json().catch(() => ({}))) as { interval?: string };
-    const interval = body.interval === "month" ? "month" : "year";
+    // Validate explicitly instead of silently defaulting garbage to the pricier
+    // annual plan.
+    if (body.interval !== "month" && body.interval !== "year") {
+      return NextResponse.json({ error: "interval must be 'month' or 'year'" }, { status: 400 });
+    }
+    const interval = body.interval;
 
     // Surface "Stripe not configured" before doing any work so the client can
     // route to the dev-grant flow on localhost (or show a clear setup hint
@@ -59,12 +64,15 @@ export async function POST(req: NextRequest) {
 
     const entitlement = await getEntitlement(user.id);
 
-    // Already paid Pro? Send them to the portal instead of double-charging.
-    if (
-      entitlement.effectivePlan === "pro" &&
-      entitlement.stripeSubscriptionId &&
-      !entitlement.cancelAtPeriodEnd
-    ) {
+    // Already Pro without a Stripe subscription = a founder / comped account —
+    // never send them through checkout (would charge for lifetime-free access).
+    if (entitlement.effectivePlan === "pro" && !entitlement.stripeSubscriptionId) {
+      return NextResponse.json({ alreadyPro: true });
+    }
+    // Has an active Stripe subscription (even one set to cancel at period end)?
+    // Route to the billing portal to manage/reactivate — a new checkout session
+    // would create a SECOND concurrent subscription and double-charge.
+    if (entitlement.effectivePlan === "pro" && entitlement.stripeSubscriptionId) {
       return NextResponse.json({ alreadyPro: true });
     }
 
