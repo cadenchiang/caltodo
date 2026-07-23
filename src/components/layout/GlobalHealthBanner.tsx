@@ -23,13 +23,15 @@ export default function GlobalHealthBanner() {
     return null;
   }
 
-  // No horizontal padding here — the parent <main> already provides px-4/px-10,
-  // and this renders inside it.
+  // Render the provider + banner directly with NO wrapper element. A previous
+  // always-present `pt-3` div left a ~12px empty strip at the very top of every
+  // page when everything was healthy (IntegrationHealthBanner returns null),
+  // which showed as a white gap above the board cover (the board uses negative
+  // margins to pull its banner flush to the top). IntegrationHealthBanner
+  // supplies its own `mb-4` spacing when it actually renders.
   return (
-    <div className="pt-3">
-      <IntegrationProvider>
-        <IntegrationHealthBanner />
-      </IntegrationProvider>
-    </div>
+    <IntegrationProvider>
+      <IntegrationHealthBanner />
+    </IntegrationProvider>
   );
 }
