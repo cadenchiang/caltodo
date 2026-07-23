@@ -385,17 +385,7 @@ export default function InboxPage() {
 
   // Filter tasks by date
   const filteredTasks = useMemo(
-    () => {
-      const result = filterTasksByDate(tasks, filter);
-      // Debug: log tasks that exist in context but were filtered out
-      if (typeof window !== "undefined" && tasks.length > 0) {
-        const filtered = tasks.filter((t) => !result.some((r) => r.id === t.id));
-        if (filtered.length > 0) {
-          console.log("[Inbox] Tasks filtered out:", filtered.map((t) => ({ id: t.id, title: t.title, due_date: t.due_date, is_completed: t.is_completed, snoozed_until: t.snoozed_until, dismissed_at: t.dismissed_at })));
-        }
-      }
-      return result;
-    },
+    () => filterTasksByDate(tasks, filter),
     [tasks, filter]
   );
 

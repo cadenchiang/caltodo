@@ -17,6 +17,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
+import { isAllowedCanvasUrl } from "@/lib/canvas-url-validation";
 
 const TIMEOUT_MS = 30_000;
 
@@ -125,6 +126,15 @@ export async function POST(request: Request) {
     const step1Data = await step1Res.json();
     const { upload_url, upload_params } = step1Data;
 
+    // Second-order SSRF guard: upload_url is returned by the (user-configurable)
+    // Canvas host, so re-validate it before fetching — a malicious host could
+    // point it at an internal/metadata address. Legit Canvas/S3 upload hosts are
+    // public HTTPS and pass.
+    if (typeof upload_url !== "string" || !isAllowedCanvasUrl(upload_url)) {
+      logger.warn("canvas-submit: rejected disallowed upload_url");
+      return NextResponse.json({ error: "Canvas returned an invalid upload URL" }, { status: 502 });
+    }
+
     // Step 2: Upload the actual file to Canvas (or S3)
     logger.info("canvas-submit:step2", { uploadUrl: upload_url });
 
@@ -147,6 +157,12 @@ export async function POST(request: Request) {
       // 3XX redirect — follow it with GET to complete upload
       const location = step2Res.headers.get("location");
       if (location) {
+        // The confirm GET carries the user's Canvas bearer token, so re-validate
+        // the redirect target too — never send the token to an internal host.
+        if (!isAllowedCanvasUrl(location)) {
+          logger.warn("canvas-submit: rejected disallowed upload confirm redirect");
+          return NextResponse.json({ error: "Canvas returned an invalid confirmation URL" }, { status: 502 });
+        }
         const confirmRes = await fetch(location, {
           headers,
           signal: AbortSignal.timeout(TIMEOUT_MS),
