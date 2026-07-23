@@ -195,8 +195,15 @@ export default function PomodoroWidget({
     }
   }, []);
 
-  /** Reset timer when config changes (work/break minutes). */
+  /** Reset timer when config changes (work/break minutes) — but NOT on mount,
+   *  which would clobber a running timer restored from persisted state (the
+   *  lazy useState initializers above resume an in-progress session). */
+  const didMountRef = useRef(false);
   useEffect(() => {
+    if (!didMountRef.current) {
+      didMountRef.current = true;
+      return;
+    }
     setSecondsLeft(phase === "work" ? workMinutes * 60 : breakMinutes * 60);
     setRunning(false);
     clearTimer();
