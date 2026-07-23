@@ -40,6 +40,12 @@ export async function fetchCanvasICalAssignments(
   }
 
   const icsText = await res.text();
+  // Guard against a 200 response that isn't actually a calendar (e.g. a reset
+  // feed returning an HTML login page) — otherwise sync silently yields 0
+  // assignments and reports success.
+  if (!/BEGIN:VCALENDAR/i.test(icsText)) {
+    throw new Error("Canvas calendar feed didn't return a calendar — the feed URL may have been reset. Reconnect it.");
+  }
   const assignments = parseCanvasICalEvents(icsText);
 
   logger.info("fetchCanvasICalAssignments: parsed events", {

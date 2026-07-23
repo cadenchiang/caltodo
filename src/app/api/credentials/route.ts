@@ -26,7 +26,7 @@ const CORE_SELECT = "canvas_token, canvas_base_url, canvas_ical_url, gradescope_
  * separate so a missing-column error triggers a fallback to CORE_SELECT rather
  * than a 500. Each is optional in IntegrationCredentials (defaults applied below).
  */
-const OPTIONAL_SELECT = "google_auth_failed, additional_canvas_accounts";
+const OPTIONAL_SELECT = "google_auth_failed, additional_canvas_accounts, canvas_auth_failed";
 const FULL_SELECT = `${CORE_SELECT}, ${OPTIONAL_SELECT}`;
 
 /** Postgres "undefined column" (42703) or the PostgREST message that carries it. */
@@ -132,6 +132,7 @@ export async function GET() {
     gradescope_email: data?.gradescope_email ?? null,
     has_gradescope_password: !!data?.gradescope_password_encrypted,
     gradescope_auth_failed: data?.gradescope_auth_failed ?? false,
+    canvas_auth_failed: (data as { canvas_auth_failed?: boolean } | null)?.canvas_auth_failed ?? false,
     last_synced_at: data?.last_synced_at ?? null,
     selected_canvas_courses: data?.selected_canvas_courses ?? null,
     selected_gradescope_courses: data?.selected_gradescope_courses ?? null,
@@ -237,6 +238,8 @@ export async function PUT(request: Request) {
     updateData.canvas_token_created_at = body.canvas_token
       ? new Date().toISOString()
       : null;
+    // A freshly-saved token clears any prior auth-failure flag so sync retries.
+    updateData.canvas_auth_failed = false;
   }
   if (body.canvas_base_url !== undefined) {
     // SSRF guard: this URL is fetched server-side with the user's Canvas token
@@ -397,12 +400,18 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: "Credentials saved but failed to read back" }, { status: 500 });
   }
 
-  // Check Canvas token expiration for the response
+  // Check Canvas token expiration for the response. Compute BOTH expired and
+  // expiring-soon (days 113-120) so the proactive banner doesn't vanish when a
+  // user saves classes — the PUT response used to omit expiring_soon, which
+  // made IntegrationHealthBanner drop the warning until a full reload.
   let putCanvasTokenExpired = false;
+  let putCanvasTokenExpiringSoon = false;
   if (updated?.canvas_token && updated?.canvas_token_created_at) {
     const createdAt = new Date(updated.canvas_token_created_at).getTime();
-    const days120 = 120 * 24 * 60 * 60 * 1000;
-    putCanvasTokenExpired = Date.now() - createdAt > days120;
+    const day = 24 * 60 * 60 * 1000;
+    const ageMs = Date.now() - createdAt;
+    putCanvasTokenExpired = ageMs > 120 * day;
+    putCanvasTokenExpiringSoon = !putCanvasTokenExpired && ageMs > 113 * day;
   }
 
   const putHasCompletedOnboarding = !!(
@@ -420,6 +429,8 @@ export async function PUT(request: Request) {
     canvas_base_url: updated?.canvas_base_url ?? "https://bcourses.berkeley.edu",
     canvas_ical_url: updated?.canvas_ical_url ?? null,
     canvas_token_expired: putCanvasTokenExpired,
+    canvas_token_expiring_soon: putCanvasTokenExpiringSoon,
+    canvas_auth_failed: (updated as { canvas_auth_failed?: boolean } | null)?.canvas_auth_failed ?? false,
     gradescope_email: updated?.gradescope_email ?? null,
     has_gradescope_password: !!updated?.gradescope_password_encrypted,
     gradescope_auth_failed: updated?.gradescope_auth_failed ?? false,

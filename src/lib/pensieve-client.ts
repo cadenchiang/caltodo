@@ -39,6 +39,13 @@ export async function fetchPensieveAssignments(
   }
 
   const icsText = await res.text();
+  // A reset/private feed often returns HTTP 200 with an HTML login page instead
+  // of iCal. Without this guard the parser just finds no events and the sync
+  // silently reports success with 0 assignments — the exact invisible failure
+  // we want to avoid. Treat a non-calendar body as a broken feed.
+  if (!/BEGIN:VCALENDAR/i.test(icsText)) {
+    throw new Error("Pensieve feed didn't return a calendar — the URL may have been reset or made private. Reconnect it.");
+  }
   const assignments = parseICalEvents(icsText);
 
   logger.info("fetchPensieveAssignments: parsed events", { count: assignments.length });

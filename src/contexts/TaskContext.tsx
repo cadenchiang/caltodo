@@ -856,11 +856,20 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     });
 
     try {
-      await Promise.all(
+      // Supabase query builders resolve with { error } on DB/RLS failures — they
+      // do NOT reject — so a try/catch alone silently swallowed failed reorders.
+      // Inspect each result and reconcile from the server if any write failed.
+      const results = await Promise.all(
         updates.map((u) =>
           supabase.from("tasks").update({ sort_order: u.sort_order }).eq("id", u.id)
         )
       );
+      const failed = results.find((r) => r.error);
+      if (failed?.error) {
+        console.error("reorderTasks: a write failed, reconciling from server:", failed.error.message);
+        setError(failed.error.message);
+        fetchTasks();
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       console.error("reorderTasks failed, reconciling from server:", message);
