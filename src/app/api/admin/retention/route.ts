@@ -174,18 +174,18 @@ export async function GET() {
         { error: auditError.message }
       );
 
-      // Fallback: use last_sign_in_at from auth.users
-      for (const [userId] of userMap) {
-        // We already have the users from listUsers — reconstruct basic login data
-        // This is less accurate but provides some signal
-      }
+      // Fallback handled below by the `logins.length === 0` branch.
     } else if (auditData) {
       // Extract login events — audit_log payload contains action info
       for (const entry of auditData) {
-        const payload =
-          typeof entry.payload === "string"
-            ? JSON.parse(entry.payload)
-            : entry.payload;
+        // Parse per-row defensively: one malformed payload must not 500 the
+        // whole endpoint (payload is normally jsonb, already an object).
+        let payload: { action?: string; actor_id?: string; user_id?: string; sub?: string } | null;
+        try {
+          payload = typeof entry.payload === "string" ? JSON.parse(entry.payload) : entry.payload;
+        } catch {
+          continue;
+        }
 
         // Login actions in Supabase audit log
         if (
