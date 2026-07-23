@@ -7,11 +7,12 @@
  */
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import { Plus } from "lucide-react";
+import { Plus, LayoutTemplate } from "lucide-react";
 import PageTransition from "@/components/ui/PageTransition";
 import EditToggleButton from "@/components/ui/EditToggleButton";
 import WidgetGrid from "@/components/home/WidgetGrid";
 import WidgetGalleryModal from "@/components/home/WidgetGalleryModal";
+import TemplateGalleryModal from "@/components/home/TemplateGalleryModal";
 import WidgetEditorPanel from "@/components/home/WidgetEditorPanel";
 import BoardCover from "@/components/home/BoardCover";
 import BoardTitle from "@/components/home/BoardTitle";
@@ -60,6 +61,7 @@ export default function HomeBoard({ embedded = false }: HomeBoardProps = {}) {
     setLayouts,
     markInteracted,
     addWidget,
+    applyTemplate,
     removeWidget,
     updateWidgetConfig,
     updateAllWidgetConfigs,
@@ -88,6 +90,7 @@ export default function HomeBoard({ embedded = false }: HomeBoardProps = {}) {
   const { showToast } = useToast();
   const [editMode, setEditMode] = useState(false);
   const [galleryOpen, setGalleryOpen] = useState(false);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [settingsWidget, setSettingsWidget] = useState<WidgetInstance | null>(null);
   const [settingsWidgetRect, setSettingsWidgetRect] = useState<DOMRect | null>(null);
@@ -397,15 +400,26 @@ export default function HomeBoard({ embedded = false }: HomeBoardProps = {}) {
             />
             <div className="flex items-center gap-2.5 shrink-0">
               {editMode && (
-                <button
-                  id="add-widget-btn"
-                  onClick={() => setGalleryOpen(true)}
-                  style={{ height: 30 }}
-                  className="flex items-center gap-1.5 px-3.5 text-sm font-semibold rounded-xl border border-border bg-white/85 dark:bg-gray-800/85 backdrop-blur-md text-foreground hover:bg-white dark:hover:bg-gray-700 shadow-sm transition-colors"
-                >
-                  <Plus size={14} />
-                  Add Widget
-                </button>
+                <>
+                  <button
+                    id="templates-btn"
+                    onClick={() => setTemplatesOpen(true)}
+                    style={{ height: 30 }}
+                    className="flex items-center gap-1.5 px-3.5 text-sm font-semibold rounded-xl border border-border bg-white/85 dark:bg-gray-800/85 backdrop-blur-md text-foreground hover:bg-white dark:hover:bg-gray-700 shadow-sm transition-colors"
+                  >
+                    <LayoutTemplate size={14} />
+                    Templates
+                  </button>
+                  <button
+                    id="add-widget-btn"
+                    onClick={() => setGalleryOpen(true)}
+                    style={{ height: 30 }}
+                    className="flex items-center gap-1.5 px-3.5 text-sm font-semibold rounded-xl border border-border bg-white/85 dark:bg-gray-800/85 backdrop-blur-md text-foreground hover:bg-white dark:hover:bg-gray-700 shadow-sm transition-colors"
+                  >
+                    <Plus size={14} />
+                    Add Widget
+                  </button>
+                </>
               )}
               <EditToggleButton
                 id="edit-toggle-btn"
@@ -474,6 +488,12 @@ export default function HomeBoard({ embedded = false }: HomeBoardProps = {}) {
             onDragStart={handleGalleryDragStart}
           />
         </div>
+
+        <TemplateGalleryModal
+          open={templatesOpen}
+          onClose={() => setTemplatesOpen(false)}
+          onApply={(tpl) => { applyTemplate(tpl.widgets, tpl.layouts); showToast(`Applied the ${tpl.name} template`); }}
+        />
 
         {/* Backdrop: click catcher (transparent) + spotlight over selected widget */}
         {settingsWidget && (

@@ -246,3 +246,116 @@ export function getDefaultLayout(): {
 
   return { widgets, layouts: { lg, md, sm } };
 }
+
+/**
+ * A curated starter board the user can apply in one click.
+ * `widgets` + `lg` (8-col desktop layout) are hand-tuned; md/sm are derived by
+ * stacking in the same order so every template degrades gracefully.
+ */
+export interface BoardTemplate {
+  id: string;
+  name: string;
+  description: string;
+  widgets: WidgetInstance[];
+  layouts: ResponsiveLayouts<string>;
+}
+
+/** Stacks lg items into a single column of `cols` width (for md/sm breakpoints). */
+function stackLayout(lg: LayoutItem[], cols: number): LayoutItem[] {
+  let y = 0;
+  return lg.map((it) => {
+    const h = Math.max(it.minH ?? 2, it.h);
+    const item = { ...it, x: 0, y, w: cols, h };
+    y += h;
+    return item;
+  });
+}
+
+/** Builds a full ResponsiveLayouts from a hand-tuned lg layout. */
+function templateLayouts(lg: LayoutItem[]): ResponsiveLayouts<string> {
+  return { lg, md: stackLayout(lg, 4), sm: stackLayout(lg, 2) };
+}
+
+/**
+ * Curated board templates surfaced in the template picker. Each is a real,
+ * hand-arranged starting point (vs the old single default). "Student
+ * Essentials" is the code-defined default for new users.
+ */
+export const BOARD_TEMPLATES: BoardTemplate[] = [
+  {
+    id: "student-essentials",
+    name: "Student Essentials",
+    description: "Greeting, your tasks, and your calendar — the just-works school board.",
+    widgets: [
+      { id: "se-intro", type: "intro", config: {} },
+      { id: "se-gcal", type: "google-calendar", config: {} },
+      { id: "se-tasks", type: "tasks-today", config: {} },
+      { id: "se-progress", type: "class-progress", config: {} },
+      { id: "se-weather", type: "weather", config: {} },
+    ],
+    layouts: templateLayouts([
+      { i: "se-intro", x: 0, y: 0, w: 8, h: 2, minW: 3, minH: 2 },
+      { i: "se-gcal", x: 0, y: 2, w: 5, h: 4, minW: 2, minH: 2 },
+      { i: "se-tasks", x: 5, y: 2, w: 3, h: 4, minW: 2, minH: 2 },
+      { i: "se-progress", x: 0, y: 6, w: 5, h: 2, minW: 2, minH: 2 },
+      { i: "se-weather", x: 5, y: 6, w: 3, h: 2, minW: 2, minH: 2 },
+    ]),
+  },
+  {
+    id: "focus",
+    name: "Focus",
+    description: "A calm deep-work board: greeting, a Pomodoro timer, and today's tasks.",
+    widgets: [
+      { id: "fo-intro", type: "intro", config: {} },
+      { id: "fo-pomodoro", type: "pomodoro", config: {} },
+      { id: "fo-tasks", type: "tasks-today", config: {} },
+    ],
+    layouts: templateLayouts([
+      { i: "fo-intro", x: 0, y: 0, w: 8, h: 2, minW: 3, minH: 2 },
+      { i: "fo-pomodoro", x: 0, y: 2, w: 4, h: 4, minW: 2, minH: 2 },
+      { i: "fo-tasks", x: 4, y: 2, w: 4, h: 4, minW: 2, minH: 2 },
+    ]),
+  },
+  {
+    id: "aesthetic",
+    name: "Aesthetic",
+    description: "Visual-first: a photo, your music, weather, and a daily quote.",
+    widgets: [
+      { id: "ae-intro", type: "intro", config: {} },
+      { id: "ae-image", type: "image", config: {} },
+      { id: "ae-spotify", type: "spotify", config: {} },
+      { id: "ae-weather", type: "weather", config: {} },
+      { id: "ae-quote", type: "quote", config: {} },
+    ],
+    layouts: templateLayouts([
+      { i: "ae-intro", x: 0, y: 0, w: 8, h: 2, minW: 3, minH: 2 },
+      { i: "ae-image", x: 0, y: 2, w: 4, h: 4, minW: 2, minH: 2 },
+      { i: "ae-spotify", x: 4, y: 2, w: 2, h: 2, minW: 2, minH: 2 },
+      { i: "ae-weather", x: 6, y: 2, w: 2, h: 2, minW: 2, minH: 2 },
+      { i: "ae-quote", x: 4, y: 4, w: 4, h: 2, minW: 2, minH: 1 },
+    ]),
+  },
+  {
+    id: "command-center",
+    name: "Command Center",
+    description: "Everything at once: profile, calendar, tasks, progress, courses, and activity.",
+    widgets: [
+      { id: "cc-profile", type: "profile", config: {} },
+      { id: "cc-intro", type: "intro", config: {} },
+      { id: "cc-heatmap", type: "weekly-heatmap", config: {} },
+      { id: "cc-gcal", type: "google-calendar", config: {} },
+      { id: "cc-tasks", type: "tasks-today", config: {} },
+      { id: "cc-progress", type: "class-progress", config: {} },
+      { id: "cc-courses", type: "courses", config: {} },
+    ],
+    layouts: templateLayouts([
+      { i: "cc-profile", x: 0, y: 0, w: 2, h: 2, minW: 2, minH: 2 },
+      { i: "cc-intro", x: 2, y: 0, w: 4, h: 2, minW: 3, minH: 2 },
+      { i: "cc-heatmap", x: 6, y: 0, w: 2, h: 2, minW: 2, minH: 2 },
+      { i: "cc-gcal", x: 0, y: 2, w: 4, h: 4, minW: 2, minH: 2 },
+      { i: "cc-tasks", x: 4, y: 2, w: 2, h: 4, minW: 2, minH: 2 },
+      { i: "cc-progress", x: 6, y: 2, w: 2, h: 2, minW: 2, minH: 2 },
+      { i: "cc-courses", x: 6, y: 4, w: 2, h: 2, minW: 2, minH: 2 },
+    ]),
+  },
+];
