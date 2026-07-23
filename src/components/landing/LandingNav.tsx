@@ -327,7 +327,7 @@ export default function LandingNav({ loggedIn: loggedInProp }: LandingNavProps =
       {/* Mobile menu overlay — sits below the sticky nav. Tapping the backdrop
           or any link closes it (links via the pathname effect). */}
       <div
-        className={`sm:hidden fixed inset-0 top-[52px] z-30 bg-black/30 backdrop-blur-[2px] transition-opacity duration-200 ${
+        className={`sm:hidden fixed inset-0 top-16 z-30 bg-black/30 backdrop-blur-[2px] transition-opacity duration-200 ${
           mobileMenuOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
         }`}
         onClick={() => setMobileMenuOpen(false)}
