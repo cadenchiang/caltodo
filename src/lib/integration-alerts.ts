@@ -25,6 +25,24 @@ function signature(errors: string[]): string {
 }
 
 /**
+ * True when an error is the USER's to fix (expired token, wrong password, no
+ * courses selected) rather than genuine integration breakage. These are
+ * surfaced in the app UI already; emailing a bug report for them every sync
+ * window is noise that buries real HTML/API-structure failures.
+ */
+function isUserActionable(msg: string): boolean {
+  const m = msg.toLowerCase();
+  return (
+    m.includes("token expired") ||
+    m.includes("reconnect") ||
+    m.includes("login failed") ||
+    m.includes("auth") ||
+    m.includes("password") ||
+    m.includes("no courses selected")
+  );
+}
+
+/**
  * Sends a single alert email via Resend. Returns false if not configured or
  * the send failed (logged, never thrown).
  */
@@ -77,8 +95,14 @@ export async function reportSyncFailures(result: SyncResult, userId: string): Pr
     // Always log for server-side visibility (wrangler/vercel logs, Sentry).
     logger.error("integration sync reported errors", { userId, source, errors });
 
+    // Only EMAIL genuine breakage — filter out config/auth errors the user
+    // must fix themselves (already shown in-app), so real failures aren't
+    // buried under recurring "token expired" noise.
+    const realErrors = errors.filter((e) => !isUserActionable(e));
+    if (!realErrors.length) continue;
+
     // Throttle the email so a persistently-failing integration doesn't spam.
-    const key = `${userId}:${source}:${signature(errors)}`;
+    const key = `${userId}:${source}:${signature(realErrors)}`;
     const now = Date.now();
     const last = lastAlerted.get(key) ?? 0;
     if (now - last < THROTTLE_MS) continue;
@@ -89,7 +113,7 @@ export async function reportSyncFailures(result: SyncResult, userId: string): Pr
       `Integration: ${source}\n` +
       `User: ${userId}\n` +
       `When: ${new Date(now).toISOString()}\n\n` +
-      `Errors:\n- ${errors.join("\n- ")}`;
+      `Errors:\n- ${realErrors.join("\n- ")}`;
     await sendAlertEmail(subject, body);
   }
 }

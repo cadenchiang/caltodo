@@ -312,21 +312,26 @@ export async function POST(request: Request) {
     // Increment the per-user upload counter so future free-tier requests are
     // gated. Only counts successful extractions (with assignments) so a failed
     // or empty upload doesn't burn the user's free quota.
-    try {
+    {
       const admin = createAdminClient();
-      await admin.rpc("increment_syllabus_upload_count", { p_user_id: user.id }).single();
-    } catch {
-      // Fall back to a direct update if the RPC isn't deployed yet.
-      const admin = createAdminClient();
-      const { data: row } = await admin
-        .from("integration_credentials")
-        .select("syllabus_upload_count")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      const next = ((row?.syllabus_upload_count as number | undefined) ?? 0) + 1;
-      await admin
-        .from("integration_credentials")
-        .upsert({ user_id: user.id, syllabus_upload_count: next }, { onConflict: "user_id" });
+      // supabase-js resolves with { error } instead of throwing, so gate the
+      // fallback on rpcError (a try/catch would never fire, leaving the free
+      // quota silently unincremented and therefore unenforced).
+      const { error: rpcError } = await admin
+        .rpc("increment_syllabus_upload_count", { p_user_id: user.id })
+        .single();
+      if (rpcError) {
+        // RPC not deployed / errored — do a direct read-modify-write instead.
+        const { data: row } = await admin
+          .from("integration_credentials")
+          .select("syllabus_upload_count")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        const next = ((row?.syllabus_upload_count as number | undefined) ?? 0) + 1;
+        await admin
+          .from("integration_credentials")
+          .upsert({ user_id: user.id, syllabus_upload_count: next }, { onConflict: "user_id" });
+      }
     }
 
     return NextResponse.json(result);

@@ -33,44 +33,61 @@ export async function POST(request: NextRequest) {
 
   const supabase = createAdminClient();
 
-  // Validate channel ID belongs to this user
-  const { data: creds, error: lookupError } = await supabase
+  // The channel token is now the random channel UUID (a secret), not the
+  // guessable user_id. Look the row up by channel id; fall back to the legacy
+  // user_id token for channels registered before this change (they re-register
+  // with the secret token on the next daily cron renewal).
+  let { data: creds } = await supabase
     .from("integration_credentials")
-    .select("gcal_channel_id, google_calendar_id")
-    .eq("user_id", userToken)
-    .single();
+    .select("user_id, gcal_channel_id, google_calendar_id")
+    .eq("gcal_channel_id", userToken)
+    .maybeSingle();
+  if (!creds) {
+    const legacy = await supabase
+      .from("integration_credentials")
+      .select("user_id, gcal_channel_id, google_calendar_id")
+      .eq("user_id", userToken)
+      .maybeSingle();
+    creds = legacy.data;
+  }
 
-  if (lookupError || !creds) {
-    logger.warn("gcal/webhook: user not found", { userId: userToken });
+  if (!creds) {
+    logger.warn("gcal/webhook: channel not found");
     return NextResponse.json({ ok: true }); // Don't retry
   }
 
+  // The channel id Google echoes must match the stored one (the real gate).
   if (creds.gcal_channel_id !== channelId) {
     logger.warn("gcal/webhook: channel ID mismatch", {
-      userId: userToken,
       expected: creds.gcal_channel_id,
       received: channelId,
     });
     return NextResponse.json({ ok: true }); // Stale channel, don't retry
   }
 
-  // Get access token and perform incremental sync
-  const accessToken = await getValidAccessToken(supabase, userToken);
-  if (!accessToken) {
-    logger.warn("gcal/webhook: no valid access token", { userId: userToken });
-    return NextResponse.json({ ok: true });
+  const userId = creds.user_id;
+
+  // Always ACK with 200, even on a per-user sync failure — Google retries
+  // webhooks with backoff on any 5xx, so an unhandled throw here (bad sync
+  // token, transient Google 4xx surfaced as an exception) would trigger a
+  // retry storm for that user instead of a clean ack.
+  try {
+    const accessToken = await getValidAccessToken(supabase, userId);
+    if (!accessToken) {
+      logger.warn("gcal/webhook: no valid access token", { userId });
+      return NextResponse.json({ ok: true });
+    }
+
+    const calendarId = resolveCalendarId(creds.google_calendar_id);
+    await performIncrementalSync(supabase, userId, accessToken, calendarId);
+
+    logger.info("gcal/webhook: processed notification", { userId, resourceState, calendarId });
+  } catch (err) {
+    logger.error("gcal/webhook: sync failed", {
+      userId,
+      error: err instanceof Error ? err.message : String(err),
+    });
   }
-
-  // Resolve the primary calendar ID for sync
-  const calendarId = resolveCalendarId(creds.google_calendar_id);
-
-  await performIncrementalSync(supabase, userToken, accessToken, calendarId);
-
-  logger.info("gcal/webhook: processed notification", {
-    userId: userToken,
-    resourceState,
-    calendarId,
-  });
 
   return NextResponse.json({ ok: true });
 }

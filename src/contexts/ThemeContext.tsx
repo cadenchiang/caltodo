@@ -173,9 +173,10 @@ function getInitialColorTheme(): ColorTheme {
 
 /**
  * Reads the stored theme preference from localStorage.
- * Falls back to "auto" if no valid preference is stored.
+ * Falls back to "light" if no valid preference is stored (matching the
+ * pre-paint inline script in layout.tsx, so there's no first-paint flip).
  *
- * @returns The stored preference, defaulting to "auto"
+ * @returns The stored preference, defaulting to "light"
  */
 function getInitialPreference(): ThemePreference {
   if (typeof window === "undefined") return "auto";

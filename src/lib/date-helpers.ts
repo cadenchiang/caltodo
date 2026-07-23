@@ -37,9 +37,12 @@ export function parseDateInput(input: string): string | null {
   for (const fmt of shortMonthFormats) {
     const parsed = parse(trimmed, fmt, now);
     if (isValid(parsed)) {
-      // If the parsed date is in the past, use next year
+      // If the parsed date is before TODAY, use next year. Compare against the
+      // start of today, not `now` (which includes the current time) — otherwise
+      // typing today's own month/day after midnight always rolled to next year.
+      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       let result = new Date(currentYear, parsed.getMonth(), parsed.getDate());
-      if (result < now) {
+      if (result < startOfToday) {
         result = new Date(currentYear + 1, parsed.getMonth(), parsed.getDate());
       }
       return format(result, "yyyy-MM-dd");

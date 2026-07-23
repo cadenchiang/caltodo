@@ -133,9 +133,11 @@ export async function GET() {
 
     // Sort by score descending, take top 6
     scored.sort((a, b) => b.score - a.score);
+    // Do NOT return email — these are non-friends, so echoing their addresses
+    // enables same-domain email harvesting (same class closed in users/search).
+    // The picker only needs id/name/avatar.
     const suggestions = scored.slice(0, 6).map((s) => ({
       id: s.user.id,
-      email: s.user.email,
       full_name: s.user.fullName,
       avatar_url: s.user.avatarUrl,
     }));

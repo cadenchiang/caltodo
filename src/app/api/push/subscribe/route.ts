@@ -9,6 +9,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { logger } from "@/lib/logger";
+import { isAllowedCanvasUrl } from "@/lib/canvas-url-validation";
 
 interface SubscribeBody {
   subscription?: {
@@ -47,6 +48,15 @@ export async function POST(request: NextRequest) {
       { error: "Missing subscription fields" },
       { status: 400 }
     );
+  }
+
+  // SSRF guard: the reminder cron POSTs to this endpoint server-side. Reuse the
+  // canonical validator (HTTPS-only + rejects every IP-literal encoding —
+  // dotted, decimal, hex, octal, IPv6 — plus private/metadata ranges) rather
+  // than a hand-rolled check that a bare-decimal host like 2130706433 slips
+  // past. Real push endpoints are public HTTPS DNS names (FCM/Mozilla/etc).
+  if (!isAllowedCanvasUrl(endpoint)) {
+    return NextResponse.json({ error: "Invalid push endpoint" }, { status: 400 });
   }
 
   const { error } = await supabase

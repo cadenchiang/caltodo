@@ -49,8 +49,17 @@ export async function GET(request: Request) {
     const userName = targetUser.user.user_metadata?.full_name ?? null;
     const userAvatar = targetUser.user.user_metadata?.avatar_url ?? null;
 
-    // Find shared courses: courses where both requester and target are members
-    const { data: sharedCourses, error: courseError } = await supabase
+    // Requester's own course ids — RLS correctly scopes this to the caller.
+    const { data: myMemberships } = await supabase
+      .from("course_memberships")
+      .select("course_id")
+      .eq("user_id", user.id);
+    const myCourseIds = new Set((myMemberships ?? []).map((m) => m.course_id));
+
+    // Target's memberships must be read with the ADMIN client — under the
+    // caller's RLS a query for another user's rows returns nothing, which made
+    // sharedCourses silently always empty and the identity gate never fire.
+    const { data: targetMemberships, error: courseError } = await admin
       .from("course_memberships")
       .select("course_id, courses!inner(id, name, source)")
       .eq("user_id", userId);
@@ -64,21 +73,19 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Failed to fetch shared courses" }, { status: 500 });
     }
 
-    // Get requester's course IDs for intersection
-    const { data: myMemberships } = await supabase
-      .from("course_memberships")
-      .select("course_id")
-      .eq("user_id", user.id);
-
-    const myCourseIds = new Set((myMemberships ?? []).map((m) => m.course_id));
-
-    // Filter to only shared courses
-    const shared = (sharedCourses ?? [])
+    const shared = (targetMemberships ?? [])
       .filter((m) => myCourseIds.has(m.course_id))
       .map((m) => {
         const course = m.courses as unknown as { id: string; name: string; source: string };
         return { id: course.id, name: course.name, source: course.source };
       });
+
+    // Only disclose identity to someone who actually shares a course with the
+    // target — otherwise any authenticated user could harvest every user's
+    // name + avatar by iterating user ids.
+    if (shared.length === 0) {
+      return NextResponse.json({ error: "No shared courses" }, { status: 403 });
+    }
 
     logger.info("GET /api/discussions/profile", {
       requesterId: user.id,

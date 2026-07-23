@@ -145,6 +145,8 @@ export interface IntegrationCredentials {
   canvas_token_expired: boolean;
   /** True when the Canvas token is within ~1 week of its 120-day expiry. */
   canvas_token_expiring_soon?: boolean;
+  /** True when a Canvas token sync actually returned 401 (revoked/invalid early). */
+  canvas_auth_failed?: boolean;
   gradescope_email: string | null;
   has_gradescope_password: boolean;
   /** Whether the last Gradescope sync failed due to invalid credentials. */

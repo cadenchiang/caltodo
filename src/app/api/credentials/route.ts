@@ -26,7 +26,7 @@ const CORE_SELECT = "canvas_token, canvas_base_url, canvas_ical_url, gradescope_
  * separate so a missing-column error triggers a fallback to CORE_SELECT rather
  * than a 500. Each is optional in IntegrationCredentials (defaults applied below).
  */
-const OPTIONAL_SELECT = "google_auth_failed, additional_canvas_accounts";
+const OPTIONAL_SELECT = "google_auth_failed, additional_canvas_accounts, canvas_auth_failed";
 const FULL_SELECT = `${CORE_SELECT}, ${OPTIONAL_SELECT}`;
 
 /** Postgres "undefined column" (42703) or the PostgREST message that carries it. */
@@ -132,6 +132,7 @@ export async function GET() {
     gradescope_email: data?.gradescope_email ?? null,
     has_gradescope_password: !!data?.gradescope_password_encrypted,
     gradescope_auth_failed: data?.gradescope_auth_failed ?? false,
+    canvas_auth_failed: (data as { canvas_auth_failed?: boolean } | null)?.canvas_auth_failed ?? false,
     last_synced_at: data?.last_synced_at ?? null,
     selected_canvas_courses: data?.selected_canvas_courses ?? null,
     selected_gradescope_courses: data?.selected_gradescope_courses ?? null,
@@ -237,11 +238,21 @@ export async function PUT(request: Request) {
     updateData.canvas_token_created_at = body.canvas_token
       ? new Date().toISOString()
       : null;
+    // A freshly-saved token clears any prior auth-failure flag so sync retries.
+    updateData.canvas_auth_failed = false;
   }
   if (body.canvas_base_url !== undefined) {
+    // SSRF guard: this URL is fetched server-side with the user's Canvas token
+    // attached, so block internal/metadata hosts and non-HTTPS.
+    if (body.canvas_base_url && !isAllowedCanvasUrl(body.canvas_base_url)) {
+      return NextResponse.json({ error: "Invalid Canvas URL" }, { status: 400 });
+    }
     updateData.canvas_base_url = body.canvas_base_url;
   }
   if (body.canvas_ical_url !== undefined) {
+    if (body.canvas_ical_url && !isAllowedCanvasUrl(body.canvas_ical_url)) {
+      return NextResponse.json({ error: "Invalid Canvas calendar URL" }, { status: 400 });
+    }
     updateData.canvas_ical_url = body.canvas_ical_url;
   }
   if (body.gradescope_email !== undefined) {
@@ -260,46 +271,21 @@ export async function PUT(request: Request) {
     updateData.selected_pensieve_courses = body.selected_pensieve_courses;
   }
   if (body.pensieve_calendar_url !== undefined) {
-    if (body.pensieve_calendar_url) {
-      // Validate Pensieve URL against SSRF: must be HTTPS, not internal
-      try {
-        const pUrl = new URL(body.pensieve_calendar_url);
-        if (pUrl.protocol !== "https:") {
-          return NextResponse.json({ error: "Pensieve calendar URL must use HTTPS" }, { status: 400 });
-        }
-        const hostname = pUrl.hostname.toLowerCase();
-        if (
-          hostname === "localhost" ||
-          hostname.startsWith("127.") ||
-          hostname.startsWith("10.") ||
-          hostname.startsWith("192.168.") ||
-          /^172\.(1[6-9]|2\d|3[01])\./.test(hostname) ||
-          hostname === "0.0.0.0" ||
-          hostname === "[::1]"
-        ) {
-          logger.warn("PUT /api/credentials: rejected internal Pensieve URL", { userId: user.id, url: body.pensieve_calendar_url });
-          return NextResponse.json({ error: "Internal URLs are not allowed" }, { status: 400 });
-        }
-      } catch {
-        return NextResponse.json({ error: "Invalid Pensieve calendar URL" }, { status: 400 });
-      }
+    // Same SSRF guard as Canvas — blocks internal/metadata hosts (incl.
+    // 169.254.169.254, CGNAT, IPv6, numeric encodings) and non-HTTPS.
+    if (body.pensieve_calendar_url && !isAllowedCanvasUrl(body.pensieve_calendar_url)) {
+      logger.warn("PUT /api/credentials: rejected disallowed Pensieve URL", { userId: user.id });
+      return NextResponse.json({ error: "Invalid Pensieve calendar URL" }, { status: 400 });
     }
     updateData.pensieve_calendar_url = body.pensieve_calendar_url;
   }
   if (body.brightspace_calendar_url !== undefined) {
-    if (body.brightspace_calendar_url) {
-      try {
-        const bUrl = new URL(body.brightspace_calendar_url);
-        if (bUrl.protocol !== "https:") {
-          return NextResponse.json({ error: "Brightspace URL must use HTTPS" }, { status: 400 });
-        }
-      } catch {
-        return NextResponse.json({ error: "Invalid Brightspace URL" }, { status: 400 });
-      }
+    if (body.brightspace_calendar_url && !isAllowedCanvasUrl(body.brightspace_calendar_url)) {
+      return NextResponse.json({ error: "Invalid Brightspace URL" }, { status: 400 });
     }
     updateData.brightspace_calendar_url = body.brightspace_calendar_url;
     if (body.brightspace_calendar_url) {
-      logger.info("Brightspace connected", { userId: user.id, email: user.email, url: body.brightspace_calendar_url.slice(0, 60) });
+      logger.info("Brightspace connected", { userId: user.id, url: body.brightspace_calendar_url.slice(0, 60) });
     }
   }
   if (body.additional_canvas_accounts !== undefined) {
@@ -310,6 +296,8 @@ export async function PUT(request: Request) {
     }
     if (accounts && accounts.length > 0) {
       for (const account of accounts) {
+        // Validate BOTH the API base URL and the iCal feed URL — both are
+        // fetched server-side, so both are SSRF sinks.
         if (account.base_url && !isAllowedCanvasUrl(account.base_url)) {
           logger.warn("PUT /api/credentials: rejected disallowed additional Canvas URL", {
             userId: user.id,
@@ -317,6 +305,15 @@ export async function PUT(request: Request) {
           });
           return NextResponse.json(
             { error: `Invalid Canvas base URL: ${account.base_url}. Please use an HTTPS URL.` },
+            { status: 400 }
+          );
+        }
+        if (account.ical_url && !isAllowedCanvasUrl(account.ical_url)) {
+          logger.warn("PUT /api/credentials: rejected disallowed additional Canvas iCal URL", {
+            userId: user.id,
+          });
+          return NextResponse.json(
+            { error: "Invalid Canvas calendar URL. Please use an HTTPS URL." },
             { status: 400 }
           );
         }
@@ -328,9 +325,17 @@ export async function PUT(request: Request) {
     updateData.email_digest_enabled = body.email_digest_enabled;
   }
   if (body.email_digest_hour !== undefined) {
-    updateData.email_digest_hour = body.email_digest_hour;
+    // Validate hour is an integer 0-23; reject junk/floats/out-of-range.
+    const h = body.email_digest_hour;
+    if (typeof h !== "number" || !Number.isInteger(h) || h < 0 || h > 23) {
+      return NextResponse.json({ error: "email_digest_hour must be an integer 0-23" }, { status: 400 });
+    }
+    updateData.email_digest_hour = h;
   }
   if (body.email_digest_address !== undefined) {
+    if (body.email_digest_address && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email_digest_address)) {
+      return NextResponse.json({ error: "Invalid email digest address" }, { status: 400 });
+    }
     updateData.email_digest_address = body.email_digest_address;
   }
   if (body.dismissed_modals !== undefined) {
@@ -355,11 +360,16 @@ export async function PUT(request: Request) {
     .single();
 
   if (!existing) {
-    // New user — check if we're still under 500 total users (founding member spots)
+    // New user — grant founding-member only if we can CONFIRM we're under 500
+    // total users. `listUsers` with perPage:1 returns users.length === 1, so
+    // relying on that as a fallback would flag every new user as founding.
+    // Read the real `total`; if it isn't present, fail closed (don't grant).
     const admin = createAdminClient();
     const { data: authData } = await admin.auth.admin.listUsers({ perPage: 1, page: 1 });
-    const totalUsers = (authData && "total" in authData ? authData.total : authData?.users.length) ?? 0;
-    updateData.is_founding_member = totalUsers <= 500;
+    const total = authData && typeof (authData as { total?: number }).total === "number"
+      ? (authData as { total?: number }).total!
+      : null;
+    updateData.is_founding_member = total !== null && total <= 500;
   }
 
   const { error } = await supabase
@@ -395,12 +405,18 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: "Credentials saved but failed to read back" }, { status: 500 });
   }
 
-  // Check Canvas token expiration for the response
+  // Check Canvas token expiration for the response. Compute BOTH expired and
+  // expiring-soon (days 113-120) so the proactive banner doesn't vanish when a
+  // user saves classes — the PUT response used to omit expiring_soon, which
+  // made IntegrationHealthBanner drop the warning until a full reload.
   let putCanvasTokenExpired = false;
+  let putCanvasTokenExpiringSoon = false;
   if (updated?.canvas_token && updated?.canvas_token_created_at) {
     const createdAt = new Date(updated.canvas_token_created_at).getTime();
-    const days120 = 120 * 24 * 60 * 60 * 1000;
-    putCanvasTokenExpired = Date.now() - createdAt > days120;
+    const day = 24 * 60 * 60 * 1000;
+    const ageMs = Date.now() - createdAt;
+    putCanvasTokenExpired = ageMs > 120 * day;
+    putCanvasTokenExpiringSoon = !putCanvasTokenExpired && ageMs > 113 * day;
   }
 
   const putHasCompletedOnboarding = !!(
@@ -418,6 +434,8 @@ export async function PUT(request: Request) {
     canvas_base_url: updated?.canvas_base_url ?? "https://bcourses.berkeley.edu",
     canvas_ical_url: updated?.canvas_ical_url ?? null,
     canvas_token_expired: putCanvasTokenExpired,
+    canvas_token_expiring_soon: putCanvasTokenExpiringSoon,
+    canvas_auth_failed: (updated as { canvas_auth_failed?: boolean } | null)?.canvas_auth_failed ?? false,
     gradescope_email: updated?.gradescope_email ?? null,
     has_gradescope_password: !!updated?.gradescope_password_encrypted,
     gradescope_auth_failed: updated?.gradescope_auth_failed ?? false,

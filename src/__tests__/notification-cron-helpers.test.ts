@@ -84,10 +84,12 @@ describe("uniqueDays", () => {
     const start = new Date("2026-04-15T01:00:00Z");
     const end = new Date("2026-04-15T22:00:00Z");
     const days = uniqueDays([start, end]);
-    // Always pads by one day to catch timezone overflow.
+    // Pads by one day on BOTH sides to catch timezone overflow in either
+    // direction (a local due_date can land on the prev or next UTC day).
+    expect(days).toContain("2026-04-14");
     expect(days).toContain("2026-04-15");
     expect(days).toContain("2026-04-16");
-    expect(days.length).toBe(2);
+    expect(days.length).toBe(3);
   });
 
   it("spans multiple days", () => {

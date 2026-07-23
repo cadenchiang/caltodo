@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
 
@@ -65,13 +66,13 @@ async function sendEmailNotification(
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  if (authError || !user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { allowed } = rateLimit(`contact:${user.id}`, 30, 60_000);
+  // Public form: this page (/contact) is reachable logged-out, so anonymous
+  // submissions must work. Rate-limit by user id when signed in, else by IP.
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "anon";
+  const rlKey = user ? `contact:${user.id}` : `contact-ip:${ip}`;
+  const { allowed } = rateLimit(rlKey, user ? 30 : 5, 60_000);
   if (!allowed) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
@@ -92,53 +93,60 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Message too long" }, { status: 400 });
   }
 
-  // Validate email format if provided
+  const name = body.name?.trim().slice(0, 100) || null;
+
+  // Validate email; require it for anonymous submissions so we can reply.
   const email = body.email?.trim();
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return NextResponse.json({ error: "Invalid email format" }, { status: 400 });
   }
+  if (!user && !email) {
+    return NextResponse.json({ error: "Email is required" }, { status: 400 });
+  }
 
-  // Store in database
-  const { error: insertError } = await supabase
+  // Insert via the admin client so anonymous submissions aren't blocked by RLS
+  // (the user client has no session for logged-out visitors).
+  const admin = createAdminClient();
+  const { error: insertError } = await admin
     .from("contact_messages")
     .insert({
-      user_id: user.id,
-      name: body.name || null,
-      email: email || user.email || null,
+      user_id: user?.id ?? null,
+      name,
+      email: email || user?.email || null,
       message,
     });
 
   if (insertError) {
     logger.error("POST /api/contact: failed to store message", {
-      userId: user.id,
+      userId: user?.id ?? "anon",
       error: insertError.message,
     });
     return NextResponse.json({ error: "Failed to send message" }, { status: 500 });
   }
 
   // Send email notification
-  const senderEmail = email || user.email || "unknown";
+  const senderEmail = email || user?.email || "unknown";
   const emailResult = await sendEmailNotification(
-    body.name || "Anonymous",
+    name || "Anonymous",
     senderEmail,
     message
   );
 
   if (!emailResult.success) {
     logger.error("POST /api/contact: email notification failed", {
-      userId: user.id,
+      userId: user?.id ?? "anon",
       error: emailResult.error,
     });
     // Message is already stored in DB — don't fail the request
   } else {
     logger.info("POST /api/contact: email notification sent", {
-      userId: user.id,
+      userId: user?.id ?? "anon",
     });
   }
 
   logger.info("POST /api/contact: contact message stored", {
-    userId: user.id,
-    name: body.name,
+    userId: user?.id ?? "anon",
+    name,
   });
 
   return NextResponse.json({ success: true });

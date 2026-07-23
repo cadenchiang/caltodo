@@ -22,7 +22,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await request.json();
+  let body: { eventId?: string; calendarId?: string };
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
   const { eventId, calendarId = "primary" } = body;
 
   if (!eventId) {
@@ -41,7 +46,9 @@ export async function POST(request: NextRequest) {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
 
-    if (!res.ok && res.status !== 410) {
+    // 404 (already deleted) and 410 (gone) are both "already not there" —
+    // treat as success so a retry / double-delete is idempotent.
+    if (!res.ok && res.status !== 410 && res.status !== 404) {
       const text = await res.text();
       logger.warn("gcal/events/delete: failed", { status: res.status, body: text.slice(0, 500) });
       return NextResponse.json({ error: "Failed to delete event" }, { status: res.status });

@@ -47,7 +47,9 @@ describe("watch-manager", () => {
     const body = JSON.parse(options.body);
     expect(body.type).toBe("web_hook");
     expect(body.address).toBe("https://caltodo.vercel.app/api/gcal/webhook");
-    expect(body.token).toBe("user-1");
+    // Channel token is the random channel id (a secret), not the user_id.
+    expect(body.token).toBe(body.id);
+    expect(body.token).toBe("test-uuid-1234");
   });
 
   it("returns null when NEXT_PUBLIC_APP_URL is not set", async () => {

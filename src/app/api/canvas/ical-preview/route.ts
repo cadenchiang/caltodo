@@ -101,6 +101,6 @@ export async function POST(request: NextRequest) {
       userId: user.id,
       error: message,
     });
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: "Failed to load calendar preview" }, { status: 500 });
   }
 }

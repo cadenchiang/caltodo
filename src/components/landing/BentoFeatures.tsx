@@ -1,4 +1,4 @@
-import { RefreshCw, MessageCircle, Calendar, Link2, LayoutGrid } from "lucide-react";
+import { RefreshCw, FileText, Calendar, Link2, LayoutGrid } from "lucide-react";
 import { cn } from "@/lib/utils";
 import FadeIn from "@/components/landing/FadeIn";
 
@@ -14,9 +14,9 @@ const FEATURES = [
     className: "md:col-span-2",
   },
   {
-    icon: MessageCircle,
-    title: "Class Chat",
-    description: "Chat with classmates in real time, organized by course.",
+    icon: FileText,
+    title: "Syllabus Import",
+    description: "Upload a syllabus and we pull out every deadline automatically.",
     className: "md:col-span-1",
     badge: "NEW" as string | undefined,
   },

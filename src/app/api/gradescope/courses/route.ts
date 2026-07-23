@@ -69,8 +69,9 @@ export async function POST(request: NextRequest) {
     const message = err instanceof Error ? err.message : String(err);
     const isAuthError = message.toLowerCase().includes("login failed");
     logger.error("POST /api/gradescope/courses failed", { userId: user.id, error: message });
+    // Only surface the actionable auth message; keep other internals server-side.
     return NextResponse.json(
-      { error: message },
+      { error: isAuthError ? "Gradescope login failed — check your email and password." : "Failed to load Gradescope courses" },
       { status: isAuthError ? 401 : 500 }
     );
   }

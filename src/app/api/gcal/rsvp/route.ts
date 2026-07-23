@@ -21,10 +21,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await request.json();
+  let body: { eventId?: string; calendarId?: string; status?: string };
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
   const { eventId, calendarId, status } = body;
 
-  if (!eventId || !calendarId || !VALID_STATUSES.includes(status)) {
+  if (!eventId || !calendarId || !status || !VALID_STATUSES.includes(status)) {
     return NextResponse.json(
       { error: "Missing or invalid eventId, calendarId, or status" },
       { status: 400 }

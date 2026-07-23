@@ -66,14 +66,19 @@ export async function GET() {
     const { data: credentials, error: credError } = await adminClient
       .from("integration_credentials")
       .select(
-        "canvas_token, gradescope_email, google_calendar_id, pensieve_calendar_url"
+        "canvas_token, gradescope_email, google_access_token_encrypted, pensieve_calendar_url"
       );
+
+    // Track whether any query failed so the dashboard can flag under-reported
+    // numbers instead of presenting partial/zeroed data as authoritative.
+    let partial = false;
 
     if (credError) {
       logger.error(
         "GET /api/admin/overview — integration_credentials query failed",
         { error: credError.message }
       );
+      partial = true;
     }
 
     const platforms: PlatformAdoptionData = {
@@ -87,7 +92,9 @@ export async function GET() {
       for (const cred of credentials) {
         if (cred.canvas_token) platforms.canvas++;
         if (cred.gradescope_email) platforms.gradescope++;
-        if (cred.google_calendar_id) platforms.googleCalendar++;
+        // Connection = OAuth token present, not google_calendar_id (that's the
+        // later calendar selection) — matches mobile/credentials.
+        if (cred.google_access_token_encrypted) platforms.googleCalendar++;
         if (cred.pensieve_calendar_url) platforms.pensieve++;
       }
     }
@@ -108,6 +115,7 @@ export async function GET() {
           error: taskError.message,
           offset,
         });
+        partial = true;
         break;
       }
 
@@ -153,7 +161,7 @@ export async function GET() {
     });
 
     return NextResponse.json(
-      { platforms, taskStats },
+      { platforms, taskStats, partial },
       {
         headers: {
           "Cache-Control": "private, max-age=300, stale-while-revalidate=60",

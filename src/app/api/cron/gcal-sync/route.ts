@@ -19,27 +19,33 @@ import { renewWatchChannel } from "@/lib/gcal/watch-manager";
 import { logger } from "@/lib/logger";
 
 /** Max users to process per cron run to stay within Vercel timeout. */
-const MAX_USERS = 50;
+const MAX_USERS = 200;
 
 /** Concurrency limit for parallel user processing. */
 const CONCURRENCY = 3;
 
 export async function GET(request: NextRequest) {
-  // Validate cron secret
+  // Validate cron secret. Fail CLOSED — a missing CRON_SECRET must not make the
+  // endpoint public (it triggers syncs + token refreshes for every user).
   const authHeader = request.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
 
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const supabase = createAdminClient();
 
-  // Find all users with active GCal connections
+  // Find users with active GCal connections, ORDERED by soonest channel
+  // expiration first. Push channels live ~7 days and only this cron renews them;
+  // without ordering, an arbitrary unordered slice of MAX_USERS could starve the
+  // same users every run so their channel silently expires and realtime sync
+  // dies. `nullsFirst` puts never-watched users (needing an initial channel) up front.
   const { data: users, error } = await supabase
     .from("integration_credentials")
     .select("user_id, google_calendar_id, gcal_channel_expiration, gcal_last_full_sync_at")
     .not("google_access_token_encrypted", "is", null)
+    .order("gcal_channel_expiration", { ascending: true, nullsFirst: true })
     .limit(MAX_USERS);
 
   if (error || !users) {

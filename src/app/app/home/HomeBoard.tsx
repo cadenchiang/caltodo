@@ -183,42 +183,8 @@ export default function HomeBoard({ embedded = false }: HomeBoardProps = {}) {
     return () => cancelAnimationFrame(spotlightRafRef.current);
   }, [settingsWidget]);
 
-  /**
-   * Returns true if the board has room for a new widget anywhere in
-   * the visible grid — not just at the bottom. Walks every cell in
-   * the MAX_ROWS × COLS area and checks if a w×h block could land
-   * there without colliding with existing widgets. The previous
-   * "bottom + defaultH" math falsely rejected widgets when there was
-   * empty space in the middle of the layout (e.g. a sparse top row).
-   *
-   * Uses the same effective footprint as addWidget (2×2 floor) so the
-   * yes/no answer matches what would actually get placed.
-   */
-  const hasRoomFor = useCallback(
-    (type: WidgetType): boolean => {
-      const MAX_ROWS = 8;
-      const COLS = 8;
-      const def = WIDGET_REGISTRY[type];
-      if (!def) return true;
-      const w = Math.max(2, def.minW, def.defaultW);
-      const h = Math.max(2, def.minH, def.defaultH);
-      const items = layouts.lg ?? [];
-      for (let y = 0; y + h <= MAX_ROWS; y++) {
-        for (let x = 0; x + w <= COLS; x++) {
-          const collides = items.some((it) => {
-            const ix = it.x ?? 0, iy = it.y ?? 0, iw = it.w ?? 1, ih = it.h ?? 1;
-            return !(x + w <= ix || ix + iw <= x || y + h <= iy || iy + ih <= y);
-          });
-          if (!collides) return true;
-        }
-      }
-      return false;
-    },
-    [layouts]
-  );
-
-  /** Handles adding a widget from the gallery. Rejects with a popup
-   *  notification when the board is out of room. */
+  /** Handles adding a widget from the gallery. addWidget grows the board when
+   *  full, so this always succeeds. */
   const handleAddWidget = useCallback(
     (type: WidgetType) => {
       // addWidget now grows the board (appends below) when the grid is full,
@@ -253,17 +219,15 @@ export default function HomeBoard({ embedded = false }: HomeBoardProps = {}) {
       dropHandledRef.current = true;
       setDraggingType((prev) => {
         if (prev) {
-          if (!hasRoomFor(prev)) {
-            showToast("No space — remove a widget first");
-          } else {
-            addWidget(prev, {}, { x: item.x, y: item.y });
-            showToast("Widget added");
-          }
+          // addWidget grows the board when full, so dropping always succeeds —
+          // consistent with click-to-add (no "no space" refusal).
+          addWidget(prev, {}, { x: item.x, y: item.y });
+          showToast("Widget added");
         }
         return null;
       });
     },
-    [addWidget, showToast, hasRoomFor]
+    [addWidget, showToast]
   );
 
   // Fallback: if drag ends outside the grid, still add the widget at bottom

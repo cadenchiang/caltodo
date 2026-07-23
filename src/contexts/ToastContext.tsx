@@ -3,6 +3,7 @@
 import {
   createContext,
   useContext,
+  useMemo,
   useState,
   useCallback,
   useRef,
@@ -153,8 +154,13 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     });
   }, [dismissToast]);
 
+  // Memoize so the context value keeps a stable identity — otherwise every
+  // updateToastProgress tick (500ms during a sync) re-rendered every consumer
+  // of useToast across the whole tree.
+  const value = useMemo(() => ({ showToast, updateToastProgress }), [showToast, updateToastProgress]);
+
   return (
-    <ToastContext.Provider value={{ showToast, updateToastProgress }}>
+    <ToastContext.Provider value={value}>
       {children}
       <div className="fixed bottom-36 md:bottom-6 left-0 right-0 z-[200] flex justify-center pointer-events-none px-4">
         <div className="relative grid [&>*]:col-start-1 [&>*]:row-start-1 items-end">

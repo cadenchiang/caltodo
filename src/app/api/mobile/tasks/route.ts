@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
     .order("created_at", { ascending: false });
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "Failed to load tasks" }, { status: 500 });
   }
 
   return NextResponse.json(data);
@@ -52,20 +52,38 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await req.json();
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Allowlist creatable fields — don't let the client set id/source/
+  // external_id/is_submitted/timestamps on its own rows. user_id is forced
+  // to the authenticated user.
+  const ALLOWED = [
+    "title", "description", "due_date", "due_time", "is_completed", "color",
+    "repeat_interval", "repeat_unit", "repeat_end_date", "repeat_end_count",
+    "completed_at", "tags", "snoozed_until", "sort_order", "course_name",
+  ] as const;
+  const insert: Record<string, unknown> = { user_id: user.id };
+  for (const key of ALLOWED) {
+    if (key in body) insert[key] = body[key];
+  }
+
   const { data, error } = await supabase
     .from("tasks")
-    .insert({ ...body, user_id: user.id })
+    .insert(insert)
     .select()
     .single();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "Failed to create task" }, { status: 500 });
   }
 
   return NextResponse.json(data);

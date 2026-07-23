@@ -31,14 +31,19 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: "enabled must be boolean" }, { status: 400 });
   }
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("notification_rules")
     .update({ enabled: body.enabled })
-    .eq("id", id);
+    .eq("id", id)
+    .select("id");
 
   if (error) {
     logger.error("notifications/rules: patch failed", { userId: user.id, id, error: error.message });
     return NextResponse.json({ error: "Update failed" }, { status: 500 });
+  }
+  // RLS scopes to the owner; 0 rows = missing/foreign rule → 404, not a silent 200.
+  if (!data || data.length === 0) {
+    return NextResponse.json({ error: "Rule not found" }, { status: 404 });
   }
   return NextResponse.json({ ok: true });
 }
@@ -50,14 +55,18 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("notification_rules")
     .delete()
-    .eq("id", id);
+    .eq("id", id)
+    .select("id");
 
   if (error) {
     logger.error("notifications/rules: delete failed", { userId: user.id, id, error: error.message });
     return NextResponse.json({ error: "Delete failed" }, { status: 500 });
+  }
+  if (!data || data.length === 0) {
+    return NextResponse.json({ error: "Rule not found" }, { status: 404 });
   }
   return NextResponse.json({ ok: true });
 }

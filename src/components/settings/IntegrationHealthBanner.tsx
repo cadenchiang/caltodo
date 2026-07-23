@@ -44,7 +44,17 @@ export default function IntegrationHealthBanner() {
 
   const issues: HealthIssue[] = [];
 
-  if (credentials.canvas_token_expired) {
+  if (credentials.canvas_auth_failed) {
+    // A real 401 from Canvas — definitive, and can happen before the 120-day
+    // heuristic (token revoked/regenerated early). Takes priority.
+    issues.push({
+      id: "canvas",
+      label: "bCourses / Canvas",
+      detail: "Canvas rejected your access token (it may have been reset). Reconnect to resume syncing assignments.",
+      actionLabel: "Reconnect",
+      onAction: () => router.push("/app/onboarding?setup=canvas"),
+    });
+  } else if (credentials.canvas_token_expired) {
     issues.push({
       id: "canvas",
       label: "bCourses / Canvas",

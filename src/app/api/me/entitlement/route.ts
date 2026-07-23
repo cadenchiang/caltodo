@@ -17,5 +17,11 @@ export async function GET() {
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   const entitlement = await getEntitlement(user.id);
-  return NextResponse.json(entitlement);
+  // Return only what the client needs to gate UI — omit internal Stripe ids
+  // (customer/subscription) which shouldn't reach the browser.
+  return NextResponse.json({
+    effectivePlan: entitlement.effectivePlan,
+    cancelAtPeriodEnd: entitlement.cancelAtPeriodEnd,
+    currentPeriodEnd: entitlement.currentPeriodEnd,
+  });
 }

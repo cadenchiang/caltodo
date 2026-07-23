@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
   try {
     const admin = createAdminClient();
     const { count, error } = await admin
-      .from("course_messages")
+      .from("chat_messages")
       .select("id", { count: "exact", head: true })
       .eq("author_id", targetUserId);
 

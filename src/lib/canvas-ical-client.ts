@@ -40,6 +40,12 @@ export async function fetchCanvasICalAssignments(
   }
 
   const icsText = await res.text();
+  // Guard against a 200 response that isn't actually a calendar (e.g. a reset
+  // feed returning an HTML login page) — otherwise sync silently yields 0
+  // assignments and reports success.
+  if (!/BEGIN:VCALENDAR/i.test(icsText)) {
+    throw new Error("Canvas calendar feed didn't return a calendar — the feed URL may have been reset. Reconnect it.");
+  }
   const assignments = parseCanvasICalEvents(icsText);
 
   logger.info("fetchCanvasICalAssignments: parsed events", {
@@ -77,7 +83,12 @@ export function parseCanvasICalEvents(
 
     if (!uid || !summary) continue;
 
-    const endOrStart = dtend ?? dtstart;
+    // All-day events use an EXCLUSIVE DTEND (the day AFTER the event) per
+    // RFC 5545. When DTEND is a date-only value (YYYYMMDD, no time component),
+    // using it would render the due date one day late — fall back to DTSTART.
+    // Mirrors the pensieve-client fix; timed events (with a T) are unaffected.
+    const dtendIsDateOnly = !!dtend && /^\d{8}$/.test(dtend.value.trim());
+    const endOrStart = dtendIsDateOnly ? dtstart : (dtend ?? dtstart);
     const dueDate = parseDueDateWithTzid(
       endOrStart?.value ?? null,
       endOrStart?.tzid ?? null

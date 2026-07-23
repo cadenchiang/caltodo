@@ -65,6 +65,17 @@ export async function POST(request: Request) {
       ? (body.platforms as string[]).filter((p): p is SyncPlatform => VALID_PLATFORMS.has(p as SyncPlatform))
       : undefined;
 
+    // An explicitly-provided but empty/all-invalid filter means "sync nothing" —
+    // NOT a full sync. runSync treats [] as "sync all", so short-circuit here to
+    // avoid an unintended full sync (incl. a Gradescope login) on a bad filter.
+    if (Array.isArray(body.platforms) && platforms && platforms.length === 0) {
+      const empty = { synced: 0, errors: [] as string[] };
+      return NextResponse.json({
+        canvas: empty, gradescope: empty, pensieve: empty, brightspace: empty,
+        last_synced_at: new Date().toISOString(),
+      });
+    }
+
     logger.info("POST /api/assignments/sync started", { userId: user.id, timezone, hasOverrides: !!courseOverrides, forceGradescope, platforms });
     const result = await runSync(supabase, user.id, timezone, courseOverrides, forceGradescope, platforms);
     return NextResponse.json(result);

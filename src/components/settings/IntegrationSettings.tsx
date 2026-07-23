@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, useLayoutEffect, useCallback } from "react";
 import type { IntegrationCredentials } from "@/lib/types";
+import { invalidateCredentials } from "@/lib/credentials-client";
 import { useTaskContext } from "@/contexts/TaskContext";
 import CanvasSettings from "./CanvasSettings";
 import CanvasGenericCard from "./CanvasGenericCard";
@@ -186,6 +187,10 @@ export function IntegrationProvider({ children }: { children: React.ReactNode })
   function handleUpdate(updated: IntegrationCredentials) {
     setCredentials(updated);
     setCachedCredentials(updated);
+    // Bust the shared /api/credentials request cache so other consumers
+    // (TaskContext.fetchLastSynced, useOnboardingStatus, useDismissedModals)
+    // don't read a stale pre-write snapshot for up to 30s after a save.
+    invalidateCredentials();
   }
 
   return (

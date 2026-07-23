@@ -38,18 +38,26 @@ export async function GET(request: NextRequest) {
     const allUsers = await getCachedUsers();
 
     const results = allUsers
-      .filter((u) => {
-        if (u.id === user.id) return false;
+      .filter((u) => u.id !== user.id)
+      .map((u) => {
         const email = u.email.toLowerCase();
         const name = u.fullName?.toLowerCase() ?? "";
-        return email.includes(q) || name.includes(q);
+        // Email matches must be EXACT (full address) — substring email search
+        // let a caller harvest every user's email one prefix at a time. Names
+        // may still be matched by substring for the picker UX.
+        const emailExact = email === q;
+        const nameMatch = name.includes(q);
+        return { u, emailExact, nameMatch };
       })
+      .filter((r) => r.emailExact || r.nameMatch)
       .slice(0, 10)
-      .map((u) => ({
-        id: u.id,
-        email: u.email,
-        full_name: u.fullName,
-        avatar_url: u.avatarUrl,
+      .map((r) => ({
+        id: r.u.id,
+        full_name: r.u.fullName,
+        avatar_url: r.u.avatarUrl,
+        // Only echo the email back when the caller already typed it exactly, so
+        // the endpoint can't be used to discover users' emails.
+        email: r.emailExact ? r.u.email : undefined,
       }));
 
     return NextResponse.json({ users: results });

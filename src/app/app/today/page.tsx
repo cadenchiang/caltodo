@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
+import { format } from "date-fns";
 import { Plus } from "lucide-react";
 import { useTaskContext } from "@/contexts/TaskContext";
 import TaskList from "@/components/tasks/TaskList";
@@ -16,7 +17,10 @@ import type { Task } from "@/lib/types";
  * On mobile (<768px), shows a TaskPopover instead of the side panel.
  */
 export default function TodayPage() {
-  const today = new Date().toISOString().split("T")[0];
+  // Use the LOCAL calendar date, not UTC. due_date is stored as the user's
+  // local date, so `toISOString()` (UTC) made "Today" show tomorrow's tasks
+  // every evening west of UTC (e.g. after ~4-5pm in Berkeley).
+  const today = format(new Date(), "yyyy-MM-dd");
   const { tasks, loading, error, addTask, toggleComplete, deleteTask, updateTask, reorderTasks } = useTaskContext();
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [mobileEditTask, setMobileEditTask] = useState<Task | null>(null);

@@ -856,11 +856,20 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     });
 
     try {
-      await Promise.all(
+      // Supabase query builders resolve with { error } on DB/RLS failures — they
+      // do NOT reject — so a try/catch alone silently swallowed failed reorders.
+      // Inspect each result and reconcile from the server if any write failed.
+      const results = await Promise.all(
         updates.map((u) =>
           supabase.from("tasks").update({ sort_order: u.sort_order }).eq("id", u.id)
         )
       );
+      const failed = results.find((r) => r.error);
+      if (failed?.error) {
+        console.error("reorderTasks: a write failed, reconciling from server:", failed.error.message);
+        setError(failed.error.message);
+        fetchTasks();
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       console.error("reorderTasks failed, reconciling from server:", message);
@@ -914,7 +923,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
             if (isSyncedTask) {
               await supabase
                 .from("tasks")
-                .update({ dismissed_at: null })
+                .update({ dismissed_at: null, dismissed_by_user: false })
                 .eq("id", taskToDelete.id);
             } else {
               const { dismissed_at: _ignored, ...row } = taskToDelete;
@@ -935,7 +944,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     const { error: deleteError } = isSyncedTask
       ? await supabase
           .from("tasks")
-          .update({ dismissed_at: new Date().toISOString() })
+          .update({ dismissed_at: new Date().toISOString(), dismissed_by_user: true })
           .eq("id", id)
       : await supabase
           .from("tasks")
@@ -1196,7 +1205,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
 
     const { error: dismissError } = await supabase
       .from("tasks")
-      .update({ dismissed_at: new Date().toISOString() })
+      .update({ dismissed_at: new Date().toISOString(), dismissed_by_user: true })
       .eq("user_id", userId)
       .in("course_name", courseNames)
       .is("dismissed_at", null);
@@ -1224,7 +1233,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
 
     const { data, error: undismissError } = await supabase
       .from("tasks")
-      .update({ dismissed_at: null })
+      .update({ dismissed_at: null, dismissed_by_user: false })
       .eq("user_id", userId)
       .in("course_name", courseNames)
       .not("dismissed_at", "is", null)
@@ -1347,7 +1356,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     const [softDeleteResult, hardDeleteResult] = await Promise.all([
       supabase
         .from("tasks")
-        .update({ dismissed_at: new Date().toISOString() })
+        .update({ dismissed_at: new Date().toISOString(), dismissed_by_user: true })
         .eq("user_id", userId)
         .not("source", "is", null),
       supabase

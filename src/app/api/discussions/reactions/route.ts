@@ -100,6 +100,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Not a member" }, { status: 403 });
   }
 
+  // Verify the message actually belongs to this course — otherwise a member of
+  // course A could react to a message in course B (that they can't see) and
+  // corrupt the denormalized course_id.
+  const { data: msg } = await supabase
+    .from("chat_messages")
+    .select("id")
+    .eq("id", messageId)
+    .eq("course_id", courseId)
+    .maybeSingle();
+  if (!msg) {
+    return NextResponse.json({ error: "Message not found in this course" }, { status: 404 });
+  }
+
   // Check if user already has ANY reaction on this message (one reaction per user)
   const { data: existing } = await supabase
     .from("message_reactions")

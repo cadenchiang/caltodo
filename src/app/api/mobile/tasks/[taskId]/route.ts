@@ -30,17 +30,45 @@ export async function PATCH(
   }
 
   const { taskId } = await params;
-  const body = await req.json();
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  // Allowlist the fields a client may edit — the canonical TaskUpdate editable
+  // set (src/lib/types.ts). Never let the client set user_id/id/source/
+  // external_id/is_submitted — spreading raw body into .update() was a
+  // mass-assignment vector (e.g. reassigning user_id).
+  const ALLOWED = [
+    "title", "description", "due_date", "due_time", "is_completed", "color",
+    "repeat_interval", "repeat_unit", "repeat_end_date", "repeat_end_count",
+    "completed_at", "tags", "snoozed_until", "sort_order", "course_name",
+    "dismissed_at",
+  ] as const;
+  const update: Record<string, unknown> = {};
+  for (const key of ALLOWED) {
+    if (key in body) update[key] = body[key];
+  }
+  if (Object.keys(update).length === 0) {
+    return NextResponse.json({ error: "No editable fields provided" }, { status: 400 });
+  }
 
   const { data, error } = await supabase
     .from("tasks")
-    .update(body)
+    .update(update)
     .eq("id", taskId)
     .select()
-    .single();
+    .maybeSingle();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "Failed to update task" }, { status: 500 });
+  }
+  // RLS scopes to the owner: a missing/foreign task matches 0 rows → 404, not a
+  // raw 500 from .single().
+  if (!data) {
+    return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
 
   return NextResponse.json(data);
@@ -61,13 +89,19 @@ export async function DELETE(
 
   const { taskId } = await params;
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("tasks")
-    .update({ dismissed_at: new Date().toISOString() })
-    .eq("id", taskId);
+    .update({ dismissed_at: new Date().toISOString(), dismissed_by_user: true })
+    .eq("id", taskId)
+    .select("id");
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "Failed to delete task" }, { status: 500 });
+  }
+  // 0 rows affected (missing/foreign task under RLS) → 404 instead of a
+  // misleading success.
+  if (!data || data.length === 0) {
+    return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
 
   return NextResponse.json({ success: true });
