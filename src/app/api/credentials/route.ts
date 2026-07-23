@@ -78,13 +78,16 @@ export async function GET() {
     return NextResponse.json({ error: "Failed to fetch credentials" }, { status: 500 });
   }
 
-  // Check if Canvas token has expired (120-day lifetime)
+  // Check if Canvas token has expired (120-day lifetime) or is expiring soon.
+  // "Expiring soon" = within the last week of its life (day 113-120), so the
+  // health banner can warn the user to reconnect BEFORE sync silently stops.
   let canvasTokenExpired = false;
+  let canvasTokenExpiringSoon = false;
   if (data?.canvas_token && data?.canvas_token_created_at) {
-    const createdAt = new Date(data.canvas_token_created_at).getTime();
-    const now = Date.now();
-    const days120 = 120 * 24 * 60 * 60 * 1000;
-    canvasTokenExpired = now - createdAt > days120;
+    const ageMs = Date.now() - new Date(data.canvas_token_created_at).getTime();
+    const day = 24 * 60 * 60 * 1000;
+    canvasTokenExpired = ageMs > 120 * day;
+    canvasTokenExpiringSoon = !canvasTokenExpired && ageMs > 113 * day;
   }
 
   const credentialsOnboarded = !!(
@@ -125,6 +128,7 @@ export async function GET() {
     canvas_base_url: data?.canvas_base_url ?? "https://bcourses.berkeley.edu",
     canvas_ical_url: data?.canvas_ical_url ?? null,
     canvas_token_expired: canvasTokenExpired,
+    canvas_token_expiring_soon: canvasTokenExpiringSoon,
     gradescope_email: data?.gradescope_email ?? null,
     has_gradescope_password: !!data?.gradescope_password_encrypted,
     gradescope_auth_failed: data?.gradescope_auth_failed ?? false,

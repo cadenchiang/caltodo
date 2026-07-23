@@ -143,6 +143,8 @@ export interface IntegrationCredentials {
   canvas_ical_url: string | null;
   /** Whether the Canvas token has exceeded its 120-day lifetime. */
   canvas_token_expired: boolean;
+  /** True when the Canvas token is within ~1 week of its 120-day expiry. */
+  canvas_token_expiring_soon?: boolean;
   gradescope_email: string | null;
   has_gradescope_password: boolean;
   /** Whether the last Gradescope sync failed due to invalid credentials. */
