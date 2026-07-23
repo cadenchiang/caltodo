@@ -58,6 +58,29 @@ function createChainMock() {
   return new Proxy(mock, handler);
 }
 
+/**
+ * Returns a chainable + thenable query mock: every method (eq, or, select, is,
+ * range, in, ...) returns the same object, and awaiting it resolves `resolved`.
+ * Lets the mock tolerate any PostgREST chain depth (e.g. paginated .range()
+ * loops and the atomic .update().or().select() cooldown claim).
+ */
+function chainable(resolved: unknown): any {
+  const target = function () {} as unknown as object;
+  const proxy: any = new Proxy(target, {
+    get(_t, prop) {
+      if (prop === "then") {
+        return (res: (v: unknown) => void, rej?: (e: unknown) => void) =>
+          Promise.resolve(resolved).then(res, rej);
+      }
+      return () => proxy;
+    },
+    apply() {
+      return proxy;
+    },
+  });
+  return proxy;
+}
+
 function createMockSupabase(credentialsData: Record<string, unknown> | null = null) {
   const upsertMock = vi.fn().mockReturnValue({ error: null });
   const updateMock = vi.fn().mockReturnValue({
@@ -92,21 +115,19 @@ function createMockSupabase(credentialsData: Record<string, unknown> | null = nu
               }),
             }),
           }),
-          update: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({ error: null }),
-          }),
+          // update().eq() resolves {error:null}; update().or().select() (the
+          // atomic cooldown claim) resolves a claimed row. A single chainable
+          // handling both — the .eq() callers only read `error`.
+          update: vi.fn().mockReturnValue(chainable({ data: [{ user_id: "user-123" }], error: null })),
         };
       }
       if (table === "tasks") {
         return {
           upsert: upsertMock,
           update: tasksAutoCompleteMock,
-          // select("external_id").eq(...).eq(...) for existing-task lookup
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              eq: vi.fn().mockResolvedValue({ data: [], error: null }),
-            }),
-          }),
+          // Chainable so paginated select().eq().eq().range() (and the
+          // dismiss-missing select().eq()...is().range()) all resolve empty.
+          select: vi.fn().mockReturnValue(chainable({ data: [], error: null })),
         };
       }
       return {};
@@ -301,20 +322,25 @@ describe("runSync", () => {
     });
 
     // Custom select returning one existing task with due_date locked.
-    const selectChain = {
-      eq: vi.fn().mockReturnValue({
-        eq: vi.fn().mockResolvedValue({
-          data: [
-            {
-              external_id: "gs-locked",
-              due_date_manually_edited_at: "2026-04-08T12:00:00Z",
-              due_time_manually_edited_at: null,
-            },
-          ],
-          error: null,
-        }),
-      }),
-    };
+    // Chainable so the paginated .range() lookup resolves this data on its
+    // first page; the second page returns empty to end the loop.
+    let selectPage = 0;
+    const selectMock = vi.fn(() =>
+      chainable(
+        selectPage++ === 0
+          ? {
+              data: [
+                {
+                  external_id: "gs-locked",
+                  due_date_manually_edited_at: "2026-04-08T12:00:00Z",
+                  due_time_manually_edited_at: null,
+                },
+              ],
+              error: null,
+            }
+          : { data: [], error: null },
+      ),
+    );
 
     const supabase = {
       from: vi.fn((table: string) => {
@@ -333,16 +359,14 @@ describe("runSync", () => {
                 }),
               }),
             }),
-            update: vi.fn().mockReturnValue({
-              eq: vi.fn().mockReturnValue({ error: null }),
-            }),
+            update: vi.fn().mockReturnValue(chainable({ data: [{ user_id: "user-123" }], error: null })),
           };
         }
         if (table === "tasks") {
           return {
             upsert: upsertMock,
             update: tasksAutoCompleteMock,
-            select: vi.fn().mockReturnValue(selectChain),
+            select: selectMock,
           };
         }
         return {};

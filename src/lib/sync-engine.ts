@@ -410,10 +410,28 @@ async function syncGradescope(
   // on-mount + 30-min + on-focus auto-sync, multiplied across tabs/devices,
   // hammered the login endpoint. See route: forceGradescope.
   const GRADESCOPE_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
-  if (!force && creds.last_gradescope_synced_at) {
-    const elapsed = Date.now() - new Date(creds.last_gradescope_synced_at).getTime();
-    if (elapsed < GRADESCOPE_COOLDOWN_MS) {
-      logger.info("syncGradescope skipped: within login cooldown", { userId, elapsedMs: elapsed });
+  if (!force) {
+    // Atomically CLAIM the cooldown window before logging in. The previous
+    // read-then-act check let two concurrent syncs (mount + focus + timer
+    // across tabs/devices) both read a stale timestamp, both pass, and both
+    // log in — tripping Gradescope's anti-abuse lockout. This conditional
+    // update advances last_gradescope_synced_at only if it's null or older
+    // than the cooldown; if it returns no row, another sync just claimed the
+    // window, so we skip. Claiming before login also means a failed login
+    // still holds the cooldown (don't hammer on failure).
+    const cutoff = new Date(Date.now() - GRADESCOPE_COOLDOWN_MS).toISOString();
+    const { data: claimed, error: claimError } = await supabase
+      .from("integration_credentials")
+      .update({ last_gradescope_synced_at: new Date().toISOString() })
+      .eq("user_id", userId)
+      .or(`last_gradescope_synced_at.is.null,last_gradescope_synced_at.lt.${cutoff}`)
+      .select("user_id");
+    if (claimError) {
+      logger.error("syncGradescope: failed to claim cooldown", { userId, error: claimError.message });
+      return { synced: 0, errors: [claimError.message] };
+    }
+    if (!claimed || claimed.length === 0) {
+      logger.info("syncGradescope skipped: cooldown held by another sync or still cooling down", { userId });
       return { synced: 0, errors: [] };
     }
   }
@@ -432,6 +450,17 @@ async function syncGradescope(
     const assignments = selectedCourses && selectedCourses.length > 0
       ? await fetchGradescopeAssignmentsForCourses(creds.gradescope_email, password, selectedCourses)
       : await fetchAllGradescopeAssignments(creds.gradescope_email, password);
+
+    // Login succeeded but zero assignments parsed. Because Gradescope is an
+    // HTML scraper, this is a strong signal the page structure changed (broken
+    // selectors) rather than a genuinely empty account — flag it loudly so it
+    // surfaces in logs / monitoring instead of masquerading as a clean sync.
+    if (assignments.length === 0) {
+      logger.warn("syncGradescope: login succeeded but parsed 0 assignments — possible Gradescope HTML/structure change", {
+        userId,
+        hadSelectedCourses: Array.isArray(selectedCourses) && selectedCourses.length > 0,
+      });
+    }
 
     // Login succeeded — clear any previous auth failure flag before processing
     await supabase
@@ -645,11 +674,29 @@ async function upsertAssignments(
   //   1. Skip overwriting user-customized colors on existing tasks
   //   2. Skip overwriting user-edited due_date / due_time
   // See migration 20260409000001 for the manual-edit tracking columns.
-  const { data: existingTaskRows } = await supabase
-    .from("tasks")
-    .select("external_id, due_date_manually_edited_at, due_time_manually_edited_at")
-    .eq("user_id", userId)
-    .eq("source", source);
+  //
+  // Paginate: PostgREST caps a single response at ~1000 rows by default. A
+  // user with >1000 synced tasks in one source would otherwise have the
+  // overflow rows treated as "new" — clobbering their custom colors and
+  // manually-edited due dates/times on every sync.
+  type ExistingRow = { external_id: string | null; due_date_manually_edited_at: string | null; due_time_manually_edited_at: string | null };
+  const existingTaskRows: ExistingRow[] = [];
+  const EXISTING_PAGE = 1000;
+  for (let from = 0; ; from += EXISTING_PAGE) {
+    const { data: page, error: pageError } = await supabase
+      .from("tasks")
+      .select("external_id, due_date_manually_edited_at, due_time_manually_edited_at")
+      .eq("user_id", userId)
+      .eq("source", source)
+      .range(from, from + EXISTING_PAGE - 1);
+    if (pageError) {
+      logger.error("upsertAssignments: failed to page existing tasks", { userId, source, error: pageError.message });
+      break;
+    }
+    if (!page || page.length === 0) break;
+    existingTaskRows.push(...page);
+    if (page.length < EXISTING_PAGE) break;
+  }
   const existingIds = new Set(existingTaskRows?.map((r) => r.external_id) ?? []);
   const dueDateLockedIds = new Set(
     (existingTaskRows ?? [])
@@ -817,24 +864,34 @@ async function dismissMissingTasks(
   // Best-effort: never let a dismissal failure abort the surrounding sync.
   // The next sync will retry; meanwhile the user has fresh upserts.
   try {
-    const seenIds = new Set(syncedAssignments.map((a) => a.external_id));
+    const seenIds = new Set<string | null>(syncedAssignments.map((a) => a.external_id));
     const scopedCourses = new Set(syncedAssignments.map((a) => a.course_name));
 
-    const { data: existing, error } = await supabase
-      .from("tasks")
-      .select("id, external_id, course_name")
-      .eq("user_id", userId)
-      .eq("source", source)
-      .eq("is_completed", false)
-      .is("dismissed_at", null);
-
-    if (error) {
-      logger.error("dismissMissingTasks: failed to fetch existing tasks", {
-        userId,
-        source,
-        error: error.message,
-      });
-      return;
+    // Paginate past PostgREST's ~1000-row default so users with many active
+    // tasks in one source still have all stale rows considered for dismissal.
+    type DismissRow = { id: string; external_id: string | null; course_name: string | null };
+    const existing: DismissRow[] = [];
+    const DISMISS_PAGE = 1000;
+    for (let from = 0; ; from += DISMISS_PAGE) {
+      const { data: page, error } = await supabase
+        .from("tasks")
+        .select("id, external_id, course_name")
+        .eq("user_id", userId)
+        .eq("source", source)
+        .eq("is_completed", false)
+        .is("dismissed_at", null)
+        .range(from, from + DISMISS_PAGE - 1);
+      if (error) {
+        logger.error("dismissMissingTasks: failed to fetch existing tasks", {
+          userId,
+          source,
+          error: error.message,
+        });
+        return;
+      }
+      if (!page || page.length === 0) break;
+      existing.push(...page);
+      if (page.length < DISMISS_PAGE) break;
     }
 
     const toDismiss = (existing ?? [])
