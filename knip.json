@@ -1,0 +1,19 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": [
+    "src/app/**/{page,layout,template,default,error,loading,not-found,route,sitemap,robots,manifest,icon,apple-icon,opengraph-image}.{ts,tsx}",
+    "src/middleware.ts",
+    "src/app/sw.ts",
+    "next.config.ts",
+    "scripts/*.mjs"
+  ],
+  "project": ["src/**/*.{ts,tsx}"],
+  "ignore": ["src/__tests__/**"],
+  "ignoreDependencies": [
+    "@lhci/cli",
+    "react-scan",
+    "@next/bundle-analyzer",
+    "@playwright/test"
+  ],
+  "ignoreBinaries": ["lhci", "react-scan"]
+}

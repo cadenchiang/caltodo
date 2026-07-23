@@ -61,3 +61,11 @@ mobile/dist/
 
 # Backups of pre-compression landing PNGs (re-creatable via scripts/compress-landing-images.mjs).
 /public/originals/
+
+# Tooling artifacts
+/.lighthouseci/
+/playwright-report/
+/test-results/
+/blob-report/
+/e2e/.auth/
+/playwright/.cache/
