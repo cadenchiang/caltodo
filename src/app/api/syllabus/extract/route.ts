@@ -212,7 +212,12 @@ export async function POST(request: Request) {
 
     const response = await anthropic.messages.create({
       model: "claude-sonnet-4-6",
-      max_tokens: 4096,
+      // A dense semester syllabus can list dozens of assignments; 4096 output
+      // tokens truncated the JSON mid-array, which then failed to parse and
+      // returned ZERO assignments — the worst outcome, most likely for the
+      // fullest syllabi. 16000 gives ample headroom while staying well under
+      // the route's 60s non-streaming budget.
+      max_tokens: 16000,
       system: SYSTEM_PROMPT,
       messages: [
         {
@@ -225,13 +230,23 @@ export async function POST(request: Request) {
       ],
     });
 
+    // If the model hit the output cap, the JSON is truncated and unparseable —
+    // surface a specific, actionable message instead of a generic parse error.
+    if (response.stop_reason === "max_tokens") {
+      logger.error("syllabus/extract: response truncated at max_tokens", { userId: user.id });
+      return NextResponse.json(
+        { error: "This syllabus is very long — we couldn't extract all of it. Try uploading a shorter section or splitting it up." },
+        { status: 422 }
+      );
+    }
+
     // Extract text from response
     const textBlock = response.content.find((b) => b.type === "text");
     if (!textBlock || textBlock.type !== "text") {
       logger.error("syllabus/extract: no text in Claude response", { userId: user.id });
       return NextResponse.json(
-        { error: "Failed to extract assignments from the document" },
-        { status: 500 }
+        { error: "We couldn't read any assignments from this file. If it's a scanned image, try a clearer PDF." },
+        { status: 422 }
       );
     }
 
@@ -259,8 +274,8 @@ export async function POST(request: Request) {
         rawResponse: jsonText.slice(0, 500),
       });
       return NextResponse.json(
-        { error: "Failed to parse extraction results" },
-        { status: 500 }
+        { error: "We had trouble reading the assignments from this syllabus. Please try uploading it again." },
+        { status: 502 }
       );
     }
 
@@ -283,9 +298,20 @@ export async function POST(request: Request) {
       assignmentCount: result.assignments.length,
     });
 
+    // Don't burn the user's free-tier quota on an extraction that produced
+    // nothing usable (e.g. an unreadable scan). Return a clear message so the
+    // upload can be retried without cost.
+    if (result.assignments.length === 0) {
+      logger.warn("syllabus/extract: zero assignments extracted", { userId: user.id });
+      return NextResponse.json(
+        { error: "We couldn't find any assignments in this document. Make sure it's a syllabus with dated assignments, or try a clearer file." },
+        { status: 422 }
+      );
+    }
+
     // Increment the per-user upload counter so future free-tier requests are
-    // gated. Only counts successful extractions so a failed upload doesn't
-    // burn the user's free quota.
+    // gated. Only counts successful extractions (with assignments) so a failed
+    // or empty upload doesn't burn the user's free quota.
     try {
       const admin = createAdminClient();
       await admin.rpc("increment_syllabus_upload_count", { p_user_id: user.id }).single();
