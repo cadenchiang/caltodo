@@ -47,6 +47,7 @@ const WeeklyHeatmapWidget = dynamicWidget(() => import("@/components/home/widget
 const SpotifyWidget = dynamicWidget(() => import("@/components/home/widgets/SpotifyWidget"));
 const DailyRemindersWidget = dynamicWidget(() => import("@/components/home/widgets/DailyRemindersWidget"));
 const CoursesWidget = dynamicWidget(() => import("@/components/home/widgets/CoursesWidget"));
+const QuoteWidget = dynamicWidget(() => import("@/components/home/widgets/QuoteWidget"));
 
 /** Drag threshold in pixels — mouse must stay within this to count as a click. */
 const DRAG_THRESHOLD = 5;
@@ -102,6 +103,8 @@ export function RenderWidget({
       return <DailyRemindersWidget config={widget.config} onUpdateConfig={onUpdateConfig} />;
     case "courses":
       return <CoursesWidget config={widget.config} />;
+    case "quote":
+      return <QuoteWidget config={widget.config} onUpdateConfig={onUpdateConfig} />;
     default:
       return null;
   }

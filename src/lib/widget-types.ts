@@ -20,7 +20,8 @@ export type WidgetType =
   | "weekly-heatmap"
   | "spotify"
   | "daily-reminders"
-  | "courses";
+  | "courses"
+  | "quote";
 
 /** Category groupings for the widget gallery. */
 export type WidgetCategory =
@@ -158,6 +159,15 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetTypeConfig> = {
     minW: 2, minH: 2, maxW: 3, maxH: 3,
     defaultW: 2, defaultH: 2,
     hidden: true,
+  },
+  quote: {
+    type: "quote",
+    label: "Quote",
+    description: "An inspiring quote, or write your own",
+    iconName: "Quote",
+    category: "info",
+    minW: 2, minH: 1, maxW: 4, maxH: 3,
+    defaultW: 2, defaultH: 2,
   },
   courses: {
     type: "courses",
