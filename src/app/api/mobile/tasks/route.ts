@@ -58,9 +58,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Allowlist creatable fields — don't let the client set id/source/
+  // external_id/is_submitted/timestamps on its own rows. user_id is forced
+  // to the authenticated user.
+  const ALLOWED = [
+    "title", "description", "due_date", "due_time", "color",
+    "snoozed_until", "sort_order",
+  ] as const;
+  const insert: Record<string, unknown> = { user_id: user.id };
+  for (const key of ALLOWED) {
+    if (key in body) insert[key] = body[key];
+  }
+
   const { data, error } = await supabase
     .from("tasks")
-    .insert({ ...body, user_id: user.id })
+    .insert(insert)
     .select()
     .single();
 

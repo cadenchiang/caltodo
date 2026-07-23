@@ -79,6 +79,6 @@ export async function GET(request: NextRequest) {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     logger.error("GET /api/canvas/courses failed", { userId: user.id, error: message });
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: "Failed to load Canvas courses" }, { status: 500 });
   }
 }

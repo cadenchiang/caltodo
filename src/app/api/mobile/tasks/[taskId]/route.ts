@@ -32,9 +32,24 @@ export async function PATCH(
   const { taskId } = await params;
   const body = await req.json();
 
+  // Allowlist the fields a client may edit. Never let the client set user_id,
+  // id, source, external_id, is_submitted, or timestamps — spreading raw body
+  // into .update() was a mass-assignment vector (e.g. reassigning user_id).
+  const ALLOWED = [
+    "title", "description", "due_date", "due_time", "color",
+    "snoozed_until", "dismissed_at", "sort_order", "completed_at",
+  ] as const;
+  const update: Record<string, unknown> = {};
+  for (const key of ALLOWED) {
+    if (key in body) update[key] = body[key];
+  }
+  if (Object.keys(update).length === 0) {
+    return NextResponse.json({ error: "No editable fields provided" }, { status: 400 });
+  }
+
   const { data, error } = await supabase
     .from("tasks")
-    .update(body)
+    .update(update)
     .eq("id", taskId)
     .select()
     .single();

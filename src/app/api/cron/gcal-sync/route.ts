@@ -25,11 +25,12 @@ const MAX_USERS = 50;
 const CONCURRENCY = 3;
 
 export async function GET(request: NextRequest) {
-  // Validate cron secret
+  // Validate cron secret. Fail CLOSED — a missing CRON_SECRET must not make the
+  // endpoint public (it triggers syncs + token refreshes for every user).
   const authHeader = request.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
 
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

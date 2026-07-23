@@ -60,9 +60,12 @@ interface SubscriptionRow {
 }
 
 export async function GET(request: NextRequest) {
+  // Fail CLOSED: this endpoint sends push to all users and purges old
+  // completed tasks + dispatch rows, so it must never be publicly invocable.
+  // Previously a missing CRON_SECRET skipped the check entirely (fail-open).
   const cronSecret = process.env.CRON_SECRET;
   const authHeader = request.headers.get("authorization");
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

@@ -61,7 +61,7 @@ export async function GET() {
 
     if (dbError) {
       logger.error("canvas-assignments:db-error", { error: dbError.message });
-      return NextResponse.json({ error: dbError.message }, { status: 500 });
+      return NextResponse.json({ error: "Failed to load assignments" }, { status: 500 });
     }
 
     const candidates = (tasks || [])
@@ -136,6 +136,8 @@ export async function GET() {
       userId: user.id,
       error: (err as Error).message,
     });
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
+    // Log the detail server-side but return a generic message — the raw error
+    // can leak internal fetch/DNS/host details (amplifies SSRF probing).
+    return NextResponse.json({ error: "Failed to load Canvas assignments" }, { status: 500 });
   }
 }

@@ -239,9 +239,17 @@ export async function PUT(request: Request) {
       : null;
   }
   if (body.canvas_base_url !== undefined) {
+    // SSRF guard: this URL is fetched server-side with the user's Canvas token
+    // attached, so block internal/metadata hosts and non-HTTPS.
+    if (body.canvas_base_url && !isAllowedCanvasUrl(body.canvas_base_url)) {
+      return NextResponse.json({ error: "Invalid Canvas URL" }, { status: 400 });
+    }
     updateData.canvas_base_url = body.canvas_base_url;
   }
   if (body.canvas_ical_url !== undefined) {
+    if (body.canvas_ical_url && !isAllowedCanvasUrl(body.canvas_ical_url)) {
+      return NextResponse.json({ error: "Invalid Canvas calendar URL" }, { status: 400 });
+    }
     updateData.canvas_ical_url = body.canvas_ical_url;
   }
   if (body.gradescope_email !== undefined) {
@@ -260,46 +268,21 @@ export async function PUT(request: Request) {
     updateData.selected_pensieve_courses = body.selected_pensieve_courses;
   }
   if (body.pensieve_calendar_url !== undefined) {
-    if (body.pensieve_calendar_url) {
-      // Validate Pensieve URL against SSRF: must be HTTPS, not internal
-      try {
-        const pUrl = new URL(body.pensieve_calendar_url);
-        if (pUrl.protocol !== "https:") {
-          return NextResponse.json({ error: "Pensieve calendar URL must use HTTPS" }, { status: 400 });
-        }
-        const hostname = pUrl.hostname.toLowerCase();
-        if (
-          hostname === "localhost" ||
-          hostname.startsWith("127.") ||
-          hostname.startsWith("10.") ||
-          hostname.startsWith("192.168.") ||
-          /^172\.(1[6-9]|2\d|3[01])\./.test(hostname) ||
-          hostname === "0.0.0.0" ||
-          hostname === "[::1]"
-        ) {
-          logger.warn("PUT /api/credentials: rejected internal Pensieve URL", { userId: user.id, url: body.pensieve_calendar_url });
-          return NextResponse.json({ error: "Internal URLs are not allowed" }, { status: 400 });
-        }
-      } catch {
-        return NextResponse.json({ error: "Invalid Pensieve calendar URL" }, { status: 400 });
-      }
+    // Same SSRF guard as Canvas — blocks internal/metadata hosts (incl.
+    // 169.254.169.254, CGNAT, IPv6, numeric encodings) and non-HTTPS.
+    if (body.pensieve_calendar_url && !isAllowedCanvasUrl(body.pensieve_calendar_url)) {
+      logger.warn("PUT /api/credentials: rejected disallowed Pensieve URL", { userId: user.id });
+      return NextResponse.json({ error: "Invalid Pensieve calendar URL" }, { status: 400 });
     }
     updateData.pensieve_calendar_url = body.pensieve_calendar_url;
   }
   if (body.brightspace_calendar_url !== undefined) {
-    if (body.brightspace_calendar_url) {
-      try {
-        const bUrl = new URL(body.brightspace_calendar_url);
-        if (bUrl.protocol !== "https:") {
-          return NextResponse.json({ error: "Brightspace URL must use HTTPS" }, { status: 400 });
-        }
-      } catch {
-        return NextResponse.json({ error: "Invalid Brightspace URL" }, { status: 400 });
-      }
+    if (body.brightspace_calendar_url && !isAllowedCanvasUrl(body.brightspace_calendar_url)) {
+      return NextResponse.json({ error: "Invalid Brightspace URL" }, { status: 400 });
     }
     updateData.brightspace_calendar_url = body.brightspace_calendar_url;
     if (body.brightspace_calendar_url) {
-      logger.info("Brightspace connected", { userId: user.id, email: user.email, url: body.brightspace_calendar_url.slice(0, 60) });
+      logger.info("Brightspace connected", { userId: user.id, url: body.brightspace_calendar_url.slice(0, 60) });
     }
   }
   if (body.additional_canvas_accounts !== undefined) {
@@ -310,6 +293,8 @@ export async function PUT(request: Request) {
     }
     if (accounts && accounts.length > 0) {
       for (const account of accounts) {
+        // Validate BOTH the API base URL and the iCal feed URL — both are
+        // fetched server-side, so both are SSRF sinks.
         if (account.base_url && !isAllowedCanvasUrl(account.base_url)) {
           logger.warn("PUT /api/credentials: rejected disallowed additional Canvas URL", {
             userId: user.id,
@@ -317,6 +302,15 @@ export async function PUT(request: Request) {
           });
           return NextResponse.json(
             { error: `Invalid Canvas base URL: ${account.base_url}. Please use an HTTPS URL.` },
+            { status: 400 }
+          );
+        }
+        if (account.ical_url && !isAllowedCanvasUrl(account.ical_url)) {
+          logger.warn("PUT /api/credentials: rejected disallowed additional Canvas iCal URL", {
+            userId: user.id,
+          });
+          return NextResponse.json(
+            { error: "Invalid Canvas calendar URL. Please use an HTTPS URL." },
             { status: 400 }
           );
         }
@@ -328,9 +322,17 @@ export async function PUT(request: Request) {
     updateData.email_digest_enabled = body.email_digest_enabled;
   }
   if (body.email_digest_hour !== undefined) {
-    updateData.email_digest_hour = body.email_digest_hour;
+    // Validate hour is an integer 0-23; reject junk/floats/out-of-range.
+    const h = body.email_digest_hour;
+    if (typeof h !== "number" || !Number.isInteger(h) || h < 0 || h > 23) {
+      return NextResponse.json({ error: "email_digest_hour must be an integer 0-23" }, { status: 400 });
+    }
+    updateData.email_digest_hour = h;
   }
   if (body.email_digest_address !== undefined) {
+    if (body.email_digest_address && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email_digest_address)) {
+      return NextResponse.json({ error: "Invalid email digest address" }, { status: 400 });
+    }
     updateData.email_digest_address = body.email_digest_address;
   }
   if (body.dismissed_modals !== undefined) {
