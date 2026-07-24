@@ -10,10 +10,29 @@
  * @param onUpdateConfig - Callback to persist config changes
  */
 
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import useSWR from "swr";
 import { Calendar } from "lucide-react";
+import { getCredentials } from "@/lib/credentials-client";
 import { useCompactMode } from "@/hooks/useCompactMode";
+
+/**
+ * Synchronously read whether Google Calendar is connected from the shared
+ * credentials cache (localStorage), so a not-connected user's board never
+ * fires the ~700ms /api/gcal/events request just to learn it's disconnected.
+ * Returns null when unknown (first-ever visit, no cache) → we optimistically
+ * fetch so a connected user isn't delayed.
+ */
+function readCachedGcalConnected(): boolean | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem("caltodo_credentials_cache");
+    if (!raw) return null;
+    return !!JSON.parse(raw)?.has_google_calendar;
+  } catch {
+    return null;
+  }
+}
 import { WidgetHeader } from "./WidgetPrimitives";
 import { GCAL_DISPLAY_MAP } from "./gcal-displays";
 import { DEFAULT_GCAL_DISPLAY } from "@/lib/gcal-displays";
@@ -163,8 +182,22 @@ export default function GoogleCalendarWidget({ config, editMode, onUpdateConfig 
     return {};
   }, [config.calendarColors]);
 
+  // Connection gate: seed synchronously from the cached credentials so a
+  // known-disconnected user never fetches events; refresh from the shared
+  // single-flight client (no extra request).
+  const [gcalConnected, setGcalConnected] = useState<boolean | null>(readCachedGcalConnected);
+  useEffect(() => {
+    let cancelled = false;
+    getCredentials().then((c) => {
+      if (!cancelled && c) setGcalConnected(!!(c as { has_google_calendar?: boolean }).has_google_calendar);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
   // Build SWR key from calendar + view params
   const swrKey = useMemo(() => {
+    // Known-disconnected → skip the events fetch entirely (null SWR key).
+    if (gcalConnected === false) return null;
     const params = new URLSearchParams();
     if (calendarIds.length === 1) {
       params.set("calendarId", calendarIds[0]);
@@ -176,10 +209,10 @@ export default function GoogleCalendarWidget({ config, editMode, onUpdateConfig 
     params.set("timeMin", timeMin);
     params.set("timeMax", timeMax);
     return `/api/gcal/events?${params}`;
-  }, [calendarIds, viewMode, config.customDays]);
+  }, [gcalConnected, calendarIds, viewMode, config.customDays]);
 
   // Read cached data for instant render while SWR revalidates in background
-  const cachedGcalData = useMemo(() => readGCalCache(swrKey), [swrKey]);
+  const cachedGcalData = useMemo(() => (swrKey ? readGCalCache(swrKey) : null), [swrKey]);
 
   const { data, isLoading } = useSWR(
     swrKey,
@@ -197,15 +230,20 @@ export default function GoogleCalendarWidget({ config, editMode, onUpdateConfig 
       refreshInterval: 300000,
       fallbackData: cachedGcalData ?? undefined,
       onSuccess: (freshData) => {
-        writeGCalCache(swrKey, freshData);
+        if (swrKey) writeGCalCache(swrKey, freshData);
       },
     }
   );
 
   const events: GCalEvent[] = data?.events || [];
-  const connected: boolean | null = data ? (data.connected ?? true) : null;
+  // Disconnected is known immediately from credentials (no events fetch);
+  // otherwise trust the events response, else still loading.
+  const connected: boolean | null =
+    gcalConnected === false ? false : data ? (data.connected ?? true) : null;
 
-  if (isLoading) {
+  // Only show the skeleton while an actual events fetch is in flight — not when
+  // we've already determined (from credentials) that GCal is disconnected.
+  if (isLoading && swrKey) {
     return (
       <div className="h-full w-full flex flex-col p-3">
         <div className="flex items-center gap-2 mb-3">

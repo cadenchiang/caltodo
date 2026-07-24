@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, useLayoutEffect, useCallback } from "react";
 import type { IntegrationCredentials } from "@/lib/types";
-import { invalidateCredentials } from "@/lib/credentials-client";
+import { getCredentials, invalidateCredentials } from "@/lib/credentials-client";
 import { useTaskContext } from "@/contexts/TaskContext";
 import CanvasSettings from "./CanvasSettings";
 import CanvasGenericCard from "./CanvasGenericCard";
@@ -115,9 +115,11 @@ export function IntegrationProvider({ children }: { children: React.ReactNode })
   const fetchCredentials = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/credentials");
-      if (res.ok) {
-        const data: IntegrationCredentials = await res.json();
+      // Go through the shared single-flight client so this provider doesn't
+      // fire its OWN /api/credentials request on top of the app's — every
+      // caller on a page collapses into one network request.
+      const data = (await getCredentials()) as IntegrationCredentials | null;
+      if (data) {
         setCredentials(data);
         setCachedCredentials(data);
       }

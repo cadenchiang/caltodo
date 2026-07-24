@@ -29,23 +29,56 @@ export interface SaveResult {
 const RETRY_DELAY_MS = 2000;
 
 /**
+ * Single-flight + short cache for the board-layout GET. Both HomeBoard and
+ * WidgetGrid call useWidgetLayout independently, and React can mount the tree
+ * more than once, so without this the same /api/board-layout request fired
+ * two+ times in the same tick on first render. Collapsing to one in-flight
+ * request (and reusing it for ~5s) removes the duplicate network round-trips.
+ */
+let layoutInflight: Promise<ServerLayoutResponse> | null = null;
+let layoutCache: ServerLayoutResponse | null = null;
+let layoutCachedAt = 0;
+const LAYOUT_TTL_MS = 5000;
+
+/**
  * Fetches the user's board layout from the server.
  *
  * @returns The layout object and updatedAt timestamp, or null values if none exists.
  *          Returns null layout on fetch failure (non-blocking).
  */
 export async function fetchServerLayout(): Promise<ServerLayoutResponse> {
-  try {
-    const res = await fetch("/api/board-layout");
-    if (!res.ok) {
-      console.warn("[board-layout-sync] fetchServerLayout failed:", res.status);
-      return { layout: null, updatedAt: null };
-    }
-    return await res.json();
-  } catch (err) {
-    console.warn("[board-layout-sync] fetchServerLayout error:", err);
-    return { layout: null, updatedAt: null };
+  if (layoutCache && Date.now() - layoutCachedAt < LAYOUT_TTL_MS) {
+    return layoutCache;
   }
+  if (layoutInflight) return layoutInflight;
+
+  layoutInflight = (async () => {
+    try {
+      const res = await fetch("/api/board-layout");
+      if (!res.ok) {
+        console.warn("[board-layout-sync] fetchServerLayout failed:", res.status);
+        return { layout: null, updatedAt: null };
+      }
+      const data: ServerLayoutResponse = await res.json();
+      layoutCache = data;
+      layoutCachedAt = Date.now();
+      return data;
+    } catch (err) {
+      console.warn("[board-layout-sync] fetchServerLayout error:", err);
+      return { layout: null, updatedAt: null };
+    } finally {
+      layoutInflight = null;
+    }
+  })();
+
+  return layoutInflight;
+}
+
+/** Invalidate the board-layout cache (call after a local save so the next
+ *  fetch reflects the server write). */
+export function invalidateServerLayoutCache(): void {
+  layoutCache = null;
+  layoutCachedAt = 0;
 }
 
 /**
