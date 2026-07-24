@@ -26,7 +26,7 @@ const CORE_SELECT = "canvas_token, canvas_base_url, canvas_ical_url, gradescope_
  * separate so a missing-column error triggers a fallback to CORE_SELECT rather
  * than a 500. Each is optional in IntegrationCredentials (defaults applied below).
  */
-const OPTIONAL_SELECT = "google_auth_failed, additional_canvas_accounts, canvas_auth_failed";
+const OPTIONAL_SELECT = "google_auth_failed, additional_canvas_accounts, canvas_auth_failed, canvas_ical_failed, pensieve_auth_failed, brightspace_auth_failed";
 const FULL_SELECT = `${CORE_SELECT}, ${OPTIONAL_SELECT}`;
 
 /** Postgres "undefined column" (42703) or the PostgREST message that carries it. */
@@ -133,6 +133,7 @@ export async function GET() {
     has_gradescope_password: !!data?.gradescope_password_encrypted,
     gradescope_auth_failed: data?.gradescope_auth_failed ?? false,
     canvas_auth_failed: (data as { canvas_auth_failed?: boolean } | null)?.canvas_auth_failed ?? false,
+    canvas_ical_failed: (data as { canvas_ical_failed?: boolean } | null)?.canvas_ical_failed ?? false,
     last_synced_at: data?.last_synced_at ?? null,
     selected_canvas_courses: data?.selected_canvas_courses ?? null,
     selected_gradescope_courses: data?.selected_gradescope_courses ?? null,
@@ -149,7 +150,9 @@ export async function GET() {
     canvas_token_created_at: data?.canvas_token_created_at ?? null,
     is_founding_member: data?.is_founding_member ?? false,
     pensieve_calendar_url: data?.pensieve_calendar_url ?? null,
+    pensieve_auth_failed: (data as { pensieve_auth_failed?: boolean } | null)?.pensieve_auth_failed ?? false,
     brightspace_calendar_url: data?.brightspace_calendar_url ?? null,
+    brightspace_auth_failed: (data as { brightspace_auth_failed?: boolean } | null)?.brightspace_auth_failed ?? false,
     additional_canvas_accounts: data?.additional_canvas_accounts ?? [],
     has_completed_onboarding: hasCompletedOnboarding,
     email_digest_enabled: data?.email_digest_enabled ?? true,
@@ -254,6 +257,10 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: "Invalid Canvas calendar URL" }, { status: 400 });
     }
     updateData.canvas_ical_url = body.canvas_ical_url;
+    // Saving a new feed URL is the fix action — clear the stale failure flag so
+    // the health banner drops the warning immediately (the next sync re-sets it
+    // if the new URL is also broken).
+    updateData.canvas_ical_failed = false;
   }
   if (body.gradescope_email !== undefined) {
     updateData.gradescope_email = body.gradescope_email;
@@ -278,12 +285,15 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: "Invalid Pensieve calendar URL" }, { status: 400 });
     }
     updateData.pensieve_calendar_url = body.pensieve_calendar_url;
+    // Clear the stale failure flag on save (the fix action).
+    updateData.pensieve_auth_failed = false;
   }
   if (body.brightspace_calendar_url !== undefined) {
     if (body.brightspace_calendar_url && !isAllowedCanvasUrl(body.brightspace_calendar_url)) {
       return NextResponse.json({ error: "Invalid Brightspace URL" }, { status: 400 });
     }
     updateData.brightspace_calendar_url = body.brightspace_calendar_url;
+    updateData.brightspace_auth_failed = false;
     if (body.brightspace_calendar_url) {
       logger.info("Brightspace connected", { userId: user.id, url: body.brightspace_calendar_url.slice(0, 60) });
     }
@@ -436,6 +446,7 @@ export async function PUT(request: Request) {
     canvas_token_expired: putCanvasTokenExpired,
     canvas_token_expiring_soon: putCanvasTokenExpiringSoon,
     canvas_auth_failed: (updated as { canvas_auth_failed?: boolean } | null)?.canvas_auth_failed ?? false,
+    canvas_ical_failed: (updated as { canvas_ical_failed?: boolean } | null)?.canvas_ical_failed ?? false,
     gradescope_email: updated?.gradescope_email ?? null,
     has_gradescope_password: !!updated?.gradescope_password_encrypted,
     gradescope_auth_failed: updated?.gradescope_auth_failed ?? false,
@@ -452,7 +463,9 @@ export async function PUT(request: Request) {
     canvas_token_created_at: updated?.canvas_token_created_at ?? null,
     is_founding_member: updated?.is_founding_member ?? false,
     pensieve_calendar_url: updated?.pensieve_calendar_url ?? null,
+    pensieve_auth_failed: (updated as { pensieve_auth_failed?: boolean } | null)?.pensieve_auth_failed ?? false,
     brightspace_calendar_url: updated?.brightspace_calendar_url ?? null,
+    brightspace_auth_failed: (updated as { brightspace_auth_failed?: boolean } | null)?.brightspace_auth_failed ?? false,
     additional_canvas_accounts: updated?.additional_canvas_accounts ?? [],
     has_completed_onboarding: putHasCompletedOnboarding,
     email_digest_enabled: updated?.email_digest_enabled ?? true,

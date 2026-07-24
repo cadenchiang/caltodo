@@ -30,10 +30,13 @@ interface HealthIssue {
  * broken connection never fails invisibly.
  *
  * Sources of truth:
- *  - persistent DB flags for the connections that expire predictably
- *    (`canvas_token_expired`, `gradescope_auth_failed`, `google_auth_failed`);
- *  - the latest in-session `syncResult` for iCal feeds (Pensieve / Brightspace),
- *    which have no persistent flag — an error there means the URL is failing.
+ *  - persistent DB flags for every connection (`canvas_token_expired`,
+ *    `canvas_auth_failed`, `canvas_ical_failed`, `gradescope_auth_failed`,
+ *    `google_auth_failed`, `pensieve_auth_failed`, `brightspace_auth_failed`),
+ *    so a break surfaces on a cold load / other device / after a background
+ *    sync — not only when the failing sync ran in this browser session;
+ *  - the latest in-session `syncResult` as an immediate supplement for the
+ *    iCal feeds, so a fresh failure shows before the flag round-trips.
  *
  * Renders nothing when everything is healthy.
  */
@@ -73,6 +76,21 @@ export default function IntegrationHealthBanner() {
     });
   }
 
+  // Canvas iCal feed (separate from the API token above): a reset/expired feed
+  // URL breaks sync just as silently. Persistent flag + in-session error.
+  if (
+    credentials.canvas_ical_url &&
+    (credentials.canvas_ical_failed || (syncResult?.canvas.errors.length ?? 0) > 0)
+  ) {
+    issues.push({
+      id: "canvas-ical",
+      label: "bCourses / Canvas (calendar feed)",
+      detail: "Your Canvas calendar feed stopped loading — the URL may have been reset. Update it to resume syncing.",
+      actionLabel: "Update URL",
+      onAction: () => router.push("/app/onboarding?setup=canvas"),
+    });
+  }
+
   if (credentials.gradescope_auth_failed) {
     issues.push({
       id: "gradescope",
@@ -93,22 +111,30 @@ export default function IntegrationHealthBanner() {
     });
   }
 
-  // iCal feeds have no persistent flag — surface the latest sync error instead.
-  if (credentials.pensieve_calendar_url && (syncResult?.pensieve.errors.length ?? 0) > 0) {
+  // iCal feeds: persistent DB flag is the primary signal (survives reload and
+  // reflects background/cron/other-device syncs); the in-session error is an
+  // immediate supplement so a fresh failure shows before the flag round-trips.
+  if (
+    credentials.pensieve_calendar_url &&
+    (credentials.pensieve_auth_failed || (syncResult?.pensieve.errors.length ?? 0) > 0)
+  ) {
     issues.push({
       id: "pensieve",
       label: "Pensieve",
-      detail: syncResult?.pensieve.errors[0] || "The feed failed to load — your Pensieve URL may have expired.",
+      detail: syncResult?.pensieve.errors[0] || "The feed stopped loading — your Pensieve URL may have been reset or expired. Update it to resume syncing.",
       actionLabel: "Update URL",
       onAction: () => router.push("/app/onboarding?setup=pensieve"),
     });
   }
 
-  if (credentials.brightspace_calendar_url && (syncResult?.brightspace.errors.length ?? 0) > 0) {
+  if (
+    credentials.brightspace_calendar_url &&
+    (credentials.brightspace_auth_failed || (syncResult?.brightspace.errors.length ?? 0) > 0)
+  ) {
     issues.push({
       id: "brightspace",
       label: "Brightspace",
-      detail: syncResult?.brightspace.errors[0] || "The feed failed to load — your Brightspace URL may have expired.",
+      detail: syncResult?.brightspace.errors[0] || "The feed stopped loading — your Brightspace URL may have been reset or expired. Update it to resume syncing.",
       actionLabel: "Update URL",
       onAction: () => router.push("/app/onboarding?setup=brightspace"),
     });
