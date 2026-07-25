@@ -147,6 +147,8 @@ export interface IntegrationCredentials {
   canvas_token_expiring_soon?: boolean;
   /** True when a Canvas token sync actually returned 401 (revoked/invalid early). */
   canvas_auth_failed?: boolean;
+  /** True when the Canvas iCal-feed fetch failed (feed reset/expired/404). */
+  canvas_ical_failed?: boolean;
   gradescope_email: string | null;
   has_gradescope_password: boolean;
   /** Whether the last Gradescope sync failed due to invalid credentials. */
@@ -165,7 +167,11 @@ export interface IntegrationCredentials {
   canvas_token_created_at: string | null;
   is_founding_member: boolean;
   pensieve_calendar_url: string | null;
+  /** True when the Pensieve iCal-feed fetch failed (feed reset/expired/404). */
+  pensieve_auth_failed?: boolean;
   brightspace_calendar_url: string | null;
+  /** True when the Brightspace iCal-feed fetch failed (feed reset/expired/404). */
+  brightspace_auth_failed?: boolean;
   additional_canvas_accounts: AdditionalCanvasAccount[];
   /** Whether the user has completed onboarding (has at least one integration configured). */
   has_completed_onboarding: boolean;

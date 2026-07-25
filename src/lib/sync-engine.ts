@@ -309,6 +309,13 @@ async function syncCanvas(
         .from("integration_credentials")
         .update({ canvas_auth_failed: false })
         .eq("user_id", userId);
+    } else if (creds.canvas_ical_url) {
+      // iCal feed fetched cleanly — clear its failure flag so the banner
+      // stops warning once a reset/expired feed URL is fixed.
+      await supabase
+        .from("integration_credentials")
+        .update({ canvas_ical_failed: false })
+        .eq("user_id", userId);
     }
     return { synced: result.synced, errors: result.errors };
   } catch (err) {
@@ -325,6 +332,14 @@ async function syncCanvas(
       await supabase
         .from("integration_credentials")
         .update({ canvas_auth_failed: true })
+        .eq("user_id", userId);
+    } else if (creds.canvas_ical_url) {
+      // Any iCal-path failure (feed 404/reset/timeout, or a 200 HTML login page)
+      // means the stored feed URL is broken — persist it so the banner prompts a
+      // fix instead of the breakage only living in this session's sync result.
+      await supabase
+        .from("integration_credentials")
+        .update({ canvas_ical_failed: true })
         .eq("user_id", userId);
     }
     return { synced: 0, errors: [message] };
@@ -589,11 +604,24 @@ async function syncPensieve(
     }));
     const result = await upsertAssignments(supabase, userId, "pensieve", merged, timezone);
     await dismissMissingTasks(supabase, userId, "pensieve", merged);
+    // Feed fetched + parsed cleanly — clear any prior failure flag so the
+    // health banner stops warning the moment the feed recovers.
+    await supabase
+      .from("integration_credentials")
+      .update({ pensieve_auth_failed: false })
+      .eq("user_id", userId);
     logger.info("syncPensieve: upserted", { userId, synced: result.synced });
     return { synced: result.synced, errors: result.errors };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     logger.error("syncPensieve failed", { userId, error: message });
+    // Persist the failure so the in-app banner shows it on a cold load / other
+    // device / after a background sync — not only when the failing sync ran in
+    // the current browser session.
+    await supabase
+      .from("integration_credentials")
+      .update({ pensieve_auth_failed: true })
+      .eq("user_id", userId);
     return { synced: 0, errors: [message] };
   }
 }
@@ -629,10 +657,20 @@ async function syncBrightspace(
     }));
     const result = await upsertAssignments(supabase, userId, "brightspace", merged, timezone);
     await dismissMissingTasks(supabase, userId, "brightspace", merged);
+    // Feed recovered — clear any prior failure flag.
+    await supabase
+      .from("integration_credentials")
+      .update({ brightspace_auth_failed: false })
+      .eq("user_id", userId);
     return { synced: result.synced, errors: result.errors };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     logger.error("syncBrightspace failed", { userId, error: message });
+    // Persist the failure so it survives reloads and shows in the banner.
+    await supabase
+      .from("integration_credentials")
+      .update({ brightspace_auth_failed: true })
+      .eq("user_id", userId);
     return { synced: 0, errors: [message] };
   }
 }
