@@ -18,6 +18,7 @@ const COLORS = {
   canvas: "#0e89d6",
   gradescope: "#10B981",
   pensieve: "#8B5CF6",
+  brightspace: "#E87040",
   syllabus: "#8B5CF6",
   manual: "#F59E0B",
 };
