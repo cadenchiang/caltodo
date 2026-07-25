@@ -14,7 +14,7 @@ export interface Task {
   color: string;
   created_at: string;
   updated_at: string;
-  source: "canvas" | "gradescope" | "pensieve" | "syllabus" | null;
+  source: "canvas" | "gradescope" | "pensieve" | "brightspace" | "syllabus" | null;
   external_id: string | null;
   course_name: string | null;
   source_url: string | null;

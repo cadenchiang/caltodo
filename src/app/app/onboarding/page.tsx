@@ -2,12 +2,13 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ChevronLeft, Monitor, FileText, Check } from "lucide-react";
+import { ChevronLeft, Monitor, FileText, Check, CalendarDays } from "lucide-react";
 import { useTaskContext } from "@/contexts/TaskContext";
 import { trackEvent } from "@/lib/analytics";
 import CanvasStep from "@/components/onboarding/CanvasStep";
 import GradescopeStep from "@/components/onboarding/GradescopeStep";
 import PensieveStep from "@/components/onboarding/PensieveStep";
+import BrightspaceStep from "@/components/onboarding/BrightspaceStep";
 import AddCanvasStep from "@/components/onboarding/AddCanvasStep";
 import SyllabusStep from "@/components/onboarding/SyllabusStep";
 import SearchableSelect from "@/components/onboarding/SearchableSelect";
@@ -39,13 +40,14 @@ const PLATFORM_OPTIONS: Array<{ id: Platform; label: string; description: string
 ];
 
 /** Valid platforms for standalone ?setup= mode. */
-const VALID_SETUP_PLATFORMS = new Set<string>(["canvas", "gradescope", "pensieve", "canvas-add", "syllabus"]);
+const VALID_SETUP_PLATFORMS = new Set<string>(["canvas", "gradescope", "pensieve", "brightspace", "canvas-add", "syllabus"]);
 
 /** Display labels for standalone setup mode header. */
 const SETUP_LABELS: Record<string, string> = {
   canvas: "Canvas",
   gradescope: "Gradescope",
   pensieve: "Pensive",
+  brightspace: "Brightspace",
   "canvas-add": "Canvas",
   syllabus: "Syllabus",
 };
@@ -321,6 +323,13 @@ function SourceLogo({ label }: { label: string }) {
       </div>
     );
   }
+  if (label === "Brightspace") {
+    return (
+      <div className="w-full h-full rounded-md bg-[#E87040]/15 flex items-center justify-center">
+        <CalendarDays size={14} className="text-[#E87040]" />
+      </div>
+    );
+  }
   return null;
 }
 
@@ -519,7 +528,7 @@ export default function OnboardingPage() {
     trackEvent("standalone_setup_completed", { platform: setupParam });
     // Syllabus doesn't use the sync engine — skip triggerSync for it
     if (setupParam !== "syllabus") {
-      const platform = setupParam === "canvas-add" ? "canvas" : setupParam as "canvas" | "gradescope" | "pensieve";
+      const platform = setupParam === "canvas-add" ? "canvas" : setupParam as "canvas" | "gradescope" | "pensieve" | "brightspace";
       triggerSync(undefined, [platform]).catch(() => {});
     }
     setStandaloneExiting(true);
@@ -638,6 +647,18 @@ export default function OnboardingPage() {
     return true;
   }
 
+  /**
+   * Standalone Brightspace handler: saves the feed URL, then redirects to Settings.
+   */
+  async function handleStandaloneBrightspaceNext(payload: {
+    brightspace_calendar_url: string;
+  }): Promise<boolean> {
+    const ok = await saveCredentials(payload);
+    if (!ok) return false;
+    handleStandaloneSuccess();
+    return true;
+  }
+
   // ---- Standalone single-step setup mode rendering ----
   if (isStandaloneSetup) {
     const isSyllabusPreview = setupParam === "syllabus" && syllabusPhase === "preview";
@@ -696,6 +717,16 @@ export default function OnboardingPage() {
                 {setupParam === "pensieve" && (
                   <PensieveStep
                     onNext={handleStandalonePensieveNext}
+                    onSkip={handleStandaloneSkip}
+                    saving={saving}
+                    error={error}
+                    setError={setError}
+                  />
+                )}
+
+                {setupParam === "brightspace" && (
+                  <BrightspaceStep
+                    onNext={handleStandaloneBrightspaceNext}
                     onSkip={handleStandaloneSkip}
                     saving={saving}
                     error={error}

@@ -8,6 +8,7 @@ import CanvasSettings from "./CanvasSettings";
 import CanvasGenericCard from "./CanvasGenericCard";
 import GradescopeSettings from "./GradescopeSettings";
 import PensieveSettings from "./PensieveSettings";
+import BrightspaceSettings from "./BrightspaceSettings";
 import AdditionalCanvasCard from "./AdditionalCanvasCard";
 import ClassesSection from "./ClassesSection";
 
@@ -247,6 +248,15 @@ export default function IntegrationSettings() {
         syncing={syncing}
         lastSyncedAt={lastSyncedAt}
         syncedCount={syncResult?.pensieve.synced}
+      />
+      {/* Brightspace is shown when connected (any school) or as a connect option
+          for non-Berkeley students; Berkeley users typically ignore it. */}
+      <BrightspaceSettings
+        credentials={credentials}
+        onUpdate={handleUpdate}
+        syncing={syncing}
+        lastSyncedAt={lastSyncedAt}
+        syncedCount={syncResult?.brightspace?.synced}
       />
       <CanvasGenericCard />
     </div>

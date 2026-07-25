@@ -39,6 +39,13 @@ export async function fetchBrightspaceAssignments(
   }
 
   const icsText = await res.text();
+  // A reset/private feed often returns HTTP 200 with an HTML login page instead
+  // of iCal. Without this guard the parser just finds no events and the sync
+  // silently reports success with 0 assignments — the exact invisible failure
+  // the full-visibility rule forbids. Treat a non-calendar body as broken.
+  if (!/BEGIN:VCALENDAR/i.test(icsText)) {
+    throw new Error("Brightspace feed didn't return a calendar — the URL may have been reset or made private. Reconnect it.");
+  }
   const assignments = parseBrightspaceEvents(icsText);
 
   logger.info("fetchBrightspaceAssignments: parsed events", {
@@ -76,18 +83,24 @@ export function parseBrightspaceEvents(
 
     if (!uid || !summary) continue;
 
-    const endOrStart = dtend ?? dtstart;
+    // For all-day events (VALUE=DATE, YYYYMMDD) an RFC 5545 DTEND is EXCLUSIVE
+    // — it points at the day AFTER the event — so using it directly makes the
+    // due date one day late. Fall back to DTSTART (the real due day) in that
+    // case. Timed events keep using DTEND. Mirrors the Pensieve client fix.
+    const dtendIsAllDay = dtend ? /^\d{8}$/.test(dtend.value) : false;
+    const endOrStart = dtend && !dtendIsAllDay ? dtend : (dtstart ?? dtend);
     const dueDate = parseDueDateWithTzid(
       endOrStart?.value ?? null,
       endOrStart?.tzid ?? null
     );
     const { title, courseName } = parseBrightspaceSummary(summary, categories);
 
-    // Use UID as external_id, strip any common prefixes
-    const externalId = uid.replace(/^.*?(\d+).*$/, "$1") || uid;
-
+    // Use the full UID as the stable external_id. The old
+    // `uid.replace(/^.*?(\d+).*$/, "$1")` collapsed the UID to its first digit
+    // run, so two events whose UIDs shared a leading number collided into one
+    // task (and dropped the other every sync). The raw UID is unique per event.
     assignments.push({
-      external_id: `bs-${externalId}`,
+      external_id: `bs-${uid.trim()}`,
       course_name: courseName,
       course_id: "brightspace",
       title: unescapeICalText(title),
