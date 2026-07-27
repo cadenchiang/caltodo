@@ -18,6 +18,7 @@ import { syncCourseEnrollments, gatherEnrollableCourses } from "@/lib/course-enr
 import { buildCourseNameMap, getCanonicalName } from "@/lib/course-name-merge";
 import { after } from "next/server";
 import { reportSyncFailures } from "@/lib/integration-alerts";
+import { claimGradescopeCooldown } from "@/lib/gradescope-cooldown";
 import type { SyncResult, SyncSourceResult, AdditionalCanvasAccount } from "@/lib/types";
 
 const UPSERT_BATCH_SIZE = 50;
@@ -464,26 +465,26 @@ async function syncGradescope(
   // hammered the login endpoint. See route: forceGradescope.
   const GRADESCOPE_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
   if (!force) {
-    // Atomically CLAIM the cooldown window before logging in. The previous
-    // read-then-act check let two concurrent syncs (mount + focus + timer
-    // across tabs/devices) both read a stale timestamp, both pass, and both
-    // log in — tripping Gradescope's anti-abuse lockout. This conditional
-    // update advances last_gradescope_synced_at only if it's null or older
-    // than the cooldown; if it returns no row, another sync just claimed the
-    // window, so we skip. Claiming before login also means a failed login
-    // still holds the cooldown (don't hammer on failure).
-    const cutoff = new Date(Date.now() - GRADESCOPE_COOLDOWN_MS).toISOString();
-    const { data: claimed, error: claimError } = await supabase
-      .from("integration_credentials")
-      .update({ last_gradescope_synced_at: new Date().toISOString() })
-      .eq("user_id", userId)
-      .or(`last_gradescope_synced_at.is.null,last_gradescope_synced_at.lt.${cutoff}`)
-      .select("user_id");
-    if (claimError) {
-      logger.error("syncGradescope: failed to claim cooldown", { userId, error: claimError.message });
-      return { synced: 0, errors: [claimError.message] };
+    // CLAIM the cooldown window before logging in. A read-then-act check let
+    // two concurrent syncs (mount + focus + timer across tabs/devices) both
+    // read a stale timestamp, both pass, and both log in — tripping
+    // Gradescope's anti-abuse lockout. Claiming before login also means a
+    // failed login still holds the cooldown (don't hammer on failure).
+    //
+    // claimGradescopeCooldown owns the fallback ladder: it only reports an
+    // error when every mechanism failed, so one broken query can no longer
+    // take the whole integration down. See gradescope-cooldown.ts.
+    const claim = await claimGradescopeCooldown(supabase, userId, GRADESCOPE_COOLDOWN_MS);
+    if (claim.error) {
+      logger.error("syncGradescope: failed to claim cooldown", { userId, error: claim.error });
+      return { synced: 0, errors: [claim.error] };
     }
-    if (!claimed || claimed.length === 0) {
+    if (claim.degraded) {
+      // Worth surfacing in logs/Sentry: the atomic paths are broken, so the
+      // account is protected only by a millisecond-wide race window.
+      logger.error("syncGradescope: cooldown claimed via non-atomic fallback", { userId });
+    }
+    if (!claim.claimed) {
       logger.info("syncGradescope skipped: cooldown held by another sync or still cooling down", { userId });
       return { synced: 0, errors: [] };
     }

@@ -45,8 +45,11 @@ function isUserActionable(msg: string): boolean {
 /**
  * Sends a single alert email via Resend. Returns false if not configured or
  * the send failed (logged, never thrown).
+ *
+ * Exported for the fleet-wide health cron, which alerts on the absence of
+ * successful syncs rather than on any individual SyncResult.
  */
-async function sendAlertEmail(subject: string, body: string): Promise<boolean> {
+export async function sendAlertEmail(subject: string, body: string): Promise<boolean> {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) return false;
   try {
