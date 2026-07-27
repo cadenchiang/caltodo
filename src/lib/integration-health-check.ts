@@ -23,10 +23,18 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 export const SILENCE_THRESHOLD_HOURS = 24;
 
 /**
- * Minimum connected users before silence means anything. With only a handful
- * of accounts a quiet day is ordinary; the signal needs a population.
+ * Minimum users who ACTUALLY RAN a sync in the window before silence means
+ * anything.
+ *
+ * Counting connected users instead was the obvious first cut and it is wrong:
+ * checked against prod on 2026-07-27, Gradescope had 224 connected accounts
+ * but only 4 users opened the app all day, 2 of them with Gradescope. Over
+ * summer that gap is the norm, so a connected-user threshold would have fired
+ * every single morning regardless of health — and an alert that cries wolf
+ * daily is worse than no alert, because it trains you to ignore the one that
+ * matters. Zero successes only means something when syncs were attempted.
  */
-export const MIN_CONNECTED_USERS = 10;
+export const MIN_ACTIVE_USERS = 3;
 
 /** Per-integration health summary. */
 export interface IntegrationHealth {
@@ -34,6 +42,8 @@ export interface IntegrationHealth {
   source: string;
   /** How many users have credentials for it. */
   connected: number;
+  /** How many of those actually ran a sync inside the window. */
+  active: number;
   /** Most recent successful sync across all users, or null if never. */
   lastSuccessAt: string | null;
   /** Hours since that success; null when it has never succeeded. */
@@ -84,6 +94,28 @@ async function countConnected(supabase: SupabaseClient, column: string): Promise
 }
 
 /**
+ * Counts users who have the integration connected AND ran a sync inside the
+ * window. This is the denominator that makes "zero successes" meaningful.
+ *
+ * @param supabase - Admin Supabase client
+ * @param column - Column that is non-null when the integration is connected
+ * @param since - Start of the window
+ * @returns Row count, or 0 when the query fails
+ */
+async function countActive(
+  supabase: SupabaseClient,
+  column: string,
+  since: Date
+): Promise<number> {
+  const { count, error } = await supabase
+    .from("integration_credentials")
+    .select("user_id", { count: "exact", head: true })
+    .not(column, "is", null)
+    .gte("last_synced_at", since.toISOString());
+  return error ? 0 : (count ?? 0);
+}
+
+/**
  * Reads the most recent successful sync timestamp across all users.
  *
  * @param supabase - Admin Supabase client
@@ -119,9 +151,12 @@ export async function checkIntegrationHealth(
 ): Promise<IntegrationHealth[]> {
   const results: IntegrationHealth[] = [];
 
+  const windowStart = new Date(now.getTime() - SILENCE_THRESHOLD_HOURS * 60 * 60 * 1000);
+
   for (const probe of PROBES) {
-    const [connected, lastSuccessAt] = await Promise.all([
+    const [connected, active, lastSuccessAt] = await Promise.all([
       countConnected(supabase, probe.connectedColumn),
+      countActive(supabase, probe.connectedColumn, windowStart),
       latestSuccess(supabase, probe.successColumn),
     ]);
 
@@ -130,15 +165,16 @@ export async function checkIntegrationHealth(
       ? null
       : (now.getTime() - parsed) / (60 * 60 * 1000);
 
-    // Never-succeeded counts as unhealthy too, but only once enough users
-    // have connected that we'd expect to have seen one.
+    // Enough users tried, and not one of them succeeded. Never-succeeded
+    // counts as unhealthy too, under the same "somebody actually tried" gate.
     const unhealthy =
-      connected >= MIN_CONNECTED_USERS &&
+      active >= MIN_ACTIVE_USERS &&
       (hoursSinceSuccess === null || hoursSinceSuccess >= SILENCE_THRESHOLD_HOURS);
 
     results.push({
       source: probe.source,
       connected,
+      active,
       lastSuccessAt,
       hoursSinceSuccess,
       unhealthy,
@@ -160,12 +196,12 @@ export function formatHealthAlert(unhealthy: IntegrationHealth[]): string {
       h.hoursSinceSuccess === null
         ? "never succeeded"
         : `${h.hoursSinceSuccess.toFixed(1)}h since the last success (${h.lastSuccessAt})`;
-    return `- ${h.source}: ${h.connected} users connected, ${since}`;
+    return `- ${h.source}: ${h.active} of ${h.connected} connected users ran a sync, ${since}`;
   });
 
   return [
-    "One or more integrations have produced no successful syncs across the",
-    `entire user base for ${SILENCE_THRESHOLD_HOURS}+ hours. That is a fleet-wide`,
+    `${MIN_ACTIVE_USERS}+ users ran a sync in the last ${SILENCE_THRESHOLD_HOURS}h and not one`,
+    "of them synced this integration successfully. That is a fleet-wide",
     "outage, not a per-user problem.",
     "",
     ...lines,

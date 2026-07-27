@@ -46,5 +46,10 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.claim_gradescope_sync(uuid, integer) FROM public;
+-- Supabase's default privileges hand EXECUTE on new public functions to anon
+-- as well, so revoking PUBLIC alone leaves an explicit anon grant behind.
+-- RLS already makes an anon call a no-op (auth.uid() is null, so the UPDATE
+-- matches nothing and it returns false), but a signed-out caller has no
+-- business reaching a mutation function at all.
+REVOKE ALL ON FUNCTION public.claim_gradescope_sync(uuid, integer) FROM public, anon;
 GRANT EXECUTE ON FUNCTION public.claim_gradescope_sync(uuid, integer) TO authenticated, service_role;

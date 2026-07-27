@@ -4,7 +4,7 @@ import {
   checkIntegrationHealth,
   formatHealthAlert,
   SILENCE_THRESHOLD_HOURS,
-  MIN_CONNECTED_USERS,
+  MIN_ACTIVE_USERS,
 } from "@/lib/integration-health-check";
 
 const NOW = new Date("2026-07-27T12:00:00.000Z");
@@ -18,16 +18,23 @@ function hoursAgo(h: number): string {
  * Stubs the two queries checkIntegrationHealth makes: a head count of
  * connected users and a top-1 ordered read of the success timestamp.
  */
-function makeClient(connected: number, lastSuccess: string | null): SupabaseClient {
+function makeClient(
+  connected: number,
+  active: number,
+  lastSuccess: string | null,
+): SupabaseClient {
   return {
     from: () => {
+      // countActive is the only query that adds .gte("last_synced_at", ...),
+      // which is how the two head-counts are told apart.
       const builder = {
-        isCount: false,
-        select: (_cols: string, opts?: { head?: boolean }) => {
-          if (opts?.head) builder.isCount = true;
+        isActiveQuery: false,
+        select: () => builder,
+        not: () => builder,
+        gte: () => {
+          builder.isActiveQuery = true;
           return builder;
         },
-        not: () => builder,
         order: () => builder,
         limit: () => builder,
         maybeSingle: () =>
@@ -36,7 +43,10 @@ function makeClient(connected: number, lastSuccess: string | null): SupabaseClie
             error: null,
           }),
         then: (resolve: (v: unknown) => void) =>
-          Promise.resolve({ count: connected, error: null }).then(resolve),
+          Promise.resolve({
+            count: builder.isActiveQuery ? active : connected,
+            error: null,
+          }).then(resolve),
       };
       return builder;
     },
@@ -45,18 +55,19 @@ function makeClient(connected: number, lastSuccess: string | null): SupabaseClie
 
 describe("checkIntegrationHealth", () => {
   it("is healthy when a sync succeeded recently", async () => {
-    const [gradescope] = await checkIntegrationHealth(makeClient(200, hoursAgo(2)), NOW);
+    const [gradescope] = await checkIntegrationHealth(makeClient(200, 40, hoursAgo(2)), NOW);
 
     expect(gradescope.source).toBe("gradescope");
     expect(gradescope.connected).toBe(200);
+    expect(gradescope.active).toBe(40);
     expect(gradescope.hoursSinceSuccess).toBeCloseTo(2, 5);
     expect(gradescope.unhealthy).toBe(false);
   });
 
   it("flags the outage that went unnoticed for five days", async () => {
-    // The real shape of the 2026-07-21 incident: plenty of connected users,
-    // no successful sync anywhere since.
-    const [gradescope] = await checkIntegrationHealth(makeClient(200, hoursAgo(120)), NOW);
+    // The 2026-07-21 incident during term: users actively syncing, not one
+    // Gradescope success among them.
+    const [gradescope] = await checkIntegrationHealth(makeClient(200, 40, hoursAgo(120)), NOW);
 
     expect(gradescope.unhealthy).toBe(true);
     expect(gradescope.hoursSinceSuccess).toBeCloseTo(120, 5);
@@ -64,7 +75,7 @@ describe("checkIntegrationHealth", () => {
 
   it("does not flag silence just under the threshold", async () => {
     const [gradescope] = await checkIntegrationHealth(
-      makeClient(200, hoursAgo(SILENCE_THRESHOLD_HOURS - 0.5)),
+      makeClient(200, 40, hoursAgo(SILENCE_THRESHOLD_HOURS - 0.5)),
       NOW,
     );
 
@@ -73,24 +84,32 @@ describe("checkIntegrationHealth", () => {
 
   it("flags silence at exactly the threshold", async () => {
     const [gradescope] = await checkIntegrationHealth(
-      makeClient(200, hoursAgo(SILENCE_THRESHOLD_HOURS)),
+      makeClient(200, 40, hoursAgo(SILENCE_THRESHOLD_HOURS)),
       NOW,
     );
 
     expect(gradescope.unhealthy).toBe(true);
   });
 
-  it("stays quiet when too few users have connected to draw a conclusion", async () => {
-    const [gradescope] = await checkIntegrationHealth(
-      makeClient(MIN_CONNECTED_USERS - 1, hoursAgo(500)),
-      NOW,
-    );
+  it("stays quiet over summer, when hundreds are connected but nobody syncs", async () => {
+    // Measured on prod 2026-07-27: 224 connected, 2 active all day. Gating on
+    // connected users would have mailed a false alarm every morning.
+    const [gradescope] = await checkIntegrationHealth(makeClient(224, 2, hoursAgo(141)), NOW);
 
     expect(gradescope.unhealthy).toBe(false);
   });
 
-  it("treats never-succeeded as unhealthy once enough users have connected", async () => {
-    const [gradescope] = await checkIntegrationHealth(makeClient(200, null), NOW);
+  it("fires as soon as enough users actually try", async () => {
+    const [gradescope] = await checkIntegrationHealth(
+      makeClient(224, MIN_ACTIVE_USERS, hoursAgo(141)),
+      NOW,
+    );
+
+    expect(gradescope.unhealthy).toBe(true);
+  });
+
+  it("treats never-succeeded as unhealthy once users are actively syncing", async () => {
+    const [gradescope] = await checkIntegrationHealth(makeClient(200, 40, null), NOW);
 
     expect(gradescope.lastSuccessAt).toBeNull();
     expect(gradescope.hoursSinceSuccess).toBeNull();
@@ -98,18 +117,19 @@ describe("checkIntegrationHealth", () => {
   });
 
   it("stays quiet for an integration nobody has connected", async () => {
-    const [gradescope] = await checkIntegrationHealth(makeClient(0, null), NOW);
+    const [gradescope] = await checkIntegrationHealth(makeClient(0, 0, null), NOW);
 
     expect(gradescope.unhealthy).toBe(false);
   });
 });
 
 describe("formatHealthAlert", () => {
-  it("names the integration, the population, and the silence", () => {
+  it("names the integration, how many tried, and the silence", () => {
     const body = formatHealthAlert([
       {
         source: "gradescope",
         connected: 200,
+        active: 12,
         lastSuccessAt: "2026-07-21T20:40:30.104Z",
         hoursSinceSuccess: 135.3,
         unhealthy: true,
@@ -117,7 +137,7 @@ describe("formatHealthAlert", () => {
     ]);
 
     expect(body).toContain("gradescope");
-    expect(body).toContain("200 users connected");
+    expect(body).toContain("12 of 200 connected users ran a sync");
     expect(body).toContain("135.3h");
     expect(body).toContain("2026-07-21T20:40:30.104Z");
   });
@@ -127,6 +147,7 @@ describe("formatHealthAlert", () => {
       {
         source: "gradescope",
         connected: 42,
+        active: 5,
         lastSuccessAt: null,
         hoursSinceSuccess: null,
         unhealthy: true,
