@@ -348,6 +348,48 @@ async function syncCanvas(
 }
 
 /**
+ * Flips the `auth_failed` flag on one additional Canvas account.
+ *
+ * The accounts live in a JSONB array, so this is a read-modify-write of the
+ * whole column. Safe here because runSync walks the accounts sequentially;
+ * if that ever becomes concurrent this needs a jsonb_set expression instead.
+ *
+ * @param supabase - Authenticated Supabase client
+ * @param userId - The user's ID
+ * @param accountId - Which additional account to update
+ * @param failed - The value to store
+ */
+async function setAdditionalCanvasAuthFailed(
+  supabase: SupabaseClient,
+  userId: string,
+  accountId: string,
+  failed: boolean
+): Promise<void> {
+  const { data, error } = await supabase
+    .from("integration_credentials")
+    .select("additional_canvas_accounts")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error || !data) return;
+
+  const accounts = (data.additional_canvas_accounts ?? []) as AdditionalCanvasAccount[];
+  if (!accounts.some((a) => a.id === accountId)) return;
+
+  const next = accounts.map((a) => (a.id === accountId ? { ...a, auth_failed: failed } : a));
+  const { error: writeError } = await supabase
+    .from("integration_credentials")
+    .update({ additional_canvas_accounts: next })
+    .eq("user_id", userId);
+  if (writeError) {
+    logger.error("setAdditionalCanvasAuthFailed: write failed", {
+      userId,
+      accountId,
+      error: writeError.message,
+    });
+  }
+}
+
+/**
  * Syncs assignments from an additional Canvas account.
  * Namespaces external_id as "<account_id>:<assignment_id>" to prevent
  * collisions with the primary bCourses integration and other accounts.
@@ -417,10 +459,20 @@ async function syncAdditionalCanvas(
       label: account.label,
       synced: result.synced,
     });
+    // Clear any previous auth failure now that this account authenticated.
+    if (account.auth_failed) {
+      await setAdditionalCanvasAuthFailed(supabase, userId, account.id, false);
+    }
     return { synced: result.synced, errors: result.errors };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     logger.error("syncAdditionalCanvas failed", { userId, accountId: account.id, error: message });
+    // Persist auth failures on the account itself so the health banner can
+    // tell the user which of their Canvas accounts stopped working. Without
+    // this the failure only ever reached the maintainer's inbox.
+    if (/invalid or expired|token is invalid|\b401\b|unauthorized/i.test(message)) {
+      await setAdditionalCanvasAuthFailed(supabase, userId, account.id, true);
+    }
     return { synced: 0, errors: [`${account.label}: ${message}`] };
   }
 }

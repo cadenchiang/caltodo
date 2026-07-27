@@ -130,6 +130,36 @@ export async function fetchCanvasCourses(
 }
 
 /**
+ * Checks whether a Canvas token is still valid, independent of any course.
+ *
+ * Canvas answers 401 for two very different situations: the token is dead,
+ * and the token is fine but you may not view THIS resource (a course you
+ * dropped, one whose term concluded, an id belonging to another instance).
+ * The per-course response body doesn't reliably distinguish them, so we ask
+ * a course-independent endpoint: /users/self needs nothing but a live token.
+ *
+ * @param token - Canvas personal access token
+ * @param baseUrl - Canvas instance base URL
+ * @returns true when the token still authenticates
+ */
+export async function isCanvasTokenValid(token: string, baseUrl: string): Promise<boolean> {
+  const resolvedBaseUrl = baseUrl || "https://bcourses.berkeley.edu";
+  try {
+    const response = await fetch(`${resolvedBaseUrl}/api/v1/users/self`, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
+    // Anything other than an explicit 401 (including a 5xx or a rate limit)
+    // is not evidence the token is dead; assume valid and let the caller
+    // treat the original failure as course-level.
+    return response.status !== 401;
+  } catch {
+    // Network failure tells us nothing about the token.
+    return true;
+  }
+}
+
+/**
  * Fetches all assignments for a specific Canvas course.
  * Handles pagination via the Link header rel="next".
  *
@@ -231,6 +261,9 @@ export async function fetchCanvasAssignmentsForCourses(
   courses: Array<{ id: number; name: string }>
 ): Promise<NormalizedAssignment[]> {
   const results: NormalizedAssignment[] = [];
+  const resolvedBaseUrl = baseUrl || "https://bcourses.berkeley.edu";
+  /** Courses the token can no longer see; skipped rather than fatal. */
+  const inaccessibleCourses: Array<{ id: number; name: string }> = [];
 
   for (const course of courses) {
     try {
@@ -256,13 +289,26 @@ export async function fetchCanvasAssignmentsForCourses(
         courseName: course.name,
         error: msg,
       });
-      // A 401/invalid-token is an ACCOUNT-level failure, not a per-course one:
-      // every course will fail the same way. Rethrow so the sync surfaces it
-      // (sets canvas_auth_failed + the reconnect banner) instead of silently
-      // returning 0 assignments. Non-auth per-course errors stay swallowed so
-      // one bad course doesn't sink the others.
+      // A 401 means one of two things, and they need opposite handling:
+      //
+      //   - The token is dead. Every course will fail the same way, so
+      //     rethrow: the sync sets canvas_auth_failed and the banner asks the
+      //     user to reconnect, instead of silently returning 0 assignments.
+      //   - The token is fine but this course is no longer visible (dropped,
+      //     term concluded, or an id from a different Canvas instance). That
+      //     is a ONE-course problem. Rethrowing it used to take down every
+      //     other course on the account, which is how a single stale entry in
+      //     selected_courses could silently zero out a working integration.
+      //
+      // Ask a course-independent endpoint which case this is.
       if (/invalid or expired|token is invalid|\b401\b|unauthorized/i.test(msg)) {
-        throw err;
+        const tokenStillValid = await isCanvasTokenValid(token, resolvedBaseUrl);
+        if (!tokenStillValid) throw err;
+        logger.warn("Canvas course is no longer accessible; skipping it", {
+          courseId: course.id,
+          courseName: course.name,
+        });
+        inaccessibleCourses.push(course);
       }
     }
   }
@@ -270,6 +316,7 @@ export async function fetchCanvasAssignmentsForCourses(
   logger.info("fetchCanvasAssignmentsForCourses", {
     courseCount: courses.length,
     totalAssignments: results.length,
+    skippedInaccessible: inaccessibleCourses.map((c) => c.id),
   });
   return results;
 }

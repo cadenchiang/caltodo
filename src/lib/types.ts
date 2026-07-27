@@ -118,6 +118,14 @@ export interface AdditionalCanvasAccount {
   selected_courses: Array<{ id: number; name: string }> | null;
   /** iCal calendar feed URL (alternative to API token). */
   ical_url?: string;
+  /**
+   * True when this account's last sync failed authentication. The primary
+   * Canvas account has had `canvas_auth_failed` for this since 20260722;
+   * additional accounts had no equivalent, so a dead token on one of them was
+   * emailed to the maintainer and never shown to the user whose sync stopped.
+   * Set on an auth failure, cleared on any successful sync.
+   */
+  auth_failed?: boolean;
 }
 
 /**

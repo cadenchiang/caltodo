@@ -91,6 +91,20 @@ export default function IntegrationHealthBanner() {
     });
   }
 
+  // Additional Canvas accounts each carry their own token, so each can die
+  // independently of the primary one. Named individually — "Canvas is broken"
+  // is useless when the user has three of them.
+  for (const account of credentials.additional_canvas_accounts ?? []) {
+    if (!account.auth_failed) continue;
+    issues.push({
+      id: `canvas-account-${account.id}`,
+      label: account.label,
+      detail: "This Canvas account rejected your access token. Reconnect it to resume syncing its assignments.",
+      actionLabel: "Reconnect",
+      onAction: () => router.push("/app/onboarding?setup=canvas"),
+    });
+  }
+
   if (credentials.gradescope_auth_failed) {
     issues.push({
       id: "gradescope",

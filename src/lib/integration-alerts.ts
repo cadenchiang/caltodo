@@ -38,7 +38,12 @@ function isUserActionable(msg: string): boolean {
     m.includes("login failed") ||
     m.includes("auth") ||
     m.includes("password") ||
-    m.includes("no courses selected")
+    m.includes("no courses selected") ||
+    // An HTTP status is the honest signal here, and the word list missed it:
+    // "Canvas returned 401 for course 1553118" contains none of the terms
+    // above, so an ordinary expired student token was mailed out as
+    // integration breakage. 401/403 are always the user's to fix.
+    /\b401\b|\b403\b|unauthorized|forbidden|invalid or expired|token is invalid/.test(m)
   );
 }
 

@@ -329,7 +329,14 @@ export async function PUT(request: Request) {
         }
       }
     }
-    updateData.additional_canvas_accounts = body.additional_canvas_accounts;
+    // Saving accounts means the user just (re)entered credentials, so clear
+    // any stored auth failure — otherwise a client that round-trips the
+    // object it read from GET would carry auth_failed:true back in and keep
+    // warning about an account that was just fixed. The next sync re-sets it
+    // if the new token is also bad.
+    updateData.additional_canvas_accounts = accounts
+      ? accounts.map((account) => ({ ...account, auth_failed: false }))
+      : body.additional_canvas_accounts;
   }
   if (body.email_digest_enabled !== undefined) {
     updateData.email_digest_enabled = body.email_digest_enabled;
