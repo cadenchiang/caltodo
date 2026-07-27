@@ -233,6 +233,21 @@ body[data-route="settings"] .miffy-glow::before {
   }
 }
 
+/* Mobile: MobileTabBar is position:fixed, so it sits ON TOP of the scrolled
+   content rather than reserving space. Without this reservation the last row
+   of every list (Inbox, Calendar, Profile…) scrolled under the bar and could
+   not be reached — the Home board was the only page that had patched around
+   it with its own pb-20. Settings is exempt: the tab bar hides itself on that
+   route, so the padding would only add dead space. */
+@media (max-width: 767px) {
+  .app-main {
+    padding-bottom: calc(4.5rem + env(safe-area-inset-bottom));
+  }
+  body[data-route="settings"] .app-main {
+    padding-bottom: 0;
+  }
+}
+
 /* ── Miffy theme: faint watermark in main content ── */
 .theme-miffy .miffy-watermark::after {
   content: "";
@@ -1689,6 +1704,38 @@ textarea:-webkit-autofill {
   -webkit-text-fill-color: #1f2937 !important;
   background-color: #ffffff !important;
   transition: background-color 5000s ease-in-out 0s;
+}
+
+/* Light/Auto/Dark segmented toggle. Segments are 44px wide on mobile (the
+   minimum comfortable touch target — they were 32px, small enough that taps
+   landed between segments and the theme appeared not to respond) and shrink
+   back to the compact desktop size at md. The sliding highlight steps by the
+   segment width, driven off --seg-index set by the component. */
+.theme-toggle-indicator {
+  transform: translateX(calc(var(--seg-index, 0) * 2.75rem));
+}
+@media (min-width: 768px) {
+  .theme-toggle-indicator {
+    transform: translateX(calc(var(--seg-index, 0) * 2rem));
+  }
+}
+
+/* Login form card. The frosted-glass panel is a desktop-only treatment —
+   it needs the two-tone split behind it to read as glass. Below md the
+   right panel is hidden and the page is plain white, where the same
+   border + blur just looked like a stray washed-out box, so the form
+   sits directly on the page instead. */
+@media (min-width: 768px) {
+  .login-card {
+    background: rgba(255, 255, 255, 0.55);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    box-shadow:
+      0 20px 50px -10px rgba(0, 0, 0, 0.12),
+      0 8px 20px -4px rgba(0, 0, 0, 0.06),
+      inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  }
 }
 
 /* Course select modal — full-screen slide-up entrance */

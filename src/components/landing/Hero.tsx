@@ -99,7 +99,7 @@ export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
                   ["--cluster-y" as string]: "8px",
                 }}
               >
-                <div className="w-11 h-11 sm:w-20 sm:h-20 rounded-[10px] sm:rounded-[14px] bg-white shadow-[0_1px_3px_rgba(0,0,0,0.12)] flex items-center justify-center relative z-10">
+                <div className="w-11 h-11 sm:w-16 sm:h-16 rounded-[10px] sm:rounded-[14px] bg-white shadow-[0_1px_3px_rgba(0,0,0,0.12)] flex items-center justify-center relative z-10">
                   <img src="/canvas-logo.png" alt="Canvas" className="w-[70%] h-[70%] object-contain" />
                 </div>
                 <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-3 rounded-md bg-black text-white text-xs font-medium px-2 py-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100 z-50 whitespace-nowrap">
@@ -115,7 +115,7 @@ export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
                   ["--cluster-x" as string]: "30px",
                 }}
               >
-                <svg width="64" height="64" viewBox="0 0 14 14" fill="none" className="w-11 h-11 sm:w-20 sm:h-20 relative z-10">
+                <svg width="64" height="64" viewBox="0 0 14 14" fill="none" className="w-11 h-11 sm:w-16 sm:h-16 relative z-10">
                   <rect width="14" height="14" rx="3" fill="#3AADA8" />
                   <rect x="1.5" y="8.5" width="2" height="3.5" rx="0.5" fill="white" />
                   <rect x="4.5" y="6.5" width="2" height="5.5" rx="0.5" fill="white" />
@@ -137,7 +137,7 @@ export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
                 height={536}
                 priority
                 sizes="(min-width: 640px) 96px, 48px"
-                className="h-14 sm:h-28 w-auto relative z-20 cluster-center-in"
+                className="h-14 sm:h-24 w-auto relative z-20 cluster-center-in"
                 style={{ animationDelay: "0ms" }}
               />
               {/* Pensieve — inner right, mid */}
@@ -149,7 +149,7 @@ export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
                   ["--cluster-x" as string]: "-30px",
                 }}
               >
-                <div className="relative w-11 h-11 sm:w-20 sm:h-20 z-10">
+                <div className="relative w-11 h-11 sm:w-16 sm:h-16 z-10">
                   <div className="absolute inset-[10%] rounded-full bg-white" />
                   <img src="/pensieve-logo.png" alt="Pensive" className="w-full h-full object-contain relative" />
                 </div>
@@ -167,7 +167,7 @@ export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
                   ["--cluster-y" as string]: "8px",
                 }}
               >
-                <svg width="64" height="64" viewBox="0 0 122.88 122.88" className="w-11 h-11 sm:w-20 sm:h-20 relative z-10">
+                <svg width="64" height="64" viewBox="0 0 122.88 122.88" className="w-11 h-11 sm:w-16 sm:h-16 relative z-10">
                   <polygon points="93.78,29.1 29.1,29.1 29.1,93.78 93.78,93.78" fill="#fff" />
                   <polygon points="93.78,122.88 122.88,93.78 93.78,93.78" fill="#EA4335" />
                   <polygon points="122.88,29.1 93.78,29.1 93.78,93.78 122.88,93.78" fill="#FBBC04" />
@@ -197,7 +197,7 @@ export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
 
           {/* Heading */}
           <h2
-            className="text-[46px] sm:text-[80px] leading-[0.95] sm:leading-[0.95] tracking-tight text-center text-black animate-fade-up"
+            className="text-[46px] sm:text-[64px] leading-[0.95] sm:leading-[0.95] tracking-tight text-center text-black animate-fade-up"
             style={{
               fontFamily: '-apple-system, "SF Pro Display", BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
               animationDelay: "1200ms",
@@ -208,7 +208,7 @@ export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
 
           {/* Subtitle */}
           <p
-            className="text-base sm:text-2xl text-center font-sans font-medium mt-4 sm:mt-7 mb-6 sm:mb-10 leading-snug text-black max-w-[320px] sm:max-w-none animate-fade-up"
+            className="text-base sm:text-xl text-center font-sans font-medium mt-4 sm:mt-6 mb-6 sm:mb-8 leading-snug text-black max-w-[320px] sm:max-w-none animate-fade-up"
             style={{ animationDelay: "1350ms" }}
           >
             <span className="sm:hidden">
@@ -226,7 +226,7 @@ export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
           {/* CTA */}
           <Link
             href="/login?signup=true"
-            className="px-4 sm:px-5 py-2 rounded-xl bg-[#0e89d6] text-white text-sm sm:text-base font-medium hover:bg-[#3D8FE8] transition-colors duration-200 mb-4 sm:mb-12 inline-flex items-center gap-1.5 animate-fade-up"
+            className="px-5 py-2.5 sm:px-5 sm:py-2 min-h-11 sm:min-h-0 rounded-xl bg-[#0e89d6] text-white text-sm sm:text-base font-medium hover:bg-[#3D8FE8] transition-colors duration-200 mb-4 sm:mb-12 inline-flex items-center gap-1.5 animate-fade-up"
             style={{ animationDelay: "1500ms" }}
           >
             Get started
@@ -443,7 +443,7 @@ export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <a href="https://www.linkedin.com/company/caltodo/" target="_blank" rel="noopener noreferrer" className="text-black hover:text-black/60 transition-colors">
+            <a href="https://www.linkedin.com/company/caltodo/" target="_blank" rel="noopener noreferrer" aria-label="caltodo on LinkedIn" className="-m-3 p-3 text-black hover:text-black/60 transition-colors">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
             </a>
           </div>

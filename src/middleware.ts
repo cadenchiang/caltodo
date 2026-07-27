@@ -1,6 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { pickLandingPath } from "@/lib/landing-path";
+import { pickLandingPath, isMobileRequest } from "@/lib/landing-path";
 
 /**
  * Middleware for route protection and Supabase auth token refresh.
@@ -59,7 +59,9 @@ export async function middleware(request: NextRequest) {
   // non-hidden nav item. Skip if ?landing=1 is present (sidebar logo click).
   if (user && (pathname === "/" || pathname === "/login") && !request.nextUrl.searchParams.has("landing")) {
     const url = request.nextUrl.clone();
-    url.pathname = pickLandingPath(user.user_metadata);
+    url.pathname = pickLandingPath(user.user_metadata, {
+      isMobile: isMobileRequest(request.headers),
+    });
     const redirectResponse = NextResponse.redirect(url);
     supabaseResponse.cookies.getAll().forEach((cookie) => {
       redirectResponse.cookies.set(cookie.name, cookie.value, cookie);

@@ -43,19 +43,19 @@ export default function LoginPage() {
         >
           <img src="/logo.png" alt="caltodo" className="h-7 sm:h-8 w-auto" />
         </Link>
-        {/* Left: form sitting on a glass modal card. Full width on mobile,
-            half-width once the right panel becomes visible at md. */}
-        <div className="w-full md:basis-1/2 min-w-0 flex flex-col items-center justify-center px-5 sm:px-6 py-10 md:py-8 relative">
-          <div
-            className="w-full max-w-sm rounded-2xl px-6 sm:px-8 py-8 sm:py-10 relative"
-            style={{
-              background: "rgba(255, 255, 255, 0.55)",
-              backdropFilter: "blur(24px) saturate(180%)",
-              WebkitBackdropFilter: "blur(24px) saturate(180%)",
-              border: "1px solid rgba(255, 255, 255, 0.7)",
-              boxShadow: "0 20px 50px -10px rgba(0, 0, 0, 0.12), 0 8px 20px -4px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.7)",
-            }}
-          >
+        {/* Left: the form. Full width on mobile, half-width once the right
+            panel becomes visible at md.
+
+            flex-1 matters on mobile: the parent is flex-col there, so without
+            it this column is only as tall as its content and justify-center
+            has nothing to center within — the form pinned to the top of the
+            viewport with a screen of dead space underneath. */}
+        <div className="w-full flex-1 md:flex-none md:basis-1/2 min-w-0 flex flex-col items-center justify-center px-6 py-10 md:py-8 relative">
+          {/* The glass card is a desktop treatment: it reads as a panel
+              floating over the two-tone split. On mobile there is nothing
+              behind it, so the border + blur just looked like a stray box on
+              white — there the form sits directly on the page. */}
+          <div className="w-full max-w-sm relative rounded-none md:rounded-2xl px-0 md:px-8 py-0 md:py-10 login-card">
             <Suspense>
               <LoginForm />
             </Suspense>

@@ -11,6 +11,30 @@ const THEME_KEY = "caltodo_theme";
 /** localStorage key for persisting the active color theme (e.g. "miffy"). */
 const COLOR_THEME_KEY = "caltodo_color_theme";
 
+/**
+ * auth.user_metadata keys mirroring the two localStorage keys above.
+ *
+ * localStorage alone is not durable on mobile: iOS Safari caps script-writable
+ * storage at 7 days of no interaction with the site, so a phone that goes a
+ * week between visits comes back with the theme reset to the default — which
+ * reads as "themes don't work on mobile". Mirroring into user_metadata (the
+ * same trick useHiddenNavItems uses) makes the choice survive eviction and
+ * follow the user across devices. localStorage stays the fast path so the
+ * pre-paint script in layout.tsx still has something to read.
+ */
+const META_THEME_KEY = "theme_preference";
+const META_COLOR_THEME_KEY = "color_theme";
+
+/**
+ * True when a Supabase auth cookie is present. Used to skip the remote sync
+ * (and the supabase-js dynamic import behind it) for anonymous visitors on the
+ * public landing page, which ThemeProvider also wraps.
+ */
+function hasAuthCookie(): boolean {
+  if (typeof document === "undefined") return false;
+  return /(^|;\s*)sb-[^=]*auth-token/.test(document.cookie);
+}
+
 /** User-facing preference: light, dark, or auto (follow sunset/sunrise). */
 export type ThemePreference = "light" | "dark" | "auto";
 
@@ -212,6 +236,54 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>("light");
   const [colorTheme, setColorThemeState] = useState<ColorTheme>(null);
   const preferenceRef = useRef<ThemePreference>("auto");
+  const colorThemeRef = useRef<ColorTheme>(null);
+
+  /**
+   * Applies a preference to state + DOM + localStorage. No analytics and no
+   * remote write, so it is safe to call when reconciling FROM the server.
+   */
+  const applyPreferenceLocal = useCallback((pref: ThemePreference, animate = false) => {
+    const resolved = resolveTheme(pref);
+    setPreferenceState(pref);
+    preferenceRef.current = pref;
+    setResolvedTheme(resolved);
+    applyTheme(resolved, animate);
+    try {
+      localStorage.setItem(THEME_KEY, pref);
+    } catch {
+      // localStorage unavailable
+    }
+  }, []);
+
+  /** Color-theme counterpart of applyPreferenceLocal. */
+  const applyColorThemeLocal = useCallback((theme: ColorTheme) => {
+    setColorThemeState(theme);
+    colorThemeRef.current = theme;
+    applyColorTheme(theme);
+    try {
+      if (theme) {
+        localStorage.setItem(COLOR_THEME_KEY, theme);
+      } else {
+        localStorage.removeItem(COLOR_THEME_KEY);
+      }
+    } catch {
+      // localStorage unavailable
+    }
+  }, []);
+
+  /**
+   * Fire-and-forget mirror of a theme choice into auth.user_metadata.
+   * supabase-js is imported lazily so the public landing page, which also
+   * mounts this provider, doesn't pay for the client bundle.
+   */
+  const mirrorToRemote = useCallback((data: Record<string, unknown>) => {
+    if (!hasAuthCookie()) return;
+    import("@/lib/supabase/client")
+      .then(({ createClient }) => createClient().auth.updateUser({ data }))
+      .catch(() => {
+        // Non-critical: localStorage already reflects the change.
+      });
+  }, []);
 
   // On mount, read stored preference and apply the resolved theme + color theme.
   useEffect(() => {
@@ -224,8 +296,51 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
     const storedColor = getInitialColorTheme();
     setColorThemeState(storedColor);
+    colorThemeRef.current = storedColor;
     applyColorTheme(storedColor);
   }, []);
+
+  // Reconcile with the server copy once, after the local read above. Remote
+  // wins when the two disagree: the common case is a device whose
+  // localStorage was evicted, so the stale value is the local one.
+  useEffect(() => {
+    if (!hasAuthCookie()) return;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const { getCurrentUser } = await import("@/lib/supabase/current-user");
+        const user = await getCurrentUser();
+        if (cancelled || !user) return;
+        const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
+
+        const remotePref = meta[META_THEME_KEY];
+        if (
+          (remotePref === "light" || remotePref === "dark" || remotePref === "auto") &&
+          remotePref !== preferenceRef.current
+        ) {
+          applyPreferenceLocal(remotePref);
+        }
+
+        // A cleared color theme is stored as null, which is meaningful —
+        // only skip when the key is absent entirely (never synced).
+        if (META_COLOR_THEME_KEY in meta) {
+          const raw = meta[META_COLOR_THEME_KEY];
+          const remoteColor: ColorTheme =
+            typeof raw === "string" && VALID_COLOR_THEMES.has(raw) ? (raw as ColorTheme) : null;
+          if (remoteColor !== colorThemeRef.current) {
+            applyColorThemeLocal(remoteColor);
+          }
+        }
+      } catch {
+        // Signed out mid-flight or offline: the local cache stands.
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [applyPreferenceLocal, applyColorThemeLocal]);
 
   // When preference is "auto": resolve from cached/default coords, poll solar
   // position every 60s.
@@ -258,34 +373,16 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   const setPreference = useCallback((pref: ThemePreference) => {
     trackEvent("theme_changed", { theme: pref });
-    const resolved = resolveTheme(pref);
-    setPreferenceState(pref);
-    preferenceRef.current = pref;
-    setResolvedTheme(resolved);
-    applyTheme(resolved, true);
-    try {
-      localStorage.setItem(THEME_KEY, pref);
-    } catch {
-      // localStorage unavailable
-    }
-  }, []);
+    applyPreferenceLocal(pref, true);
+    mirrorToRemote({ [META_THEME_KEY]: pref });
+  }, [applyPreferenceLocal, mirrorToRemote]);
 
   const toggleTheme = useCallback(() => {
-    setPreferenceState((prev) => {
-      const next = CYCLE[prev];
-      trackEvent("theme_changed", { theme: next });
-      const resolved = resolveTheme(next);
-      preferenceRef.current = next;
-      setResolvedTheme(resolved);
-      applyTheme(resolved, true);
-      try {
-        localStorage.setItem(THEME_KEY, next);
-      } catch {
-        // localStorage unavailable
-      }
-      return next;
-    });
-  }, []);
+    const next = CYCLE[preferenceRef.current];
+    trackEvent("theme_changed", { theme: next });
+    applyPreferenceLocal(next, true);
+    mirrorToRemote({ [META_THEME_KEY]: next });
+  }, [applyPreferenceLocal, mirrorToRemote]);
 
   /**
    * Activate or deactivate a color theme.
@@ -295,18 +392,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
    */
   const setColorTheme = useCallback((theme: ColorTheme) => {
     trackEvent("color_theme_changed", { colorTheme: theme ?? "default" });
-    setColorThemeState(theme);
-    applyColorTheme(theme);
-    try {
-      if (theme) {
-        localStorage.setItem(COLOR_THEME_KEY, theme);
-      } else {
-        localStorage.removeItem(COLOR_THEME_KEY);
-      }
-    } catch {
-      // localStorage unavailable
-    }
-  }, []);
+    applyColorThemeLocal(theme);
+    mirrorToRemote({ [META_COLOR_THEME_KEY]: theme });
+  }, [applyColorThemeLocal, mirrorToRemote]);
 
   return (
     <ThemeContext.Provider value={{ preference, resolvedTheme, setPreference, toggleTheme, colorTheme, setColorTheme }}>

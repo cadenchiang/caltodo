@@ -28,22 +28,21 @@ export default function ThemeToggle({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        "relative flex w-fit h-9 rounded-full p-1 transition-colors duration-300",
+        "theme-toggle relative flex w-fit h-11 md:h-9 rounded-full p-1 transition-colors duration-300",
         isDark
           ? "bg-zinc-950 border border-zinc-800"
           : "bg-white border border-zinc-200",
         className
       )}
     >
-      {/* Sliding highlight indicator */}
+      {/* Sliding highlight indicator. The step is a CSS var rather than an
+          inline pixel value so it can follow the wider mobile segments. */}
       <div
         className={cn(
-          "absolute top-1 left-1 h-7 w-8 rounded-full transition-all duration-300 ease-in-out",
+          "theme-toggle-indicator absolute top-1 left-1 h-9 w-11 md:h-7 md:w-8 rounded-full transition-all duration-300 ease-in-out",
           isDark ? "bg-zinc-800" : "bg-gray-200"
         )}
-        style={{
-          transform: `translateX(${activeIndex * 32}px)`,
-        }}
+        style={{ ["--seg-index" as string]: activeIndex }}
         aria-hidden
       />
 
@@ -58,7 +57,7 @@ export default function ThemeToggle({ className }: { className?: string }) {
             aria-label={label}
             aria-pressed={isActive}
             className={cn(
-              "relative z-10 flex h-7 w-8 items-center justify-center rounded-full transition-colors duration-200",
+              "relative z-10 flex h-9 w-11 md:h-7 md:w-8 items-center justify-center rounded-full transition-colors duration-200",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
             )}
           >

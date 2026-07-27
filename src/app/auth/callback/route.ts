@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { pickLandingPath } from "@/lib/landing-path";
+import { pickLandingPath, isMobileRequest } from "@/lib/landing-path";
 
 /**
  * OAuth callback route handler.
@@ -65,7 +65,9 @@ export async function GET(request: NextRequest) {
           // their platforms and connect each integration.
           redirectTo.pathname = "/app/onboarding";
         } else {
-          redirectTo.pathname = pickLandingPath(user.user_metadata);
+          redirectTo.pathname = pickLandingPath(user.user_metadata, {
+            isMobile: isMobileRequest(request.headers),
+          });
         }
       } else {
         redirectTo.pathname = "/app/inbox";
