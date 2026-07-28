@@ -84,9 +84,25 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ scanned: 0, sent: 0 });
   }
 
-  // Cleanup stale dispatch rows in the background — cheap, runs every tick.
+  // Cleanup stale dispatch rows — cheap, runs every tick.
+  //
+  // This was `void supabase...delete().lt(...)` with nothing awaiting it. A
+  // PostgREST query builder is a lazy thenable: it does not issue its request
+  // until something calls .then() on it, so `void` alone meant this delete was
+  // constructed and dropped, never sent. It had silently never run — prod
+  // still held dispatch rows from 2026-04-22 — while the tasks purge just
+  // below, which does attach a .then(), worked fine the whole time.
   const cutoff = new Date(now.getTime() - DISPATCH_TTL_DAYS * 24 * 60 * 60 * 1000).toISOString();
-  void supabase.from("notification_dispatches").delete().lt("sent_at", cutoff);
+  const { error: dispatchPurgeError } = await supabase
+    .from("notification_dispatches")
+    .delete()
+    .lt("sent_at", cutoff);
+  if (dispatchPurgeError) {
+    logger.error("cron/push-reminders: dispatch purge failed", {
+      error: dispatchPurgeError.message,
+      cutoff,
+    });
+  }
 
   // Purge old completed tasks (>30 days) to keep Supabase storage bounded.
   // Runs as a fire-and-forget query so it never blocks the cron timeout.
