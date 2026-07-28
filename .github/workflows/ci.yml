@@ -1,8 +1,21 @@
 name: CI
 
+# Runs on pushes to main as well as PRs. Vercel deploys straight off main, so
+# a direct push (or an admin merge that skips the PR flow) previously reached
+# production with no typecheck and no tests behind it — on 2026-07-27 four
+# such pushes shipped on local verification alone.
 on:
+  push:
+    branches: [main]
   pull_request:
     branches: [main]
+
+# A PR branch that gets pushed again mid-run doesn't need the older run to
+# finish. main is excluded from cancellation: every commit that reaches
+# production should have its own recorded result.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   check:
