@@ -177,8 +177,18 @@ export default function GoogleCalendarSettings() {
   const [needsReconnect, setNeedsReconnect] = useState(false);
   const mountedRef = useRef(true);
 
-  globalShowToast = showToast;
-  globalUpdateProgress = updateToastProgress;
+  // Publish the toast helpers for the module-level background sync, which by
+  // design outlives this component so the user can navigate away mid-sync.
+  // Done in an effect rather than during render: assigning module state while
+  // rendering is a side effect in the render phase, so a render that never
+  // commits (StrictMode's double render, or a concurrent render React throws
+  // away) would still overwrite the globals. Deliberately not cleared on
+  // unmount — that persistence is the whole point.
+  useEffect(() => {
+    globalShowToast = showToast;
+    globalUpdateProgress = updateToastProgress;
+  });
+
   useEffect(() => {
     mountedRef.current = true;
     return () => { mountedRef.current = false; };

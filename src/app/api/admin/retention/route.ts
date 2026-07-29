@@ -158,7 +158,7 @@ export async function GET() {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    let logins: Array<{ user_id: string; created_at: string }> = [];
+    const logins: Array<{ user_id: string; created_at: string }> = [];
 
     const { data: auditData, error: auditError } = await adminClient
       .schema("auth")

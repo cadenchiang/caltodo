@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useTransition } from "react";
+import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useRouter } from "next/navigation";
 import { Inbox, Sun, CalendarRange, ChevronLeft } from "lucide-react";
@@ -120,13 +121,17 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
         {/* Header: logo + name on the left, collapse button on the right.
             px-3 aligns the logo's left edge with nav item icons below. */}
         <div className="mb-4 pt-6 pb-2 px-3 flex items-center justify-between">
-          <a href="/?landing=1" className="flex items-center gap-2 hover:opacity-80 transition-opacity min-w-0">
+          {/* Link, not a raw <a>: the anchor forced a full document reload out
+              of the app on every logo click, discarding the loaded bundle and
+              all in-memory state. ?landing=1 still opts out of the middleware
+              redirect that would otherwise bounce a signed-in user back. */}
+          <Link href="/?landing=1" className="flex items-center gap-2 hover:opacity-80 transition-opacity min-w-0">
             <img
               src={isMiffy ? (isDark ? "/logo-miffy-dark.png" : "/logo-miffy.png") : "/logo.png"}
               alt="caltodo"
               className={`h-8 object-contain shrink-0 ${isMiffy ? "" : "dark:invert"}`}
             />
-          </a>
+          </Link>
         </div>
         {isSettings ? (
           <div className="flex flex-col gap-1">
