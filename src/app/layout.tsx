@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import SWRProvider from "@/components/SWRProvider";
 import PostHogProvider from "@/components/PostHogProvider";
@@ -230,6 +231,11 @@ export default function RootLayout({
             </SWRProvider>
           </ThemeProvider>
         </PostHogProvider>
+        {/* Loads /_vercel/insights/script.js. Without it the track() call in
+            trackEvent() is a no-op: the dependency was installed and the
+            events wired up, but this mount never landed, so every Vercel-side
+            event since February went nowhere while PostHog kept working. */}
+        <Analytics />
       </body>
     </html>
   );
