@@ -352,6 +352,17 @@ export default function OnboardingPage() {
   const setupParam = searchParams.get("setup");
   const isStandaloneSetup = setupParam !== null && VALID_SETUP_PLATFORMS.has(setupParam);
 
+  // Declared up here, above the isStandaloneSetup early return further down,
+  // because hook order has to be identical on every render of this component.
+  // They used to sit below that return, so the component called 30 hooks with
+  // ?setup=<platform> in the URL and 32 without. Switching between those two
+  // URLs re-renders this instance rather than remounting it (the App Router
+  // treats it as the same route), so React hit "Rendered more hooks than
+  // during the previous render" and the page crashed. The health banner
+  // pushes /app/onboarding?setup=canvas, which makes that a reachable path.
+  const [exiting, setExiting] = useState(false);
+  const [showSkipModal, setShowSkipModal] = useState(false);
+
   // Syllabus phase tracking for conditional layout
   const [syllabusPhase, setSyllabusPhase] = useState<"upload" | "extracting" | "preview">("upload");
 
@@ -774,9 +785,6 @@ export default function OnboardingPage() {
       return next;
     });
   }
-
-  const [exiting, setExiting] = useState(false);
-  const [showSkipModal, setShowSkipModal] = useState(false);
 
   /**
    * Marks onboarding complete and navigates to /app/home.

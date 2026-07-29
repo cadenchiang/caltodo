@@ -55,6 +55,22 @@ export async function PATCH(
     return NextResponse.json({ error: "No editable fields provided" }, { status: 400 });
   }
 
+  // Keep is_completed and completed_at consistent. They are two independent
+  // entries in ALLOWED, so a client could set one without the other, and
+  // clients did: prod holds 44 tasks that are complete with a null
+  // completed_at. That is not cosmetic — the nightly archive purge in
+  // cron/push-reminders deletes on `completed_at < cutoff`, so a null one is
+  // invisible to it and the row is retained forever. The web client's
+  // toggleComplete always sends both; this makes the server enforce it rather
+  // than trusting every caller to remember.
+  if ("is_completed" in update) {
+    if (update.is_completed === true) {
+      if (update.completed_at == null) update.completed_at = new Date().toISOString();
+    } else if (update.is_completed === false) {
+      update.completed_at = null;
+    }
+  }
+
   const { data, error } = await supabase
     .from("tasks")
     .update(update)
