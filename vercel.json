@@ -20,6 +20,10 @@
     "src/app/api/cron/push-reminders/route.ts": {
       "memory": 512,
       "maxDuration": 60
+    },
+    "src/app/api/mcp/**/*.ts": {
+      "memory": 512,
+      "maxDuration": 60
     }
   },
   "crons": [
