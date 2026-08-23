@@ -9,7 +9,7 @@
  * showing what's synced and a "Sync later" prompt for what isn't.
  */
 
-import { useMemo, useState, useEffect } from "react";
+import { useCallback, useMemo, useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { X, GraduationCap } from "lucide-react";
 import { useTaskContext } from "@/contexts/TaskContext";
@@ -55,8 +55,20 @@ function PlatformStatus() {
   );
 }
 
-/** The modal body: the editable class list + platform status. */
-function ClassesModal({ onClose }: { onClose: () => void }) {
+/** Duration of the exit animation in ms — must match .animate-modal-out. */
+const EXIT_DURATION = 200;
+
+/**
+ * The modal body: the editable class list + platform status.
+ *
+ * Entry animation runs from the CSS classes applied on mount. Closing is
+ * driven by the parent, which keeps the modal mounted for {@link EXIT_DURATION}
+ * with `closing` set so the exit animation can play before unmount.
+ *
+ * @param closing - True while the exit animation should be playing
+ * @param onClose - Starts the close sequence (backdrop click, X, or Escape)
+ */
+function ClassesModal({ closing, onClose }: { closing: boolean; onClose: () => void }) {
   // Close on Escape.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -67,13 +79,19 @@ function ClassesModal({ onClose }: { onClose: () => void }) {
   }, [onClose]);
 
   return createPortal(
-    <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-      onClick={onClose}
-    >
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+      {/* Backdrop — fades with the card rather than snapping on and off. */}
       <div
-        className="w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-2xl bg-popover border border-border shadow-xl p-6"
-        onClick={(e) => e.stopPropagation()}
+        className={`absolute inset-0 bg-black/50 backdrop-blur-sm ${
+          closing ? "animate-backdrop-out" : "animate-backdrop-in"
+        }`}
+        onClick={onClose}
+      />
+
+      <div
+        className={`relative w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-2xl bg-popover border border-border shadow-xl p-6 ${
+          closing ? "animate-dialog-out" : "animate-dialog-in"
+        }`}
       >
         <div className="flex items-start justify-between mb-4">
           <div>
@@ -106,6 +124,19 @@ function ClassesModal({ onClose }: { onClose: () => void }) {
 export default function CalendarClassesButton() {
   const { tasks } = useTaskContext();
   const [open, setOpen] = useState(false);
+  const [closing, setClosing] = useState(false);
+
+  /**
+   * Starts the close sequence: flags the modal as closing so its exit
+   * animation plays, then unmounts it once the animation has finished.
+   */
+  const handleClose = useCallback(() => {
+    setClosing(true);
+    setTimeout(() => {
+      setClosing(false);
+      setOpen(false);
+    }, EXIT_DURATION);
+  }, []);
 
   // Count distinct synced classes by course name.
   const classCount = useMemo(() => {
@@ -129,7 +160,7 @@ export default function CalendarClassesButton() {
         <GraduationCap size={14} className="text-muted-foreground" />
         {classCount} {classCount === 1 ? "class" : "classes"}
       </button>
-      {open && <ClassesModal onClose={() => setOpen(false)} />}
+      {open && <ClassesModal closing={closing} onClose={handleClose} />}
     </>
   );
 }

@@ -1843,6 +1843,27 @@ textarea:-webkit-autofill {
   animation: eventModalCardOut 180ms ease-in both;
 }
 
+/* Generic centered-dialog animation — backdrop fade plus a scale + fade card,
+   for any modal that should animate on the way out as well as in. Reuses the
+   event-modal keyframes rather than duplicating them. Distinct from
+   .animate-modal-in/out, which slides up from the bottom edge (sheet style)
+   and suits full-height mobile modals, not centered dialogs. */
+.animate-backdrop-in {
+  animation: eventModalBackdropIn 200ms ease-out both;
+}
+
+.animate-backdrop-out {
+  animation: eventModalBackdropOut 200ms ease-in both;
+}
+
+.animate-dialog-in {
+  animation: eventModalCardIn 250ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-dialog-out {
+  animation: eventModalCardOut 200ms ease-in both;
+}
+
 /* Course row staggered fade-in */
 @keyframes rowFadeIn {
   from {

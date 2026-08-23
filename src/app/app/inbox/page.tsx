@@ -608,7 +608,12 @@ export default function InboxPage() {
 
   return (
     <PageTransition>
-      <div className="flex flex-row -m-4 md:-m-10 h-[calc(100%+2rem)] md:h-[calc(100%+5rem)] overflow-hidden">
+      {/* Height cancels exactly the negative top margin, so the page fills
+          <main> without overflowing it. Overflowing by even a few pixels gives
+          <main> its own scrollbar, which scrolls the whole two-pane layout —
+          including the right detail panel — instead of just the task list.
+          The task list below owns the only scroll area on this page. */}
+      <div className="flex flex-row -m-4 md:-m-10 h-[calc(100%+1rem)] md:h-[calc(100%+2.5rem)] overflow-hidden">
         {/* Left column — filter bar, tabs row, and task list. */}
         <div className="flex flex-col flex-1 min-w-0 min-h-0">
         {/* Filter + actions bar — Inbox dropdown left, action buttons
