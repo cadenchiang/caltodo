@@ -12,6 +12,8 @@ import { listAssignmentsTool } from "@/lib/mcp/tools/list-assignments";
 import { syncAssignmentsTool } from "@/lib/mcp/tools/sync-assignments";
 import { createTaskTool } from "@/lib/mcp/tools/create-task";
 import { deleteTaskTool } from "@/lib/mcp/tools/delete-task";
+import { listEventsTool } from "@/lib/mcp/tools/list-events";
+import { setEventColorTool } from "@/lib/mcp/tools/set-event-color";
 import { logger } from "@/lib/logger";
 
 export type { JsonSchema, McpTool } from "@/lib/mcp/tool-types";
@@ -22,6 +24,8 @@ export const MCP_TOOLS = [
   createTaskTool,
   deleteTaskTool,
   syncAssignmentsTool,
+  listEventsTool,
+  setEventColorTool,
 ];
 
 /**

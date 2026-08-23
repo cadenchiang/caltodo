@@ -26,6 +26,14 @@ vi.mock("@/lib/mcp/mutations", () => ({
   deleteTask: (...args: unknown[]) => mockDelete(...args),
 }));
 
+const mockListEvents = vi.fn();
+const mockSetColor = vi.fn();
+
+vi.mock("@/lib/mcp/calendar", () => ({
+  listCalendarEvents: (...args: unknown[]) => mockListEvents(...args),
+  setEventColor: (...args: unknown[]) => mockSetColor(...args),
+}));
+
 import { MCP_TOOLS, findTool, callTool } from "@/lib/mcp/tools";
 
 const USER_ID = "user-abc-123";
@@ -49,6 +57,8 @@ describe("MCP_TOOLS", () => {
       "create_task",
       "delete_task",
       "list_assignments",
+      "list_calendar_events",
+      "set_event_color",
       "sync_assignments",
     ]);
   });
@@ -363,5 +373,136 @@ describe("callTool: delete_task", () => {
     const result = await callTool("delete_task", { id: "nope" }, USER_ID);
     expect(result.isError).toBe(true);
     expect(result.text).toContain("No task found");
+  });
+});
+
+describe("callTool: list_calendar_events", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockListEvents.mockResolvedValue([
+      {
+        id: "e1",
+        calendarId: "primary",
+        title: "Standup",
+        start: "2026-08-24T09:00:00Z",
+        allDay: false,
+        colorId: "7",
+        colorName: "Peacock",
+      },
+    ]);
+  });
+
+  it("maps snake_case arguments onto the listing filters", async () => {
+    await callTool(
+      "list_calendar_events",
+      { time_min: "2026-08-24T00:00:00Z", time_max: "2026-08-25T00:00:00Z", query: "standup", limit: 5 },
+      USER_ID
+    );
+    expect(mockListEvents).toHaveBeenCalledWith(USER_ID, {
+      timeMin: "2026-08-24T00:00:00Z",
+      timeMax: "2026-08-25T00:00:00Z",
+      query: "standup",
+      limit: 5,
+    });
+  });
+
+  it("shows the color, event id and calendar id on each line", async () => {
+    const result = await callTool("list_calendar_events", {}, USER_ID);
+    expect(result.isError).toBe(false);
+    expect(result.text).toContain("Standup");
+    expect(result.text).toContain("color: Peacock");
+    expect(result.text).toContain("id: e1");
+    expect(result.text).toContain("calendar: primary");
+  });
+
+  it("marks all-day events", async () => {
+    mockListEvents.mockResolvedValue([
+      {
+        id: "e2",
+        calendarId: "primary",
+        title: "Holiday",
+        start: "2026-08-25",
+        allDay: true,
+        colorId: null,
+        colorName: "default (calendar color)",
+      },
+    ]);
+    const result = await callTool("list_calendar_events", {}, USER_ID);
+    expect(result.text).toContain("(all day)");
+  });
+
+  it("returns a plain sentence when the range is empty", async () => {
+    mockListEvents.mockResolvedValue([]);
+    const result = await callTool("list_calendar_events", {}, USER_ID);
+    expect(result).toEqual({ text: "No events in that range.", isError: false });
+  });
+
+  it("returns an isError result when Calendar is not connected", async () => {
+    mockListEvents.mockRejectedValue(new Error("Google Calendar is not connected."));
+    const result = await callTool("list_calendar_events", {}, USER_ID);
+    expect(result.isError).toBe(true);
+    expect(result.text).toContain("not connected");
+  });
+});
+
+describe("callTool: set_event_color", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockSetColor.mockResolvedValue({ title: "Standup", colorName: "Peacock" });
+  });
+
+  it("resolves a plain color name to a Google colorId", async () => {
+    await callTool("set_event_color", { event_id: "e1", color: "blue" }, USER_ID);
+    expect(mockSetColor).toHaveBeenCalledWith(USER_ID, "e1", "7", undefined);
+  });
+
+  it("resolves an official palette name", async () => {
+    await callTool("set_event_color", { event_id: "e1", color: "Tomato" }, USER_ID);
+    expect(mockSetColor).toHaveBeenCalledWith(USER_ID, "e1", "11", undefined);
+  });
+
+  it("passes an explicit calendar id through", async () => {
+    await callTool(
+      "set_event_color",
+      { event_id: "e1", color: "5", calendar_id: "work@group" },
+      USER_ID
+    );
+    expect(mockSetColor).toHaveBeenCalledWith(USER_ID, "e1", "5", "work@group");
+  });
+
+  it("confirms with the event title and new color", async () => {
+    const result = await callTool("set_event_color", { event_id: "e1", color: "blue" }, USER_ID);
+    expect(result.isError).toBe(false);
+    expect(result.text).toBe('Changed "Standup" to Peacock.');
+  });
+
+  it("clears the color when asked for the default", async () => {
+    mockSetColor.mockResolvedValue({ title: "Standup", colorName: "default (calendar color)" });
+    await callTool("set_event_color", { event_id: "e1", color: "default" }, USER_ID);
+    expect(mockSetColor).toHaveBeenCalledWith(USER_ID, "e1", null, undefined);
+  });
+
+  it("rejects an unknown color without calling Google", async () => {
+    const result = await callTool(
+      "set_event_color",
+      { event_id: "e1", color: "chartreuse" },
+      USER_ID
+    );
+    expect(result.isError).toBe(true);
+    expect(result.text).toMatch(/Unknown color/);
+    expect(mockSetColor).not.toHaveBeenCalled();
+  });
+
+  it("rejects a missing event_id or color without calling Google", async () => {
+    expect((await callTool("set_event_color", { color: "blue" }, USER_ID)).isError).toBe(true);
+    expect((await callTool("set_event_color", { event_id: "e1" }, USER_ID)).isError).toBe(true);
+    expect(mockSetColor).not.toHaveBeenCalled();
+  });
+
+  it("returns an isError result when the event is gone", async () => {
+    mockSetColor.mockRejectedValue(new Error('No event "e1" on calendar "primary".'));
+    const result = await callTool("set_event_color", { event_id: "e1", color: "blue" }, USER_ID);
+    expect(result.isError).toBe(true);
+    expect(result.text).toContain("No event");
   });
 });
