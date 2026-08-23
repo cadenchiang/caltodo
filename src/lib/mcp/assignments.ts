@@ -15,10 +15,14 @@ import { runSync } from "@/lib/sync-engine";
 import type { SyncResult } from "@/lib/types";
 import { logger } from "@/lib/logger";
 
-/** Sources exposed through MCP. Manual and syllabus tasks are excluded. */
+/** Synced platforms exposed through MCP. Pensieve and syllabus are excluded. */
 export const ASSIGNMENT_SOURCES = ["canvas", "gradescope"] as const;
 
-export type AssignmentSource = (typeof ASSIGNMENT_SOURCES)[number];
+/**
+ * Sources a caller can filter by. "manual" means a task with no source — one
+ * typed into the app or created through the MCP create_task tool.
+ */
+export type AssignmentSource = (typeof ASSIGNMENT_SOURCES)[number] | "manual";
 
 /** Which slice of assignments to return, relative to today in the caller's timezone. */
 export type AssignmentStatus = "upcoming" | "overdue" | "today" | "all";
@@ -179,9 +183,17 @@ export async function listAssignments(
     .eq("user_id", userId)
     .is("dismissed_at", null);
 
-  query = source
-    ? query.eq("source", source)
-    : query.in("source", ASSIGNMENT_SOURCES as unknown as string[]);
+  // No source filter means "everything the user acts on": both synced
+  // platforms plus manual tasks (source null), so a task created through
+  // create_task shows up here. PostgREST ANDs repeated or-groups, so this
+  // composes correctly with the date-window or-group below.
+  if (source === "manual") {
+    query = query.is("source", null);
+  } else if (source) {
+    query = query.eq("source", source);
+  } else {
+    query = query.or(`source.in.(${ASSIGNMENT_SOURCES.join(",")}),source.is.null`);
+  }
 
   if (!includeCompleted) query = query.eq("is_completed", false);
   if (course) query = query.ilike("course_name", `%${course}%`);

@@ -163,17 +163,27 @@ describe("listAssignments", () => {
     ]);
   });
 
-  it("filters to both assignment sources when none is given", async () => {
+  it("includes both synced platforms and manual tasks when no source is given", async () => {
     const spy = makeClient({ data: [], error: null });
     await listAssignments(USER_ID, {}, spy.client);
-    expect(argsFor(spy, "in")).toEqual(["source", ["canvas", "gradescope"]]);
+    const orClauses = allCalls(spy, "or").map((a) => a[0] as string);
+    expect(orClauses).toContain("source.in.(canvas,gradescope),source.is.null");
+  });
+
+  it("filters to manual tasks only when source is manual", async () => {
+    const spy = makeClient({ data: [], error: null });
+    await listAssignments(USER_ID, { source: "manual" }, spy.client);
+    expect(allCalls(spy, "is")).toContainEqual(["source", null]);
+    expect(allCalls(spy, "eq")).not.toContainEqual(["source", "manual"]);
   });
 
   it("filters to a single source when given", async () => {
     const spy = makeClient({ data: [], error: null });
     await listAssignments(USER_ID, { source: "gradescope" }, spy.client);
     expect(allCalls(spy, "eq")).toContainEqual(["source", "gradescope"]);
-    expect(argsFor(spy, "in")).toBeUndefined();
+    expect(allCalls(spy, "or").map((a) => a[0] as string)).not.toContain(
+      "source.in.(canvas,gradescope),source.is.null"
+    );
   });
 
   it("excludes completed assignments by default and includes them on request", async () => {
@@ -204,16 +214,21 @@ describe("listAssignments", () => {
   it("uses a date-range-or-null filter for upcoming", async () => {
     const spy = makeClient({ data: [], error: null });
     await listAssignments(USER_ID, { status: "upcoming", daysAhead: 7 }, spy.client);
-    const or = argsFor(spy, "or")?.[0] as string;
-    expect(or).toContain("due_date.gte.");
-    expect(or).toContain("due_date.lte.");
-    expect(or).toContain("due_date.is.null");
+    const dateClause = allCalls(spy, "or")
+      .map((a) => a[0] as string)
+      .find((c) => c.includes("due_date"));
+    expect(dateClause).toContain("due_date.gte.");
+    expect(dateClause).toContain("due_date.lte.");
+    expect(dateClause).toContain("due_date.is.null");
   });
 
   it("applies no date filter for status all", async () => {
     const spy = makeClient({ data: [], error: null });
     await listAssignments(USER_ID, { status: "all" }, spy.client);
-    expect(argsFor(spy, "or")).toBeUndefined();
+    const dateClauses = allCalls(spy, "or")
+      .map((a) => a[0] as string)
+      .filter((c) => c.includes("due_date"));
+    expect(dateClauses).toEqual([]);
     expect(argsFor(spy, "lt")).toBeUndefined();
   });
 
