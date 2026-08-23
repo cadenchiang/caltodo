@@ -10,12 +10,20 @@
 //   - public/icon-dark.png   tab favicon in dark mode (white glyph — the black one
 //                            is invisible on dark browser chrome)
 //   - public/pwa-icon-*.png  install + notification icons (logo on white)
+//   - public/favicon.ico     the conventional /favicon.ico path. Link scrapers
+//                            (Poke, chat unfurlers, some crawlers) probe this
+//                            first and fall back to the 1200x630 og:image when
+//                            it 404s, which renders as an unreadable squashed
+//                            banner. Lives in public/ rather than src/app/ so
+//                            Next serves it without injecting another <link>,
+//                            leaving the theme-aware tab favicon swap alone.
 //
 // Run: node scripts/gen-brand-icons.mjs
 import sharp from "sharp";
 import { writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { buildIco } from "./lib/build-ico.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const PUBLIC = join(ROOT, "public");
@@ -65,4 +73,14 @@ await Promise.all([
   write(join(PUBLIC, "pwa-icon-maskable-192.png"), await onWhite(pwaMask192), "maskable"),
   write(join(PUBLIC, "pwa-icon-maskable-512.png"), await onWhite(pwaMask512), "maskable"),
 ]);
+
+// /favicon.ico — logo on white at the three sizes consumers actually pick from.
+// On white rather than transparent because scrapers composite it onto their own
+// card, and a black-on-transparent glyph disappears against a dark one.
+const ICO_SIZES = [16, 32, 48];
+const icoImages = await Promise.all(
+  ICO_SIZES.map(async (size) => ({ size, png: await onWhite(await glyph(size, 0.12)) }))
+);
+await write(join(PUBLIC, "favicon.ico"), buildIco(icoImages), `${ICO_SIZES.join("/")}px, logo on white`);
+
 console.log("done");
