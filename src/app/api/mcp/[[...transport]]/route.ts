@@ -26,12 +26,12 @@ const RATE_LIMIT_PER_MINUTE = 60;
  *
  * @param request - POST request carrying a single JSON-RPC message or a batch
  * @returns JSON-RPC response(s) as JSON, 202 when the body held only notifications,
- *          401 on a bad API key, 429 when rate limited, 500 on misconfiguration
+ *          401 on a missing or unknown API key, 429 when rate limited
  * @remarks Errors inside a tool are returned as JSON-RPC results flagged
  *          `isError`, not HTTP errors, so Poke surfaces them to the model.
  */
 export async function POST(request: NextRequest) {
-  const auth = authenticateMcpRequest(request.headers);
+  const auth = await authenticateMcpRequest(request.headers);
   if (!auth.ok) {
     return NextResponse.json({ error: auth.message }, { status: auth.status });
   }

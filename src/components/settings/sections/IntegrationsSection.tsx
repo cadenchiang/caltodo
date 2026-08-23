@@ -7,6 +7,7 @@ import GoogleCalendarSettings from "@/components/settings/GoogleCalendarSettings
 import IntegrationSettings, { useCredentials } from "@/components/settings/IntegrationSettings";
 import SyllabusSettings from "@/components/settings/SyllabusSettings";
 import IntegrationHealthBanner from "@/components/settings/IntegrationHealthBanner";
+import McpSettings from "@/components/settings/McpSettings";
 
 /**
  * Inline Google Calendar logo SVG for the add-integration dropdown.
@@ -146,6 +147,9 @@ export default function IntegrationsSection() {
         <GoogleCalendarSettings />
         <IntegrationSettings />
         <SyllabusSettings />
+      </div>
+      <div className="mt-8 pt-6 border-t border-border">
+        <McpSettings />
       </div>
       <RequestPlatformForm />
     </section>

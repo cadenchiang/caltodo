@@ -1,49 +1,34 @@
 /**
- * API key authentication for the Poke MCP endpoint.
+ * API key authentication for the MCP endpoint.
  *
- * Poke sends the integration's API key as `Authorization: Bearer <key>` on
- * every request. The key is a shared secret configured in the environment and
- * maps to exactly one caltodo user id, since the MCP endpoint has no session.
+ * Clients send their key as `Authorization: Bearer <key>` on every request.
+ * Keys are per-user, generated in Settings and stored hashed, so any user can
+ * connect their own integration; the key identifies which account the request
+ * acts as.
  *
  * @module mcp/auth
  */
 
-import { timingSafeEqual } from "node:crypto";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { findKeyOwner, touchApiKey } from "@/lib/mcp/api-keys";
 import { logger } from "@/lib/logger";
 
 /** Successful authentication: the caltodo user the request acts as. */
 export interface McpAuthSuccess {
   ok: true;
   userId: string;
+  keyId: string;
 }
 
-/** Failed authentication: HTTP status and a message safe to return to Poke. */
+/** Failed authentication: HTTP status and a message safe to return. */
 export interface McpAuthFailure {
   ok: false;
-  status: 401 | 500;
+  status: 401;
   message: string;
 }
 
 export type McpAuthResult = McpAuthSuccess | McpAuthFailure;
-
-/** Minimum length for the configured API key, to reject obviously weak secrets. */
-const MIN_KEY_LENGTH = 24;
-
-/**
- * Compares two strings without leaking length or content through timing.
- *
- * @param a - First string
- * @param b - Second string
- * @returns True when the strings are byte-identical
- * @remarks Different-length inputs return false without a timing-safe compare,
- *          which only leaks the length of the supplied key, not its content.
- */
-function safeEquals(a: string, b: string): boolean {
-  const bufA = Buffer.from(a, "utf8");
-  const bufB = Buffer.from(b, "utf8");
-  if (bufA.length !== bufB.length) return false;
-  return timingSafeEqual(bufA, bufB);
-}
 
 /**
  * Extracts the bearer token from an Authorization header value.
@@ -61,40 +46,22 @@ export function extractBearerToken(header: string | null): string | null {
 }
 
 /**
- * Authenticates an incoming MCP request against the configured Poke API key.
+ * Authenticates an incoming MCP request against the stored API keys.
  *
  * @param headers - Request headers (reads `authorization` and `x-poke-user-id`)
- * @param env - Environment source, defaults to `process.env` (injectable for tests)
- * @returns Success with the mapped caltodo user id, or a failure with an HTTP status
- * @remarks Returns 500 when the server is misconfigured (missing or too-short
- *          POKE_MCP_API_KEY, or missing POKE_MCP_USER_ID) so a misconfiguration is
- *          never silently treated as an auth failure. Returns 401 for a missing or
- *          wrong key. Never logs the supplied or expected key.
+ * @param client - Supabase client able to read every key, defaults to a
+ *                 service-role admin client (injectable for tests)
+ * @returns Success with the owning user and key id, or a 401 failure
+ * @remarks Uses the service role because MCP requests carry no user session.
+ *          Never logs the presented key. The key's `last_used_at` is stamped
+ *          in the background so the settings UI can show whether the
+ *          integration has ever connected; that write never blocks or fails
+ *          the request.
  */
-export function authenticateMcpRequest(
+export async function authenticateMcpRequest(
   headers: Headers,
-  env: NodeJS.ProcessEnv = process.env
-): McpAuthResult {
-  const expectedKey = env.POKE_MCP_API_KEY;
-  const userId = env.POKE_MCP_USER_ID;
-
-  if (!expectedKey || expectedKey.length < MIN_KEY_LENGTH) {
-    logger.error("mcp.auth: misconfigured API key", {
-      cause: expectedKey ? "POKE_MCP_API_KEY shorter than minimum" : "POKE_MCP_API_KEY not set",
-      minLength: MIN_KEY_LENGTH,
-      impact: "MCP endpoint rejects all requests",
-    });
-    return { ok: false, status: 500, message: "MCP server is not configured" };
-  }
-
-  if (!userId) {
-    logger.error("mcp.auth: misconfigured user mapping", {
-      cause: "POKE_MCP_USER_ID not set",
-      impact: "MCP endpoint cannot resolve which caltodo account to read",
-    });
-    return { ok: false, status: 500, message: "MCP server is not configured" };
-  }
-
+  client: SupabaseClient = createAdminClient()
+): Promise<McpAuthResult> {
   const supplied = extractBearerToken(headers.get("authorization"));
   if (!supplied) {
     logger.warn("mcp.auth: rejected request", {
@@ -105,14 +72,22 @@ export function authenticateMcpRequest(
     return { ok: false, status: 401, message: "Missing Authorization: Bearer <api key>" };
   }
 
-  if (!safeEquals(supplied, expectedKey)) {
+  const owner = await findKeyOwner(client, supplied);
+  if (!owner) {
     logger.warn("mcp.auth: rejected request", {
-      cause: "API key mismatch",
+      cause: "no stored key matches the presented one",
       pokeUserId: headers.get("x-poke-user-id"),
       impact: "request denied with 401",
     });
-    return { ok: false, status: 401, message: "Invalid API key" };
+    return {
+      ok: false,
+      status: 401,
+      message: "Invalid API key. Generate one in caltodo Settings → Integrations.",
+    };
   }
 
-  return { ok: true, userId };
+  // Bookkeeping only — deliberately not awaited so it cannot delay or fail the call.
+  void touchApiKey(client, owner.keyId);
+
+  return { ok: true, userId: owner.userId, keyId: owner.keyId };
 }

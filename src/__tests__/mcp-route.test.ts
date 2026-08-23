@@ -54,7 +54,7 @@ function makeRequest(body: unknown): NextRequest {
 describe("POST /api/mcp", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockAuth.mockReturnValue({ ok: true, userId: USER_ID });
+    mockAuth.mockResolvedValue({ ok: true, userId: USER_ID, keyId: "key-1" });
     mockRateLimit.mockReturnValue({ allowed: true });
     mockHandleBody.mockResolvedValue([{ jsonrpc: "2.0", id: 1, result: {} }]);
   });
@@ -91,16 +91,10 @@ describe("POST /api/mcp", () => {
   });
 
   it("returns 401 when authentication fails", async () => {
-    mockAuth.mockReturnValue({ ok: false, status: 401, message: "Invalid API key" });
+    mockAuth.mockResolvedValue({ ok: false, status: 401, message: "Invalid API key" });
     const response = await POST(makeRequest({}));
     expect(response.status).toBe(401);
     expect(mockHandleBody).not.toHaveBeenCalled();
-  });
-
-  it("returns 500 when the server is misconfigured", async () => {
-    mockAuth.mockReturnValue({ ok: false, status: 500, message: "MCP server is not configured" });
-    const response = await POST(makeRequest({}));
-    expect(response.status).toBe(500);
   });
 
   it("returns 429 when the rate limit is exceeded", async () => {
