@@ -23,6 +23,7 @@ import {
   endOfWeek,
   parseISO,
 } from "date-fns";
+import { useWeekStart } from "@/hooks/useWeekStart";
 import { useTaskContext } from "@/contexts/TaskContext";
 import { useToast } from "@/contexts/ToastContext";
 import { expandRepeatingTasks, getRealTaskId } from "@/lib/expand-repeating-tasks";
@@ -65,6 +66,7 @@ function GCalLogo({ size = 12 }: { size?: number }) {
 }
 
 export default function CalendarPanel() {
+  const weekStart = useWeekStart();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<CalendarViewMode>("month");
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -176,18 +178,18 @@ export default function CalendarPanel() {
     if (viewMode === "month") {
       const monthStart = startOfMonth(currentDate);
       const monthEnd = endOfMonth(currentDate);
-      rangeStart = startOfWeek(monthStart, { weekStartsOn: 1 });
-      rangeEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
+      rangeStart = startOfWeek(monthStart, { weekStartsOn: weekStart });
+      rangeEnd = endOfWeek(monthEnd, { weekStartsOn: weekStart });
     } else if (viewMode === "week") {
-      rangeStart = startOfWeek(currentDate, { weekStartsOn: 1 });
-      rangeEnd = endOfWeek(currentDate, { weekStartsOn: 1 });
+      rangeStart = startOfWeek(currentDate, { weekStartsOn: weekStart });
+      rangeEnd = endOfWeek(currentDate, { weekStartsOn: weekStart });
     } else {
       rangeStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
       rangeEnd = new Date(rangeStart);
       rangeEnd.setDate(rangeEnd.getDate() + 1);
     }
     return { timeMin: rangeStart.toISOString(), timeMax: rangeEnd.toISOString() };
-  }, [currentDate, viewMode]);
+  }, [currentDate, viewMode, weekStart]);
 
   const shouldFetchGcal = calendarMode === "calendar";
   const { events: gcalEvents, calendarColors, mutate: refetchEvents } = useGCalEvents(
@@ -218,18 +220,18 @@ export default function CalendarPanel() {
     if (viewMode === "month") {
       const monthStart = startOfMonth(currentDate);
       const monthEnd = endOfMonth(currentDate);
-      rangeStart = format(startOfWeek(monthStart, { weekStartsOn: 1 }), "yyyy-MM-dd");
-      rangeEnd = format(endOfWeek(monthEnd, { weekStartsOn: 1 }), "yyyy-MM-dd");
+      rangeStart = format(startOfWeek(monthStart, { weekStartsOn: weekStart }), "yyyy-MM-dd");
+      rangeEnd = format(endOfWeek(monthEnd, { weekStartsOn: weekStart }), "yyyy-MM-dd");
     } else if (viewMode === "week") {
-      rangeStart = format(startOfWeek(currentDate, { weekStartsOn: 1 }), "yyyy-MM-dd");
-      rangeEnd = format(endOfWeek(currentDate, { weekStartsOn: 1 }), "yyyy-MM-dd");
+      rangeStart = format(startOfWeek(currentDate, { weekStartsOn: weekStart }), "yyyy-MM-dd");
+      rangeEnd = format(endOfWeek(currentDate, { weekStartsOn: weekStart }), "yyyy-MM-dd");
     } else {
       rangeStart = format(currentDate, "yyyy-MM-dd");
       rangeEnd = rangeStart;
     }
     const expanded = expandRepeatingTasks(tasks, rangeStart, rangeEnd);
     return expanded.filter((t) => t.due_date && t.due_date >= rangeStart && t.due_date <= rangeEnd);
-  }, [tasks, currentDate, viewMode]);
+  }, [tasks, currentDate, viewMode, weekStart]);
 
   const navigate = (dir: 1 | -1) => {
     const fn = viewMode === "month" ? (dir === 1 ? addMonths : subMonths)
@@ -241,13 +243,13 @@ export default function CalendarPanel() {
   const title = useMemo(() => {
     if (viewMode === "month") return format(currentDate, "MMMM yyyy");
     if (viewMode === "week") {
-      const ws = startOfWeek(currentDate, { weekStartsOn: 1 });
-      const we = endOfWeek(currentDate, { weekStartsOn: 1 });
+      const ws = startOfWeek(currentDate, { weekStartsOn: weekStart });
+      const we = endOfWeek(currentDate, { weekStartsOn: weekStart });
       const wm = format(ws, "MMMM"), em = format(we, "MMMM");
       return wm === em ? `${wm} ${format(we, "yyyy")}` : `${wm} – ${em} ${format(we, "yyyy")}`;
     }
     return format(currentDate, "EEEE, MMMM d, yyyy");
-  }, [viewMode, currentDate]);
+  }, [viewMode, currentDate, weekStart]);
 
   return (
     <div className="flex flex-col flex-1 bg-background">

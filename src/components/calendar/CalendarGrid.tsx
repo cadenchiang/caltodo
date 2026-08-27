@@ -10,6 +10,8 @@ import {
   format,
 } from "date-fns";
 import type { Task, PendingInvite, GCalEvent } from "@/lib/types";
+import { useWeekStart } from "@/hooks/useWeekStart";
+import { weekdayLabels } from "@/lib/week-start";
 import { getEventDateKey } from "@/lib/gcal/event-utils";
 import CalendarDayCell from "./CalendarDayCell";
 
@@ -36,9 +38,10 @@ interface CalendarGridProps {
   onTaskDrop?: (taskId: string, newDate: string) => void;
 }
 
-/** Full labels for desktop, single-letter for mobile. */
-const WEEKDAY_LABELS_FULL = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const WEEKDAY_LABELS_SHORT = ["M", "T", "W", "T", "F", "S", "S"];
+/** Single-letter mobile labels, derived from the full ones. */
+const SHORT_LABEL: Record<string, string> = {
+  Mon: "M", Tue: "T", Wed: "W", Thu: "T", Fri: "F", Sat: "S", Sun: "S",
+};
 
 /**
  * Month grid layout displaying a 7-column calendar starting on Monday.
@@ -63,8 +66,10 @@ export default function CalendarGrid({
 }: CalendarGridProps) {
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
-  const calStart = startOfWeek(monthStart, { weekStartsOn: 1 });
-  const calEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
+  const weekStart = useWeekStart();
+  const weekdayLabelsFull = weekdayLabels(weekStart);
+  const calStart = startOfWeek(monthStart, { weekStartsOn: weekStart });
+  const calEnd = endOfWeek(monthEnd, { weekStartsOn: weekStart });
   const days = eachDayOfInterval({ start: calStart, end: calEnd });
   const rowCount = days.length / 7;
 
@@ -107,7 +112,9 @@ export default function CalendarGrid({
     eventsByDate[dateKey].push(event);
   }
 
-  const labels = isMobile ? WEEKDAY_LABELS_SHORT : WEEKDAY_LABELS_FULL;
+  const labels = isMobile
+    ? weekdayLabelsFull.map((l: string) => SHORT_LABEL[l] ?? l)
+    : weekdayLabelsFull;
   // Minimum cell height so a quiet week doesn't collapse to nothing.
   // Lowered from 96px to 64px on desktop so 6 rows + the weekday header
   // + the panel header always fit in the viewport without the bottom

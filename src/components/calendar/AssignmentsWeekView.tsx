@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { format, isSameDay, startOfWeek, addDays } from "date-fns";
+import { useWeekStart } from "@/hooks/useWeekStart";
 import type { Task, PendingInvite } from "@/lib/types";
 import { pendingInviteToPseudoTask } from "@/lib/pending-invite-helpers";
 import CalendarTaskBar from "./CalendarTaskBar";
@@ -34,7 +35,8 @@ export default function AssignmentsWeekView({
   onTaskClick,
   activeTaskId,
 }: AssignmentsWeekViewProps) {
-  const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
+  const weekStartsOnPref = useWeekStart();
+  const weekStart = startOfWeek(currentDate, { weekStartsOn: weekStartsOnPref });
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
   const [isMobile, setIsMobile] = useState(false);

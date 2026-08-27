@@ -3,6 +3,8 @@
 import { useCallback } from "react";
 import { Check } from "lucide-react";
 import ThemeToggle from "@/components/layout/ThemeToggle";
+import { useWeekStart } from "@/hooks/useWeekStart";
+import { setWeekStart, type WeekStart } from "@/lib/week-start";
 import { useTheme } from "@/contexts/ThemeContext";
 import type { ColorTheme } from "@/contexts/ThemeContext";
 import { cn } from "@/lib/utils";
@@ -98,6 +100,12 @@ const THEME_OPTIONS: ThemeOption[] = [
   },
 ];
 
+/** The two supported week starts, in display order. */
+const WEEK_START_OPTIONS: Array<{ value: WeekStart; label: string }> = [
+  { value: 0, label: "Sunday" },
+  { value: 1, label: "Monday" },
+];
+
 /**
  * Appearance settings section.
  * Renders the light/dark/auto theme toggle and a grid of theme cards.
@@ -105,6 +113,7 @@ const THEME_OPTIONS: ThemeOption[] = [
  */
 export default function AppearanceSection() {
   const { colorTheme, setColorTheme } = useTheme();
+  const weekStart = useWeekStart();
 
   /**
    * Handles clicking a theme card. Toggles the active theme on/off.
@@ -123,6 +132,42 @@ export default function AppearanceSection() {
         Choose your preferred appearance.
       </p>
       <ThemeToggle />
+
+      {/* Week start — calendars and the date picker both follow this. */}
+      <div className="mt-6">
+        <h3 className="text-sm font-medium text-secondary-foreground mb-1">
+          Start week on
+        </h3>
+        <p className="text-xs text-subtle-foreground mb-3">
+          Sets the first column of the calendar and the date picker.
+        </p>
+        <div
+          role="radiogroup"
+          aria-label="First day of the week"
+          className="inline-flex rounded-xl border border-border bg-card p-1 gap-1"
+        >
+          {WEEK_START_OPTIONS.map((option) => {
+            const isActive = weekStart === option.value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                role="radio"
+                aria-checked={isActive}
+                onClick={() => setWeekStart(option.value)}
+                className={cn(
+                  "px-4 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer",
+                  isActive
+                    ? "bg-blue-500 text-white"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted",
+                )}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
       {/* Theme Grid */}
       <div className="mt-6">

@@ -15,6 +15,7 @@ import {
   addMonths,
   subMonths,
 } from "date-fns";
+import { useWeekStart } from "@/hooks/useWeekStart";
 import { ChevronLeft, ChevronRight, Clock, Repeat, Flag } from "lucide-react";
 import { getRepeatLabel } from "@/lib/repeat";
 
@@ -197,13 +198,20 @@ export default function DatePicker({
   const endMode = repeatEndDate ? "date" : repeatEndCount ? "count" : "never";
   const [localEndCount, setLocalEndCount] = useState(repeatEndCount ?? 5);
 
+  const weekStart = useWeekStart();
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
-  const calStart = startOfWeek(monthStart);
-  const calEnd = endOfWeek(monthEnd);
+  const calStart = startOfWeek(monthStart, { weekStartsOn: weekStart });
+  const calEnd = endOfWeek(monthEnd, { weekStartsOn: weekStart });
   const days = eachDayOfInterval({ start: calStart, end: calEnd });
 
-  const weekDays = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+  // Two-letter labels rotated to match the user's week start. Previously this
+  // grid always began on Sunday while the main calendar always began on
+  // Monday, so the two disagreed regardless of preference.
+  const weekDays =
+    weekStart === 1
+      ? ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
+      : ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
   const today = startOfDay(new Date());
 
   /**

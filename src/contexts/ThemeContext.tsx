@@ -4,6 +4,7 @@ import { createContext, useContext, useState, useEffect, useCallback, useRef, ty
 import { trackEvent } from "@/lib/analytics";
 import { isDarkBySun } from "@/lib/solar";
 import { getCachedCoords } from "@/lib/geolocation";
+import { hydrateWeekStartFromMetadata } from "@/lib/week-start";
 
 /** localStorage key for persisting theme preference. */
 const THEME_KEY = "caltodo_theme";
@@ -313,6 +314,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         const user = await getCurrentUser();
         if (cancelled || !user) return;
         const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
+
+        // Piggyback the week-start preference on this same metadata read
+        // rather than paying for a second getUser round trip. It ignores the
+        // remote value when this device already has one stored.
+        hydrateWeekStartFromMetadata(meta);
 
         const remotePref = meta[META_THEME_KEY];
         if (
