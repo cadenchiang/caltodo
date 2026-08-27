@@ -21,6 +21,19 @@ describe("extractCourseCode", () => {
     expect(extractCourseCode("CS188")).toBe("CS188");
   });
 
+  it("does not treat a term stamp as a course code", () => {
+    expect(extractCourseCode("Fall 2026.BIOL.2970.01")).not.toBe("FALL 2026");
+    expect(extractCourseCode("Fall 2026 Physics 1740 All Sections")).not.toBe("FALL 2026");
+    expect(extractCourseCode("Spring 2027 Chemistry")).toBeNull();
+    expect(extractCourseCode("Summer 2026")).toBeNull();
+    expect(extractCourseCode("Winter 2026")).toBeNull();
+  });
+
+  it("still finds a real code alongside a term stamp", () => {
+    expect(extractCourseCode("Fall 2026 - CS 188")).toBe("CS 188");
+    expect(extractCourseCode("Fall 2026 (MATH 53)")).toBe("MATH 53");
+  });
+
   it("returns null for non-course names", () => {
     expect(extractCourseCode("History and Culture of Afghanistan")).toBeNull();
     expect(extractCourseCode("My Study Group")).toBeNull();
@@ -78,6 +91,57 @@ describe("buildCourseNameMap", () => {
     ];
     const map = buildCourseNameMap(courses);
     expect(map.size).toBe(0);
+  });
+
+  // Regression: a user reported every Canvas assignment showing the same
+  // class. All six of their courses began with "Fall 2026", the code pattern
+  // read that as a course code, and the whole enrollment collapsed onto the
+  // shortest name.
+  it("does not collapse a whole enrollment that shares a term prefix", () => {
+    const courses = [
+      { source: "canvas", name: "Fall 2026 Physics 1740 All Sections" },
+      { source: "canvas", name: "Fall 2026.BIOL.2970.01" },
+      { source: "canvas", name: "Fall 2026.BIOL.2970.Z" },
+      { source: "canvas", name: "Fall 2026.CHEM.2501.01 & 02" },
+      { source: "canvas", name: "Fall 2026.ELIT.2152.01" },
+      { source: "canvas", name: "Fall 2026.PHYSICS.1741.01" },
+    ];
+    const map = buildCourseNameMap(courses);
+    expect(map.size).toBe(0);
+    for (const c of courses) {
+      expect(getCanonicalName(c.name, map)).toBe(c.name);
+    }
+  });
+
+  it("leaves the reporter's real cross-platform enrollment intact", () => {
+    const courses = [
+      { source: "canvas", name: "Fall 2026 Physics 1740 All Sections" },
+      { source: "canvas", name: "Fall 2026.BIOL.2970.01" },
+      { source: "canvas", name: "Fall 2026.BIOL.2970.Z" },
+      { source: "canvas", name: "Fall 2026.CHEM.2501.01 & 02" },
+      { source: "canvas", name: "Fall 2026.ELIT.2152.01" },
+      { source: "canvas", name: "Fall 2026.PHYSICS.1741.01" },
+      { source: "gradescope", name: "Organic Chemistry I Lab" },
+      { source: "gradescope", name: "Organic Chemistry I M & W" },
+      { source: "gradescope", name: "Fall_2026.CHEM.2565 - Organic Chemistry Problem Solving Workshops I" },
+      { source: "gradescope", name: "Physics Lab 1741" },
+    ];
+    const canonicals = courses.map((c) =>
+      getCanonicalName(c.name, buildCourseNameMap(courses))
+    );
+    // Ten distinct courses must stay ten distinct names.
+    expect(new Set(canonicals).size).toBe(courses.length);
+  });
+
+  it("never maps two courses from the same platform onto one name", () => {
+    const courses = [
+      { source: "canvas", name: "CS 188 Section A" },
+      { source: "canvas", name: "CS 188 Section B" },
+      { source: "gradescope", name: "CS 188" },
+    ];
+    const map = buildCourseNameMap(courses);
+    const canonicals = courses.map((c) => getCanonicalName(c.name, map));
+    expect(new Set(canonicals).size).toBe(courses.length);
   });
 
   it("handles courses with no extractable code", () => {

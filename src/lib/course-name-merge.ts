@@ -33,19 +33,47 @@ const CODE_PATTERN = /[A-Z]{2,6}\s*\d{1,4}[A-Z]?/i;
 export function extractCourseCode(name: string): string | null {
   if (!name) return null;
 
-  const startMatch = name.match(new RegExp(`^(${CODE_PATTERN.source})\\b`, "i"));
-  if (startMatch) return normalizeCode(startMatch[1]);
+  const candidates = [
+    name.match(new RegExp(`^(${CODE_PATTERN.source})\\b`, "i")),
+    name.match(new RegExp(`\\((${CODE_PATTERN.source})\\)`, "i")),
+    name.match(new RegExp(`[-–—:]\\s*(${CODE_PATTERN.source})\\b`, "i")),
+    name.match(new RegExp(`\\b(${CODE_PATTERN.source})\\s*$`, "i")),
+  ];
 
-  const parenMatch = name.match(new RegExp(`\\((${CODE_PATTERN.source})\\)`, "i"));
-  if (parenMatch) return normalizeCode(parenMatch[1]);
-
-  const sepMatch = name.match(new RegExp(`[-–—:]\\s*(${CODE_PATTERN.source})\\b`, "i"));
-  if (sepMatch) return normalizeCode(sepMatch[1]);
-
-  const endMatch = name.match(new RegExp(`\\b(${CODE_PATTERN.source})\\s*$`, "i"));
-  if (endMatch) return normalizeCode(endMatch[1]);
+  for (const match of candidates) {
+    if (!match) continue;
+    const code = normalizeCode(match[1]);
+    // A term stamp is not a course code. Keep looking — "Fall 2026 - CS 188"
+    // should still yield "CS 188" from a later pattern.
+    if (isTermStamp(code)) continue;
+    return code;
+  }
 
   return null;
+}
+
+/**
+ * Words that name a term rather than an academic subject.
+ * Course names frequently lead with one ("Fall 2026.BIOL.2970.01"), and the
+ * code pattern happily reads "Fall 2026" as a subject-plus-number code.
+ */
+const TERM_WORDS = new Set([
+  "FALL", "SPRING", "SUMMER", "WINTER", "AUTUMN",
+  "TERM", "SEM", "SEMESTER", "QUARTER", "QTR", "SESSION",
+]);
+
+/**
+ * Reports whether a code is really a term stamp like "FALL 2026".
+ *
+ * @param code - Normalized code from {@link normalizeCode}
+ * @returns True when the code's letters name a term rather than a subject
+ * @remarks Every course at a school shares its term, so treating one as a
+ *          course code groups the entire enrollment under a single code and
+ *          renames every course to one name.
+ */
+function isTermStamp(code: string): boolean {
+  const letters = code.match(/^[A-Z]+/)?.[0] ?? "";
+  return TERM_WORDS.has(letters);
 }
 
 /** Uppercases the code and collapses internal whitespace. */
@@ -86,9 +114,28 @@ export function buildCourseNameMap(courses: CourseEntry[]): Map<string, string> 
   // Build the name map
   const nameMap = new Map<string, string>();
   for (const [code, group] of codeGroups) {
-    // Check if this code appears on multiple platforms
+    // Merging only ever means "this is the same course seen on two platforms",
+    // so a code confined to one platform has nothing to merge.
     const sources = new Set(group.map((c) => c.source));
-    if (sources.size <= 1 && group.length <= 1) continue;
+    if (sources.size <= 1) continue;
+
+    // If one platform lists several distinct courses under this code, the code
+    // is not identifying a course and we cannot tell which pairs with which.
+    // Merging anyway would rename genuinely different classes to a single name,
+    // which is exactly how a whole enrollment collapses into one course.
+    const perSource = new Map<string, number>();
+    for (const c of group) {
+      perSource.set(c.source, (perSource.get(c.source) ?? 0) + 1);
+    }
+    const ambiguousSource = [...perSource.entries()].find(([, count]) => count > 1);
+    if (ambiguousSource) {
+      logger.warn("course-name-merge: ambiguous code, skipping merge", {
+        cause: `${ambiguousSource[0]} lists ${ambiguousSource[1]} courses under code "${code}"`,
+        names: group.map((c) => c.name),
+        impact: "these course names were left unmerged rather than collapsed into one",
+      });
+      continue;
+    }
 
     // Pick the shortest name as canonical (tends to be the cleanest)
     const canonical = group.reduce((shortest, c) =>
