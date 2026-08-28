@@ -42,7 +42,7 @@ interface CredentialsRow {
   gradescope_email: string | null;
   gradescope_password_encrypted: string | null;
   gradescope_auth_failed: boolean;
-  last_gradescope_synced_at: string | null;
+  last_gradescope_synced_at?: string | null;
   selected_canvas_courses: Array<{ id: number; name: string }> | null;
   selected_gradescope_courses: Array<{ id: string; name: string }> | null;
   selected_pensieve_courses: Array<{ id: string; name: string }> | null;
@@ -51,6 +51,17 @@ interface CredentialsRow {
   classroom_enabled: boolean;
   selected_classroom_courses: Array<{ id: string; name: string }> | null;
   additional_canvas_accounts: AdditionalCanvasAccount[];
+}
+
+const CREDENTIALS_SELECT =
+  "canvas_token, canvas_token_created_at, canvas_base_url, canvas_ical_url, gradescope_email, gradescope_password_encrypted, gradescope_auth_failed, last_gradescope_synced_at, selected_canvas_courses, selected_gradescope_courses, selected_pensieve_courses, pensieve_calendar_url, brightspace_calendar_url, classroom_enabled, selected_classroom_courses, additional_canvas_accounts";
+const CREDENTIALS_SELECT_FALLBACK =
+  "canvas_token, canvas_token_created_at, canvas_base_url, canvas_ical_url, gradescope_email, gradescope_password_encrypted, gradescope_auth_failed, selected_canvas_courses, selected_gradescope_courses, selected_pensieve_courses, pensieve_calendar_url, brightspace_calendar_url, classroom_enabled, selected_classroom_courses, additional_canvas_accounts";
+
+/** Postgres "undefined column" (42703) or the PostgREST message that carries it. */
+function isMissingColumnError(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  return error.code === "42703" || /does not exist|could not find/i.test(error.message ?? "");
 }
 
 /**
@@ -87,11 +98,26 @@ export async function runSync(
   platforms?: SyncPlatform[]
 ): Promise<SyncResult> {
   // Fetch credentials
-  const { data: creds, error: credsError } = await supabase
+  let { data: creds, error: credsError } = await supabase
     .from("integration_credentials")
-    .select("canvas_token, canvas_token_created_at, canvas_base_url, canvas_ical_url, gradescope_email, gradescope_password_encrypted, gradescope_auth_failed, last_gradescope_synced_at, selected_canvas_courses, selected_gradescope_courses, selected_pensieve_courses, pensieve_calendar_url, brightspace_calendar_url, classroom_enabled, selected_classroom_courses, additional_canvas_accounts")
+    .select(CREDENTIALS_SELECT)
     .eq("user_id", userId)
     .single();
+
+  // A lagging database can miss recently-added columns. Retry with the
+  // backwards-compatible select so Canvas/Pensieve/Brightspace/Classroom sync
+  // still run while migrations catch up.
+  if (credsError && isMissingColumnError(credsError)) {
+    logger.warn("runSync: optional credentials column missing, retrying with fallback select", {
+      userId,
+      error: credsError.message,
+    });
+    ({ data: creds, error: credsError } = await supabase
+      .from("integration_credentials")
+      .select(CREDENTIALS_SELECT_FALLBACK)
+      .eq("user_id", userId)
+      .single());
+  }
 
   if (credsError || !creds) {
     logger.warn("runSync: no credentials found", { userId });
@@ -337,18 +363,22 @@ async function syncCanvas(
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     logger.error("syncCanvas failed", { userId, error: message });
+    const isCanvasAuthError =
+      !creds.canvas_ical_url &&
+      !!creds.canvas_token &&
+      /invalid or expired|token is invalid|\b401\b|unauthorized/i.test(message);
     // Persist a genuine auth failure so the UI can prompt a reconnect even
     // before the 120-day time heuristic trips. Covers both the sync-all message
     // ("...invalid or expired") and the selected-courses message ("Canvas
     // returned 401 ...") now that the latter is rethrown. Only the token path
     // 401s; iCal failures ("...fetch failed: 401") are surfaced as errors, and
     // are excluded here so an iCal-only user isn't flagged.
-    if (!creds.canvas_ical_url && creds.canvas_token &&
-        /invalid or expired|token is invalid|\b401\b|unauthorized/i.test(message)) {
+    if (isCanvasAuthError) {
       await supabase
         .from("integration_credentials")
         .update({ canvas_auth_failed: true })
         .eq("user_id", userId);
+      return { synced: 0, errors: ["Canvas token is invalid or expired. Reconnect in Settings."] };
     } else if (creds.canvas_ical_url) {
       // Any iCal-path failure (feed 404/reset/timeout, or a 200 HTML login page)
       // means the stored feed URL is broken — persist it so the banner prompts a
