@@ -771,6 +771,7 @@ export default function OnboardingPage() {
 
                 {setupParam === "brightspace" && (
                   <BrightspaceStep
+                    skipLabel="Cancel"
                     onNext={handleStandaloneBrightspaceNext}
                     onSkip={handleStandaloneSkip}
                     saving={saving}

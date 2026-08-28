@@ -10,7 +10,7 @@
 
 import { useState } from "react";
 import useSWR from "swr";
-import { GraduationCap, ChevronDown, Check, RefreshCw } from "lucide-react";
+import { ChevronDown, Check, RefreshCw } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 import { useCredentials } from "@/components/settings/IntegrationSettings";
 
@@ -104,10 +104,10 @@ export default function GoogleClassroomSettings() {
   }
 
   const subtitle = !enabled
-    ? "Sync coursework from Google Classroom"
+    ? "Coursework and due dates"
     : selected === null
-      ? "Syncing all your classes"
-      : `Syncing ${selected.length} class${selected.length === 1 ? "" : "es"}`;
+      ? "All classes"
+      : `${selected.length} class${selected.length === 1 ? "" : "es"}`;
 
   return (
     <div className="rounded-2xl border border-border bg-card shadow-sm dark:shadow-none overflow-hidden">
@@ -117,7 +117,7 @@ export default function GoogleClassroomSettings() {
         className="w-full flex items-center gap-2.5 sm:gap-3.5 px-3 sm:px-4 py-3.5 text-left hover:bg-muted/40 transition-colors cursor-pointer"
       >
         <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
-          <GraduationCap size={18} className="text-[#1E8E3E]" />
+          <img src="/classroom-logo.png" alt="" className="w-6 h-6 object-contain" />
         </div>
 
         <div className="flex-1 min-w-0">

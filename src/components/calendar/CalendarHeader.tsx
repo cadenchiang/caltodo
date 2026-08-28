@@ -7,6 +7,7 @@ import CalendarSettingsPopover from "./CalendarSettingsPopover";
 import CalendarClassesButton from "./CalendarClassesButton";
 import SyncClassesModal from "./SyncClassesModal";
 import { useToast } from "@/contexts/ToastContext";
+import { useTaskContext } from "@/contexts/TaskContext";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 
 /** localStorage key matching GoogleCalendarSettings cache. */
@@ -79,6 +80,14 @@ export default function CalendarHeader({
 }: CalendarHeaderProps) {
   const { showToast } = useToast();
   const { hasCompletedOnboarding } = useOnboardingStatus();
+  const { tasks } = useTaskContext();
+  /**
+   * Whether anything is already synced. The onboarding flag alone was not
+   * enough: someone who connected a platform without finishing the wizard kept
+   * being told to "Sync Classes" while their classes sat on the calendar
+   * behind the badge.
+   */
+  const hasSyncedClasses = tasks.some((t) => t.source && !t.dismissed_at);
   // Read dismissal flags synchronously on first render (from localStorage) so
   // the Sync Classes / GCal badges appear immediately with the page instead of
   // popping in after a mount effect flips them.
@@ -216,7 +225,7 @@ export default function CalendarHeader({
             status, so gating made the badge wait on a fetch every time. The
             onboarding hook seeds `completed` from cache, so onboarded users
             still don't see it flash on repeat visits. */}
-        {!hasCompletedOnboarding && !syncBadgeDismissed && (
+        {!hasCompletedOnboarding && !hasSyncedClasses && !syncBadgeDismissed && (
           <div className="relative shrink-0 hidden md:flex items-center group/sync ml-2">
             <button
               type="button"

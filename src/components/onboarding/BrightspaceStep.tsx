@@ -30,6 +30,12 @@ interface BrightspaceStepProps {
   initialUrl?: string;
   /** Called on unmount to persist draft state across step navigation. */
   onDraftChange?: (draft: { url: string }) => void;
+  /**
+   * Label for the secondary action. Defaults to the onboarding wording;
+   * opening this from Settings is not "skipping" a setup step, so that
+   * caller passes "Cancel".
+   */
+  skipLabel?: string;
 }
 
 /**
@@ -44,7 +50,7 @@ interface BrightspaceStepProps {
  * @param error - Current error message to display
  * @param setError - Callback to set/clear error messages
  */
-export default function BrightspaceStep({ onNext, onSkip, saving, error, setError, initialUrl, onDraftChange }: BrightspaceStepProps) {
+export default function BrightspaceStep({ onNext, onSkip, saving, error, setError, initialUrl, onDraftChange, skipLabel = "Skip for now" }: BrightspaceStepProps) {
   const { showToast } = useToast();
   const [url, setUrl] = useState(initialUrl ?? "");
   const [urlInvalid, setUrlInvalid] = useState(false);
@@ -78,6 +84,7 @@ export default function BrightspaceStep({ onNext, onSkip, saving, error, setErro
   return (
     <div className="text-center">
       <div className="flex items-center justify-center gap-2 mb-4">
+        <img src="/brightspace-logo.svg" alt="" className="w-6 h-6 object-contain animate-drop-in" />
         <h2 className="text-lg font-bold text-foreground animate-drop-in">Brightspace</h2>
       </div>
 
@@ -133,7 +140,7 @@ export default function BrightspaceStep({ onNext, onSkip, saving, error, setErro
           onClick={onSkip}
           className="mt-3 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
         >
-          Skip for now
+          {skipLabel}
         </button>
       </div>
 

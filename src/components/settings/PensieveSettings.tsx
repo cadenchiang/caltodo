@@ -68,7 +68,7 @@ export default function PensieveSettings({ credentials, onUpdate }: PensieveSett
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-foreground">Pensive</p>
-          <p className="text-xs text-muted-foreground truncate">Sync CS & Data Science review assignments</p>
+          <p className="text-xs text-muted-foreground truncate">CS and Data Science assignments</p>
         </div>
         {isConnected ? (
           <button

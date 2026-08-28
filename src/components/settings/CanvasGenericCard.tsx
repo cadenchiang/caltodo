@@ -19,8 +19,8 @@ export default function CanvasGenericCard() {
           <img src="/canvas-logo.png" alt="" className="w-7 h-7 object-contain" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-foreground">Canvas</p>
-          <p className="text-xs text-muted-foreground truncate">Connect another Canvas instance</p>
+          <p className="text-sm font-semibold text-foreground">Another Canvas school</p>
+          <p className="text-xs text-muted-foreground truncate">A second Canvas account</p>
         </div>
         <button
           onClick={() => router.push("/app/onboarding?setup=canvas-add")}

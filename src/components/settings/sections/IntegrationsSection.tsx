@@ -73,6 +73,20 @@ const ADD_OPTIONS: Array<{
     route: "/app/onboarding?setup=pensieve",
   },
   {
+    id: "brightspace",
+    label: "Brightspace",
+    description: "Assignments from your D2L calendar",
+    logo: <img src="/brightspace-logo.svg" alt="" className="w-4 h-4 object-contain" />,
+    route: "/app/onboarding?setup=brightspace",
+  },
+  {
+    id: "classroom",
+    label: "Google Classroom",
+    description: "Coursework and due dates",
+    logo: <img src="/classroom-logo.png" alt="" className="w-4 h-4 object-contain" />,
+    route: "/app/onboarding?setup=classroom",
+  },
+  {
     id: "syllabus",
     label: "Syllabus",
     description: "Import assignments from a syllabus",

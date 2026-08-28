@@ -84,7 +84,7 @@ export default function SyllabusSettings() {
           <p className="text-sm font-semibold text-foreground">Syllabus</p>
           <p className="text-xs text-muted-foreground truncate">
             {totalCount === 0
-              ? "Import assignments from a syllabus PDF"
+              ? "Assignments from a PDF"
               : totalCount === 1
                 ? "1 assignment imported"
                 : `${totalCount} assignments imported`}

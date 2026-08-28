@@ -549,7 +549,7 @@ export default function GoogleCalendarSettings() {
             <p className="text-xs text-muted-foreground truncate">
               {isConnectedOrConnecting && googleEmail
                 ? googleEmail
-                : "Sync tasks to Google Calendar in real time"}
+                : "Two-way event sync"}
             </p>
           </div>
           {/* Status */}

@@ -65,7 +65,7 @@ export default function BrightspaceSettings({ credentials, onUpdate }: Brightspa
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-foreground">Brightspace</p>
-          <p className="text-xs text-muted-foreground truncate">Sync assignments from your Brightspace (D2L) calendar</p>
+          <p className="text-xs text-muted-foreground truncate">Assignments from your D2L calendar</p>
         </div>
         {isConnected ? (
           <button
