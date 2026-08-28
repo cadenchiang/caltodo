@@ -1225,12 +1225,15 @@ function TaskCard({ task, isSelected, onToggle, onSelect, onDelete }: TaskCardPr
   return (
     <>
       <div
-        className={`group relative rounded-xl border bg-card px-3.5 py-3 cursor-pointer transition-all duration-150 shadow-[0_1px_3px_rgba(0,0,0,0.04)] ${
+        // Dark mode used --card (#2c2c2e) on a #191919 column, which read as a
+        // chunky grey slab rather than a card. A surface only just above the
+        // column plus a defined hairline border separates it without the bulk.
+        className={`group relative rounded-xl border bg-card dark:bg-[#202022] px-3 py-2 cursor-pointer transition-all duration-150 shadow-[0_1px_3px_rgba(0,0,0,0.04)] dark:shadow-none ${
           isSelected
             ? isMiffyCard
               ? "border-[#e8729a] shadow-sm"
               : "border-blue-400 shadow-sm"
-            : "border-input-border hover:shadow-md"
+            : "border-input-border dark:border-white/[0.09] hover:shadow-md dark:hover:border-white/20"
         } ${isCompleted ? "opacity-50" : ""}`}
         onClick={(e) => onSelect(task, e.currentTarget.getBoundingClientRect())}
       >
@@ -1255,10 +1258,10 @@ function TaskCard({ task, isSelected, onToggle, onSelect, onDelete }: TaskCardPr
             always tracks whatever urgency color the badge is using
             (red for overdue, blue for upcoming, etc.). */}
         {dueBadge && (
-          <div className="mt-1.5">
+          <div className="mt-1">
             <span
-              className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${dueBadge.className} ${isCompleted ? "opacity-70" : ""}`}
-              style={{ backgroundColor: "color-mix(in srgb, currentColor 14%, transparent)" }}
+              className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[11px] font-medium ${dueBadge.className} ${isCompleted ? "opacity-70" : ""}`}
+              style={{ backgroundColor: "color-mix(in srgb, currentColor 10%, transparent)" }}
             >
               {dueBadge.dateLabel}{dueBadge.timeLabel ? ` ${dueBadge.timeLabel}` : ""}
             </span>
