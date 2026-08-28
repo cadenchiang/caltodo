@@ -26,7 +26,7 @@ const CORE_SELECT = "canvas_token, canvas_base_url, canvas_ical_url, gradescope_
  * separate so a missing-column error triggers a fallback to CORE_SELECT rather
  * than a 500. Each is optional in IntegrationCredentials (defaults applied below).
  */
-const OPTIONAL_SELECT = "google_auth_failed, additional_canvas_accounts, canvas_auth_failed, canvas_ical_failed, pensieve_auth_failed, brightspace_auth_failed";
+const OPTIONAL_SELECT = "google_auth_failed, additional_canvas_accounts, canvas_auth_failed, canvas_ical_failed, pensieve_auth_failed, brightspace_auth_failed, classroom_enabled, selected_classroom_courses, classroom_auth_failed";
 const FULL_SELECT = `${CORE_SELECT}, ${OPTIONAL_SELECT}`;
 
 /** Postgres "undefined column" (42703) or the PostgREST message that carries it. */

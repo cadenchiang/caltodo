@@ -18,11 +18,26 @@ import { isPro } from "@/lib/entitlements";
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 
 /** Scopes required for calendar read/write access and profile info display. */
-const OAUTH_SCOPES = [
+const BASE_SCOPES = [
   "https://www.googleapis.com/auth/calendar",
   "https://www.googleapis.com/auth/userinfo.email",
   "https://www.googleapis.com/auth/userinfo.profile",
-].join(" ");
+];
+
+/**
+ * Read-only Classroom scopes, requested only when ?classroom=1 is passed.
+ *
+ * Deliberately not part of BASE_SCOPES: these are Google "restricted" scopes,
+ * and until they are registered on the OAuth consent screen (and the app is
+ * verified for them) Google rejects any authorization request that asks for
+ * them. Folding them into the default flow would therefore break Calendar
+ * connect for every user the moment this deploys. Opt-in keeps the existing
+ * flow byte-for-byte unchanged.
+ */
+const CLASSROOM_SCOPES = [
+  "https://www.googleapis.com/auth/classroom.courses.readonly",
+  "https://www.googleapis.com/auth/classroom.coursework.me.readonly",
+];
 
 export async function GET(request: NextRequest) {
   const supabase = await createClient();
@@ -68,11 +83,15 @@ export async function GET(request: NextRequest) {
     path: "/",
   });
 
+  // Ask for Classroom access only when the caller explicitly requests it.
+  const wantsClassroom = request.nextUrl.searchParams.get("classroom") === "1";
+  const scopes = [...BASE_SCOPES, ...(wantsClassroom ? CLASSROOM_SCOPES : [])].join(" ");
+
   const params = new URLSearchParams({
     client_id: clientId,
     redirect_uri: redirectUri,
     response_type: "code",
-    scope: OAUTH_SCOPES,
+    scope: scopes,
     access_type: "offline",
     prompt: "consent",
     state,

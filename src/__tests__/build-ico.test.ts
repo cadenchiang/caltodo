@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-// @ts-expect-error — build tooling, plain .mjs with no type declarations.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- build tooling, plain .mjs with no type declarations
 import { buildIco } from "../../scripts/lib/build-ico.mjs";
 
 /** Builds a recognizable fake PNG payload of a given length. */

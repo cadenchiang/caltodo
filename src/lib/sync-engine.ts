@@ -16,6 +16,12 @@ import { isAllowedCanvasUrl } from "@/lib/canvas-url-validation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { syncCourseEnrollments, gatherEnrollableCourses } from "@/lib/course-enrollment";
 import { buildCourseNameMap, getCanonicalName } from "@/lib/course-name-merge";
+import {
+  fetchClassroomCourses,
+  fetchClassroomAssignments,
+  ClassroomScopeError,
+} from "@/lib/classroom-client";
+import { getValidAccessToken } from "@/lib/gcal/token-manager";
 import { after } from "next/server";
 import { reportSyncFailures } from "@/lib/integration-alerts";
 import { claimGradescopeCooldown } from "@/lib/gradescope-cooldown";
@@ -42,6 +48,8 @@ interface CredentialsRow {
   selected_pensieve_courses: Array<{ id: string; name: string }> | null;
   pensieve_calendar_url: string | null;
   brightspace_calendar_url: string | null;
+  classroom_enabled: boolean;
+  selected_classroom_courses: Array<{ id: string; name: string }> | null;
   additional_canvas_accounts: AdditionalCanvasAccount[];
 }
 
@@ -55,7 +63,7 @@ export interface SyncCourseOverrides {
 }
 
 /** Which platforms to sync. When omitted, all platforms are synced. */
-export type SyncPlatform = "canvas" | "gradescope" | "pensieve" | "brightspace";
+export type SyncPlatform = "canvas" | "gradescope" | "pensieve" | "brightspace" | "classroom";
 
 /**
  * Runs a full sync: fetches assignments from Canvas and Gradescope,
@@ -81,7 +89,7 @@ export async function runSync(
   // Fetch credentials
   const { data: creds, error: credsError } = await supabase
     .from("integration_credentials")
-    .select("canvas_token, canvas_token_created_at, canvas_base_url, canvas_ical_url, gradescope_email, gradescope_password_encrypted, gradescope_auth_failed, last_gradescope_synced_at, selected_canvas_courses, selected_gradescope_courses, selected_pensieve_courses, pensieve_calendar_url, brightspace_calendar_url, additional_canvas_accounts")
+    .select("canvas_token, canvas_token_created_at, canvas_base_url, canvas_ical_url, gradescope_email, gradescope_password_encrypted, gradescope_auth_failed, last_gradescope_synced_at, selected_canvas_courses, selected_gradescope_courses, selected_pensieve_courses, pensieve_calendar_url, brightspace_calendar_url, classroom_enabled, selected_classroom_courses, additional_canvas_accounts")
     .eq("user_id", userId)
     .single();
 
@@ -92,6 +100,7 @@ export async function runSync(
       gradescope: { synced: 0, errors: [] },
       pensieve: { synced: 0, errors: [] },
       brightspace: { synced: 0, errors: [] },
+      classroom: { synced: 0, errors: [] },
       last_synced_at: new Date().toISOString(),
     };
   }
@@ -122,7 +131,7 @@ export async function runSync(
 
   // Run syncs independently — only for requested platforms (default: all)
   const syncAll = !platforms || platforms.length === 0;
-  const [canvasResult, gradescopeResult, pensieveResult, brightspaceResult] = await Promise.all([
+  const [canvasResult, gradescopeResult, pensieveResult, brightspaceResult, classroomResult] = await Promise.all([
     syncAll || platforms!.includes("canvas")
       ? syncCanvas(supabase, userId, credentials, timezone, courseNameMap)
       : { synced: 0, errors: [] } as SyncSourceResult,
@@ -134,6 +143,9 @@ export async function runSync(
       : { synced: 0, errors: [] } as SyncSourceResult,
     syncAll || platforms!.includes("brightspace")
       ? syncBrightspace(supabase, userId, credentials, timezone, courseNameMap)
+      : { synced: 0, errors: [] } as SyncSourceResult,
+    syncAll || platforms!.includes("classroom")
+      ? syncClassroom(supabase, userId, credentials, timezone, courseNameMap)
       : { synced: 0, errors: [] } as SyncSourceResult,
   ]);
 
@@ -164,6 +176,8 @@ export async function runSync(
     pensieveErrors: pensieveResult.errors.length,
     brightspaceSynced: brightspaceResult.synced,
     brightspaceErrors: brightspaceResult.errors.length,
+    classroomSynced: classroomResult.synced,
+    classroomErrors: classroomResult.errors.length,
   });
 
   // Auto-enroll user into discussion boards for their synced courses.
@@ -214,6 +228,7 @@ export async function runSync(
     gradescope: gradescopeResult,
     pensieve: pensieveResult,
     brightspace: brightspaceResult,
+    classroom: classroomResult,
     last_synced_at: now,
     ...(newCanvasCourses?.length ? { new_canvas_courses: newCanvasCourses } : {}),
   };
@@ -688,6 +703,94 @@ async function syncPensieve(
  * @param timezone - IANA timezone for date/time conversion
  * @returns Sync result with count and errors
  */
+/**
+ * Syncs Google Classroom coursework for one user.
+ *
+ * @param supabase - Supabase client able to read credentials and write tasks
+ * @param userId - The user being synced
+ * @param creds - The user's stored integration credentials
+ * @param timezone - IANA timezone for due-date conversion
+ * @param courseNameMap - Canonical names so cross-platform duplicates merge
+ * @returns Count synced plus any errors
+ * @remarks Reuses the Google Calendar OAuth tokens; Classroom only needs extra
+ *          scopes on the same grant. Users who connected Calendar before
+ *          Classroom existed hold tokens without those scopes, so a scope
+ *          rejection is recorded rather than treated as a generic failure and
+ *          the UI prompts them to reconnect.
+ */
+async function syncClassroom(
+  supabase: SupabaseClient,
+  userId: string,
+  creds: CredentialsRow,
+  timezone: string,
+  courseNameMap: Map<string, string> = new Map()
+): Promise<SyncSourceResult> {
+  // Holding the scope is not consent to sync; the user opts in explicitly.
+  if (!creds.classroom_enabled) {
+    return { synced: 0, errors: [] };
+  }
+
+  const selected = creds.selected_classroom_courses;
+  // [] means the user deselected everything; null means "not chosen yet".
+  if (Array.isArray(selected) && selected.length === 0) {
+    logger.info("syncClassroom skipped: no courses selected", { userId });
+    return { synced: 0, errors: [] };
+  }
+
+  try {
+    const accessToken = await getValidAccessToken(supabase, userId);
+    if (!accessToken) {
+      logger.warn("syncClassroom: no Google token", {
+        cause: "Google is not connected, or the refresh token was rejected",
+        userId,
+        impact: "Classroom sync skipped",
+      });
+      return { synced: 0, errors: ["Connect Google in Settings to sync Classroom."] };
+    }
+
+    const courses =
+      selected && selected.length > 0
+        ? selected
+        : await fetchClassroomCourses(accessToken);
+
+    const assignments = await fetchClassroomAssignments(accessToken, courses);
+    const merged = assignments.map((a) => ({
+      ...a,
+      course_name: getCanonicalName(a.course_name, courseNameMap),
+    }));
+
+    const result = await upsertAssignments(supabase, userId, "classroom", merged, timezone);
+    await dismissMissingTasks(supabase, userId, "classroom", merged);
+
+    await supabase
+      .from("integration_credentials")
+      .update({ classroom_auth_failed: false })
+      .eq("user_id", userId);
+
+    return { synced: result.synced, errors: result.errors };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    const isScopeProblem = err instanceof ClassroomScopeError;
+    logger.error("syncClassroom failed", {
+      cause: message,
+      userId,
+      scopeProblem: isScopeProblem,
+      impact: isScopeProblem
+        ? "user must reconnect Google to grant Classroom access"
+        : "Classroom assignments were not updated this run",
+    });
+
+    if (isScopeProblem) {
+      await supabase
+        .from("integration_credentials")
+        .update({ classroom_auth_failed: true })
+        .eq("user_id", userId);
+    }
+
+    return { synced: 0, errors: [message] };
+  }
+}
+
 async function syncBrightspace(
   supabase: SupabaseClient,
   userId: string,
@@ -787,7 +890,7 @@ export function toLocalTimeString(isoString: string | null, tz: string): string 
 async function upsertAssignments(
   supabase: SupabaseClient,
   userId: string,
-  source: "canvas" | "gradescope" | "pensieve" | "brightspace",
+  source: "canvas" | "gradescope" | "pensieve" | "brightspace" | "classroom",
   assignments: NormalizedAssignment[],
   timezone: string
 ): Promise<{ synced: number; errors: string[] }> {
@@ -806,7 +909,14 @@ async function upsertAssignments(
   let totalUpserted = 0;
   let failedBatches = 0;
   const BRIGHTSPACE_COLOR = "#E87040"; // D2L orange
-  const colorMap = { canvas: CANVAS_COLOR, gradescope: GRADESCOPE_COLOR, pensieve: PENSIEVE_COLOR, brightspace: BRIGHTSPACE_COLOR };
+  const CLASSROOM_COLOR = "#1E8E3E"; // Google Classroom green
+  const colorMap = {
+    canvas: CANVAS_COLOR,
+    gradescope: GRADESCOPE_COLOR,
+    pensieve: PENSIEVE_COLOR,
+    brightspace: BRIGHTSPACE_COLOR,
+    classroom: CLASSROOM_COLOR,
+  };
   const color = colorMap[source];
   const syncStartTime = new Date().toISOString();
   const upsertedExternalIds: string[] = [];
@@ -1007,7 +1117,7 @@ async function upsertAssignments(
 async function dismissMissingTasks(
   supabase: SupabaseClient,
   userId: string,
-  source: "canvas" | "gradescope" | "pensieve" | "brightspace",
+  source: "canvas" | "gradescope" | "pensieve" | "brightspace" | "classroom",
   syncedAssignments: NormalizedAssignment[]
 ): Promise<void> {
   // Nothing came back? Don't dismiss anything — could be a transient API
