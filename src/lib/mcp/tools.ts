@@ -14,6 +14,13 @@ import { createTaskTool } from "@/lib/mcp/tools/create-task";
 import { deleteTaskTool } from "@/lib/mcp/tools/delete-task";
 import { listEventsTool } from "@/lib/mcp/tools/list-events";
 import { setEventColorTool } from "@/lib/mcp/tools/set-event-color";
+import { completeTaskTool } from "@/lib/mcp/tools/complete-task";
+import { updateTaskTool } from "@/lib/mcp/tools/update-task";
+import {
+  createEventTool,
+  updateEventTool,
+  deleteEventTool,
+} from "@/lib/mcp/tools/event-writes";
 import { logger } from "@/lib/logger";
 
 export type { JsonSchema, McpTool } from "@/lib/mcp/tool-types";
@@ -22,10 +29,15 @@ export type { JsonSchema, McpTool } from "@/lib/mcp/tool-types";
 export const MCP_TOOLS = [
   listAssignmentsTool,
   createTaskTool,
+  completeTaskTool,
+  updateTaskTool,
   deleteTaskTool,
   syncAssignmentsTool,
   listEventsTool,
   setEventColorTool,
+  createEventTool,
+  updateEventTool,
+  deleteEventTool,
 ];
 
 /**

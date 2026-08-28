@@ -54,12 +54,17 @@ const ASSIGNMENT = {
 describe("MCP_TOOLS", () => {
   it("exposes the read and write tools", () => {
     expect(MCP_TOOLS.map((t) => t.name).sort()).toEqual([
+      "complete_task",
+      "create_calendar_event",
       "create_task",
+      "delete_calendar_event",
       "delete_task",
       "list_assignments",
       "list_calendar_events",
       "set_event_color",
       "sync_assignments",
+      "update_calendar_event",
+      "update_task",
     ]);
   });
 
