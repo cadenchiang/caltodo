@@ -9,6 +9,7 @@
  */
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { ChevronDown, Check, RefreshCw } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
@@ -51,6 +52,7 @@ async function fetchCourses(url: string): Promise<CoursesResponse> {
 }
 
 export default function GoogleClassroomSettings() {
+  const router = useRouter();
   const { showToast } = useToast();
   const { credentials, refresh } = useCredentials();
   const [open, setOpen] = useState(false);
@@ -111,10 +113,11 @@ export default function GoogleClassroomSettings() {
 
   return (
     <div className="rounded-2xl border border-border bg-card shadow-sm dark:shadow-none overflow-hidden">
-      <button
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        className="w-full flex items-center gap-2.5 sm:gap-3.5 px-3 sm:px-4 py-3.5 text-left hover:bg-muted/40 transition-colors cursor-pointer"
+      <div
+        onClick={() => { if (enabled) setOpen((v) => !v); }}
+        className={`w-full flex items-center gap-2.5 sm:gap-3.5 px-3 sm:px-4 py-3.5 text-left transition-colors ${
+          enabled ? "hover:bg-muted/40 cursor-pointer" : ""
+        }`}
       >
         <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
           <img src="/classroom-logo.png" alt="" className="w-6 h-6 object-contain" />
@@ -128,21 +131,26 @@ export default function GoogleClassroomSettings() {
         </div>
 
         {enabled ? (
-          <span className="hidden sm:inline text-xs font-medium px-3 py-1 rounded-lg border border-emerald-200 dark:border-emerald-500/30 text-emerald-600 dark:text-emerald-400 shrink-0">
-            On
-          </span>
+          <>
+            <span className="hidden sm:inline text-xs font-medium px-3 py-1 rounded-lg border border-emerald-200 dark:border-emerald-500/30 text-emerald-600 dark:text-emerald-400 shrink-0">
+              Connected
+            </span>
+            <ChevronDown
+              size={16}
+              className={`text-muted-foreground shrink-0 transition-transform duration-200 ${
+                open ? "rotate-180" : ""
+              }`}
+            />
+          </>
         ) : (
-          <span className="hidden sm:inline text-xs font-semibold px-3 py-1 rounded-lg border border-blue-200 dark:border-blue-500/30 text-blue-500 shrink-0">
-            Set up
-          </span>
+          <button
+            onClick={() => router.push("/app/onboarding?setup=classroom")}
+            className="text-xs font-semibold text-blue-500 hover:text-blue-600 dark:hover:text-blue-400 px-3 py-1 rounded-lg border border-blue-200 dark:border-blue-500/30 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors shrink-0 cursor-pointer"
+          >
+            Connect
+          </button>
         )}
-        <ChevronDown
-          size={16}
-          className={`text-muted-foreground shrink-0 transition-transform duration-200 ${
-            open ? "rotate-180" : ""
-          }`}
-        />
-      </button>
+      </div>
 
       <div
         className={`grid transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
@@ -153,24 +161,6 @@ export default function GoogleClassroomSettings() {
       >
         <div className="overflow-hidden">
           <div className="px-3 sm:px-4 pb-4 space-y-4 border-t border-border pt-4">
-            <label className="flex items-start gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={enabled}
-                disabled={saving}
-                onChange={(e) => void save({ enabled: e.target.checked })}
-                className="mt-0.5 w-4 h-4 rounded accent-blue-500 cursor-pointer"
-              />
-              <span>
-                <span className="block text-sm text-foreground">
-                  Sync assignments from Google Classroom
-                </span>
-                <span className="block text-xs text-muted-foreground">
-                  Uses the Google account you connected for Calendar. Read-only.
-                </span>
-              </span>
-            </label>
-
             {enabled && (
               <div>
                 <p className="text-xs font-medium text-foreground mb-1.5">Classes</p>
@@ -227,6 +217,14 @@ export default function GoogleClassroomSettings() {
                 )}
               </div>
             )}
+
+            <button
+              onClick={() => void save({ enabled: false })}
+              disabled={saving}
+              className="text-xs font-medium text-muted-foreground hover:text-red-500 transition-colors cursor-pointer disabled:opacity-60"
+            >
+              Turn off Classroom sync
+            </button>
           </div>
         </div>
       </div>

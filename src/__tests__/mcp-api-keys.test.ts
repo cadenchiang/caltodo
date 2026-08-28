@@ -11,6 +11,7 @@ vi.mock("@/lib/logger", () => ({
 }));
 
 import {
+  expiryFromDays,
   generateApiKey,
   hashApiKey,
   keyDisplayPrefix,
@@ -147,6 +148,7 @@ const ROW = {
   key_prefix: "sk-caltodo-01234567",
   created_at: "2026-08-22T00:00:00Z",
   last_used_at: null,
+  expires_at: null,
 };
 
 describe("createApiKey", () => {
@@ -168,6 +170,7 @@ describe("createApiKey", () => {
       keyPrefix: "sk-caltodo-01234567",
       createdAt: "2026-08-22T00:00:00Z",
       lastUsedAt: null,
+      expiresAt: null,
     });
   });
 
@@ -197,6 +200,74 @@ describe("createApiKey", () => {
   });
 });
 
+describe("expiryFromDays", () => {
+  it("returns null for no expiry", () => {
+    expect(expiryFromDays(null)).toBeNull();
+    expect(expiryFromDays(undefined)).toBeNull();
+  });
+
+  it("returns a timestamp the given number of days out", () => {
+    const iso = expiryFromDays(30);
+    expect(iso).not.toBeNull();
+    const days = (Date.parse(iso as string) - Date.now()) / 86_400_000;
+    expect(days).toBeGreaterThan(29.9);
+    expect(days).toBeLessThan(30.1);
+  });
+
+  it("rejects a non-positive or fractional lifetime", () => {
+    expect(() => expiryFromDays(0)).toThrow(/whole number/);
+    expect(() => expiryFromDays(-1)).toThrow(/whole number/);
+    expect(() => expiryFromDays(1.5)).toThrow(/whole number/);
+  });
+});
+
+describe("createApiKey expiry", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("stores no expiry by default", async () => {
+    const spy = makeClient({ single: { data: ROW, error: null } });
+    await createApiKey(spy.client, USER_ID);
+    expect((allCalls(spy, "insert")[0][0] as Record<string, unknown>).expires_at).toBeNull();
+  });
+
+  it("stores an expiry when a lifetime is given", async () => {
+    const spy = makeClient({ single: { data: ROW, error: null } });
+    await createApiKey(spy.client, USER_ID, "Poke", 30);
+    const stored = (allCalls(spy, "insert")[0][0] as Record<string, unknown>).expires_at;
+    expect(typeof stored).toBe("string");
+  });
+});
+
+describe("findKeyOwner expiry", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("accepts a key whose expiry is in the future", async () => {
+    const future = new Date(Date.now() + 86_400_000).toISOString();
+    const spy = makeClient({
+      maybeSingle: { data: { id: "key-1", user_id: USER_ID, expires_at: future }, error: null },
+    });
+    await expect(findKeyOwner(spy.client, "sk-caltodo-x")).resolves.toEqual({
+      userId: USER_ID,
+      keyId: "key-1",
+    });
+  });
+
+  it("rejects an expired key exactly like an unknown one", async () => {
+    const past = new Date(Date.now() - 1000).toISOString();
+    const spy = makeClient({
+      maybeSingle: { data: { id: "key-1", user_id: USER_ID, expires_at: past }, error: null },
+    });
+    await expect(findKeyOwner(spy.client, "sk-caltodo-x")).resolves.toBeNull();
+  });
+
+  it("accepts a key with no expiry", async () => {
+    const spy = makeClient({
+      maybeSingle: { data: { id: "key-1", user_id: USER_ID, expires_at: null }, error: null },
+    });
+    await expect(findKeyOwner(spy.client, "sk-caltodo-x")).resolves.not.toBeNull();
+  });
+});
+
 describe("listApiKeys", () => {
   beforeEach(() => vi.clearAllMocks());
 
@@ -213,6 +284,7 @@ describe("listApiKeys", () => {
         keyPrefix: "sk-caltodo-01234567",
         createdAt: "2026-08-22T00:00:00Z",
         lastUsedAt: null,
+        expiresAt: null,
       },
     ]);
   });

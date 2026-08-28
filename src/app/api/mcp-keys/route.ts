@@ -75,15 +75,20 @@ export async function POST(request: NextRequest) {
   if (auth instanceof NextResponse) return auth;
 
   let label = "Poke";
+  let expiresInDays: number | null = null;
   try {
     const body = await request.json();
     if (typeof body?.label === "string") label = body.label;
+    // Anything but a positive number means "never expires".
+    if (typeof body?.expiresInDays === "number" && body.expiresInDays > 0) {
+      expiresInDays = Math.floor(body.expiresInDays);
+    }
   } catch {
-    // No body is fine — the default label applies.
+    // No body is fine — the defaults apply.
   }
 
   try {
-    const { key, record } = await createApiKey(auth.supabase, auth.userId, label);
+    const { key, record } = await createApiKey(auth.supabase, auth.userId, label, expiresInDays);
     return NextResponse.json({ key, record }, { status: 201 });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

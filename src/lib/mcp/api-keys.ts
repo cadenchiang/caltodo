@@ -28,7 +28,12 @@ export interface McpKeyRecord {
   keyPrefix: string;
   createdAt: string;
   lastUsedAt: string | null;
+  /** When the key stops working, or null when it never expires. */
+  expiresAt: string | null;
 }
+
+/** Expiry choices offered when creating a key, in days. Null means never. */
+export const EXPIRY_DAY_OPTIONS = [7, 30, 90, 365] as const;
 
 /**
  * Generates a new random API key.
@@ -70,6 +75,7 @@ interface KeyRow {
   key_prefix: string;
   created_at: string;
   last_used_at: string | null;
+  expires_at: string | null;
 }
 
 /**
@@ -85,7 +91,23 @@ function toRecord(row: KeyRow): McpKeyRecord {
     keyPrefix: row.key_prefix,
     createdAt: row.created_at,
     lastUsedAt: row.last_used_at,
+    expiresAt: row.expires_at,
   };
+}
+
+/**
+ * Converts a lifetime in days into an absolute expiry.
+ *
+ * @param days - Whole days the key should last, or null/undefined for no expiry
+ * @returns ISO timestamp, or null when the key never expires
+ * @throws Error when days is not a positive whole number
+ */
+export function expiryFromDays(days: number | null | undefined): string | null {
+  if (days === null || days === undefined) return null;
+  if (!Number.isInteger(days) || days <= 0) {
+    throw new Error("Key lifetime must be a whole number of days.");
+  }
+  return new Date(Date.now() + days * 86_400_000).toISOString();
 }
 
 /** Longest accepted label, matching the column's practical use in the UI. */
@@ -104,7 +126,8 @@ const MAX_LABEL_LENGTH = 60;
 export async function createApiKey(
   client: SupabaseClient,
   userId: string,
-  label = "Poke"
+  label = "Poke",
+  expiresInDays: number | null = null
 ): Promise<{ key: string; record: McpKeyRecord }> {
   const trimmed = label.trim() || "Poke";
   if (trimmed.length > MAX_LABEL_LENGTH) {
@@ -120,8 +143,9 @@ export async function createApiKey(
       key_hash: hashApiKey(key),
       key_prefix: keyDisplayPrefix(key),
       label: trimmed,
+      expires_at: expiryFromDays(expiresInDays),
     })
-    .select("id, label, key_prefix, created_at, last_used_at")
+    .select("id, label, key_prefix, created_at, last_used_at, expires_at")
     .single();
 
   if (error) {
@@ -151,7 +175,7 @@ export async function listApiKeys(
 ): Promise<McpKeyRecord[]> {
   const { data, error } = await client
     .from("mcp_api_keys")
-    .select("id, label, key_prefix, created_at, last_used_at")
+    .select("id, label, key_prefix, created_at, last_used_at, expires_at")
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
 
@@ -223,7 +247,7 @@ export async function findKeyOwner(
 ): Promise<{ userId: string; keyId: string } | null> {
   const { data, error } = await client
     .from("mcp_api_keys")
-    .select("id, user_id")
+    .select("id, user_id, expires_at")
     .eq("key_hash", hashApiKey(key))
     .maybeSingle();
 
@@ -237,7 +261,18 @@ export async function findKeyOwner(
 
   if (!data) return null;
 
-  const row = data as unknown as { id: string; user_id: string };
+  const row = data as unknown as { id: string; user_id: string; expires_at: string | null };
+
+  // An expired key is treated exactly like an unknown one.
+  if (row.expires_at && Date.parse(row.expires_at) <= Date.now()) {
+    logger.warn("mcp.apiKeys: expired key presented", {
+      cause: `key expired at ${row.expires_at}`,
+      keyId: row.id,
+      impact: "MCP request denied; user must generate a new key",
+    });
+    return null;
+  }
+
   return { userId: row.user_id, keyId: row.id };
 }
 

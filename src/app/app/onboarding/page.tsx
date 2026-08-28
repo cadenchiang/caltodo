@@ -9,6 +9,7 @@ import CanvasStep from "@/components/onboarding/CanvasStep";
 import GradescopeStep from "@/components/onboarding/GradescopeStep";
 import PensieveStep from "@/components/onboarding/PensieveStep";
 import BrightspaceStep from "@/components/onboarding/BrightspaceStep";
+import ClassroomStep from "@/components/onboarding/ClassroomStep";
 import AddCanvasStep from "@/components/onboarding/AddCanvasStep";
 import SyllabusStep from "@/components/onboarding/SyllabusStep";
 import SearchableSelect from "@/components/onboarding/SearchableSelect";
@@ -59,7 +60,7 @@ const PLATFORM_OPTIONS: Array<{ id: Platform; label: string; description: string
 ];
 
 /** Valid platforms for standalone ?setup= mode. */
-const VALID_SETUP_PLATFORMS = new Set<string>(["canvas", "gradescope", "pensieve", "brightspace", "canvas-add", "syllabus"]);
+const VALID_SETUP_PLATFORMS = new Set<string>(["canvas", "gradescope", "pensieve", "brightspace", "canvas-add", "syllabus", "classroom"]);
 
 /** Display labels for standalone setup mode header. */
 const SETUP_LABELS: Record<string, string> = {
@@ -69,6 +70,7 @@ const SETUP_LABELS: Record<string, string> = {
   brightspace: "Brightspace",
   "canvas-add": "Canvas",
   syllabus: "Syllabus",
+  classroom: "Google Classroom",
 };
 
 /** Status blurbs cycled while syncing — mostly playful with a few technical ones. */
@@ -777,6 +779,14 @@ export default function OnboardingPage() {
                     saving={saving}
                     error={error}
                     setError={setError}
+                  />
+                )}
+
+                {setupParam === "classroom" && (
+                  <ClassroomStep
+                    skipLabel="Cancel"
+                    onNext={handleStandaloneSuccess}
+                    onSkip={handleStandaloneSkip}
                   />
                 )}
 

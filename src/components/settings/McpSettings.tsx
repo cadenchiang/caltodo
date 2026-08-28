@@ -12,11 +12,21 @@
  * with an icon tile, name and status, over an expandable body.
  */
 
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import useSWR from "swr";
-import { Copy, Check, Plus, Trash2, Sparkles, ChevronDown } from "lucide-react";
+import { Copy, Check, Plus, Trash2, Sparkles, ChevronDown, X } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 import type { McpKeyRecord } from "@/lib/mcp/api-keys";
+
+/** Key lifetime choices offered in the create dialog. */
+const EXPIRY_CHOICES: Array<{ label: string; days: number | null }> = [
+  { label: "7 days", days: 7 },
+  { label: "30 days", days: 30 },
+  { label: "90 days", days: 90 },
+  { label: "1 year", days: 365 },
+  { label: "Never", days: null },
+];
 
 /** Path the MCP endpoint is served from. */
 const MCP_PATH = "/api/mcp";
@@ -76,6 +86,22 @@ function timeAgo(iso: string | null, fallback: string): string {
   if (days < 30) return `${days}d ago`;
 
   return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+/**
+ * Describes when a key stops working.
+ *
+ * @param iso - Expiry timestamp, or null when it never expires
+ * @returns A short phrase for the key list
+ */
+function expiryLabel(iso: string | null): string {
+  if (!iso) return "never expires";
+  const ms = Date.parse(iso) - Date.now();
+  if (ms <= 0) return "expired";
+  const days = Math.ceil(ms / 86_400_000);
+  if (days === 1) return "expires tomorrow";
+  if (days < 45) return `expires in ${days}d`;
+  return `expires ${new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`;
 }
 
 /** A copy button that swaps to a check for two seconds after copying. */
@@ -146,10 +172,123 @@ function CopyableField({ label, value }: { label: string; value: string }) {
   );
 }
 
+/**
+ * Dialog for naming a key and choosing how long it lasts.
+ *
+ * @param open - Whether the dialog is shown
+ * @param creating - True while the request is in flight
+ * @param onCancel - Dismisses without creating
+ * @param onCreate - Creates the key with the chosen name and lifetime
+ */
+function CreateKeyDialog({
+  open,
+  creating,
+  onCancel,
+  onCreate,
+}: {
+  open: boolean;
+  creating: boolean;
+  onCancel: () => void;
+  onCreate: (label: string, days: number | null) => void;
+}) {
+  const [label, setLabel] = useState("Poke");
+  const [days, setDays] = useState<number | null>(90);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onCancel();
+    }
+    if (open) window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onCancel]);
+
+  if (!open) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-backdrop-in" onClick={onCancel} />
+      <div className="relative w-full max-w-sm rounded-2xl bg-popover border border-border shadow-xl animate-dialog-in overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+          <h3 className="text-sm font-semibold text-foreground">New API key</h3>
+          <button
+            onClick={onCancel}
+            className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+            aria-label="Close"
+          >
+            <X size={15} />
+          </button>
+        </div>
+
+        <div className="px-4 py-4 space-y-4">
+          <div>
+            <label htmlFor="mcp-key-name" className="block text-xs font-medium text-foreground mb-1.5">
+              Name
+            </label>
+            <input
+              id="mcp-key-name"
+              type="text"
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              maxLength={60}
+              placeholder="Poke"
+              autoFocus
+              className="w-full px-3 py-2 rounded-lg border border-input-border bg-card text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              So you can tell your keys apart later.
+            </p>
+          </div>
+
+          <div>
+            <p className="block text-xs font-medium text-foreground mb-1.5">Expires</p>
+            <div className="flex flex-wrap gap-1.5">
+              {EXPIRY_CHOICES.map((choice) => {
+                const active = days === choice.days;
+                return (
+                  <button
+                    key={choice.label}
+                    type="button"
+                    onClick={() => setDays(choice.days)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer border ${
+                      active
+                        ? "bg-blue-500 text-white border-blue-500"
+                        : "border-border text-muted-foreground hover:text-foreground hover:bg-muted"
+                    }`}
+                  >
+                    {choice.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2 px-4 py-3 border-t border-border">
+          <button
+            onClick={onCancel}
+            className="px-3 py-1.5 text-sm rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => onCreate(label, days)}
+            disabled={creating}
+            className="px-4 py-1.5 text-sm rounded-xl bg-blue-500 text-white font-medium hover:bg-blue-600 disabled:opacity-60 transition-colors cursor-pointer"
+          >
+            {creating ? "Creating…" : "Create key"}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 export default function McpSettings() {
   const { showToast } = useToast();
   const [open, setOpen] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
   const [newKey, setNewKey] = useState<string | null>(null);
   const [confirmRevoke, setConfirmRevoke] = useState<string | null>(null);
 
@@ -163,14 +302,19 @@ export default function McpSettings() {
   const keys = data?.keys ?? [];
   const connected = keys.length > 0;
 
-  /** Creates a key and reveals its plaintext once. */
-  async function handleCreate() {
+  /**
+   * Creates a key and reveals its plaintext once.
+   *
+   * @param label - Name the user gave the key
+   * @param expiresInDays - Lifetime in days, or null for no expiry
+   */
+  async function handleCreate(label: string, expiresInDays: number | null) {
     setCreating(true);
     try {
       const res = await fetch("/api/mcp-keys", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ label: "Poke" }),
+        body: JSON.stringify({ label, expiresInDays }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -179,6 +323,7 @@ export default function McpSettings() {
       const created = await res.json();
       setNewKey(created.key);
       mutate({ keys: [created.record, ...keys] }, { revalidate: false });
+      setDialogOpen(false);
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Failed to create API key");
     } finally {
@@ -334,8 +479,8 @@ export default function McpSettings() {
                         <span className="text-muted-foreground">••••••••</span>
                       </p>
                       <p className="text-[11px] text-muted-foreground">
-                        {key.label} · added {timeAgo(key.createdAt, "just now")} · used{" "}
-                        {timeAgo(key.lastUsedAt, "never")}
+                        {key.label} · used {timeAgo(key.lastUsedAt, "never")} ·{" "}
+                        {expiryLabel(key.expiresAt)}
                       </p>
                     </div>
                     <button
@@ -357,13 +502,19 @@ export default function McpSettings() {
           </div>
 
           <button
-            onClick={handleCreate}
-            disabled={creating}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium bg-blue-500 text-white hover:bg-blue-600 active:scale-[0.97] disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer"
+            onClick={() => setDialogOpen(true)}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium bg-blue-500 text-white hover:bg-blue-600 active:scale-[0.97] transition-all duration-200 cursor-pointer"
           >
-            <Plus size={15} className={creating ? "animate-spin" : ""} />
-            {creating ? "Generating…" : "Generate key"}
+            <Plus size={15} />
+            New key
           </button>
+
+          <CreateKeyDialog
+            open={dialogOpen}
+            creating={creating}
+            onCancel={() => setDialogOpen(false)}
+            onCreate={handleCreate}
+          />
           </div>
         </div>
       </div>
