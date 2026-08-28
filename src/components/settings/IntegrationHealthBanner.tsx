@@ -99,7 +99,7 @@ export default function IntegrationHealthBanner() {
     issues.push({
       id: `canvas-account-${account.id}`,
       label: account.label,
-      detail: "This Canvas account rejected your access token. Reconnect it to resume syncing its assignments.",
+      detail: "Access token rejected",
       actionLabel: "Reconnect",
       onAction: () => router.push("/app/onboarding?setup=canvas"),
     });
@@ -109,7 +109,7 @@ export default function IntegrationHealthBanner() {
     issues.push({
       id: "gradescope",
       label: "Gradescope",
-      detail: "Login failed — your password may have changed. Update it to resume syncing.",
+      detail: "Login failed",
       actionLabel: "Update password",
       onAction: () => router.push("/app/onboarding?setup=gradescope"),
     });
@@ -119,7 +119,7 @@ export default function IntegrationHealthBanner() {
     issues.push({
       id: "gcal",
       label: "Google Calendar",
-      detail: "Access was revoked, so your assignments have stopped syncing to your calendar. Reconnect to resume.",
+      detail: "Access revoked",
       actionLabel: "Reconnect",
       onAction: () => { window.location.href = "/api/gcal/auth"; },
     });
@@ -135,7 +135,7 @@ export default function IntegrationHealthBanner() {
     issues.push({
       id: "pensieve",
       label: "Pensieve",
-      detail: syncResult?.pensieve.errors[0] || "The feed stopped loading — your Pensieve URL may have been reset or expired. Update it to resume syncing.",
+      detail: syncResult?.pensieve.errors[0] || "Feed stopped loading",
       actionLabel: "Update URL",
       onAction: () => router.push("/app/onboarding?setup=pensieve"),
     });
@@ -148,7 +148,7 @@ export default function IntegrationHealthBanner() {
     issues.push({
       id: "brightspace",
       label: "Brightspace",
-      detail: syncResult?.brightspace.errors[0] || "The feed stopped loading — your Brightspace URL may have been reset or expired. Update it to resume syncing.",
+      detail: syncResult?.brightspace.errors[0] || "Feed stopped loading",
       actionLabel: "Update URL",
       onAction: () => router.push("/app/onboarding?setup=brightspace"),
     });
@@ -159,30 +159,27 @@ export default function IntegrationHealthBanner() {
   return (
     <div
       role="alert"
-      className="mb-4 rounded-xl border border-amber-300 bg-amber-50 p-3 dark:border-amber-500/30 dark:bg-amber-500/10"
+      className="mb-4 rounded-2xl border border-border bg-card shadow-sm dark:shadow-none overflow-hidden"
     >
-      <div className="flex items-center gap-2">
-        <AlertTriangle size={15} className="shrink-0 text-amber-600 dark:text-amber-400" />
-        <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">
+      <div className="flex items-center gap-2 px-4 pt-3 pb-2">
+        <AlertTriangle size={14} className="shrink-0 text-amber-500" />
+        <p className="text-sm font-semibold text-foreground">
           {issues.length === 1
             ? "1 connection needs attention"
             : `${issues.length} connections need attention`}
         </p>
       </div>
-      <ul className="mt-2 space-y-2">
+      <ul className="divide-y divide-border border-t border-border">
         {issues.map((issue) => (
-          <li
-            key={issue.id}
-            className="flex items-start justify-between gap-3 rounded-lg bg-amber-100/60 px-3 py-2 dark:bg-amber-500/10"
-          >
+          <li key={issue.id} className="flex items-center justify-between gap-3 px-4 py-2.5">
             <div className="min-w-0">
-              <p className="text-[13px] font-medium text-amber-900 dark:text-amber-100">{issue.label}</p>
-              <p className="text-xs text-amber-800/80 dark:text-amber-200/70">{issue.detail}</p>
+              <p className="text-sm text-foreground truncate">{issue.label}</p>
+              <p className="text-xs text-muted-foreground truncate">{issue.detail}</p>
             </div>
             <button
               type="button"
               onClick={issue.onAction}
-              className="shrink-0 rounded-lg bg-amber-600 px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-amber-700 dark:bg-amber-500 dark:hover:bg-amber-400 dark:text-amber-950"
+              className="shrink-0 text-xs font-medium px-3 py-1 rounded-lg border border-border text-secondary-foreground hover:bg-muted transition-colors cursor-pointer"
             >
               {issue.actionLabel}
             </button>

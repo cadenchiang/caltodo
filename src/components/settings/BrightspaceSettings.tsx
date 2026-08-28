@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { CalendarDays } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 import { useTaskContext } from "@/contexts/TaskContext";
 import type { IntegrationCredentials } from "@/lib/types";
@@ -61,8 +60,8 @@ export default function BrightspaceSettings({ credentials, onUpdate }: Brightspa
   return (
     <div className="rounded-2xl border border-border bg-card px-3 sm:px-4 py-3.5 shadow-sm dark:shadow-none">
       <div className="flex items-center gap-2.5 sm:gap-3.5">
-        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-[#E87040]/15 flex items-center justify-center shrink-0">
-          <CalendarDays size={18} className="text-[#E87040]" />
+        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
+          <img src="/brightspace-logo.svg" alt="" className="w-5 h-5 object-contain" />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-foreground">Brightspace</p>

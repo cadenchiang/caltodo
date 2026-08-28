@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ChevronLeft, Monitor, FileText, Check, CalendarDays } from "lucide-react";
+import { ChevronLeft, Monitor, FileText, Check } from "lucide-react";
 import { useTaskContext } from "@/contexts/TaskContext";
 import { trackEvent } from "@/lib/analytics";
 import CanvasStep from "@/components/onboarding/CanvasStep";
@@ -13,10 +13,27 @@ import AddCanvasStep from "@/components/onboarding/AddCanvasStep";
 import SyllabusStep from "@/components/onboarding/SyllabusStep";
 import SearchableSelect from "@/components/onboarding/SearchableSelect";
 import { SCHOOL_OPTIONS, REFERRAL_OPTIONS } from "@/components/onboarding/onboardingOptions";
+import { buildEntries, searchSchools } from "@/lib/school-search";
 import type { IntegrationCredentials, AdditionalCanvasAccount } from "@/lib/types";
 
-type Step = "welcome" | "school" | "referral" | "platforms" | "canvas" | "gradescope" | "pensieve" | "syllabus" | "done";
-type Platform = "canvas" | "gradescope" | "pensieve" | "syllabus";
+/**
+ * Prebuilt alias index for the school picker, computed once at module load so
+ * every keystroke reuses it.
+ */
+const SCHOOL_ENTRIES = buildEntries(SCHOOL_OPTIONS);
+
+/**
+ * Alias-aware, typo-tolerant matcher for the school picker.
+ *
+ * @param query - What the user typed
+ * @returns Matching school names, best first
+ */
+function searchSchoolOptions(query: string): string[] {
+  return searchSchools(query, SCHOOL_ENTRIES);
+}
+
+type Step = "welcome" | "school" | "referral" | "platforms" | "canvas" | "gradescope" | "pensieve" | "brightspace" | "syllabus" | "done";
+type Platform = "canvas" | "gradescope" | "pensieve" | "brightspace" | "syllabus";
 
 /** Display labels for each step in the stepper bar. */
 const STEP_LABELS: Record<Step, string> = {
@@ -27,6 +44,7 @@ const STEP_LABELS: Record<Step, string> = {
   canvas: "Canvas",
   gradescope: "Gradescope",
   pensieve: "Pensive",
+  brightspace: "Brightspace",
   syllabus: "Syllabus",
   done: "Finish",
 };
@@ -36,6 +54,7 @@ const PLATFORM_OPTIONS: Array<{ id: Platform; label: string; description: string
   { id: "canvas", label: "Canvas", description: "Sync assignments from your Canvas account", logo: "/canvas-logo.png" },
   { id: "gradescope", label: "Gradescope", description: "Sync deadlines from Gradescope", logo: "/gradescope-logo.png" },
   { id: "pensieve", label: "Pensive", description: "Sync CS/DS assignments from Pensive", logo: "/pensieve-logo.png" },
+  { id: "brightspace", label: "Brightspace", description: "Sync deadlines from your D2L Brightspace calendar", logo: "/brightspace-logo.svg" },
   { id: "syllabus", label: "Syllabus", description: "Extract assignments from a syllabus PDF", logo: "/file.svg" },
 ];
 
@@ -324,11 +343,7 @@ function SourceLogo({ label }: { label: string }) {
     );
   }
   if (label === "Brightspace") {
-    return (
-      <div className="w-full h-full rounded-md bg-[#E87040]/15 flex items-center justify-center">
-        <CalendarDays size={14} className="text-[#E87040]" />
-      </div>
-    );
+    return <img src="/brightspace-logo.svg" alt="" className="w-full h-full object-contain" />;
   }
   return null;
 }
@@ -365,6 +380,8 @@ export default function OnboardingPage() {
 
   // Syllabus phase tracking for conditional layout
   const [syllabusPhase, setSyllabusPhase] = useState<"upload" | "extracting" | "preview">("upload");
+  /** Assignments imported from syllabi, which bypass the sync engine entirely. */
+  const syllabusImportRef = useRef<{ count: number; courses: string[] }>({ count: 0, courses: [] });
 
   const [currentStep, setCurrentStep] = useState<Step>("welcome");
   const [saving, setSaving] = useState(false);
@@ -429,6 +446,7 @@ export default function OnboardingPage() {
     if (selectedPlatforms.has("canvas")) platformSteps.push("canvas");
     if (selectedPlatforms.has("gradescope")) platformSteps.push("gradescope");
     if (selectedPlatforms.has("pensieve")) platformSteps.push("pensieve");
+    if (selectedPlatforms.has("brightspace")) platformSteps.push("brightspace");
     if (selectedPlatforms.has("syllabus")) platformSteps.push("syllabus");
     return ["welcome", "school", "referral", "platforms", ...platformSteps, "done"];
   }, [selectedPlatforms]);
@@ -526,6 +544,22 @@ export default function OnboardingPage() {
     if (!ok) return false;
     trackEvent("onboarding_step_completed", { step: "pensieve" });
     setCurrentStep(nextStepAfter("pensieve"));
+    return true;
+  }
+
+  /**
+   * Saves the Brightspace calendar URL and advances.
+   *
+   * @param payload - The validated Brightspace calendar feed URL
+   * @returns True when the credentials saved and the step advanced
+   */
+  async function handleBrightspaceNext(payload: {
+    brightspace_calendar_url: string;
+  }): Promise<boolean> {
+    const ok = await saveCredentials(payload);
+    if (!ok) return false;
+    trackEvent("onboarding_step_completed", { step: "brightspace" });
+    setCurrentStep(nextStepAfter("brightspace"));
     return true;
   }
 
@@ -832,32 +866,67 @@ export default function OnboardingPage() {
   }
 
   /**
+   * Records a completed syllabus import.
+   *
+   * @param summary - How many assignments were imported and for which course
+   * @remarks Syllabus imports write tasks directly rather than going through
+   *          the sync engine, so they never appear in SyncResult. Without this
+   *          the recap reported "0 Assignments" to someone who had just
+   *          imported thirty.
+   */
+  function handleSyllabusImported(summary: { count: number; courseName: string | null }) {
+    syllabusImportRef.current = {
+      count: syllabusImportRef.current.count + summary.count,
+      courses: summary.courseName
+        ? Array.from(new Set([...syllabusImportRef.current.courses, summary.courseName]))
+        : syllabusImportRef.current.courses,
+    };
+  }
+
+  /**
    * Reads the latest SyncResult from TaskContext and produces display stats
    * for the post-sync recap (total assignments, per-source counts, course list).
+   *
+   * @returns Display stats, or null when nothing has been synced or imported
+   * @remarks Syllabus counts come from handleSyllabusImported rather than
+   *          SyncResult, and are included even when no platform synced — a
+   *          syllabus-only setup still has something to show.
    */
   function getSyncStats(): SyncStats | null {
-    if (!syncResult) return null;
+    const syllabus = syllabusImportRef.current;
+    if (!syncResult && syllabus.count === 0) return null;
+
     const total =
-      syncResult.canvas.synced +
-      syncResult.gradescope.synced +
-      syncResult.pensieve.synced +
-      (syncResult.brightspace?.synced ?? 0);
+      (syncResult?.canvas.synced ?? 0) +
+      (syncResult?.gradescope.synced ?? 0) +
+      (syncResult?.pensieve.synced ?? 0) +
+      (syncResult?.brightspace?.synced ?? 0) +
+      (syncResult?.classroom?.synced ?? 0) +
+      syllabus.count;
+
     const perSource: Array<{ label: string; count: number }> = [];
-    if (syncResult.canvas.synced > 0) perSource.push({ label: "Canvas", count: syncResult.canvas.synced });
-    if (syncResult.gradescope.synced > 0) perSource.push({ label: "Gradescope", count: syncResult.gradescope.synced });
-    if (syncResult.pensieve.synced > 0) perSource.push({ label: "Pensive", count: syncResult.pensieve.synced });
-    if (syncResult.brightspace?.synced) perSource.push({ label: "Brightspace", count: syncResult.brightspace.synced });
+    if (syncResult && syncResult.canvas.synced > 0) perSource.push({ label: "Canvas", count: syncResult.canvas.synced });
+    if (syncResult && syncResult.gradescope.synced > 0) perSource.push({ label: "Gradescope", count: syncResult.gradescope.synced });
+    if (syncResult && syncResult.pensieve.synced > 0) perSource.push({ label: "Pensive", count: syncResult.pensieve.synced });
+    if (syncResult?.brightspace?.synced) perSource.push({ label: "Brightspace", count: syncResult.brightspace.synced });
+    if (syncResult?.classroom?.synced) perSource.push({ label: "Google Classroom", count: syncResult.classroom.synced });
+    if (syllabus.count > 0) perSource.push({ label: "Syllabus", count: syllabus.count });
+
     const selectedCanvas = canvasDraftRef.current.courses
       ?.filter((c) => canvasDraftRef.current.selectedIds.includes(c.id))
       .map((c) => c.name) ?? [];
     const selectedGradescope = (gradescopeDraftRef.current.courses ?? [])
       .filter((c) => gradescopeDraftRef.current.selectedIds.includes(c.id))
       .map((c) => c.name);
-    const courses = Array.from(new Set([...selectedCanvas, ...selectedGradescope]));
+    const courses = Array.from(
+      new Set([...selectedCanvas, ...selectedGradescope, ...syllabus.courses])
+    );
     return { total, perSource, courses };
   }
 
   const isDoneStep = currentStep === "done";
+  /** True while the in-flow syllabus step is showing its review table. */
+  const flowSyllabusPreview = currentStep === "syllabus" && syllabusPhase === "preview";
 
   return (
     <div className={`fixed inset-0 z-50 flex flex-col bg-background transition-opacity duration-500 ${exiting ? "opacity-0" : "opacity-100"}`}>
@@ -906,11 +975,32 @@ export default function OnboardingPage() {
         </button>
       </div>
 
-      {/* Step content — vertically centered */}
-      <div className="flex-1 overflow-y-auto">
-        <div className={`min-h-full flex items-center justify-center px-6 ${isDoneStep ? "py-12" : "pt-4 pb-[20vh]"}`}>
-          <div className={`w-full ${isDoneStep ? "max-w-lg" : "max-w-md"}`}>
-          <div key={currentStep} className={`animate-step-in ${isDoneStep ? "" : "bg-[#f6f5f4] dark:bg-[#202022] rounded-2xl p-8 sm:p-10"}`}>
+      {/* Step content — vertically centered.
+          The syllabus review is a wide, scrolling table of extracted
+          assignments; squeezing it into the max-w-md column every other step
+          uses crushes the title down to a few characters. It gets the same
+          full-width treatment as the standalone ?setup=syllabus route. */}
+      <div className={`flex-1 ${flowSyllabusPreview ? "overflow-hidden" : "overflow-y-auto"}`}>
+        <div
+          className={`min-h-full flex items-center justify-center px-6 ${
+            isDoneStep ? "py-12" : flowSyllabusPreview ? "h-full pt-2 pb-4" : "pt-4 pb-[20vh]"
+          }`}
+        >
+          <div
+            className={`w-full ${
+              isDoneStep ? "max-w-lg" : flowSyllabusPreview ? "max-w-5xl h-full" : "max-w-md"
+            }`}
+          >
+          <div
+            key={currentStep}
+            className={`animate-step-in ${
+              isDoneStep
+                ? ""
+                : flowSyllabusPreview
+                  ? "h-full"
+                  : "bg-[#f6f5f4] dark:bg-[#202022] rounded-2xl p-8 sm:p-10"
+            }`}
+          >
             {stepIndex > 0 && !isDoneStep && (
               <button
                 onClick={() => setCurrentStep(steps[stepIndex - 1])}
@@ -966,7 +1056,8 @@ export default function OnboardingPage() {
                   options={SCHOOL_OPTIONS}
                   value={school}
                   onChange={setSchool}
-                  placeholder="Select your school..."
+                  placeholder="Search your school..."
+                  search={searchSchoolOptions}
                 />
                 <button
                   onClick={() => {
@@ -1147,6 +1238,16 @@ export default function OnboardingPage() {
               />
             )}
 
+            {currentStep === "brightspace" && (
+              <BrightspaceStep
+                onNext={handleBrightspaceNext}
+                onSkip={() => { trackEvent("onboarding_step_skipped", { step: "brightspace" }); setCurrentStep(nextStepAfter("brightspace")); }}
+                saving={saving}
+                error={error}
+                setError={setError}
+              />
+            )}
+
             {currentStep === "syllabus" && (
               <SyllabusStep
                 onNext={async () => { setCurrentStep(nextStepAfter("syllabus")); return true; }}
@@ -1154,6 +1255,8 @@ export default function OnboardingPage() {
                 error={error}
                 setError={setError}
                 saving={saving}
+                onPhaseChange={setSyllabusPhase}
+                onImported={handleSyllabusImported}
               />
             )}
 

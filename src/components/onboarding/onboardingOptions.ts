@@ -6,7 +6,7 @@
  * Any school not in this list can still be entered as free-form text via the
  * "Other" path in SearchableSelect, so missing names aren't blocking.
  */
-export const SCHOOL_OPTIONS: string[] = [
+const RAW_SCHOOL_OPTIONS: string[] = [
   // ---- University of California ----
   "UC Berkeley",
   "UCLA",
@@ -796,6 +796,15 @@ export const SCHOOL_OPTIONS: string[] = [
   "Tec de Monterrey",
   "Universidad de los Andes",
 ];
+
+/**
+ * The list with duplicates removed, order preserved.
+ *
+ * The raw list was assembled from several sources and repeats 107 names
+ * ("Harvard", "Georgia Tech" and others appear twice), which showed the same
+ * school twice in the picker.
+ */
+export const SCHOOL_OPTIONS: string[] = Array.from(new Set(RAW_SCHOOL_OPTIONS));
 
 /**
  * Referral source options for the "where did you hear about us" question.

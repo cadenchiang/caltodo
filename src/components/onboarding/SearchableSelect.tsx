@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { ChevronDown, Search, Check } from "lucide-react";
 
 interface SearchableSelectProps {
@@ -12,6 +12,14 @@ interface SearchableSelectProps {
   onChange: (value: string) => void;
   /** Placeholder shown when nothing is selected. */
   placeholder?: string;
+  /**
+   * Optional matcher replacing the default substring filter.
+   *
+   * @param query - What the user typed
+   * @param options - The full option list
+   * @returns Matching options, best first
+   */
+  search?: (query: string, options: string[]) => string[];
   /** When true, shows a free-text "Other" entry below the filtered options. */
   allowOther?: boolean;
 }
@@ -38,6 +46,7 @@ export default function SearchableSelect({
   onChange,
   placeholder = "Search...",
   allowOther = true,
+  search,
 }: SearchableSelectProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -65,8 +74,14 @@ export default function SearchableSelect({
   }, [open]);
 
   const trimmed = query.trim();
-  const filtered = options.filter((opt) =>
-    opt.toLowerCase().includes(query.toLowerCase()),
+  // A caller can supply smarter matching (see school-search); the default stays
+  // a plain substring filter for short, literal option lists.
+  const filtered = useMemo(
+    () =>
+      search
+        ? search(query, options)
+        : options.filter((opt) => opt.toLowerCase().includes(query.toLowerCase())),
+    [search, query, options],
   );
   // Offer a "use my own" row whenever the user has typed something that isn't
   // already an exact option — even when there ARE partial matches — so they can

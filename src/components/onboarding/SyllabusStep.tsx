@@ -20,6 +20,12 @@ interface SyllabusStepProps {
   error: string | null;
   setError: (error: string | null) => void;
   onPhaseChange?: (phase: "upload" | "extracting" | "preview") => void;
+  /**
+   * Reports a completed import so the caller can include it in the post-setup
+   * recap. Syllabus assignments never touch the sync engine, so they are
+   * invisible to SyncResult and would otherwise be counted as zero.
+   */
+  onImported?: (summary: { count: number; courseName: string | null }) => void;
 }
 
 /** Maximum file size in bytes (10 MB). */
@@ -52,7 +58,7 @@ const MOCK_ASSIGNMENTS: SelectableAssignment[] = [
  * Syllabus upload and assignment extraction step.
  * Phases: upload → extracting (loading UI) → preview (editable list).
  */
-export default function SyllabusStep({ onNext, onSkip, error, setError, onPhaseChange }: SyllabusStepProps) {
+export default function SyllabusStep({ onNext, onSkip, error, setError, onPhaseChange, onImported }: SyllabusStepProps) {
   const { showToast } = useToast();
   const { importSyllabusTasks } = useTaskContext();
   const searchParams = useSearchParams();
@@ -200,6 +206,7 @@ export default function SyllabusStep({ onNext, onSkip, error, setError, onPhaseC
         })),
         color
       );
+      onImported?.({ count: selected.length, courseName });
       await onNext({} as Record<string, never>);
     } catch (err) {
       showToast(err instanceof Error ? err.message : String(err), { variant: "error", duration: 4000 });
