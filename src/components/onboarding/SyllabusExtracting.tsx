@@ -24,22 +24,27 @@ export function estimateExtractionTime(fileSize: number): number {
 
 interface SyllabusExtractingProps {
   progressPercent: number;
-  statusMessage: string;
+  /**
+   * Rotating status text. No longer rendered: cycling through "Reading
+   * document pages…", "Identifying assignments…" and the rest competed with
+   * the heading for attention and read as filler. The heading now carries the
+   * message and the progress bar carries the progress. Kept on the props so
+   * the caller's timer logic does not need unpicking.
+   */
+  statusMessage?: string;
   timeEstimate: string;
 }
 
 /**
  * Full-screen loading experience shown while the extraction API processes
- * the uploaded syllabus. Displays an animated icon, progress bar,
- * time estimate, and rotating status messages.
+ * the uploaded syllabus. An icon, a single heading, a progress bar and a
+ * time estimate.
  *
  * @param progressPercent - Current progress bar fill (0-100)
- * @param statusMessage - Current rotating status message
  * @param timeEstimate - Formatted time remaining text
  */
 export default function SyllabusExtracting({
   progressPercent,
-  statusMessage,
   timeEstimate,
 }: SyllabusExtractingProps) {
   return (
@@ -50,7 +55,7 @@ export default function SyllabusExtracting({
       />
 
       <h2 className="text-lg font-bold text-foreground mb-1 animate-drop-in delay-100">
-        analyzing your syllabus...
+        Analyzing your syllabus…
       </h2>
       <p className="text-sm text-muted-foreground text-center mb-8 animate-drop-in delay-200">
         Finding assignments, due dates,
@@ -73,10 +78,6 @@ export default function SyllabusExtracting({
         {timeEstimate}
       </p>
 
-      {/* Rotating status message */}
-      <p className="text-xs text-muted-foreground animate-sync-glow">
-        {statusMessage}
-      </p>
     </div>
   );
 }

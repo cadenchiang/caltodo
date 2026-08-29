@@ -15,7 +15,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import useSWR from "swr";
-import { Copy, Check, Plus, Trash2, Sparkles, ChevronDown, X } from "lucide-react";
+import { Copy, Check, Plus, Trash2, Sparkles, ChevronDown, X, Pencil } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 import type { McpKeyRecord } from "@/lib/mcp/api-keys";
 
@@ -291,6 +291,8 @@ export default function McpSettings() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [newKey, setNewKey] = useState<string | null>(null);
   const [confirmRevoke, setConfirmRevoke] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draftLabel, setDraftLabel] = useState("");
 
   const origin = useOrigin();
   const serverUrl = origin ? `${origin}${MCP_PATH}` : MCP_PATH;
@@ -328,6 +330,33 @@ export default function McpSettings() {
       showToast(err instanceof Error ? err.message : "Failed to create API key");
     } finally {
       setCreating(false);
+    }
+  }
+
+  /**
+   * Saves a renamed key.
+   *
+   * @param id - Key being renamed
+   */
+  async function handleRename(id: string) {
+    const label = draftLabel.trim();
+    setEditingId(null);
+    if (!label || label === keys.find((k) => k.id === id)?.label) return;
+
+    try {
+      const res = await fetch("/api/mcp-keys", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, label }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || "Failed to rename key");
+      }
+      const { record } = await res.json();
+      mutate({ keys: keys.map((k) => (k.id === id ? record : k)) }, { revalidate: false });
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Failed to rename key");
     }
   }
 
@@ -454,6 +483,10 @@ export default function McpSettings() {
           {/* Existing keys. */}
           <div>
             <p className="text-xs font-medium text-foreground mb-1.5">API keys</p>
+            <p className="text-[11px] text-muted-foreground mb-2">
+              Only a hash of each key is stored, so an existing key cannot be shown or copied
+              again. Click a name to rename it; generate a new key if you have lost one.
+            </p>
 
             {isLoading ? (
               <p className="text-xs text-muted-foreground py-2">Loading…</p>
@@ -471,17 +504,41 @@ export default function McpSettings() {
                   <li
                     key={key.id}
                     style={{ animationDelay: `${i * 45}ms` }}
-                    className="flex items-center gap-3 px-3 py-2 rounded-lg border border-border bg-background hover:border-input-border transition-colors animate-row-fade-in"
+                    className="group/key flex items-center gap-3 px-3 py-2 rounded-lg border border-border bg-background hover:border-input-border transition-colors animate-row-fade-in"
                   >
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-mono text-foreground truncate">
                         {key.keyPrefix}
                         <span className="text-muted-foreground">••••••••</span>
                       </p>
-                      <p className="text-[11px] text-muted-foreground">
-                        {key.label} · used {timeAgo(key.lastUsedAt, "never")} ·{" "}
-                        {expiryLabel(key.expiresAt)}
-                      </p>
+                      {editingId === key.id ? (
+                        <input
+                          type="text"
+                          value={draftLabel}
+                          maxLength={60}
+                          autoFocus
+                          onChange={(e) => setDraftLabel(e.target.value)}
+                          onBlur={() => void handleRename(key.id)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") void handleRename(key.id);
+                            if (e.key === "Escape") setEditingId(null);
+                          }}
+                          className="mt-0.5 w-full max-w-[14rem] px-1.5 py-0.5 rounded border border-input-border bg-card text-[11px] text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                        />
+                      ) : (
+                        <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => { setEditingId(key.id); setDraftLabel(key.label); }}
+                            className="inline-flex items-center gap-1 hover:text-foreground transition-colors cursor-pointer"
+                            aria-label={`Rename ${key.label}`}
+                          >
+                            {key.label}
+                            <Pencil size={9} className="opacity-0 group-hover/key:opacity-60" />
+                          </button>
+                          <span>· used {timeAgo(key.lastUsedAt, "never")} · {expiryLabel(key.expiresAt)}</span>
+                        </p>
+                      )}
                     </div>
                     <button
                       onClick={() => handleRevoke(key.id)}

@@ -9,7 +9,7 @@ import { LayoutGrid, Inbox, CalendarDays } from "lucide-react";
  * links but isn't promoted anywhere.
  */
 export const NAV_ITEMS = [
-  { label: "Home", href: "/app/home", icon: LayoutGrid },
+  { label: "Home", href: "/app/home", icon: LayoutGrid, beta: true },
   { label: "Inbox", href: "/app/inbox", icon: Inbox },
   { label: "Calendar", href: "/app/calendar", icon: CalendarDays },
 ] as const;

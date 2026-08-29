@@ -13,7 +13,7 @@
 
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { createApiKey, listApiKeys, revokeApiKey } from "@/lib/mcp/api-keys";
+import { createApiKey, listApiKeys, revokeApiKey, renameApiKey } from "@/lib/mcp/api-keys";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
 
@@ -98,6 +98,42 @@ export async function POST(request: NextRequest) {
       impact: "user could not generate an MCP key",
     });
     return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+/**
+ * PATCH /api/mcp-keys
+ * Body: { id, label }. Renames a key; nothing else about a key is editable.
+ */
+export async function PATCH(request: NextRequest) {
+  const auth = await requireUser();
+  if (auth instanceof NextResponse) return auth;
+
+  let body: Record<string, unknown>;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  const id = typeof body.id === "string" ? body.id : null;
+  const label = typeof body.label === "string" ? body.label : null;
+  if (!id || label === null) {
+    return NextResponse.json({ error: "Missing key id or label" }, { status: 400 });
+  }
+
+  try {
+    const record = await renameApiKey(auth.supabase, auth.userId, id, label);
+    return NextResponse.json({ record });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    logger.warn("PATCH /api/mcp-keys failed", {
+      cause: message,
+      userId: auth.userId,
+      keyId: id,
+      impact: "key was not renamed",
+    });
+    return NextResponse.json({ error: message }, { status: 400 });
   }
 }
 

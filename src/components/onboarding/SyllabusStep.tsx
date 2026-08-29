@@ -65,6 +65,17 @@ export default function SyllabusStep({ onNext, onSkip, error, setError, onPhaseC
 
   const [file, setFile] = useState<File | null>(null);
   const [fileDataUrl, setFileDataUrl] = useState<string | null>(null);
+  /**
+   * Blob URL backing the thumbnail. A data: URL cannot be embedded as a PDF in
+   * Chrome, and it is megabytes of string; a blob URL renders the real first
+   * page cheaply. Revoked whenever it is replaced so the blob is not retained.
+   */
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  // Release the blob when the step goes away; the browser holds it otherwise.
+  useEffect(() => {
+    return () => { if (previewUrl) URL.revokeObjectURL(previewUrl); };
+  }, [previewUrl]);
   const [fileBase64, setFileBase64] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [phase, setPhaseRaw] = useState<"upload" | "extracting" | "preview">("upload");
@@ -133,6 +144,11 @@ export default function SyllabusStep({ onNext, onSkip, error, setError, onPhaseC
       setFileBase64(result.split(",")[1]);
     };
     reader.readAsDataURL(f);
+
+    setPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return URL.createObjectURL(f);
+    });
   }, [setError, showToast]);
 
   /** Starts the simulated progress bar and status message rotation. */
@@ -294,8 +310,27 @@ export default function SyllabusStep({ onNext, onSkip, error, setError, onPhaseC
         />
         {file ? (
           <div className="flex flex-col items-center gap-2">
-            <FileText size={32} className="text-purple-500" />
-            <p className="text-sm font-semibold text-foreground">{file.name}</p>
+            {/* Show the document itself, so it is obvious which syllabus is
+                about to be read. pointer-events-none keeps the whole dropzone
+                clickable for swapping the file. */}
+            {previewUrl ? (
+              <div className="w-28 h-36 rounded-lg border border-border bg-card overflow-hidden shadow-sm pointer-events-none">
+                {file.type === "application/pdf" ? (
+                  <embed
+                    src={`${previewUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
+                    type="application/pdf"
+                    className="w-full h-full"
+                  />
+                ) : (
+                  <img src={previewUrl} alt="" className="w-full h-full object-cover" />
+                )}
+              </div>
+            ) : (
+              <FileText size={32} className="text-purple-500" />
+            )}
+            <p className="text-sm font-semibold text-foreground max-w-full truncate px-2">
+              {file.name}
+            </p>
             <p className="text-xs text-foreground">
               {(file.size / 1024 / 1024).toFixed(1)} MB
             </p>

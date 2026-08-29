@@ -345,7 +345,21 @@ function SourceLogo({ label }: { label: string }) {
     );
   }
   if (label === "Brightspace") {
-    return <img src="/brightspace-logo.svg" alt="" className="w-full h-full object-contain" />;
+    return (
+      <div className="w-full h-full rounded-md bg-white flex items-center justify-center overflow-hidden">
+        <img src="/brightspace-logo.svg" alt="" className="w-full h-full object-contain" />
+      </div>
+    );
+  }
+  if (label === "Google Classroom") {
+    return <img src="/classroom-logo.png" alt="" className="w-full h-full object-contain" />;
+  }
+  if (label === "Syllabus") {
+    return (
+      <div className="w-full h-full rounded-md bg-purple-500/10 flex items-center justify-center">
+        <FileText size={14} className="text-purple-500" />
+      </div>
+    );
   }
   return null;
 }

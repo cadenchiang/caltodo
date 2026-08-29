@@ -1,11 +1,12 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, useLayoutEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { Plus } from "lucide-react";
 import type { IntegrationCredentials } from "@/lib/types";
 import { getCredentials, invalidateCredentials } from "@/lib/credentials-client";
 import { useTaskContext } from "@/contexts/TaskContext";
 import CanvasSettings from "./CanvasSettings";
-import CanvasGenericCard from "./CanvasGenericCard";
 import GradescopeSettings from "./GradescopeSettings";
 import PensieveSettings from "./PensieveSettings";
 import BrightspaceSettings from "./BrightspaceSettings";
@@ -219,22 +220,31 @@ export default function IntegrationSettings() {
 
   return (
     <div className="space-y-3">
-      <CanvasSettings
-        credentials={credentials}
-        onUpdate={handleUpdate}
-        syncing={syncing}
-        lastSyncedAt={lastSyncedAt}
-        syncedCount={syncResult?.canvas.synced}
-      />
-      {/* Additional Canvas accounts */}
-      {(credentials.additional_canvas_accounts ?? []).map((account) => (
-        <AdditionalCanvasCard
-          key={account.id}
-          account={account}
+      {/* Canvas group — the primary account, every additional school beneath
+          it, and one "add another" action. Previously a second top-level card
+          also titled "Canvas" advertised adding another school, which read as
+          a duplicate integration rather than an action on this one. */}
+      <div className="space-y-2">
+        <CanvasSettings
           credentials={credentials}
           onUpdate={handleUpdate}
+          syncing={syncing}
+          lastSyncedAt={lastSyncedAt}
+          syncedCount={syncResult?.canvas.synced}
         />
-      ))}
+        {(credentials.additional_canvas_accounts ?? []).map((account) => (
+          <div key={account.id} className="ml-4 sm:ml-6">
+            <AdditionalCanvasCard
+              account={account}
+              credentials={credentials}
+              onUpdate={handleUpdate}
+            />
+          </div>
+        ))}
+        <div className="ml-4 sm:ml-6">
+          <AddAnotherCanvas />
+        </div>
+      </div>
       <GradescopeSettings
         credentials={credentials}
         onUpdate={handleUpdate}
@@ -258,8 +268,25 @@ export default function IntegrationSettings() {
         lastSyncedAt={lastSyncedAt}
         syncedCount={syncResult?.brightspace?.synced}
       />
-      <CanvasGenericCard />
     </div>
+  );
+}
+
+/**
+ * Compact "add another Canvas school" row, shown inside the Canvas group.
+ *
+ * @returns A dashed row that starts the add-a-school flow
+ */
+function AddAnotherCanvas() {
+  const router = useRouter();
+  return (
+    <button
+      onClick={() => router.push("/app/onboarding?setup=canvas-add")}
+      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl border border-dashed border-border text-xs font-medium text-muted-foreground hover:text-foreground hover:border-input-border hover:bg-muted/40 transition-colors cursor-pointer"
+    >
+      <Plus size={14} />
+      Add another Canvas school
+    </button>
   );
 }
 

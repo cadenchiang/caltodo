@@ -32,8 +32,13 @@ export default function NavigationSection() {
               className="flex items-center gap-3 px-4 py-3 hover:bg-accent/40 transition-colors cursor-pointer"
             >
               <Icon size={16} className="text-foreground/70 shrink-0" />
-              <span className="flex-1 text-sm font-medium text-foreground">
-                {item.label}
+              <span className="flex-1 flex items-center gap-1.5 min-w-0">
+                <span className="text-sm font-medium text-foreground">{item.label}</span>
+                {"beta" in item && item.beta && (
+                  <span className="text-[9px] font-medium text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-500/10 px-1.5 py-0.5 rounded-full leading-none shrink-0">
+                    Beta
+                  </span>
+                )}
               </span>
               <span className="text-xs text-muted-foreground mr-2">
                 {hidden ? "Hidden" : "Visible"}

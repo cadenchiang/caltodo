@@ -76,7 +76,7 @@ const ADD_OPTIONS: Array<{
     id: "brightspace",
     label: "Brightspace",
     description: "Assignments from your D2L calendar",
-    logo: <img src="/brightspace-logo.svg" alt="" className="w-4 h-4 object-contain" />,
+    logo: <span className="w-4 h-4 rounded-sm bg-white flex items-center justify-center overflow-hidden"><img src="/brightspace-logo.svg" alt="" className="w-full h-full object-contain" /></span>,
     route: "/app/onboarding?setup=brightspace",
   },
   {

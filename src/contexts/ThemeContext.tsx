@@ -27,6 +27,22 @@ const META_THEME_KEY = "theme_preference";
 const META_COLOR_THEME_KEY = "color_theme";
 
 /**
+ * Reports whether this device has an explicit stored value for a key.
+ *
+ * @param key - localStorage key to probe
+ * @returns True when the key is present, even if its value is null-ish
+ * @remarks Distinguishes "the user chose this" from "we defaulted", which is
+ *          what decides whether the account copy may override it.
+ */
+function hasStoredValue(key: string): boolean {
+  try {
+    return localStorage.getItem(key) !== null;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * True when a Supabase auth cookie is present. Used to skip the remote sync
  * (and the supabase-js dynamic import behind it) for anonymous visitors on the
  * public landing page, which ThemeProvider also wraps.
@@ -301,9 +317,15 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     applyColorTheme(storedColor);
   }, []);
 
-  // Reconcile with the server copy once, after the local read above. Remote
-  // wins when the two disagree: the common case is a device whose
-  // localStorage was evicted, so the stale value is the local one.
+  // Reconcile with the server copy once, after the local read above.
+  //
+  // Local wins whenever this device has a stored value. Remote used to win
+  // unconditionally, which meant a stale theme_preference in user_metadata
+  // flipped the page from dark to light a second after load, on every visit —
+  // the pre-paint script applied the real choice and this effect undid it.
+  // Remote is only a fallback for a device that has no value at all (fresh
+  // browser, or localStorage evicted), and we push local up to heal the
+  // mirror when they disagree.
   useEffect(() => {
     if (!hasAuthCookie()) return;
     let cancelled = false;
@@ -321,22 +343,36 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         hydrateWeekStartFromMetadata(meta);
 
         const remotePref = meta[META_THEME_KEY];
-        if (
-          (remotePref === "light" || remotePref === "dark" || remotePref === "auto") &&
-          remotePref !== preferenceRef.current
-        ) {
-          applyPreferenceLocal(remotePref);
+        const remotePrefValid =
+          remotePref === "light" || remotePref === "dark" || remotePref === "auto";
+
+        if (!hasStoredValue(THEME_KEY)) {
+          // No choice on this device: adopt the account's.
+          if (remotePrefValid && remotePref !== preferenceRef.current) {
+            applyPreferenceLocal(remotePref);
+          }
+        } else if (remotePrefValid && remotePref !== preferenceRef.current) {
+          // This device has a deliberate choice the account has not caught up
+          // with. Keep it and repair the mirror.
+          mirrorToRemote({ [META_THEME_KEY]: preferenceRef.current });
         }
 
-        // A cleared color theme is stored as null, which is meaningful —
-        // only skip when the key is absent entirely (never synced).
-        if (META_COLOR_THEME_KEY in meta) {
-          const raw = meta[META_COLOR_THEME_KEY];
-          const remoteColor: ColorTheme =
-            typeof raw === "string" && VALID_COLOR_THEMES.has(raw) ? (raw as ColorTheme) : null;
-          if (remoteColor !== colorThemeRef.current) {
-            applyColorThemeLocal(remoteColor);
+        if (!hasStoredValue(COLOR_THEME_KEY)) {
+          // A cleared color theme is stored as null, which is meaningful —
+          // only skip when the key is absent entirely (never synced).
+          if (META_COLOR_THEME_KEY in meta) {
+            const raw = meta[META_COLOR_THEME_KEY];
+            const remoteColor: ColorTheme =
+              typeof raw === "string" && VALID_COLOR_THEMES.has(raw) ? (raw as ColorTheme) : null;
+            if (remoteColor !== colorThemeRef.current) {
+              applyColorThemeLocal(remoteColor);
+            }
           }
+        } else if (
+          META_COLOR_THEME_KEY in meta &&
+          meta[META_COLOR_THEME_KEY] !== colorThemeRef.current
+        ) {
+          mirrorToRemote({ [META_COLOR_THEME_KEY]: colorThemeRef.current });
         }
       } catch {
         // Signed out mid-flight or offline: the local cache stands.
@@ -346,7 +382,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [applyPreferenceLocal, applyColorThemeLocal]);
+  }, [applyPreferenceLocal, applyColorThemeLocal, mirrorToRemote]);
 
   // When preference is "auto": resolve from cached/default coords, poll solar
   // position every 60s.

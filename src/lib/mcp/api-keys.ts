@@ -192,6 +192,55 @@ export async function listApiKeys(
 }
 
 /**
+ * Renames one of a user's API keys.
+ *
+ * @param client - Supabase client authenticated as the user (RLS applies)
+ * @param userId - Owner of the key
+ * @param keyId - Id of the key to rename
+ * @param label - New human label
+ * @returns The updated record
+ * @throws Error when the label is empty or too long, the key is not the
+ *         caller's, or the write fails
+ * @remarks Only the label is editable. The key itself cannot be changed or
+ *          re-read, since only its hash is stored.
+ */
+export async function renameApiKey(
+  client: SupabaseClient,
+  userId: string,
+  keyId: string,
+  label: string
+): Promise<McpKeyRecord> {
+  const trimmed = label.trim();
+  if (!trimmed) throw new Error("Name cannot be empty.");
+  if (trimmed.length > MAX_LABEL_LENGTH) {
+    throw new Error(`Label is too long (max ${MAX_LABEL_LENGTH} characters).`);
+  }
+
+  const { data, error } = await client
+    .from("mcp_api_keys")
+    .update({ label: trimmed })
+    .eq("user_id", userId)
+    .eq("id", keyId)
+    .select("id, label, key_prefix, created_at, last_used_at, expires_at")
+    .maybeSingle();
+
+  if (error) {
+    logger.error("mcp.apiKeys: rename failed", {
+      cause: error.message,
+      userId,
+      keyId,
+      impact: "key kept its previous name",
+    });
+    throw new Error(`Failed to rename API key: ${error.message}`);
+  }
+
+  if (!data) throw new Error("That API key does not exist.");
+
+  logger.info("mcp.apiKeys: key renamed", { userId, keyId });
+  return toRecord(data as unknown as KeyRow);
+}
+
+/**
  * Revokes (deletes) one of a user's API keys.
  *
  * @param client - Supabase client authenticated as the user (RLS applies)

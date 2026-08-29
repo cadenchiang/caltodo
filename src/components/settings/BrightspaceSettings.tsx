@@ -60,8 +60,11 @@ export default function BrightspaceSettings({ credentials, onUpdate }: Brightspa
   return (
     <div className="rounded-2xl border border-border bg-card px-3 sm:px-4 py-3.5 shadow-sm dark:shadow-none">
       <div className="flex items-center gap-2.5 sm:gap-3.5">
-        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
-          <img src="/brightspace-logo.svg" alt="" className="w-5 h-5 object-contain" />
+        {/* White chip in dark mode: the D2L mark is a black wordmark on its
+            own white plate, which otherwise reads as a harsh square inside a
+            grey rounded tile. */}
+        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-muted dark:bg-white flex items-center justify-center shrink-0 overflow-hidden">
+          <img src="/brightspace-logo.svg" alt="" className="w-6 h-6 object-contain" />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-foreground">Brightspace</p>
