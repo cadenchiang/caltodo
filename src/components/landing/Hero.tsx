@@ -223,13 +223,14 @@ export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
             </span>
           </p>
 
-          {/* CTA */}
+          {/* CTA — a signed-in visitor reaching the marketing page (via the
+              sidebar logo) wants their app back, not a signup form. */}
           <Link
-            href="/login?signup=true"
+            href={loggedIn ? "/app/inbox" : "/login?signup=true"}
             className="px-5 py-2.5 sm:px-5 sm:py-2 min-h-11 sm:min-h-0 rounded-xl bg-[#0e89d6] text-white text-sm sm:text-base font-medium hover:bg-[#3D8FE8] transition-colors duration-200 mb-4 sm:mb-12 inline-flex items-center gap-1.5 animate-fade-up"
             style={{ animationDelay: "1500ms" }}
           >
-            Get started
+            {loggedIn ? "Open app" : "Get started"}
             <ArrowRight size={16} strokeWidth={2.5} />
           </Link>
 

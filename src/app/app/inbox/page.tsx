@@ -906,14 +906,12 @@ export default function InboxPage() {
             <div
               className="hidden md:flex w-[50%] shrink-0 border-l border-border h-full"
               onClick={(e) => {
-                // Deselect when the click hits the panel wrapper or
-                // bubbles up from non-interactive empty areas. The
-                // detail panel's interactive children (inputs,
-                // buttons) handle their own clicks and stop
-                // propagation when needed, so any click reaching the
-                // outermost wrapper is a "clicked off" gesture.
-                const target = e.target as HTMLElement;
-                if (target.closest("input, textarea, button, [contenteditable], a")) return;
+                // Deselect only when the click lands on the wrapper itself,
+                // i.e. the empty area beside or below the panel. Treating any
+                // bubbled click as "clicked off" meant clicking the task's own
+                // title, dates or description closed the very task you were
+                // reading, since none of those are inputs or buttons.
+                if (e.target !== e.currentTarget) return;
                 setSelectedTask(null);
               }}
             >

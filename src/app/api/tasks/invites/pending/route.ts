@@ -64,19 +64,34 @@ export async function GET() {
 
     const taskMap = new Map(tasks?.map((t) => [t.id, t]) ?? []);
 
-    // Fetch inviter user metadata
+    // Fetch inviter user metadata.
+    //
+    // This used to call listUsers({ perPage: 1000 }), downloading the entire
+    // user table on every request to resolve a handful of names. That grew
+    // slower with every signup and would silently start returning "Someone"
+    // past the thousandth user. Fetch only the inviters actually referenced.
     const inviterIds = [...new Set(shares.map((s) => s.inviter_id))];
-    const { data: usersData } = await adminClient.auth.admin.listUsers({
-      page: 1,
-      perPage: 1000,
-    });
+    const inviters = await Promise.all(
+      inviterIds.map(async (id) => {
+        const { data, error } = await adminClient.auth.admin.getUserById(id);
+        if (error || !data?.user) {
+          logger.warn("GET /api/tasks/invites/pending: inviter not found", {
+            cause: error?.message ?? "no user returned",
+            inviterId: id,
+            impact: "invite shows a generic sender name",
+          });
+          return null;
+        }
+        return data.user;
+      })
+    );
 
     const userMap = new Map(
-      usersData?.users?.map((u) => [u.id, {
+      inviters.filter((u) => u !== null).map((u) => [u.id, {
         email: u.email ?? "",
         name: (u.user_metadata?.full_name as string) ?? null,
         avatar: (u.user_metadata?.avatar_url as string) ?? null,
-      }]) ?? []
+      }])
     );
 
     const invites = shares.map((share) => {

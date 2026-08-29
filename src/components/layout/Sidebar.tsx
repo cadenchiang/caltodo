@@ -125,7 +125,11 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
               of the app on every logo click, discarding the loaded bundle and
               all in-memory state. ?landing=1 still opts out of the middleware
               redirect that would otherwise bounce a signed-in user back. */}
-          <Link href="/?landing=1" className="flex items-center gap-2 hover:opacity-80 transition-opacity min-w-0">
+          {/* prefetch={false}: Next was prefetching the full marketing page
+              (six RSC requests in one trace) while the user sat in the app,
+              competing with the API calls that gate first render. Nobody
+              navigates here often enough to justify that. */}
+          <Link href="/?landing=1" prefetch={false} className="flex items-center gap-2 hover:opacity-80 transition-opacity min-w-0">
             <img
               src={isMiffy ? (isDark ? "/logo-miffy-dark.png" : "/logo-miffy.png") : "/logo.png"}
               alt="caltodo"
