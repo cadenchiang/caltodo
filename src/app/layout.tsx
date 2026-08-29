@@ -45,6 +45,13 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://caltodo.me"),
   alternates: { canonical: "/" },
   applicationName: "caltodo",
+  // Google Search Console ownership proof. Sourced from the environment so the
+  // token is never committed; when GOOGLE_SITE_VERIFICATION is unset (local dev,
+  // forks) the key is omitted entirely rather than emitting an empty meta tag,
+  // which Search Console rejects as an invalid verification.
+  ...(process.env.GOOGLE_SITE_VERIFICATION
+    ? { verification: { google: process.env.GOOGLE_SITE_VERIFICATION } }
+    : {}),
   openGraph: {
     title: "caltodo: sync your classes, never miss a deadline",
     description:
