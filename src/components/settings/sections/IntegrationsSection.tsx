@@ -68,7 +68,7 @@ const ADD_OPTIONS: Array<{
   {
     id: "pensieve",
     label: "Pensive",
-    description: "Sync CS/DS assignments",
+    description: "Assignments from your Pensive calendar",
     logo: <img src="/pensieve-logo.png" alt="" className="w-4 h-4" />,
     route: "/app/onboarding?setup=pensieve",
   },

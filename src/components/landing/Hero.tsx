@@ -196,7 +196,7 @@ export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
 
 
           {/* Heading */}
-          <h2
+          <h1
             className="text-[46px] sm:text-[64px] leading-[0.95] sm:leading-[0.95] tracking-tight text-center text-black animate-fade-up"
             style={{
               fontFamily: '-apple-system, "SF Pro Display", BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
@@ -204,7 +204,7 @@ export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
             }}
           >
             <span className="font-bold">Stay ahead.</span>
-          </h2>
+          </h1>
 
           {/* Subtitle */}
           <p
