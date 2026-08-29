@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { RefreshCw, CalendarDays, LayoutGrid, ArrowRight } from "lucide-react";
+import NumberFlow from "@number-flow/react";
 import GoogleOneTap from "@/components/auth/GoogleOneTap";
 import FadeIn from "@/components/landing/FadeIn";
 
@@ -13,6 +14,8 @@ interface HeroProps {
   loggedIn?: boolean;
   /** Server-fetched user count for immediate render. */
   initialUserCount?: number;
+  /** Total assignments synced across all users, for the eyebrow line. */
+  initialAssignmentCount?: number;
 }
 
 /**
@@ -20,10 +23,20 @@ interface HeroProps {
  * Shows login/signup buttons for unauthenticated users,
  * or profile picture + dashboard link for logged-in users.
  */
-export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
+export default function Hero({ loggedIn, initialUserCount, initialAssignmentCount }: HeroProps) {
   const [showSpotsModal, setShowSpotsModal] = useState(false);
   const [pastHero, setPastHero] = useState(false);
   const userCount = initialUserCount ?? null;
+  const assignmentCount = initialAssignmentCount ?? 0;
+
+  // Start at zero and set the real value after the eyebrow's fade-up, so the
+  // digits roll up into place rather than appearing already settled.
+  const [rolledCount, setRolledCount] = useState(0);
+  useEffect(() => {
+    if (assignmentCount <= 0) return;
+    const timer = setTimeout(() => setRolledCount(assignmentCount), 1100);
+    return () => clearTimeout(timer);
+  }, [assignmentCount]);
   const heroEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -184,12 +197,25 @@ export default function Hero({ loggedIn, initialUserCount }: HeroProps) {
               </div>
             </div>
 
-            {/* Product label below cluster */}
+            {/* Eyebrow — the count of deadlines actually pulled in says more
+                than the product name. Falls back to the name when the count is
+                unavailable, so a Supabase blip never leaves a bare "0". */}
             <p
               className="mt-3 sm:mt-5 text-sm sm:text-lg font-medium text-black tracking-tight animate-fade-up"
               style={{ animationDelay: "1000ms" }}
             >
-              Caltodo
+              {assignmentCount > 0 ? (
+                <>
+                  <NumberFlow
+                    value={rolledCount}
+                    transformTiming={{ duration: 1400, easing: "cubic-bezier(0.16, 1, 0.3, 1)" }}
+                    className="font-semibold tabular-nums"
+                  />
+                  {" assignments synced"}
+                </>
+              ) : (
+                "Caltodo"
+              )}
             </p>
           </div>
 

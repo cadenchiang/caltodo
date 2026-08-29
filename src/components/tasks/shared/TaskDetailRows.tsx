@@ -1,4 +1,5 @@
-import { Tag, AlignLeft, BookOpen, Repeat } from "lucide-react";
+import { Tag, AlignLeft, BookOpen, Repeat, FileText } from "lucide-react";
+import { parseLinks, looksLikeDocument } from "@/lib/link-text";
 
 /** Default icon size matching the ICON_SIZE constant in detail views. */
 const DEFAULT_ICON_SIZE = 20;
@@ -173,7 +174,25 @@ export function TaskDescriptionRow({ description, lineClamp, iconSize = DEFAULT_
         <AlignLeft size={iconSize} className="text-secondary-foreground" />
       </div>
       <p className={`text-sm text-foreground ${clampClass} break-words min-w-0`}>
-        {description}
+        {parseLinks(description).map((seg, i) =>
+          seg.kind === "text" ? (
+            <span key={i}>{seg.value}</span>
+          ) : (
+            <a
+              key={i}
+              href={seg.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="inline-flex items-center gap-1 text-[#0e89d6] hover:underline break-all"
+            >
+              {looksLikeDocument(seg.href, seg.label) && (
+                <FileText size={13} className="shrink-0" />
+              )}
+              {seg.label}
+            </a>
+          )
+        )}
       </p>
     </div>
   );

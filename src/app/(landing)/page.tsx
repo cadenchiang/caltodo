@@ -42,6 +42,31 @@ const getCachedUserCount = unstable_cache(
  * Includes Organization and WebSite schemas to help search engines
  * understand the site identity and improve rich result eligibility.
  */
+/**
+ * Total assignments caltodo has synced, cached for an hour.
+ *
+ * A head count says nothing about what the product does; the number of
+ * deadlines it has pulled in does. Counted with head+exact so no rows travel.
+ * Returns 0 on failure, and the Hero falls back to the product name.
+ */
+const getCachedAssignmentCount = unstable_cache(
+  async (): Promise<number> => {
+    try {
+      const admin = createAdminClient();
+      const { count } = await admin
+        .from("tasks")
+        .select("id", { count: "exact", head: true })
+        .not("source", "is", null)
+        .is("dismissed_at", null);
+      return count ?? 0;
+    } catch {
+      return 0;
+    }
+  },
+  ["landing-assignment-count"],
+  { revalidate: 3600, tags: ["landing-assignment-count"] },
+);
+
 const jsonLd = {
   "@context": "https://schema.org",
   "@graph": [
@@ -79,7 +104,10 @@ const jsonLd = {
  * and redirects authenticated users to /app/inbox.
  */
 export default async function HomePage() {
-  const userCount = await getCachedUserCount();
+  const [userCount, assignmentCount] = await Promise.all([
+    getCachedUserCount(),
+    getCachedAssignmentCount(),
+  ]);
 
   return (
     <>
@@ -87,7 +115,7 @@ export default async function HomePage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <Hero initialUserCount={userCount} />
+      <Hero initialUserCount={userCount} initialAssignmentCount={assignmentCount} />
     </>
   );
 }
