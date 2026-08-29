@@ -40,8 +40,8 @@ export const metadata: Metadata = {
     template: "%s | caltodo",
   },
   description:
-    "Sync your Canvas, Gradescope, and syllabus deadlines into one calendar and to-do list. The free student planner that makes sure you never miss a due date.",
-  keywords: ["caltodo", "cal todo", "assignment management", "deadline tracker", "student planner", "syllabus upload", "class sync"],
+    "The student planner that keeps itself up to date. Deadlines sync from Canvas, Gradescope, Brightspace and more, plus any syllabus you upload.",
+  keywords: ["caltodo", "cal todo", "assignment management", "deadline tracker", "student planner", "syllabus upload", "class sync", "canvas calendar sync", "gradescope deadlines", "brightspace calendar", "google classroom planner"],
   metadataBase: new URL("https://caltodo.me"),
   alternates: { canonical: "/" },
   applicationName: "caltodo",
@@ -55,7 +55,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "caltodo: sync your classes, never miss a deadline",
     description:
-      "caltodo pulls your Canvas, Gradescope, and syllabus deadlines into one calendar and to-do list. Free for students, forever.",
+      "Deadlines from Canvas, Gradescope, Brightspace, and Google Classroom, plus anything in your syllabus, all in one planner with a calendar, notes, and course chat. Free for students, forever.",
     url: "https://caltodo.me",
     siteName: "caltodo",
     type: "website",
@@ -73,7 +73,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "caltodo: sync your classes, never miss a deadline",
     description:
-      "caltodo pulls your Canvas, Gradescope, and syllabus deadlines into one calendar and to-do list. Free for students, forever.",
+      "Deadlines from Canvas, Gradescope, Brightspace, and Google Classroom, plus anything in your syllabus, all in one planner. Free for students, forever.",
     images: ["/og-image.png"],
   },
   // Favicon + Apple touch icon are the real brand logo, served from
