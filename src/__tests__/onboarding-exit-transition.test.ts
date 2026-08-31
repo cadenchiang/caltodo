@@ -21,7 +21,8 @@ const SOURCE = fs.readFileSync(
 );
 
 /** Routes onboarding navigates to when the flow ends. */
-const EXIT_ROUTES = ["/app/home", "/app/inbox"];
+// Home is withdrawn, so both exits land on the inbox.
+const EXIT_ROUTES = ["/app/inbox"];
 
 describe("onboarding exit transition", () => {
   it.each(EXIT_ROUTES)("prefetches %s before navigating there", (route) => {

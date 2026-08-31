@@ -13,7 +13,7 @@
  * has NOT hidden becomes their landing page.
  */
 const NAV_HREFS_IN_ORDER = [
-  "/app/home",
+  // "/app/home" is withdrawn while the board is reworked; see NAV_ITEMS.
   "/app/inbox",
   "/app/calendar",
   "/app/discussions",

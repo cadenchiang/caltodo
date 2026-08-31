@@ -34,7 +34,7 @@ export default function NavigationSection() {
               <Icon size={16} className="text-foreground/70 shrink-0" />
               <span className="flex-1 flex items-center gap-1.5 min-w-0">
                 <span className="text-sm font-medium text-foreground">{item.label}</span>
-                {"beta" in item && item.beta && (
+                {item.beta && (
                   <span className="text-[9px] font-medium text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-500/10 px-1.5 py-0.5 rounded-full leading-none shrink-0">
                     Beta
                   </span>

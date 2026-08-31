@@ -286,7 +286,7 @@ export default function LandingNav({ loggedIn: loggedInProp }: LandingNavProps =
         <div className="justify-self-end flex items-center gap-1 sm:gap-1.5">
           {loggedIn ? (
             <Link
-              href="/app/home"
+              href="/app/inbox"
               className="px-3.5 sm:px-4 py-2.5 sm:py-2 min-h-11 sm:min-h-0 rounded-xl bg-[#0e89d6] text-white text-xs sm:text-sm font-medium hover:bg-[#3D8FE8] transition-colors duration-200 inline-flex items-center gap-1.5"
             >
               Open app

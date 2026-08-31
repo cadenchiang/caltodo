@@ -578,7 +578,7 @@ export default function OnboardingPage() {
   // path paid a cold route load after the exit fade had already finished,
   // which read as a stall and a loading-skeleton flash.
   useEffect(() => {
-    router.prefetch("/app/home");
+    router.prefetch("/app/inbox");
     router.prefetch("/app/inbox");
   }, [router]);
 
@@ -982,7 +982,7 @@ export default function OnboardingPage() {
       triggerSync().catch(() => {});
     }
     // Navigate after fade-out animation completes
-    setTimeout(() => router.push("/app/home"), 500);
+    setTimeout(() => router.push("/app/inbox"), 500);
   }
 
   /**

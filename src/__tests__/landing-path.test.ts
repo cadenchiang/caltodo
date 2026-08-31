@@ -1,10 +1,12 @@
+import { readFileSync, existsSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, it, expect } from "vitest";
 import { pickLandingPath, isMobileRequest } from "@/lib/landing-path";
 
 describe("pickLandingPath", () => {
-  it("defaults to /app/home when nothing is hidden", () => {
-    expect(pickLandingPath({})).toBe("/app/home");
-    expect(pickLandingPath({ hidden_nav_items: [] })).toBe("/app/home");
+  it("defaults to /app/inbox when nothing is hidden", () => {
+    expect(pickLandingPath({})).toBe("/app/inbox");
+    expect(pickLandingPath({ hidden_nav_items: [] })).toBe("/app/inbox");
   });
 
   it("falls through to next nav item when Home is hidden", () => {
@@ -31,12 +33,12 @@ describe("pickLandingPath", () => {
   });
 
   it("ignores unknown / non-nav hrefs in hidden list", () => {
-    expect(pickLandingPath({ hidden_nav_items: ["/app/something-else"] })).toBe("/app/home");
+    expect(pickLandingPath({ hidden_nav_items: ["/app/something-else"] })).toBe("/app/inbox");
   });
 
   it("treats null/undefined metadata as nothing hidden", () => {
-    expect(pickLandingPath(null)).toBe("/app/home");
-    expect(pickLandingPath(undefined)).toBe("/app/home");
+    expect(pickLandingPath(null)).toBe("/app/inbox");
+    expect(pickLandingPath(undefined)).toBe("/app/inbox");
   });
 
   it("ignores non-string entries inside hidden_nav_items", () => {
@@ -66,7 +68,7 @@ describe("pickLandingPath", () => {
     });
 
     it("is a no-op on desktop", () => {
-      expect(pickLandingPath({}, { isMobile: false })).toBe("/app/home");
+      expect(pickLandingPath({}, { isMobile: false })).toBe("/app/inbox");
     });
   });
 });
@@ -113,5 +115,50 @@ describe("isMobileRequest", () => {
 
   it("returns false when no signal is present", () => {
     expect(isMobileRequest(headers({}))).toBe(false);
+  });
+});
+
+describe("withdrawn home route", () => {
+  it("never lands anyone on the board while it is withdrawn", () => {
+    // Existing accounts carry hidden_nav_items from when Home was a real nav
+    // entry, including accounts that never hid it. None of those may resolve
+    // to /app/home.
+    const metadatas: unknown[] = [
+      {},
+      null,
+      undefined,
+      { hidden_nav_items: [] },
+      { hidden_nav_items: ["/app/home"] },
+      { hidden_nav_items: ["/app/inbox"] },
+      { hidden_nav_items: ["/app/calendar"] },
+      { hidden_nav_items: ["/app/inbox", "/app/calendar"] },
+    ];
+    for (const meta of metadatas) {
+      for (const isMobile of [true, false]) {
+        expect(pickLandingPath(meta, { isMobile })).not.toBe("/app/home");
+      }
+    }
+  });
+
+  it("keeps the route out of the sidebar", () => {
+    const constants = readFileSync(
+      resolve(__dirname, "../lib/constants.ts"),
+      "utf8"
+    );
+    const navBlock = constants.slice(
+      constants.indexOf("export const NAV_ITEMS"),
+      constants.indexOf("];", constants.indexOf("export const NAV_ITEMS"))
+    );
+    expect(navBlock).not.toContain("/app/home");
+  });
+
+  it("redirects the page rather than deleting it", () => {
+    // The board must keep building so it can be brought back.
+    const page = readFileSync(
+      resolve(__dirname, "../app/app/home/page.tsx"),
+      "utf8"
+    );
+    expect(page).toContain('redirect("/app/inbox")');
+    expect(existsSync(resolve(__dirname, "../app/app/home/HomeBoard.tsx"))).toBe(true);
   });
 });

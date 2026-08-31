@@ -1,4 +1,4 @@
-import { LayoutGrid, Inbox, CalendarDays } from "lucide-react";
+import { Inbox, CalendarDays, type LucideIcon } from "lucide-react";
 
 /**
  * Navigation items for the sidebar.
@@ -7,12 +7,28 @@ import { LayoutGrid, Inbox, CalendarDays } from "lucide-react";
  * sidebar no longer surfaces it and the CalChat widget is hidden in
  * the gallery. The /app/discussions route still exists for legacy
  * links but isn't promoted anywhere.
+ *
+ * Home (the widget board) is withdrawn the same way while it is being
+ * reworked: /app/home and everything under src/components/home stay in the
+ * tree and keep building, but nothing links to them and the route redirects.
+ * Restoring it is putting this entry back and removing the redirect in
+ * src/app/app/home/page.tsx.
  */
-export const NAV_ITEMS = [
-  { label: "Home", href: "/app/home", icon: LayoutGrid, beta: true },
+export interface NavItem {
+  /** Text shown in the sidebar and in Settings > Navigation. */
+  label: string;
+  /** Route the item links to. */
+  href: string;
+  /** Icon rendered beside the label. */
+  icon: LucideIcon;
+  /** Marks the item as unfinished. Withdrawn items keep this on return. */
+  beta?: boolean;
+}
+
+export const NAV_ITEMS: readonly NavItem[] = [
   { label: "Inbox", href: "/app/inbox", icon: Inbox },
   { label: "Calendar", href: "/app/calendar", icon: CalendarDays },
-] as const;
+];
 
 /**
  * Available task colors for the color picker.

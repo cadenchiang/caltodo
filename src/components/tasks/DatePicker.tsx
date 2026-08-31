@@ -19,6 +19,7 @@ import { useWeekStart } from "@/hooks/useWeekStart";
 import { ChevronLeft, ChevronRight, Clock, Repeat, Flag } from "lucide-react";
 import { getRepeatLabel } from "@/lib/repeat";
 import { getDatePresets } from "@/lib/date-presets";
+import { parseDateInput } from "@/lib/date-helpers";
 import TimePicker from "./TimePicker";
 
 // Re-exported so existing importers keep working after the picker moved into
@@ -113,6 +114,44 @@ export default function DatePicker({
   // the picker sits open.
   const presets = getDatePresets();
 
+  // Typed date entry. The text is kept as the user typed it and parsed on
+  // every keystroke; a valid parse previews in the grid but is not committed
+  // until Enter, because committing live would close the picker on the first
+  // digit for callers that close on change.
+  const [typed, setTyped] = useState("");
+  const typedDate = typed.trim() ? parseDateInput(typed) : null;
+
+  /**
+   * Jumps the grid to a typed date so the preview is on screen.
+   *
+   * @param next - Raw text from the input
+   */
+  function handleTyped(next: string) {
+    setTyped(next);
+    const parsed = next.trim() ? parseDateInput(next) : null;
+    if (parsed) setCurrentMonth(new Date(parsed + "T00:00:00"));
+  }
+
+  /**
+   * Commits a typed date on Enter, or abandons the text on Escape.
+   *
+   * @param e - Keyboard event from the input
+   */
+  function handleTypedKey(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (typedDate) {
+        setTyped("");
+        onChange(typedDate);
+      }
+      return;
+    }
+    if (e.key === "Escape") {
+      e.preventDefault();
+      setTyped("");
+    }
+  }
+
   /**
    * Checks if a repeat preset matches the current configuration.
    */
@@ -151,6 +190,20 @@ export default function DatePicker({
 
   return (
     <div className="bg-card rounded-2xl shadow-2xl border border-border p-3 w-64">
+      {/* Typed entry — faster than paging the grid to a distant month, and
+          the only practical way to reach one years out. */}
+      <input
+        type="text"
+        value={typed}
+        onChange={(e) => handleTyped(e.target.value)}
+        onKeyDown={handleTypedKey}
+        placeholder="Type a date"
+        aria-label="Type a date"
+        className={`w-full mb-2 px-2 py-1.5 text-xs rounded-lg border bg-card text-foreground placeholder-subtle-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-colors ${
+          typed.trim() && !typedDate ? "border-red-400" : "border-border"
+        }`}
+      />
+
       {/* Month navigation header */}
       <div className="flex items-center justify-between mb-1">
         <button
@@ -189,6 +242,9 @@ export default function DatePicker({
           const isToday = isSameDay(day, today);
           const isPast = isCurrentMonth && isBefore(day, today) && !isToday;
           const dateStr = format(day, "yyyy-MM-dd");
+          // What Enter would select right now, shown as a ring rather than a
+          // fill so it reads as a preview and not a committed choice.
+          const isTypedPreview = !!typedDate && typedDate === dateStr;
 
           return (
             <button
@@ -196,6 +252,8 @@ export default function DatePicker({
               type="button"
               onClick={() => onChange(dateStr)}
               className={`w-8 h-8 text-xs rounded-full flex items-center justify-center mx-auto transition-all ${
+                isTypedPreview && !isSelected ? "ring-2 ring-blue-400 " : ""
+              }${
                 isSelected
                   ? "bg-blue-500 text-white shadow-sm"
                   : isToday

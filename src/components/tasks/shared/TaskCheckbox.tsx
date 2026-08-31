@@ -4,8 +4,11 @@
  *
  * Three sizes:
  * - "xs" (12px): used in compact list rows
- * - "sm" (14px): used in board cards, with ghost checkmark on hover
+ * - "sm" (14px): used in board cards
  * - "lg" (20px): used in detail panel and popover previews
+ *
+ * Every size shows a ghost checkmark on hover, so an empty box reads as
+ * something to click rather than decoration.
  */
 
 interface TaskCheckboxProps {
@@ -67,7 +70,10 @@ export default function TaskCheckbox({
             strokeLinejoin="round"
           />
         </svg>
-      ) : !isLg ? (
+      ) : (
+        // Ghost checkmark: faint when the surrounding row is hovered, full
+        // strength on the box itself. The large size used to opt out of this,
+        // so the detail panel's box gave no sign it could be clicked.
         <svg
           width={svgWidth}
           height={svgHeight}
@@ -83,7 +89,7 @@ export default function TaskCheckbox({
             strokeLinejoin="round"
           />
         </svg>
-      ) : null}
+      )}
     </button>
   );
 }

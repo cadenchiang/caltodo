@@ -21,7 +21,7 @@ export default function BillingSuccessPage() {
           Calendar, upload every syllabus, you know the drill.
         </p>
         <Link
-          href="/app/home"
+          href="/app/inbox"
           className="mt-6 inline-flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#0e89d6] text-white text-sm font-semibold hover:bg-[#3D8FE8] transition-colors"
         >
           Open your board
