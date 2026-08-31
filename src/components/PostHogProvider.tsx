@@ -83,6 +83,11 @@ if (typeof window !== "undefined" && process.env.NODE_ENV === "production") {
       capture_pageview: false, // Handled by PostHogPageView for SPA navigations
       capture_pageleave: true,
       autocapture: true,
+      // PostHog lazy-loads surveys.js (100KB) on init. Nothing in the app
+      // defines or renders a survey, and a trace of /app/inbox caught it
+      // taking 424ms while the task list was still waiting on its own data.
+      // Turn it back on the moment surveys are actually used.
+      disable_surveys: true,
       before_send: (event) => {
         if (!event) return event;
 
