@@ -52,9 +52,9 @@ export function getDueDateInfo(
     return { dateLabel: "Tomorrow", timeLabel, className: "text-blue-400" };
   }
   if (diffDays <= 7) {
-    const month = due.toLocaleString("en-US", { month: "short" });
-    const day = due.getDate();
-    return { dateLabel: `${month} ${day}`, timeLabel, className: "text-blue-400" };
+    // Inside a week, distance reads faster than a date: "In 3 days" says how
+    // much runway is left, where "Sep 3" makes the reader do the subtraction.
+    return { dateLabel: `In ${diffDays} days`, timeLabel, className: "text-blue-400" };
   }
 
   const month = due.toLocaleString("en-US", { month: "short" });
@@ -87,7 +87,10 @@ export function getDetailDateInfo(
 
   const isOverdue = !isCompleted && info.dateLabel.startsWith("Overdue");
   const useRelative =
-    isOverdue || info.dateLabel === "Today" || info.dateLabel === "Tomorrow";
+    isOverdue ||
+    info.dateLabel === "Today" ||
+    info.dateLabel === "Tomorrow" ||
+    info.dateLabel.startsWith("In ");
 
   const due = new Date(dueDate + "T00:00:00");
   const longDate = due.toLocaleDateString("en-US", {

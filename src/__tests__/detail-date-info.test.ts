@@ -41,9 +41,14 @@ describe("getDetailDateInfo", () => {
     expect(getDetailDateInfo(isoOffset(1), null, false)?.dateLabel).toBe("Tomorrow");
   });
 
-  it("keeps the long form further out", () => {
-    // Three days on is Thu Sep 3 2026.
-    expect(getDetailDateInfo(isoOffset(3), null, false)?.dateLabel).toBe("Thu, Sep 3, 2026");
+  it("counts the days within a week, matching the list", () => {
+    expect(getDetailDateInfo(isoOffset(3), null, false)?.dateLabel).toBe("In 3 days");
+    expect(getDetailDateInfo(isoOffset(7), null, false)?.dateLabel).toBe("In 7 days");
+  });
+
+  it("keeps the long form past a week", () => {
+    // Eight days on is Tue Sep 8 2026.
+    expect(getDetailDateInfo(isoOffset(8), null, false)?.dateLabel).toBe("Tue, Sep 8, 2026");
   });
 
   it("keeps the long form well into the future", () => {

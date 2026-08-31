@@ -164,3 +164,57 @@ describe("getSourceBadges", () => {
     expect(badges[0].label).toContain("Late due");
   });
 });
+
+describe("getDueDateInfo relative wording", () => {
+  /** Fixed "now": Mon Aug 31 2026, 9am. */
+  const NOW = new Date(2026, 7, 31, 9, 0, 0);
+
+  /** Formats a date offset from NOW as a YYYY-MM-DD string. */
+  function isoOffset(days: number): string {
+    const d = new Date(NOW);
+    d.setDate(d.getDate() + days);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("keeps Today and Tomorrow as words", () => {
+    expect(getDueDateInfo(isoOffset(0), null)?.dateLabel).toBe("Today");
+    expect(getDueDateInfo(isoOffset(1), null)?.dateLabel).toBe("Tomorrow");
+  });
+
+  it("counts days for the rest of the week", () => {
+    expect(getDueDateInfo(isoOffset(2), null)?.dateLabel).toBe("In 2 days");
+    expect(getDueDateInfo(isoOffset(3), null)?.dateLabel).toBe("In 3 days");
+    expect(getDueDateInfo(isoOffset(7), null)?.dateLabel).toBe("In 7 days");
+  });
+
+  it("switches to a date past a week", () => {
+    // The count stops being useful once it is long enough to need a calendar.
+    expect(getDueDateInfo(isoOffset(8), null)?.dateLabel).toBe("Sep 8");
+    expect(getDueDateInfo(isoOffset(30), null)?.dateLabel).toBe("Sep 30");
+  });
+
+  it("still counts overdue days in the other direction", () => {
+    expect(getDueDateInfo(isoOffset(-1), null)?.dateLabel).toBe("Overdue 1 day");
+    expect(getDueDateInfo(isoOffset(-4), null)?.dateLabel).toBe("Overdue 4 days");
+  });
+
+  it("keeps the time alongside a counted day", () => {
+    expect(getDueDateInfo(isoOffset(3), "17:00")?.timeLabel).toBe("5:00 PM");
+  });
+
+  it("never says 'In 1 days'", () => {
+    // The singular case is covered by Tomorrow, so the plural is always right.
+    for (let d = 2; d <= 7; d++) {
+      expect(getDueDateInfo(isoOffset(d), null)?.dateLabel).not.toContain("1 days");
+    }
+  });
+});
