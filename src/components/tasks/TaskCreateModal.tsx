@@ -796,8 +796,11 @@ export default function TaskCreateModal({
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Add description"
-                rows={2}
-                className="flex-1 text-sm text-foreground bg-transparent placeholder-muted-foreground/60 focus:outline-none resize-none leading-relaxed"
+                rows={5}
+                // A two-row box read as another single-line field and hid all
+                // but the first line of a synced assignment's description.
+                // Tall enough to write a paragraph in, and resizable past that.
+                className="flex-1 min-h-[7rem] text-sm text-foreground bg-transparent placeholder-muted-foreground/60 focus:outline-none resize-y leading-relaxed"
                 maxLength={2000}
               />
             </div>
