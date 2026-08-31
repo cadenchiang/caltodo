@@ -12,6 +12,8 @@ import { fetchPensieveAssignments, PENSIEVE_COLOR } from "@/lib/pensieve-client"
 import { fetchBrightspaceAssignments } from "@/lib/brightspace-client";
 import { fetchBlackboardAssignments } from "@/lib/blackboard-client";
 import { isMissingColumnError } from "@/lib/supabase/missing-column";
+import { loadFeedAccounts, fetchAllFeedAssignments } from "@/lib/feed-accounts";
+import type { FeedProvider } from "@/lib/integration-providers";
 import { decrypt } from "@/lib/crypto";
 import { logger } from "@/lib/logger";
 import { isAllowedCanvasUrl } from "@/lib/canvas-url-validation";
@@ -669,60 +671,26 @@ async function syncPensieve(
   timezone: string,
   courseNameMap: Map<string, string> = new Map()
 ): Promise<SyncSourceResult> {
-  if (!creds.pensieve_calendar_url) {
-    logger.info("syncPensieve skipped: no calendar URL configured", { userId });
-    return { synced: 0, errors: [] };
-  }
-
-  try {
-    logger.info("syncPensieve: fetching assignments", { userId, url: creds.pensieve_calendar_url.slice(0, 60) });
-    let assignments = await fetchPensieveAssignments(creds.pensieve_calendar_url);
-    logger.info("syncPensieve: parsed assignments", { userId, count: assignments.length });
-
-    // null = no selection made yet (first time), sync all courses
-    // [] = user explicitly deselected all courses, sync nothing
-    if (Array.isArray(creds.selected_pensieve_courses) && creds.selected_pensieve_courses.length === 0) {
-      logger.info("syncPensieve skipped: no courses selected", { userId });
-      return { synced: 0, errors: [] };
-    }
-
-    if (creds.selected_pensieve_courses && creds.selected_pensieve_courses.length > 0) {
-      const allowedNames = new Set(creds.selected_pensieve_courses.map((c) => c.name));
-      assignments = assignments.filter((a) => a.course_name && allowedNames.has(a.course_name));
-      logger.info("syncPensieve: filtered by selected courses", {
-        userId,
-        allowed: creds.selected_pensieve_courses.length,
-        afterFilter: assignments.length,
-      });
-    }
-
-    // Apply canonical course names for cross-platform merging
-    const merged = assignments.map((a) => ({
-      ...a,
-      course_name: getCanonicalName(a.course_name, courseNameMap),
-    }));
-    const result = await upsertAssignments(supabase, userId, "pensieve", merged, timezone);
-    await dismissMissingTasks(supabase, userId, "pensieve", merged);
-    // Feed fetched + parsed cleanly — clear any prior failure flag so the
-    // health banner stops warning the moment the feed recovers.
-    await supabase
-      .from("integration_credentials")
-      .update({ pensieve_auth_failed: false })
-      .eq("user_id", userId);
-    logger.info("syncPensieve: upserted", { userId, synced: result.synced });
-    return { synced: result.synced, errors: result.errors };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    logger.error("syncPensieve failed", { userId, error: message });
-    // Persist the failure so the in-app banner shows it on a cold load / other
-    // device / after a background sync — not only when the failing sync ran in
-    // the current browser session.
-    await supabase
-      .from("integration_credentials")
-      .update({ pensieve_auth_failed: true })
-      .eq("user_id", userId);
-    return { synced: 0, errors: [message] };
-  }
+  return syncFeedProvider({
+    supabase,
+    userId,
+    provider: "pensieve",
+    primaryUrl: creds.pensieve_calendar_url,
+    fetcher: fetchPensieveAssignments,
+    failureColumn: "pensieve_auth_failed",
+    timezone,
+    courseNameMap,
+    // null = no selection made yet (first sync), so sync everything.
+    // [] = the user deselected every course, so sync nothing, which is
+    // distinct from "sync all" and returns null to skip reconciliation.
+    filter: (assignments) => {
+      const selected = creds.selected_pensieve_courses;
+      if (Array.isArray(selected) && selected.length === 0) return null;
+      if (!selected || selected.length === 0) return assignments;
+      const allowed = new Set(selected.map((c) => c.name));
+      return assignments.filter((a) => a.course_name && allowed.has(a.course_name));
+    },
+  });
 }
 
 /**
@@ -734,6 +702,88 @@ async function syncPensieve(
  * @param timezone - IANA timezone for date/time conversion
  * @returns Sync result with count and errors
  */
+/** Inputs for a multi-account iCal feed sync. */
+interface FeedSyncOptions {
+  supabase: SupabaseClient;
+  userId: string;
+  /** Provider key; also the `source` assignments are stored under. */
+  provider: FeedProvider;
+  /** Feed URL from the flat credentials column, or null when not connected. */
+  primaryUrl: string | null;
+  /** Provider's feed client. */
+  fetcher: (url: string) => Promise<NormalizedAssignment[]>;
+  /** integration_credentials column holding this provider's failure flag. */
+  failureColumn: string;
+  timezone: string;
+  courseNameMap: Map<string, string>;
+  /** Optional narrowing to the courses the user selected. */
+  filter?: (assignments: NormalizedAssignment[]) => NormalizedAssignment[] | null;
+}
+
+/**
+ * Syncs every connected account for an iCal-feed provider.
+ *
+ * The primary account comes from the flat credentials column; any further ones
+ * come from integration_accounts. All of them are fetched, merged, and then
+ * upserted and reconciled exactly once, because dismissMissingTasks deletes
+ * whatever is absent from the set it is handed — reconciling per account would
+ * make each one delete the previous account's tasks.
+ *
+ * A single broken feed does not fail the provider: it contributes an error and
+ * the healthy accounts still sync. Reconciliation is skipped entirely when no
+ * account succeeded, so a total outage cannot wipe the user's assignments.
+ *
+ * @param options - See FeedSyncOptions.
+ * @returns Count synced across all accounts, plus one error per failed account.
+ */
+async function syncFeedProvider(options: FeedSyncOptions): Promise<SyncSourceResult> {
+  const { supabase, userId, provider, primaryUrl, fetcher, failureColumn, timezone, courseNameMap, filter } = options;
+
+  const accounts = await loadFeedAccounts(supabase, userId, provider, primaryUrl);
+  if (accounts.length === 0) {
+    logger.info(`sync${provider}: no accounts connected`, { userId });
+    return { synced: 0, errors: [] };
+  }
+
+  logger.info(`sync${provider}: fetching`, { userId, accounts: accounts.length });
+  const { assignments, errors, anySucceeded } = await fetchAllFeedAssignments(accounts, fetcher);
+
+  if (!anySucceeded) {
+    logger.error(`sync${provider} failed for every account`, { userId, errors });
+    await supabase
+      .from("integration_credentials")
+      .update({ [failureColumn]: true })
+      .eq("user_id", userId);
+    return { synced: 0, errors };
+  }
+
+  const selected = filter ? filter(assignments) : assignments;
+  if (selected === null) {
+    logger.info(`sync${provider} skipped: no courses selected`, { userId });
+    return { synced: 0, errors };
+  }
+
+  const merged = selected.map((a) => ({
+    ...a,
+    course_name: getCanonicalName(a.course_name, courseNameMap),
+  }));
+
+  const result = await upsertAssignments(supabase, userId, provider, merged, timezone);
+  await dismissMissingTasks(supabase, userId, provider, merged);
+
+  // At least one account is healthy, so clear the banner. A still-broken
+  // sibling account is reported through `errors` rather than the flag, which
+  // is provider-wide and cannot express "one of three feeds is down".
+  await supabase
+    .from("integration_credentials")
+    .update({ [failureColumn]: false })
+    .eq("user_id", userId);
+
+  logger.info(`sync${provider}: upserted`, { userId, synced: result.synced, accounts: accounts.length });
+  return { synced: result.synced, errors: [...errors, ...result.errors] };
+}
+
+
 /**
  * Syncs Google Classroom coursework for one user.
  *
@@ -829,37 +879,16 @@ async function syncBrightspace(
   timezone: string,
   courseNameMap: Map<string, string> = new Map()
 ): Promise<SyncSourceResult> {
-  if (!creds.brightspace_calendar_url) {
-    return { synced: 0, errors: [] };
-  }
-
-  try {
-    logger.info("syncBrightspace: fetching assignments", { userId });
-    const assignments = await fetchBrightspaceAssignments(creds.brightspace_calendar_url);
-    logger.info("syncBrightspace: parsed assignments", { userId, count: assignments.length });
-
-    const merged = assignments.map((a) => ({
-      ...a,
-      course_name: getCanonicalName(a.course_name, courseNameMap),
-    }));
-    const result = await upsertAssignments(supabase, userId, "brightspace", merged, timezone);
-    await dismissMissingTasks(supabase, userId, "brightspace", merged);
-    // Feed recovered — clear any prior failure flag.
-    await supabase
-      .from("integration_credentials")
-      .update({ brightspace_auth_failed: false })
-      .eq("user_id", userId);
-    return { synced: result.synced, errors: result.errors };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    logger.error("syncBrightspace failed", { userId, error: message });
-    // Persist the failure so it survives reloads and shows in the banner.
-    await supabase
-      .from("integration_credentials")
-      .update({ brightspace_auth_failed: true })
-      .eq("user_id", userId);
-    return { synced: 0, errors: [message] };
-  }
+  return syncFeedProvider({
+    supabase,
+    userId,
+    provider: "brightspace",
+    primaryUrl: creds.brightspace_calendar_url,
+    fetcher: fetchBrightspaceAssignments,
+    failureColumn: "brightspace_auth_failed",
+    timezone,
+    courseNameMap,
+  });
 }
 
 /**
@@ -884,37 +913,16 @@ async function syncBlackboard(
   timezone: string,
   courseNameMap: Map<string, string> = new Map()
 ): Promise<SyncSourceResult> {
-  if (!creds.blackboard_calendar_url) {
-    return { synced: 0, errors: [] };
-  }
-
-  try {
-    logger.info("syncBlackboard: fetching assignments", { userId });
-    const assignments = await fetchBlackboardAssignments(creds.blackboard_calendar_url);
-    logger.info("syncBlackboard: parsed assignments", { userId, count: assignments.length });
-
-    const merged = assignments.map((a) => ({
-      ...a,
-      course_name: getCanonicalName(a.course_name, courseNameMap),
-    }));
-    const result = await upsertAssignments(supabase, userId, "blackboard", merged, timezone);
-    await dismissMissingTasks(supabase, userId, "blackboard", merged);
-    // Feed recovered — clear any prior failure flag.
-    await supabase
-      .from("integration_credentials")
-      .update({ blackboard_auth_failed: false })
-      .eq("user_id", userId);
-    return { synced: result.synced, errors: result.errors };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    logger.error("syncBlackboard failed", { userId, error: message });
-    // Persist the failure so it survives reloads and shows in the banner.
-    await supabase
-      .from("integration_credentials")
-      .update({ blackboard_auth_failed: true })
-      .eq("user_id", userId);
-    return { synced: 0, errors: [message] };
-  }
+  return syncFeedProvider({
+    supabase,
+    userId,
+    provider: "blackboard",
+    primaryUrl: creds.blackboard_calendar_url,
+    fetcher: fetchBlackboardAssignments,
+    failureColumn: "blackboard_auth_failed",
+    timezone,
+    courseNameMap,
+  });
 }
 
 /**

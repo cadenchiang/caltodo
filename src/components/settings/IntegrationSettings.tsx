@@ -11,6 +11,7 @@ import GradescopeSettings from "./GradescopeSettings";
 import PensieveSettings from "./PensieveSettings";
 import BrightspaceSettings from "./BrightspaceSettings";
 import BlackboardSettings from "./BlackboardSettings";
+import FeedAccountsGroup from "./FeedAccountsGroup";
 import AdditionalCanvasCard from "./AdditionalCanvasCard";
 import ClassesSection from "./ClassesSection";
 
@@ -262,6 +263,7 @@ export default function IntegrationSettings() {
         lastSyncedAt={lastSyncedAt}
         syncedCount={syncResult?.pensieve.synced}
       />
+      <FeedAccountsGroup provider="pensieve" primaryConnected={!!credentials.pensieve_calendar_url} />
       {/* Brightspace is shown when connected (any school) or as a connect option
           for non-Berkeley students; Berkeley users typically ignore it. */}
       <BrightspaceSettings
@@ -271,6 +273,7 @@ export default function IntegrationSettings() {
         lastSyncedAt={lastSyncedAt}
         syncedCount={syncResult?.brightspace?.synced}
       />
+      <FeedAccountsGroup provider="brightspace" primaryConnected={!!credentials.brightspace_calendar_url} />
       <BlackboardSettings
         credentials={credentials}
         onUpdate={handleUpdate}
@@ -278,6 +281,7 @@ export default function IntegrationSettings() {
         lastSyncedAt={lastSyncedAt}
         syncedCount={syncResult?.blackboard?.synced}
       />
+      <FeedAccountsGroup provider="blackboard" primaryConnected={!!credentials.blackboard_calendar_url} />
     </div>
   );
 }

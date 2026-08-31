@@ -59,17 +59,34 @@ describe("sync engine", () => {
     expect(engine).toMatch(/platforms!\.includes\("blackboard"\)\s*\?\s*syncBlackboard/);
   });
 
-  it("clears the failure flag on a recovered feed", () => {
-    expect(engine).toMatch(/update\(\{ blackboard_auth_failed: false \}\)/);
-  });
-
-  it("persists the failure flag so a broken feed survives a reload", () => {
-    expect(engine).toMatch(/update\(\{ blackboard_auth_failed: true \}\)/);
-  });
-
-  it("reports zero rather than throwing when not connected", () => {
+  it("routes through the shared multi-account feed path", () => {
+    // The per-provider bodies collapsed into syncFeedProvider so that all
+    // three feed integrations get multi-account handling from one place.
     expect(engine).toMatch(
-      /if \(!creds\.blackboard_calendar_url\) \{\s*return \{ synced: 0, errors: \[\] \};/
+      /async function syncBlackboard\([\s\S]{0,400}return syncFeedProvider\(\{/
+    );
+  });
+
+  it("hands that path its failure-flag column and feed client", () => {
+    const call = engine.slice(
+      engine.indexOf("async function syncBlackboard("),
+      engine.indexOf("}", engine.indexOf("failureColumn: \"blackboard_auth_failed\""))
+    );
+    expect(call).toContain('provider: "blackboard"');
+    expect(call).toContain("primaryUrl: creds.blackboard_calendar_url");
+    expect(call).toContain("fetcher: fetchBlackboardAssignments");
+    expect(call).toContain('failureColumn: "blackboard_auth_failed"');
+  });
+
+  it("sets and clears whatever failure column it is given", () => {
+    // Generic now, so this is asserted once for all three feed providers.
+    expect(engine).toMatch(/update\(\{ \[failureColumn\]: true \}\)/);
+    expect(engine).toMatch(/update\(\{ \[failureColumn\]: false \}\)/);
+  });
+
+  it("reports zero rather than throwing when nothing is connected", () => {
+    expect(engine).toMatch(
+      /if \(accounts\.length === 0\) \{[\s\S]{0,160}return \{ synced: 0, errors: \[\] \};/
     );
   });
 });

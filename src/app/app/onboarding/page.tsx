@@ -17,6 +17,7 @@ import GradescopeStep from "@/components/onboarding/GradescopeStep";
 import PensieveStep from "@/components/onboarding/PensieveStep";
 import BrightspaceStep from "@/components/onboarding/BrightspaceStep";
 import BlackboardStep from "@/components/onboarding/BlackboardStep";
+import type { FeedProvider } from "@/lib/integration-providers";
 import ClassroomStep from "@/components/onboarding/ClassroomStep";
 import AddCanvasStep from "@/components/onboarding/AddCanvasStep";
 import SyllabusStep from "@/components/onboarding/SyllabusStep";
@@ -87,7 +88,7 @@ const PLATFORM_OPTIONS: Array<{ id: Platform; label: string; description: string
 ];
 
 /** Valid platforms for standalone ?setup= mode. */
-const VALID_SETUP_PLATFORMS = new Set<string>(["canvas", "gradescope", "pensieve", "brightspace", "blackboard", "canvas-add", "syllabus", "classroom"]);
+const VALID_SETUP_PLATFORMS = new Set<string>(["canvas", "gradescope", "pensieve", "brightspace", "blackboard", "canvas-add", "pensieve-add", "brightspace-add", "blackboard-add", "syllabus", "classroom"]);
 
 /** Display labels for standalone setup mode header. */
 const SETUP_LABELS: Record<string, string> = {
@@ -97,6 +98,9 @@ const SETUP_LABELS: Record<string, string> = {
   brightspace: "Brightspace",
   blackboard: "Blackboard",
   "canvas-add": "Canvas",
+  "pensieve-add": "another Pensive calendar",
+  "brightspace-add": "another Brightspace calendar",
+  "blackboard-add": "another Blackboard calendar",
   syllabus: "Syllabus",
   classroom: "Google Classroom",
 };
@@ -848,6 +852,47 @@ export default function OnboardingPage() {
     return true;
   }
 
+  /**
+   * Saves an additional feed account, as opposed to the primary one.
+   *
+   * The `<provider>-add` setup routes land here. The primary account still
+   * lives in its flat integration_credentials column; extras go to
+   * integration_accounts via its own endpoint, which enforces the same SSRF
+   * allowlist and refuses providers that cannot hold a second account.
+   *
+   * @param provider - Feed provider the new account belongs to.
+   * @param calendarUrl - The iCal feed URL the user pasted.
+   * @returns True when the account was created and the flow may exit.
+   */
+  async function handleAddFeedAccount(
+    provider: FeedProvider,
+    calendarUrl: string
+  ): Promise<boolean> {
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/integration-accounts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider, calendar_url: calendarUrl }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to add account");
+      }
+      trackEvent("standalone_setup_completed", { platform: `${provider}-add` });
+      triggerSync(undefined, [provider]).catch(() => {});
+      setStandaloneExiting(true);
+      setTimeout(() => router.push("/app/settings?section=integrations"), 100);
+      return true;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to add account");
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  }
+
   // ---- Standalone single-step setup mode rendering ----
   if (isStandaloneSetup) {
     const isSyllabusPreview = setupParam === "syllabus" && syllabusPhase === "preview";
@@ -928,6 +973,38 @@ export default function OnboardingPage() {
                   <BlackboardStep
                     skipLabel="Cancel"
                     onNext={handleStandaloneBlackboardNext}
+                    onSkip={handleStandaloneSkip}
+                    saving={saving}
+                    error={error}
+                    setError={setError}
+                  />
+                )}
+
+                {setupParam === "pensieve-add" && (
+                  <PensieveStep
+                    onNext={(p) => handleAddFeedAccount("pensieve", p.pensieve_calendar_url)}
+                    onSkip={handleStandaloneSkip}
+                    saving={saving}
+                    error={error}
+                    setError={setError}
+                  />
+                )}
+
+                {setupParam === "brightspace-add" && (
+                  <BrightspaceStep
+                    skipLabel="Cancel"
+                    onNext={(p) => handleAddFeedAccount("brightspace", p.brightspace_calendar_url)}
+                    onSkip={handleStandaloneSkip}
+                    saving={saving}
+                    error={error}
+                    setError={setError}
+                  />
+                )}
+
+                {setupParam === "blackboard-add" && (
+                  <BlackboardStep
+                    skipLabel="Cancel"
+                    onNext={(p) => handleAddFeedAccount("blackboard", p.blackboard_calendar_url)}
                     onSkip={handleStandaloneSkip}
                     saving={saving}
                     error={error}
