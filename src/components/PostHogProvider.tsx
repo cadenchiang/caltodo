@@ -83,18 +83,6 @@ if (typeof window !== "undefined" && process.env.NODE_ENV === "production") {
       capture_pageview: false, // Handled by PostHogPageView for SPA navigations
       capture_pageleave: true,
       autocapture: true,
-      // PostHog lazy-loads a separate bundle per optional feature. A
-      // DevTools trace of /app/inbox caught surveys.js (100KB, 424ms) and
-      // dead-clicks-autocapture.js downloading between 511ms and 1028ms —
-      // exactly the window in which /api/credentials and the Supabase task
-      // query are competing for bandwidth to paint the user's task list.
-      //
-      // Neither feature is used: there are no surveys defined and nothing
-      // reads dead-click data. Exception autocapture and performance
-      // capture stay on — `before_send` actively filters $exception events
-      // (see isIgnoredException), and web vitals is how we watch this page.
-      disable_surveys: true,
-      capture_dead_clicks: false,
       before_send: (event) => {
         if (!event) return event;
 

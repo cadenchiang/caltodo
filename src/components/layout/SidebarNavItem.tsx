@@ -110,13 +110,7 @@ export default function SidebarNavItem({ label, href, icon: Icon, badge, badgeCo
     <Link
       id={id}
       href={href}
-      // Prefetch every route except the one already on screen. A DevTools
-      // trace of /app/inbox showed the inbox item prefetching
-      // /app/inbox?_rsc= twice while the page was still waiting on its own
-      // task query — payload for a navigation that cannot happen. Inactive
-      // items keep prefetch={true}: that is what makes tab switching feel
-      // instant, and it is worth the bandwidth.
-      prefetch={!isActive}
+      prefetch={true}
       onClick={onClick}
       data-nav-href={href}
       className={navItemClasses(isActive, isMiffy)}

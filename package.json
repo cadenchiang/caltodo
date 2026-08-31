@@ -16,9 +16,7 @@
     "knip": "knip",
     "scan": "react-scan http://localhost:3000",
     "e2e": "playwright test",
-    "trace": "playwright test --trace on",
-    "compress-app-images": "node scripts/compress-app-images.mjs",
-    "compress-landing-images": "node scripts/compress-landing-images.mjs"
+    "trace": "playwright test --trace on"
   },
   "engines": {
     "node": ">=24"

@@ -39,31 +39,6 @@ describe("PostHog capture scope", () => {
   });
 });
 
-/**
- * PostHog lazy-loads one bundle per optional feature. A trace of /app/inbox
- * showed surveys.js (100KB, 424ms) and dead-clicks-autocapture.js loading
- * while the task list was still waiting on its own data. Neither feature is
- * used, so both are off — but the flags are one-liners that a future SDK
- * upgrade or copy-paste could quietly drop.
- */
-describe("PostHog optional bundles", () => {
-  it("does not load the surveys bundle", () => {
-    expect(provider).toMatch(/disable_surveys:\s*true/);
-  });
-
-  it("does not load the dead-clicks bundle", () => {
-    expect(provider).toMatch(/capture_dead_clicks:\s*false/);
-  });
-
-  it("keeps exception autocapture, which before_send depends on", () => {
-    expect(provider).not.toMatch(/capture_exceptions:\s*false/);
-    expect(provider).not.toMatch(/disable_exception_autocapture:\s*true/);
-  });
-
-  it("keeps performance capture so web vitals stay observable", () => {
-    expect(provider).not.toMatch(/capture_performance:\s*false/);
-  });
-});
 
 describe("pageview mounting", () => {
   it("mounts the pageview tracker exactly once, app-wide", () => {
