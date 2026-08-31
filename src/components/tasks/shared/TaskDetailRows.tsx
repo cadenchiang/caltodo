@@ -23,6 +23,12 @@ interface TaskDateTimeLabelProps {
    * from this color via color-mix so the tint always matches.
    */
   urgencyClassName?: string;
+  /**
+   * Drops the row wrapper and renders only the pill. Used when the caller
+   * already positions the label, as the detail panel's editable date field
+   * does, so the pill is not indented twice.
+   */
+  bare?: boolean;
 }
 
 /**
@@ -32,22 +38,25 @@ interface TaskDateTimeLabelProps {
  * @param exactDate - Calendar date to show after a relative dateLabel
  * @param timeLabel - Formatted time, or null to omit
  * @param urgencyClassName - Tailwind text colour for the urgency tint
+ * @param bare - Render only the pill, without the row wrapper
  */
-export function TaskDateTimeLabel({ dateLabel, exactDate, timeLabel, urgencyClassName }: TaskDateTimeLabelProps) {
+export function TaskDateTimeLabel({ dateLabel, exactDate, timeLabel, urgencyClassName, bare = false }: TaskDateTimeLabelProps) {
   if (!dateLabel && !timeLabel) return null;
   const colorClass = urgencyClassName ?? "text-muted-foreground";
-  return (
-    <div className="pl-9 mt-1.5">
-      <span
-        className={`inline-flex items-center px-2 py-0.5 rounded-full text-[12px] font-semibold ${colorClass}`}
-        style={{ backgroundColor: "color-mix(in srgb, currentColor 14%, transparent)" }}
-      >
-        {timeLabel && <span className="opacity-60 mr-1">{timeLabel}</span>}
-        {dateLabel}
-        {exactDate && <span className="opacity-60 ml-1.5">{exactDate}</span>}
-      </span>
-    </div>
+
+  const pill = (
+    <span
+      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[12px] font-semibold ${colorClass}`}
+      style={{ backgroundColor: "color-mix(in srgb, currentColor 14%, transparent)" }}
+    >
+      {timeLabel && <span className="opacity-60 mr-1">{timeLabel}</span>}
+      {dateLabel}
+      {exactDate && <span className="opacity-60 ml-1.5">{exactDate}</span>}
+    </span>
   );
+
+  if (bare) return pill;
+  return <div className="pl-9 mt-1.5">{pill}</div>;
 }
 
 /* ─── Repeat Label ─── */
