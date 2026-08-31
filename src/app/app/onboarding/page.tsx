@@ -5,6 +5,13 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronLeft, Monitor, FileText, Check } from "lucide-react";
 import { useTaskContext } from "@/contexts/TaskContext";
 import { trackEvent } from "@/lib/analytics";
+import {
+  loadProgress,
+  saveProgress,
+  clearProgress,
+  type OnboardingStep,
+  type OnboardingPlatform,
+} from "@/lib/onboarding-progress";
 import CanvasStep from "@/components/onboarding/CanvasStep";
 import GradescopeStep from "@/components/onboarding/GradescopeStep";
 import PensieveStep from "@/components/onboarding/PensieveStep";
@@ -33,8 +40,25 @@ function searchSchoolOptions(query: string): string[] {
   return searchSchools(query, SCHOOL_ENTRIES);
 }
 
-type Step = "welcome" | "school" | "referral" | "platforms" | "canvas" | "gradescope" | "pensieve" | "brightspace" | "syllabus" | "done";
+/** Alias of the persisted step union, so saved progress and the flow
+    can never disagree about what a step is called. */
+type Step = OnboardingStep;
 type Platform = "canvas" | "gradescope" | "pensieve" | "brightspace" | "syllabus";
+
+/**
+ * Integration steps that need the flow's shared "Skip for now" control.
+ *
+ * Each of these components accepts an `onSkip` prop and never renders anything
+ * that calls it, so users had no way past them. Brightspace is excluded: it
+ * renders its own skip button, which the standalone setup flow relabels to
+ * "Cancel", and a shared control would put two of them on screen.
+ */
+const STEPS_NEEDING_SKIP_CONTROL: readonly Step[] = [
+  "canvas",
+  "gradescope",
+  "pensieve",
+  "syllabus",
+];
 
 /** Display labels for each step in the stepper bar. */
 const STEP_LABELS: Record<Step, string> = {
@@ -480,10 +504,73 @@ export default function OnboardingPage() {
     return steps[idx + 1] ?? "done";
   }, [steps]);
 
+  /**
+   * Advances past an integration step without connecting it.
+   *
+   * Every integration step component accepted an `onSkip` prop and none of
+   * them ever rendered a control that called it, so `onboarding_step_skipped`
+   * had not fired once in 90 days while 26 of 65 non-completers sat stuck on
+   * a platform step. The control now lives in the flow's shared chrome, so
+   * there is one implementation and it cannot go missing from one step.
+   *
+   * @param step - The step being skipped, recorded on the analytics event.
+   */
+  const handleSkipStep = useCallback((step: Step) => {
+    trackEvent("onboarding_step_skipped", { step });
+    setError(null);
+    setCurrentStep(nextStepAfter(step));
+  }, [nextStepAfter]);
+
+  /**
+   * Whether the saved-progress restore has run.
+   *
+   * Analytics waits on this. Firing "onboarding_step_viewed" before the
+   * restore lands would log a phantom "welcome" for every resumed session,
+   * which is the exact double-count this persistence is meant to remove.
+   */
+  const [restored, setRestored] = useState(false);
+
+  // Restore any position saved on a previous visit. Runs once, on mount.
+  // Reading localStorage during render would desync SSR from hydration, so it
+  // has to happen here even though it means setting state from an effect.
+  /*
+   * Seeds state from a browser-only store on mount. The lint-clean
+   * alternative, a lazy useState initializer, would read localStorage during
+   * render and desync the SSR'd HTML from hydration. This effect has an empty
+   * dependency array and sets `restored` exactly once, so it cannot cascade.
+   */
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    const saved = loadProgress();
+    if (saved) {
+      setSelectedPlatforms(new Set(saved.platforms as Platform[]));
+      setSchool(saved.school);
+      setReferral(saved.referral);
+      setCurrentStep(saved.step);
+    }
+    setRestored(true);
+  }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  // Persist the position on every change, so a reload resumes here. Skipped
+  // until the restore has run, or the initial "welcome" would overwrite the
+  // very snapshot being read. "done" is not saved: the user is finished, and
+  // resuming a completed flow just traps them on the last screen.
+  useEffect(() => {
+    if (!restored || currentStep === "done") return;
+    saveProgress({
+      step: currentStep,
+      platforms: [...selectedPlatforms] as OnboardingPlatform[],
+      school,
+      referral,
+    });
+  }, [restored, currentStep, selectedPlatforms, school, referral]);
+
   // Track when each step is viewed
   useEffect(() => {
+    if (!restored) return;
     trackEvent("onboarding_step_viewed", { step: currentStep });
-  }, [currentStep]);
+  }, [currentStep, restored]);
 
   // Prefetch every route onboarding can exit to, so the final navigation is
   // instant. Completing setup lands on /app/home; "Skip for now" lands on
@@ -860,6 +947,9 @@ export default function OnboardingPage() {
    */
   function handleSyncAndGo({ skipSync = false }: { skipSync?: boolean } = {}) {
     trackEvent("onboarding_completed");
+    // Finished: drop the saved position so a later visit does not resume a
+    // flow the user has already come out the far side of.
+    clearProgress();
     setExiting(true);
     // New users completing onboarding should never see any welcome/announcement modals.
     // Persist to server so dismiss state follows the account across devices.
@@ -1297,6 +1387,22 @@ export default function OnboardingPage() {
                 getSyncStats={getSyncStats}
               />
             )}
+
+            {/* Escape hatch for the integration steps that lack one. Hidden
+                during the syllabus preview, where assignments have already
+                been extracted and "skip" would read as "discard them". */}
+            {STEPS_NEEDING_SKIP_CONTROL.includes(currentStep) && !flowSyllabusPreview && (
+              <div className="mt-6 flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => handleSkipStep(currentStep)}
+                  disabled={saving}
+                  className="text-sm font-medium text-muted-foreground/70 hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Skip for now
+                </button>
+              </div>
+            )}
           </div>
         </div>
         </div>
@@ -1327,6 +1433,9 @@ export default function OnboardingPage() {
               </button>
               <button
                 onClick={() => {
+                  // Deliberately leaving, as opposed to a reload: forget the
+                  // position so they are not dropped back in on next visit.
+                  clearProgress();
                   setShowSkipModal(false);
                   router.push("/app/inbox");
                 }}
