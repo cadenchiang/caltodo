@@ -57,20 +57,18 @@ export default function SyncedCount({ count }: SyncedCountProps) {
   const canAnimate = useCanAnimate();
   const [value, setValue] = useState(0);
 
+  // When animation is unavailable the static branch below renders the real
+  // figure directly, so there is nothing to schedule.
   useEffect(() => {
-    if (count <= 0) return;
-    // No animation available: show the real figure immediately rather than
-    // holding a "0" on screen for two seconds for no visual payoff.
-    if (!canAnimate) {
-      setValue(count);
-      return;
-    }
+    if (count <= 0 || !canAnimate) return;
     const timer = setTimeout(() => setValue(count), ROLL_START_MS);
     return () => clearTimeout(timer);
   }, [count, canAnimate]);
 
   const formatted = count.toLocaleString(LOCALE);
 
+  // Reduced motion or an unsupported browser: show the figure immediately
+  // rather than holding a "0" on screen for two seconds for no visual payoff.
   if (!canAnimate) {
     return <span className="font-semibold tabular-nums">{formatted}</span>;
   }

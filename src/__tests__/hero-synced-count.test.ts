@@ -103,9 +103,17 @@ describe("SyncedCount motion preferences", () => {
     expect(counter).toContain("const canAnimate = useCanAnimate()");
   });
 
+  it("never schedules a roll it cannot play", () => {
+    expect(counter).toMatch(/if \(count <= 0 \|\| !canAnimate\) return;/);
+  });
+
   it("shows the figure immediately instead of holding a zero", () => {
-    expect(counter).toMatch(/if \(!canAnimate\) \{\s*setValue\(count\);/);
-    expect(counter).toMatch(/if \(!canAnimate\) \{\s*return <span[\s\S]*?\{formatted\}/);
+    // Rendered straight from `count`, not from the rolling state, so there is
+    // no window where a reduced-motion viewer sees a placeholder "0".
+    expect(counter).toMatch(
+      /if \(!canAnimate\) \{\s*return <span[^>]*>\{formatted\}<\/span>;\s*\}/
+    );
+    expect(counter).toContain("const formatted = count.toLocaleString(LOCALE)");
   });
 });
 

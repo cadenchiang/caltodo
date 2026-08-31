@@ -8,6 +8,7 @@ import { useTaskContext } from "@/contexts/TaskContext";
 import CourseSelectModal from "@/components/ui/CourseSelectModal";
 import ClassChangeConfirmDialog from "@/components/settings/ClassChangeConfirmDialog";
 import type { IntegrationCredentials, CredentialsSavePayload } from "@/lib/types";
+import { buildClassSyncSummary } from "@/lib/class-sync-summary";
 
 /** localStorage key for cached total course counts per platform. */
 const TOTALS_KEY = "caltodo_course_totals";
@@ -426,29 +427,27 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
       } catch { /* non-critical */ }
       window.dispatchEvent(new CustomEvent("caltodo-courses-changed"));
 
-      // 5. Build result toast
-      const parts: string[] = [];
-      if (syncedCount > 0) {
-        const addedStr = pendingChanges.addedNames.join(", ");
-        parts.push(`Synced ${syncedCount} ${syncedCount === 1 ? "task" : "tasks"} from ${addedStr}`);
-      } else if (restoredCount > 0) {
-        parts.push(`Restored ${restoredCount} ${restoredCount === 1 ? "task" : "tasks"} from ${reAddedNames.join(", ")}`);
-      } else if (hasAdded) {
-        parts.push(`No new tasks from ${pendingChanges.addedNames.join(", ")}`);
-      }
-      if (hiddenCount > 0) {
-        parts.push(`Hidden ${hiddenCount} ${hiddenCount === 1 ? "task" : "tasks"} from ${removedNames.join(", ")}`);
-      } else if (hasRemoved) {
-        parts.push(`Hidden ${removedNames.join(", ")}`);
-      }
-
-      showToast(parts.join(". ") + ".", {
-        duration: 8_000,
-        action: {
-          label: "Inbox",
-          onClick: () => { window.location.href = "/app/inbox"; },
-        },
+      // 5. Build result toast. Course titles carry section codes and term
+      // suffixes, so listing them overflowed the toast as soon as two classes
+      // changed; buildClassSyncSummary collapses lists to a count.
+      const summary = buildClassSyncSummary({
+        syncedCount,
+        addedNames: pendingChanges.addedNames,
+        restoredCount,
+        reAddedNames,
+        hiddenCount,
+        removedNames,
       });
+
+      if (summary) {
+        showToast(summary, {
+          duration: 8_000,
+          action: {
+            label: "Inbox",
+            onClick: () => { window.location.href = "/app/inbox"; },
+          },
+        });
+      }
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Failed to update classes");
     } finally {
