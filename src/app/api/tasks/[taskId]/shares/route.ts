@@ -67,18 +67,33 @@ export async function GET(
     return NextResponse.json({ shares: [] });
   }
 
-  // Enrich with invitee name and avatar from auth metadata
+  // Enrich with invitee name and avatar from auth metadata.
+  //
+  // Fetched by id rather than with listUsers({ perPage: 1000 }), which pulled
+  // the whole user table down to name a handful of invitees on one task and
+  // would have started missing people past the thousandth signup.
   const adminClient = createAdminClient();
-  const { data: usersData } = await adminClient.auth.admin.listUsers({
-    page: 1,
-    perPage: 1000,
-  });
+  const inviteeIds = [...new Set(shares.map((s) => s.invitee_id).filter(Boolean))];
+  const invitees = await Promise.all(
+    inviteeIds.map(async (id) => {
+      const { data, error } = await adminClient.auth.admin.getUserById(id);
+      if (error || !data?.user) {
+        logger.warn("GET /api/tasks/[taskId]/shares: invitee not found", {
+          cause: error?.message ?? "no user returned",
+          inviteeId: id,
+          impact: "share row shows the email without a name or avatar",
+        });
+        return null;
+      }
+      return data.user;
+    })
+  );
 
   const userMap = new Map(
-    usersData?.users?.map((u) => [u.id, {
+    invitees.filter((u) => u !== null).map((u) => [u.id, {
       name: (u.user_metadata?.full_name as string) ?? null,
       avatar: (u.user_metadata?.avatar_url as string) ?? null,
-    }]) ?? []
+    }])
   );
 
   const enrichedShares = shares.map((s) => {

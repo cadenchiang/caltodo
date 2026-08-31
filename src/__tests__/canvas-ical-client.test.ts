@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { parseCanvasICalEvents } from "@/lib/canvas-ical-client";
+import { parseCanvasICalEvents , toAssignmentUrl } from "@/lib/canvas-ical-client";
 
 const SAMPLE_ICAL = `BEGIN:VCALENDAR
 VERSION:2.0
@@ -158,5 +158,44 @@ END:VCALENDAR`;
     const events = parseCanvasICalEvents(ical);
     expect(events).toHaveLength(1);
     expect(events[0].due_date).toBe("2026-03-20T23:59:00Z");
+  });
+});
+
+describe("toAssignmentUrl", () => {
+  const CAL =
+    "https://bcourses.berkeley.edu/calendar?include_contexts=course_1555980&month=09&year=2026#assignment_9107004";
+
+  it("rewrites a calendar-feed URL into a direct assignment link", () => {
+    // Following the feed's own URL lands on a month grid, not the assignment.
+    expect(toAssignmentUrl(CAL, "9107004")).toBe(
+      "https://bcourses.berkeley.edu/courses/1555980/assignments/9107004"
+    );
+  });
+
+  it("falls back to the event id when the anchor is missing", () => {
+    const noAnchor =
+      "https://bcourses.berkeley.edu/calendar?include_contexts=course_1555980&month=09&year=2026";
+    expect(toAssignmentUrl(noAnchor, "42")).toBe(
+      "https://bcourses.berkeley.edu/courses/1555980/assignments/42"
+    );
+  });
+
+  it("leaves a URL that is already a deep link alone", () => {
+    const direct = "https://bcourses.berkeley.edu/courses/1/assignments/2";
+    expect(toAssignmentUrl(direct, "2")).toBe(direct);
+  });
+
+  it("returns null when there is no URL", () => {
+    expect(toAssignmentUrl(null, "1")).toBeNull();
+  });
+
+  it("keeps the original when the course id cannot be found", () => {
+    const odd = "https://bcourses.berkeley.edu/calendar?month=09#assignment_5";
+    expect(toAssignmentUrl(odd, "5")).toBe(odd);
+  });
+
+  it("keeps the original when the id is not numeric", () => {
+    const cal = "https://bcourses.berkeley.edu/calendar?include_contexts=course_1";
+    expect(toAssignmentUrl(cal, "not-a-number")).toBe(cal);
   });
 });

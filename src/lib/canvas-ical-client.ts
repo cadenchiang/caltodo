@@ -105,7 +105,7 @@ export function parseCanvasICalEvents(
       course_id: "canvas-ical",
       title: unescapeICalText(title),
       due_date: dueDate,
-      source_url: url || null,
+      source_url: toAssignmentUrl(url || null, externalId),
       points_possible: null,
       is_submitted: false,
       description: description ? unescapeICalText(description).trim() || null : null,
@@ -113,6 +113,40 @@ export function parseCanvasICalEvents(
   }
 
   return assignments;
+}
+
+/**
+ * Rewrites a Canvas calendar-feed URL into a direct assignment link.
+ *
+ * The iCal feed points every event at the month view of the Canvas calendar
+ * with an anchor, e.g.
+ * `.../calendar?include_contexts=course_1555980&month=09&year=2026#assignment_9107004`.
+ * Following that lands on a calendar grid, not the assignment, so "Open
+ * assignment" appeared to do nothing useful. Both ids needed for the real URL
+ * are already in that string.
+ *
+ * @param calendarUrl - URL from the VEVENT's URL property
+ * @param externalId - Assignment id parsed from the event UID
+ * @returns A direct `/courses/<id>/assignments/<id>` URL, or the original URL
+ *          when it is not the calendar shape (already a deep link, or absent)
+ */
+export function toAssignmentUrl(
+  calendarUrl: string | null,
+  externalId: string
+): string | null {
+  if (!calendarUrl) return null;
+  if (!calendarUrl.includes("/calendar")) return calendarUrl;
+
+  const course = calendarUrl.match(/include_contexts=course_(\d+)/)?.[1];
+  const assignment = calendarUrl.match(/#assignment_(\d+)/)?.[1] ?? externalId;
+  if (!course || !/^\d+$/.test(assignment)) return calendarUrl;
+
+  try {
+    const origin = new URL(calendarUrl).origin;
+    return `${origin}/courses/${course}/assignments/${assignment}`;
+  } catch {
+    return calendarUrl;
+  }
 }
 
 /**

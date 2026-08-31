@@ -23,29 +23,69 @@ import {
 function PlatformStatus() {
   const { credentials } = useCredentials();
 
-  const platforms: { key: string; label: string; synced: boolean }[] = [
-    { key: "canvas", label: "Canvas / bCourses", synced: !!credentials.canvas_token || !!credentials.canvas_ical_url },
-    { key: "gradescope", label: "Gradescope", synced: !!credentials.gradescope_email },
-    { key: "pensieve", label: "Pensive", synced: !!credentials.pensieve_calendar_url },
+  const platforms: Array<{
+    key: string;
+    label: string;
+    logo: React.ReactNode;
+    synced: boolean;
+  }> = [
+    {
+      key: "canvas",
+      label: "Canvas",
+      logo: <img src="/canvas-logo.png" alt="" className="w-6 h-6 object-contain" />,
+      synced: !!credentials.canvas_token || !!credentials.canvas_ical_url,
+    },
+    {
+      key: "gradescope",
+      label: "Gradescope",
+      logo: <img src="/gradescope-logo.png" alt="" className="w-5 h-5 object-contain" />,
+      synced: !!credentials.gradescope_email,
+    },
+    {
+      key: "pensieve",
+      label: "Pensive",
+      logo: <img src="/pensieve-logo.png" alt="" className="w-5 h-5 object-contain" />,
+      synced: !!credentials.pensieve_calendar_url,
+    },
+    {
+      key: "brightspace",
+      label: "Brightspace",
+      logo: (
+        <span className="w-6 h-6 rounded-md bg-white flex items-center justify-center overflow-hidden">
+          <img src="/brightspace-logo.svg" alt="" className="w-full h-full object-contain" />
+        </span>
+      ),
+      synced: !!credentials.brightspace_calendar_url,
+    },
   ];
 
   return (
     <div className="mt-5 border-t border-border pt-4">
-      <p className="text-xs font-medium text-subtle-foreground mb-2">Connected platforms</p>
-      <div className="flex flex-col gap-1.5">
+      <p className="text-xs font-medium text-foreground mb-2">Connected platforms</p>
+      {/* Same card language as Settings > Integrations: logo tile, name, and a
+          status pill, rather than a bare two-column list of names. */}
+      <div className="flex flex-col gap-2">
         {platforms.map((p) => (
-          <div key={p.key} className="flex items-center justify-between text-sm">
-            <span className="text-foreground">{p.label}</span>
+          <div
+            key={p.key}
+            className="flex items-center gap-3 px-3 py-2 rounded-xl border border-border bg-card"
+          >
+            <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0 overflow-hidden">
+              {p.logo}
+            </div>
+            <span className="flex-1 min-w-0 text-sm font-medium text-foreground truncate">
+              {p.label}
+            </span>
             {p.synced ? (
-              <span className="inline-flex items-center gap-1 text-xs font-medium text-green-600 dark:text-green-400">
+              <span className="shrink-0 text-xs font-medium px-2.5 py-0.5 rounded-lg border border-emerald-200 dark:border-emerald-500/30 text-emerald-600 dark:text-emerald-400">
                 Synced
               </span>
             ) : (
               <a
                 href="/app/settings?section=integrations"
-                className="text-xs font-medium text-[#0e89d6] hover:text-[#3D8FE8] transition-colors"
+                className="shrink-0 text-xs font-semibold px-2.5 py-0.5 rounded-lg border border-blue-200 dark:border-blue-500/30 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors"
               >
-                Sync later →
+                Connect
               </a>
             )}
           </div>

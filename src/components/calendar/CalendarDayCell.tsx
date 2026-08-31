@@ -172,9 +172,11 @@ export default function CalendarDayCell({
       className={`p-0.5 md:px-1 md:py-0.5 overflow-hidden ${isLastCol ? "" : "border-r"} border-b border-gray-200 dark:border-gray-700/50 transition-all duration-150 ease-out relative ${
         isPast
           ? "bg-[var(--sidebar-bg)] dark:bg-black/30"
-          : !isCurrentMonth
-            ? "bg-[var(--sidebar-bg)] dark:bg-black/15"
-            : isSelected && isMobile
+          : // Days from the next month are ordinary future days with real
+            // assignments on them. Shading them like past days made the start
+            // of the next month look disabled; the muted date number already
+            // signals which month they belong to.
+            isSelected && isMobile
               ? "bg-gray-100 dark:bg-white/5"
               : "bg-card"
       } hover:bg-black/[0.02] dark:hover:bg-white/[0.03] ${

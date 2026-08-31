@@ -210,33 +210,35 @@ async function lookupUserByEmail(
   adminClient: ReturnType<typeof createAdminClient>,
   email: string
 ): Promise<{ id: string; email: string; full_name: string | null; avatar_url: string | null } | null> {
-  let page = 1;
-  const perPage = 1000;
+  const normalized = email.trim().toLowerCase();
 
-  while (true) {
-    const { data, error } = await adminClient.auth.admin.listUsers({
-      page,
-      perPage,
+  // GoTrue filters server-side, so this is one request regardless of how many
+  // accounts exist. It previously paged through the entire user table looking
+  // for a match: one round trip per thousand users, on every invite, growing
+  // with every signup.
+  const { data, error } = await adminClient.auth.admin.listUsers({
+    page: 1,
+    perPage: 20,
+    // Not in the supabase-js types, but GoTrue accepts it and matches on email.
+    ...({ filter: normalized } as Record<string, unknown>),
+  });
+
+  if (error || !data?.users) {
+    logger.warn("lookupUserByEmail: lookup failed", {
+      cause: error?.message ?? "no users returned",
+      impact: "invite treated the address as an unregistered user",
     });
-
-    if (error || !data?.users) return null;
-
-    const match = data.users.find(
-      (u) => u.email?.toLowerCase() === email.toLowerCase()
-    );
-
-    if (match) {
-      return {
-        id: match.id,
-        email: match.email ?? email,
-        full_name: (match.user_metadata?.full_name as string) ?? null,
-        avatar_url: (match.user_metadata?.avatar_url as string) ?? null,
-      };
-    }
-
-    if (data.users.length < perPage) break;
-    page++;
+    return null;
   }
 
-  return null;
+  // The filter is a substring match, so confirm the address exactly.
+  const match = data.users.find((u) => u.email?.toLowerCase() === normalized);
+  if (!match) return null;
+
+  return {
+    id: match.id,
+    email: match.email ?? email,
+    full_name: (match.user_metadata?.full_name as string) ?? null,
+    avatar_url: (match.user_metadata?.avatar_url as string) ?? null,
+  };
 }
