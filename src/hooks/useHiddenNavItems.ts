@@ -64,14 +64,23 @@ function setsEqual(a: Set<string>, b: Set<string>): boolean {
  * so it follows the user across devices.
  */
 export function useHiddenNavItems() {
-  const [hidden, setHidden] = useState<Set<string>>(() => readHidden());
+  // Starts empty so the first client render matches the server's, which has
+  // no localStorage to read. Seeding this from readHidden() in a lazy
+  // initializer ran during render and produced a hydration mismatch: the
+  // server emitted every nav item while the client dropped the hidden ones,
+  // shifting each remaining item up a slot. The pre-paint <style> tag keeps
+  // hidden items invisible until the effect below adopts the cached value,
+  // so nothing flashes in the meantime.
+  const [hidden, setHidden] = useState<Set<string>>(() => new Set());
+  /** True once the localStorage cache has been adopted after mount. */
+  const [hydrated, setHydrated] = useState(false);
 
-  // On mount: hydrate from Supabase user_metadata (source of truth across
-  // devices) and reconcile with the local cache.
+  // On mount: adopt the local cache, then hydrate from Supabase
+  // user_metadata (source of truth across devices) and reconcile.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    // Pre-paint style tag is removed so React's filter becomes authoritative.
-    const style = document.getElementById("caltodo-hidden-nav-style");
-    if (style) style.remove();
+    setHidden(readHidden());
+    setHydrated(true);
 
     let cancelled = false;
     getCurrentUser().then((user) => {
@@ -104,6 +113,17 @@ export function useHiddenNavItems() {
       window.removeEventListener("storage", onStorage);
     };
   }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  // Drop the pre-paint style tag only once React's own filter is
+  // authoritative. Removing it in the mount effect above would uncover every
+  // hidden item for the frame between that removal and the re-render that
+  // applies `hidden`.
+  useEffect(() => {
+    if (!hydrated) return;
+    const style = document.getElementById("caltodo-hidden-nav-style");
+    if (style) style.remove();
+  }, [hydrated]);
 
   const toggle = useCallback((href: string) => {
     const next = readHidden();
