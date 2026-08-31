@@ -9,6 +9,12 @@ const DEFAULT_ICON_SIZE = 20;
 interface TaskDateTimeLabelProps {
   /** Formatted date string (e.g. "EEE, MMM d, yyyy"). */
   dateLabel: string | null;
+  /**
+   * Calendar date shown after a relative dateLabel (e.g. "In 3 days"), so the
+   * pill says both how soon it is and which day that is. Omit when dateLabel
+   * is already the date.
+   */
+  exactDate?: string | null;
   /** Formatted time string (e.g. "h:mm a"). */
   timeLabel: string | null;
   /**
@@ -21,12 +27,13 @@ interface TaskDateTimeLabelProps {
 
 /**
  * Renders the date and/or time line under the task title.
- * Joins date and time with a middle dot separator.
  *
  * @param dateLabel - Formatted date, or null to omit
+ * @param exactDate - Calendar date to show after a relative dateLabel
  * @param timeLabel - Formatted time, or null to omit
+ * @param urgencyClassName - Tailwind text colour for the urgency tint
  */
-export function TaskDateTimeLabel({ dateLabel, timeLabel, urgencyClassName }: TaskDateTimeLabelProps) {
+export function TaskDateTimeLabel({ dateLabel, exactDate, timeLabel, urgencyClassName }: TaskDateTimeLabelProps) {
   if (!dateLabel && !timeLabel) return null;
   const colorClass = urgencyClassName ?? "text-muted-foreground";
   return (
@@ -37,6 +44,7 @@ export function TaskDateTimeLabel({ dateLabel, timeLabel, urgencyClassName }: Ta
       >
         {timeLabel && <span className="opacity-60 mr-1">{timeLabel}</span>}
         {dateLabel}
+        {exactDate && <span className="opacity-60 ml-1.5">{exactDate}</span>}
       </span>
     </div>
   );

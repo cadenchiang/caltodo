@@ -83,6 +83,29 @@ describe("getDetailDateInfo", () => {
     expect(getDetailDateInfo(isoOffset(0), null, true)?.className).toBe("text-muted-foreground");
   });
 
+  it("pairs a relative label with the calendar date", () => {
+    // "In 3 days" says how much runway is left; the date says which day to
+    // put in a calendar. The wide panel has room for both.
+    const info = getDetailDateInfo(isoOffset(3), null, false);
+    expect(info?.dateLabel).toBe("In 3 days");
+    expect(info?.exactDate).toBe("Thu, Sep 3, 2026");
+  });
+
+  it("pairs Today and Tomorrow with the date too", () => {
+    expect(getDetailDateInfo(isoOffset(0), null, false)?.exactDate).toBe("Mon, Aug 31, 2026");
+    expect(getDetailDateInfo(isoOffset(1), null, false)?.exactDate).toBe("Tue, Sep 1, 2026");
+  });
+
+  it("pairs an overdue label with the date it was due", () => {
+    expect(getDetailDateInfo(isoOffset(-1), null, false)?.exactDate).toBe("Sun, Aug 30, 2026");
+  });
+
+  it("omits the extra date when the label already is the date", () => {
+    // Otherwise the pill would read "Tue, Sep 8, 2026 Tue, Sep 8, 2026".
+    expect(getDetailDateInfo(isoOffset(8), null, false)?.exactDate).toBeNull();
+    expect(getDetailDateInfo("2026-12-25", null, false)?.exactDate).toBeNull();
+  });
+
   it("colours an overdue task red and a due one blue", () => {
     expect(getDetailDateInfo(isoOffset(-1), null, false)?.className).toContain("red");
     expect(getDetailDateInfo(isoOffset(0), null, false)?.className).toContain("blue");

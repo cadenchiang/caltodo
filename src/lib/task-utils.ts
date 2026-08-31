@@ -73,7 +73,10 @@ export function getDueDateInfo(
  * @param dueDate - ISO date string ("YYYY-MM-DD") or null
  * @param dueTime - 24-hour time string ("HH:MM") or null
  * @param isCompleted - Whether the task is done
- * @returns Label parts, or null when the task has no due date
+ * @returns Label parts, or null when the task has no due date. exactDate
+ *          carries the calendar date when dateLabel is a relative phrase, and
+ *          is null when dateLabel already is the date, so the panel never
+ *          prints the same thing twice.
  * @remarks A completed task never reads "Overdue": the check already says
  *          what happened, and red on a finished task is just noise.
  */
@@ -81,7 +84,12 @@ export function getDetailDateInfo(
   dueDate: string | null,
   dueTime: string | null,
   isCompleted: boolean
-): { dateLabel: string; timeLabel: string | null; className: string } | null {
+): {
+  dateLabel: string;
+  exactDate: string | null;
+  timeLabel: string | null;
+  className: string;
+} | null {
   const info = getDueDateInfo(dueDate, dueTime);
   if (!info || !dueDate) return null;
 
@@ -102,6 +110,9 @@ export function getDetailDateInfo(
 
   return {
     dateLabel: useRelative ? info.dateLabel : longDate,
+    // "In 3 days" says how much runway is left but not which day to put in a
+    // calendar, so the panel — which has the width for it — shows both.
+    exactDate: useRelative ? longDate : null,
     // An overdue pill stays short: the day count is the point, not the hour.
     timeLabel: isOverdue ? null : info.timeLabel,
     className: isCompleted ? "text-muted-foreground" : info.className,

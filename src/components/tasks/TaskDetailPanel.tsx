@@ -119,6 +119,7 @@ export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: Tas
 
         <TaskDateTimeLabel
           dateLabel={dateLabel}
+          exactDate={dueInfo?.exactDate ?? null}
           timeLabel={timeLabel}
           urgencyClassName={urgencyClass}
         />
