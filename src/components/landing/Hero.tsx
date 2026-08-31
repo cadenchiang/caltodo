@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { RefreshCw, CalendarDays, LayoutGrid, ArrowRight } from "lucide-react";
-import NumberFlow from "@number-flow/react";
+import SyncedCount from "@/components/landing/SyncedCount";
 import GoogleOneTap from "@/components/auth/GoogleOneTap";
 import FadeIn from "@/components/landing/FadeIn";
 
@@ -29,14 +29,6 @@ export default function Hero({ loggedIn, initialUserCount, initialAssignmentCoun
   const userCount = initialUserCount ?? null;
   const assignmentCount = initialAssignmentCount ?? 0;
 
-  // Start at zero and set the real value after the eyebrow's fade-up, so the
-  // digits roll up into place rather than appearing already settled.
-  const [rolledCount, setRolledCount] = useState(0);
-  useEffect(() => {
-    if (assignmentCount <= 0) return;
-    const timer = setTimeout(() => setRolledCount(assignmentCount), 1100);
-    return () => clearTimeout(timer);
-  }, [assignmentCount]);
   const heroEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -206,11 +198,7 @@ export default function Hero({ loggedIn, initialUserCount, initialAssignmentCoun
             >
               {assignmentCount > 0 ? (
                 <>
-                  <NumberFlow
-                    value={rolledCount}
-                    transformTiming={{ duration: 1400, easing: "cubic-bezier(0.16, 1, 0.3, 1)" }}
-                    className="font-semibold tabular-nums"
-                  />
+                  <SyncedCount count={assignmentCount} />
                   {" assignments synced"}
                 </>
               ) : (
