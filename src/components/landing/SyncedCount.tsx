@@ -13,16 +13,22 @@ const LOCALE = "en-US";
 /**
  * When the roll begins, in ms after mount.
  *
- * The eyebrow that wraps this counter enters with `.animate-fade-up` at a
- * 1000ms delay, and that animation runs for 900ms (see `globals.css`). Rolling
- * before 1900ms means the digits spin while the line is still translating up
- * and un-blurring, and the two compounded motions are what read as glitchy.
+ * The eyebrow enters with `.animate-fade-up` at a 1000ms delay (see
+ * `globals.css`). The roll starts with it, so the line arrives and the digits
+ * settle as one gesture. Waiting for the entrance to finish instead left the
+ * number still spinning a second and a half after everything else had come to
+ * rest, which is what made it read as a separate, tacked-on animation.
  */
-const ROLL_START_MS = 1900;
+const ROLL_START_MS = 1000;
 
-/** How long the digits take to travel, matched to the page's fade-up curve. */
+/**
+ * How long the digits take to travel.
+ *
+ * Shorter than the 900ms entrance so the number lands first and the line
+ * settles onto a figure that has stopped moving. Same curve as `.animate-fade-up`.
+ */
 const ROLL_TIMING = {
-  duration: 1400,
+  duration: 800,
   easing: "cubic-bezier(0.22, 1, 0.36, 1)",
 } as const;
 
@@ -31,7 +37,7 @@ const ROLL_TIMING = {
  * opacity across the full 1400ms leaves several digits half-visible at once,
  * which smears rather than rolls.
  */
-const FADE_TIMING = { duration: 300, easing: "ease-out" } as const;
+const FADE_TIMING = { duration: 200, easing: "ease-out" } as const;
 
 interface SyncedCountProps {
   /** The final count to roll up to. Must be > 0; callers guard the zero case. */
@@ -74,22 +80,38 @@ export default function SyncedCount({ count }: SyncedCountProps) {
   }
 
   return (
-    <span className="inline-grid align-baseline">
-      {/* Sizer: occupies the final width from the first frame so the line
-          holds still. Hidden from both painting and the accessibility tree. */}
-      <span
-        aria-hidden="true"
-        className="col-start-1 row-start-1 invisible font-semibold tabular-nums"
-      >
+    /*
+      A plain inline box, deliberately not inline-grid or inline-block. Those
+      take their height from the line box (28px here) while surrounding text
+      takes its from the font's content area (21px), so the number's box stood
+      3px proud above the sentence and 4px below it — visible the moment the
+      line was selected. Staying inline keeps it on exactly the same footing
+      as the words around it.
+
+      `relative` makes this inline box the containing block for the absolutely
+      positioned digits, so the visible number contributes no layout at all.
+    */
+    <span className="relative font-semibold tabular-nums">
+      {/* Sizer: ordinary inline text, so it sets both the box height and the
+          final width. Reserving the width up front is what stops the centred
+          line reflowing as digits are added. Hidden from painting and from
+          the accessibility tree; NumberFlow announces the value itself. */}
+      <span aria-hidden="true" className="invisible">
         {formatted}
       </span>
+      {/*
+        Anchored to the left edge, not the right. Right-aligning parked a lone
+        "0" at the far end of a box sized for "17,630", leaving an unexplained
+        gap mid-sentence for the whole entrance and then snapping across.
+        Growing rightward is how a number counting up is expected to behave.
+      */}
       <NumberFlow
         value={value}
         locales={LOCALE}
         willChange
         transformTiming={ROLL_TIMING}
         opacityTiming={FADE_TIMING}
-        className="col-start-1 row-start-1 justify-self-end font-semibold tabular-nums"
+        className="absolute left-0 top-0"
       />
     </span>
   );

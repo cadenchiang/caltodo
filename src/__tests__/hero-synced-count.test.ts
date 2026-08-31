@@ -4,8 +4,10 @@
  * The animation itself needs a browser, and this suite runs under the node
  * environment, so these guard the properties that made it janky in the first
  * place by parsing the source: the reserved width that stops the centred line
- * reflowing, the roll start that stops it overlapping the eyebrow's fade-up,
- * and the reduced-motion escape hatch.
+ * reflowing, the roll timing that keeps the digits part of the eyebrow's
+ * entrance rather than a separate motion after it, the inline box that keeps
+ * them on the same footing as the surrounding words, and the reduced-motion
+ * escape hatch.
  */
 
 import { describe, it, expect } from "vitest";
@@ -48,12 +50,19 @@ describe("SyncedCount roll timing", () => {
     expect(fadeDuration).toBe(900);
   });
 
-  it("starts the roll only after the eyebrow has finished entering", () => {
-    expect(rollStart).toBeGreaterThanOrEqual(eyebrowDelay + fadeDuration);
+  it("rolls as part of the entrance, not after it", () => {
+    // Starting once the eyebrow had settled left the number still spinning
+    // long after the rest of the page had come to rest, which read as a
+    // second, unrelated animation bolted on.
+    expect(rollStart).toBe(eyebrowDelay);
   });
 
-  it("does not stall the number long after the entrance", () => {
-    expect(rollStart).toBeLessThanOrEqual(eyebrowDelay + fadeDuration + 400);
+  it("lands the number before the line stops moving", () => {
+    // So the entrance finishes on a figure that is already still, rather than
+    // handing over to another motion.
+    const travel = Number(counter.match(/ROLL_TIMING = \{\s*duration: (\d+)/)?.[1]);
+    expect(travel).toBeGreaterThan(0);
+    expect(rollStart + travel).toBeLessThanOrEqual(eyebrowDelay + fadeDuration);
   });
 
   it("fades digits faster than it travels them, so they do not smear", () => {
@@ -74,11 +83,26 @@ describe("SyncedCount roll timing", () => {
 });
 
 describe("SyncedCount layout stability", () => {
-  it("stacks a sizer and the number in one grid cell", () => {
-    // Both children must land in the same cell, or the sizer would sit beside
-    // the digits and double the width instead of reserving it.
-    expect(counter.match(/col-start-1 row-start-1/g) ?? []).toHaveLength(2);
-    expect(counter).toContain("inline-grid");
+  it("keeps the wrapper a plain inline box", () => {
+    // inline-grid and inline-block take their height from the line box while
+    // surrounding text takes its from the font's content area, so the number
+    // stood 3px proud above the sentence and 4px below it. Measured at 28px
+    // against the text's 21px before this changed.
+    // Matched against classNames rather than the whole file, so the comment
+    // explaining why those display modes are wrong does not fail the test.
+    expect(counter).not.toMatch(/className="[^"]*\binline-(grid|block)\b/);
+    expect(counter).toContain('<span className="relative font-semibold tabular-nums">');
+  });
+
+  it("takes the digits out of layout so only the sizer measures", () => {
+    expect(counter).toContain('className="absolute left-0 top-0"');
+  });
+
+  it("anchors the digits to the left edge of the reserved width", () => {
+    // Right-aligning parked a lone "0" at the far end of a box sized for the
+    // final figure, leaving a gap mid-sentence for the whole entrance.
+    expect(counter).not.toContain("justify-self-end");
+    expect(counter).toContain("left-0");
   });
 
   it("hides the sizer from paint and from screen readers", () => {
@@ -92,8 +116,9 @@ describe("SyncedCount layout stability", () => {
   });
 
   it("gives the sizer and the digits the same type metrics", () => {
-    // Differing weight or figure width would make the reservation wrong.
-    expect(counter.match(/font-semibold tabular-nums/g)?.length).toBeGreaterThanOrEqual(3);
+    // Differing weight or figure width would make the reservation wrong. Both
+    // now inherit from the shared wrapper rather than repeating the classes.
+    expect(counter.match(/font-semibold tabular-nums/g)?.length).toBeGreaterThanOrEqual(2);
   });
 });
 
