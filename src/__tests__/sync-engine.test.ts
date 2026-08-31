@@ -83,9 +83,7 @@ function chainable(resolved: unknown): any {
 
 function createMockSupabase(credentialsData: Record<string, unknown> | null = null) {
   const upsertMock = vi.fn().mockReturnValue({ error: null });
-  const updateMock = vi.fn().mockReturnValue({
-    eq: vi.fn().mockReturnValue({ error: null }),
-  });
+  const updateMock = vi.fn().mockReturnValue(chainable({ data: [{ user_id: "user-123" }], error: null }));
 
   // Chainable mock for auto-complete update (tasks.update().eq().eq().eq().eq().in())
   const tasksAutoCompleteMock = vi.fn().mockImplementation(() => {
@@ -118,7 +116,7 @@ function createMockSupabase(credentialsData: Record<string, unknown> | null = nu
           // update().eq() resolves {error:null}; update().or().select() (the
           // atomic cooldown claim) resolves a claimed row. A single chainable
           // handling both — the .eq() callers only read `error`.
-          update: vi.fn().mockReturnValue(chainable({ data: [{ user_id: "user-123" }], error: null })),
+          update: updateMock,
         };
       }
       if (table === "tasks") {
@@ -255,6 +253,87 @@ describe("runSync", () => {
     expect(result.canvas.errors[0]).toContain("Canvas token is invalid");
     expect(result.gradescope.synced).toBe(1);
     expect(result.gradescope.errors).toHaveLength(0);
+  });
+
+  it("should normalize Canvas 401 errors and mark token auth_failed", async () => {
+    const supabase = createMockSupabase({
+      canvas_token: "bad-token",
+      canvas_base_url: "https://bcourses.berkeley.edu",
+      canvas_token_created_at: new Date().toISOString(),
+      gradescope_email: null,
+      gradescope_password_encrypted: null,
+    });
+
+    mockCanvasFetch.mockRejectedValueOnce(new Error("Canvas returned 401 for course 1553118"));
+
+    const result = await runSync(supabase as any, "user-123");
+
+    expect(result.canvas.errors).toEqual(["Canvas token is invalid or expired. Reconnect in Settings."]);
+    expect(supabase._updateMock).toHaveBeenCalledWith({ canvas_auth_failed: true });
+  });
+
+  it("should retry credential load when last_gradescope_synced_at column is missing", async () => {
+    const upsertMock = vi.fn().mockReturnValue({ error: null });
+    const updateMock = vi.fn().mockReturnValue(chainable({ data: [{ user_id: "user-123" }], error: null }));
+    const selectMock = vi
+      .fn()
+      .mockReturnValueOnce({
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({
+            data: null,
+            error: {
+              code: "42703",
+              message: "column integration_credentials.last_gradescope_synced_at does not exist",
+            },
+          }),
+        }),
+      })
+      .mockReturnValueOnce({
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({
+            data: {
+              canvas_token: "canvas-token-123",
+              canvas_base_url: "https://bcourses.berkeley.edu",
+              canvas_token_created_at: new Date().toISOString(),
+              gradescope_email: null,
+              gradescope_password_encrypted: null,
+            },
+            error: null,
+          }),
+        }),
+      });
+    const supabase = {
+      from: vi.fn((table: string) => {
+        if (table === "integration_credentials") {
+          return { select: selectMock, update: updateMock };
+        }
+        if (table === "tasks") {
+          return {
+            upsert: upsertMock,
+            update: vi.fn().mockReturnValue(chainable({ error: null })),
+            select: vi.fn().mockReturnValue(chainable({ data: [], error: null })),
+          };
+        }
+        return {};
+      }),
+    };
+
+    mockCanvasFetch.mockResolvedValueOnce([
+      {
+        external_id: "101",
+        course_name: "CS 61A",
+        course_id: "1",
+        title: "HW 1",
+        due_date: "2026-03-01T23:59:00Z",
+        source_url: "https://bcourses.berkeley.edu/courses/1/assignments/101",
+        points_possible: 10,
+      },
+    ]);
+
+    const result = await runSync(supabase as any, "user-123");
+
+    expect(result.canvas.synced).toBe(1);
+    expect(selectMock).toHaveBeenCalledTimes(2);
   });
 
   it("should handle Gradescope failure without blocking Canvas", async () => {
