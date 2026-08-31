@@ -2,6 +2,7 @@
 
 import posthog from "posthog-js";
 import { PostHogProvider as PHProvider } from "posthog-js/react";
+import { currentSurface } from "@/lib/analytics-surface";
 
 /**
  * Initialize PostHog synchronously at module level (not in useEffect).
@@ -71,21 +72,6 @@ function isIgnoredException(
   return false;
 }
 
-/**
- * Checks whether the current page is an authenticated app route (/app/*).
- * Used to restrict all PostHog event capture to authenticated users only,
- * preventing landing page visitors from skewing retention and usage metrics.
- *
- * @returns true if the browser URL starts with /app/
- */
-function isAuthenticatedRoute(): boolean {
-  try {
-    return window.location.pathname.startsWith("/app");
-  } catch {
-    return false;
-  }
-}
-
 if (typeof window !== "undefined" && process.env.NODE_ENV === "production") {
   const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
 
@@ -97,20 +83,34 @@ if (typeof window !== "undefined" && process.env.NODE_ENV === "production") {
       capture_pageview: false, // Handled by PostHogPageView for SPA navigations
       capture_pageleave: true,
       autocapture: true,
+      // PostHog lazy-loads a separate bundle per optional feature. A
+      // DevTools trace of /app/inbox caught surveys.js (100KB, 424ms) and
+      // dead-clicks-autocapture.js downloading between 511ms and 1028ms —
+      // exactly the window in which /api/credentials and the Supabase task
+      // query are competing for bandwidth to paint the user's task list.
+      //
+      // Neither feature is used: there are no surveys defined and nothing
+      // reads dead-click data. Exception autocapture and performance
+      // capture stay on — `before_send` actively filters $exception events
+      // (see isIgnoredException), and web vitals is how we watch this page.
+      disable_surveys: true,
+      capture_dead_clicks: false,
       before_send: (event) => {
         if (!event) return event;
-
-        // Drop ALL events on unauthenticated routes (landing page, login, etc.)
-        // to prevent anonymous sessions from skewing retention metrics.
-        // Only track events from /app/* routes where users are identified.
-        if (!isAuthenticatedRoute()) {
-          return null;
-        }
 
         // Filter out known benign errors from $exception events
         if (event.event === "$exception" && isIgnoredException(event.properties)) {
           return null;
         }
+
+        // Tag every event with the half of the product it came from. This
+        // replaces an outright drop of all non-/app events: that kept
+        // retention clean but left the marketing site, and therefore bounce
+        // rate and landing-to-signup conversion, completely unmeasurable.
+        // Filter to `surface = "app"` for usage and retention metrics.
+        // Anonymous visitors still create no person profiles, because
+        // person_profiles is "identified_only" above.
+        event.properties = { ...event.properties, surface: currentSurface() };
         return event;
       },
     });

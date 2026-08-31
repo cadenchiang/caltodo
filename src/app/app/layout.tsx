@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import Sidebar from "@/components/layout/Sidebar";
 import MobileTabBar from "@/components/layout/MobileTabBar";
 import { TaskProvider } from "@/contexts/TaskContext";
+import { fetchInitialTasks } from "@/lib/tasks/fetch-initial-tasks";
 import { ToastProvider } from "@/contexts/ToastContext";
 import { SpotifyPlayerProvider } from "@/contexts/SpotifyPlayerContext";
 
@@ -20,7 +21,6 @@ import RouteHistoryTracker from "@/components/layout/RouteHistoryTracker";
 import PostHogIdentify from "@/components/PostHogIdentify";
 import PomodoroTitleSync from "@/components/pomodoro/PomodoroTitleSync";
 import DeferredFonts from "@/components/layout/DeferredFonts";
-import PostHogPageView from "@/components/PostHogPageView";
 
 /**
  * Prevent search engines from indexing any authenticated app routes.
@@ -42,7 +42,17 @@ export default async function AppLayout({
   children: React.ReactNode;
 }) {
   const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
+
+  // Run the session lookup and the task query concurrently. Both are scoped
+  // by the same request cookies, and the task rows are what /app/inbox is
+  // actually waiting to paint — fetching them here puts them in the first
+  // HTML instead of behind a full hydrate-then-fetch round trip on the
+  // client. fetchInitialTasks never throws, so a task-query failure still
+  // leaves the session check (and its redirect) intact.
+  const [{ data: { session } }, initialTasks] = await Promise.all([
+    supabase.auth.getSession(),
+    fetchInitialTasks(supabase),
+  ]);
 
   if (!session) {
     redirect("/login");
@@ -67,11 +77,10 @@ export default async function AppLayout({
       <DeferredFonts />
       <div className="flex flex-col md:flex-row flex-1 min-h-0">
       <PostHogIdentify userId={session.user.id} email={email} fullName={fullName} />
-      <PostHogPageView />
       <PomodoroTitleSync />
       <ToastProvider>
           <PresenceProvider>
-          <TaskProvider>
+          <TaskProvider initialTasks={initialTasks}>
             <SpotifyPlayerProvider>
             <Sidebar avatarUrl={avatarUrl} fullName={fullName} email={email} />
             <main
