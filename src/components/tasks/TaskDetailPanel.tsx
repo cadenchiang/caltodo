@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { getRepeatLabel } from "@/lib/repeat";
 import { getThemeColor } from "@/lib/constants";
-import { getSourceBadges, getDueDateInfo } from "@/lib/task-utils";
+import { getSourceBadges, getDetailDateInfo } from "@/lib/task-utils";
 import { useTheme } from "@/contexts/ThemeContext";
 import type { Task, TaskUpdate } from "@/lib/types";
 import TaskCreateModal from "./TaskCreateModal";
@@ -65,24 +65,13 @@ export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: Tas
   }
 
   const dotColor = getThemeColor(task.color, colorTheme);
-  // For overdue tasks the pill reads "Overdue N day(s)" (no clock time)
-  // — matches the list/board view. Non-overdue tasks keep the long
-  // "Mon, May 11, 2026" formatting that's nice in the wide panel.
-  const dueInfo = getDueDateInfo(task.due_date, task.due_time);
-  // Completed tasks never show "Overdue" or red — the check already
-  // conveys done. They get the long neutral date instead.
-  const isOverdue = !task.is_completed && !!dueInfo && dueInfo.dateLabel.startsWith("Overdue");
-  const dateLabel = isOverdue
-    ? dueInfo!.dateLabel
-    : task.due_date
-      ? format(new Date(task.due_date + "T00:00:00"), "EEE, MMM d, yyyy")
-      : null;
-  const timeLabel = isOverdue
-    ? null
-    : task.due_time
-      ? format(new Date(`2000-01-01T${task.due_time}`), "h:mm a")
-      : null;
-  const urgencyClass = task.is_completed ? "text-muted-foreground" : dueInfo?.className;
+  // Near dates read "Today" / "Tomorrow" / "Overdue N days", matching the
+  // list beside it; anything further out keeps the long "Mon, May 11, 2026"
+  // form that suits the wider panel.
+  const dueInfo = getDetailDateInfo(task.due_date, task.due_time, !!task.is_completed);
+  const dateLabel = dueInfo?.dateLabel ?? null;
+  const timeLabel = dueInfo?.timeLabel ?? null;
+  const urgencyClass = dueInfo?.className;
   const repeatLabel = task.repeat_interval && task.repeat_unit
     ? getRepeatLabel(task.repeat_interval, task.repeat_unit)
     : null;

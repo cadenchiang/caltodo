@@ -63,6 +63,49 @@ export function getDueDateInfo(
 }
 
 /**
+ * Builds the due-date label for the wide detail panel.
+ *
+ * The panel used the long "Mon, Aug 31, 2026" form for everything, so a task
+ * the list called "Today" read as a bare date beside it. Near dates now use
+ * the same relative wording as the list; anything further out keeps the long
+ * form, which the extra width makes worth having.
+ *
+ * @param dueDate - ISO date string ("YYYY-MM-DD") or null
+ * @param dueTime - 24-hour time string ("HH:MM") or null
+ * @param isCompleted - Whether the task is done
+ * @returns Label parts, or null when the task has no due date
+ * @remarks A completed task never reads "Overdue": the check already says
+ *          what happened, and red on a finished task is just noise.
+ */
+export function getDetailDateInfo(
+  dueDate: string | null,
+  dueTime: string | null,
+  isCompleted: boolean
+): { dateLabel: string; timeLabel: string | null; className: string } | null {
+  const info = getDueDateInfo(dueDate, dueTime);
+  if (!info || !dueDate) return null;
+
+  const isOverdue = !isCompleted && info.dateLabel.startsWith("Overdue");
+  const useRelative =
+    isOverdue || info.dateLabel === "Today" || info.dateLabel === "Tomorrow";
+
+  const due = new Date(dueDate + "T00:00:00");
+  const longDate = due.toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+
+  return {
+    dateLabel: useRelative ? info.dateLabel : longDate,
+    // An overdue pill stays short: the day count is the point, not the hour.
+    timeLabel: isOverdue ? null : info.timeLabel,
+    className: isCompleted ? "text-muted-foreground" : info.className,
+  };
+}
+
+/**
  * Returns an array of source badges for a task (e.g. "bCourses", "Submitted", late due).
  *
  * @param task - The task to extract source badges from

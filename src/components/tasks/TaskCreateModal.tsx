@@ -17,6 +17,7 @@ import DatePicker, { TimePicker } from "./DatePicker";
 import RepeatPicker from "./RepeatPicker";
 import CustomRecurrenceModal from "./CustomRecurrenceModal";
 import ColorWheel from "@/components/ui/ColorWheel";
+import DeletableOption from "./DeletableOption";
 
 type RepeatUnit = "day" | "week" | "month";
 
@@ -61,7 +62,7 @@ interface TaskCreateModalProps {
 export default function TaskCreateModal({
   open, onClose, onAdd, defaultDate, defaultTime, defaultCourseName, editTask, onSave, onDelete, onSaveColorForClass, createTypeToggle, keepMounted,
 }: TaskCreateModalProps) {
-  const { availableTags, availableCourses, courseColors } = useTaskContext();
+  const { availableTags, availableCourses, courseColors, deleteTag, deleteCourse } = useTaskContext();
   const { colorTheme } = useTheme();
   const { showToast } = useToast();
   const isMiffy = colorTheme === "miffy";
@@ -395,6 +396,40 @@ export default function TaskCreateModal({
     setShowTagDropdown(true);
     setTagSearch("");
     setTimeout(() => tagSearchRef.current?.focus(), 50);
+  }
+
+  // -- Deleting a tag or class from the pickers --
+  /**
+   * Removes a tag from every task that has it.
+   *
+   * @param tag - Tag to delete, as displayed
+   * @remarks The picker list is derived from tasks, so there is no tag row to
+   *          delete on its own. Confirmation is handled by DeletableOption.
+   */
+  async function handleDeleteTag(tag: string) {
+    setTags((prev) => prev.filter((t) => t.toLowerCase() !== tag.toLowerCase()));
+    const count = await deleteTag(tag);
+    showToast(
+      count > 0
+        ? `Removed "${tag}" from ${count} ${count === 1 ? "task" : "tasks"}`
+        : `Removed "${tag}"`
+    );
+  }
+
+  /**
+   * Clears a class from every task that has it, keeping the assignments.
+   *
+   * @param name - Class name to delete, as stored
+   */
+  async function handleDeleteCourse(name: string) {
+    // Clear it off this task too, via the normal path so the colour resets.
+    if (courseName === name) selectCourse(null);
+    const count = await deleteCourse(name);
+    showToast(
+      count > 0
+        ? `Removed "${name}" from ${count} ${count === 1 ? "assignment" : "assignments"}`
+        : `Removed "${name}"`
+    );
   }
 
   // -- Course selection helper --
@@ -865,17 +900,16 @@ export default function TaskCreateModal({
 
               {/* Suggestions */}
               {filteredTagSuggestions.map((tag) => (
-                <button
+                <DeletableOption
                   key={tag}
-                  type="button"
-                  onClick={() => {
+                  label={tag}
+                  onSelect={() => {
                     addTag(tag);
                     setShowTagDropdown(false);
                   }}
-                  className="w-full text-left px-4 py-1.5 text-sm text-foreground hover:bg-accent transition-colors truncate"
-                >
-                  {tag}
-                </button>
+                  onDelete={() => handleDeleteTag(tag)}
+                  deleteHint="Remove this tag everywhere"
+                />
               ))}
 
               {/* Add custom tag */}
@@ -957,18 +991,14 @@ export default function TaskCreateModal({
               )}
               {/* Existing courses */}
               {filteredCourses.map((c) => (
-                <button
+                <DeletableOption
                   key={c}
-                  type="button"
-                  onClick={() => selectCourse(c)}
-                  className={`w-full text-left px-4 py-1.5 text-sm transition-colors truncate ${
-                    courseName === c
-                      ? "text-blue-500 font-medium"
-                      : "text-foreground hover:bg-accent"
-                  }`}
-                >
-                  {c}
-                </button>
+                  label={c}
+                  selected={courseName === c}
+                  onSelect={() => selectCourse(c)}
+                  onDelete={() => handleDeleteCourse(c)}
+                  deleteHint="Remove this class from all assignments"
+                />
               ))}
               {/* Add custom class */}
               {courseSearch.trim() &&

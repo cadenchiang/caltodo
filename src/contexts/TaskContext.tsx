@@ -14,6 +14,7 @@ import { showNewAssignmentsModal } from "@/components/ui/NewAssignmentsModal";
 import { readSyncStream } from "@/lib/gcal/read-sync-stream";
 import { playTaskComplete, playTaskCreated } from "@/lib/sounds";
 import { getCredentials } from "@/lib/credentials-client";
+import { readHiddenTags, hideTag } from "@/lib/hidden-tags";
 
 /** localStorage key and version for stale-while-revalidate task caching. */
 const CACHE_KEY = "caltodo_tasks_cache";
@@ -159,6 +160,9 @@ function writeLastAutoSync(now: number): void {
   }
 }
 
+/** Tags always offered in the picker, even on an account with no tasks. */
+const DEFAULT_TAGS = ["Canvas", "Gradescope", "Pensive"] as const;
+
 interface TaskContextValue {
   tasks: Task[];
   loading: boolean;
@@ -196,6 +200,10 @@ interface TaskContextValue {
   dismissTasksByCourseNames: (courseNames: string[]) => Promise<number>;
   /** Un-hides tasks by clearing dismissed_at for given course names. Returns count restored. */
   undismissTasksByCourseNames: (courseNames: string[]) => Promise<number>;
+  /** Removes a tag from every task carrying it. Returns count of tasks changed. */
+  deleteTag: (tag: string) => Promise<number>;
+  /** Clears a class from every task carrying it. Returns count of tasks changed. */
+  deleteCourse: (courseName: string) => Promise<number>;
   deleteAllTasks: () => Promise<void>;
   snoozeTask: (id: string, hours: number) => Promise<void>;
   unsnoozeTask: (id: string) => Promise<void>;
@@ -1177,6 +1185,138 @@ export function TaskProvider({ children }: { children: ReactNode }) {
   }
 
   /**
+   * Removes a tag from every task that carries it.
+   *
+   * Tags are not stored as their own rows: the picker's list is derived from
+   * the tags present on tasks, so "deleting" one means editing each task.
+   *
+   * @param tag - Tag to remove; matched case-insensitively
+   * @returns Number of tasks changed, or 0 if none matched or the write failed
+   * @remarks Default tags are additionally recorded as hidden, since they are
+   *          seeded into the list regardless of use and would otherwise
+   *          reappear the instant they were deleted.
+   */
+  async function deleteTag(tag: string): Promise<number> {
+    const target = tag.trim().toLowerCase();
+    if (!userId || !target) return 0;
+
+    hideTag(target);
+    setHiddenTagsVersion((v) => v + 1);
+
+    const affected = tasks.filter((t) =>
+      (t.tags ?? []).some((x) => x.toLowerCase() === target)
+    );
+    if (affected.length === 0) return 0;
+
+    const previousTasks = [...tasks];
+    const nextTagsById = new Map(
+      affected.map((t) => [
+        t.id,
+        (t.tags ?? []).filter((x) => x.toLowerCase() !== target),
+      ])
+    );
+
+    // Optimistic: strip the tag locally so the chip disappears immediately.
+    setTasks((prev) => {
+      const updated = prev.map((t) =>
+        nextTagsById.has(t.id) ? { ...t, tags: nextTagsById.get(t.id)! } : t
+      );
+      setCachedTasks(updated);
+      taskBaselineRef.current = updated;
+      return updated;
+    });
+
+    // One request per task: tags is an array column, so there is no single
+    // filtered UPDATE that removes one element across differing arrays.
+    const results = await Promise.all(
+      [...nextTagsById.entries()].map(([id, nextTags]) =>
+        supabase
+          .from("tasks")
+          .update({ tags: nextTags, updated_at: new Date().toISOString() })
+          .eq("id", id)
+          .eq("user_id", userId)
+      )
+    );
+
+    const failure = results.find((r) => r.error);
+    if (failure?.error) {
+      console.error("deleteTag: failed to remove tag", {
+        tag: target,
+        taskCount: affected.length,
+        error: failure.error.message,
+      });
+      setError(failure.error.message);
+      setTasks(previousTasks);
+      setCachedTasks(previousTasks);
+      fetchTasks();
+      return 0;
+    }
+
+    console.info("deleteTag: removed tag from tasks", {
+      tag: target,
+      taskCount: affected.length,
+    });
+    return affected.length;
+  }
+
+  /**
+   * Clears a class from every task that carries it.
+   *
+   * Like tags, the class list is derived from tasks. This clears the label
+   * and keeps the assignments: deleting a student's coursework because they
+   * tidied a dropdown would be the wrong reading of "delete".
+   *
+   * @param courseName - Class name to clear; matched exactly, as stored
+   * @returns Number of tasks changed, or 0 if none matched or the write failed
+   * @remarks A class that comes from a synced platform is re-applied on the
+   *          next sync, because the source still reports it.
+   */
+  async function deleteCourse(courseName: string): Promise<number> {
+    const target = courseName.trim();
+    if (!userId || !target) return 0;
+
+    const affected = tasks.filter((t) => t.course_name === target);
+    if (affected.length === 0) return 0;
+
+    const previousTasks = [...tasks];
+    const affectedIds = new Set(affected.map((t) => t.id));
+
+    setTasks((prev) => {
+      const updated = prev.map((t) =>
+        affectedIds.has(t.id) ? { ...t, course_name: null } : t
+      );
+      setCachedTasks(updated);
+      taskBaselineRef.current = updated;
+      return updated;
+    });
+
+    const { error: clearError } = await supabase
+      .from("tasks")
+      .update({ course_name: null, updated_at: new Date().toISOString() })
+      .eq("user_id", userId)
+      .eq("course_name", target);
+
+    if (clearError) {
+      console.error("deleteCourse: failed to clear class", {
+        course: target,
+        taskCount: affected.length,
+        error: clearError.message,
+      });
+      setError(clearError.message);
+      setTasks(previousTasks);
+      setCachedTasks(previousTasks);
+      fetchTasks();
+      return 0;
+    }
+
+    console.info("deleteCourse: cleared class from tasks", {
+      course: target,
+      taskCount: affected.length,
+    });
+    return affected.length;
+  }
+
+  /**
    * Soft-hides tasks by setting dismissed_at for all tasks matching given course names.
    * Optimistically removes from local state; reverts on error.
    *
@@ -1473,15 +1613,28 @@ export function TaskProvider({ children }: { children: ReactNode }) {
    * Distinct user-assigned tag names across all tasks (excludes course names).
    * Used to populate the tag picker dropdown.
    */
+  // Bumped whenever a tag is hidden, so availableTags re-derives from the
+  // localStorage-backed hidden set.
+  const [hiddenTagsVersion, setHiddenTagsVersion] = useState(0);
+
   const availableTags = useMemo(() => {
-    const tagSet = new Set<string>(["Canvas", "Gradescope", "Pensive"]);
+    // Defaults are seeded so a new account has something to pick, but a user
+    // who deletes one must not see it seeded straight back.
+    const hidden = readHiddenTags();
+    const tagSet = new Set<string>(
+      DEFAULT_TAGS.filter((t: string) => !hidden.has(t.toLowerCase()))
+    );
     for (const t of tasks) {
       if (t.tags) {
-        for (const tag of t.tags) tagSet.add(tag);
+        for (const tag of t.tags) {
+          if (!hidden.has(tag.toLowerCase())) tagSet.add(tag);
+        }
       }
     }
     return Array.from(tagSet).sort();
-  }, [tasks]);
+    // hiddenTagsVersion re-runs this after a delete, since the hidden set
+    // lives in localStorage and is invisible to React.
+  }, [tasks, hiddenTagsVersion]);
 
   /** Distinct non-null course_name values across all tasks, sorted alphabetically. */
   const availableCourses = useMemo(() => {
@@ -1536,6 +1689,8 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     triggerSync,
     fetchTasks,
     mergeDuplicates,
+    deleteTag,
+    deleteCourse,
   });
   methodsRef.current = {
     addTask,
@@ -1556,6 +1711,8 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     triggerSync,
     fetchTasks,
     mergeDuplicates,
+    deleteTag,
+    deleteCourse,
   };
 
   // Stable method wrappers — created once, always call the freshest impl via ref.
@@ -1578,6 +1735,8 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     triggerSync: ((...args) => methodsRef.current.triggerSync(...args)) as typeof triggerSync,
     fetchTasks: ((...args) => methodsRef.current.fetchTasks(...args)) as typeof fetchTasks,
     mergeDuplicates: ((...args) => methodsRef.current.mergeDuplicates(...args)) as typeof mergeDuplicates,
+    deleteTag: ((...args) => methodsRef.current.deleteTag(...args)) as typeof deleteTag,
+    deleteCourse: ((...args) => methodsRef.current.deleteCourse(...args)) as typeof deleteCourse,
   }), []);
 
   // Memoize the full context value so subscribers only re-render when state
