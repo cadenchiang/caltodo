@@ -8,6 +8,7 @@ import { useToast } from "@/contexts/ToastContext";
 
 import type { Task, TaskInsert, TaskUpdate, SyncResult } from "@/lib/types";
 import { trackEvent } from "@/lib/analytics";
+import { markActivated } from "@/lib/activation";
 import { computeNextDueDate, shouldSpawnNext } from "@/lib/repeat";
 
 import { showNewAssignmentsModal } from "@/components/ui/NewAssignmentsModal";
@@ -221,34 +222,61 @@ interface TaskContextValue {
 const TaskContext = createContext<TaskContextValue | null>(null);
 
 /**
- * Global task state provider using stale-while-revalidate pattern:
+ * Global task state provider.
+ *
+ * Preferred path: the server layout has already run the task query and
+ * passes the rows in as `initialTasks`. State starts populated, the list is
+ * in the very first HTML, and no client fetch is needed to paint it.
+ *
+ * Fallback (no `initialTasks`) keeps the original stale-while-revalidate
+ * behaviour:
  * 1. On mount: hydrate from localStorage cache (avoids loading spinner)
  * 2. Fetch fresh data from Supabase in background
  * 3. Update state + cache on every successful fetch or mutation
  *
- * Cache hydration happens in useEffect to avoid SSR/client hydration mismatch.
+ * @param children - Subtree that consumes task state.
+ * @param initialTasks - Rows fetched server-side. When present the provider
+ *   skips both the localStorage hydration and the initial client fetch: the
+ *   server rows are strictly fresher than either. Pass `undefined` (not an
+ *   empty array) to opt out — `[]` is a meaningful value meaning "this user
+ *   genuinely has no tasks", and must not trigger a redundant refetch.
  */
-export function TaskProvider({ children }: { children: ReactNode }) {
+export function TaskProvider({
+  children,
+  initialTasks,
+}: {
+  children: ReactNode;
+  initialTasks?: Task[];
+}) {
   const { showToast, updateToastProgress } = useToast();
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
+  // A server-rendered list is the first paint. Seeding useState directly
+  // (rather than in an effect) keeps the server and client first renders
+  // identical, so there is no hydration mismatch and no loading flash.
+  const hasServerTasks = initialTasks !== undefined;
+  const [tasks, setTasks] = useState<Task[]>(initialTasks ?? []);
+  const [loading, setLoading] = useState(!hasServerTasks);
   const [error, setError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
   const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
-  const hasCacheRef = useRef(false);
+  const hasCacheRef = useRef(hasServerTasks);
   const supabase = createClient();
 
   // Hydrate from localStorage before first paint (useLayoutEffect runs synchronously
-  // after DOM mutations but before the browser paints, eliminating the loading flash)
+  // after DOM mutations but before the browser paints, eliminating the loading flash).
+  // Skipped when the server already supplied rows — the cache can only be staler.
   useLayoutEffect(() => {
+    if (hasServerTasks) return;
     const cached = getCachedTasks();
     if (cached) {
       setTasks(cached);
       setLoading(false);
       hasCacheRef.current = true;
     }
+    // hasServerTasks is derived from a prop that never changes for a given
+    // mount, so this stays a mount-only effect.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /**
@@ -256,14 +284,14 @@ export function TaskProvider({ children }: { children: ReactNode }) {
    * Used as a reliable baseline for sync change detection instead of
    * the potentially-stale `tasks` state from React closures.
    */
-  const taskBaselineRef = useRef<Task[]>([]);
+  const taskBaselineRef = useRef<Task[]>(initialTasks ?? []);
 
   /**
    * Whether the initial fetchTasks has completed at least once.
    * Notifications are suppressed until this is true to avoid
    * false "new assignment" alerts on first load.
    */
-  const hasInitialFetchRef = useRef(false);
+  const hasInitialFetchRef = useRef(hasServerTasks);
 
   /**
    * Syncs any tasks with due dates but no google_event_id to Google Calendar.
@@ -326,16 +354,22 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     }
     setError(null);
 
-    const user = await getCurrentUser();
+    // Run both concurrently. The task query is scoped by RLS on the session
+    // cookie, so it never needed the resolved user object — awaiting
+    // getCurrentUser() first just put an extra round trip in front of the
+    // query that gates first paint.
+    const [user, { data, error: fetchError }] = await Promise.all([
+      getCurrentUser(),
+      supabase
+        .from("tasks")
+        .select("*")
+        .is("dismissed_at", null)
+        .order("created_at", { ascending: false }),
+    ]);
+
     if (user) {
       setUserId(user.id);
     }
-
-    const { data, error: fetchError } = await supabase
-      .from("tasks")
-      .select("*")
-      .is("dismissed_at", null)
-      .order("created_at", { ascending: false });
 
     if (fetchError) {
       setError(fetchError.message);
@@ -383,9 +417,24 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     if (creds) setLastSyncedAt((creds.last_synced_at as string | null) ?? null);
   }, []);
 
+  // Seed the localStorage cache from the server rows so a later cold start
+  // (or a route that still mounts without initialTasks) hydrates from fresh
+  // data rather than whatever the last client fetch happened to leave.
   useEffect(() => {
-    fetchTasks();
+    if (hasServerTasks && initialTasks) setCachedTasks(initialTasks);
+    // Mount-only: initialTasks is a server-render prop, stable for this mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    // The server layout already ran this exact query and passed the rows in,
+    // so refetching on mount would just re-download what is already on
+    // screen. Before this, the task list could not start loading until
+    // hydration finished: a trace of /app/inbox had the query starting at
+    // 871ms and the rows landing at 1216ms on an otherwise idle main thread.
+    if (!hasServerTasks) fetchTasks();
     fetchLastSynced();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchTasks, fetchLastSynced]);
 
   // Auto-sync: runs on initial load (if stale) and every 5 minutes.
@@ -638,6 +687,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     });
     setError(null);
     trackEvent("task_created");
+    markActivated("task_created");
 
     // Separate invite emails from task columns before inserting
     const { inviteEmails, ...taskColumns } = taskData;
@@ -691,6 +741,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
 
   async function updateTask(id: string, updates: TaskUpdate) {
     trackEvent("task_updated");
+    markActivated("task_updated");
     // When the user manually edits due_date / due_time on a synced task,
     // stamp the corresponding manual-edit column so sync-engine.ts won't
     // overwrite the change on the next Gradescope/Canvas/etc. sync.
@@ -748,6 +799,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     const willComplete = !task.is_completed;
     if (willComplete) playTaskComplete();
     trackEvent(willComplete ? "task_completed" : "task_uncompleted");
+    if (willComplete) markActivated("task_completed");
     await updateTask(id, {
       is_completed: willComplete,
       completed_at: willComplete ? new Date().toISOString() : null,

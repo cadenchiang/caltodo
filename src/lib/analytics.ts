@@ -22,6 +22,8 @@ type AnalyticsEvent =
   | "onboarding_exited"
   | "standalone_setup_completed"
   | "standalone_setup_skipped"
+  // Activation
+  | "user_activated"
   // Tasks
   | "task_created"
   | "task_completed"
