@@ -7,10 +7,14 @@ import { RefreshCw, CalendarDays, LayoutGrid, ArrowRight } from "lucide-react";
 import SyncedCount from "@/components/landing/SyncedCount";
 import GoogleOneTap from "@/components/auth/GoogleOneTap";
 import FadeIn from "@/components/landing/FadeIn";
+import { useIsLoggedIn } from "@/hooks/useIsLoggedIn";
 
 
 interface HeroProps {
-  /** When true, Login/CTA buttons link to /app/home instead of /login. */
+  /**
+   * Optional override. Normally left undefined — the hero checks the session
+   * client-side so the landing page can stay statically generated.
+   */
   loggedIn?: boolean;
   /** Server-fetched user count for immediate render. */
   initialUserCount?: number;
@@ -23,7 +27,11 @@ interface HeroProps {
  * Shows login/signup buttons for unauthenticated users,
  * or profile picture + dashboard link for logged-in users.
  */
-export default function Hero({ loggedIn, initialUserCount, initialAssignmentCount }: HeroProps) {
+export default function Hero({ loggedIn: loggedInProp, initialUserCount, initialAssignmentCount }: HeroProps) {
+  // The landing page renders Hero without this prop, so the CTA read "Get
+  // started" even for a signed-in visitor arriving via the sidebar logo. Same
+  // client-side check the nav above it already does.
+  const loggedIn = useIsLoggedIn(loggedInProp);
   const [showSpotsModal, setShowSpotsModal] = useState(false);
   const [pastHero, setPastHero] = useState(false);
   const userCount = initialUserCount ?? null;

@@ -77,8 +77,12 @@ export default function SyllabusSettings() {
   return (
     <div className="rounded-2xl border border-border bg-card px-3 sm:px-4 py-3.5 shadow-sm dark:shadow-none">
       <div className="flex items-center gap-2.5 sm:gap-3.5">
-        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-purple-100 dark:bg-purple-500/15 flex items-center justify-center shrink-0">
-          <FileText size={20} className="text-purple-500" />
+        {/* Neutral tile, matching the other integration cards. Purple made
+            Syllabus read as a distinct brand alongside Canvas and Gradescope,
+            which have their own; it is a file the user uploaded, not a
+            platform. */}
+        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
+          <FileText size={20} className="text-secondary-foreground" />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-foreground">Syllabus</p>
@@ -93,7 +97,7 @@ export default function SyllabusSettings() {
         <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={() => router.push("/app/onboarding?setup=syllabus")}
-            className="text-xs font-medium text-purple-500 hover:text-purple-600 dark:hover:text-purple-400 px-3 py-1 rounded-lg border border-purple-200 dark:border-purple-500/30 hover:bg-purple-50 dark:hover:bg-purple-500/10 transition-colors cursor-pointer"
+            className="text-xs font-medium text-secondary-foreground hover:text-foreground px-3 py-1 rounded-lg border border-border hover:bg-muted/60 transition-colors cursor-pointer"
           >
             {totalCount > 0 ? "Upload Another" : "Upload"}
           </button>

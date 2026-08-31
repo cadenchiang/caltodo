@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ArrowRight, Menu, X } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { useIsLoggedIn } from "@/hooks/useIsLoggedIn";
 
 interface LandingNavProps {
   /**
@@ -19,14 +19,14 @@ interface LandingNavProps {
  * Logo on the left, page links centered, Get started + Login on the right.
  * Highlights the active route by bolding the matching nav link.
  *
- * Auth detection is client-side (`supabase.auth.getSession`) so the layout
- * remains static and edge-cached. The nav renders the public state on the
- * first paint and upgrades the Login/Get started buttons once the check
+ * Auth detection is client-side, via the shared useIsLoggedIn hook, so the
+ * layout remains static and edge-cached. The nav renders the public state on
+ * the first paint and upgrades the Login/Get started buttons once the check
  * resolves — there is no flicker because we only swap the right-side CTAs.
  */
 export default function LandingNav({ loggedIn: loggedInProp }: LandingNavProps = {}) {
   const pathname = usePathname();
-  const [loggedIn, setLoggedIn] = useState<boolean>(loggedInProp ?? false);
+  const loggedIn = useIsLoggedIn(loggedInProp);
   /** Tracks which on-page section is currently in view (home page only). */
   const [activeHash, setActiveHash] = useState<string>("");
   /** True once the user has scrolled past the top — used to toggle the divider. */
@@ -40,18 +40,6 @@ export default function LandingNav({ loggedIn: loggedInProp }: LandingNavProps =
   const scrollLockUntilRef = useRef<number>(0);
   /** Whether the mobile menu overlay is open. */
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-  useEffect(() => {
-    if (loggedInProp !== undefined) return; // parent already decided
-    let cancelled = false;
-    const supabase = createClient();
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!cancelled) setLoggedIn(!!session);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [loggedInProp]);
 
   // Toggle the bottom divider based on scroll position so the nav reads
   // borderless when sitting at the top of the page.
