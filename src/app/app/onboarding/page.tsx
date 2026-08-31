@@ -485,8 +485,13 @@ export default function OnboardingPage() {
     trackEvent("onboarding_step_viewed", { step: currentStep });
   }, [currentStep]);
 
-  // Prefetch inbox route so post-onboarding navigation is instant
+  // Prefetch every route onboarding can exit to, so the final navigation is
+  // instant. Completing setup lands on /app/home; "Skip for now" lands on
+  // /app/inbox. Only inbox used to be prefetched, so the common completion
+  // path paid a cold route load after the exit fade had already finished,
+  // which read as a stall and a loading-skeleton flash.
   useEffect(() => {
+    router.prefetch("/app/home");
     router.prefetch("/app/inbox");
   }, [router]);
 
