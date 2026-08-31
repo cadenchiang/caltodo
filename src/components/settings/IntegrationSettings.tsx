@@ -12,6 +12,7 @@ import PensieveSettings from "./PensieveSettings";
 import BrightspaceSettings from "./BrightspaceSettings";
 import AdditionalCanvasCard from "./AdditionalCanvasCard";
 import ClassesSection from "./ClassesSection";
+import { warmImages, INTEGRATION_LOGO_SRCS } from "@/lib/warm-images";
 
 const CACHE_KEY = "caltodo_credentials_cache";
 
@@ -149,24 +150,6 @@ export function IntegrationProvider({ children }: { children: React.ReactNode })
     fetchCredentials();
   }, [fetchCredentials]);
 
-  // Warm the browser cache for every integration logo as soon as the
-  // provider mounts. Without this, each card's <img> request fires only
-  // when the card itself mounts, which produced a visibly staggered
-  // "popping in" effect across the integration list.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const logos = [
-      "/bcourses-logo.png",
-      "/gradescope-logo.png",
-      "/pensieve-logo.png",
-      "/canvas-logo.png",
-    ];
-    for (const src of logos) {
-      const img = new window.Image();
-      img.src = src;
-    }
-  }, []);
-
   // Re-fetch credentials whenever something signals that integration
   // state may have changed: a sync completion, the GCal OAuth callback,
   // the page regaining focus after returning from OAuth, or storage
@@ -214,6 +197,15 @@ export function IntegrationProvider({ children }: { children: React.ReactNode })
 export default function IntegrationSettings() {
   const ctx = useContext(CredentialsContext);
   const { syncing, lastSyncedAt, syncResult } = useTaskContext();
+
+  // Warm the browser cache for every integration logo so the cards below
+  // don't pop in one row at a time. This deliberately lives here and not in
+  // IntegrationProvider: GlobalHealthBanner mounts that provider app-wide,
+  // so warming there made every authenticated page download logos it never
+  // renders (see lib/warm-images).
+  useEffect(() => {
+    warmImages(INTEGRATION_LOGO_SRCS);
+  }, []);
 
   if (!ctx) throw new Error("IntegrationSettings must be inside IntegrationProvider");
   const { credentials, handleUpdate } = ctx;
