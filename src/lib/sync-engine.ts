@@ -11,6 +11,7 @@ import { fetchAllGradescopeAssignments, fetchGradescopeAssignmentsForCourses } f
 import { fetchPensieveAssignments, PENSIEVE_COLOR } from "@/lib/pensieve-client";
 import { fetchBrightspaceAssignments } from "@/lib/brightspace-client";
 import { fetchBlackboardAssignments } from "@/lib/blackboard-client";
+import { isMissingColumnError } from "@/lib/supabase/missing-column";
 import { decrypt } from "@/lib/crypto";
 import { logger } from "@/lib/logger";
 import { isAllowedCanvasUrl } from "@/lib/canvas-url-validation";
@@ -88,12 +89,33 @@ export async function runSync(
   forceGradescope: boolean = false,
   platforms?: SyncPlatform[]
 ): Promise<SyncResult> {
-  // Fetch credentials
-  const { data: creds, error: credsError } = await supabase
+  // Fetch credentials.
+  //
+  // Split in two tiers because code and schema deploy independently. A build
+  // that names a freshly added column can go live before its migration runs,
+  // and PostgREST fails the whole select when one column is unknown — which
+  // here would report "no credentials configured" for every user and sync
+  // nothing. Missing optional columns fall back to the core set instead.
+  const CORE_COLUMNS = "canvas_token, canvas_token_created_at, canvas_base_url, canvas_ical_url, gradescope_email, gradescope_password_encrypted, gradescope_auth_failed, last_gradescope_synced_at, selected_canvas_courses, selected_gradescope_courses, selected_pensieve_courses, pensieve_calendar_url, brightspace_calendar_url, classroom_enabled, selected_classroom_courses, additional_canvas_accounts";
+  const OPTIONAL_COLUMNS = "blackboard_calendar_url";
+
+  let { data: creds, error: credsError } = await supabase
     .from("integration_credentials")
-    .select("canvas_token, canvas_token_created_at, canvas_base_url, canvas_ical_url, gradescope_email, gradescope_password_encrypted, gradescope_auth_failed, last_gradescope_synced_at, selected_canvas_courses, selected_gradescope_courses, selected_pensieve_courses, pensieve_calendar_url, brightspace_calendar_url, blackboard_calendar_url, classroom_enabled, selected_classroom_courses, additional_canvas_accounts")
+    .select(`${CORE_COLUMNS}, ${OPTIONAL_COLUMNS}`)
     .eq("user_id", userId)
     .single();
+
+  if (isMissingColumnError(credsError)) {
+    logger.warn("runSync: optional credential columns missing, retrying without them", {
+      userId,
+      columns: OPTIONAL_COLUMNS,
+    });
+    ({ data: creds, error: credsError } = await supabase
+      .from("integration_credentials")
+      .select(CORE_COLUMNS)
+      .eq("user_id", userId)
+      .single());
+  }
 
   if (credsError || !creds) {
     logger.warn("runSync: no credentials found", { userId });

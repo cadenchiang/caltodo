@@ -45,7 +45,10 @@ describe("sync engine", () => {
   const engine = read("src/lib/sync-engine.ts");
 
   it("selects the feed URL from the credentials row", () => {
-    expect(engine).toMatch(/blackboard_calendar_url,/);
+    // Lives in the optional tier so a deploy that precedes the migration
+    // falls back instead of failing every user's sync; see
+    // missing-column.test.ts for that guarantee.
+    expect(engine).toMatch(/OPTIONAL_COLUMNS = "[^"]*blackboard_calendar_url/);
   });
 
   it("is a sync platform", () => {
