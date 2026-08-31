@@ -57,6 +57,11 @@ const nextConfig: NextConfig = {
   },
 
   images: {
+    // Optimised avatars/remote images default to `max-age=86400,
+    // must-revalidate`, so a returning user re-validates their own profile
+    // picture daily before it can paint. The upstream URLs are themselves
+    // content-addressed, so a longer floor is safe.
+    minimumCacheTTL: 2592000, // 30 days
     remotePatterns: [
       {
         protocol: "https",
@@ -76,7 +81,7 @@ const nextConfig: NextConfig = {
   // Required for PostHog proxy to work with middleware
   skipMiddlewareUrlNormalize: true,
 
-  // Security headers applied to all routes.
+  // Security headers applied to all routes, plus caching for static assets.
   async headers() {
     return [
       {
@@ -86,6 +91,27 @@ const nextConfig: NextConfig = {
           { key: "X-Frame-Options", value: "DENY" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "X-DNS-Prefetch-Control", value: "on" },
+        ],
+      },
+      {
+        // Static files served straight out of public/ default to
+        // `max-age=0, must-revalidate` on Vercel. A DevTools trace of
+        // /app/inbox showed the cost: the browser cannot reuse even its
+        // in-memory copy, so logo.png and empty-task-illustration.png were
+        // each requested twice within a single page load, and every repeat
+        // visit pays a 304 round trip per asset before it can paint.
+        //
+        // These filenames are NOT content-hashed and brand art does change
+        // (see scripts/sync-logo.mjs), so `immutable` for a year would
+        // strand users on a stale logo. A week of freshness plus a month of
+        // stale-while-revalidate removes the revalidation from the critical
+        // path while still letting a swapped asset propagate on its own.
+        source: "/:path*.:ext(png|jpg|jpeg|gif|webp|avif|svg|ico|woff|woff2|mp4)",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=604800, stale-while-revalidate=2592000",
+          },
         ],
       },
     ];
