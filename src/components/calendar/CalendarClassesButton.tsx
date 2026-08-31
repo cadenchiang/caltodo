@@ -57,6 +57,12 @@ function PlatformStatus() {
       ),
       synced: !!credentials.brightspace_calendar_url,
     },
+    {
+      key: "blackboard",
+      label: "Blackboard",
+      logo: <img src="/blackboard-logo.svg" alt="" className="w-5 h-5 object-contain" />,
+      synced: !!credentials.blackboard_calendar_url,
+    },
   ];
 
   return (

@@ -10,6 +10,7 @@ import CanvasSettings from "./CanvasSettings";
 import GradescopeSettings from "./GradescopeSettings";
 import PensieveSettings from "./PensieveSettings";
 import BrightspaceSettings from "./BrightspaceSettings";
+import BlackboardSettings from "./BlackboardSettings";
 import AdditionalCanvasCard from "./AdditionalCanvasCard";
 import ClassesSection from "./ClassesSection";
 
@@ -77,6 +78,8 @@ const EMPTY_CREDENTIALS: IntegrationCredentials = {
   pensieve_auth_failed: false,
   brightspace_calendar_url: null,
   brightspace_auth_failed: false,
+  blackboard_calendar_url: null,
+  blackboard_auth_failed: false,
   additional_canvas_accounts: [],
   has_completed_onboarding: false,
   email_digest_enabled: true,
@@ -242,7 +245,7 @@ export default function IntegrationSettings() {
           </div>
         ))}
         <div className="ml-4 sm:ml-6">
-          <AddAnotherCanvas />
+          <AddAnotherAccount setupRoute="canvas-add" noun="Canvas school" />
         </div>
       </div>
       <GradescopeSettings
@@ -268,24 +271,54 @@ export default function IntegrationSettings() {
         lastSyncedAt={lastSyncedAt}
         syncedCount={syncResult?.brightspace?.synced}
       />
+      <BlackboardSettings
+        credentials={credentials}
+        onUpdate={handleUpdate}
+        syncing={syncing}
+        lastSyncedAt={lastSyncedAt}
+        syncedCount={syncResult?.blackboard?.synced}
+      />
     </div>
   );
 }
 
+interface AddAnotherAccountProps {
+  /**
+   * Onboarding `?setup=` target that starts the add flow for this provider,
+   * e.g. "canvas-add". Providers use a distinct add route rather than their
+   * plain setup route so the flow knows to create an account alongside the
+   * existing one instead of replacing it.
+   */
+  setupRoute: string;
+  /**
+   * What the user is adding another of, in the user's words: "Canvas school",
+   * "Gradescope account". Rendered directly after "Add another ".
+   */
+  noun: string;
+}
+
 /**
- * Compact "add another Canvas school" row, shown inside the Canvas group.
+ * Compact "add another <thing>" row, shown inside a provider's group.
  *
- * @returns A dashed row that starts the add-a-school flow
+ * Was hardcoded to Canvas. Every integration can in principle hold more than
+ * one account, so the wording and the destination are now the caller's to
+ * decide and the row is not Canvas-specific. Render it only for providers
+ * whose add flow actually exists, or it promises something that does nothing.
+ *
+ * @param setupRoute - The `?setup=` value to open.
+ * @param noun - Singular noun naming what gets added.
+ * @returns A dashed row that starts that provider's add flow.
  */
-function AddAnotherCanvas() {
+function AddAnotherAccount({ setupRoute, noun }: AddAnotherAccountProps) {
   const router = useRouter();
   return (
     <button
-      onClick={() => router.push("/app/onboarding?setup=canvas-add")}
+      onClick={() => router.push(`/app/onboarding?setup=${setupRoute}`)}
+      aria-label={`Add another ${noun}`}
       className="w-full flex items-center gap-2 px-3 py-2 rounded-xl border border-dashed border-border text-xs font-medium text-muted-foreground hover:text-foreground hover:border-input-border hover:bg-muted/40 transition-colors cursor-pointer"
     >
       <Plus size={14} />
-      Add another Canvas school
+      Add another {noun}
     </button>
   );
 }

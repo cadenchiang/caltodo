@@ -16,6 +16,7 @@ import CanvasStep from "@/components/onboarding/CanvasStep";
 import GradescopeStep from "@/components/onboarding/GradescopeStep";
 import PensieveStep from "@/components/onboarding/PensieveStep";
 import BrightspaceStep from "@/components/onboarding/BrightspaceStep";
+import BlackboardStep from "@/components/onboarding/BlackboardStep";
 import ClassroomStep from "@/components/onboarding/ClassroomStep";
 import AddCanvasStep from "@/components/onboarding/AddCanvasStep";
 import SyllabusStep from "@/components/onboarding/SyllabusStep";
@@ -43,7 +44,7 @@ function searchSchoolOptions(query: string): string[] {
 /** Alias of the persisted step union, so saved progress and the flow
     can never disagree about what a step is called. */
 type Step = OnboardingStep;
-type Platform = "canvas" | "gradescope" | "pensieve" | "brightspace" | "syllabus";
+type Platform = "canvas" | "gradescope" | "pensieve" | "brightspace" | "blackboard" | "syllabus";
 
 /**
  * Integration steps that need the flow's shared "Skip for now" control.
@@ -70,6 +71,7 @@ const STEP_LABELS: Record<Step, string> = {
   gradescope: "Gradescope",
   pensieve: "Pensive",
   brightspace: "Brightspace",
+  blackboard: "Blackboard",
   syllabus: "Syllabus",
   done: "Finish",
 };
@@ -80,11 +82,12 @@ const PLATFORM_OPTIONS: Array<{ id: Platform; label: string; description: string
   { id: "gradescope", label: "Gradescope", description: "Sync deadlines from Gradescope", logo: "/gradescope-logo.png" },
   { id: "pensieve", label: "Pensive", description: "Assignments from your Pensive calendar", logo: "/pensieve-logo.png" },
   { id: "brightspace", label: "Brightspace", description: "Sync deadlines from your D2L Brightspace calendar", logo: "/brightspace-logo.svg" },
+  { id: "blackboard", label: "Blackboard", description: "Sync deadlines from your Blackboard calendar", logo: "/blackboard-logo.svg" },
   { id: "syllabus", label: "Syllabus", description: "Extract assignments from a syllabus PDF", logo: "/file.svg" },
 ];
 
 /** Valid platforms for standalone ?setup= mode. */
-const VALID_SETUP_PLATFORMS = new Set<string>(["canvas", "gradescope", "pensieve", "brightspace", "canvas-add", "syllabus", "classroom"]);
+const VALID_SETUP_PLATFORMS = new Set<string>(["canvas", "gradescope", "pensieve", "brightspace", "blackboard", "canvas-add", "syllabus", "classroom"]);
 
 /** Display labels for standalone setup mode header. */
 const SETUP_LABELS: Record<string, string> = {
@@ -92,6 +95,7 @@ const SETUP_LABELS: Record<string, string> = {
   gradescope: "Gradescope",
   pensieve: "Pensive",
   brightspace: "Brightspace",
+  blackboard: "Blackboard",
   "canvas-add": "Canvas",
   syllabus: "Syllabus",
   classroom: "Google Classroom",
@@ -375,6 +379,9 @@ function SourceLogo({ label }: { label: string }) {
       </div>
     );
   }
+  if (label === "Blackboard") {
+    return <img src="/blackboard-logo.svg" alt="" className="w-full h-full object-contain" />;
+  }
   if (label === "Google Classroom") {
     return <img src="/classroom-logo.png" alt="" className="w-full h-full object-contain" />;
   }
@@ -487,6 +494,7 @@ export default function OnboardingPage() {
     if (selectedPlatforms.has("gradescope")) platformSteps.push("gradescope");
     if (selectedPlatforms.has("pensieve")) platformSteps.push("pensieve");
     if (selectedPlatforms.has("brightspace")) platformSteps.push("brightspace");
+    if (selectedPlatforms.has("blackboard")) platformSteps.push("blackboard");
     if (selectedPlatforms.has("syllabus")) platformSteps.push("syllabus");
     return ["welcome", "school", "referral", "platforms", ...platformSteps, "done"];
   }, [selectedPlatforms]);
@@ -671,6 +679,22 @@ export default function OnboardingPage() {
     return true;
   }
 
+  /**
+   * Saves the Blackboard feed URL and advances the flow.
+   *
+   * @param payload - The validated Blackboard calendar feed URL
+   * @returns True when the credentials saved and the step advanced
+   */
+  async function handleBlackboardNext(payload: {
+    blackboard_calendar_url: string;
+  }): Promise<boolean> {
+    const ok = await saveCredentials(payload);
+    if (!ok) return false;
+    trackEvent("onboarding_step_completed", { step: "blackboard" });
+    setCurrentStep(nextStepAfter("blackboard"));
+    return true;
+  }
+
   /** Whether the standalone setup overlay is fading out before navigation. */
   const [standaloneExiting, setStandaloneExiting] = useState(false);
 
@@ -681,7 +705,7 @@ export default function OnboardingPage() {
     trackEvent("standalone_setup_completed", { platform: setupParam });
     // Syllabus doesn't use the sync engine — skip triggerSync for it
     if (setupParam !== "syllabus") {
-      const platform = setupParam === "canvas-add" ? "canvas" : setupParam as "canvas" | "gradescope" | "pensieve" | "brightspace";
+      const platform = setupParam === "canvas-add" ? "canvas" : setupParam as "canvas" | "gradescope" | "pensieve" | "brightspace" | "blackboard";
       triggerSync(undefined, [platform]).catch(() => {});
     }
     setStandaloneExiting(true);
@@ -812,6 +836,18 @@ export default function OnboardingPage() {
     return true;
   }
 
+  /**
+   * Standalone Blackboard handler: saves the feed URL, then redirects to Settings.
+   */
+  async function handleStandaloneBlackboardNext(payload: {
+    blackboard_calendar_url: string;
+  }): Promise<boolean> {
+    const ok = await saveCredentials(payload);
+    if (!ok) return false;
+    handleStandaloneSuccess();
+    return true;
+  }
+
   // ---- Standalone single-step setup mode rendering ----
   if (isStandaloneSetup) {
     const isSyllabusPreview = setupParam === "syllabus" && syllabusPhase === "preview";
@@ -881,6 +917,17 @@ export default function OnboardingPage() {
                   <BrightspaceStep
                     skipLabel="Cancel"
                     onNext={handleStandaloneBrightspaceNext}
+                    onSkip={handleStandaloneSkip}
+                    saving={saving}
+                    error={error}
+                    setError={setError}
+                  />
+                )}
+
+                {setupParam === "blackboard" && (
+                  <BlackboardStep
+                    skipLabel="Cancel"
+                    onNext={handleStandaloneBlackboardNext}
                     onSkip={handleStandaloneSkip}
                     saving={saving}
                     error={error}
@@ -1021,6 +1068,7 @@ export default function OnboardingPage() {
       (syncResult?.gradescope.synced ?? 0) +
       (syncResult?.pensieve.synced ?? 0) +
       (syncResult?.brightspace?.synced ?? 0) +
+      (syncResult?.blackboard?.synced ?? 0) +
       (syncResult?.classroom?.synced ?? 0) +
       syllabus.count;
 
@@ -1029,6 +1077,7 @@ export default function OnboardingPage() {
     if (syncResult && syncResult.gradescope.synced > 0) perSource.push({ label: "Gradescope", count: syncResult.gradescope.synced });
     if (syncResult && syncResult.pensieve.synced > 0) perSource.push({ label: "Pensive", count: syncResult.pensieve.synced });
     if (syncResult?.brightspace?.synced) perSource.push({ label: "Brightspace", count: syncResult.brightspace.synced });
+    if (syncResult?.blackboard?.synced) perSource.push({ label: "Blackboard", count: syncResult.blackboard.synced });
     if (syncResult?.classroom?.synced) perSource.push({ label: "Google Classroom", count: syncResult.classroom.synced });
     if (syllabus.count > 0) perSource.push({ label: "Syllabus", count: syllabus.count });
 
@@ -1362,6 +1411,16 @@ export default function OnboardingPage() {
               <BrightspaceStep
                 onNext={handleBrightspaceNext}
                 onSkip={() => { trackEvent("onboarding_step_skipped", { step: "brightspace" }); setCurrentStep(nextStepAfter("brightspace")); }}
+                saving={saving}
+                error={error}
+                setError={setError}
+              />
+            )}
+
+            {currentStep === "blackboard" && (
+              <BlackboardStep
+                onNext={handleBlackboardNext}
+                onSkip={() => { trackEvent("onboarding_step_skipped", { step: "blackboard" }); setCurrentStep(nextStepAfter("blackboard")); }}
                 saving={saving}
                 error={error}
                 setError={setError}

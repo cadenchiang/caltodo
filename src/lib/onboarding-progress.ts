@@ -24,6 +24,7 @@ export const ONBOARDING_STEPS = [
   "gradescope",
   "pensieve",
   "brightspace",
+  "blackboard",
   "syllabus",
   "done",
 ] as const;
@@ -37,6 +38,7 @@ export const ONBOARDING_PLATFORMS = [
   "gradescope",
   "pensieve",
   "brightspace",
+  "blackboard",
   "syllabus",
 ] as const;
 

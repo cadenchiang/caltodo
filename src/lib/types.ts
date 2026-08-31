@@ -14,7 +14,7 @@ export interface Task {
   color: string;
   created_at: string;
   updated_at: string;
-  source: "canvas" | "gradescope" | "pensieve" | "brightspace" | "syllabus" | "classroom" | null;
+  source: "canvas" | "gradescope" | "pensieve" | "brightspace" | "blackboard" | "syllabus" | "classroom" | null;
   external_id: string | null;
   course_name: string | null;
   source_url: string | null;
@@ -178,6 +178,8 @@ export interface IntegrationCredentials {
   /** True when the Pensieve iCal-feed fetch failed (feed reset/expired/404). */
   pensieve_auth_failed?: boolean;
   brightspace_calendar_url: string | null;
+  /** Blackboard Learn iCal feed URL, or null when not connected. */
+  blackboard_calendar_url: string | null;
   /** Whether the user opted into syncing Google Classroom coursework. */
   classroom_enabled?: boolean;
   /** Classroom courses chosen for sync; null means "not chosen yet". */
@@ -186,6 +188,8 @@ export interface IntegrationCredentials {
   classroom_auth_failed?: boolean;
   /** True when the Brightspace iCal-feed fetch failed (feed reset/expired/404). */
   brightspace_auth_failed?: boolean;
+  /** True when the Blackboard iCal-feed fetch failed (feed reset/expired/404). */
+  blackboard_auth_failed?: boolean;
   additional_canvas_accounts: AdditionalCanvasAccount[];
   /** Whether the user has completed onboarding (has at least one integration configured). */
   has_completed_onboarding: boolean;
@@ -219,6 +223,7 @@ export interface CredentialsSavePayload {
   dismissed_canvas_course_ids?: number[];
   pensieve_calendar_url?: string | null;
   brightspace_calendar_url?: string | null;
+  blackboard_calendar_url?: string | null;
   classroom_enabled?: boolean;
   selected_classroom_courses?: Array<{ id: string; name: string }> | null;
   additional_canvas_accounts?: AdditionalCanvasAccount[];
@@ -244,6 +249,7 @@ export interface SyncResult {
   gradescope: SyncSourceResult;
   pensieve: SyncSourceResult;
   brightspace: SyncSourceResult;
+  blackboard: SyncSourceResult;
   classroom: SyncSourceResult;
   last_synced_at: string;
   /** New Canvas courses detected that the user hasn't selected yet. */

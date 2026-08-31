@@ -19,14 +19,14 @@ import type { IntegrationCredentials, CredentialsSavePayload, AdditionalCanvasAc
  * hasn't run that migration yet degrades gracefully (the column defaults) instead
  * of the whole GET 500ing. See the two-tier select in GET below.
  */
-const CORE_SELECT = "canvas_token, canvas_base_url, canvas_ical_url, gradescope_email, gradescope_password_encrypted, last_synced_at, selected_canvas_courses, selected_gradescope_courses, selected_pensieve_courses, google_access_token_encrypted, google_calendar_id, google_email, google_photo_url, canvas_token_created_at, is_founding_member, pensieve_calendar_url, brightspace_calendar_url, gradescope_auth_failed, email_digest_enabled, email_digest_hour, email_digest_address, dismissed_canvas_course_ids, dismissed_modals";
+const CORE_SELECT = "canvas_token, canvas_base_url, canvas_ical_url, gradescope_email, gradescope_password_encrypted, last_synced_at, selected_canvas_courses, selected_gradescope_courses, selected_pensieve_courses, google_access_token_encrypted, google_calendar_id, google_email, google_photo_url, canvas_token_created_at, is_founding_member, pensieve_calendar_url, brightspace_calendar_url, blackboard_calendar_url, gradescope_auth_failed, email_digest_enabled, email_digest_hour, email_digest_address, dismissed_canvas_course_ids, dismissed_modals";
 
 /**
  * Recently-migrated columns that may not exist in a lagging environment. Kept
  * separate so a missing-column error triggers a fallback to CORE_SELECT rather
  * than a 500. Each is optional in IntegrationCredentials (defaults applied below).
  */
-const OPTIONAL_SELECT = "google_auth_failed, additional_canvas_accounts, canvas_auth_failed, canvas_ical_failed, pensieve_auth_failed, brightspace_auth_failed, classroom_enabled, selected_classroom_courses, classroom_auth_failed";
+const OPTIONAL_SELECT = "google_auth_failed, additional_canvas_accounts, canvas_auth_failed, canvas_ical_failed, pensieve_auth_failed, brightspace_auth_failed, blackboard_auth_failed, classroom_enabled, selected_classroom_courses, classroom_auth_failed";
 const FULL_SELECT = `${CORE_SELECT}, ${OPTIONAL_SELECT}`;
 
 /** Postgres "undefined column" (42703) or the PostgREST message that carries it. */
@@ -96,6 +96,7 @@ export async function GET() {
     data?.gradescope_password_encrypted ||
     data?.pensieve_calendar_url ||
     data?.brightspace_calendar_url ||
+    data?.blackboard_calendar_url ||
     data?.last_synced_at ||
     data?.google_access_token_encrypted
   );
@@ -153,6 +154,8 @@ export async function GET() {
     pensieve_auth_failed: (data as { pensieve_auth_failed?: boolean } | null)?.pensieve_auth_failed ?? false,
     brightspace_calendar_url: data?.brightspace_calendar_url ?? null,
     brightspace_auth_failed: (data as { brightspace_auth_failed?: boolean } | null)?.brightspace_auth_failed ?? false,
+    blackboard_calendar_url: data?.blackboard_calendar_url ?? null,
+    blackboard_auth_failed: (data as { blackboard_auth_failed?: boolean } | null)?.blackboard_auth_failed ?? false,
     additional_canvas_accounts: data?.additional_canvas_accounts ?? [],
     has_completed_onboarding: hasCompletedOnboarding,
     email_digest_enabled: data?.email_digest_enabled ?? true,
@@ -215,7 +218,7 @@ export async function PUT(request: Request) {
   ) {
     return NextResponse.json({ error: "gradescope_email is malformed" }, { status: 400 });
   }
-  const URL_FIELDS = ["canvas_ical_url", "pensieve_calendar_url", "brightspace_calendar_url"] as const;
+  const URL_FIELDS = ["canvas_ical_url", "pensieve_calendar_url", "brightspace_calendar_url", "blackboard_calendar_url"] as const;
   for (const field of URL_FIELDS) {
     const value = (body as unknown as Record<string, unknown>)[field];
     if (value !== undefined && value !== null) {
@@ -288,6 +291,19 @@ export async function PUT(request: Request) {
     // Clear the stale failure flag on save (the fix action).
     updateData.pensieve_auth_failed = false;
   }
+  if (body.blackboard_calendar_url !== undefined) {
+    if (body.blackboard_calendar_url && !isAllowedCanvasUrl(body.blackboard_calendar_url)) {
+      return NextResponse.json({ error: "Invalid Blackboard calendar URL" }, { status: 400 });
+    }
+    updateData.blackboard_calendar_url = body.blackboard_calendar_url;
+    // Saving a new URL clears the stored failure so the banner does not keep
+    // reporting a feed the user has just replaced.
+    updateData.blackboard_auth_failed = false;
+    if (body.blackboard_calendar_url) {
+      logger.info("Blackboard connected", { userId: user.id, url: body.blackboard_calendar_url.slice(0, 60) });
+    }
+  }
+
   if (body.brightspace_calendar_url !== undefined) {
     if (body.brightspace_calendar_url && !isAllowedCanvasUrl(body.brightspace_calendar_url)) {
       return NextResponse.json({ error: "Invalid Brightspace URL" }, { status: 400 });
@@ -442,6 +458,7 @@ export async function PUT(request: Request) {
     updated?.gradescope_password_encrypted ||
     updated?.pensieve_calendar_url ||
     updated?.brightspace_calendar_url ||
+    updated?.blackboard_calendar_url ||
     updated?.last_synced_at ||
     updated?.google_access_token_encrypted
   );
@@ -473,6 +490,8 @@ export async function PUT(request: Request) {
     pensieve_auth_failed: (updated as { pensieve_auth_failed?: boolean } | null)?.pensieve_auth_failed ?? false,
     brightspace_calendar_url: updated?.brightspace_calendar_url ?? null,
     brightspace_auth_failed: (updated as { brightspace_auth_failed?: boolean } | null)?.brightspace_auth_failed ?? false,
+    blackboard_calendar_url: updated?.blackboard_calendar_url ?? null,
+    blackboard_auth_failed: (updated as { blackboard_auth_failed?: boolean } | null)?.blackboard_auth_failed ?? false,
     additional_canvas_accounts: updated?.additional_canvas_accounts ?? [],
     has_completed_onboarding: putHasCompletedOnboarding,
     email_digest_enabled: updated?.email_digest_enabled ?? true,

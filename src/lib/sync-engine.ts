@@ -10,6 +10,7 @@ import { fetchCanvasICalAssignments } from "@/lib/canvas-ical-client";
 import { fetchAllGradescopeAssignments, fetchGradescopeAssignmentsForCourses } from "@/lib/gradescope-client";
 import { fetchPensieveAssignments, PENSIEVE_COLOR } from "@/lib/pensieve-client";
 import { fetchBrightspaceAssignments } from "@/lib/brightspace-client";
+import { fetchBlackboardAssignments } from "@/lib/blackboard-client";
 import { decrypt } from "@/lib/crypto";
 import { logger } from "@/lib/logger";
 import { isAllowedCanvasUrl } from "@/lib/canvas-url-validation";
@@ -48,6 +49,7 @@ interface CredentialsRow {
   selected_pensieve_courses: Array<{ id: string; name: string }> | null;
   pensieve_calendar_url: string | null;
   brightspace_calendar_url: string | null;
+  blackboard_calendar_url: string | null;
   classroom_enabled: boolean;
   selected_classroom_courses: Array<{ id: string; name: string }> | null;
   additional_canvas_accounts: AdditionalCanvasAccount[];
@@ -63,7 +65,7 @@ export interface SyncCourseOverrides {
 }
 
 /** Which platforms to sync. When omitted, all platforms are synced. */
-export type SyncPlatform = "canvas" | "gradescope" | "pensieve" | "brightspace" | "classroom";
+export type SyncPlatform = "canvas" | "gradescope" | "pensieve" | "brightspace" | "blackboard" | "classroom";
 
 /**
  * Runs a full sync: fetches assignments from Canvas and Gradescope,
@@ -89,7 +91,7 @@ export async function runSync(
   // Fetch credentials
   const { data: creds, error: credsError } = await supabase
     .from("integration_credentials")
-    .select("canvas_token, canvas_token_created_at, canvas_base_url, canvas_ical_url, gradescope_email, gradescope_password_encrypted, gradescope_auth_failed, last_gradescope_synced_at, selected_canvas_courses, selected_gradescope_courses, selected_pensieve_courses, pensieve_calendar_url, brightspace_calendar_url, classroom_enabled, selected_classroom_courses, additional_canvas_accounts")
+    .select("canvas_token, canvas_token_created_at, canvas_base_url, canvas_ical_url, gradescope_email, gradescope_password_encrypted, gradescope_auth_failed, last_gradescope_synced_at, selected_canvas_courses, selected_gradescope_courses, selected_pensieve_courses, pensieve_calendar_url, brightspace_calendar_url, blackboard_calendar_url, classroom_enabled, selected_classroom_courses, additional_canvas_accounts")
     .eq("user_id", userId)
     .single();
 
@@ -100,6 +102,7 @@ export async function runSync(
       gradescope: { synced: 0, errors: [] },
       pensieve: { synced: 0, errors: [] },
       brightspace: { synced: 0, errors: [] },
+      blackboard: { synced: 0, errors: [] },
       classroom: { synced: 0, errors: [] },
       last_synced_at: new Date().toISOString(),
     };
@@ -131,7 +134,7 @@ export async function runSync(
 
   // Run syncs independently — only for requested platforms (default: all)
   const syncAll = !platforms || platforms.length === 0;
-  const [canvasResult, gradescopeResult, pensieveResult, brightspaceResult, classroomResult] = await Promise.all([
+  const [canvasResult, gradescopeResult, pensieveResult, brightspaceResult, blackboardResult, classroomResult] = await Promise.all([
     syncAll || platforms!.includes("canvas")
       ? syncCanvas(supabase, userId, credentials, timezone, courseNameMap)
       : { synced: 0, errors: [] } as SyncSourceResult,
@@ -143,6 +146,9 @@ export async function runSync(
       : { synced: 0, errors: [] } as SyncSourceResult,
     syncAll || platforms!.includes("brightspace")
       ? syncBrightspace(supabase, userId, credentials, timezone, courseNameMap)
+      : { synced: 0, errors: [] } as SyncSourceResult,
+    syncAll || platforms!.includes("blackboard")
+      ? syncBlackboard(supabase, userId, credentials, timezone, courseNameMap)
       : { synced: 0, errors: [] } as SyncSourceResult,
     syncAll || platforms!.includes("classroom")
       ? syncClassroom(supabase, userId, credentials, timezone, courseNameMap)
@@ -176,6 +182,8 @@ export async function runSync(
     pensieveErrors: pensieveResult.errors.length,
     brightspaceSynced: brightspaceResult.synced,
     brightspaceErrors: brightspaceResult.errors.length,
+    blackboardSynced: blackboardResult.synced,
+    blackboardErrors: blackboardResult.errors.length,
     classroomSynced: classroomResult.synced,
     classroomErrors: classroomResult.errors.length,
   });
@@ -228,6 +236,7 @@ export async function runSync(
     gradescope: gradescopeResult,
     pensieve: pensieveResult,
     brightspace: brightspaceResult,
+    blackboard: blackboardResult,
     classroom: classroomResult,
     last_synced_at: now,
     ...(newCanvasCourses?.length ? { new_canvas_courses: newCanvasCourses } : {}),
@@ -832,6 +841,61 @@ async function syncBrightspace(
 }
 
 /**
+ * Syncs assignments from a Blackboard Learn iCal calendar feed.
+ *
+ * A no-op when the user has not connected Blackboard. Mirrors syncBrightspace:
+ * on success the persisted failure flag is cleared, and on failure it is set
+ * so a broken feed still shows in the health banner after a reload or a
+ * background sync on another device.
+ *
+ * @param supabase - Authenticated Supabase client.
+ * @param userId - Owner of the credentials and the resulting tasks.
+ * @param creds - Credentials row; only blackboard_calendar_url is read.
+ * @param timezone - IANA timezone used to resolve all-day due dates.
+ * @param courseNameMap - Canonical course-name overrides, applied per event.
+ * @returns Count synced plus any error messages; never throws.
+ */
+async function syncBlackboard(
+  supabase: SupabaseClient,
+  userId: string,
+  creds: CredentialsRow,
+  timezone: string,
+  courseNameMap: Map<string, string> = new Map()
+): Promise<SyncSourceResult> {
+  if (!creds.blackboard_calendar_url) {
+    return { synced: 0, errors: [] };
+  }
+
+  try {
+    logger.info("syncBlackboard: fetching assignments", { userId });
+    const assignments = await fetchBlackboardAssignments(creds.blackboard_calendar_url);
+    logger.info("syncBlackboard: parsed assignments", { userId, count: assignments.length });
+
+    const merged = assignments.map((a) => ({
+      ...a,
+      course_name: getCanonicalName(a.course_name, courseNameMap),
+    }));
+    const result = await upsertAssignments(supabase, userId, "blackboard", merged, timezone);
+    await dismissMissingTasks(supabase, userId, "blackboard", merged);
+    // Feed recovered — clear any prior failure flag.
+    await supabase
+      .from("integration_credentials")
+      .update({ blackboard_auth_failed: false })
+      .eq("user_id", userId);
+    return { synced: result.synced, errors: result.errors };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    logger.error("syncBlackboard failed", { userId, error: message });
+    // Persist the failure so it survives reloads and shows in the banner.
+    await supabase
+      .from("integration_credentials")
+      .update({ blackboard_auth_failed: true })
+      .eq("user_id", userId);
+    return { synced: 0, errors: [message] };
+  }
+}
+
+/**
  * Converts an ISO datetime string to a local date string (YYYY-MM-DD)
  * in the given IANA timezone.
  *
@@ -890,7 +954,7 @@ export function toLocalTimeString(isoString: string | null, tz: string): string 
 async function upsertAssignments(
   supabase: SupabaseClient,
   userId: string,
-  source: "canvas" | "gradescope" | "pensieve" | "brightspace" | "classroom",
+  source: "canvas" | "gradescope" | "pensieve" | "brightspace" | "blackboard" | "classroom",
   assignments: NormalizedAssignment[],
   timezone: string
 ): Promise<{ synced: number; errors: string[] }> {
@@ -909,12 +973,14 @@ async function upsertAssignments(
   let totalUpserted = 0;
   let failedBatches = 0;
   const BRIGHTSPACE_COLOR = "#E87040"; // D2L orange
+  const BLACKBOARD_COLOR = "#3C3C3C"; // Blackboard graphite
   const CLASSROOM_COLOR = "#1E8E3E"; // Google Classroom green
   const colorMap = {
     canvas: CANVAS_COLOR,
     gradescope: GRADESCOPE_COLOR,
     pensieve: PENSIEVE_COLOR,
     brightspace: BRIGHTSPACE_COLOR,
+    blackboard: BLACKBOARD_COLOR,
     classroom: CLASSROOM_COLOR,
   };
   const color = colorMap[source];
@@ -1121,7 +1187,7 @@ async function upsertAssignments(
 async function dismissMissingTasks(
   supabase: SupabaseClient,
   userId: string,
-  source: "canvas" | "gradescope" | "pensieve" | "brightspace" | "classroom",
+  source: "canvas" | "gradescope" | "pensieve" | "brightspace" | "blackboard" | "classroom",
   syncedAssignments: NormalizedAssignment[]
 ): Promise<void> {
   // Nothing came back? Don't dismiss anything — could be a transient API

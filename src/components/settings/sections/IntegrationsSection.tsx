@@ -80,6 +80,13 @@ const ADD_OPTIONS: Array<{
     route: "/app/onboarding?setup=brightspace",
   },
   {
+    id: "blackboard",
+    label: "Blackboard",
+    description: "Assignments from your Blackboard calendar",
+    logo: <img src="/blackboard-logo.svg" alt="" className="w-4 h-4 object-contain" />,
+    route: "/app/onboarding?setup=blackboard",
+  },
+  {
     id: "classroom",
     label: "Google Classroom",
     description: "Coursework and due dates",

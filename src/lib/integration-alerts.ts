@@ -90,11 +90,12 @@ export async function sendAlertEmail(subject: string, body: string): Promise<boo
  * @param userId - The user whose sync produced these errors
  */
 export async function reportSyncFailures(result: SyncResult, userId: string): Promise<void> {
-  const sources: Array<["canvas" | "gradescope" | "pensieve" | "brightspace", string[]]> = [
+  const sources: Array<["canvas" | "gradescope" | "pensieve" | "brightspace" | "blackboard", string[]]> = [
     ["canvas", result.canvas?.errors ?? []],
     ["gradescope", result.gradescope?.errors ?? []],
     ["pensieve", result.pensieve?.errors ?? []],
     ["brightspace", result.brightspace?.errors ?? []],
+    ["blackboard", result.blackboard?.errors ?? []],
   ];
 
   for (const [source, errors] of sources) {

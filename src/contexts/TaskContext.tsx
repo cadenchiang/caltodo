@@ -181,7 +181,7 @@ interface TaskContextValue {
   updateTask: (id: string, updates: TaskUpdate) => Promise<void>;
   toggleComplete: (id: string) => Promise<void>;
   deleteTask: (id: string, opts?: { silent?: boolean }) => Promise<void>;
-  deleteTasksBySource: (source: "canvas" | "gradescope" | "pensieve" | "brightspace" | "syllabus") => Promise<void>;
+  deleteTasksBySource: (source: "canvas" | "gradescope" | "pensieve" | "brightspace" | "blackboard" | "syllabus") => Promise<void>;
   /** Deletes all syllabus tasks for a specific course_name. */
   deleteSyllabusTasksByCourse: (courseName: string) => Promise<void>;
   /** Bulk-imports syllabus-extracted assignments as tasks. */
@@ -209,7 +209,7 @@ interface TaskContextValue {
   snoozeTask: (id: string, hours: number) => Promise<void>;
   unsnoozeTask: (id: string) => Promise<void>;
   reorderTasks: (updates: Array<{ id: string; sort_order: number }>) => Promise<void>;
-  triggerSync: (courseOverrides?: { canvas_courses?: Array<{ id: number; name: string }>; gradescope_courses?: Array<{ id: string; name: string }> }, platforms?: Array<"canvas" | "gradescope" | "pensieve" | "brightspace">, options?: { silent?: boolean }) => Promise<void>;
+  triggerSync: (courseOverrides?: { canvas_courses?: Array<{ id: number; name: string }>; gradescope_courses?: Array<{ id: string; name: string }> }, platforms?: Array<"canvas" | "gradescope" | "pensieve" | "brightspace" | "blackboard">, options?: { silent?: boolean }) => Promise<void>;
   fetchTasks: () => Promise<Task[]>;
   /**
    * Merges duplicate assignments into a single survivor task.
@@ -1018,7 +1018,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
    *
    * @param source - The integration source to delete tasks for ("canvas" | "gradescope" | "pensieve")
    */
-  async function deleteTasksBySource(source: "canvas" | "gradescope" | "pensieve" | "brightspace" | "syllabus") {
+  async function deleteTasksBySource(source: "canvas" | "gradescope" | "pensieve" | "brightspace" | "blackboard" | "syllabus") {
     if (!userId) {
       setError("Not authenticated. Please sign in again.");
       return;
@@ -1523,7 +1523,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
    * Triggers a full sync from Canvas + Gradescope, then refreshes tasks.
    * Manages a simulated progress bar during the sync.
    */
-  async function triggerSync(courseOverrides?: { canvas_courses?: Array<{ id: number; name: string }>; gradescope_courses?: Array<{ id: string; name: string }> }, platforms?: Array<"canvas" | "gradescope" | "pensieve" | "brightspace">, options?: { silent?: boolean }) {
+  async function triggerSync(courseOverrides?: { canvas_courses?: Array<{ id: number; name: string }>; gradescope_courses?: Array<{ id: string; name: string }> }, platforms?: Array<"canvas" | "gradescope" | "pensieve" | "brightspace" | "blackboard">, options?: { silent?: boolean }) {
     const silent = options?.silent === true;
     // Abort any in-flight auto-sync to prevent race condition where both
     // auto-sync and manual sync update taskBaselineRef concurrently

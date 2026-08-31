@@ -181,3 +181,34 @@ function localToUtc(
     return `${String(y).padStart(4, "0")}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}T${String(h).padStart(2, "0")}:${String(mi).padStart(2, "0")}:${String(s).padStart(2, "0")}Z`;
   }
 }
+
+/**
+ * Extracts a single property value from an unfolded iCal VEVENT block.
+ *
+ * Ignores any parameters between the property name and the colon, so
+ * `SUMMARY;LANGUAGE=en:Essay` yields `Essay`.
+ *
+ * @param block - Unfolded VEVENT body (continuation lines already joined).
+ * @param property - Property name to read, e.g. "SUMMARY".
+ * @returns The trimmed value, or null when the property is absent.
+ */
+export function extractProperty(block: string, property: string): string | null {
+  const regex = new RegExp(`^${property}(?:;[^:]*)?:(.*)$`, "m");
+  const match = block.match(regex);
+  return match ? match[1].trim() : null;
+}
+
+/**
+ * Unescapes an iCal TEXT value per RFC 5545 section 3.3.11.
+ *
+ * Backslash sequences are decoded in one pass so that an escaped backslash
+ * cannot be re-read as the start of another escape.
+ *
+ * @param text - Raw property value straight from the feed.
+ * @returns The value with `\\n`, `\\,`, `\;` and `\\\\` decoded.
+ */
+export function unescapeICalText(text: string): string {
+  return text.replace(/\\([nN,;\\])/g, (_, ch: string) =>
+    ch === "n" || ch === "N" ? "\n" : ch
+  );
+}

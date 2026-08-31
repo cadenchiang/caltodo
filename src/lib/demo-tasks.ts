@@ -19,6 +19,7 @@ const COLORS = {
   gradescope: "#10B981",
   pensieve: "#8B5CF6",
   brightspace: "#E87040",
+  blackboard: "#3C3C3C",
   classroom: "#1E8E3E",
   syllabus: "#8B5CF6",
   manual: "#F59E0B",
