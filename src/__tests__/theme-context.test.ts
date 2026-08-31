@@ -12,7 +12,7 @@ process.env.TZ = "America/Los_Angeles";
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { getSunTimes, isDarkBySun } from "@/lib/solar";
-import { getCachedCoords } from "@/lib/geolocation";
+import { getCachedCoords, getFallbackCoords } from "@/lib/geolocation";
 import { resolveTheme } from "@/contexts/ThemeContext";
 import type { ThemePreference, ResolvedTheme } from "@/contexts/ThemeContext";
 
@@ -113,8 +113,10 @@ describe("getCachedCoords", () => {
   });
 
   it("should return default coords when nothing is cached", () => {
+    // The fallback is derived from this machine's UTC offset rather than a
+    // fixed city, so assert against that derivation, not a literal.
     const coords = getCachedCoords();
-    expect(coords).toEqual({ lat: 37.87, lng: -122.27 });
+    expect(coords).toEqual(getFallbackCoords());
   });
 
   it("should return cached coords from localStorage", () => {
@@ -127,7 +129,7 @@ describe("getCachedCoords", () => {
   it("should return default coords for invalid cached data", () => {
     storageData["caltodo_coords"] = "not json";
     const coords = getCachedCoords();
-    expect(coords).toEqual({ lat: 37.87, lng: -122.27 });
+    expect(coords).toEqual(getFallbackCoords());
   });
 });
 

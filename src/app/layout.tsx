@@ -4,6 +4,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import SWRProvider from "@/components/SWRProvider";
 import PostHogProvider from "@/components/PostHogProvider";
+import PostHogPageView from "@/components/PostHogPageView";
 import ChunkErrorRecovery from "@/components/ChunkErrorRecovery";
 import { validateEnv } from "@/lib/env-check";
 import "./globals.css";
@@ -118,13 +119,17 @@ const themeScript = `
     } else if (t === "light") {
       isDark = false;
     } else {
-      // Auto mode: compute sunset/sunrise
-      var c = { lat: 37.87, lng: -122.27 };
+      // Auto mode: compute sunset/sunrise. Without a granted location,
+      // approximate longitude from the device's UTC offset (15 degrees per
+      // hour) so solar noon lands near 12:00 local. A fixed Berkeley fallback
+      // put a London user's sunrise at 14:38 — dark at 10am, light at 10pm.
+      // Must stay in step with getFallbackCoords in lib/geolocation.ts.
+      var now = new Date();
+      var c = { lat: 37.87, lng: Math.max(-180, Math.min(180, (-now.getTimezoneOffset() / 60) * 15)) };
       try {
         var s = localStorage.getItem("caltodo_coords");
         if (s) { var p = JSON.parse(s); if (typeof p.lat === "number") c = p; }
       } catch(e) {}
-      var now = new Date();
       var D = Math.PI / 180;
       var m = now.getMonth() + 1, d = now.getDate(), y = now.getFullYear();
       var n1 = Math.floor(275 * m / 9);
@@ -231,6 +236,10 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <PostHogProvider>
+          {/* Mounted at the root, not under /app, so the marketing site and
+              login page report pageviews too. Without this the funnel began
+              after signup and bounce rate was unmeasurable. */}
+          <PostHogPageView />
           <ChunkErrorRecovery />
           <ThemeProvider>
             <SWRProvider>

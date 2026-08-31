@@ -214,12 +214,17 @@ function getInitialColorTheme(): ColorTheme {
 
 /**
  * Reads the stored theme preference from localStorage.
- * Falls back to "light" if no valid preference is stored (matching the
- * pre-paint inline script in layout.tsx, so there's no first-paint flip).
  *
- * @returns The stored preference, defaulting to "light"
+ * @returns The stored preference, defaulting to "auto"
+ * @remarks The fallback must match the pre-paint script in layout.tsx, which
+ *          treats a missing value as auto and resolves it against sunset. It
+ *          used to fall back to "light" here, so every user who had never
+ *          explicitly picked a theme — the key is only written on an explicit
+ *          choice — painted dark after sunset and was then flipped to white a
+ *          moment later by this file. That mismatch is the "dark mode reverts
+ *          to light" report, and it is why the two defaults must stay equal.
  */
-function getInitialPreference(): ThemePreference {
+export function getInitialPreference(): ThemePreference {
   if (typeof window === "undefined") return "auto";
   try {
     const stored = localStorage.getItem(THEME_KEY);
@@ -227,7 +232,7 @@ function getInitialPreference(): ThemePreference {
   } catch {
     // localStorage unavailable
   }
-  return "light";
+  return "auto";
 }
 
 /** Cycle order for toggleTheme: light → dark → auto → light. */

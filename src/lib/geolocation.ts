@@ -1,13 +1,21 @@
 /**
  * Geolocation utilities with localStorage caching.
- * Falls back to Berkeley, CA (37.87, -122.27) when unavailable.
+ * Falls back to coordinates derived from the device's timezone when the user
+ * has not granted location.
  */
 
 /** localStorage key for cached coordinates. */
 const COORDS_KEY = "caltodo_coords";
 
-/** Default coordinates: Berkeley, CA. */
-const DEFAULT_COORDS = { lat: 37.87, lng: -122.27 };
+/**
+ * Latitude assumed when the user's real position is unknown.
+ *
+ * Latitude cannot be inferred from a timezone, so this is a mid-northern
+ * value. It only affects how long the day is, not when the middle of it
+ * falls, so being wrong shifts sunrise and sunset by an hour or so rather
+ * than putting them on the wrong side of the clock.
+ */
+const FALLBACK_LAT = 37.87;
 
 export interface Coords {
   lat: number;
@@ -15,13 +23,32 @@ export interface Coords {
 }
 
 /**
- * Synchronously reads cached coordinates from localStorage.
- * Returns default (Berkeley) if nothing is cached or localStorage is unavailable.
+ * Approximates coordinates from the device's UTC offset.
  *
- * @returns Cached coordinates or default
+ * @param date - Instant whose offset to read; defaults to now
+ * @returns Coordinates whose solar noon lands near 12:00 local
+ * @remarks Every hour of UTC offset is 15 degrees of longitude. Without this
+ *          the fallback was Berkeley for everyone, so auto mode combined a
+ *          London user's timezone with a Californian longitude and put
+ *          sunrise at 14:38 — dark at 10am, light at 10pm. Longitude is what
+ *          decides when the sun crosses the meridian, so deriving it from the
+ *          offset is what keeps auto mode the right way up worldwide.
+ */
+export function getFallbackCoords(date: Date = new Date()): Coords {
+  const offsetHours = -date.getTimezoneOffset() / 60;
+  const lng = Math.max(-180, Math.min(180, offsetHours * 15));
+  return { lat: FALLBACK_LAT, lng };
+}
+
+/**
+ * Synchronously reads cached coordinates from localStorage.
+ *
+ * @returns Cached coordinates, or a timezone-derived approximation
+ * @remarks Only the weather widget ever asks for real coordinates, so most
+ *          users never have a cached value and always take the fallback.
  */
 export function getCachedCoords(): Coords {
-  if (typeof window === "undefined") return DEFAULT_COORDS;
+  if (typeof window === "undefined") return getFallbackCoords();
   try {
     const stored = localStorage.getItem(COORDS_KEY);
     if (stored) {
@@ -33,7 +60,7 @@ export function getCachedCoords(): Coords {
   } catch {
     // localStorage or JSON parse failed
   }
-  return DEFAULT_COORDS;
+  return getFallbackCoords();
 }
 
 /**
