@@ -8,6 +8,7 @@ import { logger } from "@/lib/logger";
 import type { NormalizedAssignment } from "@/lib/canvas-client";
 import {
   extractPropertyWithTzid,
+  isDateOnlyValue,
   parseDueDateWithTzid,
 } from "@/lib/ical-date-utils";
 
@@ -99,12 +100,14 @@ export function parseICalEvents(icsText: string): NormalizedAssignment[] {
     // (VALUE=DATE, YYYYMMDD) events an RFC 5545 DTEND is EXCLUSIVE — it points
     // at the day AFTER the event — so using it directly makes the due date one
     // day late. In that case fall back to DTSTART (the actual due day).
-    const dtendIsAllDay = dtend ? /^\d{8}$/.test(dtend.value) : false;
+    const dtendIsAllDay = isDateOnlyValue(dtend?.value);
     const endOrStart = dtend && !dtendIsAllDay ? dtend : (dtstart ?? dtend);
     const dueDate = parseDueDateWithTzid(
       endOrStart?.value ?? null,
       endOrStart?.tzid ?? null
     );
+    // A date-only value fixes the day but says nothing about the time.
+    const isAllDay = isDateOnlyValue(endOrStart?.value);
 
     // Extract late_due_date from description before cleaning
     let lateDueDate: string | null = null;
@@ -149,6 +152,7 @@ export function parseICalEvents(icsText: string): NormalizedAssignment[] {
       course_id: "pensieve",
       title: cleanTitle,
       due_date: dueDate,
+      due_is_all_day: isAllDay,
       late_due_date: lateDueDate,
       source_url: url || null,
       points_possible: null,

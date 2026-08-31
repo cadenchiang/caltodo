@@ -979,7 +979,11 @@ async function upsertAssignments(
       course_name: (a.course_name || "Unknown Course").slice(0, 200),
       title: (a.title || "Untitled").slice(0, 255),
       due_date: toLocalDateString(a.due_date, timezone),
-      due_time: toLocalTimeString(a.due_date, timezone),
+      // An all-day source event carries no time. due_date holds a noon-UTC
+      // placeholder to keep the calendar day stable, and reading a clock time
+      // off that placeholder is what made every such assignment claim to be
+      // due at 5:00 AM Pacific (12:00 UTC). Store no time instead.
+      due_time: a.due_is_all_day ? null : toLocalTimeString(a.due_date, timezone),
       source_url: a.source_url,
       points_possible: a.points_possible != null && a.points_possible >= 0 ? a.points_possible : null,
       is_submitted: a.is_submitted ?? false,

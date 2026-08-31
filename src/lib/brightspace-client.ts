@@ -12,6 +12,7 @@ import { logger } from "@/lib/logger";
 import type { NormalizedAssignment } from "@/lib/canvas-client";
 import {
   extractPropertyWithTzid,
+  isDateOnlyValue,
   parseDueDateWithTzid,
 } from "@/lib/ical-date-utils";
 
@@ -87,12 +88,14 @@ export function parseBrightspaceEvents(
     // — it points at the day AFTER the event — so using it directly makes the
     // due date one day late. Fall back to DTSTART (the real due day) in that
     // case. Timed events keep using DTEND. Mirrors the Pensieve client fix.
-    const dtendIsAllDay = dtend ? /^\d{8}$/.test(dtend.value) : false;
+    const dtendIsAllDay = isDateOnlyValue(dtend?.value);
     const endOrStart = dtend && !dtendIsAllDay ? dtend : (dtstart ?? dtend);
     const dueDate = parseDueDateWithTzid(
       endOrStart?.value ?? null,
       endOrStart?.tzid ?? null
     );
+    // A date-only value fixes the day but says nothing about the time.
+    const isAllDay = isDateOnlyValue(endOrStart?.value);
     const { title, courseName } = parseBrightspaceSummary(summary, categories);
 
     // Use the full UID as the stable external_id. The old
@@ -105,6 +108,7 @@ export function parseBrightspaceEvents(
       course_id: "brightspace",
       title: unescapeICalText(title),
       due_date: dueDate,
+      due_is_all_day: isAllDay,
       source_url: url || null,
       points_possible: null,
       is_submitted: false,

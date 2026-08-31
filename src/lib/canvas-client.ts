@@ -80,6 +80,12 @@ export interface NormalizedAssignment {
   course_id: string;
   title: string;
   due_date: string | null;
+  /**
+   * True when the source gave a calendar day but no time of day. The sync
+   * engine stores no due_time for these, rather than deriving one from the
+   * noon-UTC placeholder in due_date.
+   */
+  due_is_all_day?: boolean;
   late_due_date?: string | null;
   source_url: string | null;
   points_possible: number | null;

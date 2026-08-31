@@ -11,6 +11,7 @@ import { logger } from "@/lib/logger";
 import type { NormalizedAssignment } from "@/lib/canvas-client";
 import {
   extractPropertyWithTzid,
+  isDateOnlyValue,
   parseDueDateWithTzid,
 } from "@/lib/ical-date-utils";
 
@@ -87,12 +88,14 @@ export function parseCanvasICalEvents(
     // RFC 5545. When DTEND is a date-only value (YYYYMMDD, no time component),
     // using it would render the due date one day late — fall back to DTSTART.
     // Mirrors the pensieve-client fix; timed events (with a T) are unaffected.
-    const dtendIsDateOnly = !!dtend && /^\d{8}$/.test(dtend.value.trim());
+    const dtendIsDateOnly = isDateOnlyValue(dtend?.value);
     const endOrStart = dtendIsDateOnly ? dtstart : (dtend ?? dtstart);
     const dueDate = parseDueDateWithTzid(
       endOrStart?.value ?? null,
       endOrStart?.tzid ?? null
     );
+    // Canvas exports most assignments as date-only, which carries no time.
+    const isAllDay = isDateOnlyValue(endOrStart?.value);
     const { title, courseName } = parseCanvasSummary(summary);
 
     // Extract external_id from UID (e.g. "event-assignment-8999055" → "8999055")
@@ -105,6 +108,7 @@ export function parseCanvasICalEvents(
       course_id: "canvas-ical",
       title: unescapeICalText(title),
       due_date: dueDate,
+      due_is_all_day: isAllDay,
       source_url: toAssignmentUrl(url || null, externalId),
       points_possible: null,
       is_submitted: false,

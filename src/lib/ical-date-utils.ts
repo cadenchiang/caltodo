@@ -40,6 +40,24 @@ export function extractPropertyWithTzid(
 }
 
 /**
+ * Reports whether an iCal DTSTART/DTEND value carries a date but no time.
+ *
+ * RFC 5545 date-only values (`DTSTART;VALUE=DATE:20260903`) say which day
+ * something is due and nothing more. Canvas uses this shape for most
+ * assignments, so callers must not present a time for them.
+ *
+ * @param raw - Raw iCal value, or null
+ * @returns True for the YYYYMMDD form, false for a datetime or null
+ * @remarks {@link parseDueDateWithTzid} anchors these at noon UTC so the
+ *          calendar day survives conversion to any timezone. That noon is a
+ *          placeholder, not a deadline: rendered in Pacific it reads 5:00 AM,
+ *          which is how every all-day assignment came to claim a 5am due time.
+ */
+export function isDateOnlyValue(raw: string | null | undefined): boolean {
+  return !!raw && /^\d{8}$/.test(raw.trim());
+}
+
+/**
  * Parses a due date from iCal date/datetime formats. When a TZID is provided,
  * converts the local time to UTC. Without TZID, times ending in Z are treated
  * as UTC; times without Z are assumed UTC (legacy fallback).
@@ -59,7 +77,7 @@ export function parseDueDateWithTzid(
   // west-of-UTC timezone (e.g. America/Los_Angeles, the bCourses audience),
   // which made all-day assignments show up a day early. Noon UTC keeps the
   // same calendar day for every offset from UTC-12 through UTC+11.
-  if (/^\d{8}$/.test(raw)) {
+  if (isDateOnlyValue(raw)) {
     const y = raw.slice(0, 4);
     const m = raw.slice(4, 6);
     const d = raw.slice(6, 8);
