@@ -1,9 +1,12 @@
 /**
  * API route for fetching Canvas courses.
  * GET /api/canvas/courses?token=...&base_url=...
+ * GET /api/canvas/courses?account_id=...
  *
- * If query params are provided, uses them directly (for onboarding verification).
- * Otherwise falls back to stored credentials from the database.
+ * If token and base_url are provided, uses them directly (for onboarding
+ * verification, before anything has been saved). Otherwise reads a stored
+ * account: `account_id` selects one of the user's additional Canvas schools,
+ * and its absence means the primary account in the flat credential columns.
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -12,6 +15,7 @@ import { fetchCanvasCourses } from "@/lib/canvas-client";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
 import { isAllowedCanvasUrl } from "@/lib/canvas-url-validation";
+import { resolveCanvasAccount } from "@/lib/account-scope";
 
 /**
  * GET /api/canvas/courses
@@ -36,6 +40,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const queryToken = searchParams.get("token");
   const queryBaseUrl = searchParams.get("base_url");
+  const accountId = searchParams.get("account_id");
 
   let token: string;
   let baseUrl: string;
@@ -55,21 +60,20 @@ export async function GET(request: NextRequest) {
     token = queryToken;
     baseUrl = queryBaseUrl;
   } else {
-    const { data: creds } = await supabase
-      .from("integration_credentials")
-      .select("canvas_token, canvas_base_url")
-      .eq("user_id", user.id)
-      .single();
+    // Scoped by user_id inside resolveCanvasAccount, so an account_id
+    // belonging to somebody else resolves to nothing rather than to their
+    // school.
+    const account = await resolveCanvasAccount(supabase, user.id, accountId);
 
-    if (!creds?.canvas_token) {
+    if (!account?.token) {
       return NextResponse.json(
         { error: "No Canvas token configured. Provide token and base_url query params or save credentials first." },
         { status: 400 }
       );
     }
 
-    token = creds.canvas_token;
-    baseUrl = creds.canvas_base_url;
+    token = account.token;
+    baseUrl = account.baseUrl;
   }
 
   try {

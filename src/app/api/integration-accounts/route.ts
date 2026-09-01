@@ -186,3 +186,76 @@ export async function DELETE(request: Request) {
   logger.info("integration account removed", { userId: user.id, accountId: id });
   return NextResponse.json({ ok: true });
 }
+
+/**
+ * PATCH /api/integration-accounts
+ * Updates one extra account's class selection.
+ *
+ * @param request - JSON body with `id` and `selected_courses`
+ * @returns The updated account's id, 404 when it is not this user's
+ * @remarks Only `selected_courses` is writable. The connection itself is set
+ *          by the add flow and changing it here would let a request repoint an
+ *          account at a different feed without going through that flow.
+ *
+ *          Constrained by `user_id` in the update itself rather than by
+ *          reading the row first, so another user's account is never matched.
+ */
+export async function PATCH(request: Request) {
+  const supabase = await createClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  let body: { id?: unknown; selected_courses?: unknown };
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  const id = typeof body.id === "string" ? body.id : null;
+  if (!id) {
+    return NextResponse.json({ error: "An account id is required" }, { status: 400 });
+  }
+
+  // null is meaningful and means "sync everything"; an array is a choice.
+  // Anything else is rejected rather than written through.
+  const courses = body.selected_courses;
+  const valid =
+    courses === null ||
+    (Array.isArray(courses) &&
+      courses.every(
+        (c) =>
+          typeof c === "object" &&
+          c !== null &&
+          "name" in c &&
+          typeof (c as { name: unknown }).name === "string"
+      ));
+  if (!valid) {
+    return NextResponse.json({ error: "selected_courses must be a course array or null" }, { status: 400 });
+  }
+
+  const { data, error } = await supabase
+    .from("integration_accounts")
+    .update({ selected_courses: courses })
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .select("id")
+    .maybeSingle();
+
+  if (error) {
+    logger.error("integration-accounts PATCH failed", { userId: user.id, error: error.message });
+    return NextResponse.json({ error: "Failed to save classes" }, { status: 500 });
+  }
+  if (!data) {
+    return NextResponse.json({ error: "Account not found" }, { status: 404 });
+  }
+
+  logger.info("integration account classes updated", {
+    userId: user.id,
+    accountId: id,
+    courseCount: Array.isArray(courses) ? courses.length : null,
+  });
+  return NextResponse.json({ ok: true, id: data.id });
+}
