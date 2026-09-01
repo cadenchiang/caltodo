@@ -24,7 +24,7 @@ import type { IntegrationCredentials } from "@/lib/types";
 import { DISCLOSURE_META, type DisclosureProvider } from "@/lib/integration-disclosure";
 import { addRouteForCatalogId, accountNounForCatalogId } from "@/lib/integration-catalog";
 import { hasCourseSelection, type SelectableCourse } from "@/lib/course-selection";
-import AccountClasses from "./AccountClasses";
+import AccountClasses, { CLASS_PILL } from "./AccountClasses";
 
 /** One account listed in the dropdown, whichever store it came from. */
 export interface DisclosureAccount {
@@ -235,14 +235,16 @@ export default function ConnectedIntegrationCard({
             ))}
 
             {addRoute && noun && (
-              <button
-                onClick={() => router.push(`/app/onboarding?setup=${addRoute}`)}
-                aria-label={`Add another ${noun}`}
-                className="w-full flex items-center gap-2 px-2 py-1.5 rounded-xl text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors cursor-pointer"
-              >
-                <Plus size={14} />
-                Add another {shortNoun(noun)}
-              </button>
+              <div className="px-2 pt-1">
+                <button
+                  onClick={() => router.push(`/app/onboarding?setup=${addRoute}`)}
+                  aria-label={`Add another ${noun}`}
+                  className={`${CLASS_PILL} gap-1 cursor-pointer hover:bg-accent hover:text-foreground transition-colors`}
+                >
+                  <Plus size={12} className="shrink-0" />
+                  Add another {shortNoun(noun)}
+                </button>
+              </div>
             )}
           </div>
         </div>

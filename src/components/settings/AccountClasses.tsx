@@ -19,6 +19,16 @@ import { useToast } from "@/contexts/ToastContext";
 import type { CourseSelectionProvider } from "@/lib/course-selection";
 import { COURSE_SELECTION, type SelectableCourse } from "@/lib/course-selection";
 
+/**
+ * Shared pill styling for a class name.
+ *
+ * Exported so the "add another account" control can be built from the same
+ * shape: the two sit in the same block, and a pill beside a bare text button
+ * read as two unrelated kinds of thing.
+ */
+export const CLASS_PILL =
+  "inline-flex items-center max-w-[240px] truncate px-2.5 py-1 rounded-full text-[11px] font-medium bg-muted text-muted-foreground";
+
 interface AccountClassesProps {
   provider: CourseSelectionProvider;
   /** Which account to list, or "primary" for the flat credential columns. */
@@ -129,9 +139,13 @@ export default function AccountClasses({
           </button>
         </div>
         {selected.length > 0 && (
-          <p className="mt-0.5 text-[11px] text-muted-foreground truncate">
-            {selected.map((c) => c.name).join(", ")}
-          </p>
+          <div className="mt-1 flex flex-wrap gap-1">
+            {selected.map((course) => (
+              <span key={String(course.id)} className={CLASS_PILL}>
+                {course.name}
+              </span>
+            ))}
+          </div>
         )}
       </div>
     );

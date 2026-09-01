@@ -14,6 +14,7 @@ import { ChevronDown, ExternalLink } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 import { useCredentials } from "@/components/settings/IntegrationSettings";
 import GoogleAuthWarningModal from "./GoogleAuthWarningModal";
+import GoogleCalendarList from "./GoogleCalendarList";
 import { readSyncStream } from "@/lib/gcal/read-sync-stream";
 
 /**
@@ -617,6 +618,11 @@ export default function GoogleCalendarSettings() {
                     {disconnecting ? "..." : "Disconnect"}
                   </button>
                 </div>
+
+                {/* Google Calendar cannot hold a second account - the tokens
+                    are singular credential columns - but it can sync several
+                    calendars, which is what there is to add here. */}
+                <GoogleCalendarList onSaved={refresh} />
               </div>
             </div>
           </div>

@@ -108,9 +108,16 @@ describe("an account's classes read as one line", () => {
     expect(classes).toMatch(/selected\.length > 0 \? "Edit" : "Choose"/);
   });
 
-  it("lists the names as text rather than a stack of chips", () => {
-    expect(classes).toContain('selected.map((c) => c.name).join(", ")');
-    expect(classes).not.toContain("flex flex-wrap gap-1.5");
+  it("lists the names as pills, wrapped rather than stacked", () => {
+    expect(classes).toContain("flex flex-wrap gap-1");
+    expect(classes).toContain("CLASS_PILL");
+  });
+
+  it("shares one pill shape with the add control", () => {
+    // A pill beside a bare text button read as two unrelated kinds of thing.
+    expect(classes).toContain("export const CLASS_PILL");
+    expect(card).toContain("CLASS_PILL");
+    expect(card).toContain("Add another {shortNoun(noun)}");
   });
 
   it("says so plainly when nothing is selected", () => {
