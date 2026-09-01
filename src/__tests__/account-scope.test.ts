@@ -193,3 +193,40 @@ describe("the course endpoints use the resolvers", () => {
     expect(route).toContain("isAllowedCanvasUrl(queryBaseUrl)");
   });
 });
+
+describe("a Canvas account connected by calendar feed", () => {
+  const route = read("src/app/api/canvas/courses/route.ts");
+
+  it("lists courses from the feed instead of demanding a token", () => {
+    // The feed path has no courses API at all: courses exist only as the
+    // distinct course names across the feed's events. Requiring a token here
+    // was what made class editing fail for every feed-connected account.
+    expect(route).toContain("if (!account?.token && account?.icalUrl)");
+    expect(route).toContain("fetchCanvasICalAssignments(account.icalUrl)");
+  });
+
+  it("derives one course per distinct course name", () => {
+    expect(route).toContain("if (a.course_name) names.add(a.course_name)");
+  });
+
+  it("gives each a stable numeric id, as enrolment does", () => {
+    // Feed sync matches on name, but the id has to be a number and has to be
+    // the same one enrolment derives, or the two disagree about a course.
+    expect(route).toContain("stableIdFromName(name)");
+    expect(read("src/lib/course-enrollment.ts")).toContain("export function stableIdFromName");
+  });
+
+  it("still refuses when the account has neither a token nor a feed", () => {
+    expect(route).toContain("No Canvas token configured.");
+  });
+
+  it("reports a broken feed as an upstream failure, not a client error", () => {
+    expect(route).toContain("Failed to read the Canvas calendar feed");
+    expect(route).toMatch(/Failed to read the Canvas calendar feed[\s\S]{0,60}status: 502/);
+  });
+
+  it("keeps the feed URL on the server", () => {
+    // The old client branched to ical-preview and sent the URL itself.
+    expect(read("src/components/settings/AccountClasses.tsx")).not.toContain("ical");
+  });
+});

@@ -16,6 +16,8 @@ import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
 import { isAllowedCanvasUrl } from "@/lib/canvas-url-validation";
 import { resolveCanvasAccount } from "@/lib/account-scope";
+import { fetchCanvasICalAssignments } from "@/lib/canvas-ical-client";
+import { stableIdFromName } from "@/lib/course-enrollment";
 
 /**
  * GET /api/canvas/courses
@@ -64,6 +66,39 @@ export async function GET(request: NextRequest) {
     // belonging to somebody else resolves to nothing rather than to their
     // school.
     const account = await resolveCanvasAccount(supabase, user.id, accountId);
+
+    // A Canvas account is connected one of two ways, and only one of them has
+    // a token. On the calendar-feed path there is no courses API to call at
+    // all: courses exist only as the distinct course names across the feed's
+    // events, which is why a class with nothing published yet never appears.
+    // Handling that here rather than in the client keeps the feed URL server
+    // side and lets one endpoint answer for either kind of account.
+    if (!account?.token && account?.icalUrl) {
+      try {
+        const assignments = await fetchCanvasICalAssignments(account.icalUrl);
+        const names = new Set<string>();
+        for (const a of assignments) {
+          if (a.course_name) names.add(a.course_name);
+        }
+        const courses = Array.from(names)
+          .sort((a, b) => a.localeCompare(b))
+          .map((name) => ({ id: stableIdFromName(name), name, course_code: name }));
+        logger.info("GET /api/canvas/courses success (feed)", {
+          userId: user.id,
+          accountId,
+          courseCount: courses.length,
+        });
+        return NextResponse.json({ courses });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        logger.error("GET /api/canvas/courses failed reading feed", {
+          userId: user.id,
+          accountId,
+          error: message,
+        });
+        return NextResponse.json({ error: "Failed to read the Canvas calendar feed" }, { status: 502 });
+      }
+    }
 
     if (!account?.token) {
       return NextResponse.json(

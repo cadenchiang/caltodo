@@ -251,7 +251,7 @@ function normalizeCourseName(name: string): string {
  * @param name - Course name string
  * @returns Positive 32-bit integer derived from the normalized name
  */
-function stableIdFromName(name: string): number {
+export function stableIdFromName(name: string): number {
   const normalized = normalizeCourseName(name);
   let hash = 5381;
   for (let i = 0; i < normalized.length; i++) {
