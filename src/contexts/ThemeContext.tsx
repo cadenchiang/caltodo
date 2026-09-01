@@ -259,6 +259,16 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [colorTheme, setColorThemeState] = useState<ColorTheme>(null);
   const preferenceRef = useRef<ThemePreference>("auto");
   const colorThemeRef = useRef<ColorTheme>(null);
+  /**
+   * False until the stored preference has been read off this device.
+   *
+   * `preference` starts at "auto" because the server cannot read
+   * localStorage, so on the very first commit it says "auto" for everyone —
+   * including a user who has explicitly chosen light. The solar effect below
+   * has to wait for the real value, or it applies a sunset-derived theme over
+   * that choice on every single load. See the comment on that effect.
+   */
+  const [hydrated, setHydrated] = useState(false);
 
   /**
    * Applies a preference to state + DOM + localStorage. No analytics and no
@@ -320,6 +330,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setColorThemeState(storedColor);
     colorThemeRef.current = storedColor;
     applyColorTheme(storedColor);
+
+    setHydrated(true);
   }, []);
 
   // Reconcile with the server copy once, after the local read above.
@@ -391,8 +403,17 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   // When preference is "auto": resolve from cached/default coords, poll solar
   // position every 60s.
+  //
+  // Gated on `hydrated`. Both this and the mount effect above run in the same
+  // first commit, and this one reads the `preference` of the render it was
+  // scheduled from — still the initial "auto", because the setState in that
+  // effect has not re-rendered yet. So on a user whose stored preference is
+  // "light", this used to overwrite the correct light class with a
+  // sunset-derived dark one on every load after dark, which is the "loads
+  // dark, then turns light" flash. Waiting one commit means it only ever runs
+  // against the preference the user actually has.
   useEffect(() => {
-    if (preference !== "auto") return;
+    if (!hydrated || preference !== "auto") return;
 
     // Resolve immediately from cached (or default) coords. We deliberately do
     // NOT call getUserCoords() here — that would pop the browser's location
@@ -416,7 +437,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }, SOLAR_CHECK_INTERVAL);
 
     return () => clearInterval(interval);
-  }, [preference]);
+  }, [preference, hydrated]);
 
   const setPreference = useCallback((pref: ThemePreference) => {
     trackEvent("theme_changed", { theme: pref });

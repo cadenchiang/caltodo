@@ -899,7 +899,7 @@ export default function OnboardingPage() {
     const isSyllabusExtracting = setupParam === "syllabus" && syllabusPhase === "extracting";
 
     return (
-      <div className={`fixed inset-0 z-50 flex flex-col bg-background transition-opacity duration-75 ${standaloneExiting ? "opacity-0" : "opacity-100"}`}>
+      <div className={`fixed inset-0 z-50 flex flex-col bg-background animate-overlay-in transition-opacity duration-150 ${standaloneExiting ? "opacity-0" : "opacity-100"}`}>
         {/* Minimal header: back arrow + title (hidden during extracting) */}
         {!isSyllabusExtracting && (
           <div className="flex items-center gap-3 px-6 pt-5 pb-3 shrink-0">
@@ -920,7 +920,10 @@ export default function OnboardingPage() {
         <div className={`flex-1 ${isSyllabusPreview ? "overflow-hidden" : "overflow-y-auto"}`}>
           <div className={`min-h-full flex items-center justify-center px-6 ${isSyllabusPreview ? "h-full pt-2 pb-4" : "pt-4 pb-[20vh]"}`}>
             <div className={`w-full ${isSyllabusPreview ? "max-w-5xl h-full" : "max-w-md"}`}>
-              <div className={`animate-step-in ${isSyllabusPreview ? "h-full" : ""}`}>
+              {/* A gentle lift, not the wizard's slide-from-the-right: this is
+                  a single step opened from settings, so nothing came before it
+                  for the content to slide in from. */}
+              <div className={`animate-phase-in ${isSyllabusPreview ? "h-full" : ""}`}>
                 {error && setupParam !== "syllabus" && (
                   <div className="bg-red-500/10 text-red-400 text-sm p-3 rounded-xl mb-4">
                     {error}

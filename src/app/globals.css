@@ -21,6 +21,14 @@
 
 /* ── Semantic color tokens ── */
 :root {
+  /* The app's theme is the user's own choice (or sunset in auto mode) and
+     never follows the OS, so the browser has to be told which one it is.
+     Without this the UA paints its scrollbars, form controls, and the canvas
+     behind the page from prefers-color-scheme, which on a machine set to dark
+     is a dark frame around a light page — and a dark flash before the
+     stylesheet's own background lands. `.dark` overrides it below. */
+  color-scheme: light;
+
   /* Backgrounds. --background drives the main content area; --sidebar-bg
      is read by .glass-strong (the chrome behind the desktop sidebar). The
      two-tone split lets the sidebar sit slightly off-white from the main
@@ -57,6 +65,7 @@
 }
 
 .dark {
+  color-scheme: dark;
   --background: #191919;
   --sidebar-bg: #202020;
   --card: #2c2c2e;
@@ -1127,6 +1136,22 @@ body {
    overrode the intent; removed.) */
 .animate-fade-in {
   animation: pageFadeIn 140ms ease-out;
+}
+
+/* Overlay entry — a plain fade for a full-screen panel arriving over the app.
+   The standalone setup screen is `fixed inset-0` and mounts already opaque, so
+   its `transition-opacity` had nothing to animate from: the white panel snapped
+   in at once while the form inside slid in over 320ms, which read as two
+   unrelated motions. No fill mode, deliberately — the element's own opacity
+   class must win again once this finishes, or the exit transition cannot
+   fade it back out. */
+@keyframes overlayIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-overlay-in {
+  animation: overlayIn 180ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* Step transition — slide in from the right for onboarding wizard steps */

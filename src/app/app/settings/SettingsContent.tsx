@@ -181,7 +181,16 @@ export default function SettingsContent() {
   return (
     <PageTransition>
       <IntegrationProvider>
-        <div className="flex h-full -m-4 md:-m-10">
+        {/*
+          The negative margins cancel .app-main's own padding so settings can
+          run edge to edge. `h-full` alone made this box exactly the height of
+          main's CONTENT area, so pulling it up by main's top padding left an
+          equally tall strip of bare page below it — a dead band the inner
+          scroller could not reach into, which cut off the last integration
+          card. Adding that padding back to the height puts the bottom edge on
+          main's bottom edge, where it belongs.
+        */}
+        <div className="flex h-[calc(100%+1rem)] md:h-[calc(100%+2.5rem)] -m-4 md:-m-10">
           <div className="flex-1 flex flex-col overflow-hidden">
             {/* === MOBILE VIEW === */}
             <div className="md:hidden flex flex-col h-full">

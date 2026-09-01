@@ -233,19 +233,19 @@ export default function AddCanvasStep({ onNext, onSkip, saving, error, setError 
             />
           </div>
 
-          <div className="flex gap-3 animate-drop-in delay-300">
-            <button
-              onClick={onSkip}
-              className="flex-1 px-4 py-2.5 text-sm text-muted-foreground rounded-xl bg-card btn-elevated-secondary"
-            >
-              cancel
-            </button>
+          <div className="animate-drop-in delay-300">
             <button
               onClick={handleICalSave}
               disabled={saving}
-              className="flex-1 px-5 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-full text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2 btn-elevated-primary"
+              className="w-full px-5 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-full text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2 btn-elevated-primary"
             >
               {saving ? "Saving..." : "Connect"}
+            </button>
+            <button
+              onClick={onSkip}
+              className="mt-3 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Cancel
             </button>
           </div>
 
@@ -433,20 +433,20 @@ export default function AddCanvasStep({ onNext, onSkip, saving, error, setError 
             </div>
           </div>
 
-          <div className="flex gap-3 animate-drop-in delay-300">
-            <button
-              onClick={onSkip}
-              className="flex-1 px-4 py-2.5 text-sm text-muted-foreground rounded-xl bg-card btn-elevated-secondary"
-            >
-              cancel
-            </button>
+          <div className="animate-drop-in delay-300">
             <button
               onClick={handleVerify}
               disabled={verifying || saving}
-              className="flex-1 px-5 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-full text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2 btn-elevated-primary"
+              className="w-full px-5 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-full text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2 btn-elevated-primary"
             >
               {verifying && <Loader2 size={14} className="animate-spin" />}
               {verifying ? "Verifying..." : "Connect"}
+            </button>
+            <button
+              onClick={onSkip}
+              className="mt-3 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Cancel
             </button>
           </div>
 
@@ -508,20 +508,20 @@ export default function AddCanvasStep({ onNext, onSkip, saving, error, setError 
             </div>
           </div>
 
-          <div className="flex gap-3">
-            <button
-              onClick={onSkip}
-              disabled={saving}
-              className="flex-1 px-4 py-2.5 text-sm text-muted-foreground rounded-xl bg-card btn-elevated-secondary disabled:opacity-50"
-            >
-              cancel
-            </button>
+          <div>
             <button
               onClick={handleSaveAndNext}
               disabled={saving}
-              className="flex-1 px-5 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-full text-sm font-semibold disabled:opacity-50 btn-elevated-primary"
+              className="w-full px-5 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-full text-sm font-semibold disabled:opacity-50 btn-elevated-primary"
             >
               {saving ? "Saving..." : "Save"}
+            </button>
+            <button
+              onClick={onSkip}
+              disabled={saving}
+              className="mt-3 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+            >
+              Cancel
             </button>
           </div>
         </>
