@@ -19,7 +19,6 @@ type AnalyticsEvent =
   | "onboarding_referral_selected"
   | "onboarding_platforms_selected"
   | "onboarding_completed"
-  | "onboarding_exited"
   | "standalone_setup_completed"
   | "standalone_setup_skipped"
   // Activation
@@ -45,13 +44,7 @@ type AnalyticsEvent =
   | "filter_changed"
   | "sort_mode_changed"
   | "theme_changed"
-  | "color_theme_changed"
-  // Notifications
-  | "notification_center_opened"
-  | "notification_clicked"
-  | "notifications_marked_read"
-  | "notifications_cleared"
-  | "notification_created";
+  | "color_theme_changed";
 
 /**
  * Tracks a user analytics event via Vercel Analytics and PostHog.
