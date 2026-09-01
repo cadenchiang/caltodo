@@ -20,11 +20,13 @@ export const ONBOARDING_STEPS = [
   "school",
   "referral",
   "platforms",
+  "gcal",
   "canvas",
   "gradescope",
   "pensieve",
   "brightspace",
   "blackboard",
+  "classroom",
   "syllabus",
   "done",
 ] as const;
@@ -34,11 +36,13 @@ export type OnboardingStep = (typeof ONBOARDING_STEPS)[number];
 
 /** Platforms a user can choose to connect. */
 export const ONBOARDING_PLATFORMS = [
+  "gcal",
   "canvas",
   "gradescope",
   "pensieve",
   "brightspace",
   "blackboard",
+  "classroom",
   "syllabus",
 ] as const;
 

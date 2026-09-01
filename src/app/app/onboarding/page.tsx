@@ -18,6 +18,7 @@ import PensieveStep from "@/components/onboarding/PensieveStep";
 import BrightspaceStep from "@/components/onboarding/BrightspaceStep";
 import BlackboardStep from "@/components/onboarding/BlackboardStep";
 import type { FeedProvider } from "@/lib/integration-providers";
+import CalendarStep from "@/components/onboarding/CalendarStep";
 import ClassroomStep from "@/components/onboarding/ClassroomStep";
 import AddCanvasStep from "@/components/onboarding/AddCanvasStep";
 import SyllabusStep from "@/components/onboarding/SyllabusStep";
@@ -45,7 +46,15 @@ function searchSchoolOptions(query: string): string[] {
 /** Alias of the persisted step union, so saved progress and the flow
     can never disagree about what a step is called. */
 type Step = OnboardingStep;
-type Platform = "canvas" | "gradescope" | "pensieve" | "brightspace" | "blackboard" | "syllabus";
+type Platform =
+  | "gcal"
+  | "canvas"
+  | "gradescope"
+  | "pensieve"
+  | "brightspace"
+  | "blackboard"
+  | "classroom"
+  | "syllabus";
 
 /**
  * Integration steps that need the flow's shared "Skip for now" control.
@@ -73,17 +82,21 @@ const STEP_LABELS: Record<Step, string> = {
   pensieve: "Pensive",
   brightspace: "Brightspace",
   blackboard: "Blackboard",
+  gcal: "Google Calendar",
+  classroom: "Google Classroom",
   syllabus: "Syllabus",
   done: "Finish",
 };
 
 /** Platform options shown in the platform selection step. */
 const PLATFORM_OPTIONS: Array<{ id: Platform; label: string; description: string; logo: string }> = [
+  { id: "gcal", label: "Google Calendar", description: "Two-way event sync", logo: "/gcal-logo.png" },
   { id: "canvas", label: "Canvas", description: "Sync assignments from your Canvas account", logo: "/canvas-logo.png" },
   { id: "gradescope", label: "Gradescope", description: "Sync deadlines from Gradescope", logo: "/gradescope-logo.png" },
   { id: "pensieve", label: "Pensive", description: "Assignments from your Pensive calendar", logo: "/pensieve-logo.png" },
   { id: "brightspace", label: "Brightspace", description: "Sync deadlines from your D2L Brightspace calendar", logo: "/brightspace-logo.svg" },
   { id: "blackboard", label: "Blackboard", description: "Sync deadlines from your Blackboard calendar", logo: "/blackboard-logo.svg" },
+  { id: "classroom", label: "Google Classroom", description: "Coursework and due dates", logo: "/classroom-logo.png" },
   { id: "syllabus", label: "Syllabus", description: "Extract assignments from a syllabus PDF", logo: "/file.svg" },
 ];
 
@@ -1231,8 +1244,17 @@ export default function OnboardingPage() {
           full-width treatment as the standalone ?setup=syllabus route. */}
       <div className={`flex-1 ${flowSyllabusPreview ? "overflow-hidden" : "overflow-y-auto"}`}>
         <div
+          /* The 20vh bottom pad lifts a short step above the optical centre,
+             but it is real height inside the scroller: on the platforms step
+             it pushed Continue past the fold even once the options fitted. */
           className={`min-h-full flex items-center justify-center px-6 ${
-            isDoneStep ? "py-12" : flowSyllabusPreview ? "h-full pt-2 pb-4" : "pt-4 pb-[20vh]"
+            isDoneStep
+              ? "py-12"
+              : flowSyllabusPreview
+                ? "h-full pt-2 pb-4"
+                : currentStep === "platforms"
+                  ? "py-8"
+                  : "pt-4 pb-[20vh]"
           }`}
         >
           <div
@@ -1358,7 +1380,10 @@ export default function OnboardingPage() {
                 <p className="text-sm text-muted-foreground mb-6 ">
                   Which platforms do you use? You can always change this later.
                 </p>
-                <div className="flex flex-col gap-3 mb-8">
+                {/* Two columns, and tighter rows. Eight options in the single
+                    column of six pushed Continue below the fold, which is the
+                    one control this step exists to reach. */}
+                <div className="grid grid-cols-2 gap-2 mb-6">
                   {PLATFORM_OPTIONS.map((opt, i) => {
                     const selected = selectedPlatforms.has(opt.id);
                     const hasProgress = (() => {
@@ -1380,7 +1405,7 @@ export default function OnboardingPage() {
                         key={opt.id}
                         type="button"
                         onClick={() => togglePlatform(opt.id)}
-                        className={` flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl bg-white dark:bg-[#2a2a2c] text-foreground border-2 transition-colors duration-150 focus:outline-none ${
+                        className={` flex items-center gap-2 w-full text-left px-2.5 py-2.5 rounded-xl bg-white dark:bg-[#2a2a2c] text-foreground border-2 transition-colors duration-150 focus:outline-none ${
                           selected
                             ? "border-[#0e89d6]"
                             : "border-transparent hover:border-[#0e89d6]/30"
@@ -1388,29 +1413,29 @@ export default function OnboardingPage() {
                         style={{ animationDelay: `${(i + 2) * 50}ms` }}
                       >
                         {opt.id === "syllabus" ? (
-                          <div className="w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-500/15 flex items-center justify-center shrink-0">
-                            <FileText size={16} className="text-purple-500" />
+                          <div className="w-7 h-7 rounded-lg bg-purple-100 dark:bg-purple-500/15 flex items-center justify-center shrink-0">
+                            <FileText size={14} className="text-purple-500" />
                           </div>
                         ) : (
                           <img
                             src={opt.logo}
                             alt={opt.label}
-                            className="w-8 h-8 object-contain shrink-0"
+                            className="w-7 h-7 object-contain shrink-0"
                           />
                         )}
-                        <div className="flex-1 min-w-0 flex items-center gap-2">
-                          <span className="text-sm font-semibold text-foreground">{opt.label}</span>
+                        <div className="flex-1 min-w-0 flex items-center gap-1.5">
+                          <span className="text-[13px] font-semibold text-foreground truncate">{opt.label}</span>
                           {hasProgress && (
-                            <span className="text-[10px] font-semibold text-[#0e89d6] bg-[#0e89d6]/10 px-1.5 py-0.5 rounded">
+                            <span className="text-[10px] font-semibold text-[#0e89d6] bg-[#0e89d6]/10 px-1 py-0.5 rounded shrink-0">
                               Saved
                             </span>
                           )}
                         </div>
-                        <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-colors ${
+                        <div className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 transition-colors ${
                           selected ? "bg-[#0e89d6]" : "border border-muted-foreground/30"
                         }`}>
                           {selected && (
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-background">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-background">
                               <polyline points="20 6 9 17 4 12" />
                             </svg>
                           )}
@@ -1425,6 +1450,9 @@ export default function OnboardingPage() {
                     trackEvent("onboarding_platforms_selected", {
                       platforms: Array.from(selectedPlatforms).join(","),
                     });
+                    // Paired with the skip below. A step that reports only
+                    // skips yields a funnel that can only show people leaving.
+                    trackEvent("onboarding_step_completed", { step: "platforms" });
                     setCurrentStep(nextStepAfter("platforms"));
                   }}
                   disabled={selectedPlatforms.size === 0}
@@ -1436,6 +1464,15 @@ export default function OnboardingPage() {
                   style={{ animationDelay: "250ms" }}
                 >
                   Continue
+                </button>
+                <button
+                  onClick={() => {
+                    trackEvent("onboarding_step_skipped", { step: "platforms" });
+                    setCurrentStep("done");
+                  }}
+                  className="mt-3 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Skip for now
                 </button>
               </div>
             )}
@@ -1504,6 +1541,25 @@ export default function OnboardingPage() {
                 saving={saving}
                 error={error}
                 setError={setError}
+              />
+            )}
+
+            {/* Google Calendar and Google Classroom were connectable from
+                settings but absent from this list, so a new user was never
+                offered the two most common Google integrations during setup.
+                Both step components already existed; only Classroom's was
+                reachable, and only from the standalone ?setup= path. */}
+            {currentStep === "gcal" && (
+              <CalendarStep
+                onNext={() => { trackEvent("onboarding_step_completed", { step: "gcal" }); setCurrentStep(nextStepAfter("gcal")); }}
+                onSkip={() => handleSkipStep("gcal")}
+              />
+            )}
+
+            {currentStep === "classroom" && (
+              <ClassroomStep
+                onNext={() => { trackEvent("onboarding_step_completed", { step: "classroom" }); setCurrentStep(nextStepAfter("classroom")); }}
+                onSkip={() => handleSkipStep("classroom")}
               />
             )}
 
