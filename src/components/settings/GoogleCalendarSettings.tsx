@@ -605,8 +605,11 @@ export default function GoogleCalendarSettings() {
           >
             <div className="overflow-hidden">
               <div className="px-3 sm:px-4 pb-3 pt-3 border-t border-border">
-                <div className="group/row flex items-center gap-2 px-2 py-2 rounded-xl hover:bg-muted/40 transition-colors">
-                  <span className="flex-1 min-w-0 text-xs font-medium text-foreground truncate">
+                {/* One bordered block for the account, matching the shared
+                    card so both read the same way. */}
+                <div className="rounded-xl border border-border bg-muted/30 overflow-hidden">
+                <div className="group/row flex items-center gap-2 px-3 py-2">
+                  <span className="flex-1 min-w-0 text-xs font-semibold text-foreground truncate">
                     {googleEmail ?? "Google account"}
                   </span>
                   <button
@@ -622,7 +625,10 @@ export default function GoogleCalendarSettings() {
                 {/* Google Calendar cannot hold a second account - the tokens
                     are singular credential columns - but it can sync several
                     calendars, which is what there is to add here. */}
-                <GoogleCalendarList onSaved={refresh} />
+                <div className="border-t border-border/60 px-3 py-2">
+                  <GoogleCalendarList onSaved={refresh} />
+                </div>
+                </div>
               </div>
             </div>
           </div>

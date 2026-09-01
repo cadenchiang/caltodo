@@ -189,11 +189,15 @@ export default function ConnectedIntegrationCard({
         inert={!open}
       >
         <div className="overflow-hidden">
-          <div className="px-3 sm:px-4 pb-3 pt-3 border-t border-border space-y-1">
+          <div className="px-3 sm:px-4 pb-3 pt-3 border-t border-border space-y-2">
+            {/* One bordered block per account. A flat stack of rows gave the
+                account, its classes, and the add control the same weight and
+                the same left edge, so a second account was indistinguishable
+                from a second section of the first. */}
             {accounts.map((account) => (
-              <div key={account.id} className="rounded-xl">
-                <div className="group/row flex items-center gap-2 px-2 py-1.5">
-                <span className="flex-1 min-w-0 text-xs font-medium text-foreground truncate">
+              <div key={account.id} className="rounded-xl border border-border bg-muted/30 overflow-hidden">
+                <div className="group/row flex items-center gap-2 px-3 py-2">
+                <span className="flex-1 min-w-0 text-xs font-semibold text-foreground truncate">
                   {account.label}
                 </span>
                 {account.authFailed && (
@@ -224,18 +228,22 @@ export default function ConnectedIntegrationCard({
                 {/* This account's classes, which only exist per account
                     because the course endpoints are scoped by account_id. */}
                 {account.selectedCourses !== null && onSaveCourses && hasCourseSelection(provider) && (
-                  <AccountClasses
-                    provider={provider}
-                    accountId={account.id}
-                    selected={account.selectedCourses}
-                    onSave={(courses) => onSaveCourses(account.id, courses)}
-                  />
+                  <div className="border-t border-border/60 px-3 py-2">
+                    <AccountClasses
+                      provider={provider}
+                      accountId={account.id}
+                      selected={account.selectedCourses}
+                      onSave={(courses) => onSaveCourses(account.id, courses)}
+                    />
+                  </div>
                 )}
               </div>
             ))}
 
+            {/* Outside the account blocks: this adds a new one rather than
+                acting on any of them. */}
             {addRoute && noun && (
-              <div className="px-2 pt-1">
+              <div className="pt-0.5">
                 <button
                   onClick={() => router.push(`/app/onboarding?setup=${addRoute}`)}
                   aria-label={`Add another ${noun}`}

@@ -102,9 +102,37 @@ describe("Google Calendar gets the same dropdown", () => {
   });
 });
 
+describe("the panel has a structure to read down", () => {
+  it("gives each account its own bordered block", () => {
+    // A flat stack gave the account, its classes and the add control the same
+    // weight and left edge, so a second account looked like a second section
+    // of the first.
+    expect(card).toContain("rounded-xl border border-border bg-muted/30");
+    expect(card).toContain("border-t border-border/60");
+  });
+
+  it("keeps the add control outside those blocks", () => {
+    // It adds an account rather than acting on one.
+    const panel = card.slice(card.indexOf("aria-hidden={!open}"));
+    const blockEnd = panel.indexOf("{addRoute && noun && (");
+    expect(blockEnd).toBeGreaterThan(panel.indexOf("accounts.map"));
+  });
+
+  it("gives Google Calendar the same block and labels", () => {
+    expect(gcal).toContain("rounded-xl border border-border bg-muted/30");
+    expect(read("src/components/settings/GoogleCalendarList.tsx")).toContain(
+      "uppercase tracking-wider"
+    );
+  });
+});
+
 describe("an account's classes read as one line", () => {
-  it("puts the count and the action together", () => {
-    expect(classes).toContain('${selected.length === 1 ? "class" : "classes"}');
+  it("labels the section and right-aligns its action", () => {
+    // A label, count and action all left-aligned on one line gave the block
+    // no column edge to read down.
+    expect(classes).toContain("uppercase tracking-wider");
+    expect(classes).toContain("Classes{selected.length > 0 ?");
+    expect(classes).toContain("justify-between");
     expect(classes).toMatch(/selected\.length > 0 \? "Edit" : "Choose"/);
   });
 

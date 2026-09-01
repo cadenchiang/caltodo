@@ -121,38 +121,38 @@ export default function AccountClasses({
 
   if (!editing) {
     return (
-      <div className="pl-2 pr-2 pb-2 -mt-0.5">
-        {/* Count and action on one line, the names beneath it. The names were
-            chips above their own "Edit classes" link, which gave every account
-            three stacked rows. */}
-        <div className="flex items-baseline gap-2">
-          <span className="text-[11px] text-subtle-foreground">
-            {selected.length > 0
-              ? `${selected.length} ${selected.length === 1 ? "class" : "classes"}`
-              : "No classes selected"}
-          </span>
+      <div>
+        {/* A labelled row with its action on the right, then the values
+            beneath it. Left-aligning the label, the count and the action in
+            one line gave the block no column edge to read down. */}
+        <div className="flex items-center justify-between gap-2 mb-1.5">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-subtle-foreground">
+            Classes{selected.length > 0 ? ` · ${selected.length}` : ""}
+          </p>
           <button
             onClick={startEditing}
-            className="text-[11px] font-medium text-[#0e89d6] hover:underline cursor-pointer"
+            className="text-[11px] font-medium text-[#0e89d6] hover:underline cursor-pointer shrink-0"
           >
             {selected.length > 0 ? "Edit" : "Choose"}
           </button>
         </div>
-        {selected.length > 0 && (
-          <div className="mt-1 flex flex-wrap gap-1">
+        {selected.length > 0 ? (
+          <div className="flex flex-wrap gap-1">
             {selected.map((course) => (
               <span key={String(course.id)} className={CLASS_PILL}>
                 {course.name}
               </span>
             ))}
           </div>
+        ) : (
+          <p className="text-[11px] text-subtle-foreground">No classes selected</p>
         )}
       </div>
     );
   }
 
   return (
-    <div className="pl-2 pr-2 pb-2 -mt-0.5">
+    <div>
       {loading ? (
         <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground py-2">
           <Loader2 size={12} className="animate-spin" />

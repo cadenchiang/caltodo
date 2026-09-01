@@ -106,7 +106,13 @@ export default function GoogleCalendarList({ onSaved }: GoogleCalendarListProps)
   const atLimit = (loaded?.selectedIds.length ?? 0) >= MAX_SELECTED_CALENDARS;
 
   return (
-    <div className="px-2 pt-1">
+    <div>
+      {/* Same labelled shape as an account's Classes block. */}
+      <div className="flex items-center justify-between gap-2 mb-1.5">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-subtle-foreground">
+          Calendars{selected.length > 0 ? ` · ${selected.length}` : ""}
+        </p>
+      </div>
       <div className="flex flex-wrap gap-1">
         {selected.map((calendar) => (
           <span key={calendar.id} className={`${CLASS_PILL} gap-1 pr-1.5`}>
