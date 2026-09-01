@@ -1,18 +1,9 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, useLayoutEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import { Plus } from "lucide-react";
 import type { IntegrationCredentials } from "@/lib/types";
 import { getCredentials, invalidateCredentials } from "@/lib/credentials-client";
-import { useTaskContext } from "@/contexts/TaskContext";
-import CanvasSettings from "./CanvasSettings";
-import GradescopeSettings from "./GradescopeSettings";
-import PensieveSettings from "./PensieveSettings";
-import BrightspaceSettings from "./BrightspaceSettings";
-import BlackboardSettings from "./BlackboardSettings";
-import FeedAccountsGroup from "./FeedAccountsGroup";
-import AdditionalCanvasCard from "./AdditionalCanvasCard";
+import IntegrationList from "./IntegrationList";
 import ClassesSection from "./ClassesSection";
 
 const CACHE_KEY = "caltodo_credentials_cache";
@@ -212,119 +203,19 @@ export function IntegrationProvider({ children }: { children: React.ReactNode })
 }
 
 /**
- * Integration card list (bCourses, Gradescope, Pensieve).
+ * The integrations list, grouped into connected and available.
+ *
+ * Rendering lives in IntegrationList; this only bridges it to the credentials
+ * context so the section stays a thin consumer of the provider.
+ *
  * Must be rendered inside an IntegrationProvider.
  */
 export default function IntegrationSettings() {
   const ctx = useContext(CredentialsContext);
-  const { syncing, lastSyncedAt, syncResult } = useTaskContext();
-
   if (!ctx) throw new Error("IntegrationSettings must be inside IntegrationProvider");
   const { credentials, handleUpdate } = ctx;
 
-  return (
-    <div className="space-y-3">
-      {/* Canvas group — the primary account, every additional school beneath
-          it, and one "add another" action. Previously a second top-level card
-          also titled "Canvas" advertised adding another school, which read as
-          a duplicate integration rather than an action on this one. */}
-      <div className="space-y-2">
-        <CanvasSettings
-          credentials={credentials}
-          onUpdate={handleUpdate}
-          syncing={syncing}
-          lastSyncedAt={lastSyncedAt}
-          syncedCount={syncResult?.canvas.synced}
-        />
-        {(credentials.additional_canvas_accounts ?? []).map((account) => (
-          <div key={account.id} className="ml-4 sm:ml-6">
-            <AdditionalCanvasCard
-              account={account}
-              credentials={credentials}
-              onUpdate={handleUpdate}
-            />
-          </div>
-        ))}
-        <div className="ml-4 sm:ml-6">
-          <AddAnotherAccount setupRoute="canvas-add" noun="Canvas school" />
-        </div>
-      </div>
-      <GradescopeSettings
-        credentials={credentials}
-        onUpdate={handleUpdate}
-        syncing={syncing}
-        lastSyncedAt={lastSyncedAt}
-        syncedCount={syncResult?.gradescope.synced}
-      />
-      <PensieveSettings
-        credentials={credentials}
-        onUpdate={handleUpdate}
-        syncing={syncing}
-        lastSyncedAt={lastSyncedAt}
-        syncedCount={syncResult?.pensieve.synced}
-      />
-      <FeedAccountsGroup provider="pensieve" primaryConnected={!!credentials.pensieve_calendar_url} />
-      {/* Brightspace is shown when connected (any school) or as a connect option
-          for non-Berkeley students; Berkeley users typically ignore it. */}
-      <BrightspaceSettings
-        credentials={credentials}
-        onUpdate={handleUpdate}
-        syncing={syncing}
-        lastSyncedAt={lastSyncedAt}
-        syncedCount={syncResult?.brightspace?.synced}
-      />
-      <FeedAccountsGroup provider="brightspace" primaryConnected={!!credentials.brightspace_calendar_url} />
-      <BlackboardSettings
-        credentials={credentials}
-        onUpdate={handleUpdate}
-        syncing={syncing}
-        lastSyncedAt={lastSyncedAt}
-        syncedCount={syncResult?.blackboard?.synced}
-      />
-      <FeedAccountsGroup provider="blackboard" primaryConnected={!!credentials.blackboard_calendar_url} />
-    </div>
-  );
-}
-
-interface AddAnotherAccountProps {
-  /**
-   * Onboarding `?setup=` target that starts the add flow for this provider,
-   * e.g. "canvas-add". Providers use a distinct add route rather than their
-   * plain setup route so the flow knows to create an account alongside the
-   * existing one instead of replacing it.
-   */
-  setupRoute: string;
-  /**
-   * What the user is adding another of, in the user's words: "Canvas school",
-   * "Gradescope account". Rendered directly after "Add another ".
-   */
-  noun: string;
-}
-
-/**
- * Compact "add another <thing>" row, shown inside a provider's group.
- *
- * Was hardcoded to Canvas. Every integration can in principle hold more than
- * one account, so the wording and the destination are now the caller's to
- * decide and the row is not Canvas-specific. Render it only for providers
- * whose add flow actually exists, or it promises something that does nothing.
- *
- * @param setupRoute - The `?setup=` value to open.
- * @param noun - Singular noun naming what gets added.
- * @returns A dashed row that starts that provider's add flow.
- */
-function AddAnotherAccount({ setupRoute, noun }: AddAnotherAccountProps) {
-  const router = useRouter();
-  return (
-    <button
-      onClick={() => router.push(`/app/onboarding?setup=${setupRoute}`)}
-      aria-label={`Add another ${noun}`}
-      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl border border-dashed border-border text-xs font-medium text-muted-foreground hover:text-foreground hover:border-input-border hover:bg-muted/40 transition-colors cursor-pointer"
-    >
-      <Plus size={14} />
-      Add another {noun}
-    </button>
-  );
+  return <IntegrationList credentials={credentials} onUpdate={handleUpdate} />;
 }
 
 /**

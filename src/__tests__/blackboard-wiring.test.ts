@@ -11,6 +11,8 @@ import { describe, it, expect } from "vitest";
 import * as fs from "fs";
 import * as path from "path";
 import { ONBOARDING_STEPS, ONBOARDING_PLATFORMS } from "@/lib/onboarding-progress";
+import { INTEGRATION_CATALOG, addRouteForCatalogId } from "@/lib/integration-catalog";
+import { PROVIDER_META } from "@/lib/integration-providers";
 
 const ROOT = path.resolve(__dirname, "../..");
 const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), "utf8");
@@ -155,14 +157,17 @@ describe("onboarding", () => {
 
 describe("settings", () => {
   it("renders a card where credentials are in scope", () => {
-    const settings = read("src/components/settings/IntegrationSettings.tsx");
-    expect(settings).toMatch(/<BlackboardSettings/);
-    expect(settings).toMatch(/credentials=\{credentials\}/);
+    const list = read("src/components/settings/IntegrationList.tsx");
+    expect(list).toMatch(/<BlackboardSettings/);
+    expect(list).toMatch(/credentials,$/m);
   });
 
-  it("appears in the add-integration menu", () => {
-    const section = read("src/components/settings/sections/IntegrationsSection.tsx");
-    expect(section).toMatch(/id: "blackboard"[\s\S]{0,400}setup=blackboard/);
+  it("is listed as an integration the user can connect", () => {
+    // The header's add-integration dropdown was removed: it listed the same
+    // platforms the page already renders as rows. The catalog is now the one
+    // record of what the list offers, so that is what has to carry it.
+    expect(INTEGRATION_CATALOG.map((e) => e.id)).toContain("blackboard");
+    expect(PROVIDER_META.blackboard.setupRoute).toBe("blackboard");
   });
 
   it("disconnecting clears the URL and removes its tasks", () => {
@@ -187,26 +192,27 @@ describe("settings", () => {
 });
 
 describe("generalized add-another control", () => {
-  const settings = read("src/components/settings/IntegrationSettings.tsx");
+  const card = read("src/components/settings/ConnectedIntegrationCard.tsx");
 
   it("is no longer Canvas-specific", () => {
-    expect(settings).not.toContain("function AddAnotherCanvas");
-    expect(settings).not.toContain("Add another Canvas school\n");
+    expect(card).not.toContain("function AddAnotherCanvas");
+    expect(card).not.toContain("Add another Canvas school");
   });
 
-  it("takes the destination and the wording from its caller", () => {
-    expect(settings).toMatch(/function AddAnotherAccount\(\{ setupRoute, noun \}/);
-    expect(settings).toMatch(/Add another \{noun\}/);
-    expect(settings).toMatch(/setup=\$\{setupRoute\}/);
+  it("takes the destination and the wording from the catalog", () => {
+    expect(card).toContain("addRouteForCatalogId(provider)");
+    expect(card).toContain("accountNounForCatalogId(provider)");
+    expect(card).toContain("Add another {noun}");
+    expect(card).toContain("setup=${addRoute}");
   });
 
-  it("still drives the Canvas flow it replaced", () => {
-    expect(settings).toMatch(
-      /<AddAnotherAccount setupRoute="canvas-add" noun="Canvas school" \/>/
-    );
+  it("lives inside the accounts dropdown, not on the front of the card", () => {
+    // Everything that changes an integration is behind the disclosure now.
+    const panel = card.slice(card.indexOf("aria-hidden={!open}"));
+    expect(panel).toContain("Add another {noun}");
   });
 
-  it("labels itself for screen readers", () => {
-    expect(settings).toMatch(/aria-label=\{`Add another \$\{noun\}`\}/);
+  it("renders nothing when the provider cannot hold a second account", () => {
+    expect(card).toContain("{addRoute && noun && (");
   });
 });

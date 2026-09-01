@@ -11,14 +11,63 @@
 import { describe, it, expect } from "vitest";
 import * as fs from "fs";
 import * as path from "path";
-import { FEED_PROVIDERS, PROVIDER_META } from "@/lib/integration-providers";
+import { FEED_PROVIDERS, PROVIDER_META, isFeedProvider } from "@/lib/integration-providers";
+import {
+  INTEGRATION_CATALOG,
+  addRouteForCatalogId,
+  accountNounForCatalogId,
+} from "@/lib/integration-catalog";
+import type { IntegrationCredentials } from "@/lib/types";
+
+/**
+ * Credentials with nothing connected.
+ *
+ * Only the feed URLs matter to these assertions; the rest is filled in so the
+ * object satisfies the type the catalog predicates are written against.
+ */
+function emptyCredentials(): IntegrationCredentials {
+  return {
+    canvas_token: null,
+    canvas_base_url: "",
+    canvas_ical_url: null,
+    canvas_token_expired: false,
+    canvas_ical_failed: false,
+    gradescope_email: null,
+    has_gradescope_password: false,
+    gradescope_auth_failed: false,
+    last_synced_at: null,
+    selected_canvas_courses: null,
+    selected_gradescope_courses: null,
+    selected_pensieve_courses: null,
+    dismissed_canvas_course_ids: [],
+    has_google_calendar: false,
+    google_auth_failed: false,
+    google_calendar_id: null,
+    google_email: null,
+    google_photo_url: null,
+    canvas_token_created_at: null,
+    is_founding_member: false,
+    pensieve_calendar_url: null,
+    pensieve_auth_failed: false,
+    brightspace_calendar_url: null,
+    brightspace_auth_failed: false,
+    blackboard_calendar_url: null,
+    blackboard_auth_failed: false,
+    additional_canvas_accounts: [],
+    has_completed_onboarding: false,
+    email_digest_enabled: true,
+    email_digest_hour: 15,
+    email_digest_address: null,
+    dismissed_modals: {},
+  } as IntegrationCredentials;
+}
 
 const ROOT = path.resolve(__dirname, "../..");
 const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), "utf8");
 
 const onboarding = read("src/app/app/onboarding/page.tsx");
-const settings = read("src/components/settings/IntegrationSettings.tsx");
-const group = read("src/components/settings/FeedAccountsGroup.tsx");
+const card = read("src/components/settings/ConnectedIntegrationCard.tsx");
+const group = read("src/components/settings/ConnectedIntegration.tsx");
 const engine = read("src/lib/sync-engine.ts");
 
 describe("every feed provider is wired end to end", () => {
@@ -26,14 +75,26 @@ describe("every feed provider is wired end to end", () => {
     const addRoute = PROVIDER_META[provider].addRoute!;
 
     it(`${provider}: settings renders its accounts group`, () => {
-      expect(settings).toContain(`<FeedAccountsGroup provider="${provider}"`);
+      // One render site now covers all three, keyed off the catalog entry,
+      // instead of three hand-written copies.
+      expect(group).toContain("isFeedProvider(provider)");
+      expect(group).toContain('fetch("/api/integration-accounts")');
+      expect(isFeedProvider(provider)).toBe(true);
     });
 
     it(`${provider}: the group is gated on the primary being connected`, () => {
-      // "Add another" before there is a first one reads as nonsense.
-      expect(settings).toMatch(
-        new RegExp(`provider="${provider}" primaryConnected=\\{!!credentials\\.${provider}_calendar_url\\}`)
-      );
+      // "Add another" before there is a first one reads as nonsense. The gate
+      // is now the connected/available split: the group is only rendered for
+      // entries that landed in the connected half.
+      const entry = INTEGRATION_CATALOG.find((e) => e.id === provider)!;
+      expect(entry.isConnected(emptyCredentials())).toBe(false);
+      expect(
+        entry.isConnected({
+          ...emptyCredentials(),
+          [`${provider}_calendar_url`]: "https://x/feed.ics",
+        } as IntegrationCredentials)
+      ).toBe(true);
+      expect(read("src/components/settings/IntegrationList.tsx")).toContain("splitByConnection");
     });
 
     it(`${provider}: onboarding accepts its add route`, () => {
@@ -61,14 +122,19 @@ describe("every feed provider is wired end to end", () => {
 });
 
 describe("providers that cannot hold a second account are not offered one", () => {
-  it("gradescope has no accounts group and no add route", () => {
-    expect(settings).not.toContain('provider="gradescope"');
-    expect(onboarding).not.toContain("gradescope-add");
-  });
+  // The list asks the catalog for an add route and renders nothing when it
+  // gets null, so a null route is what actually withholds the row.
+  for (const provider of ["gradescope", "classroom"] as const) {
+    it(`${provider} has no accounts group and no add route`, () => {
+      expect(isFeedProvider(provider)).toBe(false);
+      expect(addRouteForCatalogId(provider)).toBeNull();
+      expect(accountNounForCatalogId(provider)).toBeTruthy();
+      expect(onboarding).not.toContain(`${provider}-add`);
+    });
+  }
 
-  it("classroom has no accounts group and no add route", () => {
-    expect(settings).not.toContain('provider="classroom"');
-    expect(onboarding).not.toContain("classroom-add");
+  it("renders the add control only when the catalog supplies a route", () => {
+    expect(card).toContain("{addRoute && noun && (");
   });
 });
 
@@ -95,12 +161,11 @@ describe("the accounts group", () => {
     expect(group).toMatch(/filter\(\(a\) => a\.provider === provider\)/);
   });
 
-  it("routes the add button through the provider's own add route", () => {
-    expect(group).toMatch(/setup=\$\{meta\.addRoute\}/);
-  });
-
-  it("names what is being added, per provider", () => {
-    expect(group).toMatch(/Add another \{meta\.accountNoun\}/);
+  it("leaves adding an account to the card's dropdown", () => {
+    // Assembling accounts and offering to add one are separate jobs; a second
+    // "Add another" here would be two controls for one action.
+    expect(group).not.toContain("Add another");
+    expect(group).not.toContain("addRoute");
   });
 
   it("can remove an account", () => {
@@ -109,7 +174,9 @@ describe("the accounts group", () => {
   });
 
   it("flags an account whose feed has broken", () => {
-    expect(group).toMatch(/account\.auth_failed &&[\s\S]{0,160}Needs reconnecting/);
+    // The flag is assembled here and rendered by the card.
+    expect(group).toContain("authFailed: a.auth_failed");
+    expect(card).toMatch(/account\.authFailed &&[\s\S]{0,200}Needs reconnecting/);
   });
 
   it("degrades to rendering nothing if the list cannot be loaded", () => {
@@ -122,10 +189,39 @@ describe("the accounts group", () => {
     // Without this a slow fetch can render one provider's accounts under
     // another as the settings list re-renders.
     expect(group).toMatch(/let cancelled = false;/);
-    expect(group).toMatch(/return \(\) => \{ cancelled = true; \};/);
+    expect(group).toMatch(/return \(\) => \{\s*cancelled = true;\s*\};/);
   });
 
-  it("hides itself entirely until the primary is connected", () => {
-    expect(group).toMatch(/if \(!primaryConnected\) return null;/);
+  it("is only rendered for an integration that is connected", () => {
+    // The connected/available split is the gate now: an unconnected provider
+    // never reaches this component at all.
+    const list = read("src/components/settings/IntegrationList.tsx");
+    expect(list).toContain("splitByConnection");
+    expect(list).toContain("<ConnectedEntry key={entry.id}");
+  });
+
+  it("always lists the primary account alongside any extras", () => {
+    expect(group).toContain('id: "primary"');
+    expect(group).toContain("isPrimary: true");
+  });
+});
+
+describe("removing an extra account cleans up after itself", () => {
+  const assemble = read("src/components/settings/ConnectedIntegration.tsx");
+
+  it("deletes the tasks an extra Canvas school synced", () => {
+    // Those tasks carry the account id as an external_id prefix. Without this
+    // they outlive the account and nothing in settings can clear them.
+    expect(assemble).toContain("deleteTasksByExternalIdPrefix(`${id}:`)");
+  });
+
+  it("writes the remaining accounts rather than the removed one", () => {
+    expect(assemble).toContain("filter((a) => a.id !== id)");
+    expect(assemble).toContain("additional_canvas_accounts: remaining");
+  });
+
+  it("removes a feed account through the accounts API", () => {
+    expect(assemble).toMatch(/method: "DELETE"/);
+    expect(assemble).toContain("encodeURIComponent(id)");
   });
 });
