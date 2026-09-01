@@ -5,9 +5,9 @@
  * environment, so these guard the properties that made it janky in the first
  * place by parsing the source: the reserved width that stops the centred line
  * reflowing, the roll timing that keeps the digits part of the eyebrow's
- * entrance rather than a separate motion after it, the inline box that keeps
- * them on the same footing as the surrounding words, and the reduced-motion
- * escape hatch.
+ * entrance rather than a separate motion after it, the baseline alignment that
+ * keeps them sitting on the same line as the surrounding words, and the
+ * reduced-motion escape hatch.
  */
 
 import { describe, it, expect } from "vitest";
@@ -83,26 +83,32 @@ describe("SyncedCount roll timing", () => {
 });
 
 describe("SyncedCount layout stability", () => {
-  it("keeps the wrapper a plain inline box", () => {
-    // inline-grid and inline-block take their height from the line box while
-    // surrounding text takes its from the font's content area, so the number
-    // stood 3px proud above the sentence and 4px below it. Measured at 28px
-    // against the text's 21px before this changed.
-    // Matched against classNames rather than the whole file, so the comment
-    // explaining why those display modes are wrong does not fail the test.
-    expect(counter).not.toMatch(/className="[^"]*\binline-(grid|block)\b/);
-    expect(counter).toContain('<span className="relative font-semibold tabular-nums">');
+  it("aligns the digits to the sentence by baseline, not by box top", () => {
+    // The previous attempt laid the digits over the sizer with
+    // `absolute top-0`, which lines up the two *boxes*. number-flow's box is
+    // not the text's box: it forces `line-height: 1` on itself and pads each
+    // digit by half its fade mask, so anchoring at the top left the figure
+    // sitting 2.5px below the words at 18px/28px (measured in Chromium).
+    // Grid baseline alignment lets the browser do the metrics instead, which
+    // holds at any font size or zoom.
+    expect(counter).toContain('<span className="inline-grid align-baseline font-semibold tabular-nums">');
+    expect(counter).not.toMatch(/className="[^"]*\babsolute\b/);
+    expect(counter).not.toMatch(/className="[^"]*\btop-0\b/);
   });
 
-  it("takes the digits out of layout so only the sizer measures", () => {
-    expect(counter).toContain('className="absolute left-0 top-0"');
+  it("stacks the sizer and the digits in one grid cell", () => {
+    // Both in cell 1/1 so the sizer reserves the final width without the
+    // digits contributing any of their own — that reservation is what stops
+    // the centred line reflowing as digits are added.
+    expect(counter.match(/\[grid-area:1\/1\]/g)?.length).toBe(2);
+    expect(counter.match(/self-baseline/g)?.length).toBe(2);
   });
 
   it("anchors the digits to the left edge of the reserved width", () => {
     // Right-aligning parked a lone "0" at the far end of a box sized for the
     // final figure, leaving a gap mid-sentence for the whole entrance.
     expect(counter).not.toContain("justify-self-end");
-    expect(counter).toContain("left-0");
+    expect(counter).toContain("justify-self-start");
   });
 
   it("hides the sizer from paint and from screen readers", () => {

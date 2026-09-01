@@ -81,29 +81,36 @@ export default function SyncedCount({ count }: SyncedCountProps) {
 
   return (
     /*
-      A plain inline box, deliberately not inline-grid or inline-block. Those
-      take their height from the line box (28px here) while surrounding text
-      takes its from the font's content area (21px), so the number's box stood
-      3px proud above the sentence and 4px below it — visible the moment the
-      line was selected. Staying inline keeps it on exactly the same footing
-      as the words around it.
+      Inline-grid with both children stacked in the one cell, aligned on their
+      baselines. The earlier version laid the digits over the sizer with
+      `absolute top-0`, which lines up the two *boxes* — and number-flow's box
+      is not the text's box. It forces `line-height: 1` on itself and pads each
+      digit by half the fade mask, so anchoring at the top parked the figure
+      2.5px below the sentence it sits in. Letting grid do baseline alignment
+      instead is font- and zoom-independent: the browser matches the digits'
+      baseline to the sizer's, whatever the metrics work out to.
 
-      `relative` makes this inline box the containing block for the absolutely
-      positioned digits, so the visible number contributes no layout at all.
+      `align-baseline` on the wrapper keeps the whole box sitting on the
+      surrounding sentence's baseline rather than on its bottom edge.
     */
-    <span className="relative font-semibold tabular-nums">
-      {/* Sizer: ordinary inline text, so it sets both the box height and the
-          final width. Reserving the width up front is what stops the centred
-          line reflowing as digits are added. Hidden from painting and from
-          the accessibility tree; NumberFlow announces the value itself. */}
-      <span aria-hidden="true" className="invisible">
+    <span className="inline-grid align-baseline font-semibold tabular-nums">
+      {/* Sizer: ordinary inline text in cell 1/1, so it sets the column width
+          and supplies the baseline the digits align to. Reserving the width up
+          front is what stops the centred line reflowing as digits are added.
+          Hidden from painting and from the accessibility tree; NumberFlow
+          announces the value itself. */}
+      <span
+        aria-hidden="true"
+        className="invisible [grid-area:1/1] self-baseline"
+      >
         {formatted}
       </span>
       {/*
-        Anchored to the left edge, not the right. Right-aligning parked a lone
-        "0" at the far end of a box sized for "17,630", leaving an unexplained
-        gap mid-sentence for the whole entrance and then snapping across.
-        Growing rightward is how a number counting up is expected to behave.
+        Same cell, justified left rather than right. Right-aligning parked a
+        lone "0" at the far end of a box sized for "17,630", leaving an
+        unexplained gap mid-sentence for the whole entrance and then snapping
+        across. Growing rightward is how a number counting up is expected to
+        behave.
       */}
       <NumberFlow
         value={value}
@@ -111,7 +118,7 @@ export default function SyncedCount({ count }: SyncedCountProps) {
         willChange
         transformTiming={ROLL_TIMING}
         opacityTiming={FADE_TIMING}
-        className="absolute left-0 top-0"
+        className="[grid-area:1/1] self-baseline justify-self-start"
       />
     </span>
   );
