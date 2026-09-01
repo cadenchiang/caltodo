@@ -253,9 +253,9 @@ export default function TaskPreviewPopover({
 
         {/* Open Assignment — at the top of the body when the task has a source URL. */}
         {task.source_url && (
-          <div className="flex items-center gap-4 py-3 min-w-0">
-            <div className="shrink-0 w-5 flex items-center justify-center">
-              <ExternalLink size={20} className="text-muted-foreground" />
+          <div className="flex items-start gap-4 py-3 min-w-0">
+            <div className="shrink-0 w-5 h-5 flex items-center justify-center">
+              <ExternalLink size={16} className="text-muted-foreground" />
             </div>
             <a
               href={task.source_url}

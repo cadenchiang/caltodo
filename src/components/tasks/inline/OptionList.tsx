@@ -49,7 +49,13 @@ interface OptionListProps {
  * @param onDone - Closes the list
  * @remarks Matching is case-insensitive on both sides, so a tag is never
  *          offered for creation when it differs only in case from one that
- *          already exists.
+ *          already exists. Only the options scroll: the search box is pinned
+ *          above them, so typing to narrow a long list never scrolls the box
+ *          you are typing into off the top.
+ *
+ *          The scroll container is the options list rather than the panel, so
+ *          the pinned box needs no sticky positioning and cannot be scrolled
+ *          under by the rows.
  */
 export default function OptionList({
   options,
@@ -82,8 +88,8 @@ export default function OptionList({
   }
 
   return (
-    <div className="w-64 bg-popover rounded-xl shadow-2xl border border-border py-1.5 max-h-64 overflow-y-auto">
-      <div className="px-2.5 pb-1.5">
+    <div className="w-64 bg-popover rounded-xl shadow-2xl border border-border py-1.5 flex flex-col max-h-64">
+      <div className="shrink-0 px-2.5 pb-1.5">
         <input
           type="text"
           value={search}
@@ -107,55 +113,57 @@ export default function OptionList({
         />
       </div>
 
-      {onClear && !query && (
-        <button
-          type="button"
-          onClick={() => {
-            onClear();
-            onDone();
-          }}
-          className={`w-full text-left px-4 py-1.5 text-sm transition-colors truncate hover:bg-accent ${
-            selected.length === 0 ? "text-blue-500 font-medium" : "text-muted-foreground"
-          }`}
-        >
-          {clearLabel}
-        </button>
-      )}
-
-      {filtered.map((option) => {
-        const isSelected = selectedLower.includes(option.toLowerCase());
-        return (
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        {onClear && !query && (
           <button
-            key={option}
             type="button"
-            onClick={() => pick(option)}
-            className={`w-full flex items-center gap-2 text-left px-4 py-1.5 text-sm transition-colors hover:bg-accent ${
-              isSelected ? "text-blue-500 font-medium" : "text-foreground"
+            onClick={() => {
+              onClear();
+              onDone();
+            }}
+            className={`w-full text-left px-4 py-1.5 text-sm transition-colors truncate hover:bg-accent ${
+              selected.length === 0 ? "text-blue-500 font-medium" : "text-muted-foreground"
             }`}
           >
-            <span className="flex-1 min-w-0 truncate">{option}</span>
-            {isSelected && <Check size={14} className="shrink-0" />}
+            {clearLabel}
           </button>
-        );
-      })}
+        )}
 
-      {canCreate && onCreate && (
-        <button
-          type="button"
-          onClick={() => {
-            onCreate(query);
-            setSearch("");
-            if (!multi) onDone();
-          }}
-          className="w-full text-left px-4 py-1.5 text-sm text-blue-500 hover:bg-accent transition-colors truncate"
-        >
-          Add &ldquo;{query}&rdquo;
-        </button>
-      )}
+        {filtered.map((option) => {
+          const isSelected = selectedLower.includes(option.toLowerCase());
+          return (
+            <button
+              key={option}
+              type="button"
+              onClick={() => pick(option)}
+              className={`w-full flex items-center gap-2 text-left px-4 py-1.5 text-sm transition-colors hover:bg-accent ${
+                isSelected ? "text-blue-500 font-medium" : "text-foreground"
+              }`}
+            >
+              <span className="flex-1 min-w-0 truncate">{option}</span>
+              {isSelected && <Check size={14} className="shrink-0" />}
+            </button>
+          );
+        })}
 
-      {filtered.length === 0 && !query && (
-        <p className="px-4 py-2 text-sm text-muted-foreground">{emptyLabel}</p>
-      )}
+        {canCreate && onCreate && (
+          <button
+            type="button"
+            onClick={() => {
+              onCreate(query);
+              setSearch("");
+              if (!multi) onDone();
+            }}
+            className="w-full text-left px-4 py-1.5 text-sm text-blue-500 hover:bg-accent transition-colors truncate"
+          >
+            Add &ldquo;{query}&rdquo;
+          </button>
+        )}
+
+        {filtered.length === 0 && !query && (
+          <p className="px-4 py-2 text-sm text-muted-foreground">{emptyLabel}</p>
+        )}
+      </div>
     </div>
   );
 }

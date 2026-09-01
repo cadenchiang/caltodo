@@ -5,7 +5,9 @@
  *
  * Shows the current value until clicked, then swaps a textarea into the same
  * place with the same typography, so the text does not jump or reflow when
- * editing starts. Used for the title and the description.
+ * editing starts. The textarea is chromeless (no background, border, or
+ * padding), so editing reads like typing into a notepad rather than filling
+ * in a form field. Used for the title and the description.
  */
 
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
@@ -118,7 +120,7 @@ export default function InlineTextEdit({
             e.currentTarget.blur();
           }
         }}
-        className={`${textClassName} -mx-2 px-2 py-1 w-full block bg-foreground/[0.04] rounded-lg resize-none overflow-hidden focus:outline-none focus:ring-2 focus:ring-ring`}
+        className={`${textClassName} m-0 p-0 w-full block border-0 bg-transparent resize-none overflow-hidden focus:outline-none focus:ring-0`}
       />
     );
   }

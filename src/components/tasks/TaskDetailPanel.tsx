@@ -29,10 +29,31 @@ interface TaskDetailPanelProps {
   onDelete?: (id: string) => void;
 }
 
-/** Icon column shared by every row, so labels line up down the panel. */
+/**
+ * Icon column shared by every row, so labels line up down the panel.
+ *
+ * The box is `w-5 h-5`: 20px tall to match the line box of the `text-sm` text
+ * beside it (so the icon centres on the first line rather than hanging below
+ * it), and 20px wide to sit under the title checkbox, which is the same size.
+ *
+ * The icon inside it is ROW_ICON_SIZE, not the box size. A 20px icon fills the
+ * box edge to edge and carries around 15px of ink, against text whose capital
+ * letters are only ~10px tall - half again the height of what it labels, which
+ * reads as a heavy icon sitting low rather than a peer of the text, even though
+ * the two are centred on each other to within a fifth of a pixel.
+ */
+/**
+ * Icon size for a detail row, chosen to match the text rather than the box.
+ *
+ * At 16px a lucide glyph draws about 10px of ink, which is the cap height of
+ * the 14px (`text-sm`) label beside it, so icon and text read as the same
+ * size. The 20px box around it is unchanged, so the column still lines up.
+ */
+const ROW_ICON_SIZE = 16;
+
 function RowIcon({ children }: { children: React.ReactNode }) {
   return (
-    <div className="shrink-0 w-5 flex items-center justify-center mt-1.5 text-secondary-foreground">
+    <div className="shrink-0 w-5 h-5 flex items-center justify-center text-secondary-foreground">
       {children}
     </div>
   );
@@ -152,8 +173,8 @@ export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: Tas
       {/* Scrollable body */}
       <div className="flex-1 overflow-auto px-6 pt-3 pb-6 min-w-0">
         {task.source_url && (
-          <div className="flex items-center gap-4 py-2 min-w-0">
-            <RowIcon><ExternalLink size={20} /></RowIcon>
+          <div className="flex items-start gap-4 py-2 min-w-0">
+            <RowIcon><ExternalLink size={ROW_ICON_SIZE} /></RowIcon>
             <a
               href={task.source_url}
               target="_blank"
@@ -166,8 +187,8 @@ export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: Tas
         )}
 
         {/* Class */}
-        <div className="flex items-start gap-4 py-1 min-w-0">
-          <RowIcon><BookOpen size={20} /></RowIcon>
+        <div className="flex items-start gap-4 py-2 min-w-0">
+          <RowIcon><BookOpen size={ROW_ICON_SIZE} /></RowIcon>
           <div className="min-w-0 flex-1">
             <InlinePicker
               label="Change class"
@@ -193,8 +214,8 @@ export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: Tas
         </div>
 
         {/* Tags */}
-        <div className="flex items-start gap-4 py-1 min-w-0">
-          <RowIcon><Tag size={20} /></RowIcon>
+        <div className="flex items-start gap-4 py-2 min-w-0">
+          <RowIcon><Tag size={ROW_ICON_SIZE} /></RowIcon>
           <div className="min-w-0 flex-1">
             <InlinePicker
               label="Change tags"
@@ -232,8 +253,8 @@ export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: Tas
         </div>
 
         {/* Description */}
-        <div className="flex items-start gap-4 py-1 min-w-0">
-          <RowIcon><AlignLeft size={20} /></RowIcon>
+        <div className="flex items-start gap-4 py-2 min-w-0">
+          <RowIcon><AlignLeft size={ROW_ICON_SIZE} /></RowIcon>
           <div className="min-w-0 flex-1">
             <InlineTextEdit
               value={task.description ?? ""}

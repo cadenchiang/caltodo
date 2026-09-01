@@ -1,8 +1,15 @@
 import { Tag, AlignLeft, BookOpen, Repeat, FileText } from "lucide-react";
 import { parseLinks, looksLikeDocument } from "@/lib/link-text";
 
-/** Default icon size matching the ICON_SIZE constant in detail views. */
-const DEFAULT_ICON_SIZE = 20;
+/**
+ * Default icon size for a detail row, matching ROW_ICON_SIZE in
+ * TaskDetailPanel.
+ *
+ * Sized to the text, not to the 20px box around it: at 16px a lucide glyph
+ * draws roughly the cap height of the 14px label beside it, so the two read as
+ * the same size. At 20px the icon carried half again the text's height.
+ */
+const DEFAULT_ICON_SIZE = 16;
 
 /* ─── Date + Time Label ─── */
 
@@ -104,8 +111,8 @@ interface TaskCourseRowProps {
 export function TaskCourseRow({ courseName, iconSize = DEFAULT_ICON_SIZE }: TaskCourseRowProps) {
   if (!courseName) return null;
   return (
-    <div className="flex items-center gap-4 py-3 min-w-0">
-      <div className="shrink-0 w-5 flex items-center justify-center">
+    <div className="flex items-start gap-4 py-3 min-w-0">
+      <div className="shrink-0 w-5 h-5 flex items-center justify-center">
         <BookOpen size={iconSize} className="text-secondary-foreground" />
       </div>
       <span className="text-sm text-foreground truncate">{courseName}</span>
@@ -137,7 +144,7 @@ export function TaskTagsRow({ tags, sourceBadges, iconSize = DEFAULT_ICON_SIZE }
 
   return (
     <div className="flex items-start gap-4 py-3">
-      <div className="shrink-0 w-5 flex items-center justify-center mt-0.5">
+      <div className="shrink-0 w-5 h-5 flex items-center justify-center">
         <Tag size={iconSize} className="text-secondary-foreground" />
       </div>
       <div className="flex flex-wrap gap-1.5 min-w-0">
@@ -187,7 +194,7 @@ export function TaskDescriptionRow({ description, lineClamp, iconSize = DEFAULT_
 
   return (
     <div className="flex items-start gap-4 py-3">
-      <div className="shrink-0 w-5 flex items-center justify-center mt-0.5">
+      <div className="shrink-0 w-5 h-5 flex items-center justify-center">
         <AlignLeft size={iconSize} className="text-secondary-foreground" />
       </div>
       <p className={`text-sm text-foreground ${clampClass} break-words min-w-0`}>
