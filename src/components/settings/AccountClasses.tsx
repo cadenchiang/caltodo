@@ -111,33 +111,34 @@ export default function AccountClasses({
 
   if (!editing) {
     return (
-      <div className="pl-2 pr-1 pb-1">
-        {selected.length > 0 ? (
-          <div className="flex flex-wrap gap-1.5 mb-1.5">
-            {selected.map((course) => (
-              <span
-                key={String(course.id)}
-                className="inline-flex items-center px-2 py-0.5 rounded-lg text-[11px] font-medium bg-muted text-muted-foreground max-w-[220px] truncate"
-              >
-                {course.name}
-              </span>
-            ))}
-          </div>
-        ) : (
-          <p className="text-[11px] text-subtle-foreground mb-1.5">No classes selected</p>
+      <div className="pl-2 pr-2 pb-2 -mt-0.5">
+        {/* Count and action on one line, the names beneath it. The names were
+            chips above their own "Edit classes" link, which gave every account
+            three stacked rows. */}
+        <div className="flex items-baseline gap-2">
+          <span className="text-[11px] text-subtle-foreground">
+            {selected.length > 0
+              ? `${selected.length} ${selected.length === 1 ? "class" : "classes"}`
+              : "No classes selected"}
+          </span>
+          <button
+            onClick={startEditing}
+            className="text-[11px] font-medium text-[#0e89d6] hover:underline cursor-pointer"
+          >
+            {selected.length > 0 ? "Edit" : "Choose"}
+          </button>
+        </div>
+        {selected.length > 0 && (
+          <p className="mt-0.5 text-[11px] text-muted-foreground truncate">
+            {selected.map((c) => c.name).join(", ")}
+          </p>
         )}
-        <button
-          onClick={startEditing}
-          className="text-[11px] font-medium text-[#0e89d6] hover:underline cursor-pointer"
-        >
-          {selected.length > 0 ? "Edit classes" : "Choose classes"}
-        </button>
       </div>
     );
   }
 
   return (
-    <div className="pl-2 pr-1 pb-1">
+    <div className="pl-2 pr-2 pb-2 -mt-0.5">
       {loading ? (
         <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground py-2">
           <Loader2 size={12} className="animate-spin" />

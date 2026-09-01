@@ -91,6 +91,16 @@ export default function ConnectedIntegrationCard({
   const needsAttention = meta.authFailed(credentials);
   const syncedCount = tasks.filter((t) => t.source === meta.taskSource).length;
 
+  // How many classes this integration syncs, across all of its accounts. Shown
+  // in the collapsed header because it is the thing worth knowing without
+  // expanding: an integration that is connected but syncing nothing looks
+  // identical to a healthy one otherwise.
+  const classCount = accounts.reduce((n, a) => n + (a.selectedCourses?.length ?? 0), 0);
+  const hasClasses = accounts.some((a) => a.selectedCourses !== null);
+  const classSummary = hasClasses
+    ? `${classCount} ${classCount === 1 ? "class" : "classes"}`
+    : "";
+
   /**
    * Disconnects the primary account: clears its credentials, then removes the
    * tasks it synced. Extra accounts are removed through onRemoveAccount.
@@ -150,7 +160,9 @@ export default function ConnectedIntegrationCard({
               </span>
             )}
           </div>
-          <p className="text-xs text-muted-foreground truncate">{meta.subtitle(credentials)}</p>
+          <p className="text-xs text-muted-foreground truncate">
+            {[meta.subtitle(credentials), classSummary].filter(Boolean).join(" · ")}
+          </p>
         </div>
 
         {/* A badge, not a button: disconnecting is inside the panel. */}
@@ -180,7 +192,7 @@ export default function ConnectedIntegrationCard({
           <div className="px-3 sm:px-4 pb-3 pt-3 border-t border-border space-y-1">
             {accounts.map((account) => (
               <div key={account.id} className="rounded-xl">
-                <div className="flex items-center gap-2 px-2 py-2">
+                <div className="group/row flex items-center gap-2 px-2 py-1.5">
                 <span className="flex-1 min-w-0 text-xs font-medium text-foreground truncate">
                   {account.label}
                 </span>
@@ -193,7 +205,7 @@ export default function ConnectedIntegrationCard({
                   <button
                     onClick={() => setConfirming(true)}
                     disabled={busy !== null}
-                    className="shrink-0 text-[11px] font-medium px-2 py-1 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors cursor-pointer disabled:opacity-50"
+                    className="shrink-0 text-[11px] font-medium px-2 py-1 rounded-lg text-muted-foreground opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all cursor-pointer disabled:opacity-50"
                   >
                     {busy === "primary" ? "..." : "Disconnect"}
                   </button>
@@ -202,7 +214,7 @@ export default function ConnectedIntegrationCard({
                     onClick={() => handleRemove(account.id)}
                     disabled={busy !== null}
                     aria-label={`Remove ${account.label}`}
-                    className="shrink-0 p-1 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors cursor-pointer disabled:opacity-50"
+                    className="shrink-0 p-1 rounded-lg text-muted-foreground opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all cursor-pointer disabled:opacity-50"
                   >
                     <X size={14} />
                   </button>
@@ -225,10 +237,11 @@ export default function ConnectedIntegrationCard({
             {addRoute && noun && (
               <button
                 onClick={() => router.push(`/app/onboarding?setup=${addRoute}`)}
-                className="w-full flex items-center gap-2 px-2 py-2 rounded-xl text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors cursor-pointer"
+                aria-label={`Add another ${noun}`}
+                className="w-full flex items-center gap-2 px-2 py-1.5 rounded-xl text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors cursor-pointer"
               >
                 <Plus size={14} />
-                Add another {noun}
+                Add another {shortNoun(noun)}
               </button>
             )}
           </div>
@@ -245,6 +258,21 @@ export default function ConnectedIntegrationCard({
       )}
     </div>
   );
+}
+
+/**
+ * Drops the provider's name from an account noun.
+ *
+ * @param noun - The full noun, e.g. "Canvas school".
+ * @returns Just the thing being added, e.g. "school".
+ * @remarks The card's title is directly above this row and already says which
+ *          provider it is, so "Add another Canvas school" under a card titled
+ *          Canvas says it twice. The full noun stays on the accessible name,
+ *          where there is no title nearby to supply it.
+ */
+function shortNoun(noun: string): string {
+  const [first, ...rest] = noun.split(" ");
+  return rest.length > 0 ? rest.join(" ") : first;
 }
 
 /**

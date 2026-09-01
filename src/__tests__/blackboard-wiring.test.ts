@@ -196,20 +196,32 @@ describe("generalized add-another control", () => {
 
   it("is no longer Canvas-specific", () => {
     expect(card).not.toContain("function AddAnotherCanvas");
-    expect(card).not.toContain("Add another Canvas school");
+    // The visible label drops the provider name; the card's own title, right
+    // above the row, already supplies it. Scoped to the component body so the
+    // explanation in shortNoun's own docs may still quote the old wording.
+    const body = card.slice(
+      card.indexOf("export default function ConnectedIntegrationCard"),
+      card.indexOf("Drops the provider's name")
+    );
+    expect(body).not.toContain("Canvas school");
   });
 
   it("takes the destination and the wording from the catalog", () => {
     expect(card).toContain("addRouteForCatalogId(provider)");
     expect(card).toContain("accountNounForCatalogId(provider)");
-    expect(card).toContain("Add another {noun}");
+    expect(card).toContain("Add another {shortNoun(noun)}");
     expect(card).toContain("setup=${addRoute}");
+  });
+
+  it("keeps the provider's name on the accessible label", () => {
+    // A screen reader has no nearby title to lean on.
+    expect(card).toContain("aria-label={`Add another ${noun}`}");
   });
 
   it("lives inside the accounts dropdown, not on the front of the card", () => {
     // Everything that changes an integration is behind the disclosure now.
     const panel = card.slice(card.indexOf("aria-hidden={!open}"));
-    expect(panel).toContain("Add another {noun}");
+    expect(panel).toContain("Add another {shortNoun(noun)}");
   });
 
   it("renders nothing when the provider cannot hold a second account", () => {

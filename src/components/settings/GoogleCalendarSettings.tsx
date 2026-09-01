@@ -10,7 +10,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { ExternalLink } from "lucide-react";
+import { ChevronDown, ExternalLink } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 import { useCredentials } from "@/components/settings/IntegrationSettings";
 import GoogleAuthWarningModal from "./GoogleAuthWarningModal";
@@ -163,6 +163,7 @@ export default function GoogleCalendarSettings() {
   const { credentials, refresh } = useCredentials();
 
   // Derive GCal state from the shared credentials context
+  const [open, setOpen] = useState(false);
   const connected = !!credentials.has_google_calendar;
   const googleEmail = credentials.google_email ?? null;
   const selectedCalendarId = credentials.google_calendar_id ?? null;
@@ -530,10 +531,27 @@ export default function GoogleCalendarSettings() {
 
   const isConnectedOrConnecting = connected || oauthConnecting;
 
+  // The header is a toggle once connected, matching the other integrations:
+  // the account and the disconnect live in the panel rather than on the front
+  // of the card. While disconnected there is nothing to reveal, so it stays a
+  // plain row with its Connect button.
+  const HeaderTag = isConnectedOrConnecting ? "button" : "div";
+
   return (
     <>
       <div className="rounded-2xl border border-border bg-card shadow-sm dark:shadow-none overflow-hidden">
-        <div className="flex items-center gap-2.5 sm:gap-3.5 px-3 sm:px-4 py-3.5">
+        <HeaderTag
+          {...(isConnectedOrConnecting
+            ? {
+                onClick: () => setOpen((v) => !v),
+                "aria-expanded": open,
+                type: "button" as const,
+              }
+            : {})}
+          className={`w-full flex items-center gap-2.5 sm:gap-3.5 px-3 sm:px-4 py-3.5 text-left ${
+            isConnectedOrConnecting ? "hover:bg-muted/40 transition-colors cursor-pointer" : ""
+          }`}
+        >
           {/* Logo */}
           <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
             <GoogleCalendarIcon size={18} />
@@ -552,19 +570,18 @@ export default function GoogleCalendarSettings() {
                 : "Two-way event sync"}
             </p>
           </div>
-          {/* Status */}
+          {/* Status. A badge, not a button: disconnecting revokes the grant
+              and is one expand away, like every other integration. */}
           {isConnectedOrConnecting ? (
-            <button
-              onClick={handleDisconnect}
-              disabled={disconnecting}
-              aria-label="Disconnect Google Calendar"
-              className="group min-w-[84px] text-xs font-medium px-3 py-1 rounded-lg shrink-0 border transition-colors cursor-pointer disabled:opacity-60
-                text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30
-                hover:text-red-500 hover:border-red-300 hover:bg-red-50 dark:hover:text-red-400 dark:hover:border-red-500/30 dark:hover:bg-red-500/10"
-            >
-              <span className="group-hover:hidden">{disconnecting ? "..." : "Connected"}</span>
-              <span className="hidden group-hover:inline">Disconnect</span>
-            </button>
+            <>
+              <span className="hidden sm:inline text-xs font-medium px-3 py-1 rounded-lg border border-emerald-200 dark:border-emerald-500/30 text-emerald-600 dark:text-emerald-400 shrink-0">
+                Connected
+              </span>
+              <ChevronDown
+                size={16}
+                className={`text-muted-foreground shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+              />
+            </>
           ) : (
             <button
               onClick={handleConnect}
@@ -573,7 +590,37 @@ export default function GoogleCalendarSettings() {
               Connect
             </button>
           )}
-        </div>
+        </HeaderTag>
+
+        {/* Accounts panel. Google Calendar is one OAuth identity, so this is
+            always a single account and there is nothing to add. */}
+        {isConnectedOrConnecting && (
+          <div
+            className={`grid transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+              open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+            }`}
+            aria-hidden={!open}
+            inert={!open}
+          >
+            <div className="overflow-hidden">
+              <div className="px-3 sm:px-4 pb-3 pt-3 border-t border-border">
+                <div className="group/row flex items-center gap-2 px-2 py-2 rounded-xl hover:bg-muted/40 transition-colors">
+                  <span className="flex-1 min-w-0 text-xs font-medium text-foreground truncate">
+                    {googleEmail ?? "Google account"}
+                  </span>
+                  <button
+                    onClick={handleDisconnect}
+                    disabled={disconnecting}
+                    aria-label="Disconnect Google Calendar"
+                    className="shrink-0 text-[11px] font-medium px-2 py-1 rounded-lg text-muted-foreground opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    {disconnecting ? "..." : "Disconnect"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Reconnect banner — shown when token has read-only scope */}
         {needsReconnect && isConnectedOrConnecting && (
