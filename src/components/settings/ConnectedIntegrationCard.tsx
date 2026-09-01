@@ -23,6 +23,8 @@ import { useTaskContext } from "@/contexts/TaskContext";
 import type { IntegrationCredentials } from "@/lib/types";
 import { DISCLOSURE_META, type DisclosureProvider } from "@/lib/integration-disclosure";
 import { addRouteForCatalogId, accountNounForCatalogId } from "@/lib/integration-catalog";
+import { hasCourseSelection, type SelectableCourse } from "@/lib/course-selection";
+import AccountClasses from "./AccountClasses";
 
 /** One account listed in the dropdown, whichever store it came from. */
 export interface DisclosureAccount {
@@ -34,6 +36,12 @@ export interface DisclosureAccount {
   isPrimary: boolean;
   /** Whether this account's last sync failed authentication. */
   authFailed: boolean;
+  /**
+   * Classes selected for this account, or null when the provider offers no
+   * choice. Brightspace and Blackboard sync a whole feed, so they have no
+   * course endpoint and no column to save a selection into.
+   */
+  selectedCourses: SelectableCourse[] | null;
 }
 
 interface ConnectedIntegrationCardProps {
@@ -46,6 +54,8 @@ interface ConnectedIntegrationCardProps {
   accounts: DisclosureAccount[];
   /** Removes one non-primary account. */
   onRemoveAccount?: (id: string) => Promise<void>;
+  /** Persists a class selection for one account. */
+  onSaveCourses?: (accountId: string, courses: SelectableCourse[]) => Promise<void>;
 }
 
 /**
@@ -66,6 +76,7 @@ export default function ConnectedIntegrationCard({
   onUpdate,
   accounts,
   onRemoveAccount,
+  onSaveCourses,
 }: ConnectedIntegrationCardProps) {
   const router = useRouter();
   const { showToast } = useToast();
@@ -168,10 +179,8 @@ export default function ConnectedIntegrationCard({
         <div className="overflow-hidden">
           <div className="px-3 sm:px-4 pb-3 pt-3 border-t border-border space-y-1">
             {accounts.map((account) => (
-              <div
-                key={account.id}
-                className="flex items-center gap-2 px-2 py-2 rounded-xl hover:bg-muted/40 transition-colors"
-              >
+              <div key={account.id} className="rounded-xl">
+                <div className="flex items-center gap-2 px-2 py-2">
                 <span className="flex-1 min-w-0 text-xs font-medium text-foreground truncate">
                   {account.label}
                 </span>
@@ -197,6 +206,18 @@ export default function ConnectedIntegrationCard({
                   >
                     <X size={14} />
                   </button>
+                )}
+                </div>
+
+                {/* This account's classes, which only exist per account
+                    because the course endpoints are scoped by account_id. */}
+                {account.selectedCourses !== null && onSaveCourses && hasCourseSelection(provider) && (
+                  <AccountClasses
+                    provider={provider}
+                    accountId={account.id}
+                    selected={account.selectedCourses}
+                    onSave={(courses) => onSaveCourses(account.id, courses)}
+                  />
                 )}
               </div>
             ))}

@@ -1,9 +1,8 @@
-import { Plug, GraduationCap, Palette, Wrench, LayoutList, type LucideIcon } from "lucide-react";
+import { Plug, Palette, Wrench, LayoutList, type LucideIcon } from "lucide-react";
 
 /** Valid settings section identifiers. */
 export type SettingsSectionId =
   | "integrations"
-  | "classes"
   | "appearance"
   | "navigation"
   | "advanced";
@@ -23,10 +22,15 @@ export interface SettingsSection {
 /**
  * All settings sections with their display metadata.
  * Used by the Sidebar nav and the Settings page orchestrator.
+ *
+ * Classes used to be a section of its own, listing every platform's classes in
+ * one flat list. Choosing classes now happens inside the account that syncs
+ * them, under Integrations, which is the only place that can say which account
+ * a class came from. The class list itself still exists: the calendar's
+ * classes popover renders it.
  */
 export const SETTINGS_SECTIONS: SettingsSection[] = [
   { id: "integrations", label: "Integrations", icon: Plug, group: "General" },
-  { id: "classes", label: "Classes", icon: GraduationCap, group: "General" },
   { id: "appearance", label: "Appearance", icon: Palette, group: "System" },
   { id: "navigation", label: "Navigation", icon: LayoutList, group: "System" },
   { id: "advanced", label: "Advanced", icon: Wrench, group: "System" },
