@@ -7,7 +7,6 @@ import { IntegrationProvider } from "@/components/settings/IntegrationSettings";
 import { getSettingsReturnPath } from "@/lib/settings-return";
 import PageTransition from "@/components/ui/PageTransition";
 import IntegrationsSection from "@/components/settings/sections/IntegrationsSection";
-import ClassesSectionWrapper from "@/components/settings/sections/ClassesSectionWrapper";
 import AppearanceSection from "@/components/settings/sections/AppearanceSection";
 import NavigationSection from "@/components/settings/sections/NavigationSection";
 
@@ -29,8 +28,6 @@ function renderSection(sectionId: SettingsSectionId) {
   switch (sectionId) {
     case "integrations":
       return <IntegrationsSection />;
-    case "classes":
-      return <ClassesSectionWrapper />;
     case "appearance":
       return <AppearanceSection />;
     case "navigation":

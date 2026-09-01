@@ -20,6 +20,11 @@ import {
   PROVIDER_META,
 } from "@/lib/integration-providers";
 import type { DisclosureProvider } from "@/lib/integration-disclosure";
+import {
+  COURSE_SELECTION,
+  hasCourseSelection,
+  type SelectableCourse,
+} from "@/lib/course-selection";
 import ConnectedIntegrationCard, {
   type DisclosureAccount,
 } from "./ConnectedIntegrationCard";
@@ -31,6 +36,7 @@ interface AccountRow {
   label: string;
   connection: Record<string, unknown>;
   auth_failed: boolean;
+  selected_courses?: SelectableCourse[] | null;
 }
 
 interface ConnectedIntegrationProps {
@@ -153,12 +159,84 @@ export default function ConnectedIntegration({
     [credentials.additional_canvas_accounts, onUpdate, showToast, deleteTasksByExternalIdPrefix]
   );
 
+  /** The primary account's selection, read from its flat credential column. */
+  const primaryCourses: SelectableCourse[] | null = hasCourseSelection(provider)
+    ? ((credentials[COURSE_SELECTION[provider].primaryColumn as keyof IntegrationCredentials] as
+        | SelectableCourse[]
+        | null) ?? [])
+    : null;
+
+  /**
+   * Saves one account's class selection.
+   *
+   * The primary account's selection is a credentials column; an extra
+   * account's is a field on its own row, so the two are written differently
+   * even though the picker above them is the same.
+   */
+  const saveCourses = useCallback(
+    async (accountId: string, courses: SelectableCourse[]) => {
+      if (!hasCourseSelection(provider)) return;
+      const column = COURSE_SELECTION[provider].primaryColumn;
+
+      if (accountId === "primary") {
+        const res = await fetch("/api/credentials", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ [column]: courses }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || "Failed to save classes");
+        }
+        onUpdate(await res.json());
+        showToast("Classes updated.");
+        return;
+      }
+
+      if (provider === "canvas") {
+        const next = (credentials.additional_canvas_accounts ?? []).map((a) =>
+          a.id === accountId
+            ? { ...a, selected_courses: courses as Array<{ id: number; name: string }> }
+            : a
+        );
+        const res = await fetch("/api/credentials", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ additional_canvas_accounts: next }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || "Failed to save classes");
+        }
+        onUpdate(await res.json());
+        showToast("Classes updated.");
+        return;
+      }
+
+      const res = await fetch("/api/integration-accounts", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: accountId, selected_courses: courses }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to save classes");
+      }
+      setFeedAccounts((prev) =>
+        prev.map((a) => (a.id === accountId ? { ...a, selected_courses: courses } : a))
+      );
+      showToast("Classes updated.");
+    },
+    [provider, credentials.additional_canvas_accounts, onUpdate, showToast]
+  );
+
   const accounts: DisclosureAccount[] = [
     {
       id: "primary",
       label: primaryLabel(provider, credentials),
       isPrimary: true,
       authFailed: false,
+      selectedCourses: primaryCourses,
     },
     ...(provider === "canvas"
       ? (credentials.additional_canvas_accounts ?? []).map((a) => ({
@@ -172,6 +250,7 @@ export default function ConnectedIntegration({
           })(),
           isPrimary: false,
           authFailed: !!a.auth_failed,
+          selectedCourses: (a.selected_courses ?? []) as SelectableCourse[],
         }))
       : []),
     ...(isFeedProvider(provider)
@@ -180,6 +259,7 @@ export default function ConnectedIntegration({
           label: accountDisplayName(provider, a.label, a.connection),
           isPrimary: false,
           authFailed: a.auth_failed,
+          selectedCourses: hasCourseSelection(provider) ? a.selected_courses ?? [] : null,
         }))
       : []),
   ];
@@ -192,6 +272,7 @@ export default function ConnectedIntegration({
       onUpdate={onUpdate}
       accounts={accounts}
       onRemoveAccount={provider === "canvas" ? removeCanvasAccount : removeFeedAccount}
+      onSaveCourses={hasCourseSelection(provider) ? saveCourses : undefined}
     />
   );
 }
