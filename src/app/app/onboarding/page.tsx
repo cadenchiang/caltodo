@@ -1509,7 +1509,7 @@ export default function OnboardingPage() {
 
             {currentStep === "syllabus" && (
               <SyllabusStep
-                onNext={async () => { setCurrentStep(nextStepAfter("syllabus")); return true; }}
+                onNext={async () => { trackEvent("onboarding_step_completed", { step: "syllabus" }); setCurrentStep(nextStepAfter("syllabus")); return true; }}
                 onSkip={() => { trackEvent("onboarding_step_skipped", { step: "syllabus" }); setCurrentStep(nextStepAfter("syllabus")); }}
                 error={error}
                 setError={setError}
