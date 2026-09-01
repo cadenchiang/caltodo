@@ -6,6 +6,7 @@
 
 import { SupabaseClient } from "@supabase/supabase-js";
 import { fetchAllCanvasAssignments, fetchCanvasAssignmentsForCourses, fetchCanvasCourses, type NormalizedAssignment } from "@/lib/canvas-client";
+import { isCurrentTermCourse } from "@/lib/academic-term";
 import { fetchCanvasICalAssignments } from "@/lib/canvas-ical-client";
 import { fetchAllGradescopeAssignments, fetchGradescopeAssignmentsForCourses } from "@/lib/gradescope-client";
 import { fetchPensieveAssignments, PENSIEVE_COLOR } from "@/lib/pensieve-client";
@@ -238,10 +239,14 @@ export async function runSync(
     try {
       const allCourses = await fetchCanvasCourses(credentials.canvas_token, credentials.canvas_base_url);
       const selectedIds = new Set(credentials.selected_canvas_courses.map((c) => c.id));
-      // Only flag current-term courses (Spring 2026 patterns)
-      const termPatterns = ["Spring 2026", "SP26", "Sp26", "S'26", "S26", "sp2026", "Sp2026"];
+      // Only offer courses for the current term (or the next one, whose sites
+      // go up early). This used to be a literal list of Spring 2026 spellings,
+      // which matched nothing once the term rolled over, so a Fall 2026
+      // student was never told about a new class. isCurrentTermCourse derives
+      // the term from the date and withholds a course only when its name names
+      // a different one, so a course with no term in its name still surfaces.
       const unselected = allCourses.filter(
-        (c) => !selectedIds.has(c.id) && c.name && termPatterns.some((p) => c.name.includes(p))
+        (c) => !selectedIds.has(c.id) && c.name && isCurrentTermCourse(c.name)
       );
       if (unselected.length > 0) {
         newCanvasCourses = unselected.map((c) => ({ id: c.id, name: c.name }));
