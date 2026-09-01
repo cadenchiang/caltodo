@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { useGoogleSignIn } from "@/hooks/useGoogleSignIn";
+import { authModeForParams, trackAuthError } from "@/lib/auth-analytics";
 
 /**
  * Detects if the current browser is an in-app/embedded webview on mobile.
@@ -25,7 +26,11 @@ function isMobileInAppBrowser(): boolean {
  */
 export default function LoginForm() {
   const searchParams = useSearchParams();
-  const { handleGoogleSignIn, error: oauthError } = useGoogleSignIn();
+  // Resolved once, then shared by the OAuth hook and the callback-error
+  // effect, so the funnel step and any failure agree on which side of the
+  // funnel the user was on.
+  const mode = authModeForParams(searchParams);
+  const { handleGoogleSignIn, error: oauthError } = useGoogleSignIn(mode);
   const [error, setError] = useState<string | null>(null);
   const [inAppBrowser, setInAppBrowser] = useState(() =>
     typeof navigator !== "undefined" ? isMobileInAppBrowser() : false
@@ -39,9 +44,12 @@ export default function LoginForm() {
   useEffect(() => {
     const errorParam = searchParams.get("error");
     if (errorParam) {
+      // Google bounced the user back to /login. The generic copy below is all
+      // the user sees, so the raw reason only survives on the event.
+      trackAuthError("callback", mode, errorParam);
       setError("Sign-in failed. Please try again.");
     }
-  }, [searchParams]);
+  }, [searchParams, mode]);
 
   /**
    * Copies the login URL to clipboard and shows a brief "copied" confirmation.
@@ -99,7 +107,7 @@ export default function LoginForm() {
     );
   }
 
-  const isSignup = searchParams.get("signup") === "true";
+  const isSignup = mode === "sign_up";
   const heading = isSignup ? "Sign up" : "Welcome back";
   const subheading = isSignup
     ? "Create your caltodo account to get started."

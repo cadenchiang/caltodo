@@ -3,22 +3,32 @@
 import { useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { trackEvent } from "@/lib/analytics";
+import { trackAuthSubmitted, trackAuthError, type AuthMode } from "@/lib/auth-analytics";
 
 /**
  * Reusable hook for Google OAuth sign-in via Supabase.
  * Desktop: opens Google consent in a centered popup, polls for completion.
  * Mobile: full-page redirect to Google, then back to /auth/callback.
  *
+ * Emits the funnel step for the handoff (`sign_up_submitted` or
+ * `sign_in_submitted`) and `auth_error` on failure, so an abandoned or broken
+ * consent screen is visible rather than showing up only as a missing
+ * `$identify`.
+ *
+ * @param mode - Which side of the funnel this button belongs to. Defaults to
+ *               "sign_in" so an existing caller that omits it still records a
+ *               step instead of silently dropping one.
  * @returns {{ handleGoogleSignIn: () => Promise<void>, error: string | null }}
  *   - handleGoogleSignIn: call from a click handler (must be synchronous user gesture for popup)
  *   - error: OAuth error message, or null
  */
-export function useGoogleSignIn() {
+export function useGoogleSignIn(mode: AuthMode = "sign_in") {
   const [error, setError] = useState<string | null>(null);
 
   const handleGoogleSignIn = useCallback(async () => {
     setError(null);
     trackEvent("google_oauth_clicked");
+    trackAuthSubmitted(mode, "google");
     const supabase = createClient();
 
     const isDesktop =
@@ -46,6 +56,7 @@ export function useGoogleSignIn() {
       });
 
       if (oauthError) {
+        trackAuthError("oauth_start", mode, oauthError.message);
         setError(oauthError.message);
         popup?.close();
         return;
@@ -138,10 +149,11 @@ export function useGoogleSignIn() {
       });
 
       if (oauthError) {
+        trackAuthError("oauth_start", mode, oauthError.message);
         setError(oauthError.message);
       }
     }
-  }, []);
+  }, [mode]);
 
   return { handleGoogleSignIn, error };
 }
