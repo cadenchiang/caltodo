@@ -8,6 +8,8 @@ import { useTaskContext } from "@/contexts/TaskContext";
 import CourseSelectModal from "@/components/ui/CourseSelectModal";
 import ClassChangeConfirmDialog from "@/components/settings/ClassChangeConfirmDialog";
 import type { IntegrationCredentials, CredentialsSavePayload } from "@/lib/types";
+import { buildClassGroups } from "@/lib/class-groups";
+import SelectedClassesByPlatform from "./SelectedClassesByPlatform";
 import { buildClassSyncSummary } from "@/lib/class-sync-summary";
 
 /** localStorage key for cached total course counts per platform. */
@@ -112,7 +114,6 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
   const hasCanvasIcal = !!credentials.canvas_ical_url;
   const hasGradescope = !!credentials.gradescope_email;
   const hasPensieve = !!credentials.pensieve_calendar_url;
-  const platformCount = (hasCanvas ? 1 : 0) + (hasGradescope ? 1 : 0) + (hasPensieve ? 1 : 0) + (hasSyllabus ? 1 : 0);
   const cachedTotals = getCachedTotals();
 
   // No integrations connected and nothing selected: show an actionable empty
@@ -456,14 +457,33 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
     }
   }
 
-  // Build summary text
+  // Build summary text.
+  //
+  // Syllabus courses are added to both halves. They come from tasks that have
+  // already been imported, so each one is simultaneously available and
+  // selected; counting them in totalSelected but not here was what let the
+  // summary read "4/3" once a syllabus had been uploaded.
   const totalAvailable = cachedTotals
-    ? cachedTotals.canvas + cachedTotals.gradescope + cachedTotals.pensieve
+    ? cachedTotals.canvas + cachedTotals.gradescope + cachedTotals.pensieve + syllabusCourses.length
     : null;
-  const summaryCount = totalAvailable ? `${totalSelected}/${totalAvailable}` : `${totalSelected}`;
-  const platformText = platformCount > 1
-    ? `from ${platformCount} platforms`
-    : platformCount === 1 ? "from 1 platform" : "";
+  // "of N" is dropped when the cached total is stale enough to sit below the
+  // number actually selected, which used to render as "4/3".
+  const summaryCount =
+    totalAvailable && totalAvailable >= totalSelected
+      ? `${totalSelected} of ${totalAvailable}`
+      : `${totalSelected}`;
+
+  // One block per platform that contributed a class, so the list says which
+  // platform each class syncs from rather than encoding it in a chip colour.
+  const classGroups = buildClassGroups(
+    {
+      canvas: canvasSelected.map((c) => c.name),
+      gradescope: gsSelected.map((c) => c.name),
+      pensieve: pensieveSelected.map((c) => c.name),
+      syllabus: syllabusCourses,
+    },
+    cachedTotals
+  );
 
   const syllabusModalCourses = syllabusCourses.map((name) => ({ id: `syllabus-${name}`, name }));
   const groups = [
@@ -477,8 +497,11 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
+        {/* The platform breakdown moved into the list itself, where each
+            platform names itself and gives its own count, so repeating
+            "from 2 platforms" here said nothing the list did not. */}
         <p className="text-xs text-subtle-foreground">
-          {summaryCount} class{totalSelected !== 1 ? "es" : ""} selected{platformText ? ` ${platformText}` : ""}
+          {summaryCount} class{totalSelected !== 1 ? "es" : ""} syncing
         </p>
         <button
           onClick={handleEdit}
@@ -491,40 +514,7 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
       </div>
 
       {totalSelected > 0 ? (
-        <div className="flex flex-col gap-2">
-          {canvasSelected.map((c, i) => (
-            <span
-              key={`canvas-${c.id}-${i}`}
-              className="inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-200"
-            >
-              {c.name}
-            </span>
-          ))}
-          {gsSelected.map((c) => (
-            <span
-              key={`gs-${c.id}`}
-              className="inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium bg-teal-50 dark:bg-teal-900/40 text-teal-700 dark:text-teal-200"
-            >
-              {c.name}
-            </span>
-          ))}
-          {pensieveSelected.map((c) => (
-            <span
-              key={`pensieve-${c.id}`}
-              className="inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium bg-purple-50 dark:bg-purple-900/40 text-purple-700 dark:text-purple-200"
-            >
-              {c.name}
-            </span>
-          ))}
-          {syllabusCourses.map((name) => (
-            <span
-              key={`syllabus-${name}`}
-              className="inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium bg-violet-50 dark:bg-violet-900/40 text-violet-700 dark:text-violet-200"
-            >
-              {name}
-            </span>
-          ))}
-        </div>
+        <SelectedClassesByPlatform groups={classGroups} />
       ) : (
         <p className="text-xs text-muted-foreground">
           No classes selected. Tap Edit to choose courses.
