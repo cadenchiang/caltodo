@@ -4,11 +4,9 @@ import {
   bucketByHour,
   toLocalDate,
   toLocalHour,
-} from "@/app/api/admin/signups/route";
-import {
   computeRetentionMetrics,
   computeUserFrequency,
-} from "@/app/api/admin/retention/route";
+} from "@/lib/admin-metrics";
 
 describe("toLocalDate", () => {
   it("should convert UTC timestamp to Pacific date", () => {

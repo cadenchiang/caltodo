@@ -13,97 +13,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { isAdmin } from "@/lib/admin";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
+import { computeRetentionMetrics, computeUserFrequency } from "@/lib/admin-metrics";
 
 export const dynamic = "force-dynamic";
-
-/**
- * Computes DAU, WAU, MAU from an array of login entries.
- *
- * @param logins - Array of { user_id, created_at } login events
- * @returns Object with dau, wau, mau counts and stickiness ratio
- */
-export function computeRetentionMetrics(
-  logins: Array<{ user_id: string; created_at: string }>
-): { dau: number; wau: number; mau: number; stickiness: number } {
-  const now = new Date();
-  const dayAgo = new Date(now);
-  dayAgo.setDate(dayAgo.getDate() - 1);
-  const weekAgo = new Date(now);
-  weekAgo.setDate(weekAgo.getDate() - 7);
-  const monthAgo = new Date(now);
-  monthAgo.setDate(monthAgo.getDate() - 30);
-
-  const dauSet = new Set<string>();
-  const wauSet = new Set<string>();
-  const mauSet = new Set<string>();
-
-  for (const login of logins) {
-    const ts = new Date(login.created_at);
-    if (ts >= dayAgo) dauSet.add(login.user_id);
-    if (ts >= weekAgo) wauSet.add(login.user_id);
-    if (ts >= monthAgo) mauSet.add(login.user_id);
-  }
-
-  const dau = dauSet.size;
-  const wau = wauSet.size;
-  const mau = mauSet.size;
-  const stickiness = mau > 0 ? Math.round((dau / mau) * 100) : 0;
-
-  return { dau, wau, mau, stickiness };
-}
-
-/**
- * Computes per-user login frequency from login entries.
- *
- * @param logins - Array of { user_id, created_at } login events
- * @param userMap - Map of user_id to email for display
- * @param limit - Max number of users to return (default 50)
- * @returns Array of { email, totalLogins, activeDays, lastLogin } sorted by totalLogins desc
- */
-export function computeUserFrequency(
-  logins: Array<{ user_id: string; created_at: string }>,
-  userMap: Map<string, string>,
-  limit = 50
-): Array<{
-  email: string;
-  totalLogins: number;
-  activeDays: number;
-  lastLogin: string;
-}> {
-  const userStats = new Map<
-    string,
-    { totalLogins: number; days: Set<string>; lastLogin: string }
-  >();
-
-  for (const login of logins) {
-    const existing = userStats.get(login.user_id);
-    const dayKey = login.created_at.slice(0, 10);
-
-    if (existing) {
-      existing.totalLogins++;
-      existing.days.add(dayKey);
-      if (login.created_at > existing.lastLogin) {
-        existing.lastLogin = login.created_at;
-      }
-    } else {
-      userStats.set(login.user_id, {
-        totalLogins: 1,
-        days: new Set([dayKey]),
-        lastLogin: login.created_at,
-      });
-    }
-  }
-
-  return Array.from(userStats.entries())
-    .map(([userId, stats]) => ({
-      email: userMap.get(userId) ?? userId.slice(0, 8) + "...",
-      totalLogins: stats.totalLogins,
-      activeDays: stats.days.size,
-      lastLogin: stats.lastLogin,
-    }))
-    .sort((a, b) => b.totalLogins - a.totalLogins)
-    .slice(0, limit);
-}
 
 export async function GET() {
   try {

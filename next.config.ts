@@ -40,9 +40,14 @@ const nextConfig: NextConfig = {
   // so dev can run under Turbopack safely; builds are run with --webpack.
   turbopack: {},
 
-  // Skip TS errors during build — pre-existing tiptap type issues
+  // Type errors fail the build. This was switched off for tiptap type issues
+  // that no longer exist, and for two admin route files that exported test
+  // helpers alongside their handlers, which a route module may not do; those
+  // helpers now live in src/lib/admin-metrics.ts. `tsc --noEmit` is clean, so
+  // the build can hold the line again and a type error stops a deploy instead
+  // of shipping.
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
 
   // Force webpack to use in-memory cache instead of the pack-file cache.
