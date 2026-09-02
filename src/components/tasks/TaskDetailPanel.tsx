@@ -51,6 +51,16 @@ interface TaskDetailPanelProps {
  */
 const ROW_ICON_SIZE = 16;
 
+/**
+ * Left shift that cancels a pill's own horizontal padding (`px-2.5`, 10px).
+ *
+ * A row of pills would otherwise start its text 10px right of every plain
+ * text row, because the pill's background begins where that text would.
+ * Applied to the pill row only: an empty row shows a plain placeholder, which
+ * needs no shift.
+ */
+const PILL_ALIGN_OFFSET = "-ml-2.5";
+
 function RowIcon({ children }: { children: React.ReactNode }) {
   return (
     <div className="shrink-0 w-5 h-5 flex items-center justify-center text-secondary-foreground">
@@ -82,6 +92,7 @@ export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: Tas
     : null;
   const sourceBadges = getSourceBadges(task);
   const tags = task.tags ?? [];
+  const hasPills = sourceBadges.length > 0 || tags.length > 0;
 
   /** Applies one field change to the task. */
   function save(updates: TaskUpdate) {
@@ -213,11 +224,14 @@ export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: Tas
           </div>
         </div>
 
-        {/* Tags */}
+        {/* Tags — the pill row is pulled left by the pills' own horizontal
+            padding so the first pill's text starts on the same column as the
+            plain text in every other row. */}
         <div className="flex items-start gap-4 py-2 min-w-0">
           <RowIcon><Tag size={ROW_ICON_SIZE} /></RowIcon>
           <div className="min-w-0 flex-1">
             <InlinePicker
+              className={hasPills ? PILL_ALIGN_OFFSET : ""}
               label="Change tags"
               render={(close) => (
                 <OptionList
@@ -232,7 +246,7 @@ export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: Tas
                 />
               )}
             >
-              {sourceBadges.length > 0 || tags.length > 0 ? (
+              {hasPills ? (
                 <span className="flex flex-wrap gap-1.5 min-w-0">
                   {sourceBadges.map((b) => (
                     <span key={b.label} className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${b.className}`}>

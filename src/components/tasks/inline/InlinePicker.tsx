@@ -21,6 +21,8 @@ interface InlinePickerProps {
   label: string;
   /** Extra classes for the popover panel, mainly width. */
   panelClassName?: string;
+  /** Extra classes for the anchor, mainly alignment offsets. */
+  className?: string;
 }
 
 /**
@@ -30,6 +32,7 @@ interface InlinePickerProps {
  * @param render - Popover body, given a close callback
  * @param label - Accessible name
  * @param panelClassName - Extra classes for the popover panel
+ * @param className - Extra classes for the anchor
  * @remarks The anchor is `relative` and `inline-block` so the popover lines up
  *          with the field rather than the panel edge, and so the hover tint
  *          hugs the content instead of spanning the full column.
@@ -39,12 +42,13 @@ export default function InlinePicker({
   render,
   label,
   panelClassName = "",
+  className = "",
 }: InlinePickerProps) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLDivElement>(null);
 
   return (
-    <div className="relative inline-block max-w-full" ref={triggerRef}>
+    <div className={`relative inline-block max-w-full ${className}`} ref={triggerRef}>
       <InlineField label={label} cursor="pointer" onActivate={() => setOpen((v) => !v)}>
         {children}
       </InlineField>

@@ -147,7 +147,9 @@ export function TaskTagsRow({ tags, sourceBadges, iconSize = DEFAULT_ICON_SIZE }
       <div className="shrink-0 w-5 h-5 flex items-center justify-center">
         <Tag size={iconSize} className="text-secondary-foreground" />
       </div>
-      <div className="flex flex-wrap gap-1.5 min-w-0">
+      {/* Pulled left by the pills' own `px-2.5` so the first pill's text
+          starts on the same column as the plain text rows around it. */}
+      <div className="flex flex-wrap gap-1.5 min-w-0 -ml-2.5">
         {sourceBadges?.map((b) => (
           <span
             key={b.label}
