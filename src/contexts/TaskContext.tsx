@@ -16,6 +16,7 @@ import { readSyncStream } from "@/lib/gcal/read-sync-stream";
 import { playTaskComplete, playTaskCreated } from "@/lib/sounds";
 import { getCredentials } from "@/lib/credentials-client";
 import { readHiddenTags, hideTag } from "@/lib/hidden-tags";
+import { findNewAssignments } from "@/lib/new-assignments";
 
 /** localStorage key and version for stale-while-revalidate task caching. */
 const CACHE_KEY = "caltodo_tasks_cache";
@@ -459,13 +460,17 @@ export function TaskProvider({ children }: { children: ReactNode }) {
             }
           }
 
+          // Snapshot the baseline BEFORE the refetch: fetchTasks() overwrites
+          // taskBaselineRef with what it just fetched, so reading it after
+          // compares the fresh list against itself and finds nothing. That is
+          // what silently killed this toast.
+          const beforeSync = taskBaselineRef.current;
           const freshTasks = await fetchTasks();
           if (!mounted || abortController.signal.aborted) return;
 
           // Show a toast popup when new assignments are discovered
           if (shouldNotify) {
-            const beforeIds = new Set(taskBaselineRef.current.map((t) => t.id));
-            const newAssignments = freshTasks.filter((t) => !beforeIds.has(t.id) && t.source);
+            const newAssignments = findNewAssignments(beforeSync, freshTasks);
             if (newAssignments.length > 0) {
               const ids = newAssignments.map((t) => t.id);
               const msg = newAssignments.length === 1
@@ -498,10 +503,16 @@ export function TaskProvider({ children }: { children: ReactNode }) {
             if (unprompted.length > 0) {
               // Mark as dismissed so we never show again
               const updatedDismissed = [...dismissedIds, ...unprompted.map((c) => c.id)];
+              // Best-effort: if this write is lost the prompt simply returns on
+              // a later sync, which is the safe direction to fail in. It is
+              // caught rather than left floating so a failure is logged
+              // instead of surfacing as an unhandled rejection.
               fetch("/api/credentials", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ dismissed_canvas_course_ids: updatedDismissed }),
+              }).catch((err) => {
+                console.warn("Marking new Canvas courses as prompted failed:", err);
               });
 
               const names = unprompted.map((c) => c.name.replace(/\s*\(Spring 2026\)\s*/g, "").trim());
@@ -525,6 +536,9 @@ export function TaskProvider({ children }: { children: ReactNode }) {
                         body: JSON.stringify({ selected_canvas_courses: updated }),
                       });
                       showToast(`Added ${unprompted.length} class${unprompted.length > 1 ? "es" : ""}. Syncing...`);
+                      // The toast has already promised a sync, so a rejection
+                      // here is worth a log rather than an unhandled rejection;
+                      // the next auto-sync picks the classes up regardless.
                       fetch("/api/assignments/sync", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
@@ -532,6 +546,8 @@ export function TaskProvider({ children }: { children: ReactNode }) {
                           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
                           platforms: ["canvas"],
                         }),
+                      }).catch((err) => {
+                        console.warn("Canvas sync after adding classes failed:", err);
                       });
                     } catch {
                       showToast("Failed to add classes. Try again in Settings.");
