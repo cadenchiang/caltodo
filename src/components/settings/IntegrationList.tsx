@@ -94,10 +94,10 @@ function ConnectedEntry({ entry, ctx }: { entry: CatalogEntry; ctx: CardContext 
   return <IntegrationCard id={entry.id} ctx={ctx} />;
 }
 
-/** Small uppercase heading separating the two groups. */
+/** Small heading separating the two groups. */
 function GroupHeading({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-[11px] font-semibold tracking-wider uppercase text-subtle-foreground mb-2 px-1">
+    <p className="text-[11px] font-semibold text-foreground mb-2 px-1">
       {children}
     </p>
   );
