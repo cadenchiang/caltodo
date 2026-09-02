@@ -2,9 +2,13 @@
 
 import { useState, useRef, useCallback, useEffect, type KeyboardEvent, type ChangeEvent } from "react";
 import { EyeOff, Plus, Smile, X } from "lucide-react";
-import data from "@emoji-mart/data";
-import Picker from "@emoji-mart/react";
+import dynamic from "next/dynamic";
 import { classifyImage } from "@/lib/nsfw-check";
+
+// The picker statically pulls in the ~432KB @emoji-mart/data dataset, so it
+// is loaded on demand (client-only) rather than in the discussions route's
+// first-load bundle. It only mounts once the user opens it.
+const ChatEmojiPicker = dynamic(() => import("./ChatEmojiPicker"), { ssr: false });
 
 /**
  * A single pending attachment with preview info.
@@ -168,9 +172,7 @@ export default function ChatInput({ onSend, disabled, error, onTyping }: ChatInp
    * Inserts selected emoji at cursor position in textarea.
    */
   const handleEmojiSelect = useCallback(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (emoji: any) => {
-      const native = emoji.native as string;
+    (native: string) => {
       const el = textareaRef.current;
       if (el) {
         const start = el.selectionStart;
@@ -218,15 +220,7 @@ export default function ChatInput({ onSend, disabled, error, onTyping }: ChatInp
       {/* Emoji picker popover */}
       {showEmojiPicker && (
         <div ref={emojiRef} className="absolute bottom-16 right-4 z-30 shadow-xl rounded-xl overflow-hidden">
-          <Picker
-            data={data}
-            onEmojiSelect={handleEmojiSelect}
-            theme="auto"
-            previewPosition="none"
-            skinTonePosition="none"
-            maxFrequentRows={2}
-            perLine={8}
-          />
+          <ChatEmojiPicker onSelect={handleEmojiSelect} />
         </div>
       )}
 
