@@ -81,8 +81,17 @@ describe("the step fits without scrolling", () => {
 });
 
 describe("skipping the step", () => {
-  it("offers a skip beneath Continue", () => {
-    expect(page).toMatch(/Continue\n\s*<\/button>[\s\S]{0,400}Skip for now/);
+  it("offers a skip beneath Continue, centred under it", () => {
+    // Scoped to this step: several steps end in a Continue button, and the
+    // one that matters is the one this picker owns. Continue spans the card,
+    // so a bare inline button under it sat against the left edge and read as
+    // a stray link rather than the pair's second option.
+    const step = page.slice(page.indexOf('currentStep === "platforms" && ('));
+    const continueEnd = step.indexOf("Continue\n");
+    const skip = step.indexOf("Skip for now");
+    expect(continueEnd).toBeGreaterThan(-1);
+    expect(skip).toBeGreaterThan(continueEnd);
+    expect(step.slice(continueEnd, skip)).toContain("mt-3 flex justify-center");
   });
 
   it("reports a completion as well as a skip", () => {

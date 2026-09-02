@@ -12,6 +12,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { ChevronDown, Check, RefreshCw } from "lucide-react";
+import { CLASSROOM_AVAILABLE } from "@/lib/classroom-availability";
 import { useToast } from "@/contexts/ToastContext";
 import { useCredentials } from "@/components/settings/IntegrationSettings";
 
@@ -106,7 +107,9 @@ export default function GoogleClassroomSettings() {
   }
 
   const subtitle = !enabled
-    ? "Coursework and due dates"
+    ? CLASSROOM_AVAILABLE
+      ? "Coursework and due dates"
+      : "Coursework and due dates · waiting on Google's review"
     : selected === null
       ? "All classes"
       : `${selected.length} class${selected.length === 1 ? "" : "es"}`;
@@ -142,13 +145,20 @@ export default function GoogleClassroomSettings() {
               }`}
             />
           </>
-        ) : (
+        ) : CLASSROOM_AVAILABLE ? (
           <button
             onClick={() => router.push("/app/onboarding?setup=classroom")}
             className="text-xs font-semibold text-blue-500 hover:text-blue-600 dark:hover:text-blue-400 px-3 py-1 rounded-lg border border-blue-200 dark:border-blue-500/30 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors shrink-0 cursor-pointer"
           >
             Connect
           </button>
+        ) : (
+          // Google has not verified the app for the Classroom scopes, so its
+          // consent screen rejects the request. A "Connect" that cannot
+          // connect is worse than saying so. See lib/classroom-availability.
+          <span className="text-xs font-medium px-3 py-1 rounded-lg border border-border text-muted-foreground shrink-0">
+            Coming soon
+          </span>
         )}
       </div>
 

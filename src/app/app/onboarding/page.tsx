@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronLeft, Monitor, FileText, Check } from "lucide-react";
 import { useTaskContext } from "@/contexts/TaskContext";
 import { trackEvent } from "@/lib/analytics";
+import { CLASSROOM_AVAILABLE } from "@/lib/classroom-availability";
 import {
   loadProgress,
   saveProgress,
@@ -404,8 +405,8 @@ function SourceLogo({ label }: { label: string }) {
   }
   if (label === "Syllabus") {
     return (
-      <div className="w-full h-full rounded-md bg-purple-500/10 flex items-center justify-center">
-        <FileText size={14} className="text-purple-500" />
+      <div className="w-full h-full rounded-md bg-muted flex items-center justify-center">
+        <FileText size={14} className="text-secondary-foreground" />
       </div>
     );
   }
@@ -1066,6 +1067,9 @@ export default function OnboardingPage() {
 
   /** Toggles a platform in the selected set. */
   function togglePlatform(platform: Platform) {
+    // Guard as well as disabling the tile: a platform nobody can connect must
+    // not end up in the selection through a keyboard or a stale click.
+    if (platform === "classroom" && !CLASSROOM_AVAILABLE) return;
     setSelectedPlatforms((prev) => {
       const next = new Set(prev);
       if (next.has(platform)) {
@@ -1386,6 +1390,11 @@ export default function OnboardingPage() {
                 <div className="grid grid-cols-2 gap-2 mb-6">
                   {PLATFORM_OPTIONS.map((opt, i) => {
                     const selected = selectedPlatforms.has(opt.id);
+                    // Google has not verified the app for the Classroom
+                    // scopes yet, so its OAuth screen rejects the request.
+                    // Offering it would spend a student's first minute here
+                    // on a dead end. See lib/classroom-availability.
+                    const comingSoon = opt.id === "classroom" && !CLASSROOM_AVAILABLE;
                     const hasProgress = (() => {
                       if (opt.id === "canvas") {
                         const c = canvasDraftRef.current;
@@ -1405,16 +1414,23 @@ export default function OnboardingPage() {
                         key={opt.id}
                         type="button"
                         onClick={() => togglePlatform(opt.id)}
+                        disabled={comingSoon}
+                        aria-disabled={comingSoon}
                         className={` flex items-center gap-2 w-full text-left px-2.5 py-2.5 rounded-xl bg-white dark:bg-[#2a2a2c] text-foreground border-2 transition-colors duration-150 focus:outline-none ${
-                          selected
-                            ? "border-[#0e89d6]"
-                            : "border-transparent hover:border-[#0e89d6]/30"
+                          comingSoon
+                            ? "border-transparent opacity-55 cursor-default"
+                            : selected
+                              ? "border-[#0e89d6]"
+                              : "border-transparent hover:border-[#0e89d6]/30"
                         }`}
                         style={{ animationDelay: `${(i + 2) * 50}ms` }}
                       >
                         {opt.id === "syllabus" ? (
-                          <div className="w-7 h-7 rounded-lg bg-purple-100 dark:bg-purple-500/15 flex items-center justify-center shrink-0">
-                            <FileText size={14} className="text-purple-500" />
+                          // Neutral, as in Settings: purple made Syllabus read
+                          // as a brand beside Canvas and Gradescope, and it is
+                          // a file the student uploaded, not a platform.
+                          <div className="w-7 h-7 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                            <FileText size={14} className="text-secondary-foreground" />
                           </div>
                         ) : (
                           <img
@@ -1431,6 +1447,11 @@ export default function OnboardingPage() {
                             </span>
                           )}
                         </div>
+                        {comingSoon ? (
+                          <span className="text-[10px] font-semibold text-muted-foreground bg-muted px-1.5 py-0.5 rounded shrink-0 whitespace-nowrap">
+                            Coming soon
+                          </span>
+                        ) : (
                         <div className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 transition-colors ${
                           selected ? "bg-[#0e89d6]" : "border border-muted-foreground/30"
                         }`}>
@@ -1440,6 +1461,7 @@ export default function OnboardingPage() {
                             </svg>
                           )}
                         </div>
+                        )}
                       </button>
                     );
                   })}
@@ -1465,15 +1487,20 @@ export default function OnboardingPage() {
                 >
                   Continue
                 </button>
-                <button
-                  onClick={() => {
-                    trackEvent("onboarding_step_skipped", { step: "platforms" });
-                    setCurrentStep("done");
-                  }}
-                  className="mt-3 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  Skip for now
-                </button>
+                {/* Centred under the full-width Continue above it: a bare
+                    inline button sat against the left edge of a button that
+                    spans the card, which read as a stray link. */}
+                <div className="mt-3 flex justify-center">
+                  <button
+                    onClick={() => {
+                      trackEvent("onboarding_step_skipped", { step: "platforms" });
+                      setCurrentStep("done");
+                    }}
+                    className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Skip for now
+                  </button>
+                </div>
               </div>
             )}
 
