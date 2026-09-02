@@ -9,25 +9,31 @@
  * The list is per account here because that is the only place the answer
  * exists: the course endpoints are scoped by `account_id`.
  *
- * Editing expands in place rather than opening a modal, so the account you are
- * editing stays on screen next to its siblings.
+ * Editing opens the shared course-select modal rather than expanding in place.
+ * The inline editor put a scrolling checkbox list inside a card that was
+ * already inside a dropdown, so the list it offered was a few rows tall and
+ * every tick moved the accounts under it.
  */
 
 import { useCallback, useState } from "react";
-import { Loader2 } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
+import CourseSelectModal from "@/components/ui/CourseSelectModal";
 import type { CourseSelectionProvider } from "@/lib/course-selection";
 import { COURSE_SELECTION, type SelectableCourse } from "@/lib/course-selection";
 
 /**
- * Shared pill styling for a class name.
+ * Shape of a pill in this card, without any colour.
  *
- * Exported so the "add another account" control can be built from the same
- * shape: the two sit in the same block, and a pill beside a bare text button
- * read as two unrelated kinds of thing.
+ * Exported so the account label and the "add another account" control can be
+ * built from the same shape without inheriting the class pill's muted
+ * colours: two utilities setting the same property leave the winner to CSS
+ * source order, not to the order they are written in.
  */
-export const CLASS_PILL =
-  "inline-flex items-center max-w-[240px] truncate px-2.5 py-1 rounded-full text-[11px] font-medium bg-muted text-muted-foreground";
+export const PILL_SHAPE =
+  "inline-flex items-center max-w-[240px] truncate px-2.5 py-1 rounded-full text-[11px] font-medium";
+
+/** Shared pill styling for a class name. */
+export const CLASS_PILL = `${PILL_SHAPE} bg-muted text-muted-foreground`;
 
 interface AccountClassesProps {
   provider: CourseSelectionProvider;
@@ -74,25 +80,46 @@ export default function AccountClasses({
     setDraft(new Set(selected.map((c) => String(c.id))));
   }
 
-  const load = useCallback(async () => {
+  /**
+   * Fetches this account's course list.
+   *
+   * @returns The courses, or null when the request failed (already toasted).
+   */
+  const load = useCallback(async (): Promise<SelectableCourse[] | null> => {
     setLoading(true);
     try {
       const res = await fetch(`${meta.coursesEndpoint}?account_id=${encodeURIComponent(accountId)}`);
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error || "Failed to load classes");
-      setAvailable((body.courses ?? []) as SelectableCourse[]);
+      const courses = (body.courses ?? []) as SelectableCourse[];
+      setAvailable(courses);
+      return courses;
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Failed to load classes");
-      setEditing(false);
+      return null;
     } finally {
       setLoading(false);
     }
   }, [meta.coursesEndpoint, accountId, showToast]);
 
-  /** Opens the picker, fetching the course list the first time only. */
-  function startEditing() {
+  /**
+   * Opens the picker, fetching the course list the first time only.
+   *
+   * The modal opens only once there is a list to put in it: opening first
+   * would show its empty state ("No active courses found") while the request
+   * was still in flight, which reads as an answer rather than as loading.
+   */
+  async function startEditing() {
+    const courses = available ?? (await load());
+    if (courses === null) return;
+    // The provider knows why its list is empty ("a course appears once it has
+    // an assignment"), and the modal's generic empty state does not, so an
+    // empty list is answered here rather than by opening onto nothing.
+    if (courses.length === 0) {
+      showToast(meta.emptyLabel);
+      return;
+    }
     setEditing(true);
-    if (available === null) load();
   }
 
   /** Adds or removes one course from the draft. */
@@ -105,99 +132,79 @@ export default function AccountClasses({
     });
   }
 
-  /** Persists the draft, keeping the picker open only if the save fails. */
+  /**
+   * Closes the picker and persists the draft.
+   *
+   * The modal applies each tick to the draft as it is made and saves on
+   * close, so there is no separate confirm step. A failed save drops the
+   * draft back to the stored selection, because that is what the pills below
+   * still show.
+   */
   async function commit() {
+    setEditing(false);
     if (!available) return;
     setSaving(true);
     try {
       await onSave(available.filter((c) => draft.has(String(c.id))));
-      setEditing(false);
     } catch (err) {
+      setDraft(new Set(selected.map((c) => String(c.id))));
       showToast(err instanceof Error ? err.message : "Failed to save classes");
     } finally {
       setSaving(false);
     }
   }
 
-  if (!editing) {
-    return (
-      <div>
-        {/* A labelled row with its action on the right, then the values
-            beneath it. Left-aligning the label, the count and the action in
-            one line gave the block no column edge to read down. */}
-        <div className="flex items-center justify-between gap-2 mb-1.5">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-subtle-foreground">
-            Classes{selected.length > 0 ? ` · ${selected.length}` : ""}
-          </p>
-          <button
-            onClick={startEditing}
-            className="text-[11px] font-medium text-[#0e89d6] hover:underline cursor-pointer shrink-0"
-          >
-            {selected.length > 0 ? "Edit" : "Choose"}
-          </button>
-        </div>
-        {selected.length > 0 ? (
-          <div className="flex flex-wrap gap-1">
-            {selected.map((course) => (
-              <span key={String(course.id)} className={CLASS_PILL}>
-                {course.name}
-              </span>
-            ))}
-          </div>
-        ) : (
-          <p className="text-[11px] text-subtle-foreground">No classes selected</p>
-        )}
-      </div>
-    );
+  /** Ticks every available course. */
+  function selectAll() {
+    setDraft(new Set((available ?? []).map((c) => String(c.id))));
+  }
+
+  /** Clears the draft. */
+  function deselectAll() {
+    setDraft(new Set());
   }
 
   return (
     <div>
-      {loading ? (
-        <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground py-2">
-          <Loader2 size={12} className="animate-spin" />
-          Loading classes...
+      {/* A labelled row with its action on the right, then the values
+          beneath it. Left-aligning the label, the count and the action in
+          one line gave the block no column edge to read down. */}
+      <div className="flex items-center justify-between gap-2 mb-1.5">
+        <p className="text-[11px] font-semibold text-foreground">
+          Classes{selected.length > 0 ? ` · ${selected.length}` : ""}
         </p>
+        <button
+          onClick={startEditing}
+          disabled={loading || saving}
+          className="text-[11px] font-medium text-[#0e89d6] hover:underline cursor-pointer shrink-0 disabled:opacity-50 disabled:cursor-default"
+        >
+          {loading ? "Loading..." : saving ? "Saving..." : selected.length > 0 ? "Edit" : "Choose"}
+        </button>
+      </div>
+
+      {selected.length > 0 ? (
+        <div className="flex flex-wrap gap-1">
+          {selected.map((course) => (
+            <span key={String(course.id)} className={CLASS_PILL}>
+              {course.name}
+            </span>
+          ))}
+        </div>
       ) : (
-        <>
-          <div className="max-h-52 overflow-y-auto rounded-lg border border-border divide-y divide-border mb-2">
-            {(available ?? []).map((course) => (
-              <label
-                key={String(course.id)}
-                className="flex items-center gap-2 px-2.5 py-1.5 cursor-pointer hover:bg-muted/40 transition-colors"
-              >
-                <input
-                  type="checkbox"
-                  checked={draft.has(String(course.id))}
-                  onChange={() => toggle(String(course.id))}
-                  className="w-3.5 h-3.5 rounded accent-foreground shrink-0"
-                />
-                <span className="text-[11px] text-foreground truncate">{course.name}</span>
-              </label>
-            ))}
-            {(available ?? []).length === 0 && (
-              <p className="px-2.5 py-3 text-[11px] text-muted-foreground text-center">
-                {meta.emptyLabel}
-              </p>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={commit}
-              disabled={saving}
-              className="text-[11px] font-semibold text-[#0e89d6] hover:underline cursor-pointer disabled:opacity-50"
-            >
-              {saving ? "Saving..." : "Done"}
-            </button>
-            <button
-              onClick={() => setEditing(false)}
-              disabled={saving}
-              className="text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer disabled:opacity-50"
-            >
-              Cancel
-            </button>
-          </div>
-        </>
+        <p className="text-[11px] text-subtle-foreground">No classes selected</p>
+      )}
+
+      {editing && available && (
+        <CourseSelectModal
+          open
+          onClose={commit}
+          title="Select classes"
+          courses={available.map((c) => ({ id: String(c.id), name: c.name }))}
+          selectedIds={draft}
+          onToggle={toggle}
+          onSelectAll={selectAll}
+          onDeselectAll={deselectAll}
+        />
       )}
     </div>
   );

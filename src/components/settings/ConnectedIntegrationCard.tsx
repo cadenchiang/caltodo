@@ -24,7 +24,7 @@ import type { IntegrationCredentials } from "@/lib/types";
 import { DISCLOSURE_META, type DisclosureProvider } from "@/lib/integration-disclosure";
 import { addRouteForCatalogId, accountNounForCatalogId } from "@/lib/integration-catalog";
 import { hasCourseSelection, type SelectableCourse } from "@/lib/course-selection";
-import AccountClasses, { CLASS_PILL } from "./AccountClasses";
+import AccountClasses, { PILL_SHAPE } from "./AccountClasses";
 
 /** One account listed in the dropdown, whichever store it came from. */
 export interface DisclosureAccount {
@@ -197,8 +197,12 @@ export default function ConnectedIntegrationCard({
             {accounts.map((account) => (
               <div key={account.id} className="rounded-xl border border-border bg-muted/30 overflow-hidden">
                 <div className="group/row flex items-center gap-2 px-3 py-2">
-                <span className="flex-1 min-w-0 text-xs font-semibold text-foreground truncate">
-                  {account.label}
+                {/* A pill, like the classes under it: the account label is a
+                    value on this card, not a heading over it. */}
+                <span className="flex-1 min-w-0 flex">
+                  <span className={`${PILL_SHAPE} font-semibold bg-card border border-border text-foreground`}>
+                    {account.label}
+                  </span>
                 </span>
                 {account.authFailed && (
                   <span className="text-[11px] font-medium text-red-500 shrink-0">
@@ -247,7 +251,7 @@ export default function ConnectedIntegrationCard({
                 <button
                   onClick={() => router.push(`/app/onboarding?setup=${addRoute}`)}
                   aria-label={`Add another ${noun}`}
-                  className={`${CLASS_PILL} gap-1 cursor-pointer hover:bg-accent hover:text-foreground transition-colors`}
+                  className={`${PILL_SHAPE} gap-1 cursor-pointer bg-[#0e89d6]/10 text-[#0e89d6] hover:bg-[#0e89d6]/20 transition-colors`}
                 >
                   <Plus size={12} className="shrink-0" />
                   Add another {shortNoun(noun)}

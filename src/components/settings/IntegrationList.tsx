@@ -106,6 +106,12 @@ function GroupHeading({ children }: { children: React.ReactNode }) {
 interface IntegrationListProps {
   credentials: IntegrationCredentials;
   onUpdate: (updated: IntegrationCredentials) => void;
+  /**
+   * Drops the "Available" group and the "Connected" heading over what is
+   * left. Used by the calendar's classes modal, which is about the classes
+   * the user already syncs, not about signing up for more platforms.
+   */
+  connectedOnly?: boolean;
 }
 
 /**
@@ -113,12 +119,13 @@ interface IntegrationListProps {
  *
  * @param credentials - The user's current integration credentials.
  * @param onUpdate - Callback the cards use to publish credential changes.
+ * @param connectedOnly - Renders the connected cards alone, without headings.
  * @returns Two labelled groups, or one when everything is in the same state.
  * @remarks The headings are dropped when a group is empty, so a brand new
  *          account sees a plain list rather than an "Connected" heading over
  *          nothing.
  */
-export default function IntegrationList({ credentials, onUpdate }: IntegrationListProps) {
+export default function IntegrationList({ credentials, onUpdate, connectedOnly = false }: IntegrationListProps) {
   const { syncing, lastSyncedAt, syncResult } = useTaskContext();
   const { connected, available } = splitByConnection(credentials);
 
@@ -140,7 +147,7 @@ export default function IntegrationList({ credentials, onUpdate }: IntegrationLi
     <div className="space-y-6">
       {connected.length > 0 && (
         <div>
-          <GroupHeading>Connected · {connected.length}</GroupHeading>
+          {!connectedOnly && <GroupHeading>Connected · {connected.length}</GroupHeading>}
           <div className="space-y-3">
             {connected.map((entry) => (
               <ConnectedEntry key={entry.id} entry={entry} ctx={ctx} />
@@ -149,7 +156,7 @@ export default function IntegrationList({ credentials, onUpdate }: IntegrationLi
         </div>
       )}
 
-      {available.length > 0 && (
+      {!connectedOnly && available.length > 0 && (
         <div>
           {connected.length > 0 && <GroupHeading>Available</GroupHeading>}
           <div className="space-y-3">

@@ -4,108 +4,29 @@
  * Calendar "N classes" pill + popup modal.
  *
  * When the user has synced classes, the calendar header shows a pill (e.g.
- * "6 classes"). Clicking it opens a modal — the same class view/edit UI as
- * Settings → Classes (IntegrationClasses) — plus a per-platform status row
- * showing what's synced and a "Sync later" prompt for what isn't.
+ * "6 classes"). Clicking it opens a modal holding the connected cards from
+ * Settings → Integrations: one dropdown per platform, with that platform's
+ * accounts and their classes inside.
+ *
+ * It is the settings list itself rather than a second rendering of the same
+ * data, so a class edited here and a class edited in settings cannot drift
+ * apart in either behaviour or appearance. Platforms the user has not
+ * connected are left out: this modal is about the classes they have.
  */
 
 import { useCallback, useMemo, useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { X, GraduationCap } from "lucide-react";
 import { useTaskContext } from "@/contexts/TaskContext";
-import {
+import IntegrationSettings, {
   IntegrationProvider,
-  IntegrationClasses,
-  useCredentials,
 } from "@/components/settings/IntegrationSettings";
-
-/** Per-platform sync status derived from the user's stored credentials. */
-function PlatformStatus() {
-  const { credentials } = useCredentials();
-
-  const platforms: Array<{
-    key: string;
-    label: string;
-    logo: React.ReactNode;
-    synced: boolean;
-  }> = [
-    {
-      key: "canvas",
-      label: "Canvas",
-      logo: <img src="/canvas-logo.png" alt="" className="w-6 h-6 object-contain" />,
-      synced: !!credentials.canvas_token || !!credentials.canvas_ical_url,
-    },
-    {
-      key: "gradescope",
-      label: "Gradescope",
-      logo: <img src="/gradescope-logo.png" alt="" className="w-5 h-5 object-contain" />,
-      synced: !!credentials.gradescope_email,
-    },
-    {
-      key: "pensieve",
-      label: "Pensive",
-      logo: <img src="/pensieve-logo.png" alt="" className="w-5 h-5 object-contain" />,
-      synced: !!credentials.pensieve_calendar_url,
-    },
-    {
-      key: "brightspace",
-      label: "Brightspace",
-      logo: (
-        <span className="w-6 h-6 rounded-md bg-white flex items-center justify-center overflow-hidden">
-          <img src="/brightspace-logo.svg" alt="" className="w-full h-full object-contain" />
-        </span>
-      ),
-      synced: !!credentials.brightspace_calendar_url,
-    },
-    {
-      key: "blackboard",
-      label: "Blackboard",
-      logo: <img src="/blackboard-logo.svg" alt="" className="w-5 h-5 object-contain" />,
-      synced: !!credentials.blackboard_calendar_url,
-    },
-  ];
-
-  return (
-    <div className="mt-5 border-t border-border pt-4">
-      <p className="text-xs font-medium text-foreground mb-2">Connected platforms</p>
-      {/* Same card language as Settings > Integrations: logo tile, name, and a
-          status pill, rather than a bare two-column list of names. */}
-      <div className="flex flex-col gap-2">
-        {platforms.map((p) => (
-          <div
-            key={p.key}
-            className="flex items-center gap-3 px-3 py-2 rounded-xl border border-border bg-card"
-          >
-            <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0 overflow-hidden">
-              {p.logo}
-            </div>
-            <span className="flex-1 min-w-0 text-sm font-medium text-foreground truncate">
-              {p.label}
-            </span>
-            {p.synced ? (
-              <span className="shrink-0 text-xs font-medium px-2.5 py-0.5 rounded-lg border border-emerald-200 dark:border-emerald-500/30 text-emerald-600 dark:text-emerald-400">
-                Synced
-              </span>
-            ) : (
-              <a
-                href="/app/settings?section=integrations"
-                className="shrink-0 text-xs font-semibold px-2.5 py-0.5 rounded-lg border border-blue-200 dark:border-blue-500/30 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors"
-              >
-                Connect
-              </a>
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 /** Duration of the exit animation in ms — must match .animate-modal-out. */
 const EXIT_DURATION = 200;
 
 /**
- * The modal body: the editable class list + platform status.
+ * The modal body: the connected integrations, each with its classes.
  *
  * Entry animation runs from the CSS classes applied on mount. Closing is
  * driven by the parent, which keeps the modal mounted for {@link EXIT_DURATION}
@@ -154,8 +75,7 @@ function ClassesModal({ closing, onClose }: { closing: boolean; onClose: () => v
         </div>
 
         <IntegrationProvider>
-          <IntegrationClasses />
-          <PlatformStatus />
+          <IntegrationSettings connectedOnly />
         </IntegrationProvider>
       </div>
     </div>,

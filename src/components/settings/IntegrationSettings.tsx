@@ -209,13 +209,21 @@ export function IntegrationProvider({ children }: { children: React.ReactNode })
  * context so the section stays a thin consumer of the provider.
  *
  * Must be rendered inside an IntegrationProvider.
+ *
+ * @param connectedOnly - Renders only the integrations already connected.
  */
-export default function IntegrationSettings() {
+export default function IntegrationSettings({ connectedOnly = false }: { connectedOnly?: boolean } = {}) {
   const ctx = useContext(CredentialsContext);
   if (!ctx) throw new Error("IntegrationSettings must be inside IntegrationProvider");
   const { credentials, handleUpdate } = ctx;
 
-  return <IntegrationList credentials={credentials} onUpdate={handleUpdate} />;
+  return (
+    <IntegrationList
+      credentials={credentials}
+      onUpdate={handleUpdate}
+      connectedOnly={connectedOnly}
+    />
+  );
 }
 
 /**

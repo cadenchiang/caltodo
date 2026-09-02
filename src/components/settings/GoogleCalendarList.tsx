@@ -15,7 +15,7 @@ import { Loader2, Plus, X } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 import type { GCalCalendarEntry } from "@/lib/types";
 import { MAX_SELECTED_CALENDARS } from "@/lib/gcal-calendar-ids";
-import { CLASS_PILL } from "./AccountClasses";
+import { CLASS_PILL, PILL_SHAPE } from "./AccountClasses";
 
 interface GoogleCalendarListProps {
   /** Called after a successful save so the card can refresh its credentials. */
@@ -109,7 +109,7 @@ export default function GoogleCalendarList({ onSaved }: GoogleCalendarListProps)
     <div>
       {/* Same labelled shape as an account's Classes block. */}
       <div className="flex items-center justify-between gap-2 mb-1.5">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-subtle-foreground">
+        <p className="text-[11px] font-semibold text-foreground">
           Calendars{selected.length > 0 ? ` · ${selected.length}` : ""}
         </p>
       </div>
@@ -135,7 +135,7 @@ export default function GoogleCalendarList({ onSaved }: GoogleCalendarListProps)
             onClick={openPicker}
             disabled={loading || saving}
             aria-label="Add another calendar"
-            className={`${CLASS_PILL} gap-1 cursor-pointer hover:bg-accent hover:text-foreground transition-colors disabled:opacity-50`}
+            className={`${PILL_SHAPE} gap-1 cursor-pointer bg-[#0e89d6]/10 text-[#0e89d6] hover:bg-[#0e89d6]/20 transition-colors disabled:opacity-50`}
           >
             {loading ? (
               <Loader2 size={11} className="animate-spin shrink-0" />

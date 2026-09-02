@@ -120,8 +120,9 @@ describe("the panel has a structure to read down", () => {
 
   it("gives Google Calendar the same block and labels", () => {
     expect(gcal).toContain("rounded-xl border border-border bg-muted/30");
+    // Its "Calendars · n" label is the same shape as an account's "Classes".
     expect(read("src/components/settings/GoogleCalendarList.tsx")).toContain(
-      "uppercase tracking-wider"
+      'text-[11px] font-semibold text-foreground'
     );
   });
 });
@@ -129,8 +130,11 @@ describe("the panel has a structure to read down", () => {
 describe("an account's classes read as one line", () => {
   it("labels the section and right-aligns its action", () => {
     // A label, count and action all left-aligned on one line gave the block
-    // no column edge to read down.
-    expect(classes).toContain("uppercase tracking-wider");
+    // no column edge to read down. The label is sentence case in the text
+    // colour: small caps in a subtle grey read as a form legend over the
+    // pills rather than as the name of what is under it.
+    expect(classes).not.toContain("uppercase");
+    expect(classes).toContain('text-[11px] font-semibold text-foreground');
     expect(classes).toContain("Classes{selected.length > 0 ?");
     expect(classes).toContain("justify-between");
     expect(classes).toMatch(/selected\.length > 0 \? "Edit" : "Choose"/);
@@ -141,11 +145,35 @@ describe("an account's classes read as one line", () => {
     expect(classes).toContain("CLASS_PILL");
   });
 
-  it("shares one pill shape with the add control", () => {
+  it("shares one pill shape with the add control and the account label", () => {
     // A pill beside a bare text button read as two unrelated kinds of thing.
-    expect(classes).toContain("export const CLASS_PILL");
-    expect(card).toContain("CLASS_PILL");
+    // The shape is exported without colour: two utilities setting the same
+    // property leave the winner to CSS source order, so the add control
+    // could not simply append its blue to the class pill's muted grey.
+    expect(classes).toContain("export const PILL_SHAPE");
+    expect(classes).toContain("export const CLASS_PILL = `${PILL_SHAPE}");
+    expect(card).toContain("PILL_SHAPE");
     expect(card).toContain("Add another {shortNoun(noun)}");
+  });
+
+  it("makes the add control blue, since it is the action in the block", () => {
+    const gcalList = read("src/components/settings/GoogleCalendarList.tsx");
+    for (const file of [card, gcalList]) {
+      expect(file).toContain("bg-[#0e89d6]/10 text-[#0e89d6]");
+    }
+  });
+
+  it("shows the account label as a pill, like the classes under it", () => {
+    const panel = card.slice(card.indexOf("accounts.map"));
+    expect(panel).toMatch(/PILL_SHAPE[^`]*bg-card border border-border text-foreground/);
+  });
+
+  it("picks classes in a modal rather than in a list inside the dropdown", () => {
+    // The inline editor put a scrolling checkbox list inside a card inside a
+    // dropdown, so it was a few rows tall and every tick moved the accounts
+    // under it.
+    expect(classes).toContain("<CourseSelectModal");
+    expect(classes).not.toContain('type="checkbox"');
   });
 
   it("says so plainly when nothing is selected", () => {

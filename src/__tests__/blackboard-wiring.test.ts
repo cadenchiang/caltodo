@@ -177,8 +177,12 @@ describe("settings", () => {
   });
 
   it("shows as a connected platform on the calendar", () => {
+    // The calendar's classes modal renders the settings integration list,
+    // connected cards only, so Blackboard appears there once connected
+    // rather than through a second hand-written platform list.
     const chips = read("src/components/calendar/CalendarClassesButton.tsx");
-    expect(chips).toMatch(/key: "blackboard"[\s\S]{0,200}credentials\.blackboard_calendar_url/);
+    expect(chips).toContain("<IntegrationSettings connectedOnly />");
+    expect(read("src/lib/integration-catalog.ts")).toContain("blackboard");
   });
 
   it("reports sync failures through the alerts pipeline", () => {

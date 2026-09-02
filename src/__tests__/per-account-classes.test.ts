@@ -55,12 +55,21 @@ describe("the editor asks for one account's courses", () => {
 
   it("loads the course list once, when first opened", () => {
     // Opening the dropdown should not fetch every account's courses.
-    expect(editor).toContain("if (available === null) load();");
+    expect(editor).toContain("const courses = available ?? (await load());");
   });
 
-  it("expands in place rather than opening a modal", () => {
-    expect(editor).not.toContain("createPortal");
-    expect(editor).not.toContain("fixed inset-0");
+  it("opens the picker only once there is a list to put in it", () => {
+    // Opening first would show the modal's empty state while the request was
+    // still in flight, which reads as an answer rather than as loading.
+    expect(editor).toContain("const courses = available ?? (await load());");
+    expect(editor).toContain("if (courses === null) return;");
+    expect(editor).toContain("{editing && available && (");
+  });
+
+  it("keeps the provider's own reason for an empty list", () => {
+    // "A course appears once it has an assignment" is the usual answer, and
+    // the shared modal's generic empty state cannot give it.
+    expect(editor).toMatch(/courses\.length === 0\) \{\s*showToast\(meta\.emptyLabel\);/);
   });
 
   it("does not derive its draft in an effect", () => {
@@ -69,9 +78,11 @@ describe("the editor asks for one account's courses", () => {
     expect(editor).not.toContain("useEffect");
   });
 
-  it("keeps the picker open when a save fails", () => {
-    expect(editor).toMatch(/await onSave\([\s\S]{0,80}setEditing\(false\);/);
-    expect(editor).toContain("catch (err)");
+  it("drops the draft back to the stored selection when a save fails", () => {
+    // The modal has already closed by then, and the pills under it still
+    // show what was saved, so a kept draft would reopen out of step.
+    expect(editor).toMatch(/catch \(err\) \{\s*setDraft\(new Set\(selected\.map/);
+    expect(editor).toContain("Failed to save classes");
   });
 });
 
@@ -140,9 +151,13 @@ describe("the Classes settings tab is gone", () => {
     expect(read("src/app/app/settings/SettingsContent.tsx")).not.toContain('case "classes"');
   });
 
-  it("keeps the class list itself, which the calendar popover renders", () => {
-    // Only the settings tab went; IntegrationClasses is still a real surface.
-    expect(read("src/components/calendar/CalendarClassesButton.tsx")).toContain("<IntegrationClasses />");
-    expect(read("src/components/settings/IntegrationSettings.tsx")).toContain("export function IntegrationClasses()");
+  it("gives the calendar popover the settings cards, not a copy of them", () => {
+    // The popover used to render its own class list and its own platform
+    // rows. It now mounts the settings integration list itself, limited to
+    // what is connected, so the two surfaces cannot drift apart.
+    const popover = read("src/components/calendar/CalendarClassesButton.tsx");
+    expect(popover).toContain("<IntegrationSettings connectedOnly />");
+    expect(popover).not.toContain("Connected platforms");
+    expect(read("src/components/settings/IntegrationList.tsx")).toContain("connectedOnly");
   });
 });
