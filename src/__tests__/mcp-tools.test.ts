@@ -61,6 +61,7 @@ describe("MCP_TOOLS", () => {
       "delete_task",
       "list_assignments",
       "list_calendar_events",
+      "list_courses",
       "set_event_color",
       "sync_assignments",
       "update_calendar_event",
@@ -224,13 +225,48 @@ describe("callTool: sync_assignments", () => {
     mockSync.mockResolvedValue({
       canvas: { synced: 3, errors: [] },
       gradescope: { synced: 1, errors: [] },
+      pensieve: { synced: 0, errors: [] },
+      brightspace: { synced: 2, errors: [] },
+      blackboard: { synced: 0, errors: [] },
+      classroom: { synced: 0, errors: [] },
     });
     const result = await callTool("sync_assignments", {}, USER_ID);
     expect(mockSync).toHaveBeenCalledWith(USER_ID, undefined);
     expect(result).toEqual({
-      text: "Synced 3 Canvas and 1 Gradescope assignments.",
+      // Names only the platforms that brought something back. The old summary
+      // said "0 Canvas and 0 Gradescope" to a Brightspace student whose sync
+      // had just worked.
+      text: "Synced 6 assignments: 3 from Canvas, 1 from Gradescope, 2 from Brightspace.",
       isError: false,
     });
+  });
+
+  it("says so plainly when nothing new arrived", async () => {
+    mockSync.mockResolvedValue({
+      canvas: { synced: 0, errors: [] },
+      gradescope: { synced: 0, errors: [] },
+      pensieve: { synced: 0, errors: [] },
+      brightspace: { synced: 0, errors: [] },
+      blackboard: { synced: 0, errors: [] },
+      classroom: { synced: 0, errors: [] },
+    });
+    const result = await callTool("sync_assignments", {}, USER_ID);
+    expect(result).toEqual({
+      text: "Synced. No new assignments from any connected platform.",
+      isError: false,
+    });
+  });
+
+  it("survives an engine that does not report every platform", async () => {
+    // Code and schema deploy independently; a summary that crashed on a
+    // missing key would turn a successful sync into an error.
+    mockSync.mockResolvedValue({
+      canvas: { synced: 1, errors: [] },
+      gradescope: { synced: 0, errors: [] },
+    });
+    const result = await callTool("sync_assignments", {}, USER_ID);
+    expect(result.isError).toBe(false);
+    expect(result.text).toContain("1 from Canvas");
   });
 
   it("passes an explicit timezone through", async () => {

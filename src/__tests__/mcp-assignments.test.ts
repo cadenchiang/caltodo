@@ -167,7 +167,7 @@ describe("listAssignments", () => {
     const spy = makeClient({ data: [], error: null });
     await listAssignments(USER_ID, {}, spy.client);
     const orClauses = allCalls(spy, "or").map((a) => a[0] as string);
-    expect(orClauses).toContain("source.in.(canvas,gradescope),source.is.null");
+    expect(orClauses).toContain("source.in.(canvas,gradescope,pensieve,brightspace,blackboard,classroom,syllabus),source.is.null");
   });
 
   it("filters to manual tasks only when source is manual", async () => {
@@ -182,7 +182,7 @@ describe("listAssignments", () => {
     await listAssignments(USER_ID, { source: "gradescope" }, spy.client);
     expect(allCalls(spy, "eq")).toContainEqual(["source", "gradescope"]);
     expect(allCalls(spy, "or").map((a) => a[0] as string)).not.toContain(
-      "source.in.(canvas,gradescope),source.is.null"
+      "source.in.(canvas,gradescope,pensieve,brightspace,blackboard,classroom,syllabus),source.is.null"
     );
   });
 
@@ -269,12 +269,17 @@ describe("listAssignments", () => {
 describe("syncAssignments", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("runs the sync engine for canvas and gradescope only", async () => {
+  it("runs the sync engine for every platform it knows", async () => {
+    // Naming only Canvas and Gradescope gave a student on any other platform
+    // a "synced" result that had quietly skipped their work. The engine
+    // no-ops for a platform that is not connected.
     const result = {
       canvas: { synced: 3, errors: [] },
       gradescope: { synced: 1, errors: [] },
       pensieve: { synced: 0, errors: [] },
       brightspace: { synced: 0, errors: [] },
+      blackboard: { synced: 0, errors: [] },
+      classroom: { synced: 0, errors: [] },
       last_synced_at: "2026-08-22T00:00:00Z",
     };
     mockRunSync.mockResolvedValue(result);
@@ -284,6 +289,10 @@ describe("syncAssignments", () => {
     expect(mockRunSync).toHaveBeenCalledWith(client, USER_ID, "UTC", undefined, false, [
       "canvas",
       "gradescope",
+      "pensieve",
+      "brightspace",
+      "blackboard",
+      "classroom",
     ]);
   });
 

@@ -9,6 +9,7 @@
  */
 
 import { listAssignmentsTool } from "@/lib/mcp/tools/list-assignments";
+import { listCoursesTool } from "@/lib/mcp/tools/list-courses";
 import { syncAssignmentsTool } from "@/lib/mcp/tools/sync-assignments";
 import { createTaskTool } from "@/lib/mcp/tools/create-task";
 import { deleteTaskTool } from "@/lib/mcp/tools/delete-task";
@@ -28,6 +29,7 @@ export type { JsonSchema, McpTool } from "@/lib/mcp/tool-types";
 /** All tools exposed over MCP. */
 export const MCP_TOOLS = [
   listAssignmentsTool,
+  listCoursesTool,
   createTaskTool,
   completeTaskTool,
   updateTaskTool,

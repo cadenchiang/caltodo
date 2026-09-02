@@ -449,8 +449,9 @@ export default function McpSettings() {
           <div className="px-3 sm:px-4 pb-4 space-y-4 border-t border-border pt-4">
           <p className="text-xs text-muted-foreground">
             Paste the server URL and a key into Poke, Claude, or any Model Context Protocol
-            client. It can then read your assignments, add and delete tasks, and recolor your
-            Google Calendar events.
+            client. It can then read your assignments and classes from every connected
+            platform, create, edit, complete and delete tasks, trigger a sync, and create,
+            edit, delete and recolour your Google Calendar events.
           </p>
 
           <CopyableField label="Server URL" value={serverUrl} />

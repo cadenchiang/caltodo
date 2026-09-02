@@ -34,6 +34,15 @@ export interface TaskEdits {
   /** HH:MM 24-hour, or null to clear the time. */
   dueTime?: string | null;
   course?: string | null;
+  /**
+   * The task's full tag list, replacing whatever it had.
+   *
+   * create_task accepted tags from the start and update_task did not, so a
+   * tag set through MCP could never afterwards be changed through MCP.
+   * Replaces rather than merges: an assistant asked to remove a tag has no
+   * other way to do it, and it can read the current list first.
+   */
+  tags?: string[];
 }
 
 /** YYYY-MM-DD. */
@@ -150,6 +159,21 @@ export function buildEditPatch(edits: TaskEdits): Record<string, unknown> {
 
   if (edits.description !== undefined) {
     patch.description = edits.description.trim();
+  }
+
+  if (edits.tags !== undefined) {
+    // Trimmed, blanks dropped, de-duplicated case-insensitively, matching what
+    // the app's own tag editor stores.
+    const seen = new Set<string>();
+    patch.tags = edits.tags
+      .map((tag) => tag.trim())
+      .filter((tag) => {
+        if (!tag) return false;
+        const key = tag.toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
   }
 
   if (edits.dueDate !== undefined) {

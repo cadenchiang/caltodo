@@ -5,7 +5,7 @@
  */
 
 import { updateTask } from "@/lib/mcp/task-updates";
-import { stringArg } from "@/lib/mcp/tool-args";
+import { stringArg, stringArrayArg } from "@/lib/mcp/tool-args";
 import type { McpTool } from "@/lib/mcp/tool-types";
 
 /**
@@ -28,12 +28,12 @@ function clearableArg(
   return typeof raw === "string" ? raw : undefined;
 }
 
-/** Edits a task's title, notes, due date/time or course. */
+/** Edits a task's title, notes, due date/time, course or tags. */
 export const updateTaskTool: McpTool = {
   name: "update_task",
   title: "Update task",
   description:
-    "Change an existing task's title, notes, due date, due time or course. " +
+    "Change an existing task's title, notes, due date, due time, course or tags. " +
     "Only the fields you pass are changed. Call list_assignments first to get the id. " +
     "Use complete_task to tick something off, not this.",
   inputSchema: {
@@ -51,6 +51,12 @@ export const updateTaskTool: McpTool = {
         description: "New due time as HH:MM in 24-hour form, or null to remove the time.",
       },
       course: { type: "string", description: "New course name, or null to clear it." },
+      tags: {
+        type: "array",
+        items: { type: "string" },
+        description:
+          "The task's complete tag list, replacing what it had. Pass [] to remove every tag.",
+      },
     },
     required: ["id"],
     additionalProperties: false,
@@ -65,6 +71,7 @@ export const updateTaskTool: McpTool = {
       dueDate: clearableArg(args, "due_date"),
       dueTime: clearableArg(args, "due_time"),
       course: clearableArg(args, "course"),
+      tags: "tags" in args ? stringArrayArg(args, "tags") : undefined,
     });
 
     const due = task.due_date

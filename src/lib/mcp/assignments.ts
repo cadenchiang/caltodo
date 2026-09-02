@@ -15,8 +15,25 @@ import { runSync } from "@/lib/sync-engine";
 import type { SyncResult } from "@/lib/types";
 import { logger } from "@/lib/logger";
 
-/** Synced platforms exposed through MCP. Pensieve and syllabus are excluded. */
-export const ASSIGNMENT_SOURCES = ["canvas", "gradescope"] as const;
+/**
+ * Synced platforms exposed through MCP.
+ *
+ * Every source a task can carry, not just the two the server launched with.
+ * Canvas and Gradescope were the only ones listed, so an assistant asking what
+ * was due simply could not see the work of a student on Brightspace,
+ * Blackboard, Pensive or Google Classroom, or anything imported from a
+ * syllabus - and nothing in the response said so, which reads as "you have no
+ * assignments" rather than as a gap.
+ */
+export const ASSIGNMENT_SOURCES = [
+  "canvas",
+  "gradescope",
+  "pensieve",
+  "brightspace",
+  "blackboard",
+  "classroom",
+  "syllabus",
+] as const;
 
 /**
  * Sources a caller can filter by. "manual" means a task with no source — one
@@ -252,16 +269,36 @@ export async function syncAssignments(
 ): Promise<SyncResult> {
   logger.info("mcp.assignments: sync started", { userId, timezone });
 
+  // Every platform the sync engine knows, so a refresh through MCP matches
+  // what the app itself does. Syncing only Canvas and Gradescope meant a
+  // student on any other platform got a "synced" result that had quietly
+  // skipped their work. The engine no-ops for a platform that is not
+  // connected, so naming them all costs nothing.
   const result = await runSync(client, userId, timezone, undefined, false, [
     "canvas",
     "gradescope",
+    "pensieve",
+    "brightspace",
+    "blackboard",
+    "classroom",
   ]);
 
   logger.info("mcp.assignments: sync finished", {
     userId,
     canvas: result.canvas.synced,
     gradescope: result.gradescope.synced,
-    errors: [...result.canvas.errors, ...result.gradescope.errors],
+    pensieve: result.pensieve.synced,
+    brightspace: result.brightspace.synced,
+    blackboard: result.blackboard.synced,
+    classroom: result.classroom.synced,
+    errors: [
+      ...result.canvas.errors,
+      ...result.gradescope.errors,
+      ...result.pensieve.errors,
+      ...result.brightspace.errors,
+      ...result.blackboard.errors,
+      ...result.classroom.errors,
+    ],
   });
 
   return result;
