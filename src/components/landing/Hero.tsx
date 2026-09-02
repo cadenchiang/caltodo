@@ -7,6 +7,7 @@ import { RefreshCw, CalendarDays, LayoutGrid, ArrowRight } from "lucide-react";
 import SyncedCount from "@/components/landing/SyncedCount";
 import GoogleOneTap from "@/components/auth/GoogleOneTap";
 import FadeIn from "@/components/landing/FadeIn";
+import SupportedPlatforms from "@/components/landing/SupportedPlatforms";
 import { useIsLoggedIn } from "@/hooks/useIsLoggedIn";
 
 
@@ -201,13 +202,15 @@ export default function Hero({ loggedIn: loggedInProp, initialUserCount, initial
                 than the product name. Falls back to the name when the count is
                 unavailable, so a Supabase blip never leaves a bare "0". */}
             <p
-              className="mt-3 sm:mt-5 text-sm sm:text-lg font-medium text-black tracking-tight animate-fade-up"
+              className="mt-3 sm:mt-5 text-sm sm:text-lg font-semibold text-black tracking-tight animate-fade-up"
               style={{ animationDelay: "1000ms" }}
             >
               {assignmentCount > 0 ? (
                 <>
                   <SyncedCount count={assignmentCount} />
-                  {" assignments synced"}
+                  {/* The count is what has synced so far, not a cap. Weight
+                      comes from the <p>, which is semibold throughout. */}
+                  {"+ assignments synced"}
                 </>
               ) : (
                 "Caltodo"
@@ -376,6 +379,7 @@ export default function Hero({ loggedIn: loggedInProp, initialUserCount, initial
                   <p className="text-base sm:text-lg text-black/70 mt-3 sm:mt-4 leading-snug">
                     Upload your syllabus or sync your assignments from your other platforms.
                   </p>
+                  <SupportedPlatforms />
                 </div>
                 {/* Desktop: image fills the right column floor-to-ceiling so there's no empty space above */}
                 <div className="hidden sm:block absolute top-8 right-8 bottom-8 w-[40%] max-w-[400px] rounded-2xl overflow-hidden shadow-[0_8px_30px_-12px_rgba(0,0,0,0.15)]">
