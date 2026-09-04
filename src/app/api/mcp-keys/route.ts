@@ -14,6 +14,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createApiKey, listApiKeys, revokeApiKey, renameApiKey } from "@/lib/mcp/api-keys";
+import { DEFAULT_SCOPE, isMcpScope, MCP_SCOPES, type McpScope } from "@/lib/mcp/scopes";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
 
@@ -68,7 +69,10 @@ export async function GET() {
 /**
  * POST /api/mcp-keys
  * Creates a key. The plaintext is in the response and is never retrievable again.
- * Accepts an optional { label } in the body.
+ * Accepts optional { label, expiresInDays, scope } in the body.
+ *
+ * An unrecognised scope is rejected rather than quietly downgraded, so a typo
+ * in a client never silently produces a key with different powers than asked.
  */
 export async function POST(request: NextRequest) {
   const auth = await requireUser();
@@ -76,6 +80,8 @@ export async function POST(request: NextRequest) {
 
   let label = "Poke";
   let expiresInDays: number | null = null;
+  let scope: McpScope = DEFAULT_SCOPE;
+  let badScope: unknown;
   try {
     const body = await request.json();
     if (typeof body?.label === "string") label = body.label;
@@ -83,12 +89,34 @@ export async function POST(request: NextRequest) {
     if (typeof body?.expiresInDays === "number" && body.expiresInDays > 0) {
       expiresInDays = Math.floor(body.expiresInDays);
     }
+    if (body?.scope !== undefined) {
+      if (isMcpScope(body.scope)) scope = body.scope;
+      else badScope = body.scope;
+    }
   } catch {
     // No body is fine — the defaults apply.
   }
 
+  if (badScope !== undefined) {
+    logger.warn("POST /api/mcp-keys rejected", {
+      cause: `scope ${JSON.stringify(badScope)} is not one of ${MCP_SCOPES.join(", ")}`,
+      userId: auth.userId,
+      impact: "no key created; caller must send a known scope",
+    });
+    return NextResponse.json(
+      { error: `Scope must be one of: ${MCP_SCOPES.join(", ")}.` },
+      { status: 400 }
+    );
+  }
+
   try {
-    const { key, record } = await createApiKey(auth.supabase, auth.userId, label, expiresInDays);
+    const { key, record } = await createApiKey(
+      auth.supabase,
+      auth.userId,
+      label,
+      expiresInDays,
+      scope
+    );
     return NextResponse.json({ key, record }, { status: 201 });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

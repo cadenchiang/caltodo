@@ -54,7 +54,7 @@ function makeRequest(body: unknown): NextRequest {
 describe("POST /api/mcp", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockAuth.mockResolvedValue({ ok: true, userId: USER_ID, keyId: "key-1" });
+    mockAuth.mockResolvedValue({ ok: true, userId: USER_ID, keyId: "key-1", scope: "full" });
     mockRateLimit.mockReturnValue({ allowed: true });
     mockHandleBody.mockResolvedValue([{ jsonrpc: "2.0", id: 1, result: {} }]);
   });
@@ -85,9 +85,15 @@ describe("POST /api/mcp", () => {
     await expect(response.text()).resolves.toBe("");
   });
 
-  it("passes the authenticated user id to the dispatcher", async () => {
+  it("passes the authenticated user id and key scope to the dispatcher", async () => {
+    // The scope has to come from the key that authenticated the request, not
+    // from the body, or a client could ask for more than its key allows.
     await POST(makeRequest({ jsonrpc: "2.0", id: 1, method: "ping" }));
-    expect(mockHandleBody).toHaveBeenCalledWith({ jsonrpc: "2.0", id: 1, method: "ping" }, USER_ID);
+    expect(mockHandleBody).toHaveBeenCalledWith(
+      { jsonrpc: "2.0", id: 1, method: "ping" },
+      USER_ID,
+      "full"
+    );
   });
 
   it("returns 401 when authentication fails", async () => {

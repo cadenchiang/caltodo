@@ -131,9 +131,36 @@ describe("classes are discoverable", () => {
 });
 
 describe("the settings copy matches what the server does", () => {
-  it("no longer describes a narrower server than exists", () => {
+  it("does not enumerate a fixed capability set", () => {
+    // The panel used to spell out every tool the server exposed, which went
+    // stale each time one was added and understated it in between. What a key
+    // can do is now a per-key choice, so the card states the connection and
+    // the dialog states the access.
     const settings = read("src/components/settings/McpSettings.tsx");
-    expect(settings).toContain("create, edit, complete and delete tasks");
-    expect(settings).toContain("every connected");
+    expect(settings).not.toContain("create, edit, complete and delete tasks");
+    expect(settings).toContain("Connect Poke, Claude, or any MCP client");
+  });
+
+  it("offers both access levels where the key is created", () => {
+    const dialog = read("src/components/settings/McpKeyDialog.tsx");
+    expect(dialog).toContain('scope: "full"');
+    expect(dialog).toContain('scope: "read"');
+    // Worded as what the assistant can do, not as which tools it may call.
+    expect(dialog).toContain("Read, add, edit and delete");
+    expect(dialog).toContain("Look, but never change anything");
+  });
+
+  it("opens the name field empty rather than pre-filled", () => {
+    // Pre-filling "Poke" dated the dialog to when that was the only client,
+    // and a name typed over a default is more likely to be the real one. The
+    // placeholder still shows what a blank name falls back to.
+    const dialog = read("src/components/settings/McpKeyDialog.tsx");
+    expect(dialog).toContain('const [label, setLabel] = useState("");');
+    expect(dialog).toContain('placeholder="Poke"');
+  });
+
+  it("shows on each key what that key can do", () => {
+    const list = read("src/components/settings/McpKeyList.tsx");
+    expect(list).toContain("SCOPE_LABELS[key.scope]");
   });
 });

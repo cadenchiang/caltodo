@@ -9,6 +9,7 @@
  */
 
 import { MCP_TOOLS, callTool } from "@/lib/mcp/tools";
+import { toolsForScope, type McpScope } from "@/lib/mcp/scopes";
 import { logger } from "@/lib/logger";
 
 /** Protocol revisions this server can speak, newest first. */
@@ -93,6 +94,9 @@ export function negotiateProtocolVersion(requested: unknown): string {
  *
  * @param message - Parsed JSON-RPC request or notification
  * @param userId - caltodo user the request is authenticated as
+ * @param scope - Access level of the key that authenticated the request.
+ *                Required rather than defaulted: a permission that falls back
+ *                to full access when a caller forgets it fails open.
  * @returns The response to send, or null for notifications (which get no response)
  * @remarks Unknown notifications are accepted silently, as the spec requires.
  *          Tool failures come back as successful results flagged `isError`, not
@@ -100,7 +104,8 @@ export function negotiateProtocolVersion(requested: unknown): string {
  */
 export async function handleMessage(
   message: JsonRpcMessage,
-  userId: string
+  userId: string,
+  scope: McpScope
 ): Promise<JsonRpcResponse | null> {
   const id = message.id ?? null;
   const isNotification = message.id === undefined || message.id === null;
@@ -129,13 +134,18 @@ export async function handleMessage(
       return isNotification ? null : success(id, {});
 
     case "tools/list":
+      // Filtered by scope so a read-only key is never offered a tool it would
+      // be refused. `callTool` re-checks, since a client can call a tool it
+      // was never advertised.
       return success(id, {
-        tools: MCP_TOOLS.map(({ name, title, description, inputSchema }) => ({
-          name,
-          title,
-          description,
-          inputSchema,
-        })),
+        tools: toolsForScope(scope, MCP_TOOLS).map(
+          ({ name, title, description, inputSchema }) => ({
+            name,
+            title,
+            description,
+            inputSchema,
+          })
+        ),
       });
 
     case "tools/call": {
@@ -155,7 +165,7 @@ export async function handleMessage(
           ? (rawArgs as Record<string, unknown>)
           : {};
 
-      const { text, isError } = await callTool(name, args, userId);
+      const { text, isError } = await callTool(name, args, userId, scope);
       return success(id, { content: [{ type: "text", text }], isError });
     }
 
@@ -179,19 +189,22 @@ export async function handleMessage(
  *
  * @param body - Parsed JSON body from the client
  * @param userId - caltodo user the request is authenticated as
+ * @param scope - Access level of the key that authenticated the request,
+ *                applied to every message in a batch
  * @returns Responses to send; empty when the body held only notifications
  * @remarks An empty array or a non-object body yields a single invalidRequest error.
  */
 export async function handleBody(
   body: unknown,
-  userId: string
+  userId: string,
+  scope: McpScope
 ): Promise<JsonRpcResponse[]> {
   if (Array.isArray(body)) {
     if (body.length === 0) {
       return [failure(null, ERROR_CODES.invalidRequest, "Empty batch")];
     }
     const responses = await Promise.all(
-      body.map((entry) => handleMessage((entry ?? {}) as JsonRpcMessage, userId))
+      body.map((entry) => handleMessage((entry ?? {}) as JsonRpcMessage, userId, scope))
     );
     return responses.filter((r): r is JsonRpcResponse => r !== null);
   }
@@ -200,6 +213,6 @@ export async function handleBody(
     return [failure(null, ERROR_CODES.invalidRequest, "Request body must be a JSON object")];
   }
 
-  const response = await handleMessage(body as JsonRpcMessage, userId);
+  const response = await handleMessage(body as JsonRpcMessage, userId, scope);
   return response ? [response] : [];
 }

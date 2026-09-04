@@ -171,6 +171,7 @@ describe("createApiKey", () => {
       createdAt: "2026-08-22T00:00:00Z",
       lastUsedAt: null,
       expiresAt: null,
+      scope: "full",
     });
   });
 
@@ -249,6 +250,7 @@ describe("findKeyOwner expiry", () => {
     await expect(findKeyOwner(spy.client, "sk-caltodo-x")).resolves.toEqual({
       userId: USER_ID,
       keyId: "key-1",
+      scope: "full",
     });
   });
 
@@ -285,6 +287,7 @@ describe("listApiKeys", () => {
         createdAt: "2026-08-22T00:00:00Z",
         lastUsedAt: null,
         expiresAt: null,
+        scope: "full",
       },
     ]);
   });
@@ -340,6 +343,7 @@ describe("findKeyOwner", () => {
     await expect(findKeyOwner(spy.client, key)).resolves.toEqual({
       userId: USER_ID,
       keyId: "key-1",
+      scope: "full",
     });
 
     const eqArgs = allCalls(spy, "eq")[0];

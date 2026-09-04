@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const responses = await handleBody(body, auth.userId);
+    const responses = await handleBody(body, auth.userId, auth.scope);
 
     // Notification-only bodies get an empty 202, as the MCP spec requires.
     if (responses.length === 0) {

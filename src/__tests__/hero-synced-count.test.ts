@@ -155,6 +155,14 @@ describe("Hero wiring", () => {
     expect(hero).not.toContain("@number-flow/react");
   });
 
+  it("marks the figure as a floor, in one weight across the whole line", () => {
+    // The count is what has synced so far, not a cap, so the eyebrow reads
+    // "17,461+". The <p> is semibold throughout, so the plus and the words
+    // carry the digits' weight without a span of their own.
+    expect(hero).toContain('{"+ assignments synced"}');
+    expect(hero).toMatch(/text-sm sm:text-lg font-semibold text-black tracking-tight/);
+  });
+
   it("still falls back to the brand name when there is no count", () => {
     expect(hero).toMatch(/assignmentCount > 0 \?/);
     expect(hero).toContain('"Caltodo"');

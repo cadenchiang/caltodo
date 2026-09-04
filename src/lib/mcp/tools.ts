@@ -23,6 +23,7 @@ import {
   deleteEventTool,
 } from "@/lib/mcp/tools/event-writes";
 import { logger } from "@/lib/logger";
+import { scopeAllowsTool, SCOPE_LABELS, type McpScope } from "@/lib/mcp/scopes";
 
 export type { JsonSchema, McpTool } from "@/lib/mcp/tool-types";
 
@@ -58,15 +59,22 @@ export function findTool(name: string) {
  * @param name - Tool name from a `tools/call` request
  * @param args - Raw arguments from the client
  * @param userId - caltodo user the request is authenticated as
+ * @param scope - Access level of the key that authenticated the request
  * @returns Result text plus whether it represents an error
  * @remarks Tool failures are returned as `isError` results rather than JSON-RPC
  *          errors, per the MCP spec, so the model can see and recover from them.
- *          An unknown tool name is also reported this way.
+ *          An unknown tool name, and one the key's scope does not cover, are
+ *          also reported this way.
+ *
+ *          The scope is checked before `execute`, and checked here rather than
+ *          only in `tools/list`, because a client is free to call a tool it was
+ *          never advertised.
  */
 export async function callTool(
   name: string,
   args: Record<string, unknown>,
-  userId: string
+  userId: string,
+  scope: McpScope
 ): Promise<{ text: string; isError: boolean }> {
   const tool = findTool(name);
   if (!tool) {
@@ -76,6 +84,21 @@ export async function callTool(
       impact: "returned isError result to Poke",
     });
     return { text: `Unknown tool "${name}".`, isError: true };
+  }
+
+  if (!scopeAllowsTool(scope, name)) {
+    logger.warn("mcp.tools: tool refused by key scope", {
+      cause: `key scope "${scope}" does not cover "${name}"`,
+      tool: name,
+      userId,
+      impact: "returned isError result to Poke; nothing was read or written",
+    });
+    return {
+      text:
+        `This API key is ${SCOPE_LABELS[scope]}, so it cannot use "${name}". ` +
+        `Generate a full-access key in caltodo Settings to allow it.`,
+      isError: true,
+    };
   }
 
   try {

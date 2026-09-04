@@ -11,6 +11,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logger } from "@/lib/logger";
+import { coerceScope, DEFAULT_SCOPE, type McpScope } from "@/lib/mcp/scopes";
 
 /** Prefix on every issued key, so a leaked string is recognizable. */
 export const KEY_PREFIX = "sk-caltodo-";
@@ -30,6 +31,8 @@ export interface McpKeyRecord {
   lastUsedAt: string | null;
   /** When the key stops working, or null when it never expires. */
   expiresAt: string | null;
+  /** What the key is allowed to do: every tool, or the read-only ones. */
+  scope: McpScope;
 }
 
 /** Expiry choices offered when creating a key, in days. Null means never. */
@@ -76,6 +79,7 @@ interface KeyRow {
   created_at: string;
   last_used_at: string | null;
   expires_at: string | null;
+  scope: string | null;
 }
 
 /**
@@ -92,6 +96,7 @@ function toRecord(row: KeyRow): McpKeyRecord {
     createdAt: row.created_at,
     lastUsedAt: row.last_used_at,
     expiresAt: row.expires_at,
+    scope: coerceScope(row.scope),
   };
 }
 
@@ -119,6 +124,9 @@ const MAX_LABEL_LENGTH = 60;
  * @param client - Supabase client authenticated as the user (RLS applies)
  * @param userId - Owner of the new key
  * @param label - Human label for the key, defaults to "Poke"
+ * @param expiresInDays - Whole days until the key stops working, or null for never
+ * @param scope - Access level, defaulting to full so callers that predate
+ *                scopes keep their previous behaviour
  * @returns The plaintext key (shown once) plus the stored record
  * @throws Error when the label is too long or the insert is rejected
  * @remarks The plaintext is returned only here. Nothing else can recover it.
@@ -127,7 +135,8 @@ export async function createApiKey(
   client: SupabaseClient,
   userId: string,
   label = "Poke",
-  expiresInDays: number | null = null
+  expiresInDays: number | null = null,
+  scope: McpScope = DEFAULT_SCOPE
 ): Promise<{ key: string; record: McpKeyRecord }> {
   const trimmed = label.trim() || "Poke";
   if (trimmed.length > MAX_LABEL_LENGTH) {
@@ -144,8 +153,9 @@ export async function createApiKey(
       key_prefix: keyDisplayPrefix(key),
       label: trimmed,
       expires_at: expiryFromDays(expiresInDays),
+      scope,
     })
-    .select("id, label, key_prefix, created_at, last_used_at, expires_at")
+    .select("id, label, key_prefix, created_at, last_used_at, expires_at, scope")
     .single();
 
   if (error) {
@@ -157,7 +167,11 @@ export async function createApiKey(
     throw new Error(`Failed to create API key: ${error.message}`);
   }
 
-  logger.info("mcp.apiKeys: key created", { userId, keyId: (data as unknown as KeyRow).id });
+  logger.info("mcp.apiKeys: key created", {
+    userId,
+    keyId: (data as unknown as KeyRow).id,
+    scope,
+  });
   return { key, record: toRecord(data as unknown as KeyRow) };
 }
 
@@ -175,7 +189,7 @@ export async function listApiKeys(
 ): Promise<McpKeyRecord[]> {
   const { data, error } = await client
     .from("mcp_api_keys")
-    .select("id, label, key_prefix, created_at, last_used_at, expires_at")
+    .select("id, label, key_prefix, created_at, last_used_at, expires_at, scope")
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
 
@@ -221,7 +235,7 @@ export async function renameApiKey(
     .update({ label: trimmed })
     .eq("user_id", userId)
     .eq("id", keyId)
-    .select("id, label, key_prefix, created_at, last_used_at, expires_at")
+    .select("id, label, key_prefix, created_at, last_used_at, expires_at, scope")
     .maybeSingle();
 
   if (error) {
@@ -285,7 +299,8 @@ export async function revokeApiKey(
  *
  * @param client - Supabase client able to read every key (service role)
  * @param key - Plaintext key from the Authorization header
- * @returns The owning user id and key id, or null when no key matches
+ * @returns The owning user id, key id and the key's scope, or null when no
+ *          key matches
  * @remarks Never logs the presented key. A failed database read is logged and
  *          treated as "no match" so a transient error denies access rather
  *          than granting it.
@@ -293,10 +308,10 @@ export async function revokeApiKey(
 export async function findKeyOwner(
   client: SupabaseClient,
   key: string
-): Promise<{ userId: string; keyId: string } | null> {
+): Promise<{ userId: string; keyId: string; scope: McpScope } | null> {
   const { data, error } = await client
     .from("mcp_api_keys")
-    .select("id, user_id, expires_at")
+    .select("id, user_id, expires_at, scope")
     .eq("key_hash", hashApiKey(key))
     .maybeSingle();
 
@@ -310,7 +325,12 @@ export async function findKeyOwner(
 
   if (!data) return null;
 
-  const row = data as unknown as { id: string; user_id: string; expires_at: string | null };
+  const row = data as unknown as {
+    id: string;
+    user_id: string;
+    expires_at: string | null;
+    scope: string | null;
+  };
 
   // An expired key is treated exactly like an unknown one.
   if (row.expires_at && Date.parse(row.expires_at) <= Date.now()) {
@@ -322,7 +342,7 @@ export async function findKeyOwner(
     return null;
   }
 
-  return { userId: row.user_id, keyId: row.id };
+  return { userId: row.user_id, keyId: row.id, scope: coerceScope(row.scope) };
 }
 
 /**

@@ -38,6 +38,10 @@ import { MCP_TOOLS, findTool, callTool } from "@/lib/mcp/tools";
 
 const USER_ID = "user-abc-123";
 
+/** These suites exercise behaviour, not permissions, so they use a
+    full-access key; scope enforcement has its own suite in mcp-scopes. */
+const SCOPE = "full" as const;
+
 const ASSIGNMENT = {
   id: "task-1",
   title: "Problem Set 3",
@@ -95,7 +99,7 @@ describe("callTool: list_assignments", () => {
   });
 
   it("passes no filters through when called with empty arguments", async () => {
-    await callTool("list_assignments", {}, USER_ID);
+    await callTool("list_assignments", {}, USER_ID, SCOPE);
     expect(mockList).toHaveBeenCalledWith(USER_ID, {
       source: undefined,
       status: undefined,
@@ -119,7 +123,8 @@ describe("callTool: list_assignments", () => {
         limit: 5,
         timezone: "UTC",
       },
-      USER_ID
+      USER_ID,
+      SCOPE
     );
     expect(mockList).toHaveBeenCalledWith(USER_ID, {
       source: "gradescope",
@@ -136,7 +141,8 @@ describe("callTool: list_assignments", () => {
     await callTool(
       "list_assignments",
       { days_ahead: "7", limit: "10", include_completed: "false" },
-      USER_ID
+      USER_ID,
+      SCOPE
     );
     expect(mockList).toHaveBeenCalledWith(
       USER_ID,
@@ -145,33 +151,33 @@ describe("callTool: list_assignments", () => {
   });
 
   it("rejects an unknown source without querying", async () => {
-    const result = await callTool("list_assignments", { source: "moodle" }, USER_ID);
+    const result = await callTool("list_assignments", { source: "moodle" }, USER_ID, SCOPE);
     expect(result.isError).toBe(true);
     expect(result.text).toMatch(/Invalid source/);
     expect(mockList).not.toHaveBeenCalled();
   });
 
   it("accepts the manual source so created tasks are listable", async () => {
-    const result = await callTool("list_assignments", { source: "manual" }, USER_ID);
+    const result = await callTool("list_assignments", { source: "manual" }, USER_ID, SCOPE);
     expect(result.isError).toBe(false);
     expect(mockList).toHaveBeenCalledWith(USER_ID, expect.objectContaining({ source: "manual" }));
   });
 
   it("labels a null source as manual in the output", async () => {
     mockList.mockResolvedValue([{ ...ASSIGNMENT, source: null }]);
-    const result = await callTool("list_assignments", {}, USER_ID);
+    const result = await callTool("list_assignments", {}, USER_ID, SCOPE);
     expect(result.text).toContain("[manual]");
   });
 
   it("rejects an unknown status without querying", async () => {
-    const result = await callTool("list_assignments", { status: "someday" }, USER_ID);
+    const result = await callTool("list_assignments", { status: "someday" }, USER_ID, SCOPE);
     expect(result.isError).toBe(true);
     expect(result.text).toMatch(/Invalid status/);
     expect(mockList).not.toHaveBeenCalled();
   });
 
   it("formats assignments with course, due date, points, id and link", async () => {
-    const result = await callTool("list_assignments", {}, USER_ID);
+    const result = await callTool("list_assignments", {}, USER_ID, SCOPE);
     expect(result.isError).toBe(false);
     expect(result.text).toContain("1 assignment:");
     expect(result.text).toContain("(id: task-1)");
@@ -193,27 +199,27 @@ describe("callTool: list_assignments", () => {
         url: null,
       },
     ]);
-    const result = await callTool("list_assignments", {}, USER_ID);
+    const result = await callTool("list_assignments", {}, USER_ID, SCOPE);
     expect(result.text).toContain("no due date");
     expect(result.text).not.toContain("[null]");
   });
 
   it("marks completed assignments in the output", async () => {
     mockList.mockResolvedValue([{ ...ASSIGNMENT, is_completed: true }]);
-    const result = await callTool("list_assignments", { include_completed: true }, USER_ID);
+    const result = await callTool("list_assignments", { include_completed: true }, USER_ID, SCOPE);
     expect(result.text).toContain("(completed)");
   });
 
   it("returns a plain sentence when nothing matches", async () => {
     mockList.mockResolvedValue([]);
-    const result = await callTool("list_assignments", {}, USER_ID);
+    const result = await callTool("list_assignments", {}, USER_ID, SCOPE);
     expect(result.isError).toBe(false);
     expect(result.text).toBe("No assignments match that filter.");
   });
 
   it("returns an isError result when the query throws", async () => {
     mockList.mockRejectedValue(new Error("connection reset"));
-    const result = await callTool("list_assignments", {}, USER_ID);
+    const result = await callTool("list_assignments", {}, USER_ID, SCOPE);
     expect(result).toEqual({ text: "connection reset", isError: true });
   });
 });
@@ -230,7 +236,7 @@ describe("callTool: sync_assignments", () => {
       blackboard: { synced: 0, errors: [] },
       classroom: { synced: 0, errors: [] },
     });
-    const result = await callTool("sync_assignments", {}, USER_ID);
+    const result = await callTool("sync_assignments", {}, USER_ID, SCOPE);
     expect(mockSync).toHaveBeenCalledWith(USER_ID, undefined);
     expect(result).toEqual({
       // Names only the platforms that brought something back. The old summary
@@ -250,7 +256,7 @@ describe("callTool: sync_assignments", () => {
       blackboard: { synced: 0, errors: [] },
       classroom: { synced: 0, errors: [] },
     });
-    const result = await callTool("sync_assignments", {}, USER_ID);
+    const result = await callTool("sync_assignments", {}, USER_ID, SCOPE);
     expect(result).toEqual({
       text: "Synced. No new assignments from any connected platform.",
       isError: false,
@@ -264,7 +270,7 @@ describe("callTool: sync_assignments", () => {
       canvas: { synced: 1, errors: [] },
       gradescope: { synced: 0, errors: [] },
     });
-    const result = await callTool("sync_assignments", {}, USER_ID);
+    const result = await callTool("sync_assignments", {}, USER_ID, SCOPE);
     expect(result.isError).toBe(false);
     expect(result.text).toContain("1 from Canvas");
   });
@@ -274,7 +280,7 @@ describe("callTool: sync_assignments", () => {
       canvas: { synced: 0, errors: [] },
       gradescope: { synced: 0, errors: [] },
     });
-    await callTool("sync_assignments", { timezone: "UTC" }, USER_ID);
+    await callTool("sync_assignments", { timezone: "UTC" }, USER_ID, SCOPE);
     expect(mockSync).toHaveBeenCalledWith(USER_ID, "UTC");
   });
 
@@ -283,21 +289,21 @@ describe("callTool: sync_assignments", () => {
       canvas: { synced: 2, errors: [] },
       gradescope: { synced: 0, errors: ["Gradescope login failed"] },
     });
-    const result = await callTool("sync_assignments", {}, USER_ID);
+    const result = await callTool("sync_assignments", {}, USER_ID, SCOPE);
     expect(result.isError).toBe(false);
     expect(result.text).toContain("Errors: Gradescope login failed");
   });
 
   it("returns an isError result when the sync throws", async () => {
     mockSync.mockRejectedValue(new Error("canvas token expired"));
-    const result = await callTool("sync_assignments", {}, USER_ID);
+    const result = await callTool("sync_assignments", {}, USER_ID, SCOPE);
     expect(result).toEqual({ text: "canvas token expired", isError: true });
   });
 });
 
 describe("callTool: unknown tool", () => {
   it("returns an isError result naming the tool", async () => {
-    const result = await callTool("drop_tables", {}, USER_ID);
+    const result = await callTool("drop_tables", {}, USER_ID, SCOPE);
     expect(result.isError).toBe(true);
     expect(result.text).toContain("drop_tables");
   });
@@ -326,7 +332,8 @@ describe("callTool: create_task", () => {
         course: "UGBA 103",
         tags: ["reading"],
       },
-      USER_ID
+      USER_ID,
+      SCOPE
     );
     expect(mockCreate).toHaveBeenCalledWith(USER_ID, {
       title: "Read chapter 4",
@@ -339,7 +346,7 @@ describe("callTool: create_task", () => {
   });
 
   it("passes nulls for omitted optional fields", async () => {
-    await callTool("create_task", { title: "Buy a notebook" }, USER_ID);
+    await callTool("create_task", { title: "Buy a notebook" }, USER_ID, SCOPE);
     expect(mockCreate).toHaveBeenCalledWith(USER_ID, {
       title: "Buy a notebook",
       description: undefined,
@@ -351,7 +358,7 @@ describe("callTool: create_task", () => {
   });
 
   it("accepts tags as a comma-separated string", async () => {
-    await callTool("create_task", { title: "x", tags: "reading, ugba" }, USER_ID);
+    await callTool("create_task", { title: "x", tags: "reading, ugba" }, USER_ID, SCOPE);
     expect(mockCreate).toHaveBeenCalledWith(
       USER_ID,
       expect.objectContaining({ tags: ["reading", "ugba"] })
@@ -359,7 +366,7 @@ describe("callTool: create_task", () => {
   });
 
   it("confirms with the title, course, due date and new id", async () => {
-    const result = await callTool("create_task", { title: "Read chapter 4" }, USER_ID);
+    const result = await callTool("create_task", { title: "Read chapter 4" }, USER_ID, SCOPE);
     expect(result.isError).toBe(false);
     expect(result.text).toContain("Read chapter 4");
     expect(result.text).toContain("UGBA 103");
@@ -368,20 +375,20 @@ describe("callTool: create_task", () => {
   });
 
   it("rejects a blank title without writing", async () => {
-    const result = await callTool("create_task", { title: "   " }, USER_ID);
+    const result = await callTool("create_task", { title: "   " }, USER_ID, SCOPE);
     expect(result.isError).toBe(true);
     expect(mockCreate).not.toHaveBeenCalled();
   });
 
   it("rejects a missing title without writing", async () => {
-    const result = await callTool("create_task", {}, USER_ID);
+    const result = await callTool("create_task", {}, USER_ID, SCOPE);
     expect(result.isError).toBe(true);
     expect(mockCreate).not.toHaveBeenCalled();
   });
 
   it("returns an isError result when the insert fails", async () => {
     mockCreate.mockRejectedValue(new Error("duplicate key"));
-    const result = await callTool("create_task", { title: "x" }, USER_ID);
+    const result = await callTool("create_task", { title: "x" }, USER_ID, SCOPE);
     expect(result).toEqual({ text: "duplicate key", isError: true });
   });
 });
@@ -391,7 +398,7 @@ describe("callTool: delete_task", () => {
 
   it("deletes by id and confirms with the title", async () => {
     mockDelete.mockResolvedValue({ title: "Buy a notebook", soft: false });
-    const result = await callTool("delete_task", { id: "task-9" }, USER_ID);
+    const result = await callTool("delete_task", { id: "task-9" }, USER_ID, SCOPE);
     expect(mockDelete).toHaveBeenCalledWith(USER_ID, "task-9");
     expect(result.isError).toBe(false);
     expect(result.text).toContain("Buy a notebook");
@@ -399,19 +406,19 @@ describe("callTool: delete_task", () => {
 
   it("says a synced assignment stays hidden through future syncs", async () => {
     mockDelete.mockResolvedValue({ title: "Chapter 1", soft: true });
-    const result = await callTool("delete_task", { id: "task-9" }, USER_ID);
+    const result = await callTool("delete_task", { id: "task-9" }, USER_ID, SCOPE);
     expect(result.text).toMatch(/hidden through future syncs/);
   });
 
   it("rejects a missing id without writing", async () => {
-    const result = await callTool("delete_task", {}, USER_ID);
+    const result = await callTool("delete_task", {}, USER_ID, SCOPE);
     expect(result.isError).toBe(true);
     expect(mockDelete).not.toHaveBeenCalled();
   });
 
   it("returns an isError result when the task is not found", async () => {
     mockDelete.mockRejectedValue(new Error('No task found with id "nope".'));
-    const result = await callTool("delete_task", { id: "nope" }, USER_ID);
+    const result = await callTool("delete_task", { id: "nope" }, USER_ID, SCOPE);
     expect(result.isError).toBe(true);
     expect(result.text).toContain("No task found");
   });
@@ -437,7 +444,8 @@ describe("callTool: list_calendar_events", () => {
     await callTool(
       "list_calendar_events",
       { time_min: "2026-08-24T00:00:00Z", time_max: "2026-08-25T00:00:00Z", query: "standup", limit: 5 },
-      USER_ID
+      USER_ID,
+      SCOPE
     );
     expect(mockListEvents).toHaveBeenCalledWith(USER_ID, {
       timeMin: "2026-08-24T00:00:00Z",
@@ -448,7 +456,7 @@ describe("callTool: list_calendar_events", () => {
   });
 
   it("shows the color, event id and calendar id on each line", async () => {
-    const result = await callTool("list_calendar_events", {}, USER_ID);
+    const result = await callTool("list_calendar_events", {}, USER_ID, SCOPE);
     expect(result.isError).toBe(false);
     expect(result.text).toContain("Standup");
     expect(result.text).toContain("color: Peacock");
@@ -468,19 +476,19 @@ describe("callTool: list_calendar_events", () => {
         colorName: "default (calendar color)",
       },
     ]);
-    const result = await callTool("list_calendar_events", {}, USER_ID);
+    const result = await callTool("list_calendar_events", {}, USER_ID, SCOPE);
     expect(result.text).toContain("(all day)");
   });
 
   it("returns a plain sentence when the range is empty", async () => {
     mockListEvents.mockResolvedValue([]);
-    const result = await callTool("list_calendar_events", {}, USER_ID);
+    const result = await callTool("list_calendar_events", {}, USER_ID, SCOPE);
     expect(result).toEqual({ text: "No events in that range.", isError: false });
   });
 
   it("returns an isError result when Calendar is not connected", async () => {
     mockListEvents.mockRejectedValue(new Error("Google Calendar is not connected."));
-    const result = await callTool("list_calendar_events", {}, USER_ID);
+    const result = await callTool("list_calendar_events", {}, USER_ID, SCOPE);
     expect(result.isError).toBe(true);
     expect(result.text).toContain("not connected");
   });
@@ -493,12 +501,12 @@ describe("callTool: set_event_color", () => {
   });
 
   it("resolves a plain color name to a Google colorId", async () => {
-    await callTool("set_event_color", { event_id: "e1", color: "blue" }, USER_ID);
+    await callTool("set_event_color", { event_id: "e1", color: "blue" }, USER_ID, SCOPE);
     expect(mockSetColor).toHaveBeenCalledWith(USER_ID, "e1", "7", undefined);
   });
 
   it("resolves an official palette name", async () => {
-    await callTool("set_event_color", { event_id: "e1", color: "Tomato" }, USER_ID);
+    await callTool("set_event_color", { event_id: "e1", color: "Tomato" }, USER_ID, SCOPE);
     expect(mockSetColor).toHaveBeenCalledWith(USER_ID, "e1", "11", undefined);
   });
 
@@ -506,20 +514,21 @@ describe("callTool: set_event_color", () => {
     await callTool(
       "set_event_color",
       { event_id: "e1", color: "5", calendar_id: "work@group" },
-      USER_ID
+      USER_ID,
+      SCOPE
     );
     expect(mockSetColor).toHaveBeenCalledWith(USER_ID, "e1", "5", "work@group");
   });
 
   it("confirms with the event title and new color", async () => {
-    const result = await callTool("set_event_color", { event_id: "e1", color: "blue" }, USER_ID);
+    const result = await callTool("set_event_color", { event_id: "e1", color: "blue" }, USER_ID, SCOPE);
     expect(result.isError).toBe(false);
     expect(result.text).toBe('Changed "Standup" to Peacock.');
   });
 
   it("clears the color when asked for the default", async () => {
     mockSetColor.mockResolvedValue({ title: "Standup", colorName: "default (calendar color)" });
-    await callTool("set_event_color", { event_id: "e1", color: "default" }, USER_ID);
+    await callTool("set_event_color", { event_id: "e1", color: "default" }, USER_ID, SCOPE);
     expect(mockSetColor).toHaveBeenCalledWith(USER_ID, "e1", null, undefined);
   });
 
@@ -527,7 +536,8 @@ describe("callTool: set_event_color", () => {
     const result = await callTool(
       "set_event_color",
       { event_id: "e1", color: "chartreuse" },
-      USER_ID
+      USER_ID,
+      SCOPE
     );
     expect(result.isError).toBe(true);
     expect(result.text).toMatch(/Unknown color/);
@@ -535,14 +545,14 @@ describe("callTool: set_event_color", () => {
   });
 
   it("rejects a missing event_id or color without calling Google", async () => {
-    expect((await callTool("set_event_color", { color: "blue" }, USER_ID)).isError).toBe(true);
-    expect((await callTool("set_event_color", { event_id: "e1" }, USER_ID)).isError).toBe(true);
+    expect((await callTool("set_event_color", { color: "blue" }, USER_ID, SCOPE)).isError).toBe(true);
+    expect((await callTool("set_event_color", { event_id: "e1" }, USER_ID, SCOPE)).isError).toBe(true);
     expect(mockSetColor).not.toHaveBeenCalled();
   });
 
   it("returns an isError result when the event is gone", async () => {
     mockSetColor.mockRejectedValue(new Error('No event "e1" on calendar "primary".'));
-    const result = await callTool("set_event_color", { event_id: "e1", color: "blue" }, USER_ID);
+    const result = await callTool("set_event_color", { event_id: "e1", color: "blue" }, USER_ID, SCOPE);
     expect(result.isError).toBe(true);
     expect(result.text).toContain("No event");
   });

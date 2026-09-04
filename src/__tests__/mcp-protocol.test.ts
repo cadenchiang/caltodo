@@ -38,6 +38,10 @@ import {
 
 const USER_ID = "user-abc-123";
 
+/** These suites exercise behaviour, not permissions, so they use a
+    full-access key; scope enforcement has its own suite in mcp-scopes. */
+const SCOPE = "full" as const;
+
 describe("success / failure builders", () => {
   it("builds a JSON-RPC 2.0 success envelope", () => {
     expect(success(1, { ok: true })).toEqual({ jsonrpc: "2.0", id: 1, result: { ok: true } });
@@ -72,7 +76,8 @@ describe("handleMessage", () => {
   it("answers initialize with capabilities and server info", async () => {
     const response = await handleMessage(
       { jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-03-26" } },
-      USER_ID
+      USER_ID,
+      SCOPE
     );
     expect(response).toEqual({
       jsonrpc: "2.0",
@@ -86,14 +91,15 @@ describe("handleMessage", () => {
   });
 
   it("answers ping with an empty result", async () => {
-    const response = await handleMessage({ jsonrpc: "2.0", id: 2, method: "ping" }, USER_ID);
+    const response = await handleMessage({ jsonrpc: "2.0", id: 2, method: "ping" }, USER_ID, SCOPE);
     expect(response).toEqual({ jsonrpc: "2.0", id: 2, result: {} });
   });
 
   it("lists tools with name, title, description and schema", async () => {
     const response = await handleMessage(
       { jsonrpc: "2.0", id: 3, method: "tools/list" },
-      USER_ID
+      USER_ID,
+      SCOPE
     );
     const tools = (response?.result as { tools: Array<Record<string, unknown>> }).tools;
     expect(tools).toHaveLength(1);
@@ -111,9 +117,10 @@ describe("handleMessage", () => {
         method: "tools/call",
         params: { name: "list_assignments", arguments: { status: "today" } },
       },
-      USER_ID
+      USER_ID,
+      SCOPE
     );
-    expect(mockCallTool).toHaveBeenCalledWith("list_assignments", { status: "today" }, USER_ID);
+    expect(mockCallTool).toHaveBeenCalledWith("list_assignments", { status: "today" }, USER_ID, SCOPE);
     expect(response?.result).toEqual({
       content: [{ type: "text", text: "2 assignments" }],
       isError: false,
@@ -124,9 +131,10 @@ describe("handleMessage", () => {
     mockCallTool.mockResolvedValue({ text: "ok", isError: false });
     await handleMessage(
       { jsonrpc: "2.0", id: 5, method: "tools/call", params: { name: "list_assignments" } },
-      USER_ID
+      USER_ID,
+      SCOPE
     );
-    expect(mockCallTool).toHaveBeenCalledWith("list_assignments", {}, USER_ID);
+    expect(mockCallTool).toHaveBeenCalledWith("list_assignments", {}, USER_ID, SCOPE);
   });
 
   it("ignores non-object tool arguments", async () => {
@@ -138,16 +146,18 @@ describe("handleMessage", () => {
         method: "tools/call",
         params: { name: "list_assignments", arguments: "nope" },
       },
-      USER_ID
+      USER_ID,
+      SCOPE
     );
-    expect(mockCallTool).toHaveBeenCalledWith("list_assignments", {}, USER_ID);
+    expect(mockCallTool).toHaveBeenCalledWith("list_assignments", {}, USER_ID, SCOPE);
   });
 
   it("surfaces a tool error as an isError result, not a JSON-RPC error", async () => {
     mockCallTool.mockResolvedValue({ text: "connection reset", isError: true });
     const response = await handleMessage(
       { jsonrpc: "2.0", id: 7, method: "tools/call", params: { name: "list_assignments" } },
-      USER_ID
+      USER_ID,
+      SCOPE
     );
     expect(response?.error).toBeUndefined();
     expect(response?.result).toMatchObject({ isError: true });
@@ -156,7 +166,8 @@ describe("handleMessage", () => {
   it("returns invalidParams when tools/call has no name", async () => {
     const response = await handleMessage(
       { jsonrpc: "2.0", id: 8, method: "tools/call", params: {} },
-      USER_ID
+      USER_ID,
+      SCOPE
     );
     expect(response?.error?.code).toBe(ERROR_CODES.invalidParams);
     expect(mockCallTool).not.toHaveBeenCalled();
@@ -165,7 +176,8 @@ describe("handleMessage", () => {
   it("returns methodNotFound for an unknown method", async () => {
     const response = await handleMessage(
       { jsonrpc: "2.0", id: 9, method: "resources/list" },
-      USER_ID
+      USER_ID,
+      SCOPE
     );
     expect(response?.error?.code).toBe(ERROR_CODES.methodNotFound);
   });
@@ -173,18 +185,19 @@ describe("handleMessage", () => {
   it("returns no response for the initialized notification", async () => {
     const response = await handleMessage(
       { jsonrpc: "2.0", method: "notifications/initialized" },
-      USER_ID
+      USER_ID,
+      SCOPE
     );
     expect(response).toBeNull();
   });
 
   it("returns invalidRequest when the method is missing", async () => {
-    const response = await handleMessage({ jsonrpc: "2.0", id: 10 }, USER_ID);
+    const response = await handleMessage({ jsonrpc: "2.0", id: 10 }, USER_ID, SCOPE);
     expect(response?.error?.code).toBe(ERROR_CODES.invalidRequest);
   });
 
   it("stays silent for a malformed notification", async () => {
-    const response = await handleMessage({ jsonrpc: "2.0" }, USER_ID);
+    const response = await handleMessage({ jsonrpc: "2.0" }, USER_ID, SCOPE);
     expect(response).toBeNull();
   });
 });
@@ -193,14 +206,15 @@ describe("handleBody", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("returns one response for a single request", async () => {
-    const responses = await handleBody({ jsonrpc: "2.0", id: 1, method: "ping" }, USER_ID);
+    const responses = await handleBody({ jsonrpc: "2.0", id: 1, method: "ping" }, USER_ID, SCOPE);
     expect(responses).toHaveLength(1);
   });
 
   it("returns no responses for a notification-only body", async () => {
     const responses = await handleBody(
       { jsonrpc: "2.0", method: "notifications/initialized" },
-      USER_ID
+      USER_ID,
+      SCOPE
     );
     expect(responses).toEqual([]);
   });
@@ -212,23 +226,24 @@ describe("handleBody", () => {
         { jsonrpc: "2.0", method: "notifications/initialized" },
         { jsonrpc: "2.0", id: 2, method: "tools/list" },
       ],
-      USER_ID
+      USER_ID,
+      SCOPE
     );
     expect(responses.map((r) => r.id)).toEqual([1, 2]);
   });
 
   it("returns invalidRequest for an empty batch", async () => {
-    const responses = await handleBody([], USER_ID);
+    const responses = await handleBody([], USER_ID, SCOPE);
     expect(responses[0].error?.code).toBe(ERROR_CODES.invalidRequest);
   });
 
   it("returns invalidRequest for a non-object body", async () => {
-    const responses = await handleBody("hello", USER_ID);
+    const responses = await handleBody("hello", USER_ID, SCOPE);
     expect(responses[0].error?.code).toBe(ERROR_CODES.invalidRequest);
   });
 
   it("returns invalidRequest for a null body", async () => {
-    const responses = await handleBody(null, USER_ID);
+    const responses = await handleBody(null, USER_ID, SCOPE);
     expect(responses[0].error?.code).toBe(ERROR_CODES.invalidRequest);
   });
 });

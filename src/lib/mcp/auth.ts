@@ -13,12 +13,15 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { findKeyOwner, touchApiKey } from "@/lib/mcp/api-keys";
 import { logger } from "@/lib/logger";
+import type { McpScope } from "@/lib/mcp/scopes";
 
 /** Successful authentication: the caltodo user the request acts as. */
 export interface McpAuthSuccess {
   ok: true;
   userId: string;
   keyId: string;
+  /** What the presented key is allowed to do. Enforced per tool call. */
+  scope: McpScope;
 }
 
 /** Failed authentication: HTTP status and a message safe to return. */
@@ -51,7 +54,7 @@ export function extractBearerToken(header: string | null): string | null {
  * @param headers - Request headers (reads `authorization` and `x-poke-user-id`)
  * @param client - Supabase client able to read every key, defaults to a
  *                 service-role admin client (injectable for tests)
- * @returns Success with the owning user and key id, or a 401 failure
+ * @returns Success with the owning user, key id and key scope, or a 401 failure
  * @remarks Uses the service role because MCP requests carry no user session.
  *          Never logs the presented key. The key's `last_used_at` is stamped
  *          in the background so the settings UI can show whether the
@@ -89,5 +92,5 @@ export async function authenticateMcpRequest(
   // Bookkeeping only — deliberately not awaited so it cannot delay or fail the call.
   void touchApiKey(client, owner.keyId);
 
-  return { ok: true, userId: owner.userId, keyId: owner.keyId };
+  return { ok: true, userId: owner.userId, keyId: owner.keyId, scope: owner.scope };
 }

@@ -41,6 +41,7 @@ const RECORD = {
   createdAt: "2026-08-22T00:00:00Z",
   lastUsedAt: null,
   expiresAt: null,
+  scope: "full",
 };
 
 /** Builds a request stub with an optional JSON body and query string. */
@@ -102,39 +103,39 @@ describe("POST /api/mcp-keys", () => {
       key: "sk-caltodo-secret",
       record: RECORD,
     });
-    expect(mockCreate).toHaveBeenCalledWith(expect.anything(), USER_ID, "Poke", null);
+    expect(mockCreate).toHaveBeenCalledWith(expect.anything(), USER_ID, "Poke", null, "full");
   });
 
   it("defaults the label when the body has none", async () => {
     mockCreate.mockResolvedValue({ key: "k", record: RECORD });
     await POST(makeRequest({}));
-    expect(mockCreate).toHaveBeenCalledWith(expect.anything(), USER_ID, "Poke", null);
+    expect(mockCreate).toHaveBeenCalledWith(expect.anything(), USER_ID, "Poke", null, "full");
   });
 
   it("defaults the label when there is no body at all", async () => {
     mockCreate.mockResolvedValue({ key: "k", record: RECORD });
     await POST(makeRequest());
-    expect(mockCreate).toHaveBeenCalledWith(expect.anything(), USER_ID, "Poke", null);
+    expect(mockCreate).toHaveBeenCalledWith(expect.anything(), USER_ID, "Poke", null, "full");
   });
 
   it("ignores a non-string label", async () => {
     mockCreate.mockResolvedValue({ key: "k", record: RECORD });
     await POST(makeRequest({ label: 42 }));
-    expect(mockCreate).toHaveBeenCalledWith(expect.anything(), USER_ID, "Poke", null);
+    expect(mockCreate).toHaveBeenCalledWith(expect.anything(), USER_ID, "Poke", null, "full");
   });
 
   it("passes a positive lifetime through", async () => {
     mockCreate.mockResolvedValue({ key: "k", record: RECORD });
     await POST(makeRequest({ label: "Poke", expiresInDays: 30 }));
-    expect(mockCreate).toHaveBeenCalledWith(expect.anything(), USER_ID, "Poke", 30);
+    expect(mockCreate).toHaveBeenCalledWith(expect.anything(), USER_ID, "Poke", 30, "full");
   });
 
   it("treats a non-positive or non-numeric lifetime as no expiry", async () => {
     mockCreate.mockResolvedValue({ key: "k", record: RECORD });
     await POST(makeRequest({ expiresInDays: 0 }));
-    expect(mockCreate).toHaveBeenCalledWith(expect.anything(), USER_ID, "Poke", null);
+    expect(mockCreate).toHaveBeenCalledWith(expect.anything(), USER_ID, "Poke", null, "full");
     await POST(makeRequest({ expiresInDays: "forever" }));
-    expect(mockCreate).toHaveBeenLastCalledWith(expect.anything(), USER_ID, "Poke", null);
+    expect(mockCreate).toHaveBeenLastCalledWith(expect.anything(), USER_ID, "Poke", null, "full");
   });
 
   it("returns 401 when signed out", async () => {
