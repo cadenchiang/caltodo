@@ -87,7 +87,8 @@ describe("the editor asks for one account's courses", () => {
 });
 
 describe("saving writes to the right place for the right account", () => {
-  const assemble = read("src/components/settings/ConnectedIntegration.tsx");
+  const assemble =
+    read("src/hooks/useIntegrationAccounts.ts") + read("src/lib/integration-account-list.ts");
 
   it("writes the primary account's choice to its credentials column", () => {
     expect(assemble).toContain('if (accountId === "primary")');
@@ -159,5 +160,39 @@ describe("the Classes settings tab is gone", () => {
     expect(popover).toContain("<IntegrationSettings connectedOnly />");
     expect(popover).not.toContain("Connected platforms");
     expect(read("src/components/settings/IntegrationList.tsx")).toContain("connectedOnly");
+  });
+});
+
+describe("removing a class removes its tasks", () => {
+  // The reported bug: "edit classes doesn't really edit it well, it just adds
+  // on and doesn't get rid of the old classes". Saving a selection wrote the
+  // column and stopped there, so a class the student unticked kept every
+  // assignment it had ever synced. The behaviour of the diff and the effects
+  // is covered by their own unit tests; these pin that the save is wired to
+  // them at all, which is the part that was missing.
+  const assemble =
+    read("src/hooks/useIntegrationAccounts.ts") + read("src/lib/integration-account-list.ts");
+  const editor = read("src/components/settings/AccountClasses.tsx");
+
+  it("diffs against the stored selection before overwriting it", () => {
+    expect(assemble).toContain("diffCourseSelection(storedCoursesFor(accountId), courses)");
+  });
+
+  it("applies the change to the task store after the write lands", () => {
+    expect(assemble).toContain("applyCourseSelectionChange(diff, {");
+    expect(assemble).toContain("dismissTasksByCourseNames");
+    expect(assemble).toContain("undismissTasksByCourseNames");
+  });
+
+  it("reports a failed task update without claiming the save failed", () => {
+    // The selection is already persisted at that point, so rolling the
+    // picker's ticks back would misreport what is stored.
+    expect(assemble).toContain("Classes saved, but their tasks did not update");
+  });
+
+  it("ticks the picker against the list it is about to show", () => {
+    // Seeding from stored ids alone opened the picker empty for feed-derived
+    // accounts, and closing it then saved that emptiness back.
+    expect(editor).toContain("setDraft(seedSelection(courses, selected))");
   });
 });

@@ -20,6 +20,7 @@ import { useToast } from "@/contexts/ToastContext";
 import CourseSelectModal from "@/components/ui/CourseSelectModal";
 import type { CourseSelectionProvider } from "@/lib/course-selection";
 import { COURSE_SELECTION, type SelectableCourse } from "@/lib/course-selection";
+import { seedSelection } from "@/lib/course-selection-diff";
 
 /**
  * Shape of a pill in this card, without any colour.
@@ -119,6 +120,11 @@ export default function AccountClasses({
       showToast(meta.emptyLabel);
       return;
     }
+    // Re-seed against the list actually being shown. The draft above is keyed
+    // on stored ids, which an account connected by calendar feed does not
+    // share with its course endpoint, so the picker opened with every class
+    // unticked and closing it saved that emptiness back.
+    setDraft(seedSelection(courses, selected));
     setEditing(true);
   }
 

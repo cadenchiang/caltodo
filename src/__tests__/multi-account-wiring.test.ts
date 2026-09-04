@@ -67,7 +67,15 @@ const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), "utf8");
 
 const onboarding = read("src/app/app/onboarding/page.tsx");
 const card = read("src/components/settings/ConnectedIntegrationCard.tsx");
-const group = read("src/components/settings/ConnectedIntegration.tsx");
+/**
+ * The account assembly that used to live in ConnectedIntegration.tsx. It moved
+ * to a hook plus a pure list builder when the class-removal fix pushed the
+ * component past the 300-line limit; these assertions are about the behaviour,
+ * not the file, so they read wherever it now lives.
+ */
+const assembly =
+  read("src/hooks/useIntegrationAccounts.ts") + read("src/lib/integration-account-list.ts");
+const group = assembly;
 const engine = read("src/lib/sync-engine.ts");
 
 describe("every feed provider is wired end to end", () => {
@@ -207,7 +215,7 @@ describe("the accounts group", () => {
 });
 
 describe("removing an extra account cleans up after itself", () => {
-  const assemble = read("src/components/settings/ConnectedIntegration.tsx");
+  const assemble = assembly;
 
   it("deletes the tasks an extra Canvas school synced", () => {
     // Those tasks carry the account id as an external_id prefix. Without this
