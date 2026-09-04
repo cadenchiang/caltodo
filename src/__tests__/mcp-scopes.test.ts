@@ -235,3 +235,35 @@ describe("scope migration", () => {
     expect(sql).toMatch(/WITH CHECK \(auth\.uid\(\) = user_id\)/);
   });
 });
+
+describe("full access is actually full", () => {
+  it("permits every tool the server exposes", () => {
+    // The point of the scope split is that `read` is narrow, not that `full`
+    // is a second, milder restriction. A key the user chose full access for
+    // has to be able to do everything the app's own UI can drive: add an
+    // assignment, sync, edit, delete, and manage the calendar.
+    const denied = MCP_TOOLS.filter((t) => !scopeAllowsTool("full", t.name)).map((t) => t.name);
+    expect(denied).toEqual([]);
+  });
+
+  it("permits a tool added later without being listed anywhere", () => {
+    // scopeAllowsTool short-circuits on `full`, so a new tool is allowed the
+    // moment it is registered. Pinning this stops anyone "tightening" full
+    // access into an allowlist that silently drops new tools.
+    expect(scopeAllowsTool("full", "a_tool_that_does_not_exist_yet")).toBe(true);
+  });
+
+  it("offers every tool to a full key in tools/list", () => {
+    expect(toolsForScope("full", MCP_TOOLS).map((t) => t.name)).toEqual(
+      MCP_TOOLS.map((t) => t.name)
+    );
+  });
+
+  it("lets a full key both create work and pull it in", () => {
+    // The two the user asked about by name.
+    for (const tool of ["create_task", "sync_assignments"]) {
+      expect(MCP_TOOLS.map((t) => t.name)).toContain(tool);
+      expect(scopeAllowsTool("full", tool)).toBe(true);
+    }
+  });
+});

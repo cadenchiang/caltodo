@@ -24,6 +24,7 @@ import ClassroomStep from "@/components/onboarding/ClassroomStep";
 import AddCanvasStep from "@/components/onboarding/AddCanvasStep";
 import SyllabusStep from "@/components/onboarding/SyllabusStep";
 import SearchableSelect from "@/components/onboarding/SearchableSelect";
+import PlatformLogo from "@/components/onboarding/PlatformLogo";
 import { SCHOOL_OPTIONS, REFERRAL_OPTIONS } from "@/components/onboarding/onboardingOptions";
 import { buildEntries, searchSchools } from "@/lib/school-search";
 import type { IntegrationCredentials, AdditionalCanvasAccount } from "@/lib/types";
@@ -1425,20 +1426,7 @@ export default function OnboardingPage() {
                         }`}
                         style={{ animationDelay: `${(i + 2) * 50}ms` }}
                       >
-                        {opt.id === "syllabus" ? (
-                          // Neutral, as in Settings: purple made Syllabus read
-                          // as a brand beside Canvas and Gradescope, and it is
-                          // a file the student uploaded, not a platform.
-                          <div className="w-7 h-7 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                            <FileText size={14} className="text-secondary-foreground" />
-                          </div>
-                        ) : (
-                          <img
-                            src={opt.logo}
-                            alt={opt.label}
-                            className="w-7 h-7 object-contain shrink-0"
-                          />
-                        )}
+                        <PlatformLogo id={opt.id} src={opt.logo} label={opt.label} />
                         <div className="flex-1 min-w-0 flex items-center gap-1.5">
                           <span className="text-[13px] font-semibold text-foreground truncate">{opt.label}</span>
                           {hasProgress && (

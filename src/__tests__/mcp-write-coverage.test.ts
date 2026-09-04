@@ -146,8 +146,10 @@ describe("the settings copy matches what the server does", () => {
     expect(dialog).toContain('scope: "full"');
     expect(dialog).toContain('scope: "read"');
     // Worded as what the assistant can do, not as which tools it may call.
-    expect(dialog).toContain("Read, add, edit and delete");
-    expect(dialog).toContain("Look, but never change anything");
+    // Full access names the write verbs outright, because the whole question
+    // someone has at this dialog is whether the key can change their work.
+    expect(dialog).toContain("add and edit assignments, sync");
+    expect(dialog).toContain("Never changes anything");
   });
 
   it("opens the name field empty rather than pre-filled", () => {

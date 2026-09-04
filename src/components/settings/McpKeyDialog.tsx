@@ -24,14 +24,24 @@ const EXPIRY_CHOICES: Array<{ label: string; days: number | null }> = [
 ];
 
 /**
- * The two access levels, with the one line each that explains them.
+ * The two access levels, and the one line that explains the chosen one.
  *
  * Worded as what the assistant can do, not as which tools it may call: the
- * person picking has no reason to know the tool list.
+ * person picking has no reason to know the tool list. The line sits under the
+ * row rather than inside each option, so the choice reads as a choice instead
+ * of as two paragraphs competing for it.
  */
-const SCOPE_CHOICES: Array<{ scope: McpScope; title: string; detail: string }> = [
-  { scope: "full", title: "Full access", detail: "Read, add, edit and delete" },
-  { scope: "read", title: "Read only", detail: "Look, but never change anything" },
+const SCOPE_CHOICES: Array<{ scope: McpScope; label: string; detail: string }> = [
+  {
+    scope: "full",
+    label: "Full access",
+    detail: "Read your work, add and edit assignments, sync, and manage your calendar.",
+  },
+  {
+    scope: "read",
+    label: "Read only",
+    detail: "Look at your assignments, classes and calendar. Never changes anything.",
+  },
 ];
 
 /** Lifetime the dialog opens on: long enough to be useful, short enough to lapse. */
@@ -117,13 +127,12 @@ export default function McpKeyDialog({
 
           <div>
             <p className="block text-xs font-medium text-foreground mb-1.5">Access</p>
-            {/* Stacked rather than chips: each option carries a line of its own,
-                which is what makes the difference obvious without a paragraph. */}
-            <div
-              role="radiogroup"
-              aria-label="Access level"
-              className="space-y-1.5"
-            >
+            {/* Chips, matching Expires below. Two bordered blocks each carrying
+                a title and a line of its own gave a binary choice the weight of
+                a form section, and stacked them so the second read as an
+                afterthought rather than an alternative. The explanation moves
+                under the row, where only the chosen one has to be read. */}
+            <div role="radiogroup" aria-label="Access level" className="flex flex-wrap gap-1.5">
               {SCOPE_CHOICES.map((choice) => {
                 const active = scope === choice.scope;
                 return (
@@ -133,26 +142,20 @@ export default function McpKeyDialog({
                     role="radio"
                     aria-checked={active}
                     onClick={() => setScope(choice.scope)}
-                    className={`w-full text-left px-3 py-2 rounded-lg border transition-colors cursor-pointer ${
+                    className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer border ${
                       active
-                        ? "border-blue-500 bg-blue-500/10"
-                        : "border-border hover:bg-muted"
+                        ? "bg-blue-500 text-white border-blue-500"
+                        : "border-border text-muted-foreground hover:text-foreground hover:bg-muted"
                     }`}
                   >
-                    <span
-                      className={`block text-xs font-medium ${
-                        active ? "text-blue-600 dark:text-blue-400" : "text-foreground"
-                      }`}
-                    >
-                      {choice.title}
-                    </span>
-                    <span className="block text-[11px] text-muted-foreground">
-                      {choice.detail}
-                    </span>
+                    {choice.label}
                   </button>
                 );
               })}
             </div>
+            <p className="text-[11px] text-muted-foreground mt-1.5">
+              {SCOPE_CHOICES.find((c) => c.scope === scope)?.detail}
+            </p>
           </div>
 
           <div>
