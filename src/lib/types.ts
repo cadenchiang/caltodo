@@ -239,6 +239,16 @@ export interface CredentialsSavePayload {
 export interface SyncSourceResult {
   synced: number;
   errors: string[];
+  /**
+   * True when the failure came from this source's calendar-feed URL, as
+   * opposed to any other path it may have.
+   *
+   * Only Canvas sets it, because only Canvas has two paths: an API token and
+   * an iCal feed. Without this marker the health banner could not tell a dead
+   * feed URL apart from a dead token, and blamed the feed for both — so a
+   * student who re-pasted a perfectly good feed URL kept being told to fix it.
+   */
+  ical_failed?: boolean;
 }
 
 /**

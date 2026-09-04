@@ -300,8 +300,15 @@ async function syncCanvas(
     return { synced: 0, errors: [] };
   }
 
-  // Check if Canvas API token has expired (120-day lifespan)
-  if (creds.canvas_token && creds.canvas_token_created_at) {
+  // Check if Canvas API token has expired (120-day lifespan).
+  //
+  // Only when the token is the path this sync would actually take. A student
+  // who first connected with a token and later switched to a calendar feed
+  // still has that dead token on their row, and this check used to abort the
+  // whole sync before the feed was ever fetched: assignments stopped arriving,
+  // and the error it returned made the health banner blame the feed URL. The
+  // feed needs no token, so an expired one is irrelevant once it exists.
+  if (!creds.canvas_ical_url && creds.canvas_token && creds.canvas_token_created_at) {
     const TOKEN_LIFESPAN_MS = 120 * 24 * 60 * 60 * 1000; // 120 days
     const createdAt = new Date(creds.canvas_token_created_at).getTime();
     if (createdAt + TOKEN_LIFESPAN_MS < Date.now()) {
@@ -395,6 +402,10 @@ async function syncCanvas(
         .from("integration_credentials")
         .update({ canvas_ical_failed: true })
         .eq("user_id", userId);
+      // Tell the banner it was the feed, not the token. The persistent flag
+      // above says the same thing but only after a credentials refetch; this
+      // rides back on the sync response so the warning is right immediately.
+      return { synced: 0, errors: [message], ical_failed: true };
     }
     return { synced: 0, errors: [message] };
   }
@@ -1007,6 +1018,13 @@ async function upsertAssignments(
   }
   let totalUpserted = 0;
   let failedBatches = 0;
+  // Why the batches failed, deduplicated. The alert email used to report only
+  // a count ("1 of 1 blackboard upsert batches failed"), which said an
+  // integration was broken without saying anything about how: the Postgres
+  // message naming the constraint lived in the server log alone. A whole
+  // source can be dead for a week on a one-word schema omission, so the
+  // reason travels with the count.
+  const failureReasons = new Set<string>();
   const BRIGHTSPACE_COLOR = "#E87040"; // D2L orange
   const BLACKBOARD_COLOR = "#3C3C3C"; // Blackboard graphite
   const CLASSROOM_COLOR = "#1E8E3E"; // Google Classroom green
@@ -1123,6 +1141,7 @@ async function upsertAssignments(
         .upsert(newRows, { onConflict: "user_id,source,external_id" });
       if (error) {
         batchFailed = true;
+        failureReasons.add(error.message);
         logger.error("upsertAssignments new-task batch failed", {
           source, batchStart: i, error: error.message,
         });
@@ -1146,6 +1165,7 @@ async function upsertAssignments(
           .upsert(group, { onConflict: "user_id,source,external_id" });
         if (error) {
           batchFailed = true;
+          failureReasons.add(error.message);
           logger.error("upsertAssignments existing-task batch failed", {
             source,
             batchStart: i,
@@ -1168,7 +1188,11 @@ async function upsertAssignments(
 
   if (failedBatches > 0) {
     const totalBatches = Math.ceil(assignments.length / UPSERT_BATCH_SIZE);
-    errors.push(`${failedBatches} of ${totalBatches} ${source} upsert batches failed`);
+    const reasons = [...failureReasons].join("; ");
+    errors.push(
+      `${failedBatches} of ${totalBatches} ${source} upsert batches failed` +
+        (reasons ? `: ${reasons}` : "")
+    );
   }
 
   // Auto-complete submitted assignments that aren't yet marked complete.
