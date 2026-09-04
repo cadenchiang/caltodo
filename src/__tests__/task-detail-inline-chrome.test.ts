@@ -60,6 +60,17 @@ describe("row icon alignment", () => {
   it("sizes the popover's own source-link icon the same way", () => {
     expect(popover).toContain('className="shrink-0 w-5 h-5 flex items-center justify-center"');
   });
+
+  it("keeps a picker field off its parent's text baseline", () => {
+    // An inline-block sits on the baseline of the line box it is in, and the
+    // div holding these fields carries the panel's 16px strut rather than the
+    // field's own 14px text-sm. The taller strut's baseline is lower, which
+    // pushed the class and tag values a few pixels below the icons labelling
+    // them while the plain-text rows stayed put. Aligning to the top of the
+    // line box is what makes every row start on the same edge.
+    const picker = read("src/components/tasks/inline/InlinePicker.tsx");
+    expect(picker).toContain("relative inline-block align-top max-w-full");
+  });
 });
 
 describe("chromeless inline editing", () => {

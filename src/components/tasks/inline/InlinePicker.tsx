@@ -36,6 +36,16 @@ interface InlinePickerProps {
  * @remarks The anchor is `relative` and `inline-block` so the popover lines up
  *          with the field rather than the panel edge, and so the hover tint
  *          hugs the content instead of spanning the full column.
+ *
+ *          `align-top` is what keeps it level with its row icon. An
+ *          inline-block defaults to sitting on its parent's text baseline,
+ *          and the parent here is an undecorated div carrying the panel's
+ *          16px strut rather than the field's 14px `text-sm`. The taller
+ *          strut put its baseline lower than the field's, so the field was
+ *          pushed a few pixels down the row and the class and tag values sat
+ *          below the icons labelling them. Aligning to the top of the line
+ *          box instead lands the text exactly where a row that holds plain
+ *          text puts it.
  */
 export default function InlinePicker({
   children,
@@ -48,7 +58,7 @@ export default function InlinePicker({
   const triggerRef = useRef<HTMLDivElement>(null);
 
   return (
-    <div className={`relative inline-block max-w-full ${className}`} ref={triggerRef}>
+    <div className={`relative inline-block align-top max-w-full ${className}`} ref={triggerRef}>
       <InlineField label={label} cursor="pointer" onActivate={() => setOpen((v) => !v)}>
         {children}
       </InlineField>
