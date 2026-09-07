@@ -118,22 +118,51 @@ describe("chromeless inline editing", () => {
   });
 });
 
-describe("a row of pills starts on the text column", () => {
+describe("a row's value sits on the same centre line as its icon", () => {
+  const panel = read("src/components/tasks/TaskDetailPanel.tsx");
+
+  it("sizes the value column's strut to the row text, not the panel font", () => {
+    // Without this the column's strut is the panel's 16px font (a 24px line
+    // box), and an inline value baselines on that instead of on its own 20px
+    // line box - about 3px below the icon beside it.
+    expect(panel).toContain('const ROW_VALUE_COLUMN = "min-w-0 flex-1 text-sm";');
+  });
+
+  it("uses that column for every row, so no row drifts on its own", () => {
+    const pickers = read("src/components/tasks/TaskDetailPickers.tsx");
+    const rows = (panel.match(/<div className=\{ROW_VALUE_COLUMN\}>/g) ?? []).length +
+      (pickers.match(/<div className=\{ROW_VALUE_COLUMN\}>/g) ?? []).length;
+    // Link, class, tags, description.
+    expect(rows).toBe(4);
+    expect(panel).not.toContain('<div className="min-w-0 flex-1">');
+    expect(pickers).not.toContain('<div className="min-w-0 flex-1">');
+    // The extracted rows keep the same column, so the two files cannot drift.
+    expect(pickers).toContain('const ROW_VALUE_COLUMN = "min-w-0 flex-1 text-sm";');
+  });
+
+  it("keeps the icon column 20px, matching the row text's line box", () => {
+    expect(panel).toContain('className="shrink-0 w-5 h-5 flex items-center justify-center');
+    expect(panel).toContain("const ROW_ICON_SIZE = 16;");
+  });
+});
+
+describe("a row of pills sits flush on the content column", () => {
   const panel = read("src/components/tasks/TaskDetailPanel.tsx");
   const shared = read("src/components/tasks/shared/TaskDetailRows.tsx");
 
-  it("cancels the pill's own padding so its text is not indented", () => {
-    // A pill's background starts where a plain row's text would, which puts
-    // its text 10px (`px-2.5`) further right than every other row.
-    expect(panel).toContain('const PILL_ALIGN_OFFSET = "-ml-2.5";');
-    expect(shared).toContain("flex flex-wrap gap-1.5 min-w-0 -ml-2.5");
+  it("does not pull the pill row left of the column", () => {
+    // The pill's background is the edge the eye reads, so it lines up with
+    // the text of the rows around it rather than hanging 10px left of them.
+    expect(panel).not.toContain("PILL_ALIGN_OFFSET");
+    expect(panel).not.toContain("-ml-2.5");
+    expect(shared).not.toContain("-ml-2.5");
+    expect(shared).toContain('className="flex flex-wrap gap-1.5 min-w-0"');
   });
 
-  it("shifts the panel's tag row only while it is showing pills", () => {
-    // Empty, the row shows a plain "Add tags" placeholder, which is already
-    // on the column and would be pulled off it by the same offset.
-    expect(panel).toContain('className={hasPills ? PILL_ALIGN_OFFSET : ""}');
-    expect(panel).toContain("const hasPills = sourceBadges.length > 0 || tags.length > 0;");
+  it("still switches between pills and the plain placeholder", () => {
+    const pickers = read("src/components/tasks/TaskDetailPickers.tsx");
+    expect(pickers).toContain("const hasPills = badges.length > 0 || tags.length > 0;");
+    expect(pickers).toContain('<span className="text-sm text-muted-foreground/70">Add tags</span>');
   });
 });
 
@@ -145,7 +174,18 @@ describe("option list search box", () => {
     expect(panelClass).toBeTruthy();
     expect(panelClass).not.toContain("overflow-y-auto");
     expect(panelClass).toContain("flex flex-col");
-    expect(panelClass).toContain("max-h-64");
+    // Taller than it was: the Save footer takes a row the options used to have.
+    expect(panelClass).toContain("max-h-72");
+  });
+
+  it("pins the Save footer below the list", () => {
+    // A pick stages; nothing reaches the assignment until Save, which is what
+    // keeps a stray click in the dropdown from editing a real due date.
+    expect(list).toContain("onClick={commit}");
+    expect(list).toContain("disabled={!dirty}");
+    expect(list).toContain("const dirty = !sameSelection(draft, selected);");
+    const footer = list.slice(list.indexOf("Save footer"));
+    expect(footer).toContain("shrink-0");
   });
 
   it("pins the search box above the list", () => {

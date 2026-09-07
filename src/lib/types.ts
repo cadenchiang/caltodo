@@ -76,6 +76,12 @@ export interface TaskUpdate {
   snoozed_until?: string | null;
   sort_order?: number | null;
   course_name?: string | null;
+  /**
+   * Link to the assignment. Written by sync for a task that came from a
+   * platform, and editable only on a task the user created: sync rewrites
+   * this column on every run, so an edit to a synced task's link is lost.
+   */
+  source_url?: string | null;
   /** Auto-stamped by TaskContext.updateTask when due_date is changed. */
   due_date_manually_edited_at?: string | null;
   /** Auto-stamped by TaskContext.updateTask when due_time is changed. */

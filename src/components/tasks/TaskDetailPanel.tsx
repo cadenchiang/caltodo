@@ -4,19 +4,21 @@ import { getRepeatLabel } from "@/lib/repeat";
 import { getThemeColor } from "@/lib/constants";
 import { getSourceBadges, getDetailDateInfo } from "@/lib/task-utils";
 import { parseLinks, looksLikeDocument } from "@/lib/link-text";
+import { summariseTaskEdit } from "@/lib/task-edit-summary";
+import { useUndo } from "@/contexts/UndoContext";
 import { useTheme } from "@/contexts/ThemeContext";
-import { useTaskContext } from "@/contexts/TaskContext";
 import type { Task, TaskUpdate } from "@/lib/types";
 import TaskCheckbox from "./shared/TaskCheckbox";
 import TaskDuplicatesBanner from "./TaskDuplicatesBanner";
 import TaskDetailEmpty from "./TaskDetailEmpty";
 import DeleteTaskButton from "./inline/DeleteTaskButton";
-import DatePicker from "./DatePicker";
+import ConfirmedDatePicker from "./ConfirmedDatePicker";
+import TaskDetailPickers from "./TaskDetailPickers";
 import InlineTextEdit from "./inline/InlineTextEdit";
+import TaskLinkField from "./TaskLinkField";
 import InlinePicker from "./inline/InlinePicker";
-import OptionList from "./inline/OptionList";
 import { TaskDateTimeLabel, TaskRepeatLabel } from "./shared/TaskDetailRows";
-import { ExternalLink, BookOpen, Tag, AlignLeft, CalendarDays, FileText } from "lucide-react";
+import { ExternalLink, AlignLeft, CalendarDays, FileText } from "lucide-react";
 
 interface TaskDetailPanelProps {
   /** The selected task, or null for empty state. */
@@ -52,14 +54,18 @@ interface TaskDetailPanelProps {
 const ROW_ICON_SIZE = 16;
 
 /**
- * Left shift that cancels a pill's own horizontal padding (`px-2.5`, 10px).
+ * The value column beside a row icon.
  *
- * A row of pills would otherwise start its text 10px right of every plain
- * text row, because the pill's background begins where that text would.
- * Applied to the pill row only: an empty row shows a plain placeholder, which
- * needs no shift.
+ * `text-sm` here is not decoration - the values already set their own size.
+ * It sets the column's *strut*, the invisible box every line is at least as
+ * tall as, which otherwise inherits the panel's 16px font and its 24px line
+ * box. A value rendered as an inline span (the class name, the "Add tags"
+ * placeholder) sits on that taller strut's baseline, which is ~3px lower than
+ * the baseline of its own 20px line box, so the text hung below the icon
+ * labelling it while the icon column itself was perfectly placed. Matching the
+ * strut to the 14px text puts the two back on the same centre line.
  */
-const PILL_ALIGN_OFFSET = "-ml-2.5";
+const ROW_VALUE_COLUMN = "min-w-0 flex-1 text-sm";
 
 function RowIcon({ children }: { children: React.ReactNode }) {
   return (
@@ -81,7 +87,7 @@ function RowIcon({ children }: { children: React.ReactNode }) {
  */
 export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: TaskDetailPanelProps) {
   const { colorTheme } = useTheme();
-  const { availableCourses, availableTags } = useTaskContext();
+  const { pushUndo } = useUndo();
 
   if (!task) return <TaskDetailEmpty />;
 
@@ -92,17 +98,43 @@ export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: Tas
     : null;
   const sourceBadges = getSourceBadges(task);
   const tags = task.tags ?? [];
-  const hasPills = sourceBadges.length > 0 || tags.length > 0;
+  // Only a task the user wrote themselves. A synced one has its link rewritten
+  // by every sync, so an edit here would not survive the next run.
+  const isLinkEditable = !task.source;
 
-  /** Applies one field change to the task. */
+  /**
+   * Applies one field change to the task, and records how to take it back.
+   *
+   * @param updates - The fields to write
+   * @remarks An update that writes the same values back is dropped: it would
+   *          announce an edit that did not happen and push an undo that does
+   *          nothing. The snapshot for the revert is taken from the task as
+   *          it is now, before the write, so the undo restores exactly what
+   *          was on screen a moment ago.
+   */
   function save(updates: TaskUpdate) {
-    if (task) onSave(task.id, updates);
+    if (!task) return;
+    const summary = summariseTaskEdit(task, updates);
+    if (!summary) return;
+
+    const id = task.id;
+    onSave(id, updates);
+    pushUndo({
+      label: summary.label,
+      undo: () => onSave(id, summary.revert),
+    });
   }
 
-  /** Adds or removes a tag, preserving the order of the rest. */
-  function toggleTag(tag: string) {
-    const has = tags.some((t) => t.toLowerCase() === tag.toLowerCase());
-    save({ tags: has ? tags.filter((t) => t.toLowerCase() !== tag.toLowerCase()) : [...tags, tag] });
+  /**
+   * Saves the task's link.
+   *
+   * @param url - A normalised http(s) URL, or null to clear the link
+   * @remarks The value is already vetted by TaskLinkField; this only routes it
+   *          through `save` so the edit is announced and undoable like the
+   *          rest.
+   */
+  function saveLink(url: string | null) {
+    save({ source_url: url });
   }
 
   return (
@@ -148,16 +180,20 @@ export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: Tas
           <InlinePicker
             label="Change due date"
             render={(close) => (
-              <DatePicker
+              <ConfirmedDatePicker
                 value={task.due_date}
                 timeValue={task.due_time}
-                onChange={(due_date) => { save({ due_date }); if (due_date) close(); }}
-                onTimeChange={(due_time) => save({ due_time })}
                 repeatInterval={task.repeat_interval}
                 repeatUnit={task.repeat_unit}
-                onRepeatChange={(repeat_interval, repeat_unit) =>
-                  save({ repeat_interval, repeat_unit })
+                onCommit={(d) =>
+                  save({
+                    due_date: d.date,
+                    due_time: d.time,
+                    repeat_interval: d.repeatInterval,
+                    repeat_unit: d.repeatUnit,
+                  })
                 }
+                onDone={close}
               />
             )}
           >
@@ -183,93 +219,45 @@ export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: Tas
 
       {/* Scrollable body */}
       <div className="flex-1 overflow-auto px-6 pt-3 pb-6 min-w-0">
-        {task.source_url && (
+        {/* Link — the synced link on an assignment that came from a platform,
+            and an editable one on a task the user wrote themselves. The row is
+            hidden on a synced task with no link rather than offering an edit
+            the next sync would overwrite: sync rewrites source_url on every
+            run, so a link typed here would silently vanish. */}
+        {isLinkEditable ? (
           <div className="flex items-start gap-4 py-2 min-w-0">
             <RowIcon><ExternalLink size={ROW_ICON_SIZE} /></RowIcon>
-            <a
-              href={task.source_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm font-medium text-muted-foreground hover:text-foreground hover:underline truncate transition-colors"
-            >
-              Open assignment
-            </a>
+            <div className={ROW_VALUE_COLUMN}>
+              <TaskLinkField value={task.source_url} onCommit={saveLink} />
+            </div>
           </div>
+        ) : (
+          task.source_url && (
+            <div className="flex items-start gap-4 py-2 min-w-0">
+              <RowIcon><ExternalLink size={ROW_ICON_SIZE} /></RowIcon>
+              <a
+                href={task.source_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm font-medium text-muted-foreground hover:text-foreground hover:underline truncate transition-colors"
+              >
+                Open assignment
+              </a>
+            </div>
+          )
         )}
 
-        {/* Class */}
-        <div className="flex items-start gap-4 py-2 min-w-0">
-          <RowIcon><BookOpen size={ROW_ICON_SIZE} /></RowIcon>
-          <div className="min-w-0 flex-1">
-            <InlinePicker
-              label="Change class"
-              render={(close) => (
-                <OptionList
-                  options={availableCourses}
-                  selected={task.course_name ? [task.course_name] : []}
-                  onToggle={(course_name) => save({ course_name })}
-                  onCreate={(course_name) => save({ course_name })}
-                  onClear={() => save({ course_name: null })}
-                  clearLabel="None"
-                  placeholder="Search or add class..."
-                  emptyLabel="No classes yet. Type to create one."
-                  onDone={close}
-                />
-              )}
-            >
-              <span className={`text-sm ${task.course_name ? "text-foreground" : "text-muted-foreground/70"}`}>
-                {task.course_name || "Add a class"}
-              </span>
-            </InlinePicker>
-          </div>
-        </div>
-
-        {/* Tags — the pill row is pulled left by the pills' own horizontal
-            padding so the first pill's text starts on the same column as the
-            plain text in every other row. */}
-        <div className="flex items-start gap-4 py-2 min-w-0">
-          <RowIcon><Tag size={ROW_ICON_SIZE} /></RowIcon>
-          <div className="min-w-0 flex-1">
-            <InlinePicker
-              className={hasPills ? PILL_ALIGN_OFFSET : ""}
-              label="Change tags"
-              render={(close) => (
-                <OptionList
-                  options={availableTags}
-                  selected={tags}
-                  onToggle={toggleTag}
-                  onCreate={toggleTag}
-                  placeholder="Search or add tag..."
-                  emptyLabel="No tags yet. Type to create one."
-                  multi
-                  onDone={close}
-                />
-              )}
-            >
-              {hasPills ? (
-                <span className="flex flex-wrap gap-1.5 min-w-0">
-                  {sourceBadges.map((b) => (
-                    <span key={b.label} className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${b.className}`}>
-                      {b.label}
-                    </span>
-                  ))}
-                  {tags.map((tag) => (
-                    <span key={tag} className="px-2.5 py-0.5 text-xs rounded-full bg-accent text-foreground max-w-[200px] truncate">
-                      {tag}
-                    </span>
-                  ))}
-                </span>
-              ) : (
-                <span className="text-sm text-muted-foreground/70">Add tags</span>
-              )}
-            </InlinePicker>
-          </div>
-        </div>
+        <TaskDetailPickers
+          task={task}
+          tags={tags}
+          sourceBadges={sourceBadges}
+          save={save}
+        />
 
         {/* Description */}
         <div className="flex items-start gap-4 py-2 min-w-0">
           <RowIcon><AlignLeft size={ROW_ICON_SIZE} /></RowIcon>
-          <div className="min-w-0 flex-1">
+          <div className={ROW_VALUE_COLUMN}>
             <InlineTextEdit
               value={task.description ?? ""}
               // Stored as an empty string, not null: the column is non-null.

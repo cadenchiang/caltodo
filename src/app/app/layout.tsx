@@ -5,6 +5,7 @@ import Sidebar from "@/components/layout/Sidebar";
 import MobileTabBar from "@/components/layout/MobileTabBar";
 import { TaskProvider } from "@/contexts/TaskContext";
 import { ToastProvider } from "@/contexts/ToastContext";
+import { UndoProvider } from "@/contexts/UndoContext";
 import { SpotifyPlayerProvider } from "@/contexts/SpotifyPlayerContext";
 
 import { PresenceProvider } from "@/contexts/PresenceContext";
@@ -68,6 +69,8 @@ export default async function AppLayout({
       <PostHogIdentify userId={session.user.id} email={email} fullName={fullName} />
       <PomodoroTitleSync />
       <ToastProvider>
+        {/* Inside the toasts, because an undo announces itself through one. */}
+        <UndoProvider>
           <PresenceProvider>
           <TaskProvider>
             <SpotifyPlayerProvider>
@@ -90,6 +93,7 @@ export default async function AppLayout({
             </SpotifyPlayerProvider>
           </TaskProvider>
           </PresenceProvider>
+        </UndoProvider>
       </ToastProvider>
       </div>
     </div>
