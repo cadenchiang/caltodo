@@ -1,0 +1,36 @@
+# Keeps the production functions warm.
+#
+# The first load after the app has sat idle was a Vercel cold start: ~1.2s
+# before the HTML even began, against ~0.3s warm. The account is on Hobby,
+# whose own crons run at most daily, so the warming request comes from here
+# instead. GitHub schedules at five-minute granularity at best and may run a
+# few minutes late under load; that is inside the window an instance stays
+# alive after a request, so a late tick still finds it warm.
+#
+# Two URLs, because a first open goes caltodo.me/ -> proxy -> /app/inbox and
+# each is its own function: an unauthenticated hit still initialises the
+# app layout (it verifies the session, finds none, and redirects), which is
+# all warming needs. Redirects are not followed and failures are not fatal:
+# this must never turn a Vercel hiccup into a red check.
+name: Keep warm
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Warm the entry path and the app shell
+        run: |
+          for url in "https://caltodo.me/" "https://caltodo.me/app/inbox"; do
+            curl --silent --output /dev/null --max-time 20 \
+              --write-out "$url -> HTTP %{http_code} in %{time_total}s\n" \
+              --header "User-Agent: caltodo-keep-warm" \
+              "$url" || echo "$url -> unreachable (ignored)"
+          done
