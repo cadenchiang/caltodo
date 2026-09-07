@@ -301,10 +301,10 @@ export default function Hero({ loggedIn: loggedInProp, initialUserCount, initial
                   <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#d8d8dc]" />
                 </div>
                 <Image
-                  src="/app-screenshot-board.png"
-                  alt="caltodo board view with widgets and calendar"
-                  width={1920}
-                  height={1149}
+                  src="/app-screenshot-inbox-live.png"
+                  alt="caltodo inbox with upcoming assignments and their due dates"
+                  width={1410}
+                  height={840}
                   priority
                   sizes="(min-width: 1024px) 1024px, 100vw"
                   className="w-full h-auto block"
