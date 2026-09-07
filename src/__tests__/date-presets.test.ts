@@ -1,6 +1,6 @@
 /**
  * Tests for the date picker's quick-select presets.
- * Time is frozen per case so weekday-relative presets are deterministic.
+ * Time is frozen per case so the resolved dates are deterministic.
  */
 
 import { describe, it, expect } from "vitest";
@@ -14,13 +14,17 @@ function dateFor(now: Date, label: string): string {
 }
 
 describe("getDatePresets", () => {
-  it("returns the four presets in display order", () => {
+  it("returns the two presets in display order", () => {
     expect(getDatePresets(new Date(2026, 7, 31)).map((p) => p.label)).toEqual([
       "Today",
       "Tomorrow",
-      "This weekend",
-      "Next week",
     ]);
+  });
+
+  it("no longer offers the weekday-relative presets", () => {
+    const labels = getDatePresets(new Date(2026, 7, 31)).map((p) => p.label);
+    expect(labels).not.toContain("This weekend");
+    expect(labels).not.toContain("Next week");
   });
 
   it("resolves Today and Tomorrow", () => {
@@ -40,42 +44,6 @@ describe("getDatePresets", () => {
 
   it("crosses a year boundary", () => {
     expect(dateFor(new Date(2026, 11, 31), "Tomorrow")).toBe("2027-01-01");
-  });
-
-  it("points This weekend at the coming Saturday", () => {
-    // Mon Aug 31 2026 -> Sat Sep 5.
-    expect(dateFor(new Date(2026, 7, 31), "This weekend")).toBe("2026-09-05");
-  });
-
-  it("points This weekend at tomorrow when today is Friday", () => {
-    const friday = new Date(2026, 8, 4);
-    expect(friday.getDay()).toBe(5);
-    expect(dateFor(friday, "This weekend")).toBe("2026-09-05");
-    expect(dateFor(friday, "Tomorrow")).toBe("2026-09-05");
-  });
-
-  it("skips to the following Saturday when today is Saturday", () => {
-    // A preset that resolves to the day already shown would be a no-op tap.
-    const saturday = new Date(2026, 8, 5);
-    expect(saturday.getDay()).toBe(6);
-    expect(dateFor(saturday, "This weekend")).toBe("2026-09-12");
-  });
-
-  it("points Next week at the coming Monday", () => {
-    // Tue Sep 1 2026 -> Mon Sep 7.
-    expect(dateFor(new Date(2026, 8, 1), "Next week")).toBe("2026-09-07");
-  });
-
-  it("skips a full week when today is Monday", () => {
-    const monday = new Date(2026, 7, 31);
-    expect(monday.getDay()).toBe(1);
-    expect(dateFor(monday, "Next week")).toBe("2026-09-07");
-  });
-
-  it("resolves Next week from a Sunday to the very next day", () => {
-    const sunday = new Date(2026, 8, 6);
-    expect(sunday.getDay()).toBe(0);
-    expect(dateFor(sunday, "Next week")).toBe("2026-09-07");
   });
 
   it("never resolves a preset into the past", () => {

@@ -176,12 +176,10 @@ describe("settings", () => {
     expect(card).toMatch(/deleteTasksBySource\("blackboard"\)/);
   });
 
-  it("shows as a connected platform on the calendar", () => {
-    // The calendar's classes modal renders the settings integration list,
-    // connected cards only, so Blackboard appears there once connected
-    // rather than through a second hand-written platform list.
-    const chips = read("src/components/calendar/CalendarClassesButton.tsx");
-    expect(chips).toContain("<IntegrationSettings connectedOnly />");
+  it("shows as a connected platform in settings", () => {
+    // Class management lives in settings only; the calendar header no longer
+    // carries a second door into it.
+    expect(read("src/components/settings/IntegrationList.tsx")).toContain("connectedOnly");
     expect(read("src/lib/integration-catalog.ts")).toContain("blackboard");
   });
 

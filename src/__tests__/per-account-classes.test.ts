@@ -152,13 +152,12 @@ describe("the Classes settings tab is gone", () => {
     expect(read("src/app/app/settings/SettingsContent.tsx")).not.toContain('case "classes"');
   });
 
-  it("gives the calendar popover the settings cards, not a copy of them", () => {
-    // The popover used to render its own class list and its own platform
-    // rows. It now mounts the settings integration list itself, limited to
-    // what is connected, so the two surfaces cannot drift apart.
-    const popover = read("src/components/calendar/CalendarClassesButton.tsx");
-    expect(popover).toContain("<IntegrationSettings connectedOnly />");
-    expect(popover).not.toContain("Connected platforms");
+  it("keeps class management in settings, off the calendar header", () => {
+    // The calendar header used to carry an "N classes" pill opening its own
+    // copy of the settings cards. Two doors into the same list is one more
+    // than the feature needs, so the pill and its modal are gone.
+    expect(fs.existsSync(path.join(ROOT, "src/components/calendar/CalendarClassesButton.tsx"))).toBe(false);
+    expect(read("src/components/calendar/CalendarHeader.tsx")).not.toContain("CalendarClassesButton");
     expect(read("src/components/settings/IntegrationList.tsx")).toContain("connectedOnly");
   });
 });
