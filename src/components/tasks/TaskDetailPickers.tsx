@@ -20,7 +20,8 @@ import {
   subscribeHiddenSourceBadges,
   visibleSourceBadges,
 } from "@/lib/hidden-source-badges";
-import { labelColor, courseColor } from "@/lib/label-colors";
+import { courseColor } from "@/lib/label-colors";
+import { useLabelColors } from "@/contexts/LabelColorsContext";
 import type { Task, TaskUpdate } from "@/lib/types";
 import InlinePicker from "./inline/InlinePicker";
 import OptionList from "./inline/OptionList";
@@ -126,6 +127,11 @@ export default function TaskDetailPickers({
 }: TaskDetailPickersProps) {
   const { availableCourses, availableTags, courseColors, deleteTag, deleteCourse } =
     useTaskContext();
+  const { colorFor, setColor, hasStoredColor } = useLabelColors();
+  /** A tag's colour: chosen if there is one, derived from the name if not. */
+  const tagColor = (tag: string) => colorFor("tag", tag);
+  /** A class's colour: chosen, else the colour its assignments already use. */
+  const classColor = (name: string) => colorFor("class", name, courseColor(name, courseColors));
 
   // The dismissed set lives on the device, not in React, so it is read as an
   // external store: that is what keeps the server's empty set and the first
@@ -209,7 +215,9 @@ export default function TaskDetailPickers({
                 allowCreate
                 onDelete={handleDeleteCourse}
                 deleteHint="Remove this class from every assignment"
-                colorFor={(name) => courseColor(name, courseColors)}
+                colorFor={classColor}
+                onColorChange={(name, c) => void setColor("class", name, c)}
+                isColorStored={(name) => hasStoredColor("class", name)}
                 clearLabel="None"
                 placeholder="Search or add class..."
                 emptyLabel="No classes yet. Type to create one."
@@ -239,7 +247,9 @@ export default function TaskDetailPickers({
                 allowCreate
                 onDelete={handleDeleteTag}
                 deleteHint="Remove this tag from every assignment"
-                colorFor={labelColor}
+                colorFor={tagColor}
+                onColorChange={(tag, c) => void setColor("tag", tag, c)}
+                isColorStored={(tag) => hasStoredColor("tag", tag)}
                 placeholder="Search or add tag..."
                 emptyLabel="No tags yet. Type to create one."
                 multi
@@ -250,10 +260,13 @@ export default function TaskDetailPickers({
             {hasPills ? (
               <span className="flex flex-wrap gap-1.5 min-w-0">
                 {badges.map((b) => (
+                  // A badge keeps its platform palette until the user picks
+                  // a colour for it, at which point it is tinted like a tag.
                   <PillChip
                     key={b.label}
                     label={b.label}
-                    className={b.className}
+                    className={hasStoredColor("source", b.label) ? undefined : b.className}
+                    color={hasStoredColor("source", b.label) ? colorFor("source", b.label) : undefined}
                     onRemove={() => handleDismissBadge(b.label)}
                     removeHint={`Hide the ${b.label} badge`}
                   />
@@ -266,7 +279,7 @@ export default function TaskDetailPickers({
                   <PillChip
                     key={tag}
                     label={tag}
-                    color={labelColor(tag)}
+                    color={tagColor(tag)}
                     onRemove={() => handleRemoveTag(tag)}
                     removeHint={`Remove ${tag} from this assignment`}
                   />

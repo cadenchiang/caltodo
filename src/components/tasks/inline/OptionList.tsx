@@ -14,6 +14,7 @@
 
 import { useState } from "react";
 import { Check, Trash2 } from "lucide-react";
+import ColorSwatchPicker from "./ColorSwatchPicker";
 
 interface OptionListProps {
   /** Everything that can be picked. */
@@ -44,6 +45,13 @@ interface OptionListProps {
   deleteHint?: string;
   /** Swatch colour for a value. Omit to render rows without a dot. */
   colorFor?: (value: string) => string;
+  /**
+   * Stores a chosen colour for a value, or null to revert to the derived one.
+   * When given, the dot opens a palette; without it the dot is display only.
+   */
+  onColorChange?: (value: string, color: string | null) => void;
+  /** Whether a value has a chosen colour, so the palette can offer "Use default". */
+  isColorStored?: (value: string) => boolean;
 }
 
 /** True when two selections hold the same values, ignoring order and case. */
@@ -87,6 +95,8 @@ export default function OptionList({
   onDelete,
   deleteHint = "Delete",
   colorFor,
+  onColorChange,
+  isColorStored,
 }: OptionListProps) {
   const [search, setSearch] = useState("");
   const [draft, setDraft] = useState<string[]>(selected);
@@ -199,20 +209,32 @@ export default function OptionList({
               key={option}
               className="group/opt flex items-center w-full hover:bg-accent transition-colors"
             >
+              {/* The swatch is a sibling of the select button, never a child:
+                  a button inside a button is invalid HTML and React refuses
+                  to hydrate it. */}
+              {colorFor && onColorChange ? (
+                <span className="shrink-0 pl-3 flex items-center">
+                  <ColorSwatchPicker
+                    color={colorFor(option)}
+                    label={`Colour for ${option}`}
+                    isStored={isColorStored?.(option) ?? false}
+                    onChange={(c) => onColorChange(option, c)}
+                  />
+                </span>
+              ) : colorFor ? (
+                <span
+                  aria-hidden
+                  className="shrink-0 ml-3 w-2 h-2 rounded-full"
+                  style={{ backgroundColor: colorFor(option) }}
+                />
+              ) : null}
               <button
                 type="button"
                 onClick={() => toggle(option)}
-                className={`flex-1 min-w-0 flex items-center gap-2 text-left pl-3 pr-2 py-1.5 text-sm transition-colors ${
-                  isSelected ? "text-blue-500 font-medium" : "text-foreground"
-                }`}
+                className={`flex-1 min-w-0 flex items-center gap-2 text-left pr-2 py-1.5 text-sm transition-colors ${
+                  colorFor ? "pl-2" : "pl-3"
+                } ${isSelected ? "text-blue-500 font-medium" : "text-foreground"}`}
               >
-                {colorFor && (
-                  <span
-                    aria-hidden
-                    className="shrink-0 w-2 h-2 rounded-full"
-                    style={{ backgroundColor: colorFor(option) }}
-                  />
-                )}
                 <span className="flex-1 min-w-0 truncate">{option}</span>
                 {isSelected && <Check size={14} className="shrink-0" />}
               </button>

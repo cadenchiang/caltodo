@@ -6,6 +6,7 @@ import MobileTabBar from "@/components/layout/MobileTabBar";
 import { TaskProvider } from "@/contexts/TaskContext";
 import { ToastProvider } from "@/contexts/ToastContext";
 import { UndoProvider } from "@/contexts/UndoContext";
+import { LabelColorsProvider } from "@/contexts/LabelColorsContext";
 import { SpotifyPlayerProvider } from "@/contexts/SpotifyPlayerContext";
 
 import { PresenceProvider } from "@/contexts/PresenceContext";
@@ -71,6 +72,7 @@ export default async function AppLayout({
       <ToastProvider>
         {/* Inside the toasts, because an undo announces itself through one. */}
         <UndoProvider>
+        <LabelColorsProvider>
           <PresenceProvider>
           <TaskProvider>
             <SpotifyPlayerProvider>
@@ -93,6 +95,7 @@ export default async function AppLayout({
             </SpotifyPlayerProvider>
           </TaskProvider>
           </PresenceProvider>
+        </LabelColorsProvider>
         </UndoProvider>
       </ToastProvider>
       </div>
