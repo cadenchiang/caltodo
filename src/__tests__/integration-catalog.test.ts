@@ -9,6 +9,7 @@
  */
 
 import { describe, it, expect } from "vitest";
+import { CLASSROOM_AVAILABLE } from "@/lib/classroom-availability";
 import * as fs from "fs";
 import * as path from "path";
 import type { IntegrationCredentials } from "@/lib/types";
@@ -124,7 +125,8 @@ describe("splitByConnection", () => {
     ["pensieve", { pensieve_calendar_url: "https://x/f.ics" }],
     ["brightspace", { brightspace_calendar_url: "https://x/f.ics" }],
     ["blackboard", { blackboard_calendar_url: "https://x/f.ics" }],
-    ["classroom", { classroom_enabled: true } as Partial<IntegrationCredentials>],
+    // Classroom is gated separately below: it counts as connected only once
+    // Google has approved the app for the scopes.
   ];
 
   for (const [id, patch] of CONNECTORS) {
@@ -134,6 +136,17 @@ describe("splitByConnection", () => {
       expect(connected.map((e) => e.id)).toContain(id);
     });
   }
+
+  it("keeps Classroom out of the connected group until Google approves the app", () => {
+    // The row can say enabled, but the sync cannot run and the card reads
+    // "Coming soon"; listing it as connected would describe a sync that is
+    // not happening. Flips to connected when CLASSROOM_AVAILABLE does.
+    const { connected } = splitByConnection({
+      ...emptyCredentials(),
+      classroom_enabled: true,
+    } as IntegrationCredentials);
+    expect(connected.map((e) => e.id).includes("classroom")).toBe(CLASSROOM_AVAILABLE);
+  });
 
   it("does not count a Classroom scope alone as connected", () => {
     // Holding the Google grant is not consent to sync coursework.

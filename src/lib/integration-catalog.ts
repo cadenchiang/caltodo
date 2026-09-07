@@ -15,6 +15,7 @@
  */
 
 import type { IntegrationCredentials } from "@/lib/types";
+import { CLASSROOM_AVAILABLE } from "@/lib/classroom-availability";
 import {
   PROVIDER_META,
   type IntegrationProvider,
@@ -106,7 +107,10 @@ export const INTEGRATION_CATALOG: readonly CatalogEntry[] = [
     connectable: true,
     // Classroom rides on the Google grant, but holding the scope is not
     // consent to sync: it counts as connected only once syncing is on.
-    isConnected: (c) => c.classroom_enabled === true,
+    // While Google has not approved the app for the Classroom scopes, the
+    // integration is "Coming soon" for everyone, whatever the row says: a
+    // card in the Connected group for a sync that cannot run is a lie.
+    isConnected: (c) => CLASSROOM_AVAILABLE && c.classroom_enabled === true,
   },
   {
     id: "syllabus",

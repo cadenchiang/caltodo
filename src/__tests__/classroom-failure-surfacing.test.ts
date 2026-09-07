@@ -73,16 +73,18 @@ describe("the settings card", () => {
     expect(card).toContain("credentials.classroom_auth_failed === true");
   });
 
-  it("offers the reconnect link only while Google can honour it", () => {
-    // Google's consent screen refuses the Classroom scopes until it has
-    // approved the app, so the link is a dead end while CLASSROOM_AVAILABLE
-    // is false; the card says the sync is paused instead.
-    const banner = card.slice(card.indexOf("{authFailed && CLASSROOM_AVAILABLE && ("));
+  it("offers the reconnect link whenever the flag is set", () => {
+    const banner = card.slice(card.indexOf("{authFailed && ("));
     expect(banner).toContain('href="/api/gcal/auth?classroom=1"');
     expect(banner).toContain("Reconnect Google to allow Classroom");
-    expect(card).toContain("{authFailed && !CLASSROOM_AVAILABLE && (");
-    expect(card).toContain("Classroom sync is paused while Google reviews this app");
-    expect(card).toContain('{CLASSROOM_AVAILABLE ? "Needs reconnect" : "Paused"}');
+  });
+
+  it("reads Coming soon until Google approves the app, whatever the row says", () => {
+    // Google's consent screen refuses the Classroom scopes until then, so a
+    // connected-looking card would describe a sync that cannot run.
+    expect(card).toContain("const enabled = CLASSROOM_AVAILABLE && credentials.classroom_enabled === true;");
+    expect(read("src/lib/integration-catalog.ts")).toContain("isConnected: (c) => CLASSROOM_AVAILABLE && c.classroom_enabled === true,");
+    expect(card).not.toContain('"Paused"');
   });
 
   it("does not select the header text when it is clicked to toggle", () => {
