@@ -55,7 +55,7 @@ src/
 │   ├── gradescope-client.ts  Gradescope HTML scraper (no official API)
 │   ├── pensieve-client.ts    Pensieve iCal parser
 │   ├── gcal/              Google Calendar token management & sync
-│   ├── supabase/          Supabase client helpers (server, admin, middleware)
+│   ├── supabase/          Supabase client helpers (server, admin, proxy)
 │   ├── types.ts           All TypeScript interfaces
 │   └── crypto.ts          AES-256-GCM encryption for stored passwords
 └── __tests__/             Vitest unit tests

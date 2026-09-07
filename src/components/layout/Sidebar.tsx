@@ -123,7 +123,7 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
         <div className="mb-4 pt-6 pb-2 px-3 flex items-center justify-between">
           {/* Link, not a raw <a>: the anchor forced a full document reload out
               of the app on every logo click, discarding the loaded bundle and
-              all in-memory state. ?landing=1 still opts out of the middleware
+              all in-memory state. ?landing=1 still opts out of the proxy
               redirect that would otherwise bounce a signed-in user back. */}
           {/* prefetch={false}: Next was prefetching the full marketing page
               (six RSC requests in one trace) while the user sat in the app,

@@ -49,7 +49,7 @@ export async function createClient() {
             );
           } catch {
             // The `setAll` method is called from a Server Component where
-            // cookies cannot be set. This can be safely ignored if middleware
+            // cookies cannot be set. This can be safely ignored if the proxy
             // is refreshing user sessions.
           }
         },

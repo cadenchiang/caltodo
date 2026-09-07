@@ -11,7 +11,7 @@ import { pickLandingPath, isMobileRequest } from "@/lib/landing-path";
  * @param request - The incoming Next.js request
  * @returns NextResponse with updated auth cookies
  */
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -73,7 +73,7 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // Only run middleware on the auth-transition routes where a redirect is
+  // Only run the proxy on the auth-transition routes where a redirect is
   // needed. /app/** routes are protected by the server layout's session
   // check, so we skip the Supabase getUser() network call on every tab
   // switch inside the app — that was ~100ms per nav.

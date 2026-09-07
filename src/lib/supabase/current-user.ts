@@ -17,13 +17,13 @@ import { createClient } from "./client";
  * `getSession()` reads the in-memory / cookie session with no network call.
  * That's safe for client-side needs (scoping queries by user id): RLS enforces
  * security on the server regardless, and the session token is validated
- * server-side by middleware on every navigation. So we resolve the user once
+ * server-side by the proxy on / and /login. So we resolve the user once
  * from the local session, cache it at module scope, and keep it fresh via
  * onAuthStateChange — turning N serial network calls into one local read.
  *
  * Use this instead of `supabase.auth.getUser()` in client components whenever
  * you just need the current user's identity. Keep using `getUser()` on the
- * server (route handlers, middleware, server components) where token
+ * server (route handlers, the proxy, server components) where token
  * validation is the point.
  */
 

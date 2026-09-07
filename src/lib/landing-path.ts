@@ -2,7 +2,7 @@
  * Determines a user's post-login landing path based on which sidebar
  * nav items they have hidden.
  *
- * Pure / dependency-free so both edge runtime middleware and node-runtime
+ * Pure / dependency-free so both the proxy and node-runtime
  * route handlers can import it.
  *
  * @module landing-path

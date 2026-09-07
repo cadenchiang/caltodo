@@ -44,9 +44,9 @@ export default async function AppLayout({
 }) {
   const supabase = await createClient();
   // getUser() verifies the JWT with the Auth server; getSession() only reads
-  // the cookie. The middleware has already verified this request, so this is
-  // defence in depth rather than the gate, but it is the only call Supabase
-  // considers authentic for reading who the user is.
+  // the cookie. This IS the gate for /app/**: the proxy only runs on "/" and
+  // "/login" (see src/proxy.ts), so nothing upstream has verified this
+  // request. A forged cookie must fail here, not be trusted for a name.
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {

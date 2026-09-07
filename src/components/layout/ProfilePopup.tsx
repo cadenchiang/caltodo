@@ -69,7 +69,7 @@ export default function ProfilePopup({ avatarUrl, fullName, email }: ProfilePopu
    *   1. Clear the local board-layout cache so the next user sees their own data.
    *   2. POST /auth/signout, clears the Supabase auth cookies on the server.
    *   3. Hard-navigate to "/", router.push keeps client state in memory, so
-   *      the SSR'd page (and middleware) needs a fresh request to forget the
+   *      the SSR'd page (and the proxy) needs a fresh request to forget the
    *      old session. Using window.location forces that.
    */
   async function handleLogOut() {

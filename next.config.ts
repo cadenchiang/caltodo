@@ -79,7 +79,7 @@ const nextConfig: NextConfig = {
   },
 
   // Required for PostHog proxy to work with middleware
-  skipMiddlewareUrlNormalize: true,
+  skipProxyUrlNormalize: true,
 
   // Security headers applied to all routes.
   async headers() {
