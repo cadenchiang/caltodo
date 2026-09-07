@@ -19,7 +19,11 @@ const COUNTER = path.join(ROOT, "src/components/landing/SyncedCount.tsx");
 const HERO = path.join(ROOT, "src/components/landing/Hero.tsx");
 const CSS = path.join(ROOT, "src/app/globals.css");
 
-const counter = fs.readFileSync(COUNTER, "utf8");
+// The roll timings live beside the component now, in a plain module the hero
+// can import too; the assertions below read the pair as one source.
+const counter =
+  fs.readFileSync(COUNTER, "utf8") +
+  fs.readFileSync(path.join(ROOT, "src/components/landing/synced-count-timing.ts"), "utf8");
 const hero = fs.readFileSync(HERO, "utf8");
 const css = fs.readFileSync(CSS, "utf8");
 
