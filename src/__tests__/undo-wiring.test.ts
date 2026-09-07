@@ -33,31 +33,37 @@ describe("the provider is mounted", () => {
   });
 });
 
-describe("the detail panel records its saves", () => {
-  const panel = read("src/components/tasks/TaskDetailPanel.tsx");
+describe("updateTask records every user edit", () => {
+  const ctx = read("src/contexts/TaskContext.tsx");
 
-  it("summarises the edit before writing it", () => {
-    // The snapshot has to be taken from the task as it is now; afterwards the
-    // previous values are gone.
-    expect(panel).toContain("const summary = summariseTaskEdit(task, updates);");
-    expect(panel.indexOf("summariseTaskEdit(task, updates)")).toBeLessThan(
-      panel.indexOf("onSave(id, updates)")
-    );
+  it("snapshots the task before writing, from the baseline", () => {
+    expect(ctx).toContain("const before = announce ? taskBaselineRef.current.find((t) => t.id === id) : undefined;");
+    expect(ctx.indexOf("summariseTaskEdit(before, updates)")).toBeLessThan(ctx.indexOf('.from("tasks")\n      .update(stampedUpdates)'));
   });
 
-  it("drops a save that changes nothing", () => {
-    // Otherwise the toast announces an edit that never happened.
-    expect(panel).toContain("if (!summary) return;");
+  it("announces with the revert after the write succeeds", () => {
+    const push = ctx.indexOf("pushUndo({\n        label: summary.label,");
+    expect(push).toBeGreaterThan(ctx.indexOf("if (updateError) {"));
+    expect(ctx).toContain("undo: () => updateTask(id, summary.revert, { announce: false }),");
   });
 
-  it("pushes the revert, not the edit", () => {
-    expect(panel).toContain("undo: () => onSave(id, summary.revert),");
+  it("drops a write that changes nothing", () => {
+    expect(ctx).toContain("if (announce && before && !summary) {");
   });
 
-  it("reverts through the same save path, so undo cannot recurse", () => {
-    // The undo calls the onSave prop directly rather than save(), which would
-    // record an undo for the undo.
-    expect(panel).not.toContain("undo: () => save(");
+  it("lets internal callers opt out so they do not double up", () => {
+    // Completion and its undo carry their own toast; snooze is a move, not
+    // an edit; merging duplicates is housekeeping.
+    expect(ctx).toContain("updateTask(id, { is_completed: false, completed_at: null }, { announce: false });");
+    expect(ctx).toContain("updateTask(id, { snoozed_until: snoozedUntil }, { announce: false });");
+    expect(ctx).toContain("updateTask(id, { snoozed_until: null }, { announce: false });");
+    expect(ctx).toContain("updateTask(survivor.id, { description: newDesc }, { announce: false });");
+    expect(ctx).toMatch(/await updateTask\(id, \{[\s\S]*?\}, \{ announce: false \}\);/);
+  });
+
+  it("is the only place that records, so no surface double-announces", () => {
+    expect(read("src/components/tasks/TaskDetailPanel.tsx")).not.toContain("pushUndo");
+    expect(read("src/components/tasks/TaskCreateModal.tsx")).not.toContain('showToast("Task updated")');
   });
 });
 

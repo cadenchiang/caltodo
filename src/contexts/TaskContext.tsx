@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/client";
 import { getCurrentUser } from "@/lib/supabase/current-user";
 import { TASK_COLUMNS } from "@/lib/task-columns";
 import { useToast } from "@/contexts/ToastContext";
+import { useUndo } from "@/contexts/UndoContext";
+import { summariseTaskEdit } from "@/lib/task-edit-summary";
 
 import type { Task, TaskInsert, TaskUpdate, SyncResult } from "@/lib/types";
 import { trackEvent } from "@/lib/analytics";
@@ -180,7 +182,13 @@ interface TaskContextValue {
   /** Maps each course_name to its dominant task color. */
   courseColors: Map<string, string>;
   addTask: (data: TaskInsert) => Promise<void>;
-  updateTask: (id: string, updates: TaskUpdate) => Promise<void>;
+  /**
+   * Writes fields to a task. Announces the edit with an Undo toast and
+   * records it for Cmd+Z unless `announce` is false, which internal callers
+   * (completion, snooze, the undo itself) pass because they either carry
+   * their own toast or are not an edit the user made.
+   */
+  updateTask: (id: string, updates: TaskUpdate, opts?: { announce?: boolean }) => Promise<void>;
   toggleComplete: (id: string) => Promise<void>;
   deleteTask: (id: string, opts?: { silent?: boolean }) => Promise<void>;
   deleteTasksBySource: (source: "canvas" | "gradescope" | "pensieve" | "brightspace" | "blackboard" | "syllabus") => Promise<void>;
@@ -244,6 +252,7 @@ export function TaskProvider({
   initialTasks?: Task[] | null;
 }) {
   const { showToast, updateToastProgress } = useToast();
+  const { pushUndo } = useUndo();
   const preloaded = initialTasks !== null;
   const [tasks, setTasks] = useState<Task[]>(initialTasks ?? []);
   const [loading, setLoading] = useState(!preloaded);
@@ -740,9 +749,22 @@ export function TaskProvider({
     }
   }
 
-  async function updateTask(id: string, updates: TaskUpdate) {
+  async function updateTask(id: string, updates: TaskUpdate, opts: { announce?: boolean } = {}) {
     trackEvent("task_updated");
     markActivated("task_updated");
+
+    // Every edit the user makes - from the detail panel, the edit modal, a
+    // calendar drag, a widget - lands here, so this is where it is made
+    // reversible. The snapshot comes from the baseline, which every write
+    // keeps current, rather than the `tasks` closure, which can be stale.
+    const announce = opts.announce ?? true;
+    const before = announce ? taskBaselineRef.current.find((t) => t.id === id) : undefined;
+    const summary = before ? summariseTaskEdit(before, updates) : null;
+    if (announce && before && !summary) {
+      // Nothing would change; announcing it would offer an undo that does
+      // nothing. The write is still skipped below for the same reason.
+      return;
+    }
     // When the user manually edits due_date / due_time on a synced task,
     // stamp the corresponding manual-edit column so sync-engine.ts won't
     // overwrite the change on the next Gradescope/Canvas/etc. sync.
@@ -786,6 +808,15 @@ export function TaskProvider({
       return;
     }
 
+    if (summary) {
+      pushUndo({
+        label: summary.label,
+        // The revert is itself an update, but not one to announce or record:
+        // an undo of an undo is redo, which this stack does not offer.
+        undo: () => updateTask(id, summary.revert, { announce: false }),
+      });
+    }
+
     // Fire-and-forget: propagate the edit (title, due date/time, completion
     // strikethrough) to Google Calendar. The endpoint creates the event if it
     // doesn't exist yet, updates it, or removes it when the due date is
@@ -804,7 +835,7 @@ export function TaskProvider({
     await updateTask(id, {
       is_completed: willComplete,
       completed_at: willComplete ? new Date().toISOString() : null,
-    });
+    }, { announce: false });
 
     // Track spawned task info for undo cleanup
     let spawnedNextDueDate: string | null = null;
@@ -849,7 +880,7 @@ export function TaskProvider({
           label: "Undo",
           icon: <Undo2 size={14} />,
           onClick: () => {
-            updateTask(id, { is_completed: false, completed_at: null });
+            updateTask(id, { is_completed: false, completed_at: null }, { announce: false });
             // Clean up spawned repeat task if undo is clicked
             if (nextDate) {
               setTasks((prev) => {
@@ -884,7 +915,7 @@ export function TaskProvider({
   async function snoozeTask(id: string, hours: number) {
     const snoozedUntil = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
     trackEvent("task_snoozed", { hours });
-    await updateTask(id, { snoozed_until: snoozedUntil });
+    await updateTask(id, { snoozed_until: snoozedUntil }, { announce: false });
   }
 
   /**
@@ -893,7 +924,7 @@ export function TaskProvider({
    * @param id - Task ID to unsnooze
    */
   async function unsnoozeTask(id: string) {
-    await updateTask(id, { snoozed_until: null });
+    await updateTask(id, { snoozed_until: null }, { announce: false });
   }
 
   /**
@@ -1050,7 +1081,7 @@ export function TaskProvider({
 
     if (links.length > 0) {
       const newDesc = [survivor.description, ...links].filter((s) => s && s.length > 0).join("\n\n");
-      await updateTask(survivor.id, { description: newDesc });
+      await updateTask(survivor.id, { description: newDesc }, { announce: false });
     }
 
     for (const d of dupes) {

@@ -5,7 +5,6 @@ import { getThemeColor } from "@/lib/constants";
 import { getSourceBadges, getDetailDateInfo } from "@/lib/task-utils";
 import { parseLinks, looksLikeDocument } from "@/lib/link-text";
 import { summariseTaskEdit } from "@/lib/task-edit-summary";
-import { useUndo } from "@/contexts/UndoContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import type { Task, TaskUpdate } from "@/lib/types";
 import TaskCheckbox from "./shared/TaskCheckbox";
@@ -87,7 +86,6 @@ function RowIcon({ children }: { children: React.ReactNode }) {
  */
 export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: TaskDetailPanelProps) {
   const { colorTheme } = useTheme();
-  const { pushUndo } = useUndo();
 
   if (!task) return <TaskDetailEmpty />;
 
@@ -107,22 +105,15 @@ export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: Tas
    *
    * @param updates - The fields to write
    * @remarks An update that writes the same values back is dropped: it would
-   *          announce an edit that did not happen and push an undo that does
-   *          nothing. The snapshot for the revert is taken from the task as
-   *          it is now, before the write, so the undo restores exactly what
-   *          was on screen a moment ago.
+   *          announce an edit that did not happen. The toast and the undo
+   *          come from updateTask, which every editing surface shares.
    */
   function save(updates: TaskUpdate) {
     if (!task) return;
-    const summary = summariseTaskEdit(task, updates);
-    if (!summary) return;
-
-    const id = task.id;
-    onSave(id, updates);
-    pushUndo({
-      label: summary.label,
-      undo: () => onSave(id, summary.revert),
-    });
+    // Announcing and recording the edit is updateTask's job now, for every
+    // caller alike; the panel only drops a save that would change nothing.
+    if (!summariseTaskEdit(task, updates)) return;
+    onSave(task.id, updates);
   }
 
   /**

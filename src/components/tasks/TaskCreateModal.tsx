@@ -242,8 +242,9 @@ export default function TaskCreateModal({
         setShowColorConfirm(true);
         return;
       }
+      // updateTask announces the edit ("Due date changed" + Undo); a second
+      // generic "Task updated" here would stack on top of it.
       onSave(editTask.id, buildUpdates());
-      showToast("Task updated");
     } else {
       onAdd({
         title: trimmed,
