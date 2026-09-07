@@ -203,11 +203,13 @@ export default function Hero({ loggedIn: loggedInProp, initialUserCount, initial
                 than the product name. Falls back to the name when the count is
                 unavailable, so a Supabase blip never leaves a bare "0". */}
             <p
-              className="mt-3 sm:mt-5 text-sm sm:text-lg font-semibold text-black tracking-tight animate-fade-up"
+              className="mt-3 sm:mt-5 text-sm sm:text-base font-semibold tracking-tight animate-fade-up"
               style={{ animationDelay: "1000ms" }}
             >
               {assignmentCount > 0 ? (
-                <>
+                // A pill, gray on gray: a quiet status chip under the logos
+                // rather than a second headline competing with "Stay ahead."
+                <span className="inline-flex items-center gap-2 rounded-full bg-neutral-100 px-3.5 py-1.5 text-neutral-500">
                   {/* A live indicator: the count is real and still climbing,
                       and a solid green dot is the idiom for "happening now".
                       It arrives only once the digits have settled, so it
@@ -215,14 +217,15 @@ export default function Hero({ loggedIn: loggedInProp, initialUserCount, initial
                       fill-mode keeps it invisible until its delay. */}
                   <span
                     aria-hidden
-                    className="inline-block w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-500 mr-2 align-middle -mt-0.5 animate-fade-up"
+                    className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-fade-up"
                     style={{ animationDelay: `${COUNT_SETTLED_MS}ms` }}
                   />
-                  <SyncedCount count={assignmentCount} />
-                  {/* The count is what has synced so far, not a cap. Weight
-                      comes from the <p>, which is semibold throughout. */}
-                  {"+ assignments synced"}
-                </>
+                  <span>
+                    <SyncedCount count={assignmentCount} />
+                    {/* The count is what has synced so far, not a cap. */}
+                    {"+ assignments synced"}
+                  </span>
+                </span>
               ) : (
                 "Caltodo"
               )}

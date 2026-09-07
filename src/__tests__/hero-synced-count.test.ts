@@ -164,7 +164,11 @@ describe("Hero wiring", () => {
     // "17,461+". The <p> is semibold throughout, so the plus and the words
     // carry the digits' weight without a span of their own.
     expect(hero).toContain('{"+ assignments synced"}');
-    expect(hero).toMatch(/text-sm sm:text-lg font-semibold text-black tracking-tight/);
+    // One weight across the line, set on the <p>; the colour now comes from
+    // the pill, gray on gray, so it reads as a status chip under the logos
+    // rather than a second headline.
+    expect(hero).toMatch(/text-sm sm:text-base font-semibold tracking-tight/);
+    expect(hero).toContain("rounded-full bg-neutral-100 px-3.5 py-1.5 text-neutral-500");
   });
 
   it("still falls back to the brand name when there is no count", () => {
