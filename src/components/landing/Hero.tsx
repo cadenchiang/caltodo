@@ -301,8 +301,8 @@ export default function Hero({ loggedIn: loggedInProp, initialUserCount, initial
                   <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#d8d8dc]" />
                 </div>
                 <Image
-                  src="/app-screenshot-inbox-live.png"
-                  alt="caltodo inbox with upcoming assignments and their due dates"
+                  src="/app-screenshot-calendar-live.png"
+                  alt="caltodo calendar with a month of assignments on their due dates"
                   width={1410}
                   height={840}
                   priority
