@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import NumberFlow, { useCanAnimate } from "@number-flow/react";
+import { ROLL_START_MS, ROLL_TIMING } from "./synced-count-timing";
 
 /**
  * Locale pinned so the reserved-width sizer below formats identically to the
@@ -9,28 +10,6 @@ import NumberFlow, { useCanAnimate } from "@number-flow/react";
  * (e.g. "17.596" vs "17,596") and the reservation would be off by a character.
  */
 const LOCALE = "en-US";
-
-/**
- * When the roll begins, in ms after mount.
- *
- * The eyebrow enters with `.animate-fade-up` at a 1000ms delay (see
- * `globals.css`). The roll starts with it, so the line arrives and the digits
- * settle as one gesture. Waiting for the entrance to finish instead left the
- * number still spinning a second and a half after everything else had come to
- * rest, which is what made it read as a separate, tacked-on animation.
- */
-const ROLL_START_MS = 1000;
-
-/**
- * How long the digits take to travel.
- *
- * Shorter than the 900ms entrance so the number lands first and the line
- * settles onto a figure that has stopped moving. Same curve as `.animate-fade-up`.
- */
-const ROLL_TIMING = {
-  duration: 800,
-  easing: "cubic-bezier(0.22, 1, 0.36, 1)",
-} as const;
 
 /**
  * Digit crossfades are deliberately much shorter than the travel. Stretching

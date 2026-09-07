@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { RefreshCw, CalendarDays, LayoutGrid, ArrowRight } from "lucide-react";
 import SyncedCount from "@/components/landing/SyncedCount";
+import { COUNT_SETTLED_MS } from "./synced-count-timing";
 import GoogleOneTap from "@/components/auth/GoogleOneTap";
 import FadeIn from "@/components/landing/FadeIn";
 import SupportedPlatforms from "@/components/landing/SupportedPlatforms";
@@ -209,10 +210,13 @@ export default function Hero({ loggedIn: loggedInProp, initialUserCount, initial
                 <>
                   {/* A live indicator: the count is real and still climbing,
                       and a solid green dot is the idiom for "happening now".
-                      Steady, with no halo - decorative only. */}
+                      It arrives only once the digits have settled, so it
+                      marks a figure that has finished arriving; fade-up's
+                      fill-mode keeps it invisible until its delay. */}
                   <span
                     aria-hidden
-                    className="inline-block w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-500 mr-2 align-middle -mt-0.5"
+                    className="inline-block w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-500 mr-2 align-middle -mt-0.5 animate-fade-up"
+                    style={{ animationDelay: `${COUNT_SETTLED_MS}ms` }}
                   />
                   <SyncedCount count={assignmentCount} />
                   {/* The count is what has synced so far, not a cap. Weight
