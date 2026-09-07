@@ -68,17 +68,16 @@ export default function AboutPage() {
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Caden Chiang on LinkedIn"
-            className="shrink-0 w-7 h-7 rounded-full overflow-hidden bg-neutral-100 ring-1 ring-black/[0.06] hover:ring-[#0e89d6]/40 transition-shadow duration-200 flex items-center justify-center"
+            className="shrink-0 rounded-full ring-1 ring-black/[0.06] hover:ring-[#0e89d6]/40 transition-shadow duration-200"
           >
-            {/* The source is a tight 224x224 crop, so there is no more photo
-                to reveal; rendering it a little smaller inside the circle is
-                what stops the face from filling the whole dot. */}
+            {/* A head-and-shoulders portrait (800x800) rather than the tight
+                face crop it replaced, so the dot shows a person, not a cheek. */}
             <Image
               src="/caden-chiang.jpg"
               alt="Caden Chiang"
               width={28}
               height={28}
-              className="rounded-full object-cover object-[center_32%] scale-[0.82]"
+              className="rounded-full object-cover object-[center_30%]"
             />
           </a>
         </div>
