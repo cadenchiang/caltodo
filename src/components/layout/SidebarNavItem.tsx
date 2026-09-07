@@ -72,11 +72,24 @@ export function navItemClasses(isActive: boolean, _isMiffy?: boolean): string {
   // child can fill the item. We no longer apply `nav-item-active` because
   // the pill paints the background instead — animating between items via
   // framer-motion's shared layoutId.
-  const base = "nav-item relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors";
+  //
+  // Hover is applied to every item, selected or not. Both backgrounds are
+  // translucent, so on the selected item the hover tint lands on top of the
+  // pill and reads as a touch stronger; on the others it is the only
+  // background there is, and --nav-hover-bg is half the pill's weight. That
+  // ordering is the point: hovering something unselected must never make it
+  // look as selected as the selected one, which is exactly what the old
+  // `dark:hover:bg-white/[0.06]` did — the same value as --nav-active-bg.
+  const base =
+    "nav-item relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold " +
+    "transition-[background-color,color] duration-150 ease-out " +
+    "hover:bg-[var(--nav-hover-bg)] active:scale-[0.99]";
   if (isActive) {
     return `${base} text-foreground`;
   }
-  return `${base} text-foreground hover:bg-black/[0.04] dark:hover:bg-white/[0.06]`;
+  // Unselected text sits a shade back and comes forward under the pointer, so
+  // the item answers the mouse even where the background tint is subtle.
+  return `${base} text-foreground/70 hover:text-foreground`;
 }
 
 /**

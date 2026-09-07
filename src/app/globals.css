@@ -61,6 +61,16 @@
      default (caltodo) theme's sidebar visually delimited like every
      other theme, instead of leaving it edge-to-edge with the page. */
   --nav-active-bg: rgba(0, 0, 0, 0.04);
+  /* Hover, deliberately lighter than the active pill.
+     The two used to be the same value in dark mode, so hovering an
+     unselected item made it look exactly as selected as the selected one and
+     the sidebar read as having two active tabs. Derived from the active
+     colour rather than hand-picked per theme, so every theme - present and
+     future - gets a hover that is half its own active tint instead of a grey
+     that may be invisible against its background. Declared once here: var()
+     resolves against the element's own --nav-active-bg, which each theme
+     block on <html> has already overridden. */
+  --nav-hover-bg: color-mix(in srgb, var(--nav-active-bg) 50%, transparent);
   --sidebar-border-color: var(--border);
 }
 
@@ -114,15 +124,9 @@
   --sidebar-border-color: #f9d5e0;
 }
 
-/* Miffy theme: use accent-pink hover on sidebar nav items so they're
-   visibly shaded against the pastel background (default black/4% is
-   imperceptible on Miffy's pink background). */
-.theme-miffy .nav-item:hover {
-  background-color: rgba(232, 114, 154, 0.07);
-}
-.dark.theme-miffy .nav-item:hover {
-  background-color: rgba(232, 114, 154, 0.10);
-}
+/* Miffy no longer needs a hand-written nav hover: --nav-hover-bg is derived
+   from the theme's own --nav-active-bg, which is already accent pink, so the
+   hover is pink here without a second rule to keep in step. */
 
 .dark.theme-miffy {
   --background: #1a1118;

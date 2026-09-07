@@ -92,6 +92,19 @@ const VALID_SECTIONS = new Set<string>(SETTINGS_SECTIONS.map((s) => s.id));
  * Mobile: no section param shows list menu; with section param shows content + back.
  * Handles GCal OAuth redirect by auto-adding section=integrations.
  */
+/**
+ * The "back to Settings" control.
+ *
+ * Raised rather than flat: it is the only way out of a section on mobile, and
+ * a bare chevron beside a heading read as part of the heading rather than as
+ * something to press. `btn-elevated-secondary` carries the outline, the lift,
+ * and the press-in on `:active`, and drops the shadow in dark mode, where a
+ * shadow under a bordered button reads as a second border.
+ */
+const BACK_BUTTON =
+  "btn-elevated-secondary flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-xl " +
+  "bg-card text-sm font-medium text-secondary-foreground cursor-pointer";
+
 export default function SettingsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -197,7 +210,7 @@ export default function SettingsContent() {
                   <div className="px-4 pt-4 pb-2 animate-stagger stagger-1">
                     <button
                       onClick={goBackToList}
-                      className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-sm font-medium transition-colors text-muted-foreground hover:bg-accent hover:text-foreground cursor-pointer active:scale-[0.98]"
+                      className={BACK_BUTTON}
                     >
                       <ChevronLeft size={16} />
                       <span>Settings</span>
@@ -215,7 +228,7 @@ export default function SettingsContent() {
                   <div className="px-4 pt-4 pb-2 animate-stagger stagger-1">
                     <button
                       onClick={() => router.push(getSettingsReturnPath())}
-                      className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-sm font-medium transition-colors text-muted-foreground hover:bg-accent hover:text-foreground cursor-pointer active:scale-[0.98]"
+                      className={BACK_BUTTON}
                     >
                       <ChevronLeft size={16} />
                       <span>Settings</span>
