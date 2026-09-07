@@ -61,6 +61,14 @@ describe("navItemClasses", () => {
   });
 });
 
+describe("only one item is active", () => {
+  it("no longer lights Inbox while the Calendar route is open", () => {
+    const item = read("src/components/layout/SidebarNavItem.tsx");
+    expect(item).not.toContain("inboxOwnsCalendar");
+    expect(item).toContain('const isActive = active ?? (pathname === href || pathname.startsWith(href + "/"));');
+  });
+});
+
 describe("nav hover colour", () => {
   const css = read("src/app/globals.css");
 

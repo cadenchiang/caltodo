@@ -12,6 +12,7 @@ import { loadCredentials } from "@/lib/credentials-loader";
 import { fetchLabelColors } from "@/lib/label-colors-store";
 import { loadInitialTasks } from "@/lib/tasks-loader";
 import { logger } from "@/lib/logger";
+import { GET_CLAIMS_OPTIONS } from "@/lib/supabase/jwks";
 import { SpotifyPlayerProvider } from "@/contexts/SpotifyPlayerContext";
 
 import { PresenceProvider } from "@/contexts/PresenceContext";
@@ -57,7 +58,7 @@ export default async function AppLayout({
   // instance needs no round trip to the Auth server; getUser() made one on
   // every page load, ~40% of the shell's server time. An expired token is
   // refreshed through the session first, as before.
-  const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();
+  const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(undefined, GET_CLAIMS_OPTIONS);
   const claims = claimsData?.claims;
 
   if (claimsError || !claims?.sub) {

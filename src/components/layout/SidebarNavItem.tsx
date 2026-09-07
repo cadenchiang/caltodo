@@ -113,11 +113,10 @@ export default function SidebarNavItem({ label, href, icon: Icon, badge, badgeCo
   const pathname = usePathname();
   const { colorTheme } = useTheme();
   const isMiffy = colorTheme === "miffy";
-  // The /app/calendar route is conceptually a tab inside the Inbox view,
-  // so the Inbox sidebar item should stay highlighted while the user is
-  // on the calendar page.
-  const inboxOwnsCalendar = href === "/app/inbox" && (pathname === "/app/calendar" || pathname.startsWith("/app/calendar/"));
-  const isActive = active ?? (pathname === href || pathname.startsWith(href + "/") || inboxOwnsCalendar);
+  // Calendar has its own sidebar item, so the old rule that kept Inbox lit
+  // while on /app/calendar made two items read as selected at once and left
+  // Inbox at full strength when it was not the one chosen.
+  const isActive = active ?? (pathname === href || pathname.startsWith(href + "/"));
 
   return (
     <Link

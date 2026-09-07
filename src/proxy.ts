@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { pickLandingPath, isMobileRequest } from "@/lib/landing-path";
+import { GET_CLAIMS_OPTIONS } from "@/lib/supabase/jwks";
 
 /**
  * Middleware for route protection and Supabase auth token refresh.
@@ -35,11 +36,16 @@ export async function proxy(request: NextRequest) {
     }
   );
 
-  // getUser() authenticates via the Supabase Auth server and refreshes tokens.
-  // It's sufficient on its own — getSession() here was a redundant extra round-trip.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // getClaims() verifies the session JWT against the project's public keys
+  // (cached process-wide, and hinted inline so a cold instance skips even
+  // that fetch) instead of round-tripping to the Auth server on every visit
+  // to "/" or "/login" - the entry path of every first load. An expired
+  // token is still refreshed through the session first.
+  const { data: claimsData } = await supabase.auth.getClaims(undefined, GET_CLAIMS_OPTIONS);
+  const claims = claimsData?.claims;
+  const user = claims?.sub
+    ? { id: claims.sub, user_metadata: (claims.user_metadata as Record<string, unknown> | undefined) ?? {} }
+    : null;
 
   const { pathname } = request.nextUrl;
 

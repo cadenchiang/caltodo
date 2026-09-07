@@ -23,9 +23,9 @@ describe("the layout preload", () => {
     expect(layout).toContain("loadCredentials(supabase, user.id)");
     expect(layout).toContain("fetchLabelColors(supabase, user.id)");
     // Verified locally against the cached JWKS, not with a round trip.
-    expect(layout).toContain("supabase.auth.getClaims()");
+    expect(layout).toContain("supabase.auth.getClaims(");
     expect(layout).not.toContain("supabase.auth.getUser()");
-    expect(layout.indexOf("supabase.auth.getClaims()")).toBeLessThan(layout.indexOf("await Promise.all(["));
+    expect(layout.indexOf("supabase.auth.getClaims(")).toBeLessThan(layout.indexOf("await Promise.all(["));
   });
 
   it("hands each result to its consumer", () => {
@@ -89,5 +89,17 @@ describe("task columns", () => {
     expect(TASK_COLUMNS).not.toContain("*");
     expect(read("src/contexts/TaskContext.tsx")).toContain(".select(TASK_COLUMNS)");
     expect(read("src/lib/tasks-loader.ts")).toContain(".select(TASK_COLUMNS)");
+  });
+});
+
+describe("the cold path", () => {
+  it("hints the JWKS so a cold instance verifies without fetching the keys", () => {
+    expect(read("src/lib/supabase/jwks.ts")).toContain("export const SUPABASE_JWKS");
+    expect(read("src/app/app/layout.tsx")).toContain("getClaims(undefined, GET_CLAIMS_OPTIONS)");
+    expect(read("src/proxy.ts")).toContain("getClaims(undefined, GET_CLAIMS_OPTIONS)");
+  });
+
+  it("no longer round-trips to the Auth server on the entry path", () => {
+    expect(read("src/proxy.ts")).not.toContain("supabase.auth.getUser()");
   });
 });
