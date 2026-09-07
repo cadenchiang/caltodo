@@ -123,7 +123,9 @@ export default function GoogleClassroomSettings() {
     <div className="rounded-2xl border border-border bg-card shadow-sm dark:shadow-none overflow-hidden">
       <div
         onClick={() => { if (enabled) setOpen((v) => !v); }}
-        className={`w-full flex items-center gap-2.5 sm:gap-3.5 px-3 sm:px-4 py-3.5 text-left transition-colors ${
+        // select-none: clicking a div to toggle it otherwise selects the
+        // text under the pointer on a double-click, which read as a glitch.
+        className={`w-full flex items-center gap-2.5 sm:gap-3.5 px-3 sm:px-4 py-3.5 text-left transition-colors select-none ${
           enabled ? "hover:bg-muted/40 cursor-pointer" : ""
         }`}
       >
@@ -145,7 +147,7 @@ export default function GoogleClassroomSettings() {
                 engine knows, without needing the card opened. */}
             {authFailed ? (
               <span className="hidden sm:inline text-xs font-semibold px-3 py-1 rounded-lg border border-amber-300 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 shrink-0">
-                Needs reconnect
+                {CLASSROOM_AVAILABLE ? "Needs reconnect" : "Paused"}
               </span>
             ) : (
               <span className="hidden sm:inline text-xs font-medium px-3 py-1 rounded-lg border border-emerald-200 dark:border-emerald-500/30 text-emerald-600 dark:text-emerald-400 shrink-0">
@@ -185,7 +187,7 @@ export default function GoogleClassroomSettings() {
       >
         <div className="overflow-hidden">
           <div className="px-3 sm:px-4 pb-4 space-y-4 border-t border-border pt-4">
-            {authFailed && (
+            {authFailed && CLASSROOM_AVAILABLE && (
               <div className="text-xs rounded-lg border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/30 px-3 py-2">
                 <p className="text-red-600 dark:text-red-400 mb-1.5">
                   Classroom sync is failing: Google has not granted Classroom access.
@@ -200,7 +202,20 @@ export default function GoogleClassroomSettings() {
               </div>
             )}
 
-            {enabled && (
+            {/* Google has not yet approved this app for the Classroom scopes,
+                so its consent screen refuses the reconnect; offering that
+                link was a dead end. Say the sync is paused and why, and let
+                the user turn it off. It resumes on its own once approved and
+                reconnected. */}
+            {authFailed && !CLASSROOM_AVAILABLE && (
+              <div className="text-xs rounded-lg border border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-amber-700 dark:text-amber-300">
+                Classroom sync is paused while Google reviews this app for Classroom
+                access. Nothing to do on your side; turn it off below if you would
+                rather not see this card until then.
+              </div>
+            )}
+
+            {enabled && CLASSROOM_AVAILABLE && (
               <div>
                 <p className="text-xs font-medium text-foreground mb-1.5">Classes</p>
 
