@@ -135,6 +135,14 @@ export async function GET() {
     gradescope_auth_failed: data?.gradescope_auth_failed ?? false,
     canvas_auth_failed: (data as { canvas_auth_failed?: boolean } | null)?.canvas_auth_failed ?? false,
     canvas_ical_failed: (data as { canvas_ical_failed?: boolean } | null)?.canvas_ical_failed ?? false,
+    // Selected above but never returned, so the settings card always saw the
+    // integration as off ("Coming soon") while the row had it on and the sync
+    // engine kept running it. The user could neither see nor disable it.
+    classroom_enabled: (data as { classroom_enabled?: boolean } | null)?.classroom_enabled ?? false,
+    selected_classroom_courses:
+      (data as { selected_classroom_courses?: Array<{ id: string; name: string }> | null } | null)
+        ?.selected_classroom_courses ?? null,
+    classroom_auth_failed: (data as { classroom_auth_failed?: boolean } | null)?.classroom_auth_failed ?? false,
     last_synced_at: data?.last_synced_at ?? null,
     selected_canvas_courses: data?.selected_canvas_courses ?? null,
     selected_gradescope_courses: data?.selected_gradescope_courses ?? null,
@@ -471,6 +479,11 @@ export async function PUT(request: Request) {
     canvas_token_expiring_soon: putCanvasTokenExpiringSoon,
     canvas_auth_failed: (updated as { canvas_auth_failed?: boolean } | null)?.canvas_auth_failed ?? false,
     canvas_ical_failed: (updated as { canvas_ical_failed?: boolean } | null)?.canvas_ical_failed ?? false,
+    classroom_enabled: (updated as { classroom_enabled?: boolean } | null)?.classroom_enabled ?? false,
+    selected_classroom_courses:
+      (updated as { selected_classroom_courses?: Array<{ id: string; name: string }> | null } | null)
+        ?.selected_classroom_courses ?? null,
+    classroom_auth_failed: (updated as { classroom_auth_failed?: boolean } | null)?.classroom_auth_failed ?? false,
     gradescope_email: updated?.gradescope_email ?? null,
     has_gradescope_password: !!updated?.gradescope_password_encrypted,
     gradescope_auth_failed: updated?.gradescope_auth_failed ?? false,

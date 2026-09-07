@@ -26,6 +26,7 @@ import {
   fetchClassroomAssignments,
   ClassroomScopeError,
 } from "@/lib/classroom-client";
+import { CLASSROOM_AVAILABLE } from "@/lib/classroom-availability";
 import { getValidAccessToken } from "@/lib/gcal/token-manager";
 import { after } from "next/server";
 import { reportSyncFailures } from "@/lib/integration-alerts";
@@ -826,6 +827,15 @@ async function syncClassroom(
 ): Promise<SyncSourceResult> {
   // Holding the scope is not consent to sync; the user opts in explicitly.
   if (!creds.classroom_enabled) {
+    return { synced: 0, errors: [] };
+  }
+
+  // While Google has not verified the app for the Classroom scopes, the UI
+  // offers no way to connect or disconnect it, yet an account that opted in
+  // before the gate closed kept syncing (and failing) with nothing to point
+  // at. Nothing runs until the feature is actually on.
+  if (!CLASSROOM_AVAILABLE) {
+    logger.info("syncClassroom skipped: feature not available", { userId });
     return { synced: 0, errors: [] };
   }
 

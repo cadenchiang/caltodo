@@ -79,7 +79,36 @@ describe("the settings card", () => {
     expect(banner).toContain("Reconnect Google to allow Classroom");
   });
 
+  it("does not call a failing sync Connected in the header", () => {
+    expect(card).toContain("Needs reconnect");
+    expect(card.indexOf("authFailed ? (")).toBeLessThan(card.indexOf(">\n                Connected"));
+  });
+
   it("defaults the flag so it is never undefined", () => {
     expect(read("src/components/settings/IntegrationSettings.tsx")).toContain("classroom_auth_failed: false,");
+  });
+});
+
+describe("the credentials API", () => {
+  const route = read("src/app/api/credentials/route.ts");
+
+  it("returns the Classroom fields it selects, on GET and on PUT", () => {
+    // It selected them and dropped them, so the UI always saw the integration
+    // as off while the row had it on.
+    for (const field of ["classroom_enabled", "selected_classroom_courses", "classroom_auth_failed"]) {
+      expect(route).toMatch(new RegExp(`${field}:\\s*\\(data as`));
+      expect(route).toMatch(new RegExp(`${field}:\\s*\\(updated as`));
+    }
+  });
+});
+
+describe("the availability gate", () => {
+  const engine = read("src/lib/sync-engine.ts");
+
+  it("does not sync a feature the UI says is not available yet", () => {
+    expect(engine).toContain('import { CLASSROOM_AVAILABLE } from "@/lib/classroom-availability";');
+    const gate = engine.indexOf("if (!CLASSROOM_AVAILABLE) {");
+    expect(gate).toBeGreaterThan(engine.indexOf("async function syncClassroom("));
+    expect(gate).toBeLessThan(engine.indexOf("await getValidAccessToken(supabase, userId);", gate));
   });
 });

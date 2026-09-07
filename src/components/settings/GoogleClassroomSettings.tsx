@@ -140,9 +140,18 @@ export default function GoogleClassroomSettings() {
 
         {enabled ? (
           <>
-            <span className="hidden sm:inline text-xs font-medium px-3 py-1 rounded-lg border border-emerald-200 dark:border-emerald-500/30 text-emerald-600 dark:text-emerald-400 shrink-0">
-              Connected
-            </span>
+            {/* A green "Connected" over a sync that fails every run is the
+                lie this card used to tell; the header says what the sync
+                engine knows, without needing the card opened. */}
+            {authFailed ? (
+              <span className="hidden sm:inline text-xs font-semibold px-3 py-1 rounded-lg border border-amber-300 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 shrink-0">
+                Needs reconnect
+              </span>
+            ) : (
+              <span className="hidden sm:inline text-xs font-medium px-3 py-1 rounded-lg border border-emerald-200 dark:border-emerald-500/30 text-emerald-600 dark:text-emerald-400 shrink-0">
+                Connected
+              </span>
+            )}
             <ChevronDown
               size={16}
               className={`text-muted-foreground shrink-0 transition-transform duration-200 ${
@@ -200,7 +209,9 @@ export default function GoogleClassroomSettings() {
                 ) : fetchError ? (
                   <div className="text-xs py-2">
                     <p className="text-red-500 mb-1.5">{fetchError.message}</p>
-                    {fetchError.needsReconnect && (
+                    {/* The banner above already carries the link when the
+                        flag is set; a second one under it says nothing new. */}
+                    {fetchError.needsReconnect && !authFailed && (
                       <a
                         href="/api/gcal/auth?classroom=1"
                         className="inline-flex items-center gap-1.5 font-medium text-blue-500 hover:text-blue-600 transition-colors"

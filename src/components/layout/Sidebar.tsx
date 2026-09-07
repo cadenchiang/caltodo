@@ -142,7 +142,11 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
             <div className="flex items-center gap-3 px-3 py-2.5">
               <button
                 onClick={() => router.push(getSettingsReturnPath())}
-                className="w-7 h-7 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors cursor-pointer active:scale-[0.95] shrink-0"
+                // Raised, matching the mobile back button: a bare chevron beside
+                // the "Settings" heading read as part of the heading rather than
+                // as something to press. btn-elevated-secondary carries the
+                // outline and the press-in, and drops its shadow in dark mode.
+                className="btn-elevated-secondary w-7 h-7 flex items-center justify-center rounded-lg bg-card text-secondary-foreground cursor-pointer shrink-0"
                 title="Back"
                 aria-label="Back"
               >
