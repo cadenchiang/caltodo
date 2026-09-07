@@ -207,6 +207,14 @@ export default function Hero({ loggedIn: loggedInProp, initialUserCount, initial
             >
               {assignmentCount > 0 ? (
                 <>
+                  {/* A live indicator: the count is real and still climbing,
+                      and a steady green dot is the idiom for "happening now".
+                      The pulse is a slow breathe, not a blink, so it reads
+                      as alive rather than as an alert. Decorative only. */}
+                  <span
+                    aria-hidden
+                    className="inline-block w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-500 mr-2 align-middle -mt-0.5 motion-safe:animate-[pulse_2.4s_ease-in-out_infinite] shadow-[0_0_0_3px_rgba(16,185,129,0.18)]"
+                  />
                   <SyncedCount count={assignmentCount} />
                   {/* The count is what has synced so far, not a cap. Weight
                       comes from the <p>, which is semibold throughout. */}
