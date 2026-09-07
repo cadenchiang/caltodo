@@ -50,6 +50,17 @@ export function getCredentials(force = false): Promise<Credentials> {
 }
 
 /**
+ * Fills the cache with a result the server already loaded, so the first
+ * getCredentials() on the client is answered without a request.
+ *
+ * @param data - Credentials as loaded by the /app layout
+ */
+export function seedCredentials(data: object): void {
+  cached = data as Credentials;
+  cachedAt = Date.now();
+}
+
+/**
  * Clears the cached credentials so the next getCredentials() refetches.
  * Call after any PUT/POST that mutates the credentials row.
  */

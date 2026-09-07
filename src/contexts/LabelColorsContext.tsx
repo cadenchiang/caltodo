@@ -56,12 +56,24 @@ const LabelColorsContext = createContext<LabelColorsValue | null>(null);
  *          change. Loading is silent: until it completes every label shows
  *          its derived colour, which is what it showed before this existed.
  */
-export function LabelColorsProvider({ children }: { children: ReactNode }) {
+export function LabelColorsProvider({
+  children,
+  initialUserId = null,
+  initialColors,
+}: {
+  children: ReactNode;
+  /** The signed-in user, when the server already knows; skips a lookup. */
+  initialUserId?: string | null;
+  /** Colours loaded on the server, as [key, colour] pairs; skips the fetch. */
+  initialColors?: [string, string][];
+}) {
   const { showToast } = useToast();
-  const [userId, setUserId] = useState<string | null>(null);
-  const [colors, setColors] = useState<Map<string, string>>(() => new Map());
+  const [userId, setUserId] = useState<string | null>(initialUserId);
+  const [colors, setColors] = useState<Map<string, string>>(() => new Map(initialColors ?? []));
 
   useEffect(() => {
+    // Preloaded on the server: nothing to fetch, and the user is known.
+    if (initialColors && initialUserId) return;
     let cancelled = false;
     const supabase = createClient();
     (async () => {
@@ -75,7 +87,7 @@ export function LabelColorsProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [initialColors, initialUserId]);
 
   const colorFor = useCallback(
     (kind: LabelKind, name: string, fallback?: string) =>

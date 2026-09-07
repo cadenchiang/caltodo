@@ -90,7 +90,7 @@ describe("the settings card", () => {
 });
 
 describe("the credentials API", () => {
-  const route = read("src/app/api/credentials/route.ts");
+  const route = (read("src/app/api/credentials/route.ts") + read("src/lib/credentials-loader.ts"));
 
   it("returns the Classroom fields it selects, on GET and on PUT", () => {
     // It selected them and dropped them, so the UI always saw the integration

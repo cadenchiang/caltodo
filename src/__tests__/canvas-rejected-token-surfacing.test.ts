@@ -26,6 +26,6 @@ describe("CanvasSettings", () => {
   });
 
   it("is fed the flag by the credentials API", () => {
-    expect(read("src/app/api/credentials/route.ts")).toMatch(/canvas_auth_failed: \(data as/);
+    expect((read("src/app/api/credentials/route.ts") + read("src/lib/credentials-loader.ts"))).toMatch(/canvas_auth_failed: \(data as/);
   });
 });

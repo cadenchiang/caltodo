@@ -46,7 +46,7 @@ describe("deploy-order safety of the new Blackboard column", () => {
   const ROOT = path.resolve(__dirname, "../..");
   const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), "utf8");
   const engine = read("src/lib/sync-engine.ts");
-  const route = read("src/app/api/credentials/route.ts");
+  const route = (read("src/app/api/credentials/route.ts") + read("src/lib/credentials-loader.ts"));
 
   it("the sync engine retries without the optional columns", () => {
     expect(engine).toMatch(/if \(isMissingColumnError\(credsError\)\)/);

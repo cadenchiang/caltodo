@@ -7,6 +7,10 @@ import { TaskProvider } from "@/contexts/TaskContext";
 import { ToastProvider } from "@/contexts/ToastContext";
 import { UndoProvider } from "@/contexts/UndoContext";
 import { LabelColorsProvider } from "@/contexts/LabelColorsContext";
+import CredentialsSeed from "@/components/CredentialsSeed";
+import { loadCredentials } from "@/lib/credentials-loader";
+import { fetchLabelColors } from "@/lib/label-colors-store";
+import { loadInitialTasks } from "@/lib/tasks-loader";
 import { SpotifyPlayerProvider } from "@/contexts/SpotifyPlayerContext";
 
 import { PresenceProvider } from "@/contexts/PresenceContext";
@@ -53,6 +57,17 @@ export default async function AppLayout({
     redirect("/login");
   }
 
+  // Preload what every /app page needs, in parallel, while the HTML is still
+  // being produced. Before this the client fetched each of these after
+  // hydration, ~0.5s after the HTML had already arrived, and the list could
+  // not draw until the tasks came back. A failed preload degrades to the old
+  // path: the providers fetch on the client as they always did.
+  const [initialTasks, initialCredentials, initialColors] = await Promise.all([
+    loadInitialTasks(supabase, user.id),
+    loadCredentials(supabase, user.id),
+    fetchLabelColors(supabase, user.id).then((m) => [...m.entries()]),
+  ]);
+
   const avatarUrl = user.user_metadata?.avatar_url ?? null;
   const fullName = user.user_metadata?.full_name ?? null;
   const email = user.email ?? null;
@@ -76,9 +91,10 @@ export default async function AppLayout({
       <ToastProvider>
         {/* Inside the toasts, because an undo announces itself through one. */}
         <UndoProvider>
-        <LabelColorsProvider>
+        <LabelColorsProvider initialUserId={user.id} initialColors={initialColors}>
           <PresenceProvider>
-          <TaskProvider>
+          <CredentialsSeed credentials={initialCredentials} />
+          <TaskProvider initialTasks={initialTasks}>
             <SpotifyPlayerProvider>
             <Sidebar avatarUrl={avatarUrl} fullName={fullName} email={email} />
             <main

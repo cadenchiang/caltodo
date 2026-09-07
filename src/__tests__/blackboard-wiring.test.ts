@@ -94,7 +94,7 @@ describe("sync engine", () => {
 });
 
 describe("credentials API", () => {
-  const route = read("src/app/api/credentials/route.ts");
+  const route = (read("src/app/api/credentials/route.ts") + read("src/lib/credentials-loader.ts"));
 
   it("reads and returns both columns", () => {
     expect(route).toContain("blackboard_calendar_url,");

@@ -4,6 +4,7 @@ import { createContext, useContext, useState, useEffect, useLayoutEffect, useCal
 import { Undo2, Eye, Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { getCurrentUser } from "@/lib/supabase/current-user";
+import { TASK_COLUMNS } from "@/lib/task-columns";
 import { useToast } from "@/contexts/ToastContext";
 
 import type { Task, TaskInsert, TaskUpdate, SyncResult } from "@/lib/types";
@@ -230,21 +231,39 @@ const TaskContext = createContext<TaskContextValue | null>(null);
  *
  * Cache hydration happens in useEffect to avoid SSR/client hydration mismatch.
  */
-export function TaskProvider({ children }: { children: ReactNode }) {
+export function TaskProvider({
+  children,
+  initialTasks = null,
+}: {
+  children: ReactNode;
+  /**
+   * Tasks loaded by the /app layout on the server. When present the list
+   * renders with the HTML and the mount-time fetch is skipped; null means
+   * the preload was unavailable and the client fetches as it always did.
+   */
+  initialTasks?: Task[] | null;
+}) {
   const { showToast, updateToastProgress } = useToast();
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
+  const preloaded = initialTasks !== null;
+  const [tasks, setTasks] = useState<Task[]>(initialTasks ?? []);
+  const [loading, setLoading] = useState(!preloaded);
   const [error, setError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
   const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
-  const hasCacheRef = useRef(false);
+  const hasCacheRef = useRef(preloaded);
   const supabase = createClient();
 
   // Hydrate from localStorage before first paint (useLayoutEffect runs synchronously
-  // after DOM mutations but before the browser paints, eliminating the loading flash)
+  // after DOM mutations but before the browser paints, eliminating the loading flash).
+  // Skipped when the server preloaded the list: that is fresher than any cache,
+  // and is written to the cache instead so the next cold load starts from it.
   useLayoutEffect(() => {
+    if (preloaded) {
+      setCachedTasks(initialTasks);
+      return;
+    }
     const cached = getCachedTasks();
     if (cached) {
       setTasks(cached);
@@ -258,14 +277,14 @@ export function TaskProvider({ children }: { children: ReactNode }) {
    * Used as a reliable baseline for sync change detection instead of
    * the potentially-stale `tasks` state from React closures.
    */
-  const taskBaselineRef = useRef<Task[]>([]);
+  const taskBaselineRef = useRef<Task[]>(initialTasks ?? []);
 
   /**
    * Whether the initial fetchTasks has completed at least once.
    * Notifications are suppressed until this is true to avoid
    * false "new assignment" alerts on first load.
    */
-  const hasInitialFetchRef = useRef(false);
+  const hasInitialFetchRef = useRef(preloaded);
 
   /**
    * Syncs any tasks with due dates but no google_event_id to Google Calendar.
@@ -335,7 +354,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
 
     const { data, error: fetchError } = await supabase
       .from("tasks")
-      .select("*")
+      .select(TASK_COLUMNS)
       .is("dismissed_at", null)
       .order("created_at", { ascending: false });
 
@@ -345,7 +364,9 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       return [];
     }
 
-    const freshTasks = (data ?? []) as Task[];
+    // The typed select list defeats PostgREST's row inference, hence the hop
+    // through unknown; the columns are exactly Task's keys (see task-columns).
+    const freshTasks = (data ?? []) as unknown as Task[];
 
     // Merge fresh server data with local state to avoid clobbering user
     // changes that happened mid-fetch. If a local task has a newer
@@ -386,9 +407,18 @@ export function TaskProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    fetchTasks();
+    if (preloaded) {
+      // The list is already here; only the user id is still needed, for
+      // writes. getCurrentUser() resolves from the session without a network
+      // round trip.
+      getCurrentUser().then((user) => {
+        if (user) setUserId(user.id);
+      });
+    } else {
+      fetchTasks();
+    }
     fetchLastSynced();
-  }, [fetchTasks, fetchLastSynced]);
+  }, [fetchTasks, fetchLastSynced, preloaded]);
 
   // Auto-sync: runs on initial load (if stale) and every 5 minutes.
   // Uses AbortController to cleanly cancel in-flight requests on unmount/re-render.

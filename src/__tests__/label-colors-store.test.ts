@@ -113,7 +113,7 @@ describe("deleteLabelColor", () => {
 describe("wiring", () => {
   it("mounts the provider inside the toasts it reports through", () => {
     const layout = read("src/app/app/layout.tsx");
-    expect(layout.indexOf("<ToastProvider>")).toBeLessThan(layout.indexOf("<LabelColorsProvider>"));
+    expect(layout.indexOf("<ToastProvider>")).toBeLessThan(layout.indexOf("<LabelColorsProvider"));
     expect(layout).toContain("</LabelColorsProvider>");
   });
 

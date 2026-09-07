@@ -29,7 +29,7 @@ describe("the provider is mounted", () => {
   });
 
   it("wraps the tasks whose edits it records", () => {
-    expect(layout.indexOf("<UndoProvider>")).toBeLessThan(layout.indexOf("<TaskProvider>"));
+    expect(layout.indexOf("<UndoProvider>")).toBeLessThan(layout.indexOf("<TaskProvider"));
   });
 });
 
