@@ -61,8 +61,14 @@ interface PillChipProps {
  */
 function PillChip({ label, className, color, onRemove, removeHint }: PillChipProps) {
   return (
+    // Symmetric padding at rest, so the pill hugs its text; the remove
+    // control is overlaid on the right and the pill grows to make room for
+    // it only under the pointer (always, on touch, where there is no hover).
+    // Reserving the slot permanently left every pill with a blank tail.
+    // `hover:` rather than `group-hover/pill:` here: the group variant only
+    // matches descendants of the group, and this span IS the group.
     <span
-      className={`group/pill inline-flex items-center gap-1 pl-2.5 pr-1 py-0.5 text-xs font-medium rounded-full max-w-[200px] ${className ?? ""}`}
+      className={`group/pill relative inline-flex items-center pl-2.5 pr-2.5 py-0.5 text-xs font-medium rounded-full max-w-[200px] transition-[padding] duration-150 hover:pr-6 focus-within:pr-6 [@media(hover:none)]:pr-6 ${className ?? ""}`}
       style={
         color
           ? { color, backgroundColor: "color-mix(in srgb, currentColor 16%, transparent)" }
@@ -78,7 +84,7 @@ function PillChip({ label, className, color, onRemove, removeHint }: PillChipPro
         }}
         title={removeHint}
         aria-label={removeHint}
-        className="shrink-0 rounded-full p-0.5 opacity-0 group-hover/pill:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100 hover:bg-black/10 dark:hover:bg-white/20 transition-opacity"
+        className="absolute right-1 top-1/2 -translate-y-1/2 rounded-full p-0.5 opacity-0 group-hover/pill:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100 hover:bg-black/10 dark:hover:bg-white/20 transition-opacity"
       >
         <X size={10} strokeWidth={3} />
       </button>
