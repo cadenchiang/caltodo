@@ -68,6 +68,7 @@ const EMPTY_CREDENTIALS: IntegrationCredentials = {
   is_founding_member: false,
   pensieve_calendar_url: null,
   pensieve_auth_failed: false,
+  classroom_auth_failed: false,
   brightspace_calendar_url: null,
   brightspace_auth_failed: false,
   blackboard_calendar_url: null,

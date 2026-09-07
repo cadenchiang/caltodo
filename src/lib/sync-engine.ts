@@ -56,6 +56,8 @@ interface CredentialsRow {
   blackboard_calendar_url: string | null;
   classroom_enabled: boolean;
   selected_classroom_courses: Array<{ id: string; name: string }> | null;
+  /** Set when Google refused the Classroom scope; cleared on reconnect. */
+  classroom_auth_failed: boolean;
   additional_canvas_accounts: AdditionalCanvasAccount[];
 }
 
@@ -99,7 +101,7 @@ export async function runSync(
   // and PostgREST fails the whole select when one column is unknown — which
   // here would report "no credentials configured" for every user and sync
   // nothing. Missing optional columns fall back to the core set instead.
-  const CORE_COLUMNS = "canvas_token, canvas_token_created_at, canvas_base_url, canvas_ical_url, gradescope_email, gradescope_password_encrypted, gradescope_auth_failed, last_gradescope_synced_at, selected_canvas_courses, selected_gradescope_courses, selected_pensieve_courses, pensieve_calendar_url, brightspace_calendar_url, classroom_enabled, selected_classroom_courses, additional_canvas_accounts";
+  const CORE_COLUMNS = "canvas_token, canvas_token_created_at, canvas_base_url, canvas_ical_url, gradescope_email, gradescope_password_encrypted, gradescope_auth_failed, last_gradescope_synced_at, selected_canvas_courses, selected_gradescope_courses, selected_pensieve_courses, pensieve_calendar_url, brightspace_calendar_url, classroom_enabled, selected_classroom_courses, classroom_auth_failed, additional_canvas_accounts";
   const OPTIONAL_COLUMNS = "blackboard_calendar_url";
 
   let { data: creds, error: credsError } = await supabase
@@ -825,6 +827,14 @@ async function syncClassroom(
   // Holding the scope is not consent to sync; the user opts in explicitly.
   if (!creds.classroom_enabled) {
     return { synced: 0, errors: [] };
+  }
+
+  // Skip while the scope is known to be missing, as Gradescope does with a bad
+  // password. Google returned 403 on every run before this, each one logging
+  // an error and re-writing the same flag; the reconnect flow clears it.
+  if (creds.classroom_auth_failed) {
+    logger.info("syncClassroom skipped: Classroom scope previously refused", { userId });
+    return { synced: 0, errors: ["Google Classroom access was not granted. Reconnect Google in Settings to allow it."] };
   }
 
   const selected = creds.selected_classroom_courses;

@@ -441,6 +441,9 @@ export function TaskProvider({ children }: { children: ReactNode }) {
             ...result.gradescope.errors,
             ...result.pensieve.errors,
             ...result.brightspace.errors,
+            // Classroom was left out, so a scope failure on every sync produced
+            // no toast and no "Fix in Settings" for the user to act on.
+            ...(result.classroom?.errors ?? []),
           ];
           if (syncErrors.length > 0) {
             const key = `sync-error-shown:${syncErrors.join("|")}`;

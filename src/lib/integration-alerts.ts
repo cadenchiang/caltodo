@@ -90,12 +90,15 @@ export async function sendAlertEmail(subject: string, body: string): Promise<boo
  * @param userId - The user whose sync produced these errors
  */
 export async function reportSyncFailures(result: SyncResult, userId: string): Promise<void> {
-  const sources: Array<["canvas" | "gradescope" | "pensieve" | "brightspace" | "blackboard", string[]]> = [
+  const sources: Array<["canvas" | "gradescope" | "pensieve" | "brightspace" | "blackboard" | "classroom", string[]]> = [
     ["canvas", result.canvas?.errors ?? []],
     ["gradescope", result.gradescope?.errors ?? []],
     ["pensieve", result.pensieve?.errors ?? []],
     ["brightspace", result.brightspace?.errors ?? []],
     ["blackboard", result.blackboard?.errors ?? []],
+    // Classroom was missing here, so a scope failure that set
+    // classroom_auth_failed on every run never reached the user.
+    ["classroom", result.classroom?.errors ?? []],
   ];
 
   for (const [source, errors] of sources) {

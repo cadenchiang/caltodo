@@ -61,6 +61,11 @@ export default function GoogleClassroomSettings() {
 
   const enabled = credentials.classroom_enabled === true;
   const selected = credentials.selected_classroom_courses ?? null;
+  // Set by the sync engine when Google refuses the Classroom scope. Distinct
+  // from fetchError below, which only exists once the card is opened and the
+  // course list is requested; this flag is what tells a user who has never
+  // opened the card that their sync has been failing.
+  const authFailed = enabled && credentials.classroom_auth_failed === true;
 
   // Only ask Google for courses once the user has opened the card and turned
   // the integration on — no point spending a round trip otherwise.
@@ -171,6 +176,21 @@ export default function GoogleClassroomSettings() {
       >
         <div className="overflow-hidden">
           <div className="px-3 sm:px-4 pb-4 space-y-4 border-t border-border pt-4">
+            {authFailed && (
+              <div className="text-xs rounded-lg border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/30 px-3 py-2">
+                <p className="text-red-600 dark:text-red-400 mb-1.5">
+                  Classroom sync is failing: Google has not granted Classroom access.
+                </p>
+                <a
+                  href="/api/gcal/auth?classroom=1"
+                  className="inline-flex items-center gap-1.5 font-medium text-blue-500 hover:text-blue-600 transition-colors"
+                >
+                  <RefreshCw size={12} />
+                  Reconnect Google to allow Classroom
+                </a>
+              </div>
+            )}
+
             {enabled && (
               <div>
                 <p className="text-xs font-medium text-foreground mb-1.5">Classes</p>
