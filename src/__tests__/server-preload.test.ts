@@ -22,7 +22,10 @@ describe("the layout preload", () => {
     expect(layout).toContain("loadInitialTasks(supabase, user.id)");
     expect(layout).toContain("loadCredentials(supabase, user.id)");
     expect(layout).toContain("fetchLabelColors(supabase, user.id)");
-    expect(layout.indexOf("supabase.auth.getUser()")).toBeLessThan(layout.indexOf("await Promise.all(["));
+    // Verified locally against the cached JWKS, not with a round trip.
+    expect(layout).toContain("supabase.auth.getClaims()");
+    expect(layout).not.toContain("supabase.auth.getUser()");
+    expect(layout.indexOf("supabase.auth.getClaims()")).toBeLessThan(layout.indexOf("await Promise.all(["));
   });
 
   it("hands each result to its consumer", () => {

@@ -11,6 +11,7 @@ import CredentialsSeed from "@/components/CredentialsSeed";
 import { loadCredentials } from "@/lib/credentials-loader";
 import { fetchLabelColors } from "@/lib/label-colors-store";
 import { loadInitialTasks } from "@/lib/tasks-loader";
+import { logger } from "@/lib/logger";
 import { SpotifyPlayerProvider } from "@/contexts/SpotifyPlayerContext";
 
 import { PresenceProvider } from "@/contexts/PresenceContext";
@@ -47,30 +48,55 @@ export default async function AppLayout({
   children: React.ReactNode;
 }) {
   const supabase = await createClient();
-  // getUser() verifies the JWT with the Auth server; getSession() only reads
-  // the cookie. This IS the gate for /app/**: the proxy only runs on "/" and
-  // "/login" (see src/proxy.ts), so nothing upstream has verified this
-  // request. A forged cookie must fail here, not be trusted for a name.
-  const { data: { user } } = await supabase.auth.getUser();
+  // eslint-disable-next-line react-hooks/purity -- server component, rendered once per request; this is request timing, not render state
+  const t0 = performance.now();
+  // This IS the gate for /app/**: the proxy only runs on "/" and "/login"
+  // (see src/proxy.ts), so nothing upstream has verified this request, and a
+  // forged cookie must fail here. getClaims() verifies the JWT's signature
+  // against the project's public keys (ES256), cached process-wide, so a warm
+  // instance needs no round trip to the Auth server; getUser() made one on
+  // every page load, ~40% of the shell's server time. An expired token is
+  // refreshed through the session first, as before.
+  const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();
+  const claims = claimsData?.claims;
 
-  if (!user) {
+  if (claimsError || !claims?.sub) {
     redirect("/login");
   }
+
+  const user = {
+    id: claims.sub,
+    email: (claims.email as string | undefined) ?? null,
+    user_metadata: (claims.user_metadata as Record<string, unknown> | undefined) ?? {},
+  };
 
   // Preload what every /app page needs, in parallel, while the HTML is still
   // being produced. Before this the client fetched each of these after
   // hydration, ~0.5s after the HTML had already arrived, and the list could
   // not draw until the tasks came back. A failed preload degrades to the old
   // path: the providers fetch on the client as they always did.
+  // eslint-disable-next-line react-hooks/purity -- server component, rendered once per request; this is request timing, not render state
+  const tAuth = performance.now();
   const [initialTasks, initialCredentials, initialColors] = await Promise.all([
     loadInitialTasks(supabase, user.id),
     loadCredentials(supabase, user.id),
     fetchLabelColors(supabase, user.id).then((m) => [...m.entries()]),
   ]);
 
-  const avatarUrl = user.user_metadata?.avatar_url ?? null;
-  const fullName = user.user_metadata?.full_name ?? null;
-  const email = user.email ?? null;
+  // eslint-disable-next-line react-hooks/purity -- server component, rendered once per request; this is request timing, not render state
+  const tData = performance.now();
+  // Where the shell's server time goes, per request. Kept on so a regression
+  // in either half shows up in the logs rather than in a user's trace.
+  logger.info("app layout: shell timing", {
+    userId: user.id,
+    authMs: Math.round(tAuth - t0),
+    dataMs: Math.round(tData - tAuth),
+    tasks: initialTasks?.length ?? null,
+  });
+
+  const avatarUrl = (user.user_metadata.avatar_url as string | undefined) ?? null;
+  const fullName = (user.user_metadata.full_name as string | undefined) ?? null;
+  const email = user.email;
 
   return (
     <div className="flex flex-col h-dvh">
