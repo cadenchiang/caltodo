@@ -30,7 +30,12 @@ export default function CanvasSettings({ credentials, onUpdate }: CanvasSettings
   const [disconnecting, setDisconnecting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const isConnected = Boolean(credentials.canvas_token) || Boolean(credentials.canvas_ical_url);
-  const isExpired = Boolean(credentials.canvas_token) && credentials.canvas_token_expired;
+  // canvas_token_expired is purely age-based (120 days). canvas_auth_failed is
+  // set by the sync engine when Canvas actually rejects the token, which can
+  // happen on day one if it was revoked; it was returned by the API but read
+  // by nothing, so a rejected token showed as connected while never syncing.
+  const isRejected = Boolean(credentials.canvas_token) && credentials.canvas_auth_failed === true;
+  const isExpired = (Boolean(credentials.canvas_token) && credentials.canvas_token_expired) || isRejected;
   const sourceTaskCount = tasks.filter((t) => t.source === "canvas").length;
 
   /**
@@ -85,7 +90,7 @@ export default function CanvasSettings({ credentials, onUpdate }: CanvasSettings
               }}
               className="text-xs font-semibold text-amber-600 dark:text-amber-400 px-3 py-1 rounded-lg border border-amber-300 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 hover:bg-amber-100 dark:hover:bg-amber-500/20 transition-colors shrink-0 cursor-pointer"
             >
-              Expired — Reconnect
+              {isRejected ? "Rejected — Reconnect" : "Expired — Reconnect"}
             </button>
           ) : (
             <button
