@@ -73,7 +73,7 @@ export default function AboutPage() {
             {/* A head-and-shoulders portrait (800x800) rather than the tight
                 face crop it replaced, so the dot shows a person, not a cheek. */}
             <Image
-              src="/caden-chiang.jpg"
+              src="/caden-chiang-portrait.jpg"
               alt="Caden Chiang"
               width={28}
               height={28}
