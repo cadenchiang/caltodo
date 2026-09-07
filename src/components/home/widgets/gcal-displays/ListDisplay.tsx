@@ -9,6 +9,7 @@
  */
 
 import { useState, useEffect, useMemo } from "react";
+import { useNow } from "@/hooks/useNow";
 import type { GCalDisplayProps } from "./types";
 import {
   parseEventDate, getEventColor, formatCountdown,
@@ -25,7 +26,8 @@ export default function ListDisplay({ events, calendarColors, fallbackColor, com
 
   const [selectedEvent, setSelectedEvent] = useState<{ event: typeof events[0]; color: string; rect: DOMRect } | null>(null);
 
-  const now = new Date();
+  // Refreshed once a minute, so the "next event" marker moves without a re-render being forced by a parent.
+  const now = useNow();
   const todayKey = new Date().toDateString();
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
@@ -33,8 +35,7 @@ export default function ListDisplay({ events, calendarColors, fallbackColor, com
 
   const nextEventId = useMemo(
     () => findNextEventId(events, now),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [events, Math.floor(now.getTime() / 60000)]
+    [events, now]
   );
 
   const grouped = useMemo(() => groupEventsByDay(events), [events]);

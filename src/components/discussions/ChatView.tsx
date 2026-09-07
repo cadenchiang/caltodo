@@ -549,9 +549,7 @@ export default function ChatView({
         <div className="flex justify-center py-4 h-[44px]">
           {!hasMore && (
             <span className="text-[11px] text-muted-foreground">
-              {new Date(
-                messages.length > 0 ? messages[0].created_at : Date.now()
-              ).toLocaleDateString("en-US", {
+              {messages.length > 0 && new Date(messages[0].created_at).toLocaleDateString("en-US", {
                 weekday: "long",
                 month: "long",
                 day: "numeric",

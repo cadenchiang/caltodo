@@ -7,6 +7,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useNow } from "@/hooks/useNow";
 import { useSWRConfig } from "swr";
 import type { GCalEvent } from "@/lib/types";
 import { formatEventTime, getEventColor, blendHex } from "@/lib/gcal/event-utils";
@@ -43,7 +44,8 @@ export default function CalendarGCalItem({ event, calendarColor }: CalendarGCalI
   const { colorTheme } = useTheme();
   const color = getEventColor(event.colorId, calendarColor, undefined, colorTheme);
   const timeStr = formatEventTime(event.start, event.allDay);
-  const isPast = new Date(event.end).getTime() < Date.now();
+  const now = useNow();
+  const isPast = new Date(event.end).getTime() < now.getTime();
   const isTentative = event.responseStatus === "tentative" || event.responseStatus === "needsAction";
   const isDeclined = event.responseStatus === "declined";
   const dotColor = isPast ? blendHex(color, "#FFFFFF", 0.5) : color;

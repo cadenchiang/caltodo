@@ -43,15 +43,19 @@ export default async function AppLayout({
   children: React.ReactNode;
 }) {
   const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
+  // getUser() verifies the JWT with the Auth server; getSession() only reads
+  // the cookie. The middleware has already verified this request, so this is
+  // defence in depth rather than the gate, but it is the only call Supabase
+  // considers authentic for reading who the user is.
+  const { data: { user } } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (!user) {
     redirect("/login");
   }
 
-  const avatarUrl = session.user.user_metadata?.avatar_url ?? null;
-  const fullName = session.user.user_metadata?.full_name ?? null;
-  const email = session.user.email ?? null;
+  const avatarUrl = user.user_metadata?.avatar_url ?? null;
+  const fullName = user.user_metadata?.full_name ?? null;
+  const email = user.email ?? null;
 
   return (
     <div className="flex flex-col h-dvh">
@@ -67,7 +71,7 @@ export default async function AppLayout({
           12-family stylesheet never blocks initial render of the app. */}
       <DeferredFonts />
       <div className="flex flex-col md:flex-row flex-1 min-h-0">
-      <PostHogIdentify userId={session.user.id} email={email} fullName={fullName} />
+      <PostHogIdentify userId={user.id} email={email} fullName={fullName} />
       <PomodoroTitleSync />
       <ToastProvider>
         {/* Inside the toasts, because an undo announces itself through one. */}

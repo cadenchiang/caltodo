@@ -72,10 +72,15 @@ export default function StatsSection() {
               {/* Platform labels — desktop only, positioned at vertical center of each segment */}
               {(() => {
                 const total = PLATFORMS.reduce((s, p) => s + p.minutes, 0);
-                let cumulative = 0;
+                // Each segment's centre as a running offset, computed up
+                // front rather than by mutating a counter mid-map.
+                const centres = PLATFORMS.reduce<number[]>((acc, p, i) => {
+                  const before = i === 0 ? 0 : acc[i - 1] + PLATFORMS[i - 1].minutes / 2;
+                  acc.push(before + p.minutes / 2);
+                  return acc;
+                }, []);
                 return PLATFORMS.map((p, i) => {
-                  const centerPct = ((cumulative + p.minutes / 2) / total) * 100;
-                  cumulative += p.minutes;
+                  const centerPct = (centres[i] / total) * 100;
                   return (
                     <motion.div
                       key={p.label}

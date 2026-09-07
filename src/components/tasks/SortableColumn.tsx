@@ -3,6 +3,14 @@
 import { useSortable } from "@dnd-kit/sortable";
 import type { ReactNode } from "react";
 
+/**
+ * Event listeners from @dnd-kit to spread onto a drag handle. `never[]`
+ * params make any handler assignable, which is what the library hands back,
+ * without resorting to the unsafe `Function` type.
+ */
+export type DragHandleListeners = Record<string, (...args: never[]) => void>;
+
+
 interface SortableColumnChildProps {
   /** Ref to attach to the column's root DOM element. */
   setNodeRef: (node: HTMLElement | null) => void;
@@ -11,7 +19,7 @@ interface SortableColumnChildProps {
   /** ARIA and data attributes from useSortable to spread on the root element. */
   attributes: Record<string, unknown>;
   /** Event listeners to spread onto the drag handle element. */
-  listeners: Record<string, Function> | undefined;
+  listeners: DragHandleListeners | undefined;
   /** True when this column is the active drag source. */
   isDragging: boolean;
 }
@@ -54,7 +62,7 @@ export default function SortableColumn({ id, children }: SortableColumnProps) {
         setNodeRef,
         style,
         attributes: attributes as unknown as Record<string, unknown>,
-        listeners: listeners as Record<string, Function> | undefined,
+        listeners: listeners as DragHandleListeners | undefined,
         isDragging,
       })}
     </>

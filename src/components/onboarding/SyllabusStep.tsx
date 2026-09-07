@@ -92,6 +92,8 @@ export default function SyllabusStep({ onNext, onSkip, error, setError, onPhaseC
   const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const statusIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const extractionStartRef = useRef<number>(0);
+  /** Seconds since extraction began, ticked by the progress interval. */
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const estimatedMsRef = useRef<number>(15_000);
   const [importing, setImporting] = useState(false);
   const [dragOver, setDragOver] = useState(false);
@@ -154,11 +156,14 @@ export default function SyllabusStep({ onNext, onSkip, error, setError, onPhaseC
   /** Starts the simulated progress bar and status message rotation. */
   function startProgressSimulation() {
     extractionStartRef.current = Date.now();
+    setElapsedSeconds(0);
     setProgressPercent(0);
     setStatusIndex(0);
     progressIntervalRef.current = setInterval(() => {
-      const ratio = (Date.now() - extractionStartRef.current) / estimatedMsRef.current;
+      const elapsedMs = Date.now() - extractionStartRef.current;
+      const ratio = elapsedMs / estimatedMsRef.current;
       setProgressPercent(Math.min(90, 90 * (1 - Math.exp(-2.5 * ratio))));
+      setElapsedSeconds(Math.floor(elapsedMs / 1_000));
     }, 500);
     statusIntervalRef.current = setInterval(() => {
       setStatusIndex((prev) => (prev + 1) % STATUS_MESSAGES.length);
@@ -233,8 +238,6 @@ export default function SyllabusStep({ onNext, onSkip, error, setError, onPhaseC
 
   /** Returns the elapsed time display string as a count-up timer. */
   function getTimeEstimateText(): string {
-    const elapsed = Date.now() - extractionStartRef.current;
-    const elapsedSeconds = Math.floor(elapsed / 1_000);
     if (elapsedSeconds < 1) return "0 seconds";
     if (elapsedSeconds === 1) return "1 second";
     return `${elapsedSeconds} seconds`;

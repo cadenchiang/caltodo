@@ -136,6 +136,7 @@ export default function LandingNav({ loggedIn: loggedInProp }: LandingNavProps =
       // Lock the highlight on the target so the observer doesn't flicker
       // during the smooth scroll.
       setActiveHash(`#${id}`);
+      // eslint-disable-next-line react-hooks/purity -- runs in the click handler, not during render
       scrollLockUntilRef.current = Date.now() + 1200;
       el.scrollIntoView({ behavior: "smooth", block: "start" });
       window.history.replaceState(null, "", href.slice(hashIndex));
@@ -145,6 +146,7 @@ export default function LandingNav({ loggedIn: loggedInProp }: LandingNavProps =
     // Off-route: pre-highlight the target so the nav doesn't flicker to Home
     // while Next.js navigates, and tell Hero where to scroll once it mounts.
     setActiveHash(`#${id}`);
+    // eslint-disable-next-line react-hooks/purity -- runs in the click handler, not during render
     scrollLockUntilRef.current = Date.now() + 2000;
     try {
       sessionStorage.setItem("caltodo_pending_scroll", id);

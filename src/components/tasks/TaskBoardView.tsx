@@ -21,7 +21,7 @@ import type { Task, TaskInsert } from "@/lib/types";
 import { TASK_COLORS, getThemeColor } from "@/lib/constants";
 import { getDueDateInfo } from "@/lib/task-utils";
 import TaskCreateModal from "./TaskCreateModal";
-import SortableColumn from "./SortableColumn";
+import SortableColumn, { type DragHandleListeners } from "./SortableColumn";
 import TaskCheckbox from "./shared/TaskCheckbox";
 import { useTheme } from "@/contexts/ThemeContext";
 import { extractCourseCode } from "@/lib/course-name-merge";
@@ -735,7 +735,7 @@ interface BoardColumnProps {
   hideMenu?: boolean;
   showDragHandle?: boolean;
   /** @dnd-kit listeners to spread onto the drag grip handle. */
-  dragHandleListeners?: Record<string, Function>;
+  dragHandleListeners?: DragHandleListeners;
   tasks: Task[];
   selectedTaskId?: string | null;
   onAdd: (task: TaskInsert) => void;

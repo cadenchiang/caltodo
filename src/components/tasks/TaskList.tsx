@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import { useNow } from "@/hooks/useNow";
 import { createPortal } from "react-dom";
 import { ChevronRight, MoreVertical, Eye, Check, Trash2 } from "lucide-react";
 import type { Task, TaskInsert, PendingInvite } from "@/lib/types";
@@ -355,8 +356,9 @@ export default function TaskList({
     });
   }, []);
 
+  const now = useNow();
   const { active, snoozed, completed } = useMemo(() => {
-    const now = Date.now();
+    const nowMs = now.getTime();
     const activeList: Task[] = [];
     const snoozedList: Task[] = [];
     const completedList: Task[] = [];
@@ -364,7 +366,7 @@ export default function TaskList({
     for (const t of tasks) {
       if (t.is_completed) {
         completedList.push(t);
-      } else if (t.snoozed_until && new Date(t.snoozed_until).getTime() > now) {
+      } else if (t.snoozed_until && new Date(t.snoozed_until).getTime() > nowMs) {
         snoozedList.push(t);
       } else {
         activeList.push(t);
@@ -375,8 +377,8 @@ export default function TaskList({
     // never hide. Tasks beyond the window are silently filtered out.
     const recentCompleted: Task[] = [];
     for (const t of completedList) {
-      const completedTime = t.completed_at ? new Date(t.completed_at).getTime() : now;
-      if (hideHours === 0 || !t.completed_at || completedTime > now - hideHours * 60 * 60 * 1000) {
+      const completedTime = t.completed_at ? new Date(t.completed_at).getTime() : nowMs;
+      if (hideHours === 0 || !t.completed_at || completedTime > nowMs - hideHours * 60 * 60 * 1000) {
         recentCompleted.push(t);
       }
     }
@@ -387,7 +389,7 @@ export default function TaskList({
       completed: sortByDueDate(recentCompleted),
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tasks, hideHours, countdownTick]);
+  }, [tasks, hideHours, countdownTick, now]);
 
   /** Active tasks grouped by course when sortMode is "class". */
   const activeGroups = useMemo(

@@ -6,6 +6,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useNow } from "@/hooks/useNow";
 import { useSWRConfig } from "swr";
 import type { GCalEvent } from "@/lib/types";
 import { hexToRgba, getEventColor, formatEventTime, blendHex } from "@/lib/gcal/event-utils";
@@ -56,9 +57,10 @@ export default function TimeGridEvent({ event, calendarColor, columnDate, top, h
   const minHeight = Math.max(height, 20);
 
   // Only fade events from past days, not events that ended earlier today
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const now = useNow();
+  const todayStr = now.toISOString().slice(0, 10);
   const isToday = columnDate === todayStr;
-  const isPast = !isToday && new Date(event.end).getTime() < Date.now();
+  const isPast = !isToday && new Date(event.end).getTime() < now.getTime();
   const isTentative = event.responseStatus === "tentative" || event.responseStatus === "needsAction";
   const isDeclined = event.responseStatus === "declined";
   const isDark = typeof window !== "undefined" && document.documentElement.classList.contains("dark");
