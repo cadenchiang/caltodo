@@ -13,6 +13,7 @@ import { createClient } from "@/lib/supabase/server";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
 import { isPro } from "@/lib/entitlements";
+import { OAUTH_RETURN_COOKIE, parseReturnTarget } from "@/lib/gcal/oauth-return";
 
 /** Google OAuth2 authorization endpoint. */
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
@@ -83,6 +84,18 @@ export async function GET(request: NextRequest) {
     path: "/",
   });
 
+  // Remember where to send the user afterwards (settings by default,
+  // onboarding when the connect started there). Validated against an
+  // allowlist here and again in the callback.
+  const returnTarget = parseReturnTarget(request.nextUrl.searchParams.get("return"));
+  cookieStore.set(OAUTH_RETURN_COOKIE, returnTarget, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 1800,
+    path: "/",
+  });
+
   // Ask for Classroom access only when the caller explicitly requests it.
   const wantsClassroom = request.nextUrl.searchParams.get("classroom") === "1";
   const scopes = [...BASE_SCOPES, ...(wantsClassroom ? CLASSROOM_SCOPES : [])].join(" ");
@@ -98,7 +111,7 @@ export async function GET(request: NextRequest) {
   });
 
   const authUrl = `${GOOGLE_AUTH_URL}?${params.toString()}`;
-  logger.info("GET /api/gcal/auth: redirecting to Google consent", { userId: user.id });
+  logger.info("GET /api/gcal/auth: redirecting to Google consent", { userId: user.id, returnTarget });
 
   return NextResponse.redirect(authUrl);
 }

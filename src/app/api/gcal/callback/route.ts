@@ -3,7 +3,8 @@
  *
  * Handles the OAuth2 callback from Google after user consent.
  * Validates the CSRF state, exchanges the authorization code for tokens,
- * encrypts and stores them, then redirects to settings.
+ * encrypts and stores them, then redirects to wherever the connect started
+ * (settings by default, onboarding when /api/gcal/auth?return=onboarding).
  */
 
 import { NextResponse, type NextRequest } from "next/server";
@@ -12,6 +13,7 @@ import { createClient } from "@/lib/supabase/server";
 import { encrypt } from "@/lib/crypto";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
+import { OAUTH_RETURN_COOKIE, buildReturnPath } from "@/lib/gcal/oauth-return";
 
 /** Google OAuth2 token endpoint. */
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
@@ -51,6 +53,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
 
+  // Where the connect started. Read before any redirect so failures return
+  // there too; buildReturnPath re-validates it against the allowlist.
+  const cookieStore = await cookies();
+  const returnTarget = cookieStore.get(OAUTH_RETURN_COOKIE)?.value;
+  cookieStore.delete(OAUTH_RETURN_COOKIE);
+
   const { searchParams } = new URL(request.url);
   const code = searchParams.get("code");
   const state = searchParams.get("state");
@@ -63,26 +71,25 @@ export async function GET(request: NextRequest) {
       error: errorParam,
     });
     return NextResponse.redirect(
-      new URL("/app/settings?gcal=error&reason=denied", request.url)
+      new URL(buildReturnPath(returnTarget, "error", "denied"), request.url)
     );
   }
 
   if (!code || !state) {
     logger.warn("GET /api/gcal/callback: missing code or state", { userId: user.id });
     return NextResponse.redirect(
-      new URL("/app/settings?gcal=error&reason=invalid", request.url)
+      new URL(buildReturnPath(returnTarget, "error", "invalid"), request.url)
     );
   }
 
   // Validate CSRF state
-  const cookieStore = await cookies();
   const storedState = cookieStore.get("gcal_oauth_state")?.value;
   cookieStore.delete("gcal_oauth_state");
 
   if (!storedState || storedState !== state) {
     logger.warn("GET /api/gcal/callback: CSRF state mismatch", { userId: user.id });
     return NextResponse.redirect(
-      new URL("/app/settings?gcal=error&reason=csrf", request.url)
+      new URL(buildReturnPath(returnTarget, "error", "csrf"), request.url)
     );
   }
 
@@ -94,7 +101,7 @@ export async function GET(request: NextRequest) {
   if (!clientId || !clientSecret || !redirectUri) {
     logger.error("GET /api/gcal/callback: missing Google OAuth env vars");
     return NextResponse.redirect(
-      new URL("/app/settings?gcal=error&reason=config", request.url)
+      new URL(buildReturnPath(returnTarget, "error", "config"), request.url)
     );
   }
 
@@ -118,7 +125,7 @@ export async function GET(request: NextRequest) {
       body,
     });
     return NextResponse.redirect(
-      new URL("/app/settings?gcal=error&reason=token_exchange", request.url)
+      new URL(buildReturnPath(returnTarget, "error", "token_exchange"), request.url)
     );
   }
 
@@ -131,7 +138,7 @@ export async function GET(request: NextRequest) {
       hasRefresh: !!tokens.refresh_token,
     });
     return NextResponse.redirect(
-      new URL("/app/settings?gcal=error&reason=missing_tokens", request.url)
+      new URL(buildReturnPath(returnTarget, "error", "missing_tokens"), request.url)
     );
   }
 
@@ -184,10 +191,10 @@ export async function GET(request: NextRequest) {
       error: upsertError.message,
     });
     return NextResponse.redirect(
-      new URL("/app/settings?gcal=error&reason=storage", request.url)
+      new URL(buildReturnPath(returnTarget, "error", "storage"), request.url)
     );
   }
 
-  logger.info("GET /api/gcal/callback: Google Calendar connected", { userId: user.id });
-  return NextResponse.redirect(new URL("/app/settings?gcal=connected", request.url));
+  logger.info("GET /api/gcal/callback: Google Calendar connected", { userId: user.id, returnTarget: returnTarget ?? "settings" });
+  return NextResponse.redirect(new URL(buildReturnPath(returnTarget, "connected"), request.url));
 }
