@@ -21,6 +21,7 @@ describe("watch-manager", () => {
     vi.clearAllMocks();
     vi.resetModules();
     process.env.NEXT_PUBLIC_APP_URL = "https://caltodo.vercel.app";
+    delete process.env.VERCEL_PROJECT_PRODUCTION_URL;
   });
 
   it("registers a watch channel successfully", async () => {
@@ -52,7 +53,26 @@ describe("watch-manager", () => {
     expect(body.token).toBe("test-uuid-1234");
   });
 
-  it("returns null when NEXT_PUBLIC_APP_URL is not set", async () => {
+  it("falls back to the Vercel production host when NEXT_PUBLIC_APP_URL is not set", async () => {
+    // Production never had NEXT_PUBLIC_APP_URL, so every new connect logged
+    // "not set" and skipped channel registration entirely.
+    delete process.env.NEXT_PUBLIC_APP_URL;
+    process.env.VERCEL_PROJECT_PRODUCTION_URL = "caltodo.me";
+    const { registerWatchChannel } = await import("@/lib/gcal/watch-manager");
+
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ id: "test-uuid-1234", resourceId: "resource-abc", expiration: "1" }),
+    });
+
+    const result = await registerWatchChannel("access-token", "primary", "user-1");
+
+    expect(result).not.toBeNull();
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.address).toBe("https://caltodo.me/api/gcal/webhook");
+  });
+
+  it("returns null when no app URL is configured at all", async () => {
     delete process.env.NEXT_PUBLIC_APP_URL;
     const { registerWatchChannel } = await import("@/lib/gcal/watch-manager");
 

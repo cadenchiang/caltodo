@@ -42,7 +42,11 @@ export async function registerWatchChannel(
 ): Promise<WatchChannelResult | null> {
   const webhookUrl = getWebhookUrl();
   if (!webhookUrl) {
-    logger.error("registerWatchChannel: NEXT_PUBLIC_APP_URL not set");
+    logger.error("registerWatchChannel: no app URL configured", {
+      cause: "NEXT_PUBLIC_APP_URL and VERCEL_PROJECT_PRODUCTION_URL are both unset",
+      calendarId,
+      impact: "no push channel; Google Calendar changes will not sync in real time",
+    });
     return null;
   }
 
@@ -199,12 +203,22 @@ export async function clearWatchChannelState(
 }
 
 /**
- * Builds the webhook URL from the app URL environment variable.
+ * Builds the webhook URL Google should POST change notifications to.
  *
- * @returns Full webhook URL, or null if NEXT_PUBLIC_APP_URL is not set
+ * Prefers NEXT_PUBLIC_APP_URL. Falls back to VERCEL_PROJECT_PRODUCTION_URL,
+ * which Vercel injects on every deployment (bare host, no scheme). Production
+ * never had NEXT_PUBLIC_APP_URL set, so every new connect failed to register
+ * a channel and changes made in Google Calendar never reached caltodo.
+ *
+ * @returns Full webhook URL, or null if neither variable is set (local dev
+ *          without an app URL, where Google could not reach us anyway)
  */
 function getWebhookUrl(): string | null {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL;
-  if (!appUrl) return null;
-  return `${appUrl.replace(/\/$/, "")}/api/gcal/webhook`;
+  if (appUrl) return `${appUrl.replace(/\/$/, "")}/api/gcal/webhook`;
+
+  const vercelHost = process.env.VERCEL_PROJECT_PRODUCTION_URL;
+  if (vercelHost) return `https://${vercelHost.replace(/\/$/, "")}/api/gcal/webhook`;
+
+  return null;
 }
