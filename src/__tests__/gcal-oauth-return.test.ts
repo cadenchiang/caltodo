@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { parseReturnTarget, buildReturnPath } from "@/lib/gcal/oauth-return";
+import { parseReturnTarget, buildReturnPath, describeOAuthError } from "@/lib/gcal/oauth-return";
 
 describe("parseReturnTarget", () => {
   it("accepts onboarding", () => {
@@ -38,5 +38,16 @@ describe("buildReturnPath", () => {
 
   it("omits the reason on success", () => {
     expect(buildReturnPath("onboarding", "connected", "ignored")).toBe("/app/onboarding?gcal=connected");
+  });
+});
+
+describe("describeOAuthError", () => {
+  it("explains a known reason", () => {
+    expect(describeOAuthError("denied")).toBe("Google Calendar access was denied.");
+  });
+
+  it("falls back for unknown or missing reasons", () => {
+    expect(describeOAuthError("nope")).toBe("Failed to connect Google Calendar.");
+    expect(describeOAuthError(null)).toBe("Failed to connect Google Calendar.");
   });
 });

@@ -1,12 +1,33 @@
 "use client";
 
-import { useState } from "react";
-import { Loader2 } from "lucide-react";
+/**
+ * Google Calendar onboarding step.
+ *
+ * Runs the same OAuth connect settings does. It used to mint an iCal feed URL
+ * for the user to paste into Google by hand, which never connected the account:
+ * no tokens were stored, so two-way sync never started for anyone who set up
+ * Google Calendar here.
+ */
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Loader2, Check } from "lucide-react";
+import GoogleAuthWarningModal from "@/components/settings/GoogleAuthWarningModal";
+import { setUpConnectedCalendar } from "@/lib/gcal/connect-setup";
+import { describeOAuthError } from "@/lib/gcal/oauth-return";
 
 interface CalendarStepProps {
   onNext: () => void;
   onSkip: () => void;
 }
+
+/** What the step is currently doing. */
+type Phase = "loading" | "idle" | "connecting" | "settingUp" | "connected";
+
+/** OAuth entry point; `return=onboarding` brings the user back to this flow. */
+const AUTH_URL = "/api/gcal/auth?return=onboarding";
+
+/** How often the opener checks whether the OAuth popup has finished. */
+const POPUP_POLL_MS = 1000;
 
 /**
  * Inline Google Calendar logo SVG (official 2020 icon) for the onboarding step.
@@ -35,95 +56,208 @@ function GoogleCalendarIcon({ size = 16 }: { size?: number }) {
 }
 
 /**
- * Onboarding step asking if the user wants to enable Google Calendar sync.
- * Generates an iCal feed token via POST /api/calendar/token.
- * Always white background styling.
+ * Onboarding step that connects Google Calendar for two-way sync.
  *
- * @param onNext - Called after enabling or skipping
- * @param onSkip - Called when user skips this step
+ * Desktop opens Google's consent screen in a popup and polls it; narrow
+ * screens and blocked popups fall back to a full-page redirect, which returns
+ * to /app/onboarding?gcal=connected where saved progress resumes this step.
+ * Once tokens exist it saves the calendar selection, without which nothing
+ * syncs. The first bulk sync runs from TaskContext when the app loads.
+ *
+ * @param onNext - Called when the user continues after connecting
+ * @param onSkip - Called when the user skips this step
  */
 export default function CalendarStep({ onNext, onSkip }: CalendarStepProps) {
-  const [enabling, setEnabling] = useState(false);
-  const [enabled, setEnabled] = useState(false);
-  const [feedUrl, setFeedUrl] = useState<string | null>(null);
+  const [phase, setPhase] = useState<Phase>("loading");
+  const [error, setError] = useState<string | null>(null);
+  const [showAuthWarning, setShowAuthWarning] = useState(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const mountedRef = useRef(true);
+  /** Guards setup against running twice (StrictMode remounts the effect). */
+  const setupStartedRef = useRef(false);
 
-  /**
-   * Generates a calendar feed token and shows the feed URL.
-   */
-  async function handleEnable() {
-    setEnabling(true);
-    try {
-      const res = await fetch("/api/calendar/token", { method: "POST" });
-      if (!res.ok) throw new Error("Failed to generate feed");
-      const data = await res.json();
-      const url = `${window.location.origin}/api/calendar/feed?token=${data.calendar_token}`;
-      setFeedUrl(url);
-      setEnabled(true);
-    } catch {
-      // Non-critical — user can enable later in settings
-    } finally {
-      setEnabling(false);
+  /** Saves the calendar selection after tokens are stored, then marks connected. */
+  const finishSetup = useCallback(async () => {
+    if (setupStartedRef.current) return;
+    setupStartedRef.current = true;
+    setPhase("settingUp");
+    setError(null);
+    const result = await setUpConnectedCalendar();
+    if (!mountedRef.current) return;
+    if (result.ok) {
+      try {
+        window.dispatchEvent(new CustomEvent("gcal-status-change", { detail: { connected: true } }));
+      } catch { /* non-critical: only refreshes the sidebar badge */ }
+      setPhase("connected");
+    } else {
+      setupStartedRef.current = false; // allow a retry
+      setError(`Connected to Google, but could not set up your calendar: ${result.error}`);
+      setPhase("idle");
     }
+  }, []);
+
+  // Decide the starting phase: returning from a redirect, already connected
+  // (resumed session), or not connected yet. The redirect result lives in the
+  // URL, which is only readable after mount, so this has to set state here.
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    mountedRef.current = true;
+    const url = new URL(window.location.href);
+    const gcalParam = url.searchParams.get("gcal");
+
+    // Inside the OAuth popup the opener owns the result and closes this window.
+    if (window.opener && gcalParam) return;
+
+    if (gcalParam) {
+      const reason = url.searchParams.get("reason");
+      url.searchParams.delete("gcal");
+      url.searchParams.delete("reason");
+      window.history.replaceState({}, "", url.toString());
+      if (gcalParam === "connected") {
+        void finishSetup();
+      } else {
+        setError(describeOAuthError(reason));
+        setPhase("idle");
+      }
+      return;
+    }
+
+    (async () => {
+      try {
+        const res = await fetch("/api/credentials");
+        const data = res.ok ? await res.json() : null;
+        if (!mountedRef.current) return;
+        if (data?.has_google_calendar && data?.google_calendar_id) setPhase("connected");
+        else if (data?.has_google_calendar) void finishSetup();
+        else setPhase("idle");
+      } catch (err) {
+        console.warn("CalendarStep: could not read connection status; offering connect", { error: String(err) });
+        if (mountedRef.current) setPhase("idle");
+      }
+    })();
+
+    return () => {
+      mountedRef.current = false;
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, [finishSetup]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  /** Starts OAuth after the user acknowledges the pre-flight notice. */
+  function handleConfirmConnect() {
+    setShowAuthWarning(false);
+    setError(null);
+
+    if (window.innerWidth < 768) {
+      window.location.href = AUTH_URL;
+      return;
+    }
+
+    const width = 500;
+    const height = 600;
+    const left = window.screenX + (window.outerWidth - width) / 2;
+    const top = window.screenY + (window.outerHeight - height) / 2;
+    const popup = window.open(
+      AUTH_URL,
+      "gcal-auth",
+      `width=${width},height=${height},left=${left},top=${top},popup=true`
+    );
+
+    if (!popup || popup.closed) {
+      // Popup blocked: fall back to a full redirect.
+      window.location.href = AUTH_URL;
+      return;
+    }
+
+    setPhase("connecting");
+    pollRef.current = setInterval(() => {
+      if (popup.closed) {
+        if (pollRef.current) clearInterval(pollRef.current);
+        // Closed without finishing; let the user try again.
+        setPhase((p) => (p === "connecting" ? "idle" : p));
+        return;
+      }
+      try {
+        const popupUrl = new URL(popup.location.href);
+        const result = popupUrl.searchParams.get("gcal");
+        if (!result) return;
+        if (pollRef.current) clearInterval(pollRef.current);
+        popup.close();
+        if (result === "connected") {
+          void finishSetup();
+        } else {
+          setError(describeOAuthError(popupUrl.searchParams.get("reason")));
+          setPhase("idle");
+        }
+      } catch {
+        // Cross-origin while the popup is still on Google; keep polling.
+      }
+    }, POPUP_POLL_MS);
   }
+
+  const busy = phase === "loading" || phase === "connecting" || phase === "settingUp";
 
   return (
     <div>
       <div className="flex items-center gap-2 mb-1">
         <GoogleCalendarIcon size={22} />
-        <h2 className="text-lg font-bold text-foreground animate-drop-in">Sync to Google Calendar</h2>
+        <h2 className="text-lg font-bold text-foreground animate-drop-in">Connect Google Calendar</h2>
       </div>
       <p className="text-sm text-muted-foreground mb-6 animate-drop-in delay-100">
-        add your bCourses and Gradescope assignments to Google Calendar so deadlines show up alongside your classes.
+        Two-way sync: your assignments and deadlines show up in Google Calendar, and your events show up here.
       </p>
 
-      {!enabled ? (
+      {phase === "connected" ? (
         <div className="animate-drop-in delay-200">
-          <div className="rounded-xl border border-border px-4 py-3 mb-5 text-xs text-muted-foreground leading-relaxed">
-            <p className="mb-2">
-              enabling this creates an iCal feed URL that Google Calendar (or Apple Calendar)
-              can subscribe to. your synced assignments and deadlines will automatically appear on your calendar.
-            </p>
-            <p className="text-muted-foreground/70">
-              Google Calendar refreshes subscriptions every 6-24 hours.
-            </p>
+          <div className="rounded-xl border border-border px-4 py-3 mb-5 flex items-center gap-2 text-sm text-foreground">
+            <Check size={15} className="text-green-600 shrink-0" />
+            Google Calendar connected. Your tasks will sync automatically.
           </div>
-
-          <div className="animate-drop-in delay-300">
-            <button
-              onClick={handleEnable}
-              disabled={enabling}
-              className="w-full px-4 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2 btn-elevated-primary"
-            >
-              {enabling && <Loader2 size={14} className="animate-spin" />}
-              {enabling ? "enabling..." : "sync to Google Calendar"}
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="animate-drop-in delay-200">
-          <div className="rounded-xl border border-border px-4 py-3 mb-4">
-            <p className="text-xs font-medium text-foreground mb-2">your feed URL:</p>
-            <input
-              type="text"
-              readOnly
-              value={feedUrl || ""}
-              className="w-full px-3 py-2 rounded-lg border border-border bg-white dark:bg-[#2a2a2c] text-xs text-foreground focus:outline-none select-all"
-              onClick={(e) => (e.target as HTMLInputElement).select()}
-            />
-            <p className="text-xs text-muted-foreground/70 mt-2">
-              copy this URL, then add it to Google Calendar via{" "}
-              <span className="font-medium text-muted-foreground">Other calendars &gt; From URL</span>.
-            </p>
-          </div>
-
           <button
             onClick={onNext}
             className="w-full px-4 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-sm font-semibold btn-elevated-primary"
           >
-            continue
+            Continue
+          </button>
+        </div>
+      ) : (
+        <div className="animate-drop-in delay-200">
+          <div className="rounded-xl border border-border px-4 py-3 mb-5 text-xs text-muted-foreground leading-relaxed">
+            caltodo creates its own &quot;caltodo&quot; calendar in your Google account, so synced
+            assignments stay separate from your personal events.
+          </div>
+
+          {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
+
+          <button
+            onClick={() => setShowAuthWarning(true)}
+            disabled={busy}
+            className="w-full px-4 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2 btn-elevated-primary"
+          >
+            {busy && <Loader2 size={14} className="animate-spin" />}
+            {phase === "connecting"
+              ? "Waiting for Google..."
+              : phase === "settingUp"
+                ? "Setting up your calendar..."
+                : "Connect Google Calendar"}
+          </button>
+
+          <button
+            type="button"
+            onClick={onSkip}
+            disabled={phase === "settingUp"}
+            className="w-full mt-3 text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+          >
+            Skip for now
           </button>
         </div>
       )}
+
+      <GoogleAuthWarningModal
+        open={showAuthWarning}
+        onContinue={handleConfirmConnect}
+        onCancel={() => setShowAuthWarning(false)}
+      />
     </div>
   );
 }

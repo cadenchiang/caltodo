@@ -508,12 +508,17 @@ export default function OnboardingPage() {
 
   /** Dynamic step list based on selected platforms. */
   const steps = useMemo<Step[]>(() => {
+    // Order follows ONBOARDING_STEPS. "gcal" and "classroom" were selectable
+    // and rendered below but missing here, so picking either one skipped
+    // straight past its step: nextStepAfter() never landed on it.
     const platformSteps: Step[] = [];
+    if (selectedPlatforms.has("gcal")) platformSteps.push("gcal");
     if (selectedPlatforms.has("canvas")) platformSteps.push("canvas");
     if (selectedPlatforms.has("gradescope")) platformSteps.push("gradescope");
     if (selectedPlatforms.has("pensieve")) platformSteps.push("pensieve");
     if (selectedPlatforms.has("brightspace")) platformSteps.push("brightspace");
     if (selectedPlatforms.has("blackboard")) platformSteps.push("blackboard");
+    if (selectedPlatforms.has("classroom")) platformSteps.push("classroom");
     if (selectedPlatforms.has("syllabus")) platformSteps.push("syllabus");
     return ["welcome", "school", "referral", "platforms", ...platformSteps, "done"];
   }, [selectedPlatforms]);

@@ -56,6 +56,35 @@ describe("every option has a step behind it", () => {
     }
   });
 
+  it("adds each selected platform to the derived step list", () => {
+    // Rendering a step is not enough: `steps` is what nextStepAfter() walks,
+    // and gcal and classroom were missing from it, so selecting Google
+    // Calendar went straight to the next platform without ever showing it.
+    for (const platform of ONBOARDING_PLATFORMS) {
+      expect(page).toContain(
+        `if (selectedPlatforms.has("${platform}")) platformSteps.push("${platform}");`
+      );
+    }
+  });
+
+  it("derives platform steps in the canonical order", () => {
+    const order = ONBOARDING_PLATFORMS
+      .map((pf) => page.indexOf(`platformSteps.push("${pf}")`));
+    const canonical = [...ONBOARDING_PLATFORMS]
+      .sort((a, b) => ONBOARDING_STEPS.indexOf(a) - ONBOARDING_STEPS.indexOf(b))
+      .map((pf) => page.indexOf(`platformSteps.push("${pf}")`));
+    expect([...order].sort((a, b) => a - b)).toEqual(canonical);
+  });
+
+  it("connects Google Calendar through OAuth, not a pasted feed URL", () => {
+    const step = read("src/components/onboarding/CalendarStep.tsx");
+    expect(step).toContain('"/api/gcal/auth?return=onboarding"');
+    expect(step).toContain("setUpConnectedCalendar");
+    expect(step).not.toContain("/api/calendar/token");
+    // The shared skip chrome does not cover this step, so it renders its own.
+    expect(step).toMatch(/onClick=\{onSkip\}/);
+  });
+
   it("wires the two that were previously unreachable from the flow", () => {
     // CalendarStep existed but nothing imported it; ClassroomStep was only
     // reachable from the standalone ?setup= route.
