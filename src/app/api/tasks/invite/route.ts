@@ -128,13 +128,16 @@ export async function POST(request: NextRequest) {
       inviteeEmail: trimmedEmail,
     });
 
+    // Reported exactly like a pending invite: telling the caller whether
+    // the address has an account turned this route into an oracle for any
+    // email (users/search deliberately hides the same thing).
     return NextResponse.json({
       share: {
         ...deferredShare,
+        status: "pending",
         invitee_name: null,
         invitee_avatar_url: null,
       },
-      deferred: true,
     });
   }
 
@@ -189,11 +192,14 @@ export async function POST(request: NextRequest) {
     inviteeEmail: trimmedEmail,
   });
 
+  // The invitee's name and photo are revealed only once they accept; until
+  // then the inviter sees the email they typed, so any email cannot be
+  // resolved to a profile by inviting it.
   return NextResponse.json({
     share: {
       ...share,
-      invitee_name: invitee.full_name,
-      invitee_avatar_url: invitee.avatar_url,
+      invitee_name: null,
+      invitee_avatar_url: null,
     },
   });
 }

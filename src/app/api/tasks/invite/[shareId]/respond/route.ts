@@ -91,11 +91,14 @@ export async function POST(
     return NextResponse.json({ success: true });
   }
 
-  // Accept: fetch source task, create copy, update share
+  // Accept: fetch source task, create copy, update share. The task must
+  // belong to the inviter: the service-role client bypasses RLS, and a share
+  // row pointing at someone else's task would otherwise be copied verbatim.
   const { data: sourceTask, error: taskError } = await adminClient
     .from("tasks")
     .select("*")
     .eq("id", share.source_task_id)
+    .eq("user_id", share.inviter_id)
     .single();
 
   if (taskError || !sourceTask) {

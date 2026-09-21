@@ -96,14 +96,18 @@ export async function GET(
     }])
   );
 
+  // Identity is shown only after acceptance, and a deferred invite (address
+  // not on caltodo yet) reads as pending, so the inviter cannot learn who is
+  // registered, or what they look like, just by inviting an email.
   const enrichedShares = shares.map((s) => {
-    const meta = userMap.get(s.invitee_id);
+    const accepted = s.status === "accepted";
+    const meta = accepted ? userMap.get(s.invitee_id) : undefined;
     return {
       id: s.id,
       invitee_email: s.invitee_email,
       invitee_name: meta?.name ?? null,
       invitee_avatar_url: meta?.avatar ?? null,
-      status: s.status,
+      status: s.status === "deferred" ? "pending" : s.status,
       copied_task_id: s.copied_task_id,
       created_at: s.created_at,
     };

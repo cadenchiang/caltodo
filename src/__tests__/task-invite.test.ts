@@ -182,7 +182,11 @@ describe("POST /api/tasks/invite — invitee lookup", () => {
     const res = await POST(req as never);
     const body = await res.json();
     expect(res.status).toBe(200);
-    expect(body.deferred).toBe(true);
+    // Indistinguishable from a pending invite: no "deferred" flag, no
+    // status that reveals whether the address has an account.
+    expect(body.deferred).toBeUndefined();
+    expect(body.share.status).toBe("pending");
+    expect(body.share.invitee_name).toBeNull();
     expect(body.share).toBeDefined();
   });
 });
@@ -292,5 +296,8 @@ describe("POST /api/tasks/invite — success path", () => {
     expect(res.status).toBe(200);
     expect(body.share).toBeDefined();
     expect(body.share.id).toBe(SHARE_ID);
+    // The invitee's profile is only revealed once they accept.
+    expect(body.share.invitee_name).toBeNull();
+    expect(body.share.invitee_avatar_url).toBeNull();
   });
 });

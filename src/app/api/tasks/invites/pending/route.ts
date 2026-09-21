@@ -50,9 +50,11 @@ export async function GET() {
     const taskIds = [...new Set(shares.map((s) => s.source_task_id))];
     const adminClient = createAdminClient();
 
+    // The service-role client bypasses RLS, so only trust a task that really
+    // belongs to the share's inviter (see the ownership check below).
     const { data: tasks, error: tasksError } = await adminClient
       .from("tasks")
-      .select("id, title, due_date, due_time, color")
+      .select("id, user_id, title, due_date, due_time, color")
       .in("id", taskIds);
 
     if (tasksError) {
@@ -63,6 +65,9 @@ export async function GET() {
     }
 
     const taskMap = new Map(tasks?.map((t) => [t.id, t]) ?? []);
+    // Drop shares whose task is not the inviter's; RLS now prevents creating
+    // them, but rows from before that change may still exist.
+    const validShares = shares.filter((s) => taskMap.get(s.source_task_id)?.user_id === s.inviter_id);
 
     // Fetch inviter user metadata.
     //
@@ -70,7 +75,7 @@ export async function GET() {
     // user table on every request to resolve a handful of names. That grew
     // slower with every signup and would silently start returning "Someone"
     // past the thousandth user. Fetch only the inviters actually referenced.
-    const inviterIds = [...new Set(shares.map((s) => s.inviter_id))];
+    const inviterIds = [...new Set(validShares.map((s) => s.inviter_id))];
     const inviters = await Promise.all(
       inviterIds.map(async (id) => {
         const { data, error } = await adminClient.auth.admin.getUserById(id);
@@ -94,7 +99,7 @@ export async function GET() {
       }])
     );
 
-    const invites = shares.map((share) => {
+    const invites = validShares.map((share) => {
       const task = taskMap.get(share.source_task_id);
       const inviter = userMap.get(share.inviter_id);
       return {
