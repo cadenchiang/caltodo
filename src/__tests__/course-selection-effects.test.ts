@@ -5,10 +5,29 @@
  * synced in the inbox, so editing classes only ever appeared to add. These
  * pin that a removal hides tasks, a re-add restores them, and neither happens
  * when nothing changed.
+ *
+ * Audit H6 added the scoping rules: every task write names the platform the
+ * edit happened on, and matches the canonical course name sync stored as
+ * well as the raw selection name.
  */
 
 import { describe, it, expect, vi } from "vitest";
-import { applyCourseSelectionChange } from "@/lib/course-selection-effects";
+
+vi.mock("@/lib/logger", () => ({
+  logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+}));
+
+import {
+  applyCourseSelectionChange,
+  type CourseSelectionScope,
+} from "@/lib/course-selection-effects";
+
+/** A Canvas-only edit with nothing merged across platforms. */
+const canvasScope: CourseSelectionScope = {
+  source: "canvas",
+  before: { selected_canvas_courses: [{ name: "UGBA 100-LEC-003" }] },
+  after: { selected_canvas_courses: [{ name: "UGBA 107-LEC-001 FA26" }] },
+};
 
 /**
  * Builds the effect set with counting stubs.
@@ -30,22 +49,66 @@ function makeEffects(hidden = 0, restored = 0) {
 }
 
 describe("applyCourseSelectionChange", () => {
-  it("hides the tasks of a removed class", async () => {
+  it("hides the tasks of a removed class, scoped to the edited platform", async () => {
     const { effects, dismissTasksByCourseNames } = makeEffects(6);
 
     const summary = await applyCourseSelectionChange(
       { addedNames: [], removedNames: ["UGBA 100-LEC-003"] },
-      effects
+      effects,
+      canvasScope
     );
 
-    expect(dismissTasksByCourseNames).toHaveBeenCalledWith(["UGBA 100-LEC-003"]);
+    expect(dismissTasksByCourseNames).toHaveBeenCalledWith(["UGBA 100-LEC-003"], "canvas");
     expect(summary).toBe("Hid 6 tasks from UGBA 100.");
+  });
+
+  it("matches the canonical name sync stored when the class was merged across platforms", async () => {
+    const { effects, dismissTasksByCourseNames } = makeEffects(2);
+    const canvasName = "UGBA 101A-LEC-002 Microeconomics for Business Decisions";
+    const scope: CourseSelectionScope = {
+      source: "canvas",
+      before: {
+        selected_canvas_courses: [{ name: canvasName }],
+        selected_gradescope_courses: [{ name: "UGBA 101A" }],
+      },
+      after: {
+        selected_canvas_courses: [],
+        selected_gradescope_courses: [{ name: "UGBA 101A" }],
+      },
+    };
+
+    await applyCourseSelectionChange({ addedNames: [], removedNames: [canvasName] }, effects, scope);
+
+    expect(dismissTasksByCourseNames).toHaveBeenCalledWith([canvasName, "UGBA 101A"], "canvas");
+  });
+
+  it("scopes a Gradescope removal to Gradescope even when Canvas shares the name", async () => {
+    const { effects, dismissTasksByCourseNames } = makeEffects(1);
+    const scope: CourseSelectionScope = {
+      source: "gradescope",
+      before: {
+        selected_canvas_courses: [{ name: "UGBA 101A-LEC-002 Microeconomics" }],
+        selected_gradescope_courses: [{ name: "UGBA 101A" }],
+      },
+      after: {
+        selected_canvas_courses: [{ name: "UGBA 101A-LEC-002 Microeconomics" }],
+        selected_gradescope_courses: [],
+      },
+    };
+
+    await applyCourseSelectionChange({ addedNames: [], removedNames: ["UGBA 101A"] }, effects, scope);
+
+    expect(dismissTasksByCourseNames).toHaveBeenCalledWith(["UGBA 101A"], "gradescope");
   });
 
   it("does not sync when only classes were removed", async () => {
     const { effects, syncAddedClasses, undismissTasksByCourseNames } = makeEffects(2);
 
-    await applyCourseSelectionChange({ addedNames: [], removedNames: ["UGBA 100"] }, effects);
+    await applyCourseSelectionChange(
+      { addedNames: [], removedNames: ["UGBA 100"] },
+      effects,
+      canvasScope
+    );
 
     expect(syncAddedClasses).not.toHaveBeenCalled();
     expect(undismissTasksByCourseNames).not.toHaveBeenCalled();
@@ -56,10 +119,11 @@ describe("applyCourseSelectionChange", () => {
 
     const summary = await applyCourseSelectionChange(
       { addedNames: ["UGBA 107-LEC-001 FA26"], removedNames: [] },
-      effects
+      effects,
+      canvasScope
     );
 
-    expect(undismissTasksByCourseNames).toHaveBeenCalledWith(["UGBA 107-LEC-001 FA26"]);
+    expect(undismissTasksByCourseNames).toHaveBeenCalledWith(["UGBA 107-LEC-001 FA26"], "canvas");
     expect(syncAddedClasses).toHaveBeenCalledOnce();
     expect(summary).toBe("Restored 4 tasks from UGBA 107.");
   });
@@ -69,7 +133,8 @@ describe("applyCourseSelectionChange", () => {
 
     const summary = await applyCourseSelectionChange(
       { addedNames: ["UGBA 107-LEC-001 FA26"], removedNames: [] },
-      effects
+      effects,
+      canvasScope
     );
 
     expect(syncAddedClasses).toHaveBeenCalledOnce();
@@ -81,7 +146,8 @@ describe("applyCourseSelectionChange", () => {
 
     const summary = await applyCourseSelectionChange(
       { addedNames: ["UGBA 107-LEC-001 FA26"], removedNames: ["UGBA 100-LEC-003"] },
-      effects
+      effects,
+      canvasScope
     );
 
     expect(summary).toBe("Hid 3 tasks from UGBA 100. Syncing UGBA 107.");
@@ -92,7 +158,8 @@ describe("applyCourseSelectionChange", () => {
 
     const summary = await applyCourseSelectionChange(
       { addedNames: [], removedNames: ["UGBA 100-LEC-003"] },
-      effects
+      effects,
+      canvasScope
     );
 
     expect(summary).toBe("Removed UGBA 100.");
@@ -102,7 +169,11 @@ describe("applyCourseSelectionChange", () => {
     const { effects, dismissTasksByCourseNames, undismissTasksByCourseNames, syncAddedClasses } =
       makeEffects();
 
-    const summary = await applyCourseSelectionChange({ addedNames: [], removedNames: [] }, effects);
+    const summary = await applyCourseSelectionChange(
+      { addedNames: [], removedNames: [] },
+      effects,
+      canvasScope
+    );
 
     expect(summary).toBe("");
     expect(dismissTasksByCourseNames).not.toHaveBeenCalled();
@@ -128,7 +199,8 @@ describe("applyCourseSelectionChange", () => {
 
     await applyCourseSelectionChange(
       { addedNames: ["UGBA 107"], removedNames: ["UGBA 100"] },
-      effects
+      effects,
+      canvasScope
     );
 
     expect(order).toEqual(["dismiss", "undismiss", "sync"]);
@@ -139,7 +211,7 @@ describe("applyCourseSelectionChange", () => {
     effects.dismissTasksByCourseNames.mockRejectedValue(new Error("network down"));
 
     await expect(
-      applyCourseSelectionChange({ addedNames: [], removedNames: ["UGBA 100"] }, effects)
+      applyCourseSelectionChange({ addedNames: [], removedNames: ["UGBA 100"] }, effects, canvasScope)
     ).rejects.toThrow("network down");
   });
 });

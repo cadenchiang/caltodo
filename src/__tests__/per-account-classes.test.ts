@@ -178,9 +178,15 @@ describe("removing a class removes its tasks", () => {
   });
 
   it("applies the change to the task store after the write lands", () => {
-    expect(assemble).toContain("applyCourseSelectionChange(diff, {");
+    expect(assemble).toContain("applyCourseSelectionChange(");
     expect(assemble).toContain("dismissTasksByCourseNames");
     expect(assemble).toContain("undismissTasksByCourseNames");
+  });
+
+  it("scopes the task writes to the edited provider and its selections", () => {
+    // Audit H6: a removal on one platform must not touch another platform's
+    // tasks, and must match the canonical names sync stored.
+    expect(assemble).toContain("{ source: provider, before, after }");
   });
 
   it("reports a failed task update without claiming the save failed", () => {

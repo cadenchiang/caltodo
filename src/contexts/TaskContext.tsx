@@ -207,10 +207,16 @@ interface TaskContextValue {
   deleteTasksByExternalIdPrefix: (prefix: string) => Promise<void>;
   /** Deletes all tasks matching any of the given course names. Returns count deleted. */
   deleteTasksByCourseNames: (courseNames: string[]) => Promise<number>;
-  /** Soft-hides tasks by setting dismissed_at for given course names. Returns count hidden. */
-  dismissTasksByCourseNames: (courseNames: string[]) => Promise<number>;
-  /** Un-hides tasks by clearing dismissed_at for given course names. Returns count restored. */
-  undismissTasksByCourseNames: (courseNames: string[]) => Promise<number>;
+  /** Soft-hides one source's tasks matching the given course names. Returns count hidden. */
+  dismissTasksByCourseNames: (
+    courseNames: string[],
+    source: "canvas" | "gradescope" | "pensieve"
+  ) => Promise<number>;
+  /** Un-hides one source's tasks matching the given course names. Returns count restored. */
+  undismissTasksByCourseNames: (
+    courseNames: string[],
+    source: "canvas" | "gradescope" | "pensieve"
+  ) => Promise<number>;
   /** Removes a tag from every task carrying it. Returns count of tasks changed. */
   deleteTag: (tag: string) => Promise<number>;
   /** Clears a class from every task carrying it. Returns count of tasks changed. */
@@ -1404,14 +1410,22 @@ export function TaskProvider({
    * Soft-hides tasks by setting dismissed_at for all tasks matching given course names.
    * Optimistically removes from local state; reverts on error.
    *
-   * @param courseNames - Array of course name strings to match
+   * Scoped to one source: a class removed from Gradescope must not hide the
+   * still-selected Canvas section's tasks (which share the canonical
+   * course_name), and must never hide a manual task.
+   *
+   * @param courseNames - Course name strings to match (raw and canonical forms)
+   * @param source - The platform the class was removed from
    * @returns Number of tasks hidden (0 if none matched or on error)
    */
-  async function dismissTasksByCourseNames(courseNames: string[]): Promise<number> {
+  async function dismissTasksByCourseNames(
+    courseNames: string[],
+    source: "canvas" | "gradescope" | "pensieve"
+  ): Promise<number> {
     if (!userId || courseNames.length === 0) return 0;
 
     const matchingTasks = tasks.filter(
-      (t) => t.course_name && courseNames.includes(t.course_name)
+      (t) => t.source === source && t.course_name && courseNames.includes(t.course_name)
     );
     if (matchingTasks.length === 0) return 0;
 
@@ -1431,10 +1445,17 @@ export function TaskProvider({
       .from("tasks")
       .update({ dismissed_at: new Date().toISOString(), dismissed_by_user: true })
       .eq("user_id", userId)
+      .eq("source", source)
       .in("course_name", courseNames)
       .is("dismissed_at", null);
 
     if (dismissError) {
+      console.error("dismissTasksByCourseNames: dismiss failed", {
+        cause: dismissError.message,
+        source,
+        courseNames,
+        impact: "tasks were not hidden; local state reverted and refetched",
+      });
       setError(dismissError.message);
       setTasks(previousTasks);
       setCachedTasks(previousTasks);
@@ -1449,21 +1470,36 @@ export function TaskProvider({
    * Un-hides tasks by clearing dismissed_at for all tasks matching given course names.
    * Re-fetches tasks from Supabase to restore them into local state.
    *
-   * @param courseNames - Array of course name strings to match
+   * Scoped to one source for the same reason as dismissTasksByCourseNames:
+   * re-adding a class on one platform must not un-hide another platform's
+   * tasks that happen to share the canonical course_name.
+   *
+   * @param courseNames - Course name strings to match (raw and canonical forms)
+   * @param source - The platform the class was re-added to
    * @returns Number of tasks restored (0 if none matched or on error)
    */
-  async function undismissTasksByCourseNames(courseNames: string[]): Promise<number> {
+  async function undismissTasksByCourseNames(
+    courseNames: string[],
+    source: "canvas" | "gradescope" | "pensieve"
+  ): Promise<number> {
     if (!userId || courseNames.length === 0) return 0;
 
     const { data, error: undismissError } = await supabase
       .from("tasks")
       .update({ dismissed_at: null, dismissed_by_user: false })
       .eq("user_id", userId)
+      .eq("source", source)
       .in("course_name", courseNames)
       .not("dismissed_at", "is", null)
       .select("id");
 
     if (undismissError) {
+      console.error("undismissTasksByCourseNames: restore failed", {
+        cause: undismissError.message,
+        source,
+        courseNames,
+        impact: "hidden tasks for the re-added class stay hidden",
+      });
       setError(undismissError.message);
       return 0;
     }

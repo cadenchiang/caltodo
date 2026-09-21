@@ -24,6 +24,7 @@ import {
 } from "@/lib/course-selection";
 import { diffCourseSelection } from "@/lib/course-selection-diff";
 import { applyCourseSelectionChange } from "@/lib/course-selection-effects";
+import type { SelectionSnapshot } from "@/lib/course-selection-scope";
 import type { DisclosureAccount } from "@/components/settings/ConnectedIntegrationCard";
 import {
   buildAccountList,
@@ -180,6 +181,11 @@ export function useIntegrationAccounts({
       const column = COURSE_SELECTION[provider].primaryColumn;
       // Read before the write: every branch below replaces what this reads.
       const diff = diffCourseSelection(storedCoursesFor(accountId), courses);
+      // The selection before the save is what the tasks were last synced
+      // under; the one after is what the next sync will use. Both feed the
+      // canonical course names the task writes below have to match.
+      const before: SelectionSnapshot = credentials;
+      let after: SelectionSnapshot = credentials;
 
       if (accountId === "primary") {
         const res = await fetch("/api/credentials", {
@@ -191,7 +197,9 @@ export function useIntegrationAccounts({
           const data = await res.json().catch(() => ({}));
           throw new Error(data.error || "Failed to save classes");
         }
-        onUpdate(await res.json());
+        const updated: IntegrationCredentials = await res.json();
+        after = updated;
+        onUpdate(updated);
       } else if (provider === "canvas") {
         const next = (credentials.additional_canvas_accounts ?? []).map((a) =>
           a.id === accountId
@@ -207,7 +215,9 @@ export function useIntegrationAccounts({
           const data = await res.json().catch(() => ({}));
           throw new Error(data.error || "Failed to save classes");
         }
-        onUpdate(await res.json());
+        const updated: IntegrationCredentials = await res.json();
+        after = updated;
+        onUpdate(updated);
       } else {
         const res = await fetch("/api/integration-accounts", {
           method: "PATCH",
@@ -228,11 +238,15 @@ export function useIntegrationAccounts({
       // be reported as a failed save or rolled back: the picker's ticks are
       // now correct.
       try {
-        const summary = await applyCourseSelectionChange(diff, {
-          dismissTasksByCourseNames,
-          undismissTasksByCourseNames,
-          syncAddedClasses: () => triggerSync(undefined, undefined, { silent: true }),
-        });
+        const summary = await applyCourseSelectionChange(
+          diff,
+          {
+            dismissTasksByCourseNames,
+            undismissTasksByCourseNames,
+            syncAddedClasses: () => triggerSync(undefined, undefined, { silent: true }),
+          },
+          { source: provider, before, after }
+        );
         showToast(summary || "Classes updated.");
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
