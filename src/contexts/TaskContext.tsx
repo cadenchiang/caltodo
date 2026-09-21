@@ -16,6 +16,7 @@ import { computeNextDueDate, shouldSpawnNext } from "@/lib/repeat";
 
 import { showNewAssignmentsModal } from "@/components/ui/NewAssignmentsModal";
 import { readSyncStream } from "@/lib/gcal/read-sync-stream";
+import { pushTaskToGCal, touchesGCalEvent } from "@/lib/gcal/client-push";
 import { playTaskComplete, playTaskCreated } from "@/lib/sounds";
 import { getCredentials } from "@/lib/credentials-client";
 import { readHiddenTags, hideTag } from "@/lib/hidden-tags";
@@ -24,51 +25,6 @@ import { findNewAssignments } from "@/lib/new-assignments";
 /** localStorage key and version for stale-while-revalidate task caching. */
 const CACHE_KEY = "caltodo_tasks_cache";
 const CACHE_VERSION = 1;
-
-/** localStorage key mirroring the GCal connection status cache (see CalendarHeader). */
-const GCAL_STATUS_KEY = "gcal_status";
-
-/**
- * Best-effort read of whether Google Calendar is connected, from the status
- * cache the calendar header keeps. Used to avoid firing per-edit GCal sync
- * requests for the majority of users who never connected GCal.
- */
-function isGCalConnected(): boolean {
-  try {
-    const raw = localStorage.getItem(GCAL_STATUS_KEY);
-    return raw ? JSON.parse(raw).connected === true : false;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Fire-and-forget: propagate a single task change to Google Calendar via
- * /api/gcal/sync. The endpoint no-ops server-side when GCal isn't connected,
- * and this never throws into the caller — GCal sync must never block or break
- * a local task edit. This is what makes edits/completions/deletes actually
- * reach Google (previously only brand-new tasks were ever pushed).
- *
- * @param action - create | update | delete
- * @param taskId - The task's id
- * @param googleEventId - Existing GCal event id (required for delete)
- */
-function pushTaskToGCal(
-  action: "create" | "update" | "delete",
-  taskId: string,
-  googleEventId?: string | null,
-): void {
-  // Skip when clearly not applicable: not connected AND this task has no
-  // existing GCal event to update/remove.
-  if (!isGCalConnected() && !googleEventId) return;
-  fetch("/api/gcal/sync", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action, taskId, googleEventId: googleEventId ?? undefined }),
-  }).catch(() => {
-    /* best-effort; autoSync reconciles creates later */
-  });
-}
 
 interface CachedTasks {
   version: number;
@@ -296,15 +252,30 @@ export function TaskProvider({
   const hasInitialFetchRef = useRef(preloaded);
 
   /**
-   * Syncs any tasks with due dates but no google_event_id to Google Calendar.
-   * Called after assignment sync completes. Silently skips if GCal is not connected.
+   * Records the Google Calendar event id the server just attached to a task,
+   * so a later delete in this session knows which event to remove. Without
+   * this the local row kept google_event_id null and deleteTask skipped the
+   * calendar cleanup, leaving the event on Google forever.
    *
-   * @param signal - Optional AbortSignal for clean cancellation
+   * @param taskId - The task the event belongs to
+   * @param googleEventId - The event id returned by the server, or null (no-op)
    */
+  const attachGoogleEventId = useCallback((taskId: string, googleEventId: string | null) => {
+    if (!googleEventId) return;
+    setTasks((prev) => {
+      if (!prev.some((t) => t.id === taskId && t.google_event_id !== googleEventId)) return prev;
+      const updated = prev.map((t) => (t.id === taskId ? { ...t, google_event_id: googleEventId } : t));
+      setCachedTasks(updated);
+      taskBaselineRef.current = updated;
+      return updated;
+    });
+  }, []);
+
   /**
    * Syncs unsynced tasks to GCal silently. Runs in the background without
-   * toasts or banners — sync failures are not auth failures and shouldn't
-   * prompt the user to reconnect. Only logs warnings on error.
+   * toasts or banners. Sync failures are not auth failures and shouldn't
+   * prompt the user to reconnect. Only logs warnings on error. Event ids the
+   * stream reports are attached to local state as they arrive.
    *
    * @param signal - Optional AbortSignal for clean cancellation
    */
@@ -312,7 +283,7 @@ export function TaskProvider({
     try {
       // Call initial-sync directly; it returns {synced: 0, reason: ...} fast
       // when GCal is disconnected or there are no unsynced tasks, so the
-      // previous /api/gcal/unsynced-count pre-check was redundant — dropping
+      // previous /api/gcal/unsynced-count pre-check was redundant. Dropping
       // it halves function invocations on every auto-sync.
       const syncRes = await fetch("/api/gcal/initial-sync", { method: "POST", signal });
       const contentType = syncRes.headers.get("Content-Type") ?? "";
@@ -342,12 +313,13 @@ export function TaskProvider({
       await readSyncStream(syncRes, {
         onProgress: () => {},
         onDone: () => {},
+        onTaskSynced: attachGoogleEventId,
       });
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return;
       console.warn("Post-sync GCal sync failed:", err);
     }
-  }, [showToast]);
+  }, [showToast, attachGoogleEventId]);
 
   const fetchTasks = useCallback(async (): Promise<Task[]> => {
     // Only show loading spinner if we have no cached data
@@ -731,8 +703,12 @@ export function TaskProvider({
       });
 
       // Fire-and-forget: push the new task to Google Calendar (no-op if GCal
-      // isn't connected or the task has no due date — the endpoint decides).
-      if (data.due_date) pushTaskToGCal("create", data.id);
+      // isn't connected or the task has no due date; the endpoint decides).
+      // The returned event id is attached locally so a delete in this
+      // session can remove the event.
+      if (data.due_date) {
+        pushTaskToGCal("create", data.id).then((eventId) => attachGoogleEventId(data.id, eventId));
+      }
 
       // Fire-and-forget: send invites if any emails were provided
       if (inviteEmails && inviteEmails.length > 0) {
@@ -821,8 +797,14 @@ export function TaskProvider({
     // strikethrough) to Google Calendar. The endpoint creates the event if it
     // doesn't exist yet, updates it, or removes it when the due date is
     // cleared. Covers toggleComplete since that routes through updateTask.
-    const current = tasks.find((t) => t.id === id);
-    pushTaskToGCal("update", id, current?.google_event_id);
+    // Edits to columns the event never shows (color, tags, sort order) are
+    // skipped so a class-wide recolor does not burn one request per task.
+    if (touchesGCalEvent(stampedUpdates)) {
+      const current = tasks.find((t) => t.id === id);
+      pushTaskToGCal("update", id, current?.google_event_id).then((eventId) =>
+        attachGoogleEventId(id, eventId)
+      );
+    }
   }
 
   async function toggleComplete(id: string) {
@@ -1027,11 +1009,20 @@ export function TaskProvider({
             }
             // Re-create the GCal event we removed on delete (the old
             // google_event_id is stale now, so create makes a fresh one).
-            if (taskToDelete.due_date) pushTaskToGCal("create", taskToDelete.id);
+            if (taskToDelete.due_date) {
+              pushTaskToGCal("create", taskToDelete.id).then((eventId) =>
+                attachGoogleEventId(taskToDelete.id, eventId)
+              );
+            }
           },
         },
       });
     }
+
+    // Remove the task's Google Calendar event BEFORE the row goes away: the
+    // server resolves the event id from the row when this session never
+    // learned it, and once the row is deleted nothing can find the event.
+    await pushTaskToGCal("delete", id, taskToDelete?.google_event_id);
 
     const { error: deleteError } = isSyncedTask
       ? await supabase
@@ -1047,12 +1038,6 @@ export function TaskProvider({
       setError(deleteError.message);
       fetchTasks();
       return;
-    }
-
-    // Fire-and-forget: remove the task's Google Calendar event so deletes
-    // don't leave orphaned events on the calendar forever.
-    if (taskToDelete?.google_event_id) {
-      pushTaskToGCal("delete", id, taskToDelete.google_event_id);
     }
   }
 

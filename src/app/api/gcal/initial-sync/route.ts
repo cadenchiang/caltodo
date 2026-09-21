@@ -75,6 +75,7 @@ export async function POST() {
 
       async function syncTask(task: Task): Promise<void> {
         let lastError: string | null = null;
+        let attachedEventId: string | null = null;
         for (let attempt = 0; attempt < 2; attempt++) {
           try {
             const eventId = await createCalendarEvent(accessToken!, calendarId!, task);
@@ -93,6 +94,7 @@ export async function POST() {
                 .maybeSingle();
               if (won) {
                 synced++;
+                attachedEventId = eventId;
               } else {
                 await deleteCalendarEvent(accessToken!, calendarId!, eventId).catch(() => {});
               }
@@ -110,7 +112,12 @@ export async function POST() {
           logger.error("POST /api/gcal/initial-sync: task sync failed", { taskId: task.id, error: lastError });
         }
         processed++;
-        controller.enqueue(encoder.encode(JSON.stringify({ type: "progress", synced, total, processed }) + "\n"));
+        // The task and event ids let the client mirror the attachment into
+        // local state, so a delete in the same session can find the event.
+        controller.enqueue(encoder.encode(JSON.stringify({
+          type: "progress", synced, total, processed,
+          ...(attachedEventId ? { taskId: task.id, googleEventId: attachedEventId } : {}),
+        }) + "\n"));
       }
 
       let cursor = 0;

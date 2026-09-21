@@ -174,6 +174,10 @@ async function handleUpdate(
 
 /**
  * Deletes a GCal event and clears the google_event_id on the task.
+ *
+ * When the client does not know the event id (the create response may not
+ * have landed, or another session attached it), it is resolved from the
+ * task row. Callers must therefore send the delete before removing the row.
  */
 async function handleDelete(
   accessToken: string,
@@ -183,10 +187,26 @@ async function handleDelete(
   supabase: Awaited<ReturnType<typeof createClient>>,
   userId: string
 ): Promise<NextResponse> {
-  if (!googleEventId) {
+  let eventId = googleEventId;
+  if (!eventId) {
+    const { data: row, error: rowError } = await supabase
+      .from("tasks")
+      .select("google_event_id")
+      .eq("id", taskId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (rowError) {
+      logger.error("POST /api/gcal/sync: delete could not resolve event id", {
+        taskId, userId, error: rowError.message, impact: "calendar event may be orphaned",
+      });
+      return NextResponse.json({ synced: false, error: "Failed to look up task" } satisfies GCalSyncResponse);
+    }
+    eventId = row?.google_event_id ?? undefined;
+  }
+  if (!eventId) {
     return NextResponse.json({ synced: false, reason: "no_event_id" } satisfies GCalSyncResponse);
   }
-  await deleteCalendarEvent(accessToken, calendarId, googleEventId);
+  await deleteCalendarEvent(accessToken, calendarId, eventId);
   await supabase.from("tasks").update({ google_event_id: null }).eq("id", taskId).eq("user_id", userId);
   return NextResponse.json({ synced: true } satisfies GCalSyncResponse);
 }

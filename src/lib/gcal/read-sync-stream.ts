@@ -4,7 +4,7 @@
  *
  * Reads newline-delimited JSON events from the response stream:
  *   {"type":"start","total":N}
- *   {"type":"progress","synced":N,"total":N}
+ *   {"type":"progress","synced":N,"total":N,"taskId"?:"...","googleEventId"?:"..."}
  *   {"type":"done","synced":N,"total":N,"errors":[]}
  */
 
@@ -19,6 +19,11 @@ export interface SyncStreamResult {
 export interface SyncStreamCallbacks {
   onProgress: (synced: number, total: number) => void;
   onDone: () => void;
+  /**
+   * Fired for each progress event that carries the task id and the event id
+   * the server just attached, so the client can mirror it into local state.
+   */
+  onTaskSynced?: (taskId: string, googleEventId: string) => void;
 }
 
 /**
@@ -50,6 +55,9 @@ export async function readSyncStream(
         const event = JSON.parse(line);
         if (event.type === "start" || event.type === "progress") {
           callbacks.onProgress(event.synced ?? 0, event.total);
+          if (event.type === "progress" && typeof event.taskId === "string" && typeof event.googleEventId === "string") {
+            callbacks.onTaskSynced?.(event.taskId, event.googleEventId);
+          }
         } else if (event.type === "done") {
           finalResult = event;
           callbacks.onDone();
