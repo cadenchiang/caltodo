@@ -22,8 +22,7 @@ import {
   parseDueDateWithTzid,
   unescapeICalText,
 } from "@/lib/ical-date-utils";
-
-const FETCH_TIMEOUT_MS = 15_000;
+import { fetchFeedCalendar } from "@/lib/feed-fetch";
 
 /** Course name used when the feed gives no usable attribution. */
 export const BLACKBOARD_FALLBACK_COURSE = "Blackboard";
@@ -52,23 +51,12 @@ export async function fetchBlackboardAssignments(
     url: calendarUrl.slice(0, 60),
   });
 
-  const res = await fetch(calendarUrl, {
-    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  const icsText = await fetchFeedCalendar(calendarUrl, {
+    name: "Blackboard",
+    failurePrefix: "Blackboard iCal fetch failed",
+    notCalendarMessage:
+      "Blackboard feed didn't return a calendar. The URL may have been reset or made private. Reconnect it.",
   });
-
-  if (!res.ok) {
-    throw new Error(`Blackboard iCal fetch failed: ${res.status}`);
-  }
-
-  const icsText = await res.text();
-  // A revoked or session-expired feed answers 200 with an HTML login page.
-  // Without this guard the parser finds no events and the sync reports
-  // success with zero assignments, hiding a broken integration.
-  if (!/BEGIN:VCALENDAR/i.test(icsText)) {
-    throw new Error(
-      "Blackboard feed didn't return a calendar — the URL may have been reset or made private. Reconnect it."
-    );
-  }
 
   const assignments = parseBlackboardEvents(icsText);
   logger.info("fetchBlackboardAssignments: parsed events", {

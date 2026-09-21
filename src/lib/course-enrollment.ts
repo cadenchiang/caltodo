@@ -104,17 +104,19 @@ export async function syncCourseEnrollments(
     return 0;
   }
 
-  // Upsert memberships — clear deleted_at on conflict so previously
-  // soft-deleted memberships are restored when the user re-syncs a course.
+  // Insert memberships, leaving existing rows untouched. A row with
+  // deleted_at set is a chat the user left; this used to clear it on every
+  // sync, so leaving a chat lasted until the next sync and the user was
+  // announced as having joined again (audit H12). ON CONFLICT DO NOTHING
+  // (ignoreDuplicates) keeps the leave in place and still enrolls new courses.
   const membershipRows = courseIds.map((courseId) => ({
     user_id: userId,
     course_id: courseId,
-    deleted_at: null,
   }));
 
   const { error: membershipError } = await adminClient
     .from("course_memberships")
-    .upsert(membershipRows, { onConflict: "user_id,course_id" });
+    .upsert(membershipRows, { onConflict: "user_id,course_id", ignoreDuplicates: true });
 
   if (membershipError) {
     logger.error("syncCourseEnrollments: membership upsert failed", {

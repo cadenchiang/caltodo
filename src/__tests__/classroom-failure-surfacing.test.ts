@@ -31,7 +31,11 @@ describe("the client sync toast", () => {
   const ctx = read("src/contexts/TaskContext.tsx");
 
   it("includes classroom errors in what the user is shown", () => {
-    expect(ctx).toContain("...(result.classroom?.errors ?? []),");
+    // Both toasts read every source, classroom included, through
+    // collectSyncErrors (see sync-result-summary.ts and its tests).
+    expect(ctx).toContain("collectSyncErrors(result)");
+    const summary = read("src/lib/sync-result-summary.ts");
+    expect(summary).toContain('{ key: "classroom", label: "Classroom" }');
   });
 
   it("keeps the Fix in Settings action those errors lead to", () => {

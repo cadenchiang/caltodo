@@ -34,8 +34,14 @@ function sanitizeExtractedText(raw: string, maxLength = 200): string {
   return raw.replace(/<[^>]*>/g, "").trim().slice(0, maxLength);
 }
 
-/** Timeout in milliseconds for external Gradescope HTTP calls. */
-const FETCH_TIMEOUT_MS = 30_000;
+/**
+ * Timeout in milliseconds for one Gradescope HTTP request.
+ *
+ * Kept well under the sync function's 60s limit: a login plus one page per
+ * course runs sequentially, and at 30s a single slow page could exhaust
+ * the whole budget (audit M7). Exported so the budget test can pin it.
+ */
+export const FETCH_TIMEOUT_MS = 10_000;
 
 /**
  * Browser-like headers for every Gradescope request. Gradescope sits behind

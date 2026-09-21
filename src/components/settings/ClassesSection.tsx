@@ -11,6 +11,11 @@ import type { IntegrationCredentials, CredentialsSavePayload } from "@/lib/types
 import { buildClassGroups } from "@/lib/class-groups";
 import SelectedClassesByPlatform from "./SelectedClassesByPlatform";
 import { buildClassSyncSummary } from "@/lib/class-sync-summary";
+import {
+  canonicalNameVariants,
+  type CourseTaskSource,
+  type SelectionSnapshot,
+} from "@/lib/course-selection-scope";
 
 /** localStorage key for cached total course counts per platform. */
 const TOTALS_KEY = "caltodo_course_totals";
@@ -31,7 +36,23 @@ interface PendingChanges {
   addedPensieveCourses: Array<{ id: string; name: string }>;
   addedNames: string[];
   removedNames: string[];
+  /** Removed names split by the platform they were removed from. */
+  removedBySource: Record<CourseTaskSource, string[]>;
   removedTaskCount: number;
+}
+
+/**
+ * Expands one platform's raw course names to every course_name value the
+ * sync could have stored for them, under the selections before and after
+ * the edit.
+ *
+ * @param names - Raw course names for a single platform.
+ * @param before - The cross-platform selection before the save.
+ * @param after - The cross-platform selection after the save.
+ * @returns Raw and canonical names, deduplicated; empty when `names` is.
+ */
+function scopedNames(names: string[], before: SelectionSnapshot, after: SelectionSnapshot): string[] {
+  return canonicalNameVariants(names, [before, after]);
 }
 
 interface ClassesSectionProps {
@@ -324,15 +345,34 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
     const newGsIds = new Set(newGsCourses.map((c) => c.id));
     const newPensieveIds = new Set(newPensieveCourses.map((c) => c.id));
 
+    const removedBySource: Record<CourseTaskSource, string[]> = {
+      canvas: canvasSelected.filter((c) => !newCanvasNames.has(c.name)).map((c) => c.name),
+      gradescope: gsSelected.filter((c) => !newGsIds.has(c.id)).map((c) => c.name),
+      pensieve: pensieveSelected.filter((c) => !newPensieveIds.has(c.id)).map((c) => c.name),
+    };
     const removedNames = [
-      ...canvasSelected.filter((c) => !newCanvasNames.has(c.name)).map((c) => c.name),
-      ...gsSelected.filter((c) => !newGsIds.has(c.id)).map((c) => c.name),
-      ...pensieveSelected.filter((c) => !newPensieveIds.has(c.id)).map((c) => c.name),
+      ...removedBySource.canvas,
+      ...removedBySource.gradescope,
+      ...removedBySource.pensieve,
     ];
 
-    const removedTaskCount = tasks.filter(
-      (t) => t.course_name && removedNames.includes(t.course_name)
-    ).length;
+    // Preview count for the confirm dialog, matched the same way the save
+    // will: per platform, on the names sync stored (raw or canonical).
+    const draft: SelectionSnapshot = {
+      selected_canvas_courses: newCanvasCourses,
+      selected_gradescope_courses: newGsCourses,
+      selected_pensieve_courses: newPensieveCourses,
+      additional_canvas_accounts: credentials.additional_canvas_accounts,
+    };
+    const removedTaskCount = (Object.keys(removedBySource) as CourseTaskSource[]).reduce(
+      (count, source) => {
+        const names = scopedNames(removedBySource[source], credentials, draft);
+        return count + tasks.filter(
+          (t) => t.source === source && t.course_name && names.includes(t.course_name)
+        ).length;
+      },
+      0
+    );
 
     const addedNames = [
       ...addedCanvasCourses,
@@ -347,7 +387,7 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
     setPendingChanges({
       newCanvasCourses, newGsCourses, newPensieveCourses,
       addedCanvasCourses, addedGsCourses, addedPensieveCourses,
-      addedNames, removedNames, removedTaskCount,
+      addedNames, removedNames, removedBySource, removedTaskCount,
     });
   }
 
@@ -363,10 +403,12 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
     const {
       newCanvasCourses, newGsCourses, newPensieveCourses,
       addedCanvasCourses, addedGsCourses, addedPensieveCourses,
-      removedNames,
+      removedNames, removedBySource,
     } = pendingChanges;
     const hasAdded = addedCanvasCourses.length + addedGsCourses.length + addedPensieveCourses.length > 0;
     const hasRemoved = removedNames.length > 0;
+    // What the tasks were last synced under. The save below replaces it.
+    const before: SelectionSnapshot = credentials;
 
     try {
       // 1. Save updated course selections
@@ -387,17 +429,32 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
       const updated: IntegrationCredentials = await res.json();
       onUpdate(updated);
 
-      // 2. Hide tasks for removed courses (soft-dismiss, not delete)
+      // 2. Hide tasks for removed courses (soft-dismiss, not delete). One
+      // write per platform, so removing a class from Gradescope cannot hide
+      // the still-selected Canvas section's tasks that share its name.
       let hiddenCount = 0;
       if (hasRemoved) {
-        hiddenCount = await dismissTasksByCourseNames(removedNames);
+        for (const source of Object.keys(removedBySource) as CourseTaskSource[]) {
+          const names = scopedNames(removedBySource[source], before, updated);
+          if (names.length > 0) {
+            hiddenCount += await dismissTasksByCourseNames(names, source);
+          }
+        }
       }
 
       // 3. Restore previously hidden tasks for re-added courses
       const reAddedNames = pendingChanges.addedNames;
+      const addedBySource: Record<CourseTaskSource, string[]> = {
+        canvas: addedCanvasCourses.map((c) => c.name),
+        gradescope: addedGsCourses.map((c) => c.name),
+        pensieve: addedPensieveCourses.map((c) => c.name),
+      };
       let restoredCount = 0;
-      if (reAddedNames.length > 0) {
-        restoredCount = await undismissTasksByCourseNames(reAddedNames);
+      for (const source of Object.keys(addedBySource) as CourseTaskSource[]) {
+        const names = scopedNames(addedBySource[source], before, updated);
+        if (names.length > 0) {
+          restoredCount += await undismissTasksByCourseNames(names, source);
+        }
       }
 
       // 4. Sync assignments for added courses

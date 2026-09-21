@@ -36,8 +36,8 @@ const assignment = (externalId: string): NormalizedAssignment => ({
   description: null,
 });
 
-const primary: FeedAccount = { id: PRIMARY_ACCOUNT_ID, url: "https://a.edu/f.ics", isPrimary: true };
-const extra: FeedAccount = { id: "acc-uuid-1", url: "https://b.edu/f.ics", isPrimary: false };
+const primary: FeedAccount = { id: PRIMARY_ACCOUNT_ID, url: "https://a.edu/f.ics", isPrimary: true, selectedCourses: null };
+const extra: FeedAccount = { id: "acc-uuid-1", url: "https://b.edu/f.ics", isPrimary: false, selectedCourses: null };
 
 /**
  * Builds a Supabase client stub whose integration_accounts query resolves to
@@ -64,7 +64,7 @@ describe("scopeExternalId", () => {
   });
 
   it("keeps colliding UIDs from different feeds distinct", () => {
-    const other: FeedAccount = { id: "acc-uuid-2", url: "https://c.edu/f.ics", isPrimary: false };
+    const other: FeedAccount = { id: "acc-uuid-2", url: "https://c.edu/f.ics", isPrimary: false, selectedCourses: null };
     expect(scopeExternalId("bs-uid-1", extra)).not.toBe(scopeExternalId("bs-uid-1", other));
   });
 
@@ -76,7 +76,7 @@ describe("scopeExternalId", () => {
 describe("loadFeedAccounts", () => {
   it("returns the primary account first", async () => {
     const out = await loadFeedAccounts(supabaseStub({ data: [] }), "u1", "brightspace", "https://a.edu/f.ics");
-    expect(out).toEqual([{ id: PRIMARY_ACCOUNT_ID, url: "https://a.edu/f.ics", isPrimary: true }]);
+    expect(out).toEqual([{ id: PRIMARY_ACCOUNT_ID, url: "https://a.edu/f.ics", isPrimary: true, selectedCourses: null }]);
   });
 
   it("appends additional accounts from the table", async () => {
@@ -85,7 +85,7 @@ describe("loadFeedAccounts", () => {
       "u1", "brightspace", "https://a.edu/f.ics"
     );
     expect(out).toHaveLength(2);
-    expect(out[1]).toEqual({ id: "acc-1", url: "https://b.edu/f.ics", isPrimary: false });
+    expect(out[1]).toEqual({ id: "acc-1", url: "https://b.edu/f.ics", isPrimary: false, selectedCourses: null });
   });
 
   it("returns additional accounts even with no primary connected", async () => {
@@ -93,7 +93,7 @@ describe("loadFeedAccounts", () => {
       supabaseStub({ data: [{ id: "acc-1", connection: { calendar_url: "https://b.edu/f.ics" } }] }),
       "u1", "blackboard", null
     );
-    expect(out).toEqual([{ id: "acc-1", url: "https://b.edu/f.ics", isPrimary: false }]);
+    expect(out).toEqual([{ id: "acc-1", url: "https://b.edu/f.ics", isPrimary: false, selectedCourses: null }]);
   });
 
   it("returns nothing when nothing is connected", async () => {
@@ -194,5 +194,69 @@ describe("fetchAllFeedAssignments", () => {
     const fetcher = vi.fn().mockRejectedValue("plain string failure");
     const out = await fetchAllFeedAssignments([primary], fetcher);
     expect(out.errors).toEqual(["plain string failure"]);
+  });
+});
+
+describe("per-account class selection (audit H11)", () => {
+  const inCourse = (externalId: string, course: string): NormalizedAssignment => ({
+    ...assignment(externalId),
+    course_name: course,
+  });
+
+  it("loads each extra account's own selected_courses", async () => {
+    const out = await loadFeedAccounts(
+      supabaseStub({ data: [
+        { id: "a", connection: { calendar_url: "https://b.edu/f.ics" }, selected_courses: [{ id: "x", name: "CS 61A" }] },
+        { id: "b", connection: { calendar_url: "https://c.edu/f.ics" }, selected_courses: [] },
+        { id: "c", connection: { calendar_url: "https://d.edu/f.ics" }, selected_courses: null },
+      ] }),
+      "u1", "pensieve", "https://a.edu/f.ics", [{ name: "EECS 16A" }]
+    );
+    expect(out.map((a) => a.selectedCourses)).toEqual([
+      [{ name: "EECS 16A" }],
+      [{ id: "x", name: "CS 61A" }],
+      [],
+      null,
+    ]);
+  });
+
+  it("ignores a malformed selected_courses value rather than syncing nothing", async () => {
+    const out = await loadFeedAccounts(
+      supabaseStub({ data: [{ id: "a", connection: { calendar_url: "https://b.edu/f.ics" }, selected_courses: "CS 61A" }] }),
+      "u1", "pensieve", null
+    );
+    expect(out[0].selectedCourses).toBeNull();
+  });
+
+  it("filters each feed by its own selection, not the primary one", async () => {
+    const primarySel: FeedAccount = { ...primary, selectedCourses: [{ name: "CS 61A" }] };
+    const extraSel: FeedAccount = { ...extra, selectedCourses: [{ name: "MATH 53" }] };
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce([inCourse("p-1", "CS 61A"), inCourse("p-2", "MATH 53")])
+      .mockResolvedValueOnce([inCourse("e-1", "CS 61A"), inCourse("e-2", "MATH 53")]);
+
+    const out = await fetchAllFeedAssignments([primarySel, extraSel], fetcher);
+
+    expect(out.assignments.map((a) => a.external_id)).toEqual(["p-1", "e-2@acc-uuid-1"]);
+  });
+
+  it("an extra feed with no selection yet syncs every course", async () => {
+    const primarySel: FeedAccount = { ...primary, selectedCourses: [{ name: "CS 61A" }] };
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce([inCourse("p-1", "CS 61A")])
+      .mockResolvedValueOnce([inCourse("e-1", "PHYS 7A"), inCourse("e-2", "MATH 53")]);
+
+    const out = await fetchAllFeedAssignments([primarySel, extra], fetcher);
+
+    expect(out.assignments.map((a) => a.external_id)).toEqual(["p-1", "e-1@acc-uuid-1", "e-2@acc-uuid-1"]);
+  });
+
+  it("an account that deselected every course contributes nothing but still counts as healthy", async () => {
+    const none: FeedAccount = { ...primary, selectedCourses: [] };
+    const fetcher = vi.fn().mockResolvedValueOnce([inCourse("p-1", "CS 61A")]);
+
+    const out = await fetchAllFeedAssignments([none], fetcher);
+
+    expect(out).toEqual({ assignments: [], errors: [], anySucceeded: true });
   });
 });

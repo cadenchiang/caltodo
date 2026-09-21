@@ -102,7 +102,7 @@ describe("syncCourseEnrollments", () => {
     expect(result).toBe(0);
   });
 
-  it("should include deleted_at: null in membership rows to restore soft-deleted memberships", async () => {
+  it("leaves existing memberships untouched so a chat the user left stays left (audit H12)", async () => {
     const upsertSpy = vi.fn().mockReturnValue({ error: null });
     const client = {
       from: vi.fn((table: string) => {
@@ -134,9 +134,11 @@ describe("syncCourseEnrollments", () => {
 
     await syncCourseEnrollments(client as any, "user-1", courses);
 
+    // No deleted_at in the payload and ignoreDuplicates (ON CONFLICT DO
+    // NOTHING): the sync must never resurrect a soft-deleted membership.
     expect(upsertSpy).toHaveBeenCalledWith(
-      [{ user_id: "user-1", course_id: "course-uuid-1", deleted_at: null }],
-      { onConflict: "user_id,course_id" }
+      [{ user_id: "user-1", course_id: "course-uuid-1" }],
+      { onConflict: "user_id,course_id", ignoreDuplicates: true }
     );
   });
 

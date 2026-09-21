@@ -14,6 +14,11 @@ import { fetchBrightspaceAssignments } from "@/lib/brightspace-client";
 import { fetchBlackboardAssignments } from "@/lib/blackboard-client";
 import { isMissingColumnError } from "@/lib/supabase/missing-column";
 import { loadFeedAccounts, fetchAllFeedAssignments } from "@/lib/feed-accounts";
+import {
+  filterBySelectedCourses,
+  selectsNothing,
+  type CourseSelection,
+} from "@/lib/course-selection-filter";
 import type { FeedProvider } from "@/lib/integration-providers";
 import { decrypt } from "@/lib/crypto";
 import { logger } from "@/lib/logger";
@@ -30,8 +35,14 @@ import { CLASSROOM_AVAILABLE } from "@/lib/classroom-availability";
 import { getValidAccessToken } from "@/lib/gcal/token-manager";
 import { after } from "next/server";
 import { reportSyncFailures } from "@/lib/integration-alerts";
-import { claimGradescopeCooldown } from "@/lib/gradescope-cooldown";
+import {
+  claimGradescopeCooldown,
+  releaseGradescopeCooldown,
+  CLAIM_COLUMN,
+  SUCCESS_COLUMN,
+} from "@/lib/gradescope-cooldown";
 import type { SyncResult, SyncSourceResult, AdditionalCanvasAccount } from "@/lib/types";
+import { startSyncBudget, type SyncBudget } from "@/lib/sync-budget";
 
 const UPSERT_BATCH_SIZE = 50;
 
@@ -85,6 +96,10 @@ export type SyncPlatform = "canvas" | "gradescope" | "pensieve" | "brightspace" 
  * @param courseOverrides - Optional course lists to override stored selections
  * @param forceGradescope - If true, bypasses the 1-hour Gradescope cooldown (for manual syncs)
  * @param platforms - Optional list of platforms to sync (default: all)
+ * @param budget - Wall-clock budget; once spent, the sequential stages that
+ *        follow the parallel source fetch (extra Canvas accounts, enrollment,
+ *        new-course detection) are skipped with a logged reason rather than
+ *        letting the function be killed mid-write. Injectable for tests.
  * @returns SyncResult with counts and errors for each source
  */
 export async function runSync(
@@ -93,7 +108,8 @@ export async function runSync(
   timezone: string = "America/Los_Angeles",
   courseOverrides?: SyncCourseOverrides,
   forceGradescope: boolean = false,
-  platforms?: SyncPlatform[]
+  platforms?: SyncPlatform[],
+  budget: SyncBudget = startSyncBudget()
 ): Promise<SyncResult> {
   // Fetch credentials.
   //
@@ -187,6 +203,17 @@ export async function runSync(
   if (syncAll || platforms?.includes("canvas")) {
     const additionalAccounts = credentials.additional_canvas_accounts ?? [];
     for (const account of additionalAccounts) {
+      if (budget.exhausted()) {
+        logger.warn("runSync: skipping additional Canvas account, sync budget exhausted", {
+          userId,
+          accountId: account.id,
+          elapsedMs: budget.elapsedMs(),
+          cause: "earlier sources used the whole time budget",
+          impact: "this account's assignments were not updated this run; the next sync retries",
+        });
+        canvasResult.errors.push(`${account.label}: skipped, the sync ran out of time. It will retry on the next sync.`);
+        continue;
+      }
       const result = await syncAdditionalCanvas(supabase, userId, account, timezone, courseNameMap);
       canvasResult.synced += result.synced;
       canvasResult.errors.push(...result.errors);
@@ -218,7 +245,13 @@ export async function runSync(
 
   // Auto-enroll user into discussion boards for their synced courses.
   // Uses (source, external_id) as dedup key so name changes don't split boards.
-  try {
+  if (budget.exhausted()) {
+    logger.warn("runSync: skipping course enrollment, sync budget exhausted", {
+      userId,
+      elapsedMs: budget.elapsedMs(),
+      impact: "chat memberships not refreshed this run; the next sync retries",
+    });
+  } else try {
     const adminClient = createAdminClient();
     // Apply canonical names to enrollable courses so cross-platform duplicates
     // share the same display name in the courses table.
@@ -239,7 +272,13 @@ export async function runSync(
   // Detect new Canvas courses the user hasn't selected yet
   let newCanvasCourses: Array<{ id: number; name: string }> | undefined;
   if (credentials.canvas_token && Array.isArray(credentials.selected_canvas_courses) && credentials.selected_canvas_courses.length > 0) {
-    try {
+    if (budget.exhausted()) {
+      logger.warn("runSync: skipping new-course detection, sync budget exhausted", {
+        userId,
+        elapsedMs: budget.elapsedMs(),
+        impact: "no new-course prompt this run; the next sync retries",
+      });
+    } else try {
       const allCourses = await fetchCanvasCourses(credentials.canvas_token, credentials.canvas_base_url);
       const selectedIds = new Set(credentials.selected_canvas_courses.map((c) => c.id));
       // Only offer courses for the current term (or the next one, whose sites
@@ -324,19 +363,14 @@ async function syncCanvas(
     let assignments: NormalizedAssignment[];
 
     if (creds.canvas_ical_url) {
-      // iCal feed path — filter by selected courses if set
+      // iCal feed path: filter by selected courses if set
       const selectedCourses = creds.selected_canvas_courses;
-      if (Array.isArray(selectedCourses) && selectedCourses.length === 0) {
+      if (selectsNothing(selectedCourses)) {
         logger.info("syncCanvas skipped: no courses selected (iCal)", { userId });
         return { synced: 0, errors: [] };
       }
       const allIcalAssignments = await fetchCanvasICalAssignments(creds.canvas_ical_url);
-      if (selectedCourses && selectedCourses.length > 0) {
-        const selectedNames = new Set(selectedCourses.map((c) => c.name));
-        assignments = allIcalAssignments.filter((a) => selectedNames.has(a.course_name));
-      } else {
-        assignments = allIcalAssignments;
-      }
+      assignments = filterBySelectedCourses(allIcalAssignments, selectedCourses);
     } else if (creds.canvas_token) {
       // API token path
       const selectedCourses = creds.selected_canvas_courses;
@@ -482,8 +516,15 @@ async function syncAdditionalCanvas(
     let assignments: NormalizedAssignment[];
 
     if (account.ical_url) {
-      // iCal feed path
-      assignments = await fetchCanvasICalAssignments(account.ical_url);
+      // iCal feed path. Honours this account's own selection the way the
+      // primary feed does; it used to sync every course regardless.
+      const selectedCourses = account.selected_courses;
+      if (selectsNothing(selectedCourses)) {
+        logger.info("syncAdditionalCanvas skipped: no courses selected (iCal)", { userId, accountId: account.id });
+        return { synced: 0, errors: [] };
+      }
+      const allIcalAssignments = await fetchCanvasICalAssignments(account.ical_url);
+      assignments = filterBySelectedCourses(allIcalAssignments, selectedCourses);
     } else if (account.token) {
       // Defense-in-depth: validate URL before making any outbound request
       if (!isAllowedCanvasUrl(account.base_url)) {
@@ -583,12 +624,17 @@ async function syncGradescope(
   // on-mount + 30-min + on-focus auto-sync, multiplied across tabs/devices,
   // hammered the login endpoint. See route: forceGradescope.
   const GRADESCOPE_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
+  // Whether this run took the cooldown claim, so a failed login can hand it
+  // back. A forced (manual) sync never claims and so never releases.
+  let claimedThisRun = false;
   if (!force) {
     // CLAIM the cooldown window before logging in. A read-then-act check let
     // two concurrent syncs (mount + focus + timer across tabs/devices) both
-    // read a stale timestamp, both pass, and both log in — tripping
-    // Gradescope's anti-abuse lockout. Claiming before login also means a
-    // failed login still holds the cooldown (don't hammer on failure).
+    // read a stale timestamp, both pass, and both log in, tripping
+    // Gradescope's anti-abuse lockout. The claim is a separate column from
+    // last_gradescope_synced_at: that one is written only after a successful
+    // fetch, and a login that fails releases the claim below so a corrected
+    // password does not wait out a window a bad one started.
     //
     // claimGradescopeCooldown owns the fallback ladder: it only reports an
     // error when every mechanism failed, so one broken query can no longer
@@ -607,6 +653,7 @@ async function syncGradescope(
       logger.info("syncGradescope skipped: cooldown held by another sync or still cooling down", { userId });
       return { synced: 0, errors: [] };
     }
+    claimedThisRun = true;
   }
 
   try {
@@ -649,11 +696,11 @@ async function syncGradescope(
     const result = await upsertAssignments(supabase, userId, "gradescope", merged, timezone);
     await dismissMissingTasks(supabase, userId, "gradescope", merged);
 
-    // Update last Gradescope sync timestamp on success and clear auth failure flag
-    await supabase
-      .from("integration_credentials")
-      .update({ last_gradescope_synced_at: new Date().toISOString(), gradescope_auth_failed: false })
-      .eq("user_id", userId);
+    // Record the success. last_gradescope_synced_at is the health check's
+    // proof of a working login, so it is written here and nowhere else. The
+    // claim is stamped too, so a successful manual login holds the window
+    // against the auto-syncs that follow it.
+    await recordGradescopeSuccess(supabase, userId);
 
     return { synced: result.synced, errors: result.errors };
   } catch (err) {
@@ -667,9 +714,60 @@ async function syncGradescope(
         .update({ gradescope_auth_failed: true })
         .eq("user_id", userId);
       logger.warn("syncGradescope: marked auth as failed, stopping retries", { userId });
+      // The auth flag already stops auto-sync retries; holding the claim on
+      // top of it only blocked the sync a student runs after fixing their
+      // password. Other failures (outage, parse error) keep the claim, so
+      // auto-syncs still cannot hammer the login endpoint.
+      if (claimedThisRun) {
+        await releaseGradescopeCooldown(supabase, userId);
+      }
     }
 
     return { synced: 0, errors: [message] };
+  }
+}
+
+/**
+ * Stamps a successful Gradescope fetch on the credentials row.
+ *
+ * @param supabase - Authenticated Supabase client
+ * @param userId - The user whose row to update
+ * @remarks Writes the success timestamp, the claim, and clears the auth
+ *          flag in one update. If the claim column is not migrated yet, the
+ *          write is retried without it so a deploy that precedes its
+ *          migration still records the success.
+ */
+async function recordGradescopeSuccess(supabase: SupabaseClient, userId: string): Promise<void> {
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from("integration_credentials")
+    .update({ [SUCCESS_COLUMN]: now, [CLAIM_COLUMN]: now, gradescope_auth_failed: false })
+    .eq("user_id", userId);
+  if (!error) return;
+
+  if (!isMissingColumnError(error)) {
+    logger.error("syncGradescope: failed to record success", {
+      userId,
+      cause: error.message,
+      impact: "last_gradescope_synced_at not advanced; health check may undercount this user",
+    });
+    return;
+  }
+
+  logger.warn("syncGradescope: claim column missing, recording success without it", {
+    userId,
+    column: CLAIM_COLUMN,
+  });
+  const retry = await supabase
+    .from("integration_credentials")
+    .update({ [SUCCESS_COLUMN]: now, gradescope_auth_failed: false })
+    .eq("user_id", userId);
+  if (retry.error) {
+    logger.error("syncGradescope: failed to record success", {
+      userId,
+      cause: retry.error.message,
+      impact: "last_gradescope_synced_at not advanced; health check may undercount this user",
+    });
   }
 }
 
@@ -695,20 +793,15 @@ async function syncPensieve(
     userId,
     provider: "pensieve",
     primaryUrl: creds.pensieve_calendar_url,
+    // Applies to the primary feed only. Extra feeds carry their own
+    // integration_accounts.selected_courses, applied per account in
+    // fetchAllFeedAssignments; filtering the merged set by this list made a
+    // second feed never sync unless its courses were also in the first's.
+    primarySelection: creds.selected_pensieve_courses,
     fetcher: fetchPensieveAssignments,
     failureColumn: "pensieve_auth_failed",
     timezone,
     courseNameMap,
-    // null = no selection made yet (first sync), so sync everything.
-    // [] = the user deselected every course, so sync nothing, which is
-    // distinct from "sync all" and returns null to skip reconciliation.
-    filter: (assignments) => {
-      const selected = creds.selected_pensieve_courses;
-      if (Array.isArray(selected) && selected.length === 0) return null;
-      if (!selected || selected.length === 0) return assignments;
-      const allowed = new Set(selected.map((c) => c.name));
-      return assignments.filter((a) => a.course_name && allowed.has(a.course_name));
-    },
   });
 }
 
@@ -729,14 +822,17 @@ interface FeedSyncOptions {
   provider: FeedProvider;
   /** Feed URL from the flat credentials column, or null when not connected. */
   primaryUrl: string | null;
+  /**
+   * The primary account's stored class selection, applied to that feed
+   * alone. Omit for providers with no selection column (sync everything).
+   */
+  primarySelection?: CourseSelection;
   /** Provider's feed client. */
   fetcher: (url: string) => Promise<NormalizedAssignment[]>;
   /** integration_credentials column holding this provider's failure flag. */
   failureColumn: string;
   timezone: string;
   courseNameMap: Map<string, string>;
-  /** Optional narrowing to the courses the user selected. */
-  filter?: (assignments: NormalizedAssignment[]) => NormalizedAssignment[] | null;
 }
 
 /**
@@ -756,15 +852,17 @@ interface FeedSyncOptions {
  * @returns Count synced across all accounts, plus one error per failed account.
  */
 async function syncFeedProvider(options: FeedSyncOptions): Promise<SyncSourceResult> {
-  const { supabase, userId, provider, primaryUrl, fetcher, failureColumn, timezone, courseNameMap, filter } = options;
+  const { supabase, userId, provider, primaryUrl, primarySelection, fetcher, failureColumn, timezone, courseNameMap } = options;
 
-  const accounts = await loadFeedAccounts(supabase, userId, provider, primaryUrl);
+  const accounts = await loadFeedAccounts(supabase, userId, provider, primaryUrl, primarySelection ?? null);
   if (accounts.length === 0) {
     logger.info(`sync${provider}: no accounts connected`, { userId });
     return { synced: 0, errors: [] };
   }
 
   logger.info(`sync${provider}: fetching`, { userId, accounts: accounts.length });
+  // Each account's own class selection is applied inside the fetch, so the
+  // merged set already reflects every account's choice.
   const { assignments, errors, anySucceeded } = await fetchAllFeedAssignments(accounts, fetcher);
 
   if (!anySucceeded) {
@@ -776,13 +874,7 @@ async function syncFeedProvider(options: FeedSyncOptions): Promise<SyncSourceRes
     return { synced: 0, errors };
   }
 
-  const selected = filter ? filter(assignments) : assignments;
-  if (selected === null) {
-    logger.info(`sync${provider} skipped: no courses selected`, { userId });
-    return { synced: 0, errors };
-  }
-
-  const merged = selected.map((a) => ({
+  const merged = assignments.map((a) => ({
     ...a,
     course_name: getCanonicalName(a.course_name, courseNameMap),
   }));
@@ -1069,6 +1161,10 @@ async function upsertAssignments(
   // user with >1000 synced tasks in one source would otherwise have the
   // overflow rows treated as "new" — clobbering their custom colors and
   // manually-edited due dates/times on every sync.
+  //
+  // Ordered by primary key: without a stable order, pages of a .range()
+  // scan can overlap or skip rows between requests, which again leaves rows
+  // unseen and treated as new.
   type ExistingRow = { external_id: string | null; due_date_manually_edited_at: string | null; due_time_manually_edited_at: string | null; dismissed_by_user: boolean | null };
   const existingTaskRows: ExistingRow[] = [];
   const EXISTING_PAGE = 1000;
@@ -1078,10 +1174,25 @@ async function upsertAssignments(
       .select("external_id, due_date_manually_edited_at, due_time_manually_edited_at, dismissed_by_user")
       .eq("user_id", userId)
       .eq("source", source)
+      .order("id", { ascending: true })
       .range(from, from + EXISTING_PAGE - 1);
     if (pageError) {
-      logger.error("upsertAssignments: failed to page existing tasks", { userId, source, error: pageError.message });
-      break;
+      // Continuing with a partial (or empty) list would treat every unseen
+      // assignment as new: colours and manually edited dates overwritten,
+      // and user-dismissed tasks resurrected with dismissed_at cleared, which
+      // later syncs then preserve. Skipping this source for one run is the
+      // cheaper mistake; the next sync retries.
+      logger.error("upsertAssignments: failed to page existing tasks, skipping source this run", {
+        userId,
+        source,
+        cause: pageError.message,
+        context: { pageStart: from, rowsReadSoFar: existingTaskRows.length, incoming: assignments.length },
+        impact: "no tasks from this source were written or auto-completed this sync",
+      });
+      return {
+        synced: 0,
+        errors: [`${source}: could not read existing tasks (${pageError.message}); sync skipped this run`],
+      };
     }
     if (!page || page.length === 0) break;
     existingTaskRows.push(...page);
@@ -1303,6 +1414,7 @@ async function dismissMissingTasks(
         .eq("source", source)
         .eq("is_completed", false)
         .is("dismissed_at", null)
+        .order("id", { ascending: true })
         .range(from, from + DISMISS_PAGE - 1);
       if (error) {
         logger.error("dismissMissingTasks: failed to fetch existing tasks", {

@@ -8,21 +8,41 @@
  * write, which is why removing a class appeared to do nothing and editing
  * classes could only ever add.
  *
+ * Every task write here is scoped to the platform the edit happened on and
+ * matched on the names sync actually stores (see course-selection-scope), so
+ * removing a class from one platform cannot hide another platform's tasks or
+ * a manual task.
+ *
  * The effects are injected rather than imported so this stays a plain async
  * function over the task store, testable without React or Supabase.
  */
 
 import { describeClasses } from "@/lib/class-sync-summary";
 import type { CourseSelectionDiff } from "@/lib/course-selection-diff";
+import {
+  canonicalNameVariants,
+  type CourseTaskSource,
+  type SelectionSnapshot,
+} from "@/lib/course-selection-scope";
 
 /** The task-store operations a class change needs. */
 export interface CourseSelectionEffects {
-  /** Hides every task belonging to these classes. Returns how many. */
-  dismissTasksByCourseNames: (names: string[]) => Promise<number>;
-  /** Un-hides tasks hidden by an earlier removal. Returns how many. */
-  undismissTasksByCourseNames: (names: string[]) => Promise<number>;
+  /** Hides every task of one source belonging to these classes. Returns how many. */
+  dismissTasksByCourseNames: (names: string[], source: CourseTaskSource) => Promise<number>;
+  /** Un-hides one source's tasks hidden by an earlier removal. Returns how many. */
+  undismissTasksByCourseNames: (names: string[], source: CourseTaskSource) => Promise<number>;
   /** Pulls assignments for classes that were just added. */
   syncAddedClasses: () => Promise<void>;
+}
+
+/** Which platform an edit happened on, and the selections around it. */
+export interface CourseSelectionScope {
+  /** The platform whose class list was edited. */
+  source: CourseTaskSource;
+  /** The full cross-platform selection before the edit was saved. */
+  before: SelectionSnapshot;
+  /** The full cross-platform selection after the edit was saved. */
+  after: SelectionSnapshot;
 }
 
 /**
@@ -34,6 +54,8 @@ export interface CourseSelectionEffects {
  *
  * @param diff - Names that entered and left the selection.
  * @param effects - Task-store operations to run.
+ * @param scope - The platform edited and the selections before and after,
+ *        used to derive the canonical names sync stored on the tasks.
  * @returns A one-line summary for a toast, or "" when nothing changed.
  * @throws Whatever an effect throws. The selection is already saved by the
  *         time this runs, so callers should report the failure without
@@ -45,15 +67,27 @@ export interface CourseSelectionEffects {
  */
 export async function applyCourseSelectionChange(
   diff: CourseSelectionDiff,
-  effects: CourseSelectionEffects
+  effects: CourseSelectionEffects,
+  scope: CourseSelectionScope
 ): Promise<string> {
   const { addedNames, removedNames } = diff;
   if (addedNames.length === 0 && removedNames.length === 0) return "";
 
+  const snapshots = [scope.before, scope.after];
   const hiddenCount =
-    removedNames.length > 0 ? await effects.dismissTasksByCourseNames(removedNames) : 0;
+    removedNames.length > 0
+      ? await effects.dismissTasksByCourseNames(
+          canonicalNameVariants(removedNames, snapshots),
+          scope.source
+        )
+      : 0;
   const restoredCount =
-    addedNames.length > 0 ? await effects.undismissTasksByCourseNames(addedNames) : 0;
+    addedNames.length > 0
+      ? await effects.undismissTasksByCourseNames(
+          canonicalNameVariants(addedNames, snapshots),
+          scope.source
+        )
+      : 0;
   if (addedNames.length > 0) await effects.syncAddedClasses();
 
   const parts: string[] = [];

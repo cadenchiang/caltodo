@@ -28,6 +28,7 @@ import { playTaskComplete, playTaskCreated } from "@/lib/sounds";
 import { getCredentials } from "@/lib/credentials-client";
 import { readHiddenTags, hideTag } from "@/lib/hidden-tags";
 import { findNewAssignments } from "@/lib/new-assignments";
+import { collectSyncErrors, describeSyncedCounts } from "@/lib/sync-result-summary";
 
 /** localStorage key and version for stale-while-revalidate task caching. */
 const CACHE_KEY = "caltodo_tasks_cache";
@@ -215,10 +216,16 @@ interface TaskContextValue {
   deleteTasksByExternalIdPrefix: (prefix: string) => Promise<void>;
   /** Deletes all tasks matching any of the given course names. Returns count deleted. */
   deleteTasksByCourseNames: (courseNames: string[]) => Promise<number>;
-  /** Soft-hides tasks by setting dismissed_at for given course names. Returns count hidden. */
-  dismissTasksByCourseNames: (courseNames: string[]) => Promise<number>;
-  /** Un-hides tasks by clearing dismissed_at for given course names. Returns count restored. */
-  undismissTasksByCourseNames: (courseNames: string[]) => Promise<number>;
+  /** Soft-hides one source's tasks matching the given course names. Returns count hidden. */
+  dismissTasksByCourseNames: (
+    courseNames: string[],
+    source: "canvas" | "gradescope" | "pensieve"
+  ) => Promise<number>;
+  /** Un-hides one source's tasks matching the given course names. Returns count restored. */
+  undismissTasksByCourseNames: (
+    courseNames: string[],
+    source: "canvas" | "gradescope" | "pensieve"
+  ) => Promise<number>;
   /** Removes a tag from every task carrying it. Returns count of tasks changed. */
   deleteTag: (tag: string) => Promise<number>;
   /** Clears a class from every task carrying it. Returns count of tasks changed. */
@@ -498,15 +505,10 @@ export function TaskProvider({
           // expired Canvas token / Gradescope login / dead iCal URL made new
           // assignments silently stop appearing with no explanation. Show a
           // toast once per unique error-set per session so it isn't spammy.
-          const syncErrors = [
-            ...result.canvas.errors,
-            ...result.gradescope.errors,
-            ...result.pensieve.errors,
-            ...result.brightspace.errors,
-            // Classroom was left out, so a scope failure on every sync produced
-            // no toast and no "Fix in Settings" for the user to act on.
-            ...(result.classroom?.errors ?? []),
-          ];
+          // Every source, so no integration can fail without a toast. Classroom
+          // and Blackboard were each left out at some point, and a failure on
+          // every sync produced no "Fix in Settings" for the user to act on.
+          const syncErrors = collectSyncErrors(result);
           if (syncErrors.length > 0) {
             const key = `sync-error-shown:${syncErrors.join("|")}`;
             let alreadyShown = false;
@@ -1495,14 +1497,22 @@ export function TaskProvider({
    * Soft-hides tasks by setting dismissed_at for all tasks matching given course names.
    * Optimistically removes from local state; reverts on error.
    *
-   * @param courseNames - Array of course name strings to match
+   * Scoped to one source: a class removed from Gradescope must not hide the
+   * still-selected Canvas section's tasks (which share the canonical
+   * course_name), and must never hide a manual task.
+   *
+   * @param courseNames - Course name strings to match (raw and canonical forms)
+   * @param source - The platform the class was removed from
    * @returns Number of tasks hidden (0 if none matched or on error)
    */
-  async function dismissTasksByCourseNames(courseNames: string[]): Promise<number> {
+  async function dismissTasksByCourseNames(
+    courseNames: string[],
+    source: "canvas" | "gradescope" | "pensieve"
+  ): Promise<number> {
     if (!userId || courseNames.length === 0) return 0;
 
     const matchingTasks = tasks.filter(
-      (t) => t.course_name && courseNames.includes(t.course_name)
+      (t) => t.source === source && t.course_name && courseNames.includes(t.course_name)
     );
     if (matchingTasks.length === 0) return 0;
 
@@ -1522,10 +1532,17 @@ export function TaskProvider({
       .from("tasks")
       .update({ dismissed_at: new Date().toISOString(), dismissed_by_user: true })
       .eq("user_id", userId)
+      .eq("source", source)
       .in("course_name", courseNames)
       .is("dismissed_at", null);
 
     if (dismissError) {
+      console.error("dismissTasksByCourseNames: dismiss failed", {
+        cause: dismissError.message,
+        source,
+        courseNames,
+        impact: "tasks were not hidden; local state reverted and refetched",
+      });
       setError(dismissError.message);
       setTasks(previousTasks);
       setCachedTasks(previousTasks);
@@ -1540,21 +1557,36 @@ export function TaskProvider({
    * Un-hides tasks by clearing dismissed_at for all tasks matching given course names.
    * Re-fetches tasks from Supabase to restore them into local state.
    *
-   * @param courseNames - Array of course name strings to match
+   * Scoped to one source for the same reason as dismissTasksByCourseNames:
+   * re-adding a class on one platform must not un-hide another platform's
+   * tasks that happen to share the canonical course_name.
+   *
+   * @param courseNames - Course name strings to match (raw and canonical forms)
+   * @param source - The platform the class was re-added to
    * @returns Number of tasks restored (0 if none matched or on error)
    */
-  async function undismissTasksByCourseNames(courseNames: string[]): Promise<number> {
+  async function undismissTasksByCourseNames(
+    courseNames: string[],
+    source: "canvas" | "gradescope" | "pensieve"
+  ): Promise<number> {
     if (!userId || courseNames.length === 0) return 0;
 
     const { data, error: undismissError } = await supabase
       .from("tasks")
       .update({ dismissed_at: null, dismissed_by_user: false })
       .eq("user_id", userId)
+      .eq("source", source)
       .in("course_name", courseNames)
       .not("dismissed_at", "is", null)
       .select("id");
 
     if (undismissError) {
+      console.error("undismissTasksByCourseNames: restore failed", {
+        cause: undismissError.message,
+        source,
+        courseNames,
+        impact: "hidden tasks for the re-added class stay hidden",
+      });
       setError(undismissError.message);
       return 0;
     }
@@ -1722,6 +1754,12 @@ export function TaskProvider({
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           ...courseOverrides,
           ...(platforms ? { platforms } : {}),
+          // A visible sync is the user asking for it, so it bypasses the
+          // Gradescope login cooldown. Silent syncs (class-list saves) do not:
+          // they can fire several times in a minute and must not log in each
+          // time. Without this no client ever sent the flag, and a manual sync
+          // inside the window reported "up to date" instead of syncing.
+          ...(silent ? {} : { forceGradescope: true }),
         }),
       });
       if (!res.ok) {
@@ -1745,13 +1783,12 @@ export function TaskProvider({
         // Brief pause so the user sees 100% before the result toast replaces it
         await new Promise((r) => setTimeout(r, 400));
 
-        // Build and show sync result toast globally
-        const parts: string[] = [];
-        if (result.canvas.synced > 0) parts.push(`${result.canvas.synced} from Canvas`);
-        if (result.gradescope.synced > 0) parts.push(`${result.gradescope.synced} from Gradescope`);
-        if (result.pensieve.synced > 0) parts.push(`${result.pensieve.synced} from Pensieve`);
-        const syncErrors = [...result.canvas.errors, ...result.gradescope.errors, ...result.pensieve.errors];
-        let toastMsg = parts.length > 0 ? `Synced ${parts.join(", ")}. All tasks are up to date.` : "All tasks are up to date — no new assignments found.";
+        // Build and show sync result toast globally. Every source is listed,
+        // so a Blackboard or Classroom failure reaches the same toast as the
+        // others instead of reading as "up to date".
+        const parts = describeSyncedCounts(result);
+        const syncErrors = collectSyncErrors(result);
+        let toastMsg = parts.length > 0 ? `Synced ${parts.join(", ")}. All tasks are up to date.` : "All tasks are up to date, no new assignments found.";
         if (syncErrors.length > 0) {
           toastMsg += ` ${syncErrors.map(m => m.replace(/Go to Settings to add them\.?/, "")).join(". ").trim()}`;
         }
