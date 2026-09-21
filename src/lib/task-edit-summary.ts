@@ -107,6 +107,16 @@ export function summariseTaskEdit(task: Task, updates: TaskUpdate): TaskEditSumm
     // list, since the column is not nullable.
     if (key === "tags") revert.tags = Array.isArray(prev) ? [...prev] : [];
     else (revert as Record<string, unknown>)[key] = prev ?? null;
+
+    // A due date or time write is also a manual-edit lock: updateTask stamps
+    // the matching *_manually_edited_at with now unless the caller supplies
+    // it. The undo has to carry the previous stamp (usually null) or it
+    // re-locks the field and sync never corrects the date again.
+    if (key === "due_date") {
+      revert.due_date_manually_edited_at = task.due_date_manually_edited_at ?? null;
+    } else if (key === "due_time") {
+      revert.due_time_manually_edited_at = task.due_time_manually_edited_at ?? null;
+    }
   }
 
   const names = [...new Set(changed.map((k) => FIELD_LABELS[k]).filter(Boolean))] as string[];

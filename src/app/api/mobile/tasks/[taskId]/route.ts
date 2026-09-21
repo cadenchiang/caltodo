@@ -1,20 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-
-/**
- * Creates a Supabase client authenticated with the Bearer token.
- */
-function getAuthClient(req: NextRequest) {
-  const authHeader = req.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) return null;
-
-  const token = authHeader.slice(7);
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { global: { headers: { Authorization: `Bearer ${token}` } } }
-  );
-}
+import { logger } from "@/lib/logger";
+import {
+  authenticateMobile,
+  applyCompletionInvariant,
+  applyDismissalInvariant,
+} from "@/lib/mobile-task-helpers";
 
 /**
  * PATCH /api/mobile/tasks/:taskId
@@ -24,10 +14,9 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ taskId: string }> }
 ) {
-  const supabase = getAuthClient(req);
-  if (!supabase) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await authenticateMobile(req, "PATCH /api/mobile/tasks/:taskId");
+  if ("response" in auth) return auth.response;
+  const { supabase, user } = auth;
 
   const { taskId } = await params;
   let body: Record<string, unknown>;
@@ -37,9 +26,9 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  // Allowlist the fields a client may edit — the canonical TaskUpdate editable
+  // Allowlist the fields a client may edit: the canonical TaskUpdate editable
   // set (src/lib/types.ts). Never let the client set user_id/id/source/
-  // external_id/is_submitted — spreading raw body into .update() was a
+  // external_id/is_submitted; spreading raw body into .update() was a
   // mass-assignment vector (e.g. reassigning user_id).
   const ALLOWED = [
     "title", "description", "due_date", "due_time", "is_completed", "color",
@@ -47,29 +36,18 @@ export async function PATCH(
     "completed_at", "tags", "snoozed_until", "sort_order", "course_name",
     "dismissed_at",
   ] as const;
-  const update: Record<string, unknown> = {};
+  const fields: Record<string, unknown> = {};
   for (const key of ALLOWED) {
-    if (key in body) update[key] = body[key];
+    if (key in body) fields[key] = body[key];
   }
-  if (Object.keys(update).length === 0) {
+  if (Object.keys(fields).length === 0) {
     return NextResponse.json({ error: "No editable fields provided" }, { status: 400 });
   }
 
-  // Keep is_completed and completed_at consistent. They are two independent
-  // entries in ALLOWED, so a client could set one without the other, and
-  // clients did: prod holds 44 tasks that are complete with a null
-  // completed_at. That is not cosmetic — the nightly archive purge in
-  // cron/push-reminders deletes on `completed_at < cutoff`, so a null one is
-  // invisible to it and the row is retained forever. The web client's
-  // toggleComplete always sends both; this makes the server enforce it rather
-  // than trusting every caller to remember.
-  if ("is_completed" in update) {
-    if (update.is_completed === true) {
-      if (update.completed_at == null) update.completed_at = new Date().toISOString();
-    } else if (update.is_completed === false) {
-      update.completed_at = null;
-    }
-  }
+  // Completion and dismissal each span two columns the client can set
+  // independently; derive the second from the first so the archive purge
+  // and the sync engine see what the user meant.
+  const update = applyDismissalInvariant(applyCompletionInvariant(fields));
 
   const { data, error } = await supabase
     .from("tasks")
@@ -79,10 +57,17 @@ export async function PATCH(
     .maybeSingle();
 
   if (error) {
+    logger.error("PATCH /api/mobile/tasks/:taskId: update failed", {
+      userId: user.id,
+      taskId,
+      fields: Object.keys(update),
+      error: error.message,
+      impact: "edit not saved; client shows an error",
+    });
     return NextResponse.json({ error: "Failed to update task" }, { status: 500 });
   }
-  // RLS scopes to the owner: a missing/foreign task matches 0 rows → 404, not a
-  // raw 500 from .single().
+  // RLS scopes to the owner: a missing/foreign task matches 0 rows, so 404
+  // rather than a raw 500 from .single().
   if (!data) {
     return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
@@ -98,10 +83,9 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ taskId: string }> }
 ) {
-  const supabase = getAuthClient(req);
-  if (!supabase) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await authenticateMobile(req, "DELETE /api/mobile/tasks/:taskId");
+  if ("response" in auth) return auth.response;
+  const { supabase, user } = auth;
 
   const { taskId } = await params;
 
@@ -112,9 +96,15 @@ export async function DELETE(
     .select("id");
 
   if (error) {
+    logger.error("DELETE /api/mobile/tasks/:taskId: dismiss failed", {
+      userId: user.id,
+      taskId,
+      error: error.message,
+      impact: "task not dismissed; client shows an error",
+    });
     return NextResponse.json({ error: "Failed to delete task" }, { status: 500 });
   }
-  // 0 rows affected (missing/foreign task under RLS) → 404 instead of a
+  // 0 rows affected (missing/foreign task under RLS): 404 instead of a
   // misleading success.
   if (!data || data.length === 0) {
     return NextResponse.json({ error: "Task not found" }, { status: 404 });

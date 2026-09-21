@@ -7,8 +7,7 @@ import { Settings, MessageCircle, Check } from "lucide-react";
 import ContactModal from "@/components/ui/ContactModal";
 import EditProfileModal from "@/components/ui/EditProfileModal";
 import SignOutConfirmModal from "@/components/ui/SignOutConfirmModal";
-import { clearLayoutCache } from "@/lib/board-layout-cache";
-import { clearSWRCache } from "@/components/SWRProvider";
+import { clearUserCaches } from "@/lib/user-caches";
 
 interface ProfilePopupProps {
   avatarUrl: string | null;
@@ -66,7 +65,9 @@ export default function ProfilePopup({ avatarUrl, fullName, email }: ProfilePopu
    * Performs log-out immediately on click.
    *
    * Three things have to happen for log-out to actually stick:
-   *   1. Clear the local board-layout cache so the next user sees their own data.
+   *   1. Clear every per-user cache (tasks, profile, board, chat state) so
+   *      the next user on this device sees their own data, not a stale paint
+   *      of the previous account's.
    *   2. POST /auth/signout, clears the Supabase auth cookies on the server.
    *   3. Hard-navigate to "/", router.push keeps client state in memory, so
    *      the SSR'd page (and the proxy) needs a fresh request to forget the
@@ -76,8 +77,7 @@ export default function ProfilePopup({ avatarUrl, fullName, email }: ProfilePopu
     setOpen(false);
     setSigningOut(true);
     try {
-      clearLayoutCache();
-      clearSWRCache();
+      clearUserCaches();
       await fetch("/auth/signout", { method: "POST" });
     } catch {
       /* even if the server roundtrip fails we still want to drop the user

@@ -141,7 +141,46 @@ describe("summariseTaskEdit", () => {
       due_date: "2026-09-08",
       due_time: "23:59",
     });
-    expect(Object.keys(summary!.revert)).toEqual(["due_time"]);
+    // The due_time lock stamp rides along (see below); due_date and its
+    // stamp do not.
+    expect(Object.keys(summary!.revert)).toEqual(["due_time", "due_time_manually_edited_at"]);
+  });
+
+  describe("manual-edit lock stamps (M3)", () => {
+    // updateTask stamps due_date_manually_edited_at = now on every due_date
+    // write unless the caller supplies the column. Without these in the
+    // revert, undoing a date edit on a synced task re-stamped it and the
+    // sync engine treated the date as user-locked forever.
+    it("restores a null due_date lock when undoing a date edit", () => {
+      const task = makeTask({ due_date_manually_edited_at: null });
+      const summary = summariseTaskEdit(task, { due_date: "2026-09-28" });
+      expect(summary?.revert).toEqual({
+        due_date: "2026-09-08",
+        due_date_manually_edited_at: null,
+      });
+    });
+
+    it("restores an earlier due_date lock rather than clearing it", () => {
+      const task = makeTask({ due_date_manually_edited_at: "2026-09-01T00:00:00.000Z" });
+      const summary = summariseTaskEdit(task, { due_date: "2026-09-28" });
+      expect(summary?.revert.due_date_manually_edited_at).toBe("2026-09-01T00:00:00.000Z");
+    });
+
+    it("restores the due_time lock when undoing a time edit", () => {
+      const task = makeTask({ due_time: "10:00", due_time_manually_edited_at: null });
+      const summary = summariseTaskEdit(task, { due_time: "23:59" });
+      expect(summary?.revert).toEqual({ due_time: "10:00", due_time_manually_edited_at: null });
+    });
+
+    it("leaves the stamps out of edits that do not touch the date or time", () => {
+      const summary = summariseTaskEdit(makeTask(), { title: "Renamed" });
+      expect(Object.keys(summary!.revert)).toEqual(["title"]);
+    });
+
+    it("does not let the stamps change the label", () => {
+      expect(summariseTaskEdit(makeTask(), { due_date: "2026-09-28" })?.label)
+        .toBe("Due date changed");
+    });
   });
 
   it("falls back to a generic label for a field with no name", () => {

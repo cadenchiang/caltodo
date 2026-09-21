@@ -11,8 +11,15 @@ const mockGetUser = vi.fn();
 const mockSelect = vi.fn();
 const mockEq = vi.fn();
 const mockSingle = vi.fn();
-const mockUpsert = vi.fn();
 const mockFrom = vi.fn();
+
+// The save path: a version read (select updated_at ... maybeSingle), then
+// either an insert (no row yet) or an update conditional on that version
+// (update ... eq user_id ... eq updated_at ... select).
+const mockMaybeSingle = vi.fn();
+const mockInsert = vi.fn();
+const mockUpdate = vi.fn();
+const mockUpdateSelect = vi.fn();
 
 // Admin client is used only for the template-owner fallback when a user has
 // no row of their own. Its own single-result mock lets tests control whether
@@ -54,11 +61,17 @@ const TEST_USER_ID = "user-abc-123";
 function setupMocks(options: {
   authenticated?: boolean;
   selectResult?: { data: unknown; error: unknown };
-  upsertResult?: { error: unknown };
+  /** Result of the save path's version read. Defaults to "no row yet". */
+  versionResult?: { data: { updated_at: string } | null; error: { message: string } | null };
+  insertResult?: { error: { code?: string; message: string } | null };
+  /** Rows the conditional update reports as written. Defaults to one row. */
+  updateResult?: { data: { updated_at: string }[] | null; error: { message: string } | null };
   /** Result of the template-owner fallback query. Defaults to "no template". */
   templateResult?: { data: unknown; error: unknown };
 }) {
-  const { authenticated = true, selectResult, upsertResult, templateResult } = options;
+  const {
+    authenticated = true, selectResult, versionResult, insertResult, updateResult, templateResult,
+  } = options;
 
   if (authenticated) {
     mockGetUser.mockResolvedValue({ data: { user: { id: TEST_USER_ID } }, error: null });
@@ -67,15 +80,24 @@ function setupMocks(options: {
   }
 
   mockSingle.mockResolvedValue(selectResult ?? { data: null, error: { code: "PGRST116" } });
-  mockEq.mockReturnValue({ single: mockSingle });
+  mockMaybeSingle.mockResolvedValue(versionResult ?? { data: null, error: null });
+  mockEq.mockReturnValue({ single: mockSingle, maybeSingle: mockMaybeSingle });
   mockSelect.mockReturnValue({ eq: mockEq });
-  mockUpsert.mockResolvedValue(upsertResult ?? { error: null });
+  mockInsert.mockResolvedValue(insertResult ?? { error: null });
+  mockUpdateSelect.mockResolvedValue(
+    updateResult ?? { data: [{ updated_at: "2026-09-21T10:00:00.000Z" }], error: null },
+  );
+  const updateEq2 = vi.fn(() => ({ select: mockUpdateSelect }));
+  const updateEq1 = vi.fn(() => ({ eq: updateEq2 }));
+  mockUpdate.mockReturnValue({ eq: updateEq1 });
   mockTemplateSingle.mockResolvedValue(templateResult ?? { data: null, error: { code: "PGRST116" } });
 
   mockFrom.mockReturnValue({
     select: mockSelect,
-    upsert: mockUpsert,
+    insert: mockInsert,
+    update: mockUpdate,
   });
+  return { updateEq1, updateEq2 };
 }
 
 beforeEach(() => {
@@ -151,39 +173,106 @@ describe("PUT /api/board-layout", () => {
     expect(body.error).toBe("Invalid JSON body");
   });
 
-  it("upserts layout and returns success", async () => {
-    setupMocks({});
-    const layout = { version: 10, widgets: [], layouts: { lg: [] }, boardTitle: "My Board" };
-    const req = new Request("http://localhost/api/board-layout", {
+  /** A PUT carrying `layout` plus the optional base version. */
+  function put(layout: Record<string, unknown>, baseUpdatedAt?: string | null) {
+    return PUT(new Request("http://localhost/api/board-layout", {
       method: "PUT",
-      body: JSON.stringify(layout),
+      body: JSON.stringify(baseUpdatedAt === undefined ? layout : { ...layout, baseUpdatedAt }),
       headers: { "Content-Type": "application/json" },
-    });
-    const res = await PUT(req);
+    }));
+  }
+
+  const LAYOUT = { version: 10, widgets: [], layouts: { lg: [] }, boardTitle: "My Board" };
+  const CURRENT = "2026-09-21T10:00:00.000Z";
+
+  it("inserts the first layout for a user and returns its version", async () => {
+    setupMocks({ versionResult: { data: null, error: null } });
+    const res = await put(LAYOUT, null);
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.success).toBe(true);
-
-    // Verify upsert was called with correct args
-    expect(mockUpsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        user_id: TEST_USER_ID,
-        layout,
-      }),
-      { onConflict: "user_id" }
+    expect(typeof body.updatedAt).toBe("string");
+    expect(mockInsert).toHaveBeenCalledWith(
+      expect.objectContaining({ user_id: TEST_USER_ID, layout: LAYOUT }),
     );
+    // The version field never reaches the stored JSON.
+    expect(mockInsert.mock.calls[0][0].layout).not.toHaveProperty("baseUpdatedAt");
+    expect(mockUpdate).not.toHaveBeenCalled();
   });
 
-  it("returns 500 on upsert failure", async () => {
-    setupMocks({ upsertResult: { error: { message: "DB error" } } });
-    const req = new Request("http://localhost/api/board-layout", {
-      method: "PUT",
-      body: JSON.stringify({ widgets: [], layouts: {}, boardTitle: "Test" }),
-      headers: { "Content-Type": "application/json" },
+  it("updates an existing row when the base version matches, conditionally on it (M10)", async () => {
+    const { updateEq1, updateEq2 } = setupMocks({
+      versionResult: { data: { updated_at: CURRENT }, error: null },
     });
-    const res = await PUT(req);
+    const res = await put(LAYOUT, CURRENT);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.updatedAt).toBe(CURRENT);
+    expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({ layout: LAYOUT }));
+    expect(updateEq1).toHaveBeenCalledWith("user_id", TEST_USER_ID);
+    expect(updateEq2).toHaveBeenCalledWith("updated_at", CURRENT);
+    expect(mockInsert).not.toHaveBeenCalled();
+  });
+
+  it("accepts the same instant in a different spelling", async () => {
+    setupMocks({ versionResult: { data: { updated_at: "2026-09-21T10:00:00+00:00" }, error: null } });
+    const res = await put(LAYOUT, CURRENT);
+    expect(res.status).toBe(200);
+  });
+
+  it("refuses a save based on an older read with 409 and the current version (M10)", async () => {
+    setupMocks({ versionResult: { data: { updated_at: CURRENT }, error: null } });
+    const res = await put(LAYOUT, "2026-09-21T09:00:00.000Z");
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.updatedAt).toBe(CURRENT);
+    expect(mockUpdate).not.toHaveBeenCalled();
+    expect(mockInsert).not.toHaveBeenCalled();
+  });
+
+  it("refuses a save with no base version when a row exists", async () => {
+    setupMocks({ versionResult: { data: { updated_at: CURRENT }, error: null } });
+    const res = await put(LAYOUT);
+    expect(res.status).toBe(409);
+  });
+
+  it("returns 409 when a concurrent save wins between the check and the write", async () => {
+    setupMocks({
+      versionResult: { data: { updated_at: CURRENT }, error: null },
+      updateResult: { data: [], error: null },
+    });
+    const res = await put(LAYOUT, CURRENT);
+    expect(res.status).toBe(409);
+  });
+
+  it("returns 409 when the row appears between the read and the first insert", async () => {
+    setupMocks({ insertResult: { error: { code: "23505", message: "duplicate key" } } });
+    const res = await put(LAYOUT, null);
+    expect(res.status).toBe(409);
+  });
+
+  it("returns 500 on insert failure", async () => {
+    setupMocks({ insertResult: { error: { message: "DB error" } } });
+    const res = await put({ widgets: [], layouts: {}, boardTitle: "Test" }, null);
     expect(res.status).toBe(500);
     const body = await res.json();
     expect(body.error).toBe("Failed to save board layout");
+  });
+
+  it("returns 500 on update failure", async () => {
+    setupMocks({
+      versionResult: { data: { updated_at: CURRENT }, error: null },
+      updateResult: { data: null, error: { message: "DB error" } },
+    });
+    const res = await put(LAYOUT, CURRENT);
+    expect(res.status).toBe(500);
+  });
+
+  it("returns 500 when the version read fails", async () => {
+    setupMocks({ versionResult: { data: null, error: { message: "DB error" } } });
+    const res = await put(LAYOUT, CURRENT);
+    expect(res.status).toBe(500);
+    expect(mockInsert).not.toHaveBeenCalled();
+    expect(mockUpdate).not.toHaveBeenCalled();
   });
 });

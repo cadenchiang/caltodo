@@ -12,6 +12,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
+import { splitLayoutVersion, isSameLayoutVersion } from "@/lib/board-layout-version";
 
 /**
  * The "template owner" — when a caller has no saved board of their own,
@@ -97,17 +98,18 @@ export async function GET() {
 }
 
 /**
- * PUT /api/board-layout
- * Upserts the user's board layout. Accepts the full PersistedLayout object in the body.
+ * Shared save handler for PUT and POST (sendBeacon uses POST).
+ *
+ * The body is the full PersistedLayout plus `baseUpdatedAt`, the row's
+ * `updated_at` as of the client's last read. A save whose base does not
+ * match the current row is refused with 409 and the current `updatedAt`,
+ * so a delayed retry cannot overwrite a newer save from another device.
+ * The write itself is conditional on `updated_at` so two saves racing past
+ * the check cannot both win.
  *
  * @param request - Request with JSON body containing the layout object
- * @returns JSON with `success: true` on success
- */
-/**
- * Shared upsert handler for PUT and POST (sendBeacon uses POST).
- *
- * @param request - Request with JSON body containing the layout object
- * @returns JSON response with success or error
+ * @returns JSON with `success: true` and the new `updatedAt`, 409 with the
+ *          current `updatedAt` on a stale base, or an error
  */
 async function upsertLayout(request: Request) {
   const supabase = await createClient();
@@ -137,7 +139,7 @@ async function upsertLayout(request: Request) {
   // We don't validate every field because the PersistedLayout shape evolves;
   // the client is authoritative for its own layout. But the server should
   // refuse absurd payloads that would inflate the DB row.
-  const layout = body as Record<string, unknown>;
+  const { layout, baseUpdatedAt } = splitLayoutVersion(body as Record<string, unknown>);
   const MAX_LAYOUT_BYTES = 512 * 1024; // 512 KB — roomy for widget configs, fails closed on abuse
   const serialized = JSON.stringify(layout);
   if (serialized.length > MAX_LAYOUT_BYTES) {
@@ -152,24 +154,76 @@ async function upsertLayout(request: Request) {
   }
 
   try {
-    const { error } = await supabase
+    const { data: existing, error: readError } = await supabase
       .from("board_layouts")
-      .upsert(
-        {
-          user_id: user.id,
-          layout: layout,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "user_id" }
-      );
+      .select("updated_at")
+      .eq("user_id", user.id)
+      .maybeSingle();
 
-    if (error) {
-      logger.error("PUT /api/board-layout failed", { userId: user.id, error: error.message });
+    if (readError) {
+      logger.error("PUT /api/board-layout: version read failed", {
+        userId: user.id,
+        error: readError.message,
+        impact: "save refused; client retries after re-reading",
+      });
       return NextResponse.json({ error: "Failed to save board layout" }, { status: 500 });
     }
 
+    const now = new Date().toISOString();
+
+    if (!existing) {
+      // First save for this user. A unique violation here means another
+      // request created the row between the read and the insert.
+      const { error } = await supabase
+        .from("board_layouts")
+        .insert({ user_id: user.id, layout, updated_at: now });
+
+      if (error?.code === "23505") {
+        logger.warn("PUT /api/board-layout: row appeared during first save", { userId: user.id });
+        return NextResponse.json({ error: "Layout changed since last read", updatedAt: null }, { status: 409 });
+      }
+      if (error) {
+        logger.error("PUT /api/board-layout: insert failed", { userId: user.id, error: error.message });
+        return NextResponse.json({ error: "Failed to save board layout" }, { status: 500 });
+      }
+
+      logger.info("PUT /api/board-layout success", { userId: user.id, created: true });
+      return NextResponse.json({ success: true, updatedAt: now });
+    }
+
+    if (!isSameLayoutVersion(baseUpdatedAt, existing.updated_at)) {
+      logger.warn("PUT /api/board-layout: stale save refused", {
+        userId: user.id,
+        baseUpdatedAt,
+        currentUpdatedAt: existing.updated_at,
+        impact: "client re-reads before deciding whether to retry",
+      });
+      return NextResponse.json(
+        { error: "Layout changed since last read", updatedAt: existing.updated_at },
+        { status: 409 },
+      );
+    }
+
+    // Conditional on the version we just checked, so a concurrent save that
+    // slipped past the check above updates zero rows here.
+    const { data: written, error } = await supabase
+      .from("board_layouts")
+      .update({ layout, updated_at: now })
+      .eq("user_id", user.id)
+      .eq("updated_at", existing.updated_at)
+      .select("updated_at");
+
+    if (error) {
+      logger.error("PUT /api/board-layout: update failed", { userId: user.id, error: error.message });
+      return NextResponse.json({ error: "Failed to save board layout" }, { status: 500 });
+    }
+    if (!written || written.length === 0) {
+      logger.warn("PUT /api/board-layout: lost the race to a concurrent save", { userId: user.id });
+      return NextResponse.json({ error: "Layout changed since last read", updatedAt: null }, { status: 409 });
+    }
+
     logger.info("PUT /api/board-layout success", { userId: user.id });
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, updatedAt: written[0].updated_at });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     logger.error("PUT /api/board-layout unexpected error", { userId: user.id, error: message });

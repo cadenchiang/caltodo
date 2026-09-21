@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { pickLandingPath, isMobileRequest } from "@/lib/landing-path";
+import { processDeferredInvites } from "@/lib/process-deferred-invites";
+import { logger } from "@/lib/logger";
 
 /**
  * OAuth callback route handler.
@@ -24,14 +26,21 @@ export async function GET(request: NextRequest) {
       const { data: { user } } = await supabase.auth.getUser();
 
       if (user) {
-        // Process any deferred invites for this user's email (fire-and-forget)
-        const origin = request.nextUrl.origin;
-        fetch(`${origin}/api/auth/process-deferred`, {
-          method: "POST",
-          headers: {
-            cookie: request.headers.get("cookie") ?? "",
-          },
-        }).catch(() => { /* non-critical */ });
+        // Activate any invites sent to this email before it had an account.
+        // Done in-process with the service-role client: the request's cookie
+        // header predates the exchange, so forwarding it to the API route
+        // arrived without a session and was rejected. Awaited so the invite
+        // list is right on first paint; a failure is logged and never blocks
+        // sign-in (the next sign-in or One Tap retries it).
+        try {
+          await processDeferredInvites(user.id, user.email);
+        } catch (err) {
+          logger.error("auth/callback: deferred invites not processed", {
+            userId: user.id,
+            error: err instanceof Error ? err.message : String(err),
+            impact: "sign-in continues; deferred invites retried on next sign-in",
+          });
+        }
 
         const { data: creds } = await supabase
           .from("integration_credentials")

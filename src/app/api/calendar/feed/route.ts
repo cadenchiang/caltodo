@@ -13,6 +13,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { generateICalFeed } from "@/lib/ical";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
+import { fetchAllTaskPages } from "@/lib/task-pages";
 import type { Task } from "@/lib/types";
 
 export async function GET(request: NextRequest) {
@@ -54,14 +55,22 @@ export async function GET(request: NextRequest) {
 
   const userId = credential.user_id;
 
-  // Fetch all non-dismissed tasks with due dates for this user
-  const { data: tasks, error: tasksError } = await admin
-    .from("tasks")
-    .select("*")
-    .eq("user_id", userId)
-    .not("due_date", "is", null)
-    .is("dismissed_at", null)
-    .order("due_date", { ascending: true });
+  // Fetch all non-dismissed tasks with due dates for this user, paged past
+  // PostgREST's silent 1000-row cap with id as the tiebreaker.
+  const { data: tasks, error: tasksError } = await fetchAllTaskPages(
+    (from, to) =>
+      admin
+        .from("tasks")
+        .select("*")
+        .eq("user_id", userId)
+        .not("due_date", "is", null)
+        .is("dismissed_at", null)
+        .order("due_date", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, to),
+    "GET /api/calendar/feed",
+    userId,
+  );
 
   if (tasksError) {
     logger.error("GET /api/calendar/feed — failed to fetch tasks", {

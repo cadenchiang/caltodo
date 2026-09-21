@@ -10,6 +10,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logger } from "@/lib/logger";
 import { TASK_COLUMNS } from "@/lib/task-columns";
+import { fetchAllTaskPages } from "@/lib/task-pages";
 import type { Task } from "@/lib/types";
 
 /**
@@ -19,13 +20,22 @@ import type { Task } from "@/lib/types";
  * @param userId - Whose tasks; used for the log line, the client scopes rows
  * @returns The tasks, or null when the read failed so the client fetches
  *          itself rather than starting from an empty list it believes
+ * @remarks Paged past PostgREST's 1000-row cap with id as the tiebreaker,
+ *          the same query TaskContext runs, so the two lists agree.
  */
 export async function loadInitialTasks(supabase: SupabaseClient, userId: string): Promise<Task[] | null> {
-  const { data, error } = await supabase
-    .from("tasks")
-    .select(TASK_COLUMNS)
-    .is("dismissed_at", null)
-    .order("created_at", { ascending: false });
+  const { data, error } = await fetchAllTaskPages(
+    (from, to) =>
+      supabase
+        .from("tasks")
+        .select(TASK_COLUMNS)
+        .is("dismissed_at", null)
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .range(from, to),
+    "loadInitialTasks",
+    userId,
+  );
 
   if (error) {
     logger.warn("loadInitialTasks: preload failed, client will fetch", { userId, error: error.message });
