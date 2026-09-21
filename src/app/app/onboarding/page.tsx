@@ -571,8 +571,13 @@ export default function OnboardingPage() {
    * render and desync the SSR'd HTML from hydration. This effect has an empty
    * dependency array and sets `restored` exactly once, so it cannot cascade.
    */
+  // None of the three effects below belong to standalone ?setup= mode: it is
+  // a single step reached from Settings, not a position in the flow. Running
+  // them there fired a phantom "welcome" view and wrote a bogus snapshot
+  // that the next real visit to the flow then resumed from.
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
+    if (isStandaloneSetup) return;
     const saved = loadProgress();
     if (saved) {
       setSelectedPlatforms(new Set(saved.platforms as Platform[]));
@@ -581,7 +586,7 @@ export default function OnboardingPage() {
       setCurrentStep(saved.step);
     }
     setRestored(true);
-  }, []);
+  }, [isStandaloneSetup]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   // Persist the position on every change, so a reload resumes here. Skipped
@@ -589,6 +594,7 @@ export default function OnboardingPage() {
   // very snapshot being read. "done" is not saved: the user is finished, and
   // resuming a completed flow just traps them on the last screen.
   useEffect(() => {
+    if (isStandaloneSetup) return;
     if (!restored || currentStep === "done") return;
     saveProgress({
       step: currentStep,
@@ -596,13 +602,14 @@ export default function OnboardingPage() {
       school,
       referral,
     });
-  }, [restored, currentStep, selectedPlatforms, school, referral]);
+  }, [isStandaloneSetup, restored, currentStep, selectedPlatforms, school, referral]);
 
   // Track when each step is viewed
   useEffect(() => {
+    if (isStandaloneSetup) return;
     if (!restored) return;
     trackEvent("onboarding_step_viewed", { step: currentStep });
-  }, [currentStep, restored]);
+  }, [isStandaloneSetup, currentStep, restored]);
 
   // Prefetch every route onboarding can exit to, so the final navigation is
   // instant. Completing setup lands on /app/home; "Skip for now" lands on
