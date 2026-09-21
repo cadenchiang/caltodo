@@ -9,7 +9,7 @@
  */
 
 import type { Task } from "@/lib/types";
-import { computeNextDueDate } from "@/lib/repeat";
+import { computeNextDueDate, getAnchorDay } from "@/lib/repeat";
 
 /** Maximum virtual instances to generate per task to prevent infinite loops. */
 const MAX_EXPANSIONS = 200;
@@ -74,15 +74,19 @@ export function expandRepeatingTasks(
     // Include the original task itself (it has a real due_date)
     result.push(task);
 
-    // Generate virtual future instances
+    // Generate virtual future instances. Monthly series are computed from
+    // the original task's day of month on every step, not from the previous
+    // (possibly clamped) instance, so a 31st stays a 31st after February.
     let currentDate = task.due_date;
     let count = 1; // original counts as 1
+    const anchorDay = getAnchorDay(task.due_date);
 
     for (let i = 0; i < MAX_EXPANSIONS; i++) {
       const nextDate = computeNextDueDate(
         currentDate,
         task.repeat_interval,
         task.repeat_unit,
+        anchorDay,
       );
 
       // Stop if we've passed the visible range

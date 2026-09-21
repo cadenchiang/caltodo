@@ -171,4 +171,43 @@ describe("expandRepeatingTasks", () => {
     // Jan 15, Feb 15, Mar 15, Apr 15 = 4
     expect(result).toHaveLength(4);
   });
+
+  it("keeps a month-end anchor after passing through February (M1)", () => {
+    // Chaining from the clamped Feb 28 drifted every later month to the 28th.
+    const task = makeTask({
+      id: "t",
+      due_date: "2026-01-31",
+      repeat_interval: 1,
+      repeat_unit: "month",
+    });
+    const result = expandRepeatingTasks([task], "2026-01-01", "2026-06-30");
+    expect(result.map((t) => t.due_date)).toEqual([
+      "2026-01-31", "2026-02-28", "2026-03-31", "2026-04-30", "2026-05-31", "2026-06-30",
+    ]);
+    expect(result[2].id).toBe("t:repeat:2026-03-31");
+  });
+
+  it("keeps a day-30 anchor across a 31-day month and February", () => {
+    const task = makeTask({
+      due_date: "2026-01-30",
+      repeat_interval: 1,
+      repeat_unit: "month",
+    });
+    const result = expandRepeatingTasks([task], "2026-01-01", "2026-04-30");
+    expect(result.map((t) => t.due_date)).toEqual([
+      "2026-01-30", "2026-02-28", "2026-03-30", "2026-04-30",
+    ]);
+  });
+
+  it("keeps the anchor with a multi-month interval", () => {
+    const task = makeTask({
+      due_date: "2025-12-31",
+      repeat_interval: 2,
+      repeat_unit: "month",
+    });
+    const result = expandRepeatingTasks([task], "2025-12-01", "2026-06-30");
+    expect(result.map((t) => t.due_date)).toEqual([
+      "2025-12-31", "2026-02-28", "2026-04-30", "2026-06-30",
+    ]);
+  });
 });

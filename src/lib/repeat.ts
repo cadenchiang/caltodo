@@ -5,18 +5,36 @@
 type RepeatUnit = "day" | "week" | "month";
 
 /**
+ * Reads the day of month a repeating task is anchored to.
+ *
+ * @param dueDate - ISO date string "YYYY-MM-DD", or nothing
+ * @returns The day (1-31), or undefined when the date is missing or unparseable
+ */
+export function getAnchorDay(dueDate: string | null | undefined): number | undefined {
+  if (!dueDate) return undefined;
+  const date = new Date(dueDate + "T00:00:00");
+  return isNaN(date.getTime()) ? undefined : date.getDate();
+}
+
+/**
  * Computes the next due date by adding interval * unit to the current due date.
  * Handles month overflow (e.g. Jan 31 + 1 month = Feb 28).
  *
  * @param currentDueDate - ISO date string "YYYY-MM-DD"
  * @param interval - Number of units to add (must be > 0)
  * @param unit - The time unit: "day", "week", or "month"
- * @returns Next due date as "YYYY-MM-DD" string
+ * @param anchorDay - For "month": the day of month the series is anchored to.
+ *                    Defaults to the current date's day. Pass the original
+ *                    task's day when chaining, or a series that starts on the
+ *                    31st drifts to the 28th for good after February.
+ * @returns Next due date as "YYYY-MM-DD" string; the input unchanged when it
+ *          does not parse
  */
 export function computeNextDueDate(
   currentDueDate: string,
   interval: number,
   unit: RepeatUnit,
+  anchorDay?: number,
 ): string {
   const date = new Date(currentDueDate + "T00:00:00");
   if (isNaN(date.getTime())) return currentDueDate;
@@ -30,10 +48,10 @@ export function computeNextDueDate(
       break;
     case "month": {
       const targetMonth = date.getMonth() + interval;
-      const originalDay = date.getDate();
+      const day = anchorDay ?? date.getDate();
       date.setMonth(targetMonth, 1);
       const maxDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
-      date.setDate(Math.min(originalDay, maxDay));
+      date.setDate(Math.min(day, maxDay));
       break;
     }
   }

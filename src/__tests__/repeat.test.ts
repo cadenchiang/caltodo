@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeNextDueDate, getRepeatLabel } from "@/lib/repeat";
+import { computeNextDueDate, getRepeatLabel, getAnchorDay } from "@/lib/repeat";
 
 describe("computeNextDueDate", () => {
   it("adds days correctly", () => {
@@ -35,6 +35,45 @@ describe("computeNextDueDate", () => {
 
   it("handles year boundary with weeks (Dec 25 + 2 weeks = Jan 8)", () => {
     expect(computeNextDueDate("2026-12-25", 2, "week")).toBe("2027-01-08");
+  });
+
+  describe("month anchor day (M1)", () => {
+    it("computes from the anchor day, not the clamped current date", () => {
+      // Feb 28 was a clamp of a 31st; the next month goes back to the 31st.
+      expect(computeNextDueDate("2026-02-28", 1, "month", 31)).toBe("2026-03-31");
+      expect(computeNextDueDate("2026-04-30", 1, "month", 31)).toBe("2026-05-31");
+    });
+
+    it("clamps the anchor to the target month's length", () => {
+      expect(computeNextDueDate("2026-03-31", 1, "month", 31)).toBe("2026-04-30");
+      expect(computeNextDueDate("2026-01-30", 1, "month", 30)).toBe("2026-02-28");
+    });
+
+    it("defaults the anchor to the current date's day", () => {
+      expect(computeNextDueDate("2026-01-31", 1, "month")).toBe("2026-02-28");
+      expect(computeNextDueDate("2026-01-15", 1, "month", undefined)).toBe("2026-02-15");
+    });
+
+    it("ignores the anchor for day and week units", () => {
+      expect(computeNextDueDate("2026-02-18", 1, "day", 31)).toBe("2026-02-19");
+      expect(computeNextDueDate("2026-02-18", 1, "week", 31)).toBe("2026-02-25");
+    });
+
+    it("returns the input unchanged for an unparseable date", () => {
+      expect(computeNextDueDate("not-a-date", 1, "month", 31)).toBe("not-a-date");
+    });
+  });
+});
+
+describe("getAnchorDay", () => {
+  it("reads the day of month from an ISO date", () => {
+    expect(getAnchorDay("2026-01-31")).toBe(31);
+    expect(getAnchorDay("2026-02-05")).toBe(5);
+  });
+
+  it("returns undefined for a missing or unparseable date", () => {
+    expect(getAnchorDay(null)).toBeUndefined();
+    expect(getAnchorDay("nope")).toBeUndefined();
   });
 });
 

@@ -12,7 +12,7 @@ import { summariseTaskEdit } from "@/lib/task-edit-summary";
 import type { Task, TaskInsert, TaskUpdate, SyncResult } from "@/lib/types";
 import { trackEvent } from "@/lib/analytics";
 import { markActivated } from "@/lib/activation";
-import { computeNextDueDate, shouldSpawnNext } from "@/lib/repeat";
+import { computeNextDueDate, getAnchorDay, shouldSpawnNext } from "@/lib/repeat";
 import {
   mergeFetchedTasks,
   replaceTempTask,
@@ -917,7 +917,15 @@ export function TaskProvider({
       task.due_date &&
       !task.source
     ) {
-      const nextDueDate = computeNextDueDate(task.due_date, task.repeat_interval, task.repeat_unit);
+      // The anchor is the completed task's own day of month: the row carries
+      // no separate anchor column, so this is the nearest thing to the
+      // series' origin the spawn can compute from.
+      const nextDueDate = computeNextDueDate(
+        task.due_date,
+        task.repeat_interval,
+        task.repeat_unit,
+        getAnchorDay(task.due_date),
+      );
 
       if (shouldSpawnNext(nextDueDate, task.repeat_end_date, task.repeat_end_count)) {
         spawnedNextDueDate = nextDueDate;
