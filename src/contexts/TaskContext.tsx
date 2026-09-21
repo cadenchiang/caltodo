@@ -13,6 +13,13 @@ import type { Task, TaskInsert, TaskUpdate, SyncResult } from "@/lib/types";
 import { trackEvent } from "@/lib/analytics";
 import { markActivated } from "@/lib/activation";
 import { computeNextDueDate, shouldSpawnNext } from "@/lib/repeat";
+import {
+  mergeFetchedTasks,
+  replaceTempTask,
+  applyOptimisticEdit,
+  restoreTaskSnapshot,
+  applyServerStamp,
+} from "@/lib/task-merge";
 
 import { showNewAssignmentsModal } from "@/components/ui/NewAssignmentsModal";
 import { readSyncStream } from "@/lib/gcal/read-sync-stream";
@@ -296,6 +303,14 @@ export function TaskProvider({
   const hasInitialFetchRef = useRef(preloaded);
 
   /**
+   * Ids of tasks with an update still in flight, with a count per id so two
+   * overlapping edits to one task keep it pending until both have settled.
+   * The fetch merge keeps the local row for these ids, since the server's
+   * snapshot may predate the write.
+   */
+  const pendingEditsRef = useRef<Map<string, number>>(new Map());
+
+  /**
    * Syncs any tasks with due dates but no google_event_id to Google Calendar.
    * Called after assignment sync completes. Silently skips if GCal is not connected.
    *
@@ -378,26 +393,20 @@ export function TaskProvider({
     const freshTasks = (data ?? []) as unknown as Task[];
 
     // Merge fresh server data with local state to avoid clobbering user
-    // changes that happened mid-fetch. If a local task has a newer
-    // updated_at than the fresh row, the local one wins — this is the
-    // race that caused completions to bounce back when the user toggled
+    // changes that happened mid-fetch. A local row wins while its edit is
+    // still in flight, or when its server-issued updated_at is newer than
+    // the fetched row's (the fetch's snapshot predates the write). This is
+    // the race that caused completions to bounce back when the user toggled
     // a task while /api/assignments/sync's follow-up fetchTasks() was
-    // already in flight (its query snapshot was taken before the user
-    // click landed in the DB). Optimistic temp- rows that don't yet
-    // exist on the server are also preserved.
-    const mergedTasks: Task[] = (() => {
-      const prev = taskBaselineRef.current;
-      if (!prev || prev.length === 0) return freshTasks;
-      const freshIds = new Set(freshTasks.map((t) => t.id));
-      const ts = (iso: string | null | undefined) => (iso ? new Date(iso).getTime() : 0);
-      const reconciled = freshTasks.map((fresh) => {
-        const local = prev.find((t) => t.id === fresh.id);
-        if (!local) return fresh;
-        return ts(local.updated_at) > ts(fresh.updated_at) ? local : fresh;
-      });
-      const tempLocals = prev.filter((t) => t.id.startsWith("temp-") && !freshIds.has(t.id));
-      return [...tempLocals, ...reconciled];
-    })();
+    // already in flight. Local rows never carry a client-stamped
+    // updated_at, so a failed and rolled-back edit cannot win here.
+    // Optimistic temp- rows that don't yet exist on the server are also
+    // preserved.
+    const mergedTasks = mergeFetchedTasks(
+      taskBaselineRef.current ?? [],
+      freshTasks,
+      new Set(pendingEditsRef.current.keys()),
+    );
 
     setTasks(mergedTasks);
     setCachedTasks(mergedTasks);
@@ -693,6 +702,10 @@ export function TaskProvider({
     setTasks((prev) => {
       const updated = [optimisticTask, ...prev];
       setCachedTasks(updated);
+      // The fetch merge preserves temp rows from the baseline, not from
+      // state, so the temp row must be registered here or a fetch that
+      // overlaps the insert drops it from the list.
+      taskBaselineRef.current = updated;
       return updated;
     });
     setError(null);
@@ -710,10 +723,15 @@ export function TaskProvider({
       .single();
 
     if (insertError) {
+      console.error("[TaskContext] addTask: insert failed, removing optimistic row", {
+        tempId,
+        error: insertError.message,
+      });
       // Revert: remove the optimistic task
       setTasks((prev) => {
         const reverted = prev.filter((t) => t.id !== tempId);
         setCachedTasks(reverted);
+        taskBaselineRef.current = reverted;
         return reverted;
       });
       setError(insertError.message);
@@ -721,9 +739,11 @@ export function TaskProvider({
     }
 
     if (data) {
-      // Replace optimistic task with real DB record
+      // Replace optimistic task with real DB record. If a fetch that
+      // overlapped the insert already brought the real row in, the temp
+      // row is dropped instead so the task is not listed twice.
       setTasks((prev) => {
-        const updated = prev.map((t) => (t.id === tempId ? data : t));
+        const updated = replaceTempTask(prev, tempId, data as Task);
         setCachedTasks(updated);
         // Keep baseline in sync so detectSyncChanges reflects local state
         taskBaselineRef.current = updated;
@@ -758,7 +778,10 @@ export function TaskProvider({
     // reversible. The snapshot comes from the baseline, which every write
     // keeps current, rather than the `tasks` closure, which can be stale.
     const announce = opts.announce ?? true;
-    const before = announce ? taskBaselineRef.current.find((t) => t.id === id) : undefined;
+    // The pre-edit row. It is what undo reverts to and what a failed write
+    // is rolled back to, so it is taken before anything is touched.
+    const snapshot = taskBaselineRef.current.find((t) => t.id === id);
+    const before = announce ? snapshot : undefined;
     const summary = before ? summariseTaskEdit(before, updates) : null;
     if (announce && before && !summary) {
       // Nothing would change; announcing it would offer an undo that does
@@ -786,10 +809,12 @@ export function TaskProvider({
       stampedUpdates.due_time_manually_edited_at = nowIso;
     }
 
+    // Optimistic: apply the edit locally, leaving updated_at as the server
+    // last set it. A client-stamped updated_at would win the fetch merge
+    // even after the write failed, which is how a rejected or offline edit
+    // used to survive its own "revert" and get written to the cache.
     setTasks((prev) => {
-      const updated = prev.map((t) =>
-        t.id === id ? { ...t, ...stampedUpdates, updated_at: new Date().toISOString() } : t
-      );
+      const updated = applyOptimisticEdit(prev, id, stampedUpdates);
       setCachedTasks(updated);
       // Keep baseline in sync so detectSyncChanges doesn't fire false
       // notifications for user-initiated changes (e.g. manual completion)
@@ -797,16 +822,60 @@ export function TaskProvider({
       return updated;
     });
 
-    const { error: updateError } = await supabase
-      .from("tasks")
-      .update(stampedUpdates)
-      .eq("id", id);
+    // Mark the edit in flight so a fetch that overlaps it keeps the local
+    // row, then write and read back the server's updated_at.
+    const pending = pendingEditsRef.current;
+    pending.set(id, (pending.get(id) ?? 0) + 1);
+    let written: { updated_at: string } | null = null;
+    let updateError: { message: string } | null = null;
+    try {
+      const result = await supabase
+        .from("tasks")
+        .update(stampedUpdates)
+        .eq("id", id)
+        .select("updated_at")
+        .maybeSingle();
+      updateError = result.error;
+      written = result.data;
+    } catch (err) {
+      updateError = { message: err instanceof Error ? err.message : String(err) };
+    } finally {
+      const remaining = (pending.get(id) ?? 1) - 1;
+      if (remaining <= 0) pending.delete(id);
+      else pending.set(id, remaining);
+    }
 
-    if (updateError) {
-      setError(updateError.message);
-      fetchTasks();
+    if (updateError || !written) {
+      // Roll back explicitly to the pre-edit row rather than relying on a
+      // refetch to overwrite the phantom edit. A zero-row update (RLS or a
+      // row that no longer exists) is a failure too: nothing was saved.
+      const cause = updateError?.message ?? "no row updated";
+      console.error("[TaskContext] updateTask: write failed, restoring pre-edit row", {
+        taskId: id,
+        fields: Object.keys(stampedUpdates),
+        error: cause,
+        restored: snapshot !== undefined,
+      });
+      if (snapshot) {
+        setTasks((prev) => {
+          const reverted = restoreTaskSnapshot(prev, snapshot);
+          setCachedTasks(reverted);
+          taskBaselineRef.current = reverted;
+          return reverted;
+        });
+      }
+      setError(cause);
       return;
     }
+
+    // Record the server's stamp so a later fetch compares like with like.
+    const serverUpdatedAt = written.updated_at;
+    setTasks((prev) => {
+      const stamped = applyServerStamp(prev, id, serverUpdatedAt);
+      setCachedTasks(stamped);
+      taskBaselineRef.current = stamped;
+      return stamped;
+    });
 
     if (summary) {
       pushUndo({

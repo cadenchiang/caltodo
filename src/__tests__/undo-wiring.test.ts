@@ -37,8 +37,25 @@ describe("updateTask records every user edit", () => {
   const ctx = read("src/contexts/TaskContext.tsx");
 
   it("snapshots the task before writing, from the baseline", () => {
-    expect(ctx).toContain("const before = announce ? taskBaselineRef.current.find((t) => t.id === id) : undefined;");
-    expect(ctx.indexOf("summariseTaskEdit(before, updates)")).toBeLessThan(ctx.indexOf('.from("tasks")\n      .update(stampedUpdates)'));
+    expect(ctx).toContain("const snapshot = taskBaselineRef.current.find((t) => t.id === id);");
+    expect(ctx).toContain("const before = announce ? snapshot : undefined;");
+    expect(ctx.indexOf("summariseTaskEdit(before, updates)")).toBeLessThan(ctx.indexOf('.from("tasks")\n        .update(stampedUpdates)'));
+  });
+
+  it("rolls a failed write back to the snapshot instead of refetching", () => {
+    const failure = ctx.indexOf("if (updateError || !written) {");
+    expect(failure).toBeGreaterThan(0);
+    const rollback = ctx.indexOf("restoreTaskSnapshot(prev, snapshot)", failure);
+    expect(rollback).toBeGreaterThan(failure);
+    // The old "revert" was a refetch, which kept the phantom edit (H7).
+    const nextReturn = ctx.indexOf("return;", failure);
+    expect(ctx.slice(failure, nextReturn)).not.toContain("fetchTasks()");
+  });
+
+  it("does not stamp updated_at on the optimistic row", () => {
+    expect(ctx).not.toContain("...stampedUpdates, updated_at: new Date().toISOString()");
+    expect(ctx).toContain('.select("updated_at")');
+    expect(ctx).toContain("applyServerStamp(prev, id, serverUpdatedAt)");
   });
 
   it("announces with the revert after the write succeeds", () => {
