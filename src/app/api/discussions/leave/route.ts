@@ -1,7 +1,14 @@
 /**
  * API route for leaving a course chat.
- * POST: Deletes the user's course_memberships row using the admin client
- * to bypass RLS (no DELETE policy exists on course_memberships).
+ * POST: Soft-deletes the user's course_memberships row (sets deleted_at)
+ * using the admin client to bypass RLS (no UPDATE policy on the table).
+ *
+ * The row is kept rather than deleted because it is the only record that
+ * the user left. A hard delete left nothing behind, so the next assignment
+ * sync re-created the membership and announced the user as having joined,
+ * while the leave modal promised "You cannot join back ever again".
+ * course-enrollment.ts leaves existing rows alone; this row's deleted_at is
+ * what keeps the user out.
  */
 
 import { NextResponse } from "next/server";
@@ -14,8 +21,8 @@ import { rateLimit } from "@/lib/rate-limit";
  * POST /api/discussions/leave
  * Body: { courseId: string }
  *
- * Removes the authenticated user's membership from the given course.
- * Uses admin client to bypass RLS since no DELETE policy exists.
+ * Marks the authenticated user's membership in the given course as left.
+ * Uses admin client to bypass RLS since no UPDATE policy exists.
  *
  * @returns { success: true } on 200
  */
@@ -45,12 +52,14 @@ export async function POST(request: Request) {
   }
 
   try {
-    // Verify the user actually has a membership before deleting
+    // Verify the user actually holds a live membership before leaving. A
+    // row already marked deleted is not a membership, so leaving twice 404s.
     const { data: membership, error: lookupError } = await supabase
       .from("course_memberships")
       .select("id")
       .eq("user_id", user.id)
       .eq("course_id", courseId)
+      .is("deleted_at", null)
       .single();
 
     if (lookupError || !membership) {
@@ -61,24 +70,26 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Membership not found" }, { status: 404 });
     }
 
-    // Use admin client to delete — no DELETE RLS policy on course_memberships
+    // Soft delete with the admin client: no UPDATE RLS policy on the table.
     const admin = createAdminClient();
-    const { error: deleteError } = await admin
+    const { error: leaveError } = await admin
       .from("course_memberships")
-      .delete()
-      .eq("id", membership.id);
+      .update({ deleted_at: new Date().toISOString() })
+      .eq("id", membership.id)
+      .is("deleted_at", null);
 
-    if (deleteError) {
-      logger.error("POST /api/discussions/leave: delete failed", {
+    if (leaveError) {
+      logger.error("POST /api/discussions/leave: soft delete failed", {
         userId: user.id,
         courseId,
         membershipId: membership.id,
-        error: deleteError.message,
+        cause: leaveError.message,
+        impact: "user remains a member of the chat",
       });
       return NextResponse.json({ error: "Failed to leave chat" }, { status: 500 });
     }
 
-    logger.info("POST /api/discussions/leave: membership deleted", {
+    logger.info("POST /api/discussions/leave: membership marked left", {
       userId: user.id,
       courseId,
       membershipId: membership.id,
