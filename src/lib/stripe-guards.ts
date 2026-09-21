@@ -52,3 +52,14 @@ export function hasNonCanceledSubscription(subscriptions: ReadonlyArray<{ status
 export function isUniqueViolation(error: { code?: string } | null | undefined): boolean {
   return error?.code === "23505";
 }
+
+/**
+ * Whether a Postgres error is a foreign-key violation (the referenced user
+ * no longer exists).
+ *
+ * @param error - The error object from the Supabase client, or null
+ * @returns True for SQLSTATE 23503
+ */
+export function isForeignKeyViolation(error: { code?: string } | null | undefined): boolean {
+  return error?.code === "23503";
+}

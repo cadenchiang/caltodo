@@ -4,16 +4,15 @@ import { stripe, webhookSecret, StripeNotConfiguredError } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logger } from "@/lib/logger";
 import { claimEvent, releaseEvent, concernsStoredSubscription } from "@/lib/stripe-webhook-store";
+import { isForeignKeyViolation } from "@/lib/stripe-guards";
 import type Stripe from "stripe";
 
 /**
- * Invalidate the per-user entitlement cache (see getEntitlement in
- * src/lib/entitlements.ts). Stripe events change the user's plan and the
- * cache TTL would otherwise hold a stale value for up to 60s.
+ * Invalidates the per-user entitlement cache (see getEntitlement); the TTL
+ * would otherwise hold a stale plan for up to 60s. Next 16's revalidateTag
+ * takes a cache profile; "max" expires the tag immediately.
  */
 function invalidateEntitlement(userId: string): void {
-  // Next 16's revalidateTag requires a cache profile as the second argument.
-  // "max" expires all cached entries carrying this tag immediately.
   revalidateTag(`entitlement:${userId}`, "max");
 }
 
@@ -181,7 +180,7 @@ async function syncFromSubscription(sub: Stripe.Subscription) {
   const status = mapStripeStatus(sub.status);
 
   const admin = createAdminClient();
-  await admin
+  const { error } = await admin
     .from("subscriptions")
     .upsert(
       {
@@ -196,6 +195,21 @@ async function syncFromSubscription(sub: Stripe.Subscription) {
       },
       { onConflict: "user_id" },
     );
+  if (error) {
+    if (isForeignKeyViolation(error)) {
+      // The account was deleted (its row cascaded away) and the customer
+      // metadata still names it. There is no row to update and retrying
+      // would never succeed, so acknowledge and move on.
+      logger.warn("stripe_subscription_synced_for_deleted_user", {
+        userId,
+        customerId,
+        subscriptionId: sub.id,
+        impact: "event acknowledged without a row; no retry",
+      });
+      return;
+    }
+    throw new Error(`subscriptions upsert failed: ${error.message}`);
+  }
 
   invalidateEntitlement(userId);
 
@@ -218,7 +232,7 @@ async function handleSubscriptionDeleted(sub: Stripe.Subscription) {
   if (!userId) return;
 
   const admin = createAdminClient();
-  await admin
+  const { error } = await admin
     .from("subscriptions")
     .update({
       plan: "free",
@@ -229,6 +243,7 @@ async function handleSubscriptionDeleted(sub: Stripe.Subscription) {
       billing_interval: null,
     })
     .eq("user_id", userId);
+  if (error) throw new Error(`subscriptions update failed: ${error.message}`);
 
   invalidateEntitlement(userId);
 
@@ -245,10 +260,11 @@ async function handlePaymentFailed(invoice: Stripe.Invoice) {
   if (!userId) return;
 
   const admin = createAdminClient();
-  await admin
+  const { error } = await admin
     .from("subscriptions")
     .update({ status: "past_due" })
     .eq("user_id", userId);
+  if (error) throw new Error(`subscriptions update failed: ${error.message}`);
 
   invalidateEntitlement(userId);
 
