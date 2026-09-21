@@ -11,9 +11,7 @@ import {
   isDateOnlyValue,
   parseDueDateWithTzid,
 } from "@/lib/ical-date-utils";
-
-/** Timeout in milliseconds for fetching the Pensieve iCal feed. */
-const FETCH_TIMEOUT_MS = 15_000;
+import { fetchFeedCalendar } from "@/lib/feed-fetch";
 
 /** Default color for Pensieve assignments (purple). */
 export const PENSIEVE_COLOR = "#8B5CF6";
@@ -31,22 +29,12 @@ export async function fetchPensieveAssignments(
 ): Promise<NormalizedAssignment[]> {
   logger.info("fetchPensieveAssignments: fetching iCal feed", { url: calendarUrl.slice(0, 60) });
 
-  const res = await fetch(calendarUrl, {
-    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  const icsText = await fetchFeedCalendar(calendarUrl, {
+    name: "Pensieve",
+    failurePrefix: "Pensieve calendar fetch failed",
+    notCalendarMessage:
+      "Pensieve feed didn't return a calendar. The URL may have been reset or made private. Reconnect it.",
   });
-
-  if (!res.ok) {
-    throw new Error(`Pensieve calendar fetch failed: ${res.status}`);
-  }
-
-  const icsText = await res.text();
-  // A reset/private feed often returns HTTP 200 with an HTML login page instead
-  // of iCal. Without this guard the parser just finds no events and the sync
-  // silently reports success with 0 assignments — the exact invisible failure
-  // we want to avoid. Treat a non-calendar body as a broken feed.
-  if (!/BEGIN:VCALENDAR/i.test(icsText)) {
-    throw new Error("Pensieve feed didn't return a calendar — the URL may have been reset or made private. Reconnect it.");
-  }
   const assignments = parseICalEvents(icsText);
 
   logger.info("fetchPensieveAssignments: parsed events", { count: assignments.length });

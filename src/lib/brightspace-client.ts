@@ -15,8 +15,7 @@ import {
   isDateOnlyValue,
   parseDueDateWithTzid,
 } from "@/lib/ical-date-utils";
-
-const FETCH_TIMEOUT_MS = 15_000;
+import { fetchFeedCalendar } from "@/lib/feed-fetch";
 
 /**
  * Fetches and parses assignments from a Brightspace iCal calendar feed URL.
@@ -31,22 +30,12 @@ export async function fetchBrightspaceAssignments(
     url: calendarUrl.slice(0, 60),
   });
 
-  const res = await fetch(calendarUrl, {
-    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  const icsText = await fetchFeedCalendar(calendarUrl, {
+    name: "Brightspace",
+    failurePrefix: "Brightspace iCal fetch failed",
+    notCalendarMessage:
+      "Brightspace feed didn't return a calendar. The URL may have been reset or made private. Reconnect it.",
   });
-
-  if (!res.ok) {
-    throw new Error(`Brightspace iCal fetch failed: ${res.status}`);
-  }
-
-  const icsText = await res.text();
-  // A reset/private feed often returns HTTP 200 with an HTML login page instead
-  // of iCal. Without this guard the parser just finds no events and the sync
-  // silently reports success with 0 assignments — the exact invisible failure
-  // the full-visibility rule forbids. Treat a non-calendar body as broken.
-  if (!/BEGIN:VCALENDAR/i.test(icsText)) {
-    throw new Error("Brightspace feed didn't return a calendar — the URL may have been reset or made private. Reconnect it.");
-  }
   const assignments = parseBrightspaceEvents(icsText);
 
   logger.info("fetchBrightspaceAssignments: parsed events", {
