@@ -85,6 +85,18 @@ export default function CalendarStep({ onNext, onSkip }: CalendarStepProps) {
     const result = await setUpConnectedCalendar();
     if (!mountedRef.current) return;
     if (result.ok) {
+      // TaskContext only pushes task edits to Google when this cache says
+      // connected; settings writes it on every render, but a user who
+      // connects here and never opens settings would otherwise wait for
+      // the 30-minute auto-sync to pick anything up.
+      try {
+        localStorage.setItem("gcal_status", JSON.stringify({
+          connected: true,
+          calendarId: result.calendarIds[0] ?? null,
+          email: null,
+          photoUrl: null,
+        }));
+      } catch { /* quota or private window; the auto-sync still covers it */ }
       try {
         window.dispatchEvent(new CustomEvent("gcal-status-change", { detail: { connected: true } }));
       } catch { /* non-critical: only refreshes the sidebar badge */ }
@@ -105,8 +117,13 @@ export default function CalendarStep({ onNext, onSkip }: CalendarStepProps) {
     const url = new URL(window.location.href);
     const gcalParam = url.searchParams.get("gcal");
 
+    const cleanup = () => {
+      mountedRef.current = false;
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+
     // Inside the OAuth popup the opener owns the result and closes this window.
-    if (window.opener && gcalParam) return;
+    if (window.opener && gcalParam) return cleanup;
 
     if (gcalParam) {
       const reason = url.searchParams.get("reason");
@@ -119,7 +136,7 @@ export default function CalendarStep({ onNext, onSkip }: CalendarStepProps) {
         setError(describeOAuthError(reason));
         setPhase("idle");
       }
-      return;
+      return cleanup;
     }
 
     (async () => {
@@ -136,10 +153,7 @@ export default function CalendarStep({ onNext, onSkip }: CalendarStepProps) {
       }
     })();
 
-    return () => {
-      mountedRef.current = false;
-      if (pollRef.current) clearInterval(pollRef.current);
-    };
+    return cleanup;
   }, [finishSetup]);
   /* eslint-enable react-hooks/set-state-in-effect */
 

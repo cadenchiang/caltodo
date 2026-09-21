@@ -81,6 +81,9 @@ describe("every option has a step behind it", () => {
     expect(step).toContain('"/api/gcal/auth?return=onboarding"');
     expect(step).toContain("setUpConnectedCalendar");
     expect(step).not.toContain("/api/calendar/token");
+    // TaskContext gates per-edit pushes on this cache; settings writes it,
+    // so the onboarding path has to as well.
+    expect(step).toMatch(/localStorage\.setItem\("gcal_status"/);
     // The shared skip chrome does not cover this step, so it renders its own.
     expect(step).toMatch(/onClick=\{onSkip\}/);
   });
