@@ -1121,8 +1121,7 @@ export default function OnboardingPage() {
     // Persist to server so dismiss state follows the account across devices.
     const allDismissed = {
       sync_welcome: true, gcal_announce: true,
-      calchat_welcome: true,
-      pensieve_announced: true, calchat_announcement: true,
+      pensieve_announced: true,
     };
     fetch("/api/credentials", {
       method: "PUT",
@@ -1132,14 +1131,12 @@ export default function OnboardingPage() {
     // Also set localStorage for instant local reads
     try {
       localStorage.setItem("caltodo_pensieve_announced", "true");
-      localStorage.setItem("calchat_announcement_seen", "true");
       localStorage.setItem("caltodo_sync_dismissed", "true");
       localStorage.setItem("caltodo_gcal_announce_seen", "true");
-      localStorage.setItem("calchat_welcome_accepted", "true");
     } catch {
       /* non-critical */
     }
-    // Notify Sidebar/MobileTabBar that onboarding is complete (unlocks CalChat instantly)
+    // Notify Sidebar/MobileTabBar that onboarding is complete
     window.dispatchEvent(new CustomEvent("onboarding-status-change", { detail: { completed: true } }));
     try { sessionStorage.removeItem("caltodo_onboarding_status"); } catch { /* non-critical */ }
     // Skip Setup path: fire sync in the background since the user wants to land in the app fast.

@@ -11,9 +11,7 @@ import { getCredentials } from "@/lib/credentials-client";
 export const KEY_MAP: Record<keyof DismissedModals, string> = {
   sync_welcome: "caltodo_sync_dismissed",
   gcal_announce: "caltodo_gcal_announce_seen",
-  calchat_welcome: "calchat_welcome_accepted",
   pensieve_announced: "caltodo_pensieve_announced",
-  calchat_announcement: "calchat_announcement_seen",
 };
 
 /** Module-level cache so multiple hook consumers share state without re-fetching. */
@@ -150,9 +148,7 @@ export function useDismissedModals() {
     const all: DismissedModals = {
       sync_welcome: true,
       gcal_announce: true,
-      calchat_welcome: true,
       pensieve_announced: true,
-      calchat_announcement: true,
     };
     setModals(all);
     cachedModals = all;

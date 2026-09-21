@@ -21,9 +21,9 @@ const section = read("src/components/settings/sections/AdvancedSection.tsx");
 describe("useDismissedModals.KEY_MAP", () => {
   it("is exported with every modal's localStorage key", () => {
     expect(Object.keys(KEY_MAP).sort()).toEqual(
-      ["calchat_announcement", "calchat_welcome", "gcal_announce", "pensieve_announced", "sync_welcome"],
+      ["gcal_announce", "pensieve_announced", "sync_welcome"],
     );
-    expect(Object.values(KEY_MAP)).toContain("calchat_welcome_accepted");
+    expect(Object.values(KEY_MAP)).toContain("caltodo_gcal_announce_seen");
   });
 });
 
@@ -41,7 +41,7 @@ describe("Reset Onboarding", () => {
   it("clears every dismissed-modal key rather than one hardcoded key", () => {
     expect(handler).toContain("for (const lsKey of Object.values(DISMISSED_MODAL_KEYS))");
     expect(handler).toContain("localStorage.removeItem(lsKey)");
-    expect(handler).not.toContain('localStorage.removeItem("calchat_welcome_accepted")');
+    expect(handler).not.toMatch(/localStorage\.removeItem\("[a-z_]+"\)/);
   });
 
   it("dispatches the reset event, invalidates credentials, and clears progress", () => {
