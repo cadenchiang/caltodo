@@ -1132,6 +1132,10 @@ async function upsertAssignments(
   // user with >1000 synced tasks in one source would otherwise have the
   // overflow rows treated as "new" — clobbering their custom colors and
   // manually-edited due dates/times on every sync.
+  //
+  // Ordered by primary key: without a stable order, pages of a .range()
+  // scan can overlap or skip rows between requests, which again leaves rows
+  // unseen and treated as new.
   type ExistingRow = { external_id: string | null; due_date_manually_edited_at: string | null; due_time_manually_edited_at: string | null; dismissed_by_user: boolean | null };
   const existingTaskRows: ExistingRow[] = [];
   const EXISTING_PAGE = 1000;
@@ -1141,10 +1145,25 @@ async function upsertAssignments(
       .select("external_id, due_date_manually_edited_at, due_time_manually_edited_at, dismissed_by_user")
       .eq("user_id", userId)
       .eq("source", source)
+      .order("id", { ascending: true })
       .range(from, from + EXISTING_PAGE - 1);
     if (pageError) {
-      logger.error("upsertAssignments: failed to page existing tasks", { userId, source, error: pageError.message });
-      break;
+      // Continuing with a partial (or empty) list would treat every unseen
+      // assignment as new: colours and manually edited dates overwritten,
+      // and user-dismissed tasks resurrected with dismissed_at cleared, which
+      // later syncs then preserve. Skipping this source for one run is the
+      // cheaper mistake; the next sync retries.
+      logger.error("upsertAssignments: failed to page existing tasks, skipping source this run", {
+        userId,
+        source,
+        cause: pageError.message,
+        context: { pageStart: from, rowsReadSoFar: existingTaskRows.length, incoming: assignments.length },
+        impact: "no tasks from this source were written or auto-completed this sync",
+      });
+      return {
+        synced: 0,
+        errors: [`${source}: could not read existing tasks (${pageError.message}); sync skipped this run`],
+      };
     }
     if (!page || page.length === 0) break;
     existingTaskRows.push(...page);
@@ -1366,6 +1385,7 @@ async function dismissMissingTasks(
         .eq("source", source)
         .eq("is_completed", false)
         .is("dismissed_at", null)
+        .order("id", { ascending: true })
         .range(from, from + DISMISS_PAGE - 1);
       if (error) {
         logger.error("dismissMissingTasks: failed to fetch existing tasks", {

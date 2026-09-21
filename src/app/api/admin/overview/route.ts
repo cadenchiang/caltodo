@@ -108,6 +108,8 @@ export async function GET() {
       const { data: page, error: taskError } = await adminClient
         .from("tasks")
         .select("is_completed, source")
+        // A stable order keeps pages from overlapping or skipping rows.
+        .order("id", { ascending: true })
         .range(offset, offset + PAGE_SIZE - 1);
 
       if (taskError) {
