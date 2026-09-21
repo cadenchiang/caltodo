@@ -64,6 +64,26 @@ export default function GoogleOneTap() {
       }
 
       if (data?.user) {
+        // One Tap never passes through /auth/callback, so the deferred
+        // invite activation the callback does has to happen here. The
+        // browser client has set the session cookie by now, so the
+        // endpoint sees a real session. Idempotent; a failure is logged and
+        // does not block sign-in.
+        try {
+          const res = await fetch("/api/auth/process-deferred", { method: "POST" });
+          if (!res.ok) {
+            console.error("[GoogleOneTap] process-deferred failed", {
+              status: res.status,
+              impact: "deferred invites stay inactive until the next sign-in",
+            });
+          }
+        } catch (err) {
+          console.error("[GoogleOneTap] process-deferred request failed", {
+            error: err instanceof Error ? err.message : String(err),
+            impact: "deferred invites stay inactive until the next sign-in",
+          });
+        }
+
         const { data: creds } = await supabase
           .from("integration_credentials")
           .select("id")
