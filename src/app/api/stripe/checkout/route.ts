@@ -9,6 +9,7 @@ import {
 } from "@/lib/stripe";
 import { getEntitlement } from "@/lib/entitlements";
 import { logger } from "@/lib/logger";
+import { hasNonCanceledSubscription } from "@/lib/stripe-guards";
 
 /**
  * Creates a Stripe Checkout session and redirects the user to it.
@@ -94,6 +95,27 @@ export async function POST(req: NextRequest) {
           { user_id: user.id, stripe_customer_id: customerId },
           { onConflict: "user_id" },
         );
+    }
+
+    // The row can say "free" while Stripe still holds a live subscription
+    // for this customer (past_due, or a stale webhook). Ask Stripe rather
+    // than the row: a second subscription beside any non-canceled one would
+    // double-charge and leave the row flipping between the two.
+    const existing = await stripe().subscriptions.list({ customer: customerId, status: "all", limit: 100 });
+    if (hasNonCanceledSubscription(existing.data)) {
+      logger.warn("stripe_checkout_refused_existing_subscription", {
+        userId: user.id,
+        customerId,
+        subscriptions: existing.data.map((s) => ({ id: s.id, status: s.status })),
+        impact: "no new checkout session; user is sent to manage the existing one",
+      });
+      return NextResponse.json(
+        {
+          error: "subscription_exists",
+          message: "You already have a subscription. Manage it from Settings instead of starting a new one.",
+        },
+        { status: 409 },
+      );
     }
 
     const origin = req.headers.get("origin") ?? "https://caltodo.me";

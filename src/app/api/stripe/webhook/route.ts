@@ -3,6 +3,7 @@ import { revalidateTag } from "next/cache";
 import { stripe, webhookSecret, StripeNotConfiguredError } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logger } from "@/lib/logger";
+import { claimEvent, releaseEvent, concernsStoredSubscription } from "@/lib/stripe-webhook-store";
 import type Stripe from "stripe";
 
 /**
@@ -31,6 +32,13 @@ function invalidateEntitlement(userId: string): void {
  *   - invoice.payment_failed           -> mark past_due
  *
  * Returns 200 even on unhandled events so Stripe doesn't retry forever.
+ *
+ * Idempotent: each event id is claimed in stripe_webhook_events before it
+ * is handled, so a redelivery is acknowledged without being applied. A
+ * handler failure releases the claim so Stripe's retry can be processed.
+ * Subscription updated/deleted events are applied only when they concern
+ * the stored subscription (or the row has none yet), so a stale event for
+ * an older subscription cannot overwrite a newer one.
  */
 export async function POST(req: NextRequest) {
   const sig = req.headers.get("stripe-signature");
@@ -54,17 +62,33 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "bad_signature" }, { status: 400 });
   }
 
+  const claimed = await claimEvent(event);
+  if (claimed === "duplicate") {
+    logger.info("stripe_webhook_duplicate_ignored", { eventId: event.id, eventType: event.type });
+    return NextResponse.json({ received: true, duplicate: true });
+  }
+  if (claimed === "error") {
+    // Without the claim we cannot promise idempotency; let Stripe retry.
+    return NextResponse.json({ error: "claim_failed" }, { status: 500 });
+  }
+
   try {
     switch (event.type) {
       case "checkout.session.completed":
         await handleCheckoutCompleted(event.data.object);
         break;
       case "customer.subscription.created":
-      case "customer.subscription.updated":
         await syncFromSubscription(event.data.object);
         break;
+      case "customer.subscription.updated":
+        if (await concernsStoredSubscription(event.data.object, event.type)) {
+          await syncFromSubscription(event.data.object);
+        }
+        break;
       case "customer.subscription.deleted":
-        await handleSubscriptionDeleted(event.data.object);
+        if (await concernsStoredSubscription(event.data.object, event.type)) {
+          await handleSubscriptionDeleted(event.data.object);
+        }
         break;
       case "invoice.payment_failed":
         await handlePaymentFailed(event.data.object);
@@ -76,9 +100,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ received: true });
   } catch (err) {
     logger.error("stripe_webhook_handler_failed", {
+      eventId: event.id,
       eventType: event.type,
       message: err instanceof Error ? err.message : String(err),
+      impact: "claim released; Stripe will redeliver and the event is reapplied",
     });
+    await releaseEvent(event.id);
     // 500 makes Stripe retry, which is correct for transient failures.
     return NextResponse.json({ error: "handler_failed" }, { status: 500 });
   }
