@@ -20,6 +20,7 @@ import { playTaskComplete, playTaskCreated } from "@/lib/sounds";
 import { getCredentials } from "@/lib/credentials-client";
 import { readHiddenTags, hideTag } from "@/lib/hidden-tags";
 import { findNewAssignments } from "@/lib/new-assignments";
+import { collectSyncErrors, describeSyncedCounts } from "@/lib/sync-result-summary";
 
 /** localStorage key and version for stale-while-revalidate task caching. */
 const CACHE_KEY = "caltodo_tasks_cache";
@@ -481,15 +482,10 @@ export function TaskProvider({
           // expired Canvas token / Gradescope login / dead iCal URL made new
           // assignments silently stop appearing with no explanation. Show a
           // toast once per unique error-set per session so it isn't spammy.
-          const syncErrors = [
-            ...result.canvas.errors,
-            ...result.gradescope.errors,
-            ...result.pensieve.errors,
-            ...result.brightspace.errors,
-            // Classroom was left out, so a scope failure on every sync produced
-            // no toast and no "Fix in Settings" for the user to act on.
-            ...(result.classroom?.errors ?? []),
-          ];
+          // Every source, so no integration can fail without a toast. Classroom
+          // and Blackboard were each left out at some point, and a failure on
+          // every sync produced no "Fix in Settings" for the user to act on.
+          const syncErrors = collectSyncErrors(result);
           if (syncErrors.length > 0) {
             const key = `sync-error-shown:${syncErrors.join("|")}`;
             let alreadyShown = false;
@@ -1690,13 +1686,12 @@ export function TaskProvider({
         // Brief pause so the user sees 100% before the result toast replaces it
         await new Promise((r) => setTimeout(r, 400));
 
-        // Build and show sync result toast globally
-        const parts: string[] = [];
-        if (result.canvas.synced > 0) parts.push(`${result.canvas.synced} from Canvas`);
-        if (result.gradescope.synced > 0) parts.push(`${result.gradescope.synced} from Gradescope`);
-        if (result.pensieve.synced > 0) parts.push(`${result.pensieve.synced} from Pensieve`);
-        const syncErrors = [...result.canvas.errors, ...result.gradescope.errors, ...result.pensieve.errors];
-        let toastMsg = parts.length > 0 ? `Synced ${parts.join(", ")}. All tasks are up to date.` : "All tasks are up to date — no new assignments found.";
+        // Build and show sync result toast globally. Every source is listed,
+        // so a Blackboard or Classroom failure reaches the same toast as the
+        // others instead of reading as "up to date".
+        const parts = describeSyncedCounts(result);
+        const syncErrors = collectSyncErrors(result);
+        let toastMsg = parts.length > 0 ? `Synced ${parts.join(", ")}. All tasks are up to date.` : "All tasks are up to date, no new assignments found.";
         if (syncErrors.length > 0) {
           toastMsg += ` ${syncErrors.map(m => m.replace(/Go to Settings to add them\.?/, "")).join(". ").trim()}`;
         }

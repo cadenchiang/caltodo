@@ -6,6 +6,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { runSync, type SyncCourseOverrides, type SyncPlatform } from "@/lib/sync-engine";
+import { emptySyncResult, parsePlatformFilter } from "@/lib/sync-platforms";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
 
@@ -59,22 +60,25 @@ export async function POST(request: Request) {
     // bypass the cooldown. First-ever sync passes anyway (no prior timestamp).
     const forceGradescope = body.forceGradescope === true;
 
-    // Optional platform filter — only sync specific platforms
-    const VALID_PLATFORMS = new Set<SyncPlatform>(["canvas", "gradescope", "pensieve", "brightspace"]);
-    const platforms: SyncPlatform[] | undefined = Array.isArray(body.platforms)
-      ? (body.platforms as string[]).filter((p): p is SyncPlatform => VALID_PLATFORMS.has(p as SyncPlatform))
-      : undefined;
+    // Optional platform filter: only sync specific platforms. The valid set
+    // derives from the engine's platform list; a literal set here once
+    // stopped at Brightspace, so Blackboard and Classroom setup syncs were
+    // filtered to nothing and silently never ran.
+    const filter = parsePlatformFilter(body.platforms);
 
-    // An explicitly-provided but empty/all-invalid filter means "sync nothing" —
+    // An explicitly-provided but empty/all-invalid filter means "sync nothing",
     // NOT a full sync. runSync treats [] as "sync all", so short-circuit here to
     // avoid an unintended full sync (incl. a Gradescope login) on a bad filter.
-    if (Array.isArray(body.platforms) && platforms && platforms.length === 0) {
-      const empty = { synced: 0, errors: [] as string[] };
-      return NextResponse.json({
-        canvas: empty, gradescope: empty, pensieve: empty, brightspace: empty,
-        last_synced_at: new Date().toISOString(),
+    if (filter.kind === "none") {
+      logger.warn("POST /api/assignments/sync: platform filter named no known platform", {
+        userId: user.id,
+        cause: "platforms was an array with no valid entries",
+        requested: body.platforms,
+        impact: "nothing was synced",
       });
+      return NextResponse.json(emptySyncResult(new Date().toISOString()));
     }
+    const platforms: SyncPlatform[] | undefined = filter.kind === "some" ? filter.platforms : undefined;
 
     logger.info("POST /api/assignments/sync started", { userId: user.id, timezone, hasOverrides: !!courseOverrides, forceGradescope, platforms });
     const result = await runSync(supabase, user.id, timezone, courseOverrides, forceGradescope, platforms);
