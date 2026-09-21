@@ -1663,6 +1663,12 @@ export function TaskProvider({
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           ...courseOverrides,
           ...(platforms ? { platforms } : {}),
+          // A visible sync is the user asking for it, so it bypasses the
+          // Gradescope login cooldown. Silent syncs (class-list saves) do not:
+          // they can fire several times in a minute and must not log in each
+          // time. Without this no client ever sent the flag, and a manual sync
+          // inside the window reported "up to date" instead of syncing.
+          ...(silent ? {} : { forceGradescope: true }),
         }),
       });
       if (!res.ok) {

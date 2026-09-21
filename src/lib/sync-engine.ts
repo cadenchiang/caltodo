@@ -30,7 +30,12 @@ import { CLASSROOM_AVAILABLE } from "@/lib/classroom-availability";
 import { getValidAccessToken } from "@/lib/gcal/token-manager";
 import { after } from "next/server";
 import { reportSyncFailures } from "@/lib/integration-alerts";
-import { claimGradescopeCooldown } from "@/lib/gradescope-cooldown";
+import {
+  claimGradescopeCooldown,
+  releaseGradescopeCooldown,
+  CLAIM_COLUMN,
+  SUCCESS_COLUMN,
+} from "@/lib/gradescope-cooldown";
 import type { SyncResult, SyncSourceResult, AdditionalCanvasAccount } from "@/lib/types";
 
 const UPSERT_BATCH_SIZE = 50;
@@ -583,12 +588,17 @@ async function syncGradescope(
   // on-mount + 30-min + on-focus auto-sync, multiplied across tabs/devices,
   // hammered the login endpoint. See route: forceGradescope.
   const GRADESCOPE_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
+  // Whether this run took the cooldown claim, so a failed login can hand it
+  // back. A forced (manual) sync never claims and so never releases.
+  let claimedThisRun = false;
   if (!force) {
     // CLAIM the cooldown window before logging in. A read-then-act check let
     // two concurrent syncs (mount + focus + timer across tabs/devices) both
-    // read a stale timestamp, both pass, and both log in — tripping
-    // Gradescope's anti-abuse lockout. Claiming before login also means a
-    // failed login still holds the cooldown (don't hammer on failure).
+    // read a stale timestamp, both pass, and both log in, tripping
+    // Gradescope's anti-abuse lockout. The claim is a separate column from
+    // last_gradescope_synced_at: that one is written only after a successful
+    // fetch, and a login that fails releases the claim below so a corrected
+    // password does not wait out a window a bad one started.
     //
     // claimGradescopeCooldown owns the fallback ladder: it only reports an
     // error when every mechanism failed, so one broken query can no longer
@@ -607,6 +617,7 @@ async function syncGradescope(
       logger.info("syncGradescope skipped: cooldown held by another sync or still cooling down", { userId });
       return { synced: 0, errors: [] };
     }
+    claimedThisRun = true;
   }
 
   try {
@@ -649,11 +660,11 @@ async function syncGradescope(
     const result = await upsertAssignments(supabase, userId, "gradescope", merged, timezone);
     await dismissMissingTasks(supabase, userId, "gradescope", merged);
 
-    // Update last Gradescope sync timestamp on success and clear auth failure flag
-    await supabase
-      .from("integration_credentials")
-      .update({ last_gradescope_synced_at: new Date().toISOString(), gradescope_auth_failed: false })
-      .eq("user_id", userId);
+    // Record the success. last_gradescope_synced_at is the health check's
+    // proof of a working login, so it is written here and nowhere else. The
+    // claim is stamped too, so a successful manual login holds the window
+    // against the auto-syncs that follow it.
+    await recordGradescopeSuccess(supabase, userId);
 
     return { synced: result.synced, errors: result.errors };
   } catch (err) {
@@ -667,9 +678,60 @@ async function syncGradescope(
         .update({ gradescope_auth_failed: true })
         .eq("user_id", userId);
       logger.warn("syncGradescope: marked auth as failed, stopping retries", { userId });
+      // The auth flag already stops auto-sync retries; holding the claim on
+      // top of it only blocked the sync a student runs after fixing their
+      // password. Other failures (outage, parse error) keep the claim, so
+      // auto-syncs still cannot hammer the login endpoint.
+      if (claimedThisRun) {
+        await releaseGradescopeCooldown(supabase, userId);
+      }
     }
 
     return { synced: 0, errors: [message] };
+  }
+}
+
+/**
+ * Stamps a successful Gradescope fetch on the credentials row.
+ *
+ * @param supabase - Authenticated Supabase client
+ * @param userId - The user whose row to update
+ * @remarks Writes the success timestamp, the claim, and clears the auth
+ *          flag in one update. If the claim column is not migrated yet, the
+ *          write is retried without it so a deploy that precedes its
+ *          migration still records the success.
+ */
+async function recordGradescopeSuccess(supabase: SupabaseClient, userId: string): Promise<void> {
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from("integration_credentials")
+    .update({ [SUCCESS_COLUMN]: now, [CLAIM_COLUMN]: now, gradescope_auth_failed: false })
+    .eq("user_id", userId);
+  if (!error) return;
+
+  if (!isMissingColumnError(error)) {
+    logger.error("syncGradescope: failed to record success", {
+      userId,
+      cause: error.message,
+      impact: "last_gradescope_synced_at not advanced; health check may undercount this user",
+    });
+    return;
+  }
+
+  logger.warn("syncGradescope: claim column missing, recording success without it", {
+    userId,
+    column: CLAIM_COLUMN,
+  });
+  const retry = await supabase
+    .from("integration_credentials")
+    .update({ [SUCCESS_COLUMN]: now, gradescope_auth_failed: false })
+    .eq("user_id", userId);
+  if (retry.error) {
+    logger.error("syncGradescope: failed to record success", {
+      userId,
+      cause: retry.error.message,
+      impact: "last_gradescope_synced_at not advanced; health check may undercount this user",
+    });
   }
 }
 

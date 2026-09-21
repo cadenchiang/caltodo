@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { claimGradescopeCooldown } from "@/lib/gradescope-cooldown";
+import {
+  claimGradescopeCooldown,
+  releaseGradescopeCooldown,
+  CLAIM_COLUMN,
+  SUCCESS_COLUMN,
+} from "@/lib/gradescope-cooldown";
 
 vi.mock("@/lib/logger", () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
@@ -20,7 +25,7 @@ interface Behavior {
   /** Result of the conditional UPDATE ... .select(). */
   conditional?: { data?: unknown[]; error?: { message: string } };
   /** Result of the plain read used by the last-resort path. */
-  read?: { data?: { last_gradescope_synced_at: string | null } | null; error?: { message: string } };
+  read?: { data?: { gradescope_claim_at: string | null } | null; error?: { message: string } };
   /** Result of the plain write used by the last-resort path. */
   write?: { error?: { message: string } };
 }
@@ -200,7 +205,7 @@ describe("claimGradescopeCooldown", () => {
     it("keeps syncing when both atomic paths fail and the cooldown has elapsed", async () => {
       const { client, calls } = makeClient({
         ...bothAtomicPathsBroken,
-        read: { data: { last_gradescope_synced_at: "2026-07-27T11:00:00.000Z" } },
+        read: { data: { gradescope_claim_at: "2026-07-27T11:00:00.000Z" } },
       });
       const result = await claimGradescopeCooldown(client, USER, COOLDOWN_MS);
 
@@ -212,7 +217,7 @@ describe("claimGradescopeCooldown", () => {
       const { client, calls } = makeClient({
         ...bothAtomicPathsBroken,
         // 10 minutes ago: inside the 30-minute window.
-        read: { data: { last_gradescope_synced_at: "2026-07-27T11:50:00.000Z" } },
+        read: { data: { gradescope_claim_at: "2026-07-27T11:50:00.000Z" } },
       });
       const result = await claimGradescopeCooldown(client, USER, COOLDOWN_MS);
 
@@ -223,7 +228,7 @@ describe("claimGradescopeCooldown", () => {
     it("claims when no sync has ever run", async () => {
       const { client } = makeClient({
         ...bothAtomicPathsBroken,
-        read: { data: { last_gradescope_synced_at: null } },
+        read: { data: { gradescope_claim_at: null } },
       });
 
       expect(await claimGradescopeCooldown(client, USER, COOLDOWN_MS)).toEqual({
@@ -252,7 +257,7 @@ describe("claimGradescopeCooldown", () => {
     it("does not log in when the timestamp write fails", async () => {
       const { client } = makeClient({
         ...bothAtomicPathsBroken,
-        read: { data: { last_gradescope_synced_at: null } },
+        read: { data: { gradescope_claim_at: null } },
         write: { error: DB_ERROR },
       });
       const result = await claimGradescopeCooldown(client, USER, COOLDOWN_MS);
@@ -274,5 +279,90 @@ describe("claimGradescopeCooldown", () => {
       p_user_id: USER,
       p_cooldown_seconds: 1800,
     });
+  });
+});
+
+describe("claim and success columns", () => {
+  // Audit H9 / M8: the claim used to advance last_gradescope_synced_at
+  // before the login, so a failed login held the cooldown and the fleet
+  // health check read attempts as successes.
+  it("keeps the claim off the success column", () => {
+    expect(CLAIM_COLUMN).toBe("gradescope_claim_at");
+    expect(SUCCESS_COLUMN).toBe("last_gradescope_synced_at");
+  });
+
+  it("the conditional fallback writes and filters on the claim column only", async () => {
+    const or = vi.fn();
+    const builder = {
+      update: vi.fn(),
+      eq: vi.fn(),
+      or,
+      select: vi.fn().mockResolvedValue({ data: [{ user_id: USER }], error: null }),
+    };
+    builder.update.mockReturnValue(builder);
+    builder.eq.mockReturnValue(builder);
+    or.mockReturnValue(builder);
+    const client = {
+      rpc: vi.fn().mockResolvedValue({ data: null, error: { message: "not deployed" } }),
+      from: () => builder,
+    } as unknown as SupabaseClient;
+
+    await claimGradescopeCooldown(client, USER, COOLDOWN_MS);
+
+    expect(builder.update).toHaveBeenCalledWith({ gradescope_claim_at: expect.any(String) });
+    expect(or.mock.calls[0][0]).toContain("gradescope_claim_at.is.null");
+    expect(or.mock.calls[0][0]).not.toContain("last_gradescope_synced_at");
+  });
+
+  it("the last-resort path reads and writes the claim column", async () => {
+    const { client } = makeClient({
+      rpc: { error: { message: "not deployed" } },
+      conditional: { error: DB_ERROR },
+      read: { data: { gradescope_claim_at: null } },
+    });
+    const selectSpy = vi.fn();
+    const updateSpy = vi.fn();
+    const originalFrom = client.from.bind(client);
+    (client as unknown as { from: () => unknown }).from = () => {
+      const builder = originalFrom("integration_credentials") as unknown as Record<string, unknown>;
+      const select = builder.select as (...args: unknown[]) => unknown;
+      const update = builder.update as (...args: unknown[]) => unknown;
+      builder.select = (...args: unknown[]) => {
+        selectSpy(...args);
+        return select(...args);
+      };
+      builder.update = (...args: unknown[]) => {
+        updateSpy(...args);
+        return update(...args);
+      };
+      return builder;
+    };
+
+    const result = await claimGradescopeCooldown(client, USER, COOLDOWN_MS);
+
+    expect(result).toEqual({ claimed: true, degraded: true });
+    expect(selectSpy).toHaveBeenCalledWith("gradescope_claim_at");
+    expect(updateSpy).toHaveBeenLastCalledWith({ gradescope_claim_at: expect.any(String) });
+  });
+});
+
+describe("releaseGradescopeCooldown", () => {
+  it("clears the claim column for the user and reports success", async () => {
+    const eq = vi.fn().mockResolvedValue({ error: null });
+    const update = vi.fn().mockReturnValue({ eq });
+    const client = { from: vi.fn().mockReturnValue({ update }) } as unknown as SupabaseClient;
+
+    expect(await releaseGradescopeCooldown(client, USER)).toBe(true);
+    expect(update).toHaveBeenCalledWith({ gradescope_claim_at: null });
+    expect(eq).toHaveBeenCalledWith("user_id", USER);
+  });
+
+  it("reports a failed release without throwing", async () => {
+    const eq = vi.fn().mockResolvedValue({ error: DB_ERROR });
+    const client = {
+      from: vi.fn().mockReturnValue({ update: vi.fn().mockReturnValue({ eq }) }),
+    } as unknown as SupabaseClient;
+
+    expect(await releaseGradescopeCooldown(client, USER)).toBe(false);
   });
 });

@@ -90,4 +90,12 @@ describe("wiring", () => {
     expect(ctx.match(/collectSyncErrors\(result\)/g)?.length).toBe(2);
     expect(ctx).toContain("describeSyncedCounts(result)");
   });
+
+  it("a visible manual sync sends forceGradescope, a silent one does not (audit H9)", () => {
+    const ctx = read("src/contexts/TaskContext.tsx");
+    expect(ctx).toContain("...(silent ? {} : { forceGradescope: true })");
+    // The background auto-sync body must stay unforced.
+    const autoSyncBody = ctx.match(/async function autoSync\(\)[\s\S]*?body: JSON\.stringify\(([^)]*)\)/)?.[1] ?? "";
+    expect(autoSyncBody).not.toContain("forceGradescope");
+  });
 });
