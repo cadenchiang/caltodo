@@ -103,8 +103,16 @@ const PLATFORM_OPTIONS: Array<{ id: Platform; label: string; description: string
   { id: "syllabus", label: "Syllabus", description: "Extract assignments from a syllabus PDF", logo: "/file.svg" },
 ];
 
-/** Valid platforms for standalone ?setup= mode. */
-const VALID_SETUP_PLATFORMS = new Set<string>(["canvas", "gradescope", "pensieve", "brightspace", "blackboard", "canvas-add", "pensieve-add", "brightspace-add", "blackboard-add", "syllabus", "classroom"]);
+/**
+ * Valid platforms for standalone ?setup= mode. Classroom is only accepted
+ * while it can actually be connected; otherwise ?setup=classroom rendered a
+ * Connect link that just returned to Settings.
+ */
+const VALID_SETUP_PLATFORMS = new Set<string>([
+  "canvas", "gradescope", "pensieve", "brightspace", "blackboard",
+  "canvas-add", "pensieve-add", "brightspace-add", "blackboard-add", "syllabus",
+  ...(CLASSROOM_AVAILABLE ? ["classroom"] : []),
+]);
 
 /** Display labels for standalone setup mode header. */
 const SETUP_LABELS: Record<string, string> = {
