@@ -478,13 +478,6 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
         await fetchTasks();
       }
 
-      // 4b. Invalidate CalChat discussion boards cache so course list updates
-      try {
-        sessionStorage.removeItem("discussion_boards_cache_v2");
-        sessionStorage.removeItem("discussion_boards_cache_v4");
-      } catch { /* non-critical */ }
-      window.dispatchEvent(new CustomEvent("caltodo-courses-changed"));
-
       // 5. Build result toast. Course titles carry section codes and term
       // suffixes, so listing them overflowed the toast as soon as two classes
       // changed; buildClassSyncSummary collapses lists to a count.

@@ -11,7 +11,6 @@ import { SETTINGS_SECTIONS, SETTINGS_GROUPS, DEFAULT_SECTION, type SettingsSecti
 import SidebarNavItem, { navItemClasses, SidebarActivePill } from "./SidebarNavItem";
 import ProfilePopup from "./ProfilePopup";
 import { useTheme } from "@/contexts/ThemeContext";
-// useCalChatUnread import removed — CalChat is no longer in the sidebar.
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { useHiddenNavItems } from "@/hooks/useHiddenNavItems";
 
@@ -70,7 +69,6 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
     window.addEventListener("profile-updated", handleProfileUpdate);
     return () => window.removeEventListener("profile-updated", handleProfileUpdate);
   }, []);
-  // CalChat removed — no unread badge to compute.
   useOnboardingStatus();
   const { isHidden: isNavItemHidden } = useHiddenNavItems();
   // Active settings section: URL is the source of truth, but we keep an

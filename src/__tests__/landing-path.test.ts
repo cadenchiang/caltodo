@@ -15,8 +15,8 @@ describe("pickLandingPath", () => {
 
   it("falls through past multiple hidden items", () => {
     expect(
-      pickLandingPath({ hidden_nav_items: ["/app/home", "/app/inbox", "/app/calendar"] }),
-    ).toBe("/app/discussions");
+      pickLandingPath({ hidden_nav_items: ["/app/home", "/app/inbox"] }),
+    ).toBe("/app/calendar");
   });
 
   it("returns /app/inbox fallback when every nav item is hidden", () => {
@@ -26,7 +26,6 @@ describe("pickLandingPath", () => {
           "/app/home",
           "/app/inbox",
           "/app/calendar",
-          "/app/discussions",
         ],
       }),
     ).toBe("/app/inbox");
@@ -52,7 +51,7 @@ describe("pickLandingPath", () => {
       expect(pickLandingPath({}, { isMobile: true })).toBe("/app/inbox");
     });
 
-    it("skips Chat too when the earlier items are hidden", () => {
+    it("falls back to Inbox when every mobile-eligible item is hidden", () => {
       expect(
         pickLandingPath(
           { hidden_nav_items: ["/app/inbox", "/app/calendar"] },

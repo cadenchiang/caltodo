@@ -56,7 +56,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "caltodo: sync your classes, never miss a deadline",
     description:
-      "Deadlines from Canvas, Gradescope, Brightspace, and Google Classroom, plus anything in your syllabus, all in one planner with a calendar, notes, and course chat. Free for students, forever.",
+      "Deadlines from Canvas, Gradescope, Brightspace, and Google Classroom, plus anything in your syllabus, all in one planner with a calendar and notes. Free for students, forever.",
     url: "https://caltodo.me",
     siteName: "caltodo",
     type: "website",
