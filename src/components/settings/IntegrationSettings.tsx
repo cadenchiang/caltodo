@@ -46,7 +46,7 @@ function setCachedCredentials(creds: IntegrationCredentials): void {
 
 /** Default empty credentials used for instant render before API responds. */
 const EMPTY_CREDENTIALS: IntegrationCredentials = {
-  canvas_token: null,
+  has_canvas_token: false,
   canvas_base_url: "",
   canvas_ical_url: null,
   canvas_token_expired: false,

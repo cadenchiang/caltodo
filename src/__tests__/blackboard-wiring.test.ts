@@ -95,11 +95,12 @@ describe("sync engine", () => {
 
 describe("credentials API", () => {
   const route = (read("src/app/api/credentials/route.ts") + read("src/lib/credentials-loader.ts"));
+  const shape = read("src/lib/credentials-shape.ts");
 
   it("reads and returns both columns", () => {
     expect(route).toContain("blackboard_calendar_url,");
     expect(route).toContain("blackboard_auth_failed,");
-    expect(route).toMatch(/blackboard_calendar_url: data\?\.blackboard_calendar_url \?\? null/);
+    expect(shape).toMatch(/blackboard_calendar_url: row\?\.blackboard_calendar_url \?\? null/);
   });
 
   it("validates the URL against the SSRF allowlist on save", () => {

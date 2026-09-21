@@ -103,14 +103,17 @@ describe("the settings card", () => {
 
 describe("the credentials API", () => {
   const route = (read("src/app/api/credentials/route.ts") + read("src/lib/credentials-loader.ts"));
+  const shape = read("src/lib/credentials-shape.ts");
 
   it("returns the Classroom fields it selects, on GET and on PUT", () => {
     // It selected them and dropped them, so the UI always saw the integration
-    // as off while the row had it on.
+    // as off while the row had it on. GET and PUT now share one shaping
+    // function, so the field is checked there once.
     for (const field of ["classroom_enabled", "selected_classroom_courses", "classroom_auth_failed"]) {
-      expect(route).toMatch(new RegExp(`${field}:\\s*\\(data as`));
-      expect(route).toMatch(new RegExp(`${field}:\\s*\\(updated as`));
+      expect(shape).toMatch(new RegExp(`${field}: row\\?\\.${field}`));
     }
+    expect(route).toContain("shapeCredentials(updated, rowHasOwnCredentials(updated))");
+    expect(read("src/lib/credentials-loader.ts")).toContain("return shapeCredentials(data, hasCompletedOnboarding);");
   });
 });
 

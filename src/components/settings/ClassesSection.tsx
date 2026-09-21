@@ -109,8 +109,8 @@ export default function ClassesSection({ credentials, onUpdate }: ClassesSection
   const hasSyllabus = syllabusCourses.length > 0;
   const totalSelected = canvasSelected.length + gsSelected.length + pensieveSelected.length + syllabusCourses.length;
 
-  const hasCanvas = !!credentials.canvas_token || !!credentials.canvas_ical_url;
-  const hasCanvasToken = !!credentials.canvas_token;
+  const hasCanvas = credentials.has_canvas_token || !!credentials.canvas_ical_url;
+  const hasCanvasToken = credentials.has_canvas_token;
   const hasCanvasIcal = !!credentials.canvas_ical_url;
   const hasGradescope = !!credentials.gradescope_email;
   const hasPensieve = !!credentials.pensieve_calendar_url;

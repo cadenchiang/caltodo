@@ -74,7 +74,7 @@ export const INTEGRATION_CATALOG: readonly CatalogEntry[] = [
     connectable: true,
     // Either half of a Canvas connection counts: an API token, or the
     // calendar feed URL used when a school blocks token creation.
-    isConnected: (c) => !!c.canvas_token || !!c.canvas_ical_url,
+    isConnected: (c) => c.has_canvas_token || !!c.canvas_ical_url,
   },
   {
     id: "gradescope",

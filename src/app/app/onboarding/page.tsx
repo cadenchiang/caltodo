@@ -27,7 +27,7 @@ import SearchableSelect from "@/components/onboarding/SearchableSelect";
 import PlatformLogo from "@/components/onboarding/PlatformLogo";
 import { SCHOOL_OPTIONS, REFERRAL_OPTIONS } from "@/components/onboarding/onboardingOptions";
 import { buildEntries, searchSchools } from "@/lib/school-search";
-import type { IntegrationCredentials, AdditionalCanvasAccount } from "@/lib/types";
+import type { IntegrationCredentials, AdditionalCanvasAccountInput } from "@/lib/types";
 
 /**
  * Prebuilt alias index for the school picker, computed once at module load so
@@ -758,7 +758,7 @@ export default function OnboardingPage() {
       if (!getRes.ok) throw new Error("Failed to fetch current credentials");
       const current: IntegrationCredentials = await getRes.json();
 
-      const newAccount: AdditionalCanvasAccount = {
+      const newAccount: AdditionalCanvasAccountInput = {
         id: `canvas-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         label: payload.label,
         base_url: payload.base_url,

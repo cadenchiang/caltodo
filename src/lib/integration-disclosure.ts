@@ -76,7 +76,7 @@ export const DISCLOSURE_META: Record<DisclosureProvider, DisclosureMeta> = {
     logoClassName: "w-7 h-7 object-contain",
     // Which of the two ways Canvas can be connected, since they behave
     // differently: a token lists courses, a feed only carries events.
-    subtitle: (c) => (c.canvas_token ? "API token" : "Calendar feed"),
+    subtitle: (c) => (c.has_canvas_token ? "API token" : "Calendar feed"),
     disconnectPayload: { canvas_token: null, canvas_ical_url: null },
     taskSource: "canvas",
     authFailed: (c) => !!c.canvas_token_expired || !!c.canvas_ical_failed,
