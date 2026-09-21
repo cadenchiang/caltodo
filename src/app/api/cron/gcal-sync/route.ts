@@ -15,7 +15,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getValidAccessToken } from "@/lib/gcal/token-manager";
 import { performFullSync } from "@/lib/gcal/incremental-sync";
-import { renewWatchChannel } from "@/lib/gcal/watch-manager";
+import { renewWatchChannel, WATCHED_CALENDAR_ID } from "@/lib/gcal/watch-manager";
 import { logger } from "@/lib/logger";
 
 /** Max users to process per cron run to stay within Vercel timeout. */
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
   // dies. `nullsFirst` puts never-watched users (needing an initial channel) up front.
   const { data: users, error } = await supabase
     .from("integration_credentials")
-    .select("user_id, google_calendar_id, gcal_channel_expiration, gcal_last_full_sync_at")
+    .select("user_id, gcal_channel_expiration, gcal_last_full_sync_at")
     .not("google_access_token_encrypted", "is", null)
     .order("gcal_channel_expiration", { ascending: true, nullsFirst: true })
     .limit(MAX_USERS);
@@ -66,7 +66,6 @@ export async function GET(request: NextRequest) {
    */
   async function processUser(user: {
     user_id: string;
-    google_calendar_id: string | null;
     gcal_channel_expiration: string | null;
     gcal_last_full_sync_at: string | null;
   }): Promise<void> {
@@ -74,7 +73,9 @@ export async function GET(request: NextRequest) {
       const accessToken = await getValidAccessToken(supabase, user.user_id);
       if (!accessToken) return;
 
-      const calendarId = resolveCalendarId(user.google_calendar_id);
+      // Watch and read the user's own primary calendar. calendarIds[0] is the
+      // caltodo write calendar, which the user never edits by hand.
+      const calendarId = WATCHED_CALENDAR_ID;
 
       // Register channel if missing, or renew if expiring within 24 hours
       const channelExpiry = user.gcal_channel_expiration
@@ -116,20 +117,4 @@ export async function GET(request: NextRequest) {
   logger.info("cron/gcal-sync: completed", { userCount: users.length, renewed, synced, errorCount: errors.length });
 
   return NextResponse.json({ renewed, synced, errors: errors.length, total: users.length });
-}
-
-/**
- * Resolves the first calendar ID from the stored JSON or string.
- *
- * @param stored - The stored google_calendar_id value
- * @returns A single calendar ID string
- */
-function resolveCalendarId(stored: string | null): string {
-  if (!stored) return "primary";
-  try {
-    const parsed = JSON.parse(stored);
-    return Array.isArray(parsed) ? parsed[0] || "primary" : stored;
-  } catch {
-    return stored;
-  }
 }

@@ -9,7 +9,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getValidAccessToken, getCalendarId } from "@/lib/gcal/token-manager";
-import { renewWatchChannel } from "@/lib/gcal/watch-manager";
+import { renewWatchChannel, WATCHED_CALENDAR_ID } from "@/lib/gcal/watch-manager";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
 
@@ -99,21 +99,22 @@ export async function POST(request: Request) {
     calendarIds: body.calendarIds,
   });
 
-  // Register a push notification channel for the primary calendar
-  // so Google sends real-time webhooks when events change (even when app is closed).
-  const primaryCalendarId = body.calendarIds[0] || "primary";
-  const watchResult = await renewWatchChannel(supabase, user.id, accessToken, primaryCalendarId);
+  // Register a push notification channel on the user's own primary calendar
+  // so Google sends real-time webhooks when they edit it (even when the app
+  // is closed). Not calendarIds[0]: that is the caltodo write calendar.
+  const watchResult = await renewWatchChannel(supabase, user.id, accessToken, WATCHED_CALENDAR_ID);
   if (watchResult) {
     logger.info("POST /api/gcal/select-calendar: watch channel registered", {
       userId: user.id,
-      calendarId: primaryCalendarId,
+      calendarId: WATCHED_CALENDAR_ID,
       channelId: watchResult.channelId,
       expiration: watchResult.expiration,
     });
   } else {
     logger.warn("POST /api/gcal/select-calendar: watch channel registration failed", {
       userId: user.id,
-      calendarId: primaryCalendarId,
+      calendarId: WATCHED_CALENDAR_ID,
+      impact: "no realtime Google-to-caltodo sync until the daily cron retries",
     });
   }
 

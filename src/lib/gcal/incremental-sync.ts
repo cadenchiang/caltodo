@@ -150,6 +150,18 @@ async function syncWithToken(
     });
 
     if (res.status === 410) return "gone";
+    if (res.status === 400 && !pageToken) {
+      // The only parameter on this request is the syncToken, so a 400 means
+      // Google will not accept it (for instance a token issued for another
+      // calendar, left over from when the write calendar was watched). Treat
+      // it like an expired token so a full sync replaces it, instead of
+      // failing on every notification forever.
+      const body = await res.text();
+      logger.warn("syncWithToken: syncToken rejected, forcing full sync", {
+        calendarId, status: res.status, body: body.slice(0, 300),
+      });
+      return "gone";
+    }
     if (!res.ok) {
       const body = await res.text();
       logger.error("syncWithToken: failed", { calendarId, status: res.status, body: body.slice(0, 500) });

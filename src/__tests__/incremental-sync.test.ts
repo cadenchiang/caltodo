@@ -134,4 +134,21 @@ describe("incremental-sync", () => {
 
     expect(result).toBeNull();
   });
+
+  it("treats a 400 on the syncToken request as expired and full-syncs", async () => {
+    // A token issued for the old watched (caltodo) calendar is not valid on
+    // primary; without this the webhook would fail on every notification.
+    const { performIncrementalSync } = await import("@/lib/gcal/incremental-sync");
+    const supabase = createMockSupabase("foreign-token");
+
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 400, text: async () => "Invalid sync token" });
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ items: [], nextSyncToken: "fresh-token" }),
+    });
+
+    const result = await performIncrementalSync(supabase as any, "user-1", "access-token", "primary");
+    expect(result).toEqual({ syncToken: "fresh-token", isFullSync: true });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
 });

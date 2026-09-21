@@ -18,6 +18,16 @@ const GCAL_CHANNELS_STOP_URL = "https://www.googleapis.com/calendar/v3/channels/
 const CHANNEL_TTL_MS = 6 * 24 * 60 * 60 * 1000;
 
 /**
+ * The calendar the push channel watches and incremental sync reads.
+ *
+ * Always the user's own primary calendar: that is where they make the edits
+ * caltodo wants to hear about. Writes go to the dedicated caltodo calendar
+ * (calendarIds[0]), which is a different calendar, so watching that one
+ * meant a user's own changes never triggered a webhook.
+ */
+export const WATCHED_CALENDAR_ID = "primary";
+
+/**
  * Result of registering a watch channel.
  */
 interface WatchChannelResult {

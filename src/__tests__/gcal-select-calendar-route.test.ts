@@ -34,6 +34,7 @@ vi.mock("@/lib/gcal/token-manager", () => ({
 
 const mockRenewWatchChannel = vi.fn();
 vi.mock("@/lib/gcal/watch-manager", () => ({
+  WATCHED_CALENDAR_ID: "primary",
   renewWatchChannel: (...args: unknown[]) => mockRenewWatchChannel(...args),
 }));
 
@@ -109,6 +110,24 @@ describe("POST /api/gcal/select-calendar", () => {
     const res = await POST(request({ calendarIds: ["primary"] }));
     expect(res.status).toBe(500);
     expect(mockCredsUpdateEq).not.toHaveBeenCalled();
+  });
+
+  it("registers the push channel on the user's primary calendar, not the write calendar", async () => {
+    setup(0);
+    mockGetCalendarId.mockResolvedValue(null);
+    const res = await POST(request({ calendarIds: ["caltodo-cal", "other"] }));
+    expect(res.status).toBe(200);
+    expect(mockRenewWatchChannel).toHaveBeenCalledTimes(1);
+    expect(mockRenewWatchChannel.mock.calls[0][3]).toBe("primary");
+  });
+
+  it("still saves the selection when channel registration fails", async () => {
+    setup(0);
+    mockGetCalendarId.mockResolvedValue(null);
+    mockRenewWatchChannel.mockResolvedValue(null);
+    const res = await POST(request({ calendarIds: ["caltodo-cal"] }));
+    expect(res.status).toBe(200);
+    expect(mockCredsUpdateEq).toHaveBeenCalled();
   });
 
   it("rejects an empty or oversized selection", async () => {
