@@ -33,6 +33,7 @@ import {
 } from "@/lib/classroom-client";
 import { CLASSROOM_AVAILABLE } from "@/lib/classroom-availability";
 import { getValidAccessToken } from "@/lib/gcal/token-manager";
+import { propagateUpsertedAssignments, propagateDismissedTasks, type PreUpsertRow } from "@/lib/gcal/propagate-sync";
 import { after } from "next/server";
 import { reportSyncFailures } from "@/lib/integration-alerts";
 import {
@@ -1165,13 +1166,16 @@ async function upsertAssignments(
   // Ordered by primary key: without a stable order, pages of a .range()
   // scan can overlap or skip rows between requests, which again leaves rows
   // unseen and treated as new.
-  type ExistingRow = { external_id: string | null; due_date_manually_edited_at: string | null; due_time_manually_edited_at: string | null; dismissed_by_user: boolean | null };
+  //
+  // id, title, due_date, due_time and google_event_id are the pre-upsert
+  // snapshot propagateUpsertedAssignments diffs against at the end (H17).
+  type ExistingRow = PreUpsertRow & { due_date_manually_edited_at: string | null; due_time_manually_edited_at: string | null; dismissed_by_user: boolean | null };
   const existingTaskRows: ExistingRow[] = [];
   const EXISTING_PAGE = 1000;
   for (let from = 0; ; from += EXISTING_PAGE) {
     const { data: page, error: pageError } = await supabase
       .from("tasks")
-      .select("external_id, due_date_manually_edited_at, due_time_manually_edited_at, dismissed_by_user")
+      .select("id, external_id, title, due_date, due_time, google_event_id, due_date_manually_edited_at, due_time_manually_edited_at, dismissed_by_user")
       .eq("user_id", userId)
       .eq("source", source)
       .order("id", { ascending: true })
@@ -1354,6 +1358,10 @@ async function upsertAssignments(
     }
   }
 
+  // Best-effort: push changed titles and due dates to Google Calendar for
+  // tasks that already have an event (bounded, logs what it could not reach).
+  await propagateUpsertedAssignments(supabase, userId, source, existingTaskRows, upsertedExternalIds);
+
   return { synced: totalUpserted, errors };
 }
 
@@ -1466,6 +1474,9 @@ async function dismissMissingTasks(
       source,
       count: toDismiss.length,
     });
+
+    // Best-effort: remove the Google events of the dismissed tasks (bounded).
+    await propagateDismissedTasks(supabase, userId, toDismiss);
   } catch (err) {
     logger.error("dismissMissingTasks: unexpected error", {
       userId,

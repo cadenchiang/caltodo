@@ -100,7 +100,16 @@ describe("what Google Calendar's add control offers", () => {
 
   it("refuses to leave nothing syncing", () => {
     expect(list).toContain("Keep at least one calendar.");
-    expect(list).toContain("loaded!.selectedIds.length === 1");
+  });
+
+  it("locks the write calendar (index 0) instead of offering to remove it", () => {
+    // Tasks are written to selectedIds[0]; removing it would retarget every
+    // create and orphan every existing event (audit H15).
+    expect(list).toContain("const writeCalendarId = loaded?.selectedIds[0] ?? null;");
+    expect(list).toContain("calendar.id === writeCalendarId ? (");
+    expect(list).toContain("Tasks are written to this calendar, so it cannot be removed.");
+    expect(list).toContain("The others are read only.");
+    expect(list).not.toContain("loaded!.selectedIds.length === 1");
   });
 
   it("hides the add control once the API's limit is reached", () => {

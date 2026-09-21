@@ -4,8 +4,8 @@
  *
  * Reads newline-delimited JSON events from the response stream:
  *   {"type":"start","total":N}
- *   {"type":"progress","synced":N,"total":N}
- *   {"type":"done","synced":N,"total":N,"errors":[]}
+ *   {"type":"progress","synced":N,"total":N,"taskId"?:"...","googleEventId"?:"..."}
+ *   {"type":"done","synced":N,"total":N,"errors":[],"partial"?:bool,"remaining"?:N}
  */
 
 /** Result shape returned by the "done" event. */
@@ -13,12 +13,21 @@ export interface SyncStreamResult {
   synced: number;
   total: number;
   errors: string[];
+  /** True when the server stopped at its time budget with tasks left over. */
+  partial?: boolean;
+  /** Tasks not attempted this run (only meaningful when partial). */
+  remaining?: number;
 }
 
 /** Callbacks for stream progress and completion events. */
 export interface SyncStreamCallbacks {
   onProgress: (synced: number, total: number) => void;
   onDone: () => void;
+  /**
+   * Fired for each progress event that carries the task id and the event id
+   * the server just attached, so the client can mirror it into local state.
+   */
+  onTaskSynced?: (taskId: string, googleEventId: string) => void;
 }
 
 /**
@@ -50,6 +59,9 @@ export async function readSyncStream(
         const event = JSON.parse(line);
         if (event.type === "start" || event.type === "progress") {
           callbacks.onProgress(event.synced ?? 0, event.total);
+          if (event.type === "progress" && typeof event.taskId === "string" && typeof event.googleEventId === "string") {
+            callbacks.onTaskSynced?.(event.taskId, event.googleEventId);
+          }
         } else if (event.type === "done") {
           finalResult = event;
           callbacks.onDone();

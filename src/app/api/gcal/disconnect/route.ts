@@ -97,9 +97,29 @@ export async function POST() {
     return NextResponse.json({ error: "Failed to clear tokens" }, { status: 500 });
   }
 
+  // The events belong to the account that was just disconnected. Leaving the
+  // ids on the tasks made a reconnect (possibly with another Google account)
+  // report "already synced" and never create anything, so clear them; the
+  // next initial-sync then rebuilds the calendar from scratch.
+  const { data: clearedRows, error: eventClearError } = await supabase
+    .from("tasks")
+    .update({ google_event_id: null })
+    .eq("user_id", user.id)
+    .not("google_event_id", "is", null)
+    .select("id");
+  const eventIdsCleared = !eventClearError;
+  if (eventClearError) {
+    logger.error("POST /api/gcal/disconnect: failed to clear task event ids", {
+      userId: user.id,
+      error: eventClearError.message,
+      impact: "a reconnect will report these tasks as already synced",
+    });
+  }
+
   logger.info("POST /api/gcal/disconnect: Google Calendar disconnected", {
     userId: user.id,
+    eventIdsCleared: clearedRows?.length ?? 0,
   });
 
-  return NextResponse.json({ disconnected: true });
+  return NextResponse.json({ disconnected: true, eventIdsCleared });
 }

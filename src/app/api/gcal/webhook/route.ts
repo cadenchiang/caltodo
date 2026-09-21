@@ -2,10 +2,13 @@
  * POST /api/gcal/webhook
  *
  * Receives push notifications from Google Calendar when events change.
- * Validates the channel, performs an incremental sync to refresh the syncToken,
- * and updates gcal_events_updated_at so the client knows to refetch.
+ * Validates the channel, performs an incremental sync of the watched
+ * (primary) calendar to refresh the syncToken, and updates
+ * gcal_events_updated_at so the client knows to refetch. Without a stored
+ * token the fallback is a bounded full sync; a failure is recorded and
+ * still acknowledged with 200.
  *
- * No user session available — uses admin Supabase client.
+ * No user session available, so it uses the admin Supabase client.
  * Must respond within 10 seconds (Google retries on timeout).
  */
 
@@ -13,6 +16,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getValidAccessToken } from "@/lib/gcal/token-manager";
 import { performIncrementalSync } from "@/lib/gcal/incremental-sync";
+import { WATCHED_CALENDAR_ID } from "@/lib/gcal/watch-manager";
 import { logger } from "@/lib/logger";
 
 export async function POST(request: NextRequest) {
@@ -39,13 +43,13 @@ export async function POST(request: NextRequest) {
   // with the secret token on the next daily cron renewal).
   let { data: creds } = await supabase
     .from("integration_credentials")
-    .select("user_id, gcal_channel_id, google_calendar_id")
+    .select("user_id, gcal_channel_id")
     .eq("gcal_channel_id", userToken)
     .maybeSingle();
   if (!creds) {
     const legacy = await supabase
       .from("integration_credentials")
-      .select("user_id, gcal_channel_id, google_calendar_id")
+      .select("user_id, gcal_channel_id")
       .eq("user_id", userToken)
       .maybeSingle();
     creds = legacy.data;
@@ -78,10 +82,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    const calendarId = resolveCalendarId(creds.google_calendar_id);
-    await performIncrementalSync(supabase, userId, accessToken, calendarId);
-
-    logger.info("gcal/webhook: processed notification", { userId, resourceState, calendarId });
+    // The channel watches the user's primary calendar, so that is what the
+    // incremental sync reads (the write calendar, calendarIds[0], is not it).
+    const calendarId = WATCHED_CALENDAR_ID;
+    // With no stored token this is a bounded full sync (last 30 days, 3
+    // pages). If even that fails, record it and still ack: the notification
+    // itself says something changed, so bump the marker the client polls
+    // and let the daily cron retry the token instead of Google retrying us.
+    const result = await performIncrementalSync(supabase, userId, accessToken, calendarId);
+    if (!result) {
+      const { error: markError } = await supabase
+        .from("integration_credentials")
+        .update({ gcal_events_updated_at: new Date().toISOString() })
+        .eq("user_id", userId);
+      logger.error("gcal/webhook: sync token could not be refreshed", {
+        userId, calendarId, resourceState,
+        markError: markError?.message,
+        impact: "client refetches from the change marker; token retried by the daily cron",
+      });
+    } else {
+      logger.info("gcal/webhook: processed notification", { userId, resourceState, calendarId, fullSync: result.isFullSync });
+    }
   } catch (err) {
     logger.error("gcal/webhook: sync failed", {
       userId,
@@ -90,20 +111,4 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ ok: true });
-}
-
-/**
- * Resolves the first calendar ID from the stored JSON or string.
- *
- * @param stored - The stored google_calendar_id value
- * @returns A single calendar ID string
- */
-function resolveCalendarId(stored: string | null): string {
-  if (!stored) return "primary";
-  try {
-    const parsed = JSON.parse(stored);
-    return Array.isArray(parsed) ? parsed[0] || "primary" : stored;
-  } catch {
-    return stored;
-  }
 }

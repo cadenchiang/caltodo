@@ -101,7 +101,16 @@ async function runBackgroundSync(silent = false): Promise<void> {
       return;
     }
 
-    if (finalResult.synced > 0) {
+    if (finalResult.partial) {
+      // The server stopped at its time budget, not on an error. Leave the
+      // failure counter alone (and the cooldown timestamp as set) so the
+      // next visit continues with the remaining tasks.
+      consecutiveSyncFailures = 0;
+      toast(
+        `Synced ${finalResult.synced} of ${finalResult.total} tasks to Google Calendar so far. ` +
+        `The remaining ${finalResult.remaining ?? finalResult.total - finalResult.synced} will continue next time.`
+      );
+    } else if (finalResult.synced > 0) {
       consecutiveSyncFailures = 0;
       const msg = finalResult.synced === finalResult.total
         ? `Synced ${finalResult.synced} task${finalResult.synced === 1 ? "" : "s"} to Google Calendar.`
@@ -178,6 +187,8 @@ export default function GoogleCalendarSettings() {
   /** Whether the user's token lacks write scope and needs reconnection. */
   const [needsReconnect, setNeedsReconnect] = useState(false);
   const mountedRef = useRef(true);
+  /** The OAuth popup poll, kept so unmount can stop it. */
+  const popupPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Publish the toast helpers for the module-level background sync, which by
   // design outlives this component so the user can navigate away mid-sync.
@@ -193,7 +204,15 @@ export default function GoogleCalendarSettings() {
 
   useEffect(() => {
     mountedRef.current = true;
-    return () => { mountedRef.current = false; };
+    return () => {
+      mountedRef.current = false;
+      // A poll left running after navigation would finish the consent flow
+      // on a page the user has left and drag them back to Settings.
+      if (popupPollRef.current) {
+        clearInterval(popupPollRef.current);
+        popupPollRef.current = null;
+      }
+    };
   }, []);
 
   // Keep the gcal_status localStorage cache in sync for sidebar/header
@@ -210,10 +229,6 @@ export default function GoogleCalendarSettings() {
 
   function toast(msg: string, opts?: Parameters<typeof showToast>[1]) {
     (globalShowToast ?? showToast)(msg, opts);
-  }
-
-  function toastProgress(progress: number) {
-    (globalUpdateProgress ?? updateToastProgress)(progress);
   }
 
   function ifMounted<T>(setter: React.Dispatch<React.SetStateAction<T>>, value: NoInfer<T>) {
@@ -333,58 +348,18 @@ export default function GoogleCalendarSettings() {
         toast(`Failed to set up calendar: ${err.error || selectRes.status}`);
         return;
       }
-      const selectResult = await selectRes.json();
+      // Existing tasks are synced by the auto-sync effect once oauthConnecting
+      // clears (select-calendar does not report whether any are pending).
       const gcalUrl = googleEmail
         ? `https://calendar.google.com/calendar/r?authuser=${encodeURIComponent(googleEmail)}`
         : "https://calendar.google.com";
-      const openAction = {
+      toast("Google Calendar connected! New tasks will sync automatically.", {
         action: {
           label: "Open",
           icon: <ExternalLink size={14} />,
           onClick: () => window.open(gcalUrl, "_blank"),
         },
-      };
-      if (selectResult.needsSync) {
-        ifMounted(setSyncProgress, { synced: 0, total: 0 });
-        toast("Syncing tasks to Google Calendar...", { progress: 0 });
-        const syncRes = await fetch("/api/gcal/initial-sync", { method: "POST" });
-        const contentType = syncRes.headers.get("Content-Type") ?? "";
-        if (contentType.includes("application/json")) {
-          const syncResult = await syncRes.json();
-          if (!syncRes.ok) {
-            toast(`Sync failed: ${syncResult.error || syncRes.status}`);
-          } else if (syncResult.synced > 0) {
-            const msg = syncResult.synced === syncResult.total
-              ? `Synced ${syncResult.synced} task${syncResult.synced === 1 ? "" : "s"} to Google Calendar.`
-              : `Synced ${syncResult.synced} of ${syncResult.total} tasks to Google Calendar.`;
-            toast(msg, openAction);
-          } else {
-            toast("Calendar created! No tasks with due dates to sync.", openAction);
-          }
-          return;
-        }
-        const finalResult = await readSyncStream(syncRes, {
-          onProgress: (synced, total) => {
-            ifMounted(setSyncProgress, { synced, total });
-            if (total > 0) toastProgress(Math.round((synced / total) * 100));
-          },
-          onDone: () => ifMounted(setSyncProgress, null),
-        });
-        if (!finalResult) { toast("Sync failed: no response stream."); return; }
-        if (finalResult && finalResult.synced > 0) {
-          const msg = finalResult.synced === finalResult.total
-            ? `Synced ${finalResult.synced} task${finalResult.synced === 1 ? "" : "s"} to Google Calendar. New tasks will sync automatically.`
-            : `Synced ${finalResult.synced} of ${finalResult.total} tasks to Google Calendar. New tasks will sync automatically.`;
-          toast(msg, openAction);
-        } else if (finalResult && finalResult.total > 0 && finalResult.synced === 0) {
-          toast(`Sync failed for all ${finalResult.total} tasks. Check your Google Calendar permissions.`);
-        } else if (finalResult && finalResult.total === 0) {
-          toast("Google Calendar connected! No tasks to sync yet — new tasks will sync automatically.", openAction);
-        }
-        /* sync complete */
-      } else {
-        toast("Google Calendar connected! New tasks will sync automatically.", openAction);
-      }
+      });
     } catch (err) {
       console.error("Auto-setup calendar error:", err);
       toast("Failed to set up calendar. Please try again.");
@@ -398,8 +373,10 @@ export default function GoogleCalendarSettings() {
       try {
         window.dispatchEvent(new CustomEvent("gcal-status-change", { detail: { connected: true } }));
       } catch { /* ignore SSR */ }
-      // Navigate back to integrations section after sync completes
-      router.replace("/app/settings?section=integrations");
+      // Navigate back to integrations section after sync completes, but not
+      // if the user has since left Settings: yanking them back is worse than
+      // leaving the URL as is.
+      if (mountedRef.current) router.replace("/app/settings?section=integrations");
     }
   }
 
@@ -434,12 +411,21 @@ export default function GoogleCalendarSettings() {
 
   /**
    * Disconnects Google Calendar via API.
-   * Clears local state/cache and shows confirmation toast.
+   * Clears local state/cache and shows confirmation toast only when the
+   * server confirmed the disconnect; any other status leaves the card as is.
    */
   async function handleDisconnect() {
     setDisconnecting(true);
     try {
-      await fetch("/api/gcal/disconnect", { method: "POST" });
+      const res = await fetch("/api/gcal/disconnect", { method: "POST" });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        console.error("handleDisconnect: server refused", {
+          status: res.status, error: body.error, impact: "tokens still stored, card stays connected",
+        });
+        showToast(`Failed to disconnect Google Calendar: ${body.error || res.status}`);
+        return;
+      }
       try { localStorage.removeItem(GCAL_CACHE_KEY); } catch { /* ignore */ }
       await refresh();
       // Notify header/sidebar to update GCal badge
@@ -447,7 +433,8 @@ export default function GoogleCalendarSettings() {
         window.dispatchEvent(new CustomEvent("gcal-status-change", { detail: { connected: false } }));
       } catch { /* ignore SSR */ }
       showToast("Google Calendar disconnected.");
-    } catch {
+    } catch (err) {
+      console.error("handleDisconnect: request failed", { error: err instanceof Error ? err.message : String(err) });
       showToast("Failed to disconnect Google Calendar.");
     } finally {
       setDisconnecting(false);
@@ -494,23 +481,29 @@ export default function GoogleCalendarSettings() {
     /**
      * Polls the popup URL until it navigates back to our origin with
      * ?gcal=connected or ?gcal=error, then closes the popup and handles the result.
+     * Stored in popupPollRef so unmount can clear it.
      */
-    const pollId = setInterval(() => {
+    if (popupPollRef.current) clearInterval(popupPollRef.current);
+    const stopPolling = () => {
+      if (popupPollRef.current) clearInterval(popupPollRef.current);
+      popupPollRef.current = null;
+    };
+    popupPollRef.current = setInterval(() => {
       try {
         if (!popup || popup.closed) {
-          clearInterval(pollId);
+          stopPolling();
           return;
         }
 
         const popupUrl = popup.location.href;
 
         if (popupUrl.includes("gcal=connected")) {
-          clearInterval(pollId);
+          stopPolling();
           popup.close();
           setOauthConnecting(true);
           autoSetupCalendar();
         } else if (popupUrl.includes("gcal=error")) {
-          clearInterval(pollId);
+          stopPolling();
           popup.close();
           const url = new URL(popupUrl);
           const reason = url.searchParams.get("reason");

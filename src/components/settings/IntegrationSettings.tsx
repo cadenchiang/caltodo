@@ -113,13 +113,19 @@ export function IntegrationProvider({ children }: { children: React.ReactNode })
   const [credentials, setCredentials] = useState<IntegrationCredentials>(EMPTY_CREDENTIALS);
   const [loading, setLoading] = useState(true);
 
-  const fetchCredentials = useCallback(async () => {
+  /**
+   * Loads credentials through the shared single-flight client.
+   *
+   * @param force - Bypass the client's 30s cache. Used after a write (connect,
+   *   disconnect, save) so the card reflects the server, not a stale snapshot.
+   */
+  const fetchCredentials = useCallback(async (force = false) => {
     setLoading(true);
     try {
       // Go through the shared single-flight client so this provider doesn't
-      // fire its OWN /api/credentials request on top of the app's — every
+      // fire its OWN /api/credentials request on top of the app's; every
       // caller on a page collapses into one network request.
-      const data = (await getCredentials()) as IntegrationCredentials | null;
+      const data = (await getCredentials(force)) as IntegrationCredentials | null;
       if (data) {
         setCredentials(data);
         setCachedCredentials(data);
@@ -170,7 +176,9 @@ export function IntegrationProvider({ children }: { children: React.ReactNode })
   // flip from "Connect" to "Connected" within ~one tick of the change
   // landing on the server instead of waiting for the next manual refresh.
   useEffect(() => {
-    const refresh = () => fetchCredentials();
+    // A change signal means the server row differs from any cached copy, so
+    // bypass the 30s cache; a mere focus regain can use it.
+    const refresh = () => fetchCredentials(true);
     const handleFocus = () => fetchCredentials();
     const handleStorage = (e: StorageEvent) => {
       if (e.key === CACHE_KEY || e.key === null) fetchCredentials();
@@ -196,8 +204,12 @@ export function IntegrationProvider({ children }: { children: React.ReactNode })
     invalidateCredentials();
   }
 
+  // refresh() is called right after a write (GCal connect/disconnect), so it
+  // must bypass the 30s cache or the card flips back to the pre-write state.
+  const refresh = useCallback(() => fetchCredentials(true), [fetchCredentials]);
+
   return (
-    <CredentialsContext.Provider value={{ credentials, loading, handleUpdate, refresh: fetchCredentials }}>
+    <CredentialsContext.Provider value={{ credentials, loading, handleUpdate, refresh }}>
       {children}
     </CredentialsContext.Provider>
   );

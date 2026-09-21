@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Inbox, X, Sun, CalendarRange, CalendarDays, GraduationCap, List, LayoutGrid, ArrowUpDown, RefreshCw, Plus, ChevronDown } from "lucide-react";
 import { useTaskContext } from "@/contexts/TaskContext";
+import { pushBatchDeleteToGCal } from "@/lib/gcal/client-push";
 import { useToast } from "@/contexts/ToastContext";
 import { getRealTaskId } from "@/lib/expand-repeating-tasks";
 import TaskList from "@/components/tasks/TaskList";
@@ -179,7 +180,7 @@ export default function InboxPage() {
   /** Wraps toggleComplete to resolve virtual repeat instance IDs to real task IDs. */
   const toggleComplete = useCallback((id: string) => rawToggle(getRealTaskId(id)), [rawToggle]);
   /** Wraps deleteTask to resolve virtual repeat instance IDs to real task IDs. */
-  const deleteTask = useCallback((id: string, opts?: { silent?: boolean }) => rawDelete(getRealTaskId(id), opts), [rawDelete]);
+  const deleteTask = useCallback((id: string, opts?: { silent?: boolean; skipGCal?: boolean }) => rawDelete(getRealTaskId(id), opts), [rawDelete]);
   /** Wraps updateTask to resolve virtual repeat instance IDs to real task IDs. */
   const updateTask = useCallback(
     (id: string, updates: Parameters<typeof rawUpdate>[1]) => rawUpdate(getRealTaskId(id), updates),
@@ -834,8 +835,11 @@ export default function InboxPage() {
                     const matching = sortedTasks.filter(
                       (t) => (t.course_name || "General") === courseName
                     );
+                    // One batched calendar delete before the rows go, instead
+                    // of one request per task (rate limited at 30/min).
+                    await pushBatchDeleteToGCal([...new Set(matching.map((t) => getRealTaskId(t.id)))]);
                     for (const t of matching) {
-                      await deleteTask(t.id, { silent: true });
+                      await deleteTask(t.id, { silent: true, skipGCal: true });
                     }
                     if (matching.length > 0) {
                       showToast(
@@ -880,8 +884,9 @@ export default function InboxPage() {
                     const matching = filteredTasks.filter(
                       (t) => (t.course_name || "General") === courseName
                     );
+                    await pushBatchDeleteToGCal([...new Set(matching.map((t) => getRealTaskId(t.id)))]);
                     for (const t of matching) {
-                      await deleteTask(t.id, { silent: true });
+                      await deleteTask(t.id, { silent: true, skipGCal: true });
                     }
                     if (matching.length > 0) {
                       showToast(
