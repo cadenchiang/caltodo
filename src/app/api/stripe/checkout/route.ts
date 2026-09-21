@@ -155,14 +155,13 @@ export async function POST(req: NextRequest) {
         { status: 503 },
       );
     }
+    // The real reason (Stripe's message can name price ids, customer ids
+    // and account state) stays in the log; the browser gets a generic line.
     logger.error("stripe_checkout_failed", {
       message: err instanceof Error ? err.message : String(err),
     });
     return NextResponse.json(
-      {
-        error: "checkout_failed",
-        message: err instanceof Error ? err.message : "Unexpected error.",
-      },
+      { error: "checkout_failed", message: "Could not start checkout. Please try again." },
       { status: 500 },
     );
   }

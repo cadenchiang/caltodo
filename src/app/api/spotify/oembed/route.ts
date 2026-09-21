@@ -10,6 +10,7 @@
  */
 
 import { NextResponse, type NextRequest } from "next/server";
+import { logger } from "@/lib/logger";
 
 /** Allowed Spotify hostnames so we don't proxy arbitrary URLs. */
 const SPOTIFY_HOSTS = new Set(["open.spotify.com", "spotify.com"]);
@@ -67,9 +68,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       },
     });
   } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Unknown fetch failure." },
-      { status: 502 },
-    );
+    // The fetch error can carry the upstream URL and network detail; log it
+    // and give the browser a generic line.
+    logger.error("GET /api/spotify/oembed failed", {
+      error: err instanceof Error ? err.message : String(err),
+      impact: "widget shows its fallback instead of the embed",
+    });
+    return NextResponse.json({ error: "Could not load the Spotify embed." }, { status: 502 });
   }
 }
