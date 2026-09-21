@@ -58,4 +58,32 @@ describe("TaskContext Google Calendar paths", () => {
     const update = section("async function updateTask", "async function toggleComplete");
     expect(update).toContain("if (touchesGCalEvent(stampedUpdates))");
   });
+
+  it("lets a bulk caller skip the per-task calendar delete", () => {
+    const del = section("async function deleteTask", "async function mergeDuplicates");
+    expect(del).toContain("if (!opts?.skipGCal)");
+  });
+});
+
+describe("bulk class delete", () => {
+  const inbox = readFileSync(join(process.cwd(), "src/app/app/inbox/page.tsx"), "utf8");
+
+  it("issues one batched calendar delete before the per-task row deletes", () => {
+    const handlers = inbox.split("onDeleteClass={").slice(1);
+    expect(handlers).toHaveLength(2);
+    for (const h of handlers) {
+      const batch = h.indexOf("await pushBatchDeleteToGCal(");
+      const rowDelete = h.indexOf("deleteTask(t.id, { silent: true, skipGCal: true })");
+      expect(batch).toBeGreaterThan(-1);
+      expect(rowDelete).toBeGreaterThan(batch);
+    }
+  });
+
+  it("does not call Google for class color changes", () => {
+    const handlers = inbox.split("onColorChange={").slice(1);
+    expect(handlers).toHaveLength(2);
+    for (const h of handlers) {
+      expect(h.slice(0, h.indexOf("}}"))).not.toMatch(/gcal/i);
+    }
+  });
 });

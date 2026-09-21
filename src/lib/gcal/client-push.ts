@@ -96,3 +96,40 @@ export async function pushTaskToGCal(
     return null;
   }
 }
+
+/** Most task ids one /api/gcal/delete-batch request accepts. */
+export const GCAL_DELETE_BATCH_MAX = 100;
+
+/**
+ * Removes the Google Calendar events of many tasks in one request per 100
+ * ids, instead of one /api/gcal/sync request per task (which tripped the
+ * 30/min limit on a bulk class delete and orphaned the rest).
+ *
+ * The server resolves each event id from the task row, so this must run
+ * BEFORE the rows are deleted. Resolves once every batch has been sent.
+ *
+ * @param taskIds - Ids of the tasks about to be deleted.
+ * @returns Nothing. Never rejects; failures are logged.
+ */
+export async function pushBatchDeleteToGCal(taskIds: string[]): Promise<void> {
+  if (taskIds.length === 0 || !isGCalConnected()) return;
+  for (let i = 0; i < taskIds.length; i += GCAL_DELETE_BATCH_MAX) {
+    const chunk = taskIds.slice(i, i + GCAL_DELETE_BATCH_MAX);
+    try {
+      const res = await fetch("/api/gcal/delete-batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ taskIds: chunk }),
+      });
+      if (!res.ok) {
+        console.warn("pushBatchDeleteToGCal: request failed", {
+          status: res.status, count: chunk.length, impact: "calendar events of these tasks may remain",
+        });
+      }
+    } catch (err) {
+      console.warn("pushBatchDeleteToGCal: request errored", {
+        count: chunk.length, error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+}

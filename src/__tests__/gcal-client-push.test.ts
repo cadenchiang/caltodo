@@ -13,6 +13,8 @@ import {
   isGCalConnected,
   touchesGCalEvent,
   pushTaskToGCal,
+  pushBatchDeleteToGCal,
+  GCAL_DELETE_BATCH_MAX,
 } from "@/lib/gcal/client-push";
 
 const fetchMock = vi.fn();
@@ -116,5 +118,34 @@ describe("pushTaskToGCal", () => {
     await expect(pushTaskToGCal("create", "task-1")).resolves.toBeNull();
     fetchMock.mockRejectedValueOnce(new Error("offline"));
     await expect(pushTaskToGCal("create", "task-1")).resolves.toBeNull();
+  });
+});
+
+describe("pushBatchDeleteToGCal", () => {
+  it("sends nothing when disconnected or given no ids", async () => {
+    stubLocalStorage(JSON.stringify({ connected: false }));
+    await pushBatchDeleteToGCal(["t1"]);
+    stubLocalStorage(JSON.stringify({ connected: true }));
+    await pushBatchDeleteToGCal([]);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("sends one request per 100 ids to the batch endpoint", async () => {
+    stubLocalStorage(JSON.stringify({ connected: true }));
+    fetchMock.mockResolvedValue(jsonResponse({ deleted: 0, failed: 0, skipped: 0 }));
+    const ids = Array.from({ length: GCAL_DELETE_BATCH_MAX + 5 }, (_, i) => `t${i}`);
+    await pushBatchDeleteToGCal(ids);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[0][0]).toBe("/api/gcal/delete-batch");
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).taskIds).toHaveLength(GCAL_DELETE_BATCH_MAX);
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body).taskIds).toHaveLength(5);
+  });
+
+  it("never rejects on a failed or errored request", async () => {
+    stubLocalStorage(JSON.stringify({ connected: true }));
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "x" }, false, 429));
+    await expect(pushBatchDeleteToGCal(["t1"])).resolves.toBeUndefined();
+    fetchMock.mockRejectedValueOnce(new Error("offline"));
+    await expect(pushBatchDeleteToGCal(["t1"])).resolves.toBeUndefined();
   });
 });

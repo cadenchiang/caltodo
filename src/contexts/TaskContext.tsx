@@ -146,7 +146,7 @@ interface TaskContextValue {
    */
   updateTask: (id: string, updates: TaskUpdate, opts?: { announce?: boolean }) => Promise<void>;
   toggleComplete: (id: string) => Promise<void>;
-  deleteTask: (id: string, opts?: { silent?: boolean }) => Promise<void>;
+  deleteTask: (id: string, opts?: { silent?: boolean; skipGCal?: boolean }) => Promise<void>;
   deleteTasksBySource: (source: "canvas" | "gradescope" | "pensieve" | "brightspace" | "blackboard" | "syllabus") => Promise<void>;
   /** Deletes all syllabus tasks for a specific course_name. */
   deleteSyllabusTasksByCourse: (courseName: string) => Promise<void>;
@@ -958,8 +958,10 @@ export function TaskProvider({
    * Manual tasks are hard-deleted since they can't be recreated by sync.
    *
    * @param opts.silent - When true, suppresses the per-task toast (used by bulk delete callers).
+   * @param opts.skipGCal - When true, the caller already removed the calendar
+   *   events in one batch (pushBatchDeleteToGCal), so no per-task request is sent.
    */
-  async function deleteTask(id: string, opts?: { silent?: boolean }) {
+  async function deleteTask(id: string, opts?: { silent?: boolean; skipGCal?: boolean }) {
     trackEvent("task_deleted");
     const taskToDelete = tasks.find((t) => t.id === id);
     const previousIndex = tasks.findIndex((t) => t.id === id);
@@ -1027,7 +1029,9 @@ export function TaskProvider({
     // Remove the task's Google Calendar event BEFORE the row goes away: the
     // server resolves the event id from the row when this session never
     // learned it, and once the row is deleted nothing can find the event.
-    await pushTaskToGCal("delete", id, taskToDelete?.google_event_id);
+    if (!opts?.skipGCal) {
+      await pushTaskToGCal("delete", id, taskToDelete?.google_event_id);
+    }
 
     const { error: deleteError } = isSyncedTask
       ? await supabase
