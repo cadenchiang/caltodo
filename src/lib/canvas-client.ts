@@ -5,8 +5,14 @@
 
 import { logger } from "@/lib/logger";
 
-/** Timeout in milliseconds for external Canvas API calls. */
-const FETCH_TIMEOUT_MS = 30_000;
+/**
+ * Timeout in milliseconds for one Canvas API request.
+ *
+ * Kept well under the sync function's 60s limit: Canvas is fetched one page
+ * at a time, and at 30s a single slow page could exhaust the whole budget
+ * (audit M7). Exported so the budget test can pin it.
+ */
+export const FETCH_TIMEOUT_MS = 10_000;
 
 /**
  * Extracts plain text and file links from Canvas HTML description.

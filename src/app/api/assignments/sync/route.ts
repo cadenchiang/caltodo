@@ -11,6 +11,15 @@ import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
 
 /**
+ * The sync fetches several upstreams in one function and paginates Canvas.
+ * At the 10s default one slow page killed it mid-write (audit M7). Segment
+ * config must be a literal, so this is spelled out; it must agree with the
+ * entry for this route in vercel.json and with SYNC_FUNCTION_MAX_DURATION_MS
+ * in sync-budget.ts, and the budget test checks all three.
+ */
+export const maxDuration = 60;
+
+/**
  * POST /api/assignments/sync
  * Triggers a full sync from both Canvas and Gradescope.
  * Accepts optional { timezone } in request body for timezone-aware date conversion.

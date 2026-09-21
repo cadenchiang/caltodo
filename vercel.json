@@ -10,7 +10,11 @@
     },
     "src/app/api/syllabus/extract/route.ts": {
       "memory": 512,
-      "maxDuration": 30
+      "maxDuration": 60
+    },
+    "src/app/api/assignments/sync/route.ts": {
+      "memory": 256,
+      "maxDuration": 60
     },
     "src/app/api/nsfw-check/route.ts": {
       "memory": 1024,

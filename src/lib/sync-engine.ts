@@ -42,6 +42,7 @@ import {
   SUCCESS_COLUMN,
 } from "@/lib/gradescope-cooldown";
 import type { SyncResult, SyncSourceResult, AdditionalCanvasAccount } from "@/lib/types";
+import { startSyncBudget, type SyncBudget } from "@/lib/sync-budget";
 
 const UPSERT_BATCH_SIZE = 50;
 
@@ -95,6 +96,10 @@ export type SyncPlatform = "canvas" | "gradescope" | "pensieve" | "brightspace" 
  * @param courseOverrides - Optional course lists to override stored selections
  * @param forceGradescope - If true, bypasses the 1-hour Gradescope cooldown (for manual syncs)
  * @param platforms - Optional list of platforms to sync (default: all)
+ * @param budget - Wall-clock budget; once spent, the sequential stages that
+ *        follow the parallel source fetch (extra Canvas accounts, enrollment,
+ *        new-course detection) are skipped with a logged reason rather than
+ *        letting the function be killed mid-write. Injectable for tests.
  * @returns SyncResult with counts and errors for each source
  */
 export async function runSync(
@@ -103,7 +108,8 @@ export async function runSync(
   timezone: string = "America/Los_Angeles",
   courseOverrides?: SyncCourseOverrides,
   forceGradescope: boolean = false,
-  platforms?: SyncPlatform[]
+  platforms?: SyncPlatform[],
+  budget: SyncBudget = startSyncBudget()
 ): Promise<SyncResult> {
   // Fetch credentials.
   //
@@ -197,6 +203,17 @@ export async function runSync(
   if (syncAll || platforms?.includes("canvas")) {
     const additionalAccounts = credentials.additional_canvas_accounts ?? [];
     for (const account of additionalAccounts) {
+      if (budget.exhausted()) {
+        logger.warn("runSync: skipping additional Canvas account, sync budget exhausted", {
+          userId,
+          accountId: account.id,
+          elapsedMs: budget.elapsedMs(),
+          cause: "earlier sources used the whole time budget",
+          impact: "this account's assignments were not updated this run; the next sync retries",
+        });
+        canvasResult.errors.push(`${account.label}: skipped, the sync ran out of time. It will retry on the next sync.`);
+        continue;
+      }
       const result = await syncAdditionalCanvas(supabase, userId, account, timezone, courseNameMap);
       canvasResult.synced += result.synced;
       canvasResult.errors.push(...result.errors);
@@ -228,7 +245,13 @@ export async function runSync(
 
   // Auto-enroll user into discussion boards for their synced courses.
   // Uses (source, external_id) as dedup key so name changes don't split boards.
-  try {
+  if (budget.exhausted()) {
+    logger.warn("runSync: skipping course enrollment, sync budget exhausted", {
+      userId,
+      elapsedMs: budget.elapsedMs(),
+      impact: "chat memberships not refreshed this run; the next sync retries",
+    });
+  } else try {
     const adminClient = createAdminClient();
     // Apply canonical names to enrollable courses so cross-platform duplicates
     // share the same display name in the courses table.
@@ -249,7 +272,13 @@ export async function runSync(
   // Detect new Canvas courses the user hasn't selected yet
   let newCanvasCourses: Array<{ id: number; name: string }> | undefined;
   if (credentials.canvas_token && Array.isArray(credentials.selected_canvas_courses) && credentials.selected_canvas_courses.length > 0) {
-    try {
+    if (budget.exhausted()) {
+      logger.warn("runSync: skipping new-course detection, sync budget exhausted", {
+        userId,
+        elapsedMs: budget.elapsedMs(),
+        impact: "no new-course prompt this run; the next sync retries",
+      });
+    } else try {
       const allCourses = await fetchCanvasCourses(credentials.canvas_token, credentials.canvas_base_url);
       const selectedIds = new Set(credentials.selected_canvas_courses.map((c) => c.id));
       // Only offer courses for the current term (or the next one, whose sites
