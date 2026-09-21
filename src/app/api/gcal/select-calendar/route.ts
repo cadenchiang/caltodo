@@ -8,7 +8,7 @@
 
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getValidAccessToken } from "@/lib/gcal/token-manager";
+import { getValidAccessToken, getCalendarId } from "@/lib/gcal/token-manager";
 import { renewWatchChannel } from "@/lib/gcal/watch-manager";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
@@ -45,6 +45,36 @@ export async function POST(request: Request) {
   const accessToken = await getValidAccessToken(supabase, user.id);
   if (!accessToken) {
     return NextResponse.json({ error: "Google Calendar not connected" }, { status: 400 });
+  }
+
+  // Index 0 is the write target (getCalendarId). Changing it while tasks
+  // still reference events would 404 every update, recreate the events in
+  // the new calendar and leave the old ones behind, so refuse it.
+  const currentWriteCalendarId = await getCalendarId(supabase, user.id);
+  if (currentWriteCalendarId && currentWriteCalendarId !== body.calendarIds[0]) {
+    const { count, error: countError } = await supabase
+      .from("tasks")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .not("google_event_id", "is", null);
+    if (countError) {
+      logger.error("POST /api/gcal/select-calendar: failed to count synced tasks", {
+        userId: user.id, error: countError.message, impact: "selection refused to be safe",
+      });
+      return NextResponse.json({ error: "Failed to check synced tasks" }, { status: 500 });
+    }
+    if ((count ?? 0) > 0) {
+      logger.warn("POST /api/gcal/select-calendar: refused write calendar change", {
+        userId: user.id, from: currentWriteCalendarId, to: body.calendarIds[0], syncedTasks: count,
+      });
+      return NextResponse.json(
+        {
+          error: `Tasks are written to your current first calendar and ${count} of them already have events there. Keep it first in the list.`,
+          reason: "write_calendar_locked",
+        },
+        { status: 409 }
+      );
+    }
   }
 
   // Store as JSON string in google_calendar_id column

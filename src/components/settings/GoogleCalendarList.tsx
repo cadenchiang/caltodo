@@ -11,7 +11,7 @@
  */
 
 import { useCallback, useState } from "react";
-import { Loader2, Plus, X } from "lucide-react";
+import { Loader2, Lock, Plus, X } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 import type { GCalCalendarEntry } from "@/lib/types";
 import { MAX_SELECTED_CALENDARS } from "@/lib/gcal-calendar-ids";
@@ -97,8 +97,14 @@ export default function GoogleCalendarList({ onSaved }: GoogleCalendarListProps)
     if (await load()) setPicking(true);
   }
 
+  // The first selected id is where tasks are written (getCalendarId reads
+  // index 0). Removing it would retarget every create to whatever came next
+  // and orphan every existing event, so it is shown locked and listed first.
+  const writeCalendarId = loaded?.selectedIds[0] ?? null;
   const selected = loaded
-    ? loaded.calendars.filter((c) => loaded.selectedIds.includes(c.id))
+    ? loaded.calendars
+        .filter((c) => loaded.selectedIds.includes(c.id))
+        .sort((a, b) => (a.id === writeCalendarId ? -1 : b.id === writeCalendarId ? 1 : 0))
     : [];
   const unselected = loaded
     ? loaded.calendars.filter((c) => !loaded.selectedIds.includes(c.id))
@@ -114,21 +120,32 @@ export default function GoogleCalendarList({ onSaved }: GoogleCalendarListProps)
         </p>
       </div>
       <div className="flex flex-wrap gap-1">
-        {selected.map((calendar) => (
-          <span key={calendar.id} className={`${CLASS_PILL} gap-1 pr-1.5`}>
-            {calendar.summary}
-            <button
-              onClick={() =>
-                save(loaded!.selectedIds.filter((id) => id !== calendar.id))
-              }
-              disabled={saving || loaded!.selectedIds.length === 1}
-              aria-label={`Stop syncing ${calendar.summary}`}
-              className="shrink-0 rounded-full p-0.5 hover:text-red-500 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+        {selected.map((calendar) =>
+          calendar.id === writeCalendarId ? (
+            <span
+              key={calendar.id}
+              className={`${CLASS_PILL} gap-1 pr-1.5`}
+              title="Tasks are written to this calendar, so it cannot be removed."
             >
-              <X size={11} />
-            </button>
-          </span>
-        ))}
+              {calendar.summary}
+              <Lock size={11} className="shrink-0 opacity-60" aria-label="Write calendar, cannot be removed" />
+            </span>
+          ) : (
+            <span key={calendar.id} className={`${CLASS_PILL} gap-1 pr-1.5`}>
+              {calendar.summary}
+              <button
+                onClick={() =>
+                  save(loaded!.selectedIds.filter((id) => id !== calendar.id))
+                }
+                disabled={saving}
+                aria-label={`Stop syncing ${calendar.summary}`}
+                className="shrink-0 rounded-full p-0.5 hover:text-red-500 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <X size={11} />
+              </button>
+            </span>
+          )
+        )}
 
         {!atLimit && (
           <button
@@ -146,6 +163,11 @@ export default function GoogleCalendarList({ onSaved }: GoogleCalendarListProps)
           </button>
         )}
       </div>
+      {selected.length > 0 && (
+        <p className="mt-1.5 text-[11px] text-muted-foreground">
+          Tasks are written to {selected[0].summary}. The others are read only.
+        </p>
+      )}
 
       {picking && loaded && (
         <div className="mt-2 max-h-52 overflow-y-auto rounded-lg border border-border divide-y divide-border">
