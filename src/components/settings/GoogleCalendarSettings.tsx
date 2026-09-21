@@ -434,12 +434,21 @@ export default function GoogleCalendarSettings() {
 
   /**
    * Disconnects Google Calendar via API.
-   * Clears local state/cache and shows confirmation toast.
+   * Clears local state/cache and shows confirmation toast only when the
+   * server confirmed the disconnect; any other status leaves the card as is.
    */
   async function handleDisconnect() {
     setDisconnecting(true);
     try {
-      await fetch("/api/gcal/disconnect", { method: "POST" });
+      const res = await fetch("/api/gcal/disconnect", { method: "POST" });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        console.error("handleDisconnect: server refused", {
+          status: res.status, error: body.error, impact: "tokens still stored, card stays connected",
+        });
+        showToast(`Failed to disconnect Google Calendar: ${body.error || res.status}`);
+        return;
+      }
       try { localStorage.removeItem(GCAL_CACHE_KEY); } catch { /* ignore */ }
       await refresh();
       // Notify header/sidebar to update GCal badge
@@ -447,7 +456,8 @@ export default function GoogleCalendarSettings() {
         window.dispatchEvent(new CustomEvent("gcal-status-change", { detail: { connected: false } }));
       } catch { /* ignore SSR */ }
       showToast("Google Calendar disconnected.");
-    } catch {
+    } catch (err) {
+      console.error("handleDisconnect: request failed", { error: err instanceof Error ? err.message : String(err) });
       showToast("Failed to disconnect Google Calendar.");
     } finally {
       setDisconnecting(false);
