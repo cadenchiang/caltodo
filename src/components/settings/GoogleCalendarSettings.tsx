@@ -187,6 +187,8 @@ export default function GoogleCalendarSettings() {
   /** Whether the user's token lacks write scope and needs reconnection. */
   const [needsReconnect, setNeedsReconnect] = useState(false);
   const mountedRef = useRef(true);
+  /** The OAuth popup poll, kept so unmount can stop it. */
+  const popupPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Publish the toast helpers for the module-level background sync, which by
   // design outlives this component so the user can navigate away mid-sync.
@@ -202,7 +204,15 @@ export default function GoogleCalendarSettings() {
 
   useEffect(() => {
     mountedRef.current = true;
-    return () => { mountedRef.current = false; };
+    return () => {
+      mountedRef.current = false;
+      // A poll left running after navigation would finish the consent flow
+      // on a page the user has left and drag them back to Settings.
+      if (popupPollRef.current) {
+        clearInterval(popupPollRef.current);
+        popupPollRef.current = null;
+      }
+    };
   }, []);
 
   // Keep the gcal_status localStorage cache in sync for sidebar/header
@@ -407,8 +417,10 @@ export default function GoogleCalendarSettings() {
       try {
         window.dispatchEvent(new CustomEvent("gcal-status-change", { detail: { connected: true } }));
       } catch { /* ignore SSR */ }
-      // Navigate back to integrations section after sync completes
-      router.replace("/app/settings?section=integrations");
+      // Navigate back to integrations section after sync completes, but not
+      // if the user has since left Settings: yanking them back is worse than
+      // leaving the URL as is.
+      if (mountedRef.current) router.replace("/app/settings?section=integrations");
     }
   }
 
@@ -513,23 +525,29 @@ export default function GoogleCalendarSettings() {
     /**
      * Polls the popup URL until it navigates back to our origin with
      * ?gcal=connected or ?gcal=error, then closes the popup and handles the result.
+     * Stored in popupPollRef so unmount can clear it.
      */
-    const pollId = setInterval(() => {
+    if (popupPollRef.current) clearInterval(popupPollRef.current);
+    const stopPolling = () => {
+      if (popupPollRef.current) clearInterval(popupPollRef.current);
+      popupPollRef.current = null;
+    };
+    popupPollRef.current = setInterval(() => {
       try {
         if (!popup || popup.closed) {
-          clearInterval(pollId);
+          stopPolling();
           return;
         }
 
         const popupUrl = popup.location.href;
 
         if (popupUrl.includes("gcal=connected")) {
-          clearInterval(pollId);
+          stopPolling();
           popup.close();
           setOauthConnecting(true);
           autoSetupCalendar();
         } else if (popupUrl.includes("gcal=error")) {
-          clearInterval(pollId);
+          stopPolling();
           popup.close();
           const url = new URL(popupUrl);
           const reason = url.searchParams.get("reason");
