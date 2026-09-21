@@ -1,33 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-
-/**
- * Creates a Supabase client authenticated with the Bearer token from the request.
- *
- * @param req - The incoming request with Authorization: Bearer <token> header.
- * @returns Authenticated Supabase client, or null if no valid token.
- */
-function getAuthClient(req: NextRequest) {
-  const authHeader = req.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) return null;
-
-  const token = authHeader.slice(7);
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { global: { headers: { Authorization: `Bearer ${token}` } } }
-  );
-}
+import { logger } from "@/lib/logger";
+import { authenticateMobile, applyCompletionInvariant } from "@/lib/mobile-task-helpers";
 
 /**
  * GET /api/mobile/tasks
  * Fetches all non-dismissed tasks for the authenticated user.
  */
 export async function GET(req: NextRequest) {
-  const supabase = getAuthClient(req);
-  if (!supabase) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await authenticateMobile(req, "GET /api/mobile/tasks");
+  if ("response" in auth) return auth.response;
+  const { supabase, user } = auth;
 
   const { data, error } = await supabase
     .from("tasks")
@@ -36,6 +18,11 @@ export async function GET(req: NextRequest) {
     .order("created_at", { ascending: false });
 
   if (error) {
+    logger.error("GET /api/mobile/tasks: query failed", {
+      userId: user.id,
+      error: error.message,
+      impact: "client shows an error instead of its task list",
+    });
     return NextResponse.json({ error: "Failed to load tasks" }, { status: 500 });
   }
 
@@ -47,10 +34,9 @@ export async function GET(req: NextRequest) {
  * Creates a new task for the authenticated user.
  */
 export async function POST(req: NextRequest) {
-  const supabase = getAuthClient(req);
-  if (!supabase) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await authenticateMobile(req, "POST /api/mobile/tasks");
+  if ("response" in auth) return auth.response;
+  const { supabase, user } = auth;
 
   let body: Record<string, unknown>;
   try {
@@ -58,12 +44,8 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
 
-  // Allowlist creatable fields — don't let the client set id/source/
+  // Allowlist creatable fields: don't let the client set id/source/
   // external_id/is_submitted/timestamps on its own rows. user_id is forced
   // to the authenticated user.
   const ALLOWED = [
@@ -71,10 +53,13 @@ export async function POST(req: NextRequest) {
     "repeat_interval", "repeat_unit", "repeat_end_date", "repeat_end_count",
     "completed_at", "tags", "snoozed_until", "sort_order", "course_name",
   ] as const;
-  const insert: Record<string, unknown> = { user_id: user.id };
+  const fields: Record<string, unknown> = {};
   for (const key of ALLOWED) {
-    if (key in body) insert[key] = body[key];
+    if (key in body) fields[key] = body[key];
   }
+  // A task created already complete gets its completed_at the same way a
+  // PATCH does, so the archive purge can see it.
+  const insert = { ...applyCompletionInvariant(fields), user_id: user.id };
 
   const { data, error } = await supabase
     .from("tasks")
@@ -83,6 +68,11 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (error) {
+    logger.error("POST /api/mobile/tasks: insert failed", {
+      userId: user.id,
+      error: error.message,
+      impact: "task not created; client shows an error",
+    });
     return NextResponse.json({ error: "Failed to create task" }, { status: 500 });
   }
 
