@@ -3,11 +3,6 @@ import { Inbox, CalendarDays, type LucideIcon } from "lucide-react";
 /**
  * Navigation items for the sidebar.
  *
- * Chat (CalChat / discussions) was removed from the product — the
- * sidebar no longer surfaces it and the CalChat widget is hidden in
- * the gallery. The /app/discussions route still exists for legacy
- * links but isn't promoted anywhere.
- *
  * Home (the widget board) is withdrawn the same way while it is being
  * reworked: /app/home and everything under src/components/home stay in the
  * tree and keep building, but nothing links to them and the route redirects.
