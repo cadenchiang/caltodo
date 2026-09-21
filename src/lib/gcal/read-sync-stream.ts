@@ -5,7 +5,7 @@
  * Reads newline-delimited JSON events from the response stream:
  *   {"type":"start","total":N}
  *   {"type":"progress","synced":N,"total":N,"taskId"?:"...","googleEventId"?:"..."}
- *   {"type":"done","synced":N,"total":N,"errors":[]}
+ *   {"type":"done","synced":N,"total":N,"errors":[],"partial"?:bool,"remaining"?:N}
  */
 
 /** Result shape returned by the "done" event. */
@@ -13,6 +13,10 @@ export interface SyncStreamResult {
   synced: number;
   total: number;
   errors: string[];
+  /** True when the server stopped at its time budget with tasks left over. */
+  partial?: boolean;
+  /** Tasks not attempted this run (only meaningful when partial). */
+  remaining?: number;
 }
 
 /** Callbacks for stream progress and completion events. */

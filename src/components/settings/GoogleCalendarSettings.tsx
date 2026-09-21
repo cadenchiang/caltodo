@@ -101,7 +101,16 @@ async function runBackgroundSync(silent = false): Promise<void> {
       return;
     }
 
-    if (finalResult.synced > 0) {
+    if (finalResult.partial) {
+      // The server stopped at its time budget, not on an error. Leave the
+      // failure counter alone (and the cooldown timestamp as set) so the
+      // next visit continues with the remaining tasks.
+      consecutiveSyncFailures = 0;
+      toast(
+        `Synced ${finalResult.synced} of ${finalResult.total} tasks to Google Calendar so far. ` +
+        `The remaining ${finalResult.remaining ?? finalResult.total - finalResult.synced} will continue next time.`
+      );
+    } else if (finalResult.synced > 0) {
       consecutiveSyncFailures = 0;
       const msg = finalResult.synced === finalResult.total
         ? `Synced ${finalResult.synced} task${finalResult.synced === 1 ? "" : "s"} to Google Calendar.`

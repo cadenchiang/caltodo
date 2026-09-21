@@ -1,8 +1,12 @@
 /**
  * POST /api/gcal/initial-sync
  *
- * Syncs all existing tasks with a due_date but no google_event_id
- * to Google Calendar. Streams progress as NDJSON.
+ * Syncs existing tasks with a due_date but no google_event_id to Google
+ * Calendar. Streams progress as NDJSON. Only tasks due within the last
+ * SYNC_FLOOR_DAYS or in the future are considered, and creates stop once
+ * TIME_BUDGET_MS has elapsed so the function is never killed mid-write;
+ * the "done" event then carries partial: true and the remaining count, and
+ * the next run picks up where this one stopped.
  *
  * @returns NDJSON stream: start, progress, done events
  */
@@ -11,6 +15,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getValidAccessToken, getCalendarId } from "@/lib/gcal/token-manager";
 import { createCalendarEvent, deleteCalendarEvent } from "@/lib/gcal/calendar-sync";
+import { syncFloorDate, withinTimeBudget, SYNC_FLOOR_DAYS } from "@/lib/gcal/initial-sync-limits";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
 import type { Task } from "@/lib/types";
@@ -19,6 +24,7 @@ import type { Task } from "@/lib/types";
 const CONCURRENCY_LIMIT = 2;
 
 export async function POST() {
+  const startedAt = Date.now();
   const supabase = await createClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
 
@@ -41,11 +47,15 @@ export async function POST() {
     return NextResponse.json({ synced: 0, needsCalendarSelection: true });
   }
 
+  // Date floor: a semester import can carry hundreds of long-past tasks that
+  // nobody wants on their calendar and that would eat the whole time budget.
+  const floor = syncFloorDate();
   const { data: tasks, error: fetchError } = await supabase
     .from("tasks")
     .select("*")
     .eq("user_id", user.id)
     .not("due_date", "is", null)
+    .gte("due_date", floor)
     .is("google_event_id", null)
     .is("dismissed_at", null)
     .order("due_date", { ascending: true });
@@ -55,11 +65,31 @@ export async function POST() {
     return NextResponse.json({ error: "Failed to fetch tasks" }, { status: 500 });
   }
 
-  if (!tasks || tasks.length === 0) {
-    return NextResponse.json({ synced: 0, total: 0 });
+  const { count: skippedOlder, error: countError } = await supabase
+    .from("tasks")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", user.id)
+    .not("due_date", "is", null)
+    .lt("due_date", floor)
+    .is("google_event_id", null)
+    .is("dismissed_at", null);
+  if (countError) {
+    logger.warn("POST /api/gcal/initial-sync: could not count tasks below the date floor", {
+      userId: user.id, error: countError.message,
+    });
+  } else if ((skippedOlder ?? 0) > 0) {
+    logger.info("POST /api/gcal/initial-sync: skipping tasks due before the floor", {
+      userId: user.id, floor, floorDays: SYNC_FLOOR_DAYS, skipped: skippedOlder,
+    });
   }
 
-  logger.info("POST /api/gcal/initial-sync: starting bulk sync", { userId: user.id, taskCount: tasks.length });
+  if (!tasks || tasks.length === 0) {
+    return NextResponse.json({ synced: 0, total: 0, skippedOlder: skippedOlder ?? 0 });
+  }
+
+  logger.info("POST /api/gcal/initial-sync: starting bulk sync", {
+    userId: user.id, taskCount: tasks.length, skippedOlder: skippedOlder ?? 0,
+  });
 
   const encoder = new TextEncoder();
   const total = tasks.length;
@@ -121,18 +151,38 @@ export async function POST() {
       }
 
       let cursor = 0;
+      let outOfTime = false;
       const running: Set<Promise<void>> = new Set();
       while (cursor < taskList.length || running.size > 0) {
-        while (cursor < taskList.length && running.size < CONCURRENCY_LIMIT) {
+        // Stop enqueuing once the budget is spent; let in-flight creates
+        // finish so every event created at Google gets its DB update.
+        // Otherwise the platform kills the function mid-write and the next
+        // run creates duplicates for the tasks whose update never landed.
+        if (!outOfTime && cursor < taskList.length && !withinTimeBudget(startedAt)) {
+          outOfTime = true;
+        }
+        while (!outOfTime && cursor < taskList.length && running.size < CONCURRENCY_LIMIT) {
           const task = taskList[cursor++];
           const promise = syncTask(task).then(() => { running.delete(promise); });
           running.add(promise);
         }
         if (running.size > 0) await Promise.race(running);
+        else if (outOfTime) break;
       }
 
-      controller.enqueue(encoder.encode(JSON.stringify({ type: "done", synced, total, errors }) + "\n"));
-      logger.info("POST /api/gcal/initial-sync: complete", { userId: user.id, synced, total, errorCount: errors.length });
+      const remaining = taskList.length - cursor;
+      const partial = remaining > 0;
+      controller.enqueue(encoder.encode(JSON.stringify({ type: "done", synced, total, errors, partial, remaining }) + "\n"));
+      if (partial) {
+        logger.warn("POST /api/gcal/initial-sync: stopped at the time budget", {
+          userId: user.id, synced, total, remaining, elapsedMs: Date.now() - startedAt,
+          impact: "remaining tasks sync on the next run",
+        });
+      } else {
+        logger.info("POST /api/gcal/initial-sync: complete", {
+          userId: user.id, synced, total, errorCount: errors.length, elapsedMs: Date.now() - startedAt,
+        });
+      }
       controller.close();
     },
   });
