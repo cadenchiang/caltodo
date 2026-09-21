@@ -43,7 +43,13 @@ function isUserActionable(msg: string): boolean {
     // "Canvas returned 401 for course 1553118" contains none of the terms
     // above, so an ordinary expired student token was mailed out as
     // integration breakage. 401/403 are always the user's to fix.
-    /\b401\b|\b403\b|unauthorized|forbidden|invalid or expired|token is invalid/.test(m)
+    /\b401\b|\b403\b|unauthorized|forbidden|invalid or expired|token is invalid/.test(m) ||
+    // A feed URL that 404s or 410s is gone on the provider's side (the user
+    // reset or deleted their Pensieve/Canvas/Brightspace/Blackboard calendar
+    // link). Only pasting a fresh URL fixes it, and the in-app banner already
+    // asks for exactly that; it mailed "pensieve sync failed" for one user
+    // every sync window until this was excluded.
+    /calendar fetch failed: (?:404|410)\b/.test(m)
   );
 }
 

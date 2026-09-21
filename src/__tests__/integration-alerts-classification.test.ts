@@ -8,12 +8,12 @@ import { reportSyncFailures } from "@/lib/integration-alerts";
 import type { SyncResult } from "@/lib/types";
 
 /** Builds a SyncResult carrying the given errors on one source. */
-function resultWith(source: "canvas" | "gradescope", errors: string[]): SyncResult {
+function resultWith(source: "canvas" | "gradescope" | "pensieve", errors: string[]): SyncResult {
   const empty = { synced: 0, errors: [] as string[] };
   return {
     canvas: source === "canvas" ? { synced: 0, errors } : { ...empty },
     gradescope: source === "gradescope" ? { synced: 0, errors } : { ...empty },
-    pensieve: { ...empty },
+    pensieve: source === "pensieve" ? { synced: 0, errors } : { ...empty },
     brightspace: { ...empty },
   } as unknown as SyncResult;
 }
@@ -63,6 +63,31 @@ describe("reportSyncFailures classification", () => {
     );
 
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("does not email a feed URL that no longer exists", async () => {
+    // The user reset or deleted their Pensieve calendar link; only a fresh
+    // URL fixes it, and the in-app banner already asks for one. This exact
+    // message was mailed for one user on every cold start.
+    await reportSyncFailures(
+      resultWith("pensieve", ["Pensieve calendar fetch failed: 404"]),
+      `user-gone-${uniqueUser}`,
+    );
+    await reportSyncFailures(
+      resultWith("pensieve", ["Pensieve calendar fetch failed: 410"]),
+      `user-gone-b-${uniqueUser}`,
+    );
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("still emails a feed that fails with a server error", async () => {
+    await reportSyncFailures(
+      resultWith("pensieve", ["Pensieve calendar fetch failed: 502"]),
+      `user-502-${uniqueUser}`,
+    );
+
+    expect(subjectsSent(fetchMock)).toEqual(["[caltodo] pensieve sync failed"]);
   });
 
   it("still emails genuine breakage", async () => {
