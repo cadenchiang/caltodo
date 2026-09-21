@@ -984,12 +984,18 @@ export function TaskProvider({
           label: "Undo",
           icon: <Undo2 size={14} />,
           onClick: async () => {
+            // The delete already removed the calendar event, so the old
+            // google_event_id is dangling. Restore with it cleared, both
+            // locally and in the row, so the create below attaches a fresh
+            // event (its conditional attach requires a null id; re-inserting
+            // the stale id made it delete its own new event).
+            const restoredTask: Task = { ...taskToDelete, dismissed_at: null, google_event_id: null };
             // Restore in local state immediately at the original index
             setTasks((prev) => {
               if (prev.some((t) => t.id === taskToDelete.id)) return prev;
               const restored = [...prev];
               const insertAt = Math.min(Math.max(previousIndex, 0), restored.length);
-              restored.splice(insertAt, 0, { ...taskToDelete, dismissed_at: null });
+              restored.splice(insertAt, 0, restoredTask);
               setCachedTasks(restored);
               taskBaselineRef.current = restored;
               return restored;
@@ -997,18 +1003,17 @@ export function TaskProvider({
             if (isSyncedTask) {
               await supabase
                 .from("tasks")
-                .update({ dismissed_at: null, dismissed_by_user: false })
+                .update({ dismissed_at: null, dismissed_by_user: false, google_event_id: null })
                 .eq("id", taskToDelete.id);
             } else {
-              const { dismissed_at: _ignored, ...row } = taskToDelete;
+              const { dismissed_at: _ignored, ...row } = restoredTask;
               const { error: insertError } = await supabase.from("tasks").insert(row);
               if (insertError) {
                 setError(insertError.message);
                 fetchTasks();
               }
             }
-            // Re-create the GCal event we removed on delete (the old
-            // google_event_id is stale now, so create makes a fresh one).
+            // Re-create the GCal event we removed on delete.
             if (taskToDelete.due_date) {
               pushTaskToGCal("create", taskToDelete.id).then((eventId) =>
                 attachGoogleEventId(taskToDelete.id, eventId)
