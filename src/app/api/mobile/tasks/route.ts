@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
 import { authenticateMobile, applyCompletionInvariant } from "@/lib/mobile-task-helpers";
+import { fetchAllTaskPages } from "@/lib/task-pages";
 
 /**
  * GET /api/mobile/tasks
@@ -11,11 +12,19 @@ export async function GET(req: NextRequest) {
   if ("response" in auth) return auth.response;
   const { supabase, user } = auth;
 
-  const { data, error } = await supabase
-    .from("tasks")
-    .select("*")
-    .is("dismissed_at", null)
-    .order("created_at", { ascending: false });
+  // Paged past PostgREST's silent 1000-row cap, id as the tiebreaker.
+  const { data, error } = await fetchAllTaskPages(
+    (from, to) =>
+      supabase
+        .from("tasks")
+        .select("*")
+        .is("dismissed_at", null)
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .range(from, to),
+    "GET /api/mobile/tasks",
+    user.id,
+  );
 
   if (error) {
     logger.error("GET /api/mobile/tasks: query failed", {

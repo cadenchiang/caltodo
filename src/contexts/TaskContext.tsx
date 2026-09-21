@@ -13,6 +13,7 @@ import type { Task, TaskInsert, TaskUpdate, SyncResult } from "@/lib/types";
 import { trackEvent } from "@/lib/analytics";
 import { markActivated } from "@/lib/activation";
 import { computeNextDueDate, getAnchorDay, shouldSpawnNext } from "@/lib/repeat";
+import { fetchAllTaskPages } from "@/lib/task-pages";
 import {
   mergeFetchedTasks,
   replaceTempTask,
@@ -376,13 +377,26 @@ export function TaskProvider({
       setUserId(user.id);
     }
 
-    const { data, error: fetchError } = await supabase
-      .from("tasks")
-      .select(TASK_COLUMNS)
-      .is("dismissed_at", null)
-      .order("created_at", { ascending: false });
+    // Paged, with id as the tiebreaker: bulk-synced rows share a created_at,
+    // and PostgREST truncates at 1000 rows without saying so.
+    const { data, error: fetchError } = await fetchAllTaskPages(
+      (from, to) =>
+        supabase
+          .from("tasks")
+          .select(TASK_COLUMNS)
+          .is("dismissed_at", null)
+          .order("created_at", { ascending: false })
+          .order("id", { ascending: false })
+          .range(from, to),
+      "TaskContext.fetchTasks",
+      user?.id,
+    );
 
     if (fetchError) {
+      console.error("[TaskContext] fetchTasks: query failed", {
+        error: fetchError.message,
+        impact: "list not refreshed; cached tasks stay on screen",
+      });
       setError(fetchError.message);
       setLoading(false);
       return [];
