@@ -82,6 +82,26 @@ describe("POST /api/gcal/webhook", () => {
     expect(mockIncrementalSync).not.toHaveBeenCalled();
   });
 
+  it("records a failed token refresh by bumping the change marker and still acks", async () => {
+    mockIncrementalSync.mockResolvedValue(null);
+    const res = await POST(notification({
+      "x-goog-resource-state": "exists",
+      "x-goog-channel-id": CHANNEL,
+      "x-goog-channel-token": CHANNEL,
+    }));
+    expect(res.status).toBe(200);
+    expect(mockUpdateEq).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not touch the change marker itself when the sync succeeds", async () => {
+    await POST(notification({
+      "x-goog-resource-state": "exists",
+      "x-goog-channel-id": CHANNEL,
+      "x-goog-channel-token": CHANNEL,
+    }));
+    expect(mockUpdateEq).not.toHaveBeenCalled();
+  });
+
   it("returns 200 when the sync throws so Google stops retrying", async () => {
     mockIncrementalSync.mockRejectedValue(new Error("boom"));
     const res = await POST(notification({

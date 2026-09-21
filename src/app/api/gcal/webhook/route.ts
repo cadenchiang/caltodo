@@ -2,10 +2,13 @@
  * POST /api/gcal/webhook
  *
  * Receives push notifications from Google Calendar when events change.
- * Validates the channel, performs an incremental sync to refresh the syncToken,
- * and updates gcal_events_updated_at so the client knows to refetch.
+ * Validates the channel, performs an incremental sync of the watched
+ * (primary) calendar to refresh the syncToken, and updates
+ * gcal_events_updated_at so the client knows to refetch. Without a stored
+ * token the fallback is a bounded full sync; a failure is recorded and
+ * still acknowledged with 200.
  *
- * No user session available — uses admin Supabase client.
+ * No user session available, so it uses the admin Supabase client.
  * Must respond within 10 seconds (Google retries on timeout).
  */
 
@@ -82,9 +85,24 @@ export async function POST(request: NextRequest) {
     // The channel watches the user's primary calendar, so that is what the
     // incremental sync reads (the write calendar, calendarIds[0], is not it).
     const calendarId = WATCHED_CALENDAR_ID;
-    await performIncrementalSync(supabase, userId, accessToken, calendarId);
-
-    logger.info("gcal/webhook: processed notification", { userId, resourceState, calendarId });
+    // With no stored token this is a bounded full sync (last 30 days, 3
+    // pages). If even that fails, record it and still ack: the notification
+    // itself says something changed, so bump the marker the client polls
+    // and let the daily cron retry the token instead of Google retrying us.
+    const result = await performIncrementalSync(supabase, userId, accessToken, calendarId);
+    if (!result) {
+      const { error: markError } = await supabase
+        .from("integration_credentials")
+        .update({ gcal_events_updated_at: new Date().toISOString() })
+        .eq("user_id", userId);
+      logger.error("gcal/webhook: sync token could not be refreshed", {
+        userId, calendarId, resourceState,
+        markError: markError?.message,
+        impact: "client refetches from the change marker; token retried by the daily cron",
+      });
+    } else {
+      logger.info("gcal/webhook: processed notification", { userId, resourceState, calendarId, fullSync: result.isFullSync });
+    }
   } catch (err) {
     logger.error("gcal/webhook: sync failed", {
       userId,

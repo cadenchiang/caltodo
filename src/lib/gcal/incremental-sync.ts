@@ -16,6 +16,16 @@ const GCAL_EVENTS_URL = "https://www.googleapis.com/calendar/v3/calendars";
 const MAX_RESULTS = 2500;
 
 /**
+ * A full sync only exists to obtain a fresh sync token (the events it
+ * returns are discarded), so it is bounded: events from the last
+ * FULL_SYNC_WINDOW_DAYS onward, at most FULL_SYNC_MAX_PAGES pages, and only
+ * the token fields in the payload. A large legacy primary calendar used to
+ * page through years of history inside a 10s webhook and never finish.
+ */
+export const FULL_SYNC_WINDOW_DAYS = 30;
+export const FULL_SYNC_MAX_PAGES = 3;
+
+/**
  * Result of an incremental or full sync operation.
  *
  * @param syncToken - The new syncToken to use for the next incremental fetch
@@ -68,8 +78,13 @@ export async function performIncrementalSync(
 }
 
 /**
- * Performs a full sync: fetches all events and stores the resulting syncToken.
+ * Performs a bounded full sync to obtain a fresh syncToken and stores it.
  * Updates gcal_last_full_sync_at timestamp.
+ *
+ * Requests only events from the last FULL_SYNC_WINDOW_DAYS onward with just
+ * the token fields, and gives up after FULL_SYNC_MAX_PAGES pages. Google only
+ * hands out nextSyncToken on the final page, so an over-long calendar leaves
+ * the stored token untouched and is reported as a failure.
  *
  * @param supabase - Supabase client
  * @param userId - The user's UUID
@@ -85,10 +100,16 @@ export async function performFullSync(
 ): Promise<SyncResult | null> {
   let pageToken: string | undefined;
   let syncToken: string | undefined;
+  let pages = 0;
+  const timeMin = new Date(Date.now() - FULL_SYNC_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
 
-  // Paginate through all events to obtain the final syncToken
   do {
-    const params = new URLSearchParams({ maxResults: String(MAX_RESULTS) });
+    // pageToken requests must repeat the original query parameters.
+    const params = new URLSearchParams({
+      maxResults: String(MAX_RESULTS),
+      timeMin,
+      fields: "nextPageToken,nextSyncToken",
+    });
     if (pageToken) params.set("pageToken", pageToken);
 
     const url = `${GCAL_EVENTS_URL}/${encodeURIComponent(calendarId)}/events?${params}`;
@@ -105,15 +126,19 @@ export async function performFullSync(
     const data = await res.json();
     pageToken = data.nextPageToken;
     syncToken = data.nextSyncToken;
-  } while (pageToken);
+    pages++;
+  } while (pageToken && pages < FULL_SYNC_MAX_PAGES);
 
   if (!syncToken) {
-    logger.error("fullSync: no syncToken received", { userId, calendarId });
+    logger.error("fullSync: no syncToken received", {
+      userId, calendarId, pages, exhaustedPageLimit: !!pageToken,
+      impact: "stored sync token unchanged; realtime updates for this user still rely on polling",
+    });
     return null;
   }
 
   await saveSyncState(supabase, userId, syncToken, true);
-  logger.info("fullSync: completed", { userId, calendarId });
+  logger.info("fullSync: completed", { userId, calendarId, pages });
   return { syncToken, isFullSync: true };
 }
 
