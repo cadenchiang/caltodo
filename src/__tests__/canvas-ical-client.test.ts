@@ -2,8 +2,13 @@
  * Tests for Canvas iCal client — verifies parsing of bCourses calendar feeds.
  */
 
-import { describe, it, expect } from "vitest";
-import { parseCanvasICalEvents , toAssignmentUrl } from "@/lib/canvas-ical-client";
+import { describe, it, expect, vi } from "vitest";
+
+vi.mock("@/lib/logger", () => ({
+  logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+}));
+
+import { parseCanvasICalEvents, toAssignmentUrl, canvasExternalId } from "@/lib/canvas-ical-client";
 
 const SAMPLE_ICAL = `BEGIN:VCALENDAR
 VERSION:2.0
@@ -68,8 +73,11 @@ describe("parseCanvasICalEvents", () => {
     expect(events[0].external_id).toBe("8999055");
   });
 
-  it("should handle override UIDs", () => {
-    expect(events[3].external_id).toBe("354070");
+  it("keys an override event on the assignment id from its URL, not the override id", () => {
+    // Audit M6: the override id changes whenever a section override is added
+    // or removed, which dismissed and recreated the task. The URL still
+    // names the assignment.
+    expect(events[3].external_id).toBe("9056628");
   });
 
   it("should parse datetime due dates", () => {
@@ -197,5 +205,37 @@ describe("toAssignmentUrl", () => {
   it("keeps the original when the id is not numeric", () => {
     const cal = "https://bcourses.berkeley.edu/calendar?include_contexts=course_1";
     expect(toAssignmentUrl(cal, "not-a-number")).toBe(cal);
+  });
+});
+
+describe("canvasExternalId", () => {
+  it("uses the assignment id from a plain UID", () => {
+    expect(canvasExternalId("event-assignment-8999055", null)).toBe("8999055");
+  });
+
+  it("uses the URL's assignment id for an override, in either URL shape", () => {
+    expect(
+      canvasExternalId("event-assignment-override-354070", "https://b.edu/calendar?event_id=assignment_9056628")
+    ).toBe("9056628");
+    expect(
+      canvasExternalId(
+        "event-assignment-override-354070",
+        "https://b.edu/calendar?include_contexts=course_1&month=09&year=2026#assignment_9107004"
+      )
+    ).toBe("9107004");
+  });
+
+  it("gives a base event and its override the same id", () => {
+    const url = "https://b.edu/calendar?event_id=assignment_42";
+    expect(canvasExternalId("event-assignment-42", url)).toBe(canvasExternalId("event-assignment-override-7", url));
+  });
+
+  it("falls back to the override id when the URL names no assignment", () => {
+    expect(canvasExternalId("event-assignment-override-354070", null)).toBe("354070");
+    expect(canvasExternalId("event-assignment-override-354070", "https://b.edu/calendar")).toBe("354070");
+  });
+
+  it("falls back to the raw UID for an unfamiliar shape", () => {
+    expect(canvasExternalId("event-calendar-event-77", null)).toBe("event-calendar-event-77");
   });
 });

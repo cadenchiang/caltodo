@@ -14,16 +14,14 @@ import {
   isDateOnlyValue,
   parseDueDateWithTzid,
 } from "@/lib/ical-date-utils";
-
-/** Timeout in milliseconds for fetching the Canvas iCal feed. */
-const FETCH_TIMEOUT_MS = 15_000;
+import { fetchFeedCalendar } from "@/lib/feed-fetch";
 
 /**
  * Fetches and parses assignments from a Canvas iCal calendar feed URL.
  *
  * @param calendarUrl - Full Canvas calendar feed URL (.ics)
  * @returns Array of normalized assignments parsed from the iCal feed
- * @throws Error if the fetch fails or returns non-OK status
+ * @throws Error if the fetch fails, redirects, or returns non-OK status
  */
 export async function fetchCanvasICalAssignments(
   calendarUrl: string
@@ -32,21 +30,12 @@ export async function fetchCanvasICalAssignments(
     url: calendarUrl.slice(0, 60),
   });
 
-  const res = await fetch(calendarUrl, {
-    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  const icsText = await fetchFeedCalendar(calendarUrl, {
+    name: "Canvas",
+    failurePrefix: "Canvas iCal fetch failed",
+    notCalendarMessage:
+      "Canvas calendar feed didn't return a calendar. The feed URL may have been reset. Reconnect it.",
   });
-
-  if (!res.ok) {
-    throw new Error(`Canvas iCal fetch failed: ${res.status}`);
-  }
-
-  const icsText = await res.text();
-  // Guard against a 200 response that isn't actually a calendar (e.g. a reset
-  // feed returning an HTML login page) — otherwise sync silently yields 0
-  // assignments and reports success.
-  if (!/BEGIN:VCALENDAR/i.test(icsText)) {
-    throw new Error("Canvas calendar feed didn't return a calendar — the feed URL may have been reset. Reconnect it.");
-  }
   const assignments = parseCanvasICalEvents(icsText);
 
   logger.info("fetchCanvasICalAssignments: parsed events", {
@@ -98,9 +87,7 @@ export function parseCanvasICalEvents(
     const isAllDay = isDateOnlyValue(endOrStart?.value);
     const { title, courseName } = parseCanvasSummary(summary);
 
-    // Extract external_id from UID (e.g. "event-assignment-8999055" → "8999055")
-    const idMatch = uid.match(/event-assignment-(?:override-)?(\d+)/);
-    const externalId = idMatch ? idMatch[1] : uid;
+    const externalId = canvasExternalId(uid, url);
 
     assignments.push({
       external_id: externalId,
@@ -117,6 +104,37 @@ export function parseCanvasICalEvents(
   }
 
   return assignments;
+}
+
+/**
+ * Derives the stable external_id for a Canvas iCal event.
+ *
+ * A plain event's UID is "event-assignment-<assignment id>". A section
+ * override's UID is "event-assignment-override-<override id>", and that
+ * override id is not the assignment: it changes whenever an instructor adds
+ * or removes the override, so keying the task on it dismissed the old task
+ * and created a new one, losing completion state and colour (audit M6).
+ * The event's URL still names the assignment ("event_id=assignment_<id>"
+ * or "#assignment_<id>"), so override events key on that when present.
+ *
+ * @param uid - The VEVENT UID
+ * @param url - The VEVENT URL, or null when absent
+ * @returns The assignment id for plain and override events, the override id
+ *          when an override event has no usable URL, else the raw UID
+ */
+export function canvasExternalId(uid: string, url: string | null): string {
+  const override = uid.match(/^event-assignment-override-(\d+)/);
+  if (override) {
+    const fromUrl = url?.match(/(?:event_id=|#)assignment_(\d+)/)?.[1];
+    if (fromUrl) return fromUrl;
+    logger.warn("canvasExternalId: override event without an assignment id in its URL", {
+      uid,
+      impact: "task keyed on the override id; an override change will recreate it",
+    });
+    return override[1];
+  }
+  const plain = uid.match(/event-assignment-(\d+)/);
+  return plain ? plain[1] : uid;
 }
 
 /**
