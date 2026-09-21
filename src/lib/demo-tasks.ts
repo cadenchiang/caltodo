@@ -5,11 +5,21 @@
  */
 import type { Task } from "@/lib/types";
 
-/** Returns a date string (YYYY-MM-DD) offset by `days` from today. */
-function dateOffset(days: number): string {
+/**
+ * Returns a date string (YYYY-MM-DD) offset by `days` from today, in the
+ * local calendar. `toISOString()` would give the UTC day, which in the US
+ * evening is already tomorrow, so "today" tasks showed a day late.
+ *
+ * @param days - Days to add (negative for the past)
+ * @returns The local date as "YYYY-MM-DD"
+ */
+export function dateOffset(days: number): string {
   const d = new Date();
   d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 const DEMO_USER_ID = "demo-user";
