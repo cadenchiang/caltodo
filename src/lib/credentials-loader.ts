@@ -10,6 +10,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logger } from "@/lib/logger";
 import type { IntegrationCredentials } from "@/lib/types";
+import { rowHasOwnCredentials, shapeCredentials } from "@/lib/credentials-shape";
 
 /**
  * Columns guaranteed to exist in every deployed environment. Anything that was
@@ -73,28 +74,7 @@ export async function loadCredentials(
     return null;
   }
 
-  // Check if Canvas token has expired (120-day lifetime) or is expiring soon.
-  // "Expiring soon" = within the last week of its life (day 113-120), so the
-  // health banner can warn the user to reconnect BEFORE sync silently stops.
-  let canvasTokenExpired = false;
-  let canvasTokenExpiringSoon = false;
-  if (data?.canvas_token && data?.canvas_token_created_at) {
-    const ageMs = Date.now() - new Date(data.canvas_token_created_at).getTime();
-    const day = 24 * 60 * 60 * 1000;
-    canvasTokenExpired = ageMs > 120 * day;
-    canvasTokenExpiringSoon = !canvasTokenExpired && ageMs > 113 * day;
-  }
-
-  const credentialsOnboarded = !!(
-    data?.canvas_token ||
-    data?.canvas_ical_url ||
-    data?.gradescope_password_encrypted ||
-    data?.pensieve_calendar_url ||
-    data?.brightspace_calendar_url ||
-    data?.blackboard_calendar_url ||
-    data?.last_synced_at ||
-    data?.google_access_token_encrypted
-  );
+  const credentialsOnboarded = rowHasOwnCredentials(data);
 
   // A user is also considered onboarded if they belong to any class, even
   // without their own credentials configured — e.g. added by a classmate or
@@ -119,53 +99,7 @@ export async function loadCredentials(
 
   const hasCompletedOnboarding = credentialsOnboarded || hasCourseMembership;
 
-  const credentials: IntegrationCredentials = {
-    canvas_token: data?.canvas_token ?? null,
-    canvas_base_url: data?.canvas_base_url ?? "https://bcourses.berkeley.edu",
-    canvas_ical_url: data?.canvas_ical_url ?? null,
-    canvas_token_expired: canvasTokenExpired,
-    canvas_token_expiring_soon: canvasTokenExpiringSoon,
-    gradescope_email: data?.gradescope_email ?? null,
-    has_gradescope_password: !!data?.gradescope_password_encrypted,
-    gradescope_auth_failed: data?.gradescope_auth_failed ?? false,
-    canvas_auth_failed: (data as { canvas_auth_failed?: boolean } | null)?.canvas_auth_failed ?? false,
-    canvas_ical_failed: (data as { canvas_ical_failed?: boolean } | null)?.canvas_ical_failed ?? false,
-    // Selected above but never returned, so the settings card always saw the
-    // integration as off ("Coming soon") while the row had it on and the sync
-    // engine kept running it. The user could neither see nor disable it.
-    classroom_enabled: (data as { classroom_enabled?: boolean } | null)?.classroom_enabled ?? false,
-    selected_classroom_courses:
-      (data as { selected_classroom_courses?: Array<{ id: string; name: string }> | null } | null)
-        ?.selected_classroom_courses ?? null,
-    classroom_auth_failed: (data as { classroom_auth_failed?: boolean } | null)?.classroom_auth_failed ?? false,
-    last_synced_at: data?.last_synced_at ?? null,
-    selected_canvas_courses: data?.selected_canvas_courses ?? null,
-    selected_gradescope_courses: data?.selected_gradescope_courses ?? null,
-    selected_pensieve_courses: data?.selected_pensieve_courses ?? null,
-    dismissed_canvas_course_ids: data?.dismissed_canvas_course_ids ?? [],
-    has_google_calendar: !!data?.google_access_token_encrypted,
-    // Only meaningful while tokens still exist; a genuine revocation clears the
-    // tokens and flips has_google_calendar false. The flag lets the UI say
-    // "reconnect" (revoked) rather than a plain "not connected".
-    google_auth_failed: data?.google_auth_failed ?? false,
-    google_calendar_id: data?.google_calendar_id ?? null,
-    google_email: data?.google_email ?? null,
-    google_photo_url: data?.google_photo_url ?? null,
-    canvas_token_created_at: data?.canvas_token_created_at ?? null,
-    is_founding_member: data?.is_founding_member ?? false,
-    pensieve_calendar_url: data?.pensieve_calendar_url ?? null,
-    pensieve_auth_failed: (data as { pensieve_auth_failed?: boolean } | null)?.pensieve_auth_failed ?? false,
-    brightspace_calendar_url: data?.brightspace_calendar_url ?? null,
-    brightspace_auth_failed: (data as { brightspace_auth_failed?: boolean } | null)?.brightspace_auth_failed ?? false,
-    blackboard_calendar_url: data?.blackboard_calendar_url ?? null,
-    blackboard_auth_failed: (data as { blackboard_auth_failed?: boolean } | null)?.blackboard_auth_failed ?? false,
-    additional_canvas_accounts: data?.additional_canvas_accounts ?? [],
-    has_completed_onboarding: hasCompletedOnboarding,
-    email_digest_enabled: data?.email_digest_enabled ?? true,
-    email_digest_hour: data?.email_digest_hour ?? 15,
-    email_digest_address: data?.email_digest_address ?? null,
-    dismissed_modals: data?.dismissed_modals ?? {},
-  };
-
-  return credentials;
+  // One shaping function for every path that hands the row to the client,
+  // so a secret can only be masked or leaked in one place.
+  return shapeCredentials(data, hasCompletedOnboarding);
 }

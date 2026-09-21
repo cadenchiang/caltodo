@@ -28,7 +28,12 @@ export default function BillingSuccessPage() {
           <ArrowRight size={14} strokeWidth={2.5} />
         </Link>
         <p className="text-[11px] text-muted-foreground mt-4">
-          Receipt has been emailed to you. Manage your subscription from Settings &rarr; Account at any time.
+          {/* No "Account" section exists; the billing portal returns to /app/settings. */}
+          Receipt has been emailed to you. Manage your subscription from{" "}
+          <Link href="/app/settings" className="underline underline-offset-2 hover:text-foreground">
+            Settings
+          </Link>{" "}
+          at any time.
         </p>
       </div>
     </div>

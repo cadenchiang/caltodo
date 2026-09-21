@@ -15,7 +15,10 @@ import {
   loadProgress,
   saveProgress,
   clearProgress,
+  progressPercentForStep,
 } from "@/lib/onboarding-progress";
+import * as fs from "fs";
+import * as path from "path";
 
 const KEY = "caltodo_onboarding_progress_v1";
 
@@ -163,5 +166,38 @@ describe("hostile storage", () => {
     expect(loadProgress()).toBeNull();
     expect(() => saveProgress({ step: "welcome", platforms: [], school: "", referral: "" })).not.toThrow();
     expect(() => clearProgress()).not.toThrow();
+  });
+});
+
+describe("progressPercentForStep (audit L13)", () => {
+  it("spans 0 to 100 across the full step list", () => {
+    expect(progressPercentForStep("welcome")).toBe(0);
+    expect(progressPercentForStep("done")).toBe(100);
+  });
+
+  it("never reaches 100% before the last step, for every step", () => {
+    for (const step of ONBOARDING_STEPS.slice(0, -1)) {
+      expect(progressPercentForStep(step)).toBeLessThan(100);
+    }
+  });
+
+  it("covers the steps the old hand-written map lacked", () => {
+    // gcal, brightspace, blackboard and classroom used to fall through to
+    // undefined, which rendered as width: undefined% and the bar jumped.
+    for (const step of ["gcal", "brightspace", "blackboard", "classroom"] as const) {
+      expect(progressPercentForStep(step)).toBeGreaterThan(0);
+      expect(progressPercentForStep(step)).toBeLessThan(100);
+    }
+  });
+
+  it("is monotonic in step order", () => {
+    const widths = ONBOARDING_STEPS.map(progressPercentForStep);
+    for (let i = 1; i < widths.length; i++) expect(widths[i]).toBeGreaterThan(widths[i - 1]);
+  });
+
+  it("is what the onboarding page renders", () => {
+    const page = fs.readFileSync(path.resolve(__dirname, "../app/app/onboarding/page.tsx"), "utf8");
+    expect(page).toContain("width: `${progressPercentForStep(currentStep)}%`");
+    expect(page).not.toContain("} as Record<Step, number>)[currentStep]");
   });
 });

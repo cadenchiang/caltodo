@@ -53,14 +53,12 @@ export async function POST(req: NextRequest) {
         { status: 503 },
       );
     }
+    // Real reason in the log only; see checkout for why.
     logger.error("stripe_portal_failed", {
       message: err instanceof Error ? err.message : String(err),
     });
     return NextResponse.json(
-      {
-        error: "portal_failed",
-        message: err instanceof Error ? err.message : "Unexpected error.",
-      },
+      { error: "portal_failed", message: "Could not open the billing portal. Please try again." },
       { status: 500 },
     );
   }

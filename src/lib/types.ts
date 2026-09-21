@@ -135,6 +135,24 @@ export interface AdditionalCanvasAccount {
 }
 
 /**
+ * An additional Canvas account as the browser sees it: the stored token is
+ * replaced by `has_token`, so the secret never reaches the client.
+ */
+export type AdditionalCanvasAccountView = Omit<AdditionalCanvasAccount, "token"> & {
+  has_token: boolean;
+};
+
+/**
+ * An additional Canvas account as the browser submits it. `token` is present
+ * only when the user just entered one; an account round-tripped from GET has
+ * no token and the server keeps the stored one for that account id.
+ */
+export type AdditionalCanvasAccountInput = Omit<AdditionalCanvasAccount, "token"> & {
+  token?: string;
+  has_token?: boolean;
+};
+
+/**
  * Server-persisted record of which welcome/announcement modals
  * the user has dismissed. Stored as JSONB in integration_credentials.
  */
@@ -148,10 +166,12 @@ export interface DismissedModals {
 
 /**
  * Integration credentials as returned by the API.
- * Gradescope password is never returned — only a boolean flag.
+ * Secrets are never returned: the Canvas token and the Gradescope password
+ * are each reduced to a boolean flag.
  */
 export interface IntegrationCredentials {
-  canvas_token: string | null;
+  /** Whether a Canvas API token is stored. The token itself never leaves the server. */
+  has_canvas_token: boolean;
   canvas_base_url: string;
   /** Canvas iCal calendar feed URL (alternative to API token). */
   canvas_ical_url: string | null;
@@ -196,7 +216,7 @@ export interface IntegrationCredentials {
   brightspace_auth_failed?: boolean;
   /** True when the Blackboard iCal-feed fetch failed (feed reset/expired/404). */
   blackboard_auth_failed?: boolean;
-  additional_canvas_accounts: AdditionalCanvasAccount[];
+  additional_canvas_accounts: AdditionalCanvasAccountView[];
   /** Whether the user has completed onboarding (has at least one integration configured). */
   has_completed_onboarding: boolean;
   /** Whether the user receives daily email digest notifications. */
@@ -232,7 +252,7 @@ export interface CredentialsSavePayload {
   blackboard_calendar_url?: string | null;
   classroom_enabled?: boolean;
   selected_classroom_courses?: Array<{ id: string; name: string }> | null;
-  additional_canvas_accounts?: AdditionalCanvasAccount[];
+  additional_canvas_accounts?: AdditionalCanvasAccountInput[];
   email_digest_enabled?: boolean;
   email_digest_hour?: number;
   email_digest_address?: string | null;

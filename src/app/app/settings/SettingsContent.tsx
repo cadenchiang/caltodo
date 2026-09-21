@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { IntegrationProvider } from "@/components/settings/IntegrationSettings";
 import { getSettingsReturnPath } from "@/lib/settings-return";
+import { useIsMobile } from "@/hooks/useMediaQuery";
 import PageTransition from "@/components/ui/PageTransition";
 import IntegrationsSection from "@/components/settings/sections/IntegrationsSection";
 import AppearanceSection from "@/components/settings/sections/AppearanceSection";
@@ -108,6 +109,12 @@ const BACK_BUTTON =
 export default function SettingsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  // One section tree, chosen here. Both trees used to be mounted and one
+  // CSS-hidden, so every section fetched twice and two GoogleCalendarSettings
+  // instances raced for the one module-level sync slot. The `md:` classes
+  // stay on the containers so the hydration frame (which sees the server
+  // default, desktop) cannot flash the wrong layout on a phone.
+  const isMobile = useIsMobile();
   const rawSection = searchParams.get("section");
   const activeSection: SettingsSectionId | null =
     rawSection && VALID_SECTIONS.has(rawSection)
@@ -203,6 +210,7 @@ export default function SettingsContent() {
         <div className="flex h-[calc(100%+1rem)] md:h-[calc(100%+2.5rem)] -m-4 md:-m-10">
           <div className="flex-1 flex flex-col overflow-hidden">
             {/* === MOBILE VIEW === */}
+            {isMobile && (
             <div className="md:hidden flex flex-col h-full">
               {activeSection ? (
                 <>
@@ -264,8 +272,10 @@ export default function SettingsContent() {
                 </>
               )}
             </div>
+            )}
 
             {/* === DESKTOP VIEW === */}
+            {!isMobile && (
             <div className="hidden md:flex flex-col h-full">
               <div className="flex-1 overflow-auto px-8 pt-20 pb-8">
                 <div className="max-w-2xl mx-auto mr-auto ml-[15%]">
@@ -273,6 +283,7 @@ export default function SettingsContent() {
                 </div>
               </div>
             </div>
+            )}
           </div>
         </div>
       </IntegrationProvider>

@@ -27,7 +27,7 @@ import type { IntegrationCredentials } from "@/lib/types";
  */
 function emptyCredentials(): IntegrationCredentials {
   return {
-    canvas_token: null,
+    has_canvas_token: false,
     canvas_base_url: "",
     canvas_ical_url: null,
     canvas_token_expired: false,

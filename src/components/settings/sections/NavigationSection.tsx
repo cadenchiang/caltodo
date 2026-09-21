@@ -4,13 +4,18 @@
  * Settings section for toggling visibility of sidebar nav items.
  * Hidden items are removed from both the desktop Sidebar and the
  * MobileTabBar. URLs remain accessible if typed directly.
+ *
+ * The last visible landing-capable item (Inbox or Calendar) cannot be
+ * hidden: with both gone, mobile had no page to land on and the route
+ * guards redirected in a loop.
  */
 
 import { NAV_ITEMS } from "@/lib/constants";
 import { useHiddenNavItems } from "@/hooks/useHiddenNavItems";
+import { canHideNavItem } from "@/lib/landing-path";
 
 export default function NavigationSection() {
-  const { isHidden, toggle } = useHiddenNavItems();
+  const { hidden, isHidden, toggle } = useHiddenNavItems();
 
   return (
     <div className="space-y-6">
@@ -25,30 +30,42 @@ export default function NavigationSection() {
       <div className="border border-border rounded-xl divide-y divide-border overflow-hidden">
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
-          const hidden = isHidden(item.href);
+          const itemHidden = isHidden(item.href);
+          // Only a visible item can be refused; showing is always allowed.
+          const hideCheck = itemHidden ? { allowed: true } : canHideNavItem(item.href, hidden);
+          const locked = !hideCheck.allowed;
           return (
             <label
               key={item.href}
-              className="flex items-center gap-3 px-4 py-3 hover:bg-accent/40 transition-colors cursor-pointer"
+              className={`flex items-center gap-3 px-4 py-3 transition-colors ${locked ? "cursor-not-allowed" : "hover:bg-accent/40 cursor-pointer"}`}
             >
               <Icon size={16} className="text-foreground/70 shrink-0" />
-              <span className="flex-1 flex items-center gap-1.5 min-w-0">
-                <span className="text-sm font-medium text-foreground">{item.label}</span>
-                {item.beta && (
-                  <span className="text-[9px] font-medium text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-500/10 px-1.5 py-0.5 rounded-full leading-none shrink-0">
-                    Beta
-                  </span>
+              <span className="flex-1 flex flex-col min-w-0">
+                <span className="flex items-center gap-1.5">
+                  <span className="text-sm font-medium text-foreground">{item.label}</span>
+                  {item.beta && (
+                    <span className="text-[9px] font-medium text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-500/10 px-1.5 py-0.5 rounded-full leading-none shrink-0">
+                      Beta
+                    </span>
+                  )}
+                </span>
+                {locked && (
+                  <span className="text-xs text-muted-foreground mt-0.5">{hideCheck.reason}</span>
                 )}
               </span>
               <span className="text-xs text-muted-foreground mr-2">
-                {hidden ? "Hidden" : "Visible"}
+                {itemHidden ? "Hidden" : "Visible"}
               </span>
               <input
                 type="checkbox"
-                checked={!hidden}
-                onChange={() => toggle(item.href)}
-                className="w-4 h-4 accent-foreground cursor-pointer"
-                aria-label={`${hidden ? "Show" : "Hide"} ${item.label}`}
+                checked={!itemHidden}
+                disabled={locked}
+                onChange={() => {
+                  if (locked) return;
+                  toggle(item.href);
+                }}
+                className="w-4 h-4 accent-foreground cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                aria-label={`${itemHidden ? "Show" : "Hide"} ${item.label}`}
               />
             </label>
           );

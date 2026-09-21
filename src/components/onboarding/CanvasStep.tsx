@@ -268,11 +268,12 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
     setError(null);
 
     try {
-      const params = new URLSearchParams({
-        token: canvasToken.trim(),
-        base_url: trimmedUrl,
+      // The token goes in the body, never the URL, so it cannot be logged.
+      const res = await fetch("/api/canvas/courses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: canvasToken.trim(), base_url: trimmedUrl }),
       });
-      const res = await fetch(`/api/canvas/courses?${params}`);
       if (!res.ok) {
         if (res.status === 401) throw new Error("Invalid access token.");
         if (res.status >= 500) throw new Error("Server error. Please try again later.");

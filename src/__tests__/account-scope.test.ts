@@ -174,7 +174,7 @@ describe("the course endpoints use the resolvers", () => {
   it("Canvas scopes by account_id instead of reading the flat columns", () => {
     const route = read("src/app/api/canvas/courses/route.ts");
     expect(route).toContain('searchParams.get("account_id")');
-    expect(route).toContain("resolveCanvasAccount(supabase, user.id, accountId)");
+    expect(route).toContain("resolveCanvasAccount(supabase, userId, accountId)");
     expect(route).not.toContain('.select("canvas_token, canvas_base_url")');
   });
 
@@ -186,11 +186,13 @@ describe("the course endpoints use the resolvers", () => {
   });
 
   it("still lets onboarding verify a token before anything is saved", () => {
-    // The pre-save path takes the token straight from the query, so a user
-    // can check credentials that have no account to scope to yet.
+    // The pre-save path takes the token from a POST body, so a user can check
+    // credentials that have no account to scope to yet without the token
+    // ever appearing in a URL (and therefore in request logs).
     const route = read("src/app/api/canvas/courses/route.ts");
-    expect(route).toContain("if (queryToken && queryBaseUrl)");
-    expect(route).toContain("isAllowedCanvasUrl(queryBaseUrl)");
+    expect(route).toContain("export async function POST(");
+    expect(route).toContain("isAllowedCanvasUrl(baseUrl)");
+    expect(route).not.toContain('searchParams.get("token")');
   });
 });
 

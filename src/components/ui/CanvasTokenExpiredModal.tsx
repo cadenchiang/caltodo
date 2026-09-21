@@ -33,8 +33,8 @@ function isDismissed(): boolean {
 
 /**
  * Modal that warns users when their bCourses API key has expired (120 days).
- * Only shown when canvas_token is non-null AND canvas_token_created_at + 120 days < now.
- * Does NOT show if canvas_token is null (user not connected).
+ * Only shown when has_canvas_token is true AND canvas_token_created_at + 120 days < now.
+ * Does NOT show when no token is stored (user not connected).
  * Dismissal is stored in localStorage for 24 hours.
  */
 export default function CanvasTokenExpiredModal() {
@@ -50,7 +50,7 @@ export default function CanvasTokenExpiredModal() {
         if (!creds) return;
 
         // Only show if user has a canvas token AND it has a creation date
-        if (!creds.canvas_token || !creds.canvas_token_created_at) return;
+        if (!creds.has_canvas_token || !creds.canvas_token_created_at) return;
 
         const createdAt = new Date(creds.canvas_token_created_at).getTime();
         const expiresAt = createdAt + TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000;

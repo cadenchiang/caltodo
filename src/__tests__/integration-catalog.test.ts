@@ -27,7 +27,7 @@ const ROOT = path.resolve(__dirname, "../..");
 /** Credentials with nothing connected, as a fresh account has. */
 function emptyCredentials(): IntegrationCredentials {
   return {
-    canvas_token: null,
+    has_canvas_token: false,
     canvas_base_url: "",
     canvas_ical_url: null,
     canvas_token_expired: false,
@@ -95,7 +95,7 @@ describe("splitByConnection", () => {
   });
 
   it("never loses or duplicates an entry", () => {
-    const creds = { ...emptyCredentials(), has_google_calendar: true, canvas_token: "tok" };
+    const creds = { ...emptyCredentials(), has_google_calendar: true, has_canvas_token: true };
     const { connected, available } = splitByConnection(creds);
     const ids = [...connected, ...available].map((e) => e.id);
     expect(ids.length).toBe(INTEGRATION_CATALOG.length);
@@ -106,7 +106,7 @@ describe("splitByConnection", () => {
     const creds: IntegrationCredentials = {
       ...emptyCredentials(),
       has_google_calendar: true,
-      canvas_token: "tok",
+      has_canvas_token: true,
       pensieve_calendar_url: "https://x/f.ics",
     };
     const { connected } = splitByConnection(creds);
@@ -118,7 +118,7 @@ describe("splitByConnection", () => {
   /** Each provider, and the one credential field that should connect it. */
   const CONNECTORS: Array<[CatalogId, Partial<IntegrationCredentials>]> = [
     ["gcal", { has_google_calendar: true }],
-    ["canvas", { canvas_token: "tok" }],
+    ["canvas", { has_canvas_token: true }],
     ["canvas", { canvas_ical_url: "https://x/feed.ics" }],
     ["gradescope", { gradescope_email: "a@b.edu" }],
     ["gradescope", { has_gradescope_password: true }],
@@ -159,7 +159,7 @@ describe("splitByConnection", () => {
     const everything: IntegrationCredentials = {
       ...emptyCredentials(),
       has_google_calendar: true,
-      canvas_token: "tok",
+      has_canvas_token: true,
       gradescope_email: "a@b.edu",
       pensieve_calendar_url: "https://x/f.ics",
       brightspace_calendar_url: "https://x/f.ics",

@@ -78,13 +78,23 @@ export default function SyllabusStep({ onNext, onSkip, error, setError, onPhaseC
   }, [previewUrl]);
   const [fileBase64, setFileBase64] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [phase, setPhaseRaw] = useState<"upload" | "extracting" | "preview">("upload");
+  const [phase, setPhase] = useState<"upload" | "extracting" | "preview">("upload");
 
-  /** Sets phase and notifies parent. */
-  const setPhase = useCallback((p: "upload" | "extracting" | "preview") => {
-    setPhaseRaw(p);
-    onPhaseChange?.(p);
+  // The parent lays the page out (wide preview, no Skip control) from the
+  // phase it was last told. Reporting only on transitions left it stuck in
+  // "preview" after this step unmounted mid-preview and came back fresh in
+  // "upload", so the user had the wide layout with no Skip. Report the phase
+  // on every change including mount, and reset it on unmount.
+  const onPhaseChangeRef = useRef(onPhaseChange);
+  useEffect(() => {
+    onPhaseChangeRef.current = onPhaseChange;
   }, [onPhaseChange]);
+  useEffect(() => {
+    onPhaseChangeRef.current?.(phase);
+  }, [phase]);
+  useEffect(() => {
+    return () => onPhaseChangeRef.current?.("upload");
+  }, []);
   const [courseName, setCourseName] = useState<string | null>(null);
   const [assignments, setAssignments] = useState<SelectableAssignment[]>([]);
   const [progressPercent, setProgressPercent] = useState(0);

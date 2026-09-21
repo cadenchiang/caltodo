@@ -29,13 +29,13 @@ export default function CanvasSettings({ credentials, onUpdate }: CanvasSettings
   const { tasks, deleteTasksBySource } = useTaskContext();
   const [disconnecting, setDisconnecting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const isConnected = Boolean(credentials.canvas_token) || Boolean(credentials.canvas_ical_url);
+  const isConnected = credentials.has_canvas_token || Boolean(credentials.canvas_ical_url);
   // canvas_token_expired is purely age-based (120 days). canvas_auth_failed is
   // set by the sync engine when Canvas actually rejects the token, which can
   // happen on day one if it was revoked; it was returned by the API but read
   // by nothing, so a rejected token showed as connected while never syncing.
-  const isRejected = Boolean(credentials.canvas_token) && credentials.canvas_auth_failed === true;
-  const isExpired = (Boolean(credentials.canvas_token) && credentials.canvas_token_expired) || isRejected;
+  const isRejected = credentials.has_canvas_token && credentials.canvas_auth_failed === true;
+  const isExpired = (credentials.has_canvas_token && credentials.canvas_token_expired) || isRejected;
   const sourceTaskCount = tasks.filter((t) => t.source === "canvas").length;
 
   /**
@@ -76,7 +76,7 @@ export default function CanvasSettings({ credentials, onUpdate }: CanvasSettings
           <p className="text-sm font-semibold text-foreground">Canvas</p>
           <p className="text-xs text-muted-foreground truncate">
             {isConnected
-              ? (credentials.canvas_token ? "API token" : "Calendar feed")
+              ? (credentials.has_canvas_token ? "API token" : "Calendar feed")
               : "Sync assignments from your Canvas account"}
           </p>
         </div>

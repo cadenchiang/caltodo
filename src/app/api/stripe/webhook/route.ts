@@ -3,16 +3,16 @@ import { revalidateTag } from "next/cache";
 import { stripe, webhookSecret, StripeNotConfiguredError } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logger } from "@/lib/logger";
+import { claimEvent, releaseEvent, concernsStoredSubscription } from "@/lib/stripe-webhook-store";
+import { isForeignKeyViolation } from "@/lib/stripe-guards";
 import type Stripe from "stripe";
 
 /**
- * Invalidate the per-user entitlement cache (see getEntitlement in
- * src/lib/entitlements.ts). Stripe events change the user's plan and the
- * cache TTL would otherwise hold a stale value for up to 60s.
+ * Invalidates the per-user entitlement cache (see getEntitlement); the TTL
+ * would otherwise hold a stale plan for up to 60s. Next 16's revalidateTag
+ * takes a cache profile; "max" expires the tag immediately.
  */
 function invalidateEntitlement(userId: string): void {
-  // Next 16's revalidateTag requires a cache profile as the second argument.
-  // "max" expires all cached entries carrying this tag immediately.
   revalidateTag(`entitlement:${userId}`, "max");
 }
 
@@ -31,6 +31,13 @@ function invalidateEntitlement(userId: string): void {
  *   - invoice.payment_failed           -> mark past_due
  *
  * Returns 200 even on unhandled events so Stripe doesn't retry forever.
+ *
+ * Idempotent: each event id is claimed in stripe_webhook_events before it
+ * is handled, so a redelivery is acknowledged without being applied. A
+ * handler failure releases the claim so Stripe's retry can be processed.
+ * Subscription updated/deleted events are applied only when they concern
+ * the stored subscription (or the row has none yet), so a stale event for
+ * an older subscription cannot overwrite a newer one.
  */
 export async function POST(req: NextRequest) {
   const sig = req.headers.get("stripe-signature");
@@ -54,17 +61,33 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "bad_signature" }, { status: 400 });
   }
 
+  const claimed = await claimEvent(event);
+  if (claimed === "duplicate") {
+    logger.info("stripe_webhook_duplicate_ignored", { eventId: event.id, eventType: event.type });
+    return NextResponse.json({ received: true, duplicate: true });
+  }
+  if (claimed === "error") {
+    // Without the claim we cannot promise idempotency; let Stripe retry.
+    return NextResponse.json({ error: "claim_failed" }, { status: 500 });
+  }
+
   try {
     switch (event.type) {
       case "checkout.session.completed":
         await handleCheckoutCompleted(event.data.object);
         break;
       case "customer.subscription.created":
-      case "customer.subscription.updated":
         await syncFromSubscription(event.data.object);
         break;
+      case "customer.subscription.updated":
+        if (await concernsStoredSubscription(event.data.object, event.type)) {
+          await syncFromSubscription(event.data.object);
+        }
+        break;
       case "customer.subscription.deleted":
-        await handleSubscriptionDeleted(event.data.object);
+        if (await concernsStoredSubscription(event.data.object, event.type)) {
+          await handleSubscriptionDeleted(event.data.object);
+        }
         break;
       case "invoice.payment_failed":
         await handlePaymentFailed(event.data.object);
@@ -76,9 +99,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ received: true });
   } catch (err) {
     logger.error("stripe_webhook_handler_failed", {
+      eventId: event.id,
       eventType: event.type,
       message: err instanceof Error ? err.message : String(err),
+      impact: "claim released; Stripe will redeliver and the event is reapplied",
     });
+    await releaseEvent(event.id);
     // 500 makes Stripe retry, which is correct for transient failures.
     return NextResponse.json({ error: "handler_failed" }, { status: 500 });
   }
@@ -154,7 +180,7 @@ async function syncFromSubscription(sub: Stripe.Subscription) {
   const status = mapStripeStatus(sub.status);
 
   const admin = createAdminClient();
-  await admin
+  const { error } = await admin
     .from("subscriptions")
     .upsert(
       {
@@ -169,6 +195,21 @@ async function syncFromSubscription(sub: Stripe.Subscription) {
       },
       { onConflict: "user_id" },
     );
+  if (error) {
+    if (isForeignKeyViolation(error)) {
+      // The account was deleted (its row cascaded away) and the customer
+      // metadata still names it. There is no row to update and retrying
+      // would never succeed, so acknowledge and move on.
+      logger.warn("stripe_subscription_synced_for_deleted_user", {
+        userId,
+        customerId,
+        subscriptionId: sub.id,
+        impact: "event acknowledged without a row; no retry",
+      });
+      return;
+    }
+    throw new Error(`subscriptions upsert failed: ${error.message}`);
+  }
 
   invalidateEntitlement(userId);
 
@@ -191,7 +232,7 @@ async function handleSubscriptionDeleted(sub: Stripe.Subscription) {
   if (!userId) return;
 
   const admin = createAdminClient();
-  await admin
+  const { error } = await admin
     .from("subscriptions")
     .update({
       plan: "free",
@@ -202,6 +243,7 @@ async function handleSubscriptionDeleted(sub: Stripe.Subscription) {
       billing_interval: null,
     })
     .eq("user_id", userId);
+  if (error) throw new Error(`subscriptions update failed: ${error.message}`);
 
   invalidateEntitlement(userId);
 
@@ -218,10 +260,11 @@ async function handlePaymentFailed(invoice: Stripe.Invoice) {
   if (!userId) return;
 
   const admin = createAdminClient();
-  await admin
+  const { error } = await admin
     .from("subscriptions")
     .update({ status: "past_due" })
     .eq("user_id", userId);
+  if (error) throw new Error(`subscriptions update failed: ${error.message}`);
 
   invalidateEntitlement(userId);
 

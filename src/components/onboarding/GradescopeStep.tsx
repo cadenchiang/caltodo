@@ -100,6 +100,17 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
   /** Tracks the timestamp of the last verification attempt for rate limiting. */
   const lastVerifyRef = useRef<number>(0);
 
+  // In standalone retry mode the saved email arrives from a fetch after this
+  // step has mounted, so the useState initializer above never saw it. Adopt
+  // it when it changes (React's adjust-state-on-prop-change pattern, during
+  // render), but only while the field is still empty so a value the user
+  // has started typing is never overwritten.
+  const [seenInitialEmail, setSeenInitialEmail] = useState(initialEmail);
+  if (initialEmail !== seenInitialEmail) {
+    setSeenInitialEmail(initialEmail);
+    if (initialEmail && email === "") setEmail(initialEmail);
+  }
+
   /** Ref tracking latest state for unmount draft reporting. */
   const draftRef = useRef({ email, password, courses, selectedIds: Array.from(selectedIds) });
   useEffect(() => {
@@ -141,6 +152,9 @@ export default function GradescopeStep({ onNext, onSkip, saving, error, setError
       if (!res.ok) {
         if (res.status === 401) {
           setAuthFailed(true);
+          // The help dropdown below explains the SSO case; the toast is the
+          // immediate signal that the attempt was rejected.
+          showToast("Gradescope rejected that email or password.", { variant: "error", duration: 4000 });
           return;
         }
         if (res.status >= 500 && res.status < 600) {

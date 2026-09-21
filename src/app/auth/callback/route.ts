@@ -18,9 +18,11 @@ export async function GET(request: NextRequest) {
   redirectTo.searchParams.delete("code");
   redirectTo.searchParams.delete("next");
 
+  let exchangeError: string | null = null;
   if (code) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
+    if (error) exchangeError = error.message;
 
     if (!error) {
       const { data: { user } } = await supabase.auth.getUser();
@@ -86,7 +88,18 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // If code exchange fails, redirect to login
+  // No code, or the exchange failed: back to /login with a reason. Google's
+  // own `error` param (e.g. access_denied) is already on the URL and wins;
+  // otherwise name the failure so both the popup poll and the login banner
+  // can tell this apart from a successful landing.
+  const providerError = searchParams.get("error");
+  const reason = providerError ?? (code ? "exchange_failed" : "missing_code");
+  logger.warn("auth/callback: sign-in failed, redirecting to /login", {
+    reason,
+    exchangeError,
+    impact: "user sees the sign-in error banner and no session is created",
+  });
   redirectTo.pathname = "/login";
+  if (!providerError) redirectTo.searchParams.set("error", reason);
   return NextResponse.redirect(redirectTo);
 }

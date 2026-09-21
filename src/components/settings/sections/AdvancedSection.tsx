@@ -1,11 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2, LogOut, UserX, RotateCcw } from "lucide-react";
 import { useTaskContext } from "@/contexts/TaskContext";
 import { useToast } from "@/contexts/ToastContext";
 import { clearLayoutCache } from "@/lib/board-layout-cache";
+import { KEY_MAP as DISMISSED_MODAL_KEYS } from "@/hooks/useDismissedModals";
+import { invalidateCredentials } from "@/lib/credentials-client";
+import { clearProgress } from "@/lib/onboarding-progress";
 
 /**
  * Advanced settings section.
@@ -14,9 +17,16 @@ import { clearLayoutCache } from "@/lib/board-layout-cache";
  */
 export default function AdvancedSection() {
   const router = useRouter();
-  const { tasks, deleteAllTasks } = useTaskContext();
+  const { tasks, deleteAllTasks, error: taskError } = useTaskContext();
   const { showToast } = useToast();
   const [confirmDelete, setConfirmDelete] = useState(false);
+  /**
+   * Bumped once each delete-all has settled, so the toast is chosen from the
+   * context's post-delete state rather than the stale render closure.
+   */
+  const [deleteRun, setDeleteRun] = useState(0);
+  /** The context error as it was before the delete began. */
+  const errorBeforeDeleteRef = useRef<string | null>(null);
   /** Spinner state on the log-out button while the request is in flight. */
   const [signingOut, setSigningOut] = useState(false);
   const [confirmDeleteAccount, setConfirmDeleteAccount] = useState(false);
@@ -39,9 +49,30 @@ export default function AdvancedSection() {
       return;
     }
     setConfirmDelete(false);
+    errorBeforeDeleteRef.current = taskError;
     await deleteAllTasks();
-    showToast("All tasks deleted.");
+    setDeleteRun((n) => n + 1);
   }
+
+  // deleteAllTasks reports failure through the context (it restores the
+  // list and sets `error`) rather than by returning it, so the outcome is
+  // read from the render that follows the call. The previous code toasted
+  // "All tasks deleted." unconditionally, including when nothing was.
+  useEffect(() => {
+    if (deleteRun === 0) return;
+    const failed = tasks.length > 0 || (taskError !== null && taskError !== errorBeforeDeleteRef.current);
+    if (failed) {
+      console.error("AdvancedSection: delete all tasks failed", {
+        error: taskError,
+        remaining: tasks.length,
+        impact: "tasks were restored; nothing was deleted",
+      });
+      showToast(taskError ? `Failed to delete tasks: ${taskError}` : "Failed to delete tasks.");
+      return;
+    }
+    showToast("All tasks deleted.");
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once per settled delete; tasks/taskError are read, not watched
+  }, [deleteRun]);
 
   /**
    * Performs log-out immediately. Clears layout cache, posts to /auth/signout,
@@ -67,15 +98,34 @@ export default function AdvancedSection() {
   async function handleResetOnboarding() {
     setResettingOnboarding(true);
     try {
-      await fetch("/api/credentials", {
+      const res = await fetch("/api/credentials", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ dismissed_modals: {} }),
       });
-      localStorage.removeItem("calchat_welcome_accepted");
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `Reset failed: ${res.status}`);
+      }
+      // Every local "seen" flag, not just the chat one; the server row alone
+      // is not what the modals read first.
+      for (const lsKey of Object.values(DISMISSED_MODAL_KEYS)) {
+        localStorage.removeItem(lsKey);
+      }
+      // Mounted useDismissedModals consumers drop their module-level cache.
+      window.dispatchEvent(new CustomEvent("caltodo-reset-modals"));
+      // The shared credentials cache still holds the old dismissed_modals.
+      invalidateCredentials();
+      // A saved flow position would resume mid-flow instead of from the start.
+      clearProgress();
       router.push("/app/onboarding");
-    } catch {
-      showToast("Failed to reset onboarding.");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error("AdvancedSection: reset onboarding failed", {
+        error: message,
+        impact: "dismissed modals and saved progress were left as they were",
+      });
+      showToast(`Failed to reset onboarding: ${message}`);
     } finally {
       setResettingOnboarding(false);
     }

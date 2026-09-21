@@ -6,6 +6,10 @@ import LandingNav from "@/components/landing/LandingNav";
  * transitions between these pages only swap the page content
  * underneath the nav.
  *
+ * Always white, so it carries `force-light` (as /login does): without it the
+ * app's dark theme after sunset gave the contact form dark native controls
+ * and dark autofill on a white page.
+ *
  * Intentionally does NOT do any server-side auth fetching — that would
  * mark every landing page as dynamic. Auth is detected client-side inside
  * LandingNav so About/Contact stay statically generated and edge-cached.
@@ -16,7 +20,7 @@ export default function LandingLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-dvh flex flex-col bg-white text-black" style={{ overflowX: "clip" }}>
+    <div className="min-h-dvh flex flex-col bg-white text-black force-light" style={{ overflowX: "clip" }}>
       <LandingNav />
       {children}
     </div>

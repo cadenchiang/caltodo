@@ -79,6 +79,23 @@ export interface OnboardingProgress {
 }
 
 /**
+ * Progress-bar width for a step, as a percentage of the full step list.
+ *
+ * Derived from ONBOARDING_STEPS so a step added there cannot be missing
+ * here: a hand-written map once lacked gcal, brightspace, blackboard and
+ * classroom, and the bar jumped to 100% on each of them.
+ *
+ * @param step - The step being shown.
+ * @returns 0 for the first step, 100 for the last, evenly spaced between.
+ */
+export function progressPercentForStep(step: OnboardingStep): number {
+  const index = ONBOARDING_STEPS.indexOf(step);
+  const last = ONBOARDING_STEPS.length - 1;
+  if (index < 0 || last <= 0) return 0;
+  return Math.round((index / last) * 100);
+}
+
+/**
  * Narrows an unknown value to a known step.
  *
  * @param value - Candidate step name.

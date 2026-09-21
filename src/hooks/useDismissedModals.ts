@@ -8,7 +8,7 @@ import { getCredentials } from "@/lib/credentials-client";
  * Maps server-side modal keys to their corresponding localStorage keys.
  * Maintains backward compatibility with existing localStorage dismiss state.
  */
-const KEY_MAP: Record<keyof DismissedModals, string> = {
+export const KEY_MAP: Record<keyof DismissedModals, string> = {
   sync_welcome: "caltodo_sync_dismissed",
   gcal_announce: "caltodo_gcal_announce_seen",
   calchat_welcome: "calchat_welcome_accepted",

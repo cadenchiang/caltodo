@@ -49,6 +49,17 @@ describe("the onboarding picker", () => {
     // clicks both reach the handler.
     expect(onboarding).toContain('if (platform === "classroom" && !CLASSROOM_AVAILABLE) return;');
   });
+
+  it("does not accept ?setup=classroom while unavailable (audit L17)", () => {
+    // The standalone list is derived from the flag rather than hardcoding
+    // "classroom", so the two cannot disagree.
+    expect(onboarding).toContain('...(CLASSROOM_AVAILABLE ? ["classroom"] : []),');
+    const list = onboarding.slice(
+      onboarding.indexOf("const VALID_SETUP_PLATFORMS"),
+      onboarding.indexOf("]);", onboarding.indexOf("const VALID_SETUP_PLATFORMS")),
+    );
+    expect(list).not.toMatch(/"syllabus", "classroom"/);
+  });
 });
 
 describe("the settings card", () => {

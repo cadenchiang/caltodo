@@ -1,6 +1,6 @@
 /**
  * API route for reading and saving integration credentials.
- * GET: Returns credentials (password masked as boolean).
+ * GET: Returns credentials (Canvas token and password masked as booleans).
  * PUT: Creates or updates credentials (encrypts Gradescope password).
  */
 
@@ -12,12 +12,15 @@ import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
 import { isAllowedCanvasUrl } from "@/lib/canvas-url-validation";
 import { loadCredentials, FULL_SELECT, CORE_SELECT, isMissingColumnError } from "@/lib/credentials-loader";
-import type { IntegrationCredentials, CredentialsSavePayload, AdditionalCanvasAccount } from "@/lib/types";
+import { rowHasOwnCredentials, shapeCredentials } from "@/lib/credentials-shape";
+import { mergeCanvasAccountTokens } from "@/lib/canvas-accounts-merge";
+import type { CredentialsSavePayload, AdditionalCanvasAccount, AdditionalCanvasAccountInput } from "@/lib/types";
 
 /**
  * GET /api/credentials
  * Returns the user's integration credentials.
- * Gradescope password is never returned — only has_gradescope_password boolean.
+ * Secrets are never returned: has_canvas_token and has_gradescope_password
+ * are booleans, and additional accounts carry has_token instead of a token.
  */
 export async function GET() {
   const supabase = await createClient();
@@ -188,7 +191,7 @@ export async function PUT(request: Request) {
   }
   if (body.additional_canvas_accounts !== undefined) {
     // Validate each additional Canvas account URL against allowlist
-    const accounts = body.additional_canvas_accounts as AdditionalCanvasAccount[] | null;
+    const accounts = body.additional_canvas_accounts as AdditionalCanvasAccountInput[] | null;
     if (accounts && accounts.length > 10) {
       return NextResponse.json({ error: "Maximum 10 additional Canvas accounts allowed" }, { status: 400 });
     }
@@ -217,14 +220,28 @@ export async function PUT(request: Request) {
         }
       }
     }
-    // Saving accounts means the user just (re)entered credentials, so clear
-    // any stored auth failure — otherwise a client that round-trips the
-    // object it read from GET would carry auth_failed:true back in and keep
-    // warning about an account that was just fixed. The next sync re-sets it
-    // if the new token is also bad.
-    updateData.additional_canvas_accounts = accounts
-      ? accounts.map((account) => ({ ...account, auth_failed: false }))
-      : body.additional_canvas_accounts;
+    // The client never holds tokens (GET masks them), so a round-tripped
+    // account arrives without one. Keep the stored token for every account
+    // id that already exists; only a freshly entered token replaces it.
+    if (accounts) {
+      const { data: storedRow, error: storedError } = await supabase
+        .from("integration_credentials")
+        .select("additional_canvas_accounts")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (storedError) {
+        logger.error("PUT /api/credentials: failed to read stored Canvas accounts", {
+          userId: user.id,
+          error: storedError.message,
+          impact: "save refused so existing account tokens are not overwritten",
+        });
+        return NextResponse.json({ error: "Failed to save credentials" }, { status: 500 });
+      }
+      const stored = (storedRow?.additional_canvas_accounts ?? []) as AdditionalCanvasAccount[];
+      updateData.additional_canvas_accounts = mergeCanvasAccountTokens(accounts, stored);
+    } else {
+      updateData.additional_canvas_accounts = body.additional_canvas_accounts;
+    }
   }
   if (body.email_digest_enabled !== undefined) {
     updateData.email_digest_enabled = body.email_digest_enabled;
@@ -310,72 +327,9 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: "Credentials saved but failed to read back" }, { status: 500 });
   }
 
-  // Check Canvas token expiration for the response. Compute BOTH expired and
-  // expiring-soon (days 113-120) so the proactive banner doesn't vanish when a
-  // user saves classes — the PUT response used to omit expiring_soon, which
-  // made IntegrationHealthBanner drop the warning until a full reload.
-  let putCanvasTokenExpired = false;
-  let putCanvasTokenExpiringSoon = false;
-  if (updated?.canvas_token && updated?.canvas_token_created_at) {
-    const createdAt = new Date(updated.canvas_token_created_at).getTime();
-    const day = 24 * 60 * 60 * 1000;
-    const ageMs = Date.now() - createdAt;
-    putCanvasTokenExpired = ageMs > 120 * day;
-    putCanvasTokenExpiringSoon = !putCanvasTokenExpired && ageMs > 113 * day;
-  }
-
-  const putHasCompletedOnboarding = !!(
-    updated?.canvas_token ||
-    updated?.canvas_ical_url ||
-    updated?.gradescope_password_encrypted ||
-    updated?.pensieve_calendar_url ||
-    updated?.brightspace_calendar_url ||
-    updated?.blackboard_calendar_url ||
-    updated?.last_synced_at ||
-    updated?.google_access_token_encrypted
-  );
-
-  const credentials: IntegrationCredentials = {
-    canvas_token: updated?.canvas_token ?? null,
-    canvas_base_url: updated?.canvas_base_url ?? "https://bcourses.berkeley.edu",
-    canvas_ical_url: updated?.canvas_ical_url ?? null,
-    canvas_token_expired: putCanvasTokenExpired,
-    canvas_token_expiring_soon: putCanvasTokenExpiringSoon,
-    canvas_auth_failed: (updated as { canvas_auth_failed?: boolean } | null)?.canvas_auth_failed ?? false,
-    canvas_ical_failed: (updated as { canvas_ical_failed?: boolean } | null)?.canvas_ical_failed ?? false,
-    classroom_enabled: (updated as { classroom_enabled?: boolean } | null)?.classroom_enabled ?? false,
-    selected_classroom_courses:
-      (updated as { selected_classroom_courses?: Array<{ id: string; name: string }> | null } | null)
-        ?.selected_classroom_courses ?? null,
-    classroom_auth_failed: (updated as { classroom_auth_failed?: boolean } | null)?.classroom_auth_failed ?? false,
-    gradescope_email: updated?.gradescope_email ?? null,
-    has_gradescope_password: !!updated?.gradescope_password_encrypted,
-    gradescope_auth_failed: updated?.gradescope_auth_failed ?? false,
-    last_synced_at: updated?.last_synced_at ?? null,
-    selected_canvas_courses: updated?.selected_canvas_courses ?? null,
-    dismissed_canvas_course_ids: updated?.dismissed_canvas_course_ids ?? [],
-    selected_gradescope_courses: updated?.selected_gradescope_courses ?? null,
-    selected_pensieve_courses: updated?.selected_pensieve_courses ?? null,
-    has_google_calendar: !!updated?.google_access_token_encrypted,
-    google_auth_failed: updated?.google_auth_failed ?? false,
-    google_calendar_id: updated?.google_calendar_id ?? null,
-    google_email: updated?.google_email ?? null,
-    google_photo_url: updated?.google_photo_url ?? null,
-    canvas_token_created_at: updated?.canvas_token_created_at ?? null,
-    is_founding_member: updated?.is_founding_member ?? false,
-    pensieve_calendar_url: updated?.pensieve_calendar_url ?? null,
-    pensieve_auth_failed: (updated as { pensieve_auth_failed?: boolean } | null)?.pensieve_auth_failed ?? false,
-    brightspace_calendar_url: updated?.brightspace_calendar_url ?? null,
-    brightspace_auth_failed: (updated as { brightspace_auth_failed?: boolean } | null)?.brightspace_auth_failed ?? false,
-    blackboard_calendar_url: updated?.blackboard_calendar_url ?? null,
-    blackboard_auth_failed: (updated as { blackboard_auth_failed?: boolean } | null)?.blackboard_auth_failed ?? false,
-    additional_canvas_accounts: updated?.additional_canvas_accounts ?? [],
-    has_completed_onboarding: putHasCompletedOnboarding,
-    email_digest_enabled: updated?.email_digest_enabled ?? true,
-    email_digest_hour: updated?.email_digest_hour ?? 15,
-    email_digest_address: updated?.email_digest_address ?? null,
-    dismissed_modals: updated?.dismissed_modals ?? {},
-  };
+  // Same shaping as GET, so the PUT response can never carry a secret the
+  // GET response would have masked.
+  const credentials = shapeCredentials(updated, rowHasOwnCredentials(updated));
 
   return NextResponse.json(credentials);
 }

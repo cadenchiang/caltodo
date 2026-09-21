@@ -13,7 +13,7 @@ import type { IntegrationCredentials, SyncResult } from "@/lib/types";
 
 /** A user with nothing connected and nothing wrong. */
 const HEALTHY: IntegrationCredentials = {
-  canvas_token: null,
+  has_canvas_token: false,
   canvas_base_url: "https://bcourses.berkeley.edu",
   canvas_ical_url: null,
   canvas_token_expired: false,
@@ -102,7 +102,7 @@ describe("buildHealthIssues", () => {
 describe("buildHealthIssues: a stale token alongside a working feed", () => {
   /** The exact reported state: old dead token, freshly pasted feed URL. */
   const RECONNECTED_BY_FEED = creds({
-    canvas_token: "old-token",
+    has_canvas_token: true,
     canvas_token_expired: true,
     canvas_ical_url: "https://bcourses.berkeley.edu/feeds/u.ics",
     canvas_ical_failed: false,
@@ -145,7 +145,7 @@ describe("buildHealthIssues: a stale token alongside a working feed", () => {
 describe("buildHealthIssues: Canvas token path", () => {
   it("reports an expired token when the token is the only path", () => {
     const issues = buildHealthIssues(
-      creds({ canvas_token: "old-token", canvas_token_expired: true }),
+      creds({ has_canvas_token: true, canvas_token_expired: true }),
       CLEAN_SYNC
     );
 
@@ -157,7 +157,7 @@ describe("buildHealthIssues: Canvas token path", () => {
 
   it("prefers the outright rejection over the 120-day heuristic", () => {
     const issues = buildHealthIssues(
-      creds({ canvas_token: "old-token", canvas_auth_failed: true, canvas_token_expired: true }),
+      creds({ has_canvas_token: true, canvas_auth_failed: true, canvas_token_expired: true }),
       CLEAN_SYNC
     );
 
@@ -167,7 +167,7 @@ describe("buildHealthIssues: Canvas token path", () => {
 
   it("warns before a token dies", () => {
     const issues = buildHealthIssues(
-      creds({ canvas_token: "ok-token", canvas_token_expiring_soon: true }),
+      creds({ has_canvas_token: true, canvas_token_expiring_soon: true }),
       CLEAN_SYNC
     );
 

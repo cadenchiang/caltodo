@@ -37,8 +37,10 @@ export default function LoginForm() {
   );
   const [copied, setCopied] = useState(false);
 
+  // Mirror the hook's error in both directions, so a retry that clears it
+  // in the hook also clears the banner here.
   useEffect(() => {
-    if (oauthError) setError(oauthError);
+    setError(oauthError);
   }, [oauthError]);
 
   useEffect(() => {
@@ -50,6 +52,16 @@ export default function LoginForm() {
       setError("Sign-in failed. Please try again.");
     }
   }, [searchParams, mode]);
+
+  /**
+   * Starts Google sign-in, clearing any banner from a previous attempt (a
+   * callback `?error=` or an earlier popup failure) so the user is not
+   * looking at stale text while the new attempt runs.
+   */
+  function handleRetry() {
+    setError(null);
+    void handleGoogleSignIn();
+  }
 
   /**
    * Copies the login URL to clipboard and shows a brief "copied" confirmation.
@@ -145,7 +157,7 @@ export default function LoginForm() {
       {/* Google OAuth button */}
       <button
         type="button"
-        onClick={handleGoogleSignIn}
+        onClick={handleRetry}
         className="flex items-center justify-center gap-3 w-full px-4 py-3 rounded-xl bg-white border border-gray-200 text-gray-900 text-sm font-medium shadow-sm hover:bg-gray-50 transition-colors"
         style={{ animationDelay: "240ms" }}
       >

@@ -4,6 +4,13 @@ import { useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { trackEvent } from "@/lib/analytics";
 import { trackAuthSubmitted, trackAuthError, type AuthMode } from "@/lib/auth-analytics";
+import { classifyPopupUrl } from "@/lib/oauth-popup";
+
+/** Shown when the callback bounced the popup to /login or no session appeared. */
+export const POPUP_ERROR_MESSAGE = "Sign-in failed. Please try again.";
+
+/** How long to wait for the popup's cookies to become visible in this window. */
+const SESSION_WAIT_MS = 5000;
 
 /**
  * Reusable hook for Google OAuth sign-in via Supabase.
@@ -79,11 +86,13 @@ export function useGoogleSignIn(mode: AuthMode = "sign_in") {
 
         /**
          * Polls the popup window until it either closes or navigates back to our
-         * origin (after the OAuth callback redirect). Once detected, waits for
-         * the auth cookies to actually appear in the main window's session before
-         * navigating — without this, the main window can race ahead of the
+         * origin (after the OAuth callback redirect). A landing on /login is the
+         * callback's failure branch: the popup is closed, the error is shown
+         * here, and nothing navigates. A landing in /app waits for the auth
+         * cookies to actually appear in this window's session before
+         * navigating; without this, the main window can race ahead of the
          * popup's Set-Cookie write and bounce off the protected route back to
-         * /login.
+         * /login. It never navigates without a session.
          */
         const pollId = setInterval(async () => {
           try {
@@ -100,39 +109,45 @@ export function useGoogleSignIn(mode: AuthMode = "sign_in") {
               return;
             }
 
-            const popupUrl = popup.location.href;
+            const outcome = classifyPopupUrl(popup.location.href, window.location.origin);
+            if (outcome.kind === "pending") return;
+            clearInterval(pollId);
 
-            if (popupUrl.includes("/app/") || popupUrl.includes("/login")) {
-              clearInterval(pollId);
-              // Non-onboarding destinations go through / so the proxy can
-              // pick /app/home (Pro) vs /app/inbox (free) per entitlement.
-              const destination = popupUrl.includes("/app/onboarding")
-                ? "/app/onboarding"
-                : "/";
-
-              // Wait for the popup's Set-Cookie write to land before navigating.
-              // We re-check getSession() until it resolves with a session, up to
-              // ~3s. Without this, the main window's request to /app/* arrives
-              // without cookies and the layout bounces it to /login.
-              const start = Date.now();
-              const sessionPoll = setInterval(async () => {
-                const {
-                  data: { session },
-                } = await supabase.auth.getSession();
-                if (session) {
-                  clearInterval(sessionPoll);
-                  popup.close();
-                  window.location.href = destination;
-                  return;
-                }
-                if (Date.now() - start > 3000) {
-                  clearInterval(sessionPoll);
-                  popup.close();
-                  // Fall back: go anyway. Layout will handle re-auth if needed.
-                  window.location.href = destination;
-                }
-              }, 100);
+            if (outcome.kind === "error") {
+              popup.close();
+              trackAuthError("callback", mode, outcome.reason);
+              setError(POPUP_ERROR_MESSAGE);
+              return;
             }
+
+            // Non-onboarding destinations go through / so the proxy can
+            // pick /app/home (Pro) vs /app/inbox (free) per entitlement.
+            const destination = outcome.destination;
+            const start = Date.now();
+            const sessionPoll = setInterval(async () => {
+              const {
+                data: { session },
+              } = await supabase.auth.getSession();
+              if (session) {
+                clearInterval(sessionPoll);
+                popup.close();
+                window.location.href = destination;
+                return;
+              }
+              if (Date.now() - start > SESSION_WAIT_MS) {
+                clearInterval(sessionPoll);
+                popup.close();
+                // The callback landed in the app but this window never saw
+                // the session cookie. Navigating anyway would bounce off the
+                // protected layout back here, so report it instead.
+                console.warn("useGoogleSignIn: popup reached the app but no session appeared", {
+                  destination,
+                  waitedMs: SESSION_WAIT_MS,
+                });
+                trackAuthError("callback", mode, "session_not_visible_after_popup");
+                setError(POPUP_ERROR_MESSAGE);
+              }
+            }, 100);
           } catch {
             // Cross-origin — popup is still on Google/Supabase domain, keep polling
           }

@@ -10,6 +10,7 @@ import {
   loadProgress,
   saveProgress,
   clearProgress,
+  progressPercentForStep,
   type OnboardingStep,
   type OnboardingPlatform,
 } from "@/lib/onboarding-progress";
@@ -27,7 +28,7 @@ import SearchableSelect from "@/components/onboarding/SearchableSelect";
 import PlatformLogo from "@/components/onboarding/PlatformLogo";
 import { SCHOOL_OPTIONS, REFERRAL_OPTIONS } from "@/components/onboarding/onboardingOptions";
 import { buildEntries, searchSchools } from "@/lib/school-search";
-import type { IntegrationCredentials, AdditionalCanvasAccount } from "@/lib/types";
+import type { IntegrationCredentials, AdditionalCanvasAccountInput } from "@/lib/types";
 
 /**
  * Prebuilt alias index for the school picker, computed once at module load so
@@ -102,8 +103,16 @@ const PLATFORM_OPTIONS: Array<{ id: Platform; label: string; description: string
   { id: "syllabus", label: "Syllabus", description: "Extract assignments from a syllabus PDF", logo: "/file.svg" },
 ];
 
-/** Valid platforms for standalone ?setup= mode. */
-const VALID_SETUP_PLATFORMS = new Set<string>(["canvas", "gradescope", "pensieve", "brightspace", "blackboard", "canvas-add", "pensieve-add", "brightspace-add", "blackboard-add", "syllabus", "classroom"]);
+/**
+ * Valid platforms for standalone ?setup= mode. Classroom is only accepted
+ * while it can actually be connected; otherwise ?setup=classroom rendered a
+ * Connect link that just returned to Settings.
+ */
+const VALID_SETUP_PLATFORMS = new Set<string>([
+  "canvas", "gradescope", "pensieve", "brightspace", "blackboard",
+  "canvas-add", "pensieve-add", "brightspace-add", "blackboard-add", "syllabus",
+  ...(CLASSROOM_AVAILABLE ? ["classroom"] : []),
+]);
 
 /** Display labels for standalone setup mode header. */
 const SETUP_LABELS: Record<string, string> = {
@@ -571,8 +580,13 @@ export default function OnboardingPage() {
    * render and desync the SSR'd HTML from hydration. This effect has an empty
    * dependency array and sets `restored` exactly once, so it cannot cascade.
    */
+  // None of the three effects below belong to standalone ?setup= mode: it is
+  // a single step reached from Settings, not a position in the flow. Running
+  // them there fired a phantom "welcome" view and wrote a bogus snapshot
+  // that the next real visit to the flow then resumed from.
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
+    if (isStandaloneSetup) return;
     const saved = loadProgress();
     if (saved) {
       setSelectedPlatforms(new Set(saved.platforms as Platform[]));
@@ -581,7 +595,7 @@ export default function OnboardingPage() {
       setCurrentStep(saved.step);
     }
     setRestored(true);
-  }, []);
+  }, [isStandaloneSetup]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   // Persist the position on every change, so a reload resumes here. Skipped
@@ -589,6 +603,7 @@ export default function OnboardingPage() {
   // very snapshot being read. "done" is not saved: the user is finished, and
   // resuming a completed flow just traps them on the last screen.
   useEffect(() => {
+    if (isStandaloneSetup) return;
     if (!restored || currentStep === "done") return;
     saveProgress({
       step: currentStep,
@@ -596,13 +611,14 @@ export default function OnboardingPage() {
       school,
       referral,
     });
-  }, [restored, currentStep, selectedPlatforms, school, referral]);
+  }, [isStandaloneSetup, restored, currentStep, selectedPlatforms, school, referral]);
 
   // Track when each step is viewed
   useEffect(() => {
+    if (isStandaloneSetup) return;
     if (!restored) return;
     trackEvent("onboarding_step_viewed", { step: currentStep });
-  }, [currentStep, restored]);
+  }, [isStandaloneSetup, currentStep, restored]);
 
   // Prefetch every route onboarding can exit to, so the final navigation is
   // instant. Completing setup lands on /app/home; "Skip for now" lands on
@@ -758,7 +774,7 @@ export default function OnboardingPage() {
       if (!getRes.ok) throw new Error("Failed to fetch current credentials");
       const current: IntegrationCredentials = await getRes.json();
 
-      const newAccount: AdditionalCanvasAccount = {
+      const newAccount: AdditionalCanvasAccountInput = {
         id: `canvas-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         label: payload.label,
         base_url: payload.base_url,
@@ -1219,17 +1235,7 @@ export default function OnboardingPage() {
             <div
               className="h-full rounded-l-full transition-[width] duration-500 ease-out relative bg-[#0e89d6]"
               style={{
-                width: `${({
-                  welcome: 0,
-                  school: 10,
-                  referral: 20,
-                  platforms: 30,
-                  canvas: 45,
-                  gradescope: 60,
-                  pensieve: 75,
-                  syllabus: 88,
-                  done: 100,
-                } as Record<Step, number>)[currentStep]}%`,
+                width: `${progressPercentForStep(currentStep)}%`,
               }}
             >
               {/* Subtle top sheen — inset from the rounded ends */}

@@ -24,6 +24,9 @@ const GUARDED_HREFS = [
   "/app/discussions",
 ] as const;
 
+/** Same breakpoint MobileRouteGuard uses, so the two guards agree. */
+const MOBILE_QUERY = "(max-width: 767px)";
+
 /**
  * Renders nothing. Side-effect only: redirects away from hidden routes.
  */
@@ -41,7 +44,12 @@ export default function HiddenRouteRedirect() {
     if (!matched) return;
     if (!hidden.has(matched)) return;
 
-    const target = pickLandingPath({ hidden_nav_items: [...hidden] });
+    // Tell the picker about the viewport, or a phone with Inbox and Calendar
+    // hidden is sent to desktop-only Chat, which MobileRouteGuard bounces
+    // straight back here: a redirect loop. On mobile the picker then falls
+    // back to Inbox, and "already there" ends the chain.
+    const isMobile = window.matchMedia(MOBILE_QUERY).matches;
+    const target = pickLandingPath({ hidden_nav_items: [...hidden] }, { isMobile });
     if (target === pathname) return;
     router.replace(target);
   }, [pathname, hidden, router]);

@@ -31,6 +31,35 @@ const FALLBACK_LANDING = "/app/inbox";
 const DESKTOP_ONLY_HREFS = new Set<string>(["/app/home", "/app/discussions"]);
 
 /**
+ * Nav items that can serve as a landing page on every device. At least one
+ * of these must stay visible: hiding both left mobile with nowhere to land
+ * (Chat is desktop-only), so HiddenRouteRedirect and MobileRouteGuard
+ * bounced the user between Inbox and Chat forever.
+ */
+export const LANDING_CAPABLE_HREFS: readonly string[] = NAV_HREFS_IN_ORDER.filter(
+  (href) => !DESKTOP_ONLY_HREFS.has(href)
+);
+
+/** Why the last landing-capable nav item cannot be hidden. */
+export const LAST_LANDING_ITEM_REASON = "At least one of Inbox or Calendar must stay visible so there is always a page to land on.";
+
+/**
+ * Whether hiding a nav item would leave the user with no landing page.
+ *
+ * @param href - The nav item about to be hidden
+ * @param hidden - The hrefs currently hidden
+ * @returns allowed=false, with a reason, when `href` is the last visible
+ *          landing-capable item; allowed=true otherwise
+ * @remarks Hiding a desktop-only item is always allowed, and so is hiding
+ *          something already hidden (a no-op).
+ */
+export function canHideNavItem(href: string, hidden: ReadonlySet<string>): { allowed: boolean; reason?: string } {
+  if (!LANDING_CAPABLE_HREFS.includes(href) || hidden.has(href)) return { allowed: true };
+  const othersVisible = LANDING_CAPABLE_HREFS.some((h) => h !== href && !hidden.has(h));
+  return othersVisible ? { allowed: true } : { allowed: false, reason: LAST_LANDING_ITEM_REASON };
+}
+
+/**
  * Picks the post-login landing path, respecting the user's hidden nav
  * preferences. Every feature is free, so the first non-hidden nav item
  * wins with no entitlement gating.
@@ -38,6 +67,9 @@ const DESKTOP_ONLY_HREFS = new Set<string>(["/app/home", "/app/discussions"]);
  * @param userMetadata - The Supabase user_metadata object
  * @param opts.isMobile - When true, skips desktop-only routes (Board, Chat)
  * @returns First eligible nav href, or FALLBACK_LANDING
+ * @remarks On mobile the result is never a desktop-only route, even when
+ *          every mobile-capable item is hidden: the fallback (Inbox) is
+ *          returned instead, and the caller treats "already there" as done.
  */
 export function pickLandingPath(
   userMetadata: unknown,

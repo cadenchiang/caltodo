@@ -153,11 +153,12 @@ export default function AddCanvasStep({ onNext, onSkip, saving, error, setError 
     setError(null);
 
     try {
-      const params = new URLSearchParams({
-        token: token.trim(),
-        base_url: fullBaseUrl,
+      // The token goes in the body, never the URL, so it cannot be logged.
+      const res = await fetch("/api/canvas/courses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: token.trim(), base_url: fullBaseUrl }),
       });
-      const res = await fetch(`/api/canvas/courses?${params}`);
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error || `Verification failed: ${res.status}`);
