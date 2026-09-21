@@ -26,6 +26,7 @@ import { logger } from "@/lib/logger";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { NormalizedAssignment } from "@/lib/canvas-client";
 import type { FeedProvider } from "@/lib/integration-providers";
+import { filterBySelectedCourses, type CourseSelection } from "@/lib/course-selection-filter";
 
 /** One connected feed for a provider. */
 export interface FeedAccount {
@@ -38,6 +39,14 @@ export interface FeedAccount {
    * keep their unsuffixed external_id so existing rows are not orphaned.
    */
   isPrimary: boolean;
+  /**
+   * This account's own class selection: the flat `selected_*_courses` column
+   * for the primary account, `integration_accounts.selected_courses` for the
+   * rest. Each feed is filtered by its own selection; applying the primary
+   * selection to every feed made a second feed never sync unless its courses
+   * happened to be in the first one's list.
+   */
+  selectedCourses: CourseSelection;
 }
 
 /** Sentinel id for the account that still lives in the flat columns. */
@@ -78,23 +87,31 @@ export function scopeExternalId(externalId: string, account: FeedAccount): strin
  * @param userId - Owner of the accounts.
  * @param provider - Which feed provider to load.
  * @param primaryUrl - URL from the flat column, or null when not connected.
+ * @param primarySelection - The primary account's stored class selection,
+ *        or null for providers without one (they sync every course).
  * @returns Accounts to sync; empty when nothing is connected at all.
  */
 export async function loadFeedAccounts(
   supabase: SupabaseClient,
   userId: string,
   provider: FeedProvider,
-  primaryUrl: string | null
+  primaryUrl: string | null,
+  primarySelection: CourseSelection = null
 ): Promise<FeedAccount[]> {
   const accounts: FeedAccount[] = [];
   if (primaryUrl) {
-    accounts.push({ id: PRIMARY_ACCOUNT_ID, url: primaryUrl, isPrimary: true });
+    accounts.push({
+      id: PRIMARY_ACCOUNT_ID,
+      url: primaryUrl,
+      isPrimary: true,
+      selectedCourses: primarySelection,
+    });
   }
 
   try {
     const { data, error } = await supabase
       .from("integration_accounts")
-      .select("id, connection")
+      .select("id, connection, selected_courses")
       .eq("user_id", userId)
       .eq("provider", provider)
       .eq("is_primary", false);
@@ -111,7 +128,12 @@ export async function loadFeedAccounts(
     for (const row of data ?? []) {
       const url = (row.connection as Record<string, unknown> | null)?.calendar_url;
       if (typeof url === "string" && url.trim()) {
-        accounts.push({ id: row.id as string, url: url.trim(), isPrimary: false });
+        accounts.push({
+          id: row.id as string,
+          url: url.trim(),
+          isPrimary: false,
+          selectedCourses: readSelection(row.selected_courses),
+        });
       }
     }
   } catch (err) {
@@ -123,6 +145,28 @@ export async function loadFeedAccounts(
   }
 
   return accounts;
+}
+
+/**
+ * Reads a JSONB `selected_courses` value into a selection.
+ *
+ * @param raw - The column value as PostgREST returns it.
+ * @returns The named courses, or null when the column is null or malformed
+ *          (which syncs everything rather than silently nothing).
+ */
+function readSelection(raw: unknown): CourseSelection {
+  if (raw == null) return null;
+  if (!Array.isArray(raw)) {
+    logger.warn("loadFeedAccounts: selected_courses is not an array, syncing every course", {
+      cause: `unexpected JSON shape: ${typeof raw}`,
+      impact: "this account's class selection was ignored for this sync",
+    });
+    return null;
+  }
+  return raw.filter(
+    (c): c is { name: string } =>
+      typeof c === "object" && c !== null && typeof (c as { name?: unknown }).name === "string"
+  );
 }
 
 /** Everything gathered across a provider's accounts. */
@@ -142,6 +186,12 @@ export interface FeedFetchResult {
  * assignments, while the rest still sync. That matters because the caller
  * upserts and dismisses over the combined set, so aborting on the first
  * failure would delete the healthy accounts' tasks.
+ *
+ * Each account's assignments are narrowed to that account's own class
+ * selection before merging, so the selection on one feed never governs
+ * another. An account whose selection is empty fetches, contributes nothing,
+ * and still counts as succeeded: its feed is healthy, the user just chose
+ * no classes from it.
  *
  * @param accounts - Accounts to fetch, from `loadFeedAccounts`.
  * @param fetcher - Provider's feed client, e.g. fetchBlackboardAssignments.
@@ -175,7 +225,15 @@ export async function fetchAllFeedAssignments(
       continue;
     }
     anySucceeded = true;
-    for (const a of fetched) {
+    const selected = filterBySelectedCourses(fetched, account.selectedCourses);
+    if (selected.length !== fetched.length) {
+      logger.info("fetchAllFeedAssignments: applied account class selection", {
+        accountId: account.id,
+        fetched: fetched.length,
+        kept: selected.length,
+      });
+    }
+    for (const a of selected) {
       assignments.push({ ...a, external_id: scopeExternalId(a.external_id, account) });
     }
   }

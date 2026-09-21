@@ -14,6 +14,11 @@ import { fetchBrightspaceAssignments } from "@/lib/brightspace-client";
 import { fetchBlackboardAssignments } from "@/lib/blackboard-client";
 import { isMissingColumnError } from "@/lib/supabase/missing-column";
 import { loadFeedAccounts, fetchAllFeedAssignments } from "@/lib/feed-accounts";
+import {
+  filterBySelectedCourses,
+  selectsNothing,
+  type CourseSelection,
+} from "@/lib/course-selection-filter";
 import type { FeedProvider } from "@/lib/integration-providers";
 import { decrypt } from "@/lib/crypto";
 import { logger } from "@/lib/logger";
@@ -329,19 +334,14 @@ async function syncCanvas(
     let assignments: NormalizedAssignment[];
 
     if (creds.canvas_ical_url) {
-      // iCal feed path — filter by selected courses if set
+      // iCal feed path: filter by selected courses if set
       const selectedCourses = creds.selected_canvas_courses;
-      if (Array.isArray(selectedCourses) && selectedCourses.length === 0) {
+      if (selectsNothing(selectedCourses)) {
         logger.info("syncCanvas skipped: no courses selected (iCal)", { userId });
         return { synced: 0, errors: [] };
       }
       const allIcalAssignments = await fetchCanvasICalAssignments(creds.canvas_ical_url);
-      if (selectedCourses && selectedCourses.length > 0) {
-        const selectedNames = new Set(selectedCourses.map((c) => c.name));
-        assignments = allIcalAssignments.filter((a) => selectedNames.has(a.course_name));
-      } else {
-        assignments = allIcalAssignments;
-      }
+      assignments = filterBySelectedCourses(allIcalAssignments, selectedCourses);
     } else if (creds.canvas_token) {
       // API token path
       const selectedCourses = creds.selected_canvas_courses;
@@ -487,8 +487,15 @@ async function syncAdditionalCanvas(
     let assignments: NormalizedAssignment[];
 
     if (account.ical_url) {
-      // iCal feed path
-      assignments = await fetchCanvasICalAssignments(account.ical_url);
+      // iCal feed path. Honours this account's own selection the way the
+      // primary feed does; it used to sync every course regardless.
+      const selectedCourses = account.selected_courses;
+      if (selectsNothing(selectedCourses)) {
+        logger.info("syncAdditionalCanvas skipped: no courses selected (iCal)", { userId, accountId: account.id });
+        return { synced: 0, errors: [] };
+      }
+      const allIcalAssignments = await fetchCanvasICalAssignments(account.ical_url);
+      assignments = filterBySelectedCourses(allIcalAssignments, selectedCourses);
     } else if (account.token) {
       // Defense-in-depth: validate URL before making any outbound request
       if (!isAllowedCanvasUrl(account.base_url)) {
@@ -757,20 +764,15 @@ async function syncPensieve(
     userId,
     provider: "pensieve",
     primaryUrl: creds.pensieve_calendar_url,
+    // Applies to the primary feed only. Extra feeds carry their own
+    // integration_accounts.selected_courses, applied per account in
+    // fetchAllFeedAssignments; filtering the merged set by this list made a
+    // second feed never sync unless its courses were also in the first's.
+    primarySelection: creds.selected_pensieve_courses,
     fetcher: fetchPensieveAssignments,
     failureColumn: "pensieve_auth_failed",
     timezone,
     courseNameMap,
-    // null = no selection made yet (first sync), so sync everything.
-    // [] = the user deselected every course, so sync nothing, which is
-    // distinct from "sync all" and returns null to skip reconciliation.
-    filter: (assignments) => {
-      const selected = creds.selected_pensieve_courses;
-      if (Array.isArray(selected) && selected.length === 0) return null;
-      if (!selected || selected.length === 0) return assignments;
-      const allowed = new Set(selected.map((c) => c.name));
-      return assignments.filter((a) => a.course_name && allowed.has(a.course_name));
-    },
   });
 }
 
@@ -791,14 +793,17 @@ interface FeedSyncOptions {
   provider: FeedProvider;
   /** Feed URL from the flat credentials column, or null when not connected. */
   primaryUrl: string | null;
+  /**
+   * The primary account's stored class selection, applied to that feed
+   * alone. Omit for providers with no selection column (sync everything).
+   */
+  primarySelection?: CourseSelection;
   /** Provider's feed client. */
   fetcher: (url: string) => Promise<NormalizedAssignment[]>;
   /** integration_credentials column holding this provider's failure flag. */
   failureColumn: string;
   timezone: string;
   courseNameMap: Map<string, string>;
-  /** Optional narrowing to the courses the user selected. */
-  filter?: (assignments: NormalizedAssignment[]) => NormalizedAssignment[] | null;
 }
 
 /**
@@ -818,15 +823,17 @@ interface FeedSyncOptions {
  * @returns Count synced across all accounts, plus one error per failed account.
  */
 async function syncFeedProvider(options: FeedSyncOptions): Promise<SyncSourceResult> {
-  const { supabase, userId, provider, primaryUrl, fetcher, failureColumn, timezone, courseNameMap, filter } = options;
+  const { supabase, userId, provider, primaryUrl, primarySelection, fetcher, failureColumn, timezone, courseNameMap } = options;
 
-  const accounts = await loadFeedAccounts(supabase, userId, provider, primaryUrl);
+  const accounts = await loadFeedAccounts(supabase, userId, provider, primaryUrl, primarySelection ?? null);
   if (accounts.length === 0) {
     logger.info(`sync${provider}: no accounts connected`, { userId });
     return { synced: 0, errors: [] };
   }
 
   logger.info(`sync${provider}: fetching`, { userId, accounts: accounts.length });
+  // Each account's own class selection is applied inside the fetch, so the
+  // merged set already reflects every account's choice.
   const { assignments, errors, anySucceeded } = await fetchAllFeedAssignments(accounts, fetcher);
 
   if (!anySucceeded) {
@@ -838,13 +845,7 @@ async function syncFeedProvider(options: FeedSyncOptions): Promise<SyncSourceRes
     return { synced: 0, errors };
   }
 
-  const selected = filter ? filter(assignments) : assignments;
-  if (selected === null) {
-    logger.info(`sync${provider} skipped: no courses selected`, { userId });
-    return { synced: 0, errors };
-  }
-
-  const merged = selected.map((a) => ({
+  const merged = assignments.map((a) => ({
     ...a,
     course_name: getCanonicalName(a.course_name, courseNameMap),
   }));
