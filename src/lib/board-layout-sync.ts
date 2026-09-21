@@ -8,6 +8,12 @@
  * @module board-layout-sync
  */
 
+import {
+  getKnownLayoutVersion,
+  setKnownLayoutVersion,
+  withLayoutVersion,
+} from "@/lib/board-layout-version";
+
 /** Shape of the server response from GET /api/board-layout. */
 interface ServerLayoutResponse {
   layout: Record<string, unknown> | null;
@@ -19,10 +25,13 @@ interface ServerLayoutResponse {
  *
  * @property ok - Whether the save succeeded
  * @property error - Human-readable error message on failure
+ * @property stale - True when the server refused the save (409) because the
+ *                   row changed since this client last read it
  */
 export interface SaveResult {
   ok: boolean;
   error?: string;
+  stale?: boolean;
 }
 
 /** Delay in ms before retrying a failed save. */
@@ -62,6 +71,8 @@ export async function fetchServerLayout(): Promise<ServerLayoutResponse> {
       const data: ServerLayoutResponse = await res.json();
       layoutCache = data;
       layoutCachedAt = Date.now();
+      // Every save from now on is based on this read.
+      setKnownLayoutVersion(data.updatedAt);
       return data;
     } catch (err) {
       console.warn("[board-layout-sync] fetchServerLayout error:", err);
@@ -82,23 +93,34 @@ export function invalidateServerLayoutCache(): void {
 }
 
 /**
- * Saves the board layout to the server via PUT.
- * Returns a SaveResult indicating success or failure with error details.
+ * Saves the board layout to the server via PUT, based on the last known
+ * server version. On success the version the server returns becomes the
+ * base for the next save.
  *
  * @param data - The full PersistedLayout object (with updatedAt)
- * @returns SaveResult with ok=true on success, ok=false with error message on failure
+ * @returns SaveResult with ok=true on success, ok=false with error message
+ *          on failure; `stale` is set when the server refused a save whose
+ *          base version is older than the row
  */
 export async function saveServerLayout(data: object): Promise<SaveResult> {
   try {
     const res = await fetch("/api/board-layout", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
+      body: JSON.stringify(withLayoutVersion(data)),
     });
     if (!res.ok) {
       const msg = `HTTP ${res.status}`;
-      console.warn("[board-layout-sync] saveServerLayout failed:", msg);
-      return { ok: false, error: msg };
+      const stale = res.status === 409;
+      console.warn("[board-layout-sync] saveServerLayout failed:", msg, stale ? "(stale base version)" : "");
+      return { ok: false, error: msg, stale };
+    }
+    const body = (await res.json().catch(() => null)) as { updatedAt?: string | null } | null;
+    if (typeof body?.updatedAt === "string") {
+      setKnownLayoutVersion(body.updatedAt);
+    } else {
+      console.warn("[board-layout-sync] save response carried no updatedAt; the next save will be refused as stale and re-read");
+      setKnownLayoutVersion(null);
     }
     return { ok: true };
   } catch (err) {
@@ -124,22 +146,45 @@ export function registerSaveErrorHandler(cb: ((error: string) => void) | null): 
   saveErrorHandler = cb;
 }
 
+/** What the error handler is told when a save is dropped as stale. */
+export const STALE_SAVE_MESSAGE = "Board changed on another device";
+
 /**
  * Attempts to save layout to server, retrying once after RETRY_DELAY_MS on failure.
- * Invokes the registered error handler if both attempts fail.
+ *
+ * Before retrying, the server row is re-read. If its version moved past the
+ * one the first attempt was based on, another device saved meanwhile and
+ * the retry is dropped rather than sent: sending it would overwrite that
+ * newer layout, which is exactly what a delayed retry used to do. The
+ * registered error handler is told either way.
  *
  * @param data - The full PersistedLayout object to persist
  */
 export async function saveWithRetry(data: object): Promise<void> {
+  const baseVersion = getKnownLayoutVersion();
   const first = await saveServerLayout(data);
   if (first.ok) return;
+
+  invalidateServerLayoutCache();
+  await fetchServerLayout();
+  const currentVersion = getKnownLayoutVersion();
+  if (currentVersion !== baseVersion) {
+    console.warn("[board-layout-sync] save dropped: server layout changed since last read", {
+      baseVersion,
+      currentVersion,
+      firstError: first.error,
+      impact: "local edit kept in cache only; the newer server layout wins",
+    });
+    if (saveErrorHandler) saveErrorHandler(STALE_SAVE_MESSAGE);
+    return;
+  }
 
   // Wait and retry once
   await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
   const second = await saveServerLayout(data);
   if (second.ok) return;
 
-  // Both attempts failed — notify via registered handler
+  // Both attempts failed; notify via registered handler
   if (saveErrorHandler) {
     saveErrorHandler(second.error ?? "Save failed");
   }
@@ -171,10 +216,10 @@ function flushPendingSync(): void {
   fetch("/api/board-layout", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
+    body: JSON.stringify(withLayoutVersion(data)),
     keepalive: true,
   }).catch(() => {
-    // Best-effort on tab close — nothing to retry
+    // Best-effort on tab close; nothing to retry
   });
 }
 

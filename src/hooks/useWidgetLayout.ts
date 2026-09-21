@@ -26,6 +26,7 @@ import {
   shouldPersistLayoutChange,
 } from "@/lib/board-layout-sync";
 import { readPersistedLayout, writeLayoutCache } from "@/lib/board-layout-cache";
+import { setKnownLayoutVersion } from "@/lib/board-layout-version";
 import {
   SCHEMA_VERSION,
   DEFAULT_COVER_HEIGHT,
@@ -315,10 +316,15 @@ export function useWidgetLayout() {
             const currentLocalTs = currentLocal?.updatedAt ?? 0;
             if (incomingTs <= currentLocalTs) return;
 
-            // Incoming layout is newer (from another device) — apply it
+            // Incoming layout is newer (from another device): apply it, and
+            // base the next save on its version so that save is not refused
+            // as stale (the server compares against the row's updated_at).
             incomingLayout.version = SCHEMA_VERSION;
             applyLayout(incomingLayout);
             writeLayoutCache(incomingLayout, userIdRef.current ?? undefined);
+            if (typeof incoming.updated_at === "string") {
+              setKnownLayoutVersion(incoming.updated_at);
+            }
           }
         )
         .subscribe();
