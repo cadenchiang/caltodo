@@ -258,7 +258,7 @@ describe("fetchGradescopeAssignments", () => {
     // Parsed from "2026-03-15 23:59:00 -0700" → ISO string
     expect(assignments[0].due_date).toBeTruthy();
     expect(new Date(assignments[0].due_date!).getTime()).not.toBeNaN();
-    expect(assignments[0].source_url).toBe("https://www.gradescope.com/courses/123/assignments/456");
+    expect(assignments[0].source_url).toBe("https://www.gradescope.com/courses/123");
     // "85.0 / 100" → points_possible is the denominator (total possible)
     expect(assignments[0].points_possible).toBe(100);
 
@@ -402,7 +402,7 @@ describe("fetchGradescopeAssignments", () => {
 
     const result = await fetchGradescopeAssignments({} as any, "100", "CS 61A");
     expect(result).toHaveLength(1);
-    expect(result[0].source_url).toBe("https://www.gradescope.com/courses/100/assignments/300");
+    expect(result[0].source_url).toBe("https://www.gradescope.com/courses/100");
     expect(result[0].external_id).toBe("300");
   });
 
@@ -420,7 +420,7 @@ describe("fetchGradescopeAssignments", () => {
 
     const result = await fetchGradescopeAssignments({} as any, "100", "CS 61A");
     expect(result).toHaveLength(1);
-    expect(result[0].source_url).toBe("https://www.gradescope.com/courses/100/assignments/400/submissions");
+    expect(result[0].source_url).toBe("https://www.gradescope.com/courses/100");
     expect(result[0].external_id).toBe("400");
   });
 
@@ -507,7 +507,7 @@ describe("fetchGradescopeAssignments", () => {
     const result = await fetchGradescopeAssignments({} as any, "100", "CS 61A");
     expect(result).toHaveLength(1);
     expect(result[0].external_id).toBe("gs-100-Midterm-Review");
-    expect(result[0].source_url).toBeNull();
+    expect(result[0].source_url).toBe("https://www.gradescope.com/courses/100");
   });
 
   it("should parse assignments from tr[role='row'] with th cells (newer layout)", async () => {

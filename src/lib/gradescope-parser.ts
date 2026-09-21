@@ -75,9 +75,7 @@ export function parseAssignmentsFromReactProps(
     if (seenIds.has(externalId)) continue;
     seenIds.add(externalId);
 
-    const sourceUrl = item.url
-      ? `${GRADESCOPE_BASE}${item.url}`
-      : `${GRADESCOPE_BASE}/courses/${courseId}/assignments/${externalId}`;
+    const sourceUrl = studentFacingUrl(item.url ?? null, courseId);
 
     const dueDate = parseGradescopeDate(item.submission_window?.due_date ?? null);
     const lateDueDate = parseGradescopeDate(item.submission_window?.hard_due_date ?? null);
@@ -102,6 +100,32 @@ export function parseAssignmentsFromReactProps(
 
   logger.info("parseAssignmentsFromReactProps", { courseId, count: assignments.length });
   return assignments;
+}
+
+/**
+ * Instructor-only Gradescope paths a student gets "You are not authorized to
+ * access this page" on: the bare assignment page and the submissions index
+ * ("Manage Submissions"). Student links carry a submission id after them.
+ */
+const INSTRUCTOR_ONLY_PATH = /\/courses\/\d+\/assignments\/\d+(?:\/submissions)?\/?$/;
+
+/**
+ * Resolves the link to store for an assignment so a student can open it.
+ *
+ * Unsubmitted rows on the student dashboard carry no link, only a submit
+ * button, and the old fallback built the instructor-only submissions index
+ * for them (265 stored tasks). The course page always works for an enrolled
+ * student and lists the assignment with its submit control.
+ *
+ * @param href - Path or absolute URL scraped from the row, or null if none.
+ * @param courseId - Gradescope course id, used for the fallback.
+ * @returns An absolute URL a student is authorized to open.
+ */
+export function studentFacingUrl(href: string | null, courseId: string): string {
+  const coursePage = `${GRADESCOPE_BASE}/courses/${courseId}`;
+  if (!href) return coursePage;
+  const absolute = href.startsWith("http") ? href : `${GRADESCOPE_BASE}${href}`;
+  return INSTRUCTOR_ONLY_PATH.test(absolute) ? coursePage : absolute;
 }
 
 /** Extracts title and href from a table row. Tries: .table--primaryLink, <th>, first <a>. */
@@ -216,12 +240,7 @@ export function parseAssignmentsFromHtml(
     if (seenIds.has(externalId)) return;
     seenIds.add(externalId);
 
-    let sourceUrl: string | null = null;
-    if (href) {
-      sourceUrl = href.startsWith("http") ? href : `${GRADESCOPE_BASE}${href}`;
-    } else if (assignmentId) {
-      sourceUrl = `${GRADESCOPE_BASE}/courses/${courseId}/assignments/${assignmentId}/submissions`;
-    }
+    const sourceUrl = studentFacingUrl(href || null, courseId);
 
     const isSubmitted = detectSubmissionStatus($row);
 

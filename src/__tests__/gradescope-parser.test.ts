@@ -16,6 +16,7 @@ const {
   parseGradescopeDate,
   parseAssignmentsFromReactProps,
   parseAssignmentsFromHtml,
+  studentFacingUrl,
 } = await import("@/lib/gradescope-parser");
 
 // ---------------------------------------------------------------------------
@@ -118,7 +119,7 @@ describe("parseAssignmentsFromReactProps", () => {
     expect(result![0].title).toBe("Homework 1");
     expect(result![0].course_name).toBe("CS 61A: Structure and Interpretation");
     expect(result![0].course_id).toBe("100");
-    expect(result![0].source_url).toBe("https://www.gradescope.com/courses/100/assignments/12345");
+    expect(result![0].source_url).toBe("https://www.gradescope.com/courses/100");
     expect(result![0].points_possible).toBe(100);
     expect(result![0].due_date).toBeTruthy();
     expect(result![0].late_due_date).toBeTruthy();
@@ -237,9 +238,7 @@ describe("parseAssignmentsFromReactProps", () => {
       { id: 999, title: "No URL" },
     ]);
     const result = parseAssignmentsFromReactProps(html, "100", "CS 61A");
-    expect(result![0].source_url).toBe(
-      "https://www.gradescope.com/courses/100/assignments/999"
-    );
+    expect(result![0].source_url).toBe("https://www.gradescope.com/courses/100");
   });
 
   it("should use fallback course name when page title is absent", () => {
@@ -399,7 +398,7 @@ describe("parseAssignmentsFromHtml", () => {
       </tbody></table></body></html>
     `;
     const result = parseAssignmentsFromHtml(html, "100", "CS 61A");
-    expect(result[0].source_url).toBe("https://www.gradescope.com/courses/100/assignments/300");
+    expect(result[0].source_url).toBe("https://www.gradescope.com/courses/100");
     expect(result[0].external_id).toBe("300");
   });
 
@@ -413,9 +412,31 @@ describe("parseAssignmentsFromHtml", () => {
     `;
     const result = parseAssignmentsFromHtml(html, "100", "CS 61A");
     expect(result[0].external_id).toBe("400");
-    expect(result[0].source_url).toBe(
-      "https://www.gradescope.com/courses/100/assignments/400/submissions"
-    );
+    // No student link on the row: the course page is the only URL an
+    // enrolled student is authorized to open (the submissions index is the
+    // instructor's "Manage Submissions" page).
+    expect(result[0].source_url).toBe("https://www.gradescope.com/courses/100");
+  });
+
+  describe("studentFacingUrl", () => {
+    it("keeps links to the student's own submission", () => {
+      expect(studentFacingUrl("/courses/100/assignments/400/submissions/9", "100"))
+        .toBe("https://www.gradescope.com/courses/100/assignments/400/submissions/9");
+    });
+
+    it("replaces instructor-only paths with the course page", () => {
+      expect(studentFacingUrl("/courses/100/assignments/400", "100"))
+        .toBe("https://www.gradescope.com/courses/100");
+      expect(studentFacingUrl("/courses/100/assignments/400/submissions", "100"))
+        .toBe("https://www.gradescope.com/courses/100");
+      expect(studentFacingUrl("https://www.gradescope.com/courses/100/assignments/400/submissions/", "100"))
+        .toBe("https://www.gradescope.com/courses/100");
+    });
+
+    it("falls back to the course page when the row has no link", () => {
+      expect(studentFacingUrl(null, "100")).toBe("https://www.gradescope.com/courses/100");
+      expect(studentFacingUrl("", "100")).toBe("https://www.gradescope.com/courses/100");
+    });
   });
 
   it("should generate fallback external_id when no assignment ID found", () => {
@@ -428,7 +449,7 @@ describe("parseAssignmentsFromHtml", () => {
     `;
     const result = parseAssignmentsFromHtml(html, "100", "CS 61A");
     expect(result[0].external_id).toBe("gs-100-Midterm-Review");
-    expect(result[0].source_url).toBeNull();
+    expect(result[0].source_url).toBe("https://www.gradescope.com/courses/100");
   });
 
   it("should detect is_submitted from .submissionStatus--score", () => {
