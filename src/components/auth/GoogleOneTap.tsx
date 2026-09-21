@@ -33,8 +33,13 @@ declare global {
  * Loads the Google Identity Services script, initializes with the app's
  * Google Client ID, and shows the One Tap prompt automatically.
  *
- * On successful credential selection, signs in via Supabase signInWithIdToken
- * and redirects to onboarding (new user) or inbox (returning user).
+ * On successful credential selection, signs in via Supabase signInWithIdToken,
+ * runs the deferred-invite processing the OAuth callback would have run
+ * (One Tap never passes through /auth/callback), and redirects to onboarding
+ * (new user, with the callback's welcome flag) or inbox (returning user).
+ *
+ * Not mounted while a session already exists: with auto_select the prompt
+ * would otherwise sign an already-signed-in visitor (on /?landing=1) in again.
  *
  * Renders nothing — Google controls the One Tap UI overlay.
  */
@@ -64,6 +69,22 @@ export default function GoogleOneTap() {
       }
 
       if (data?.user) {
+        // The callback fires this after a code exchange; One Tap has no
+        // callback, so do it here. The browser client has just written the
+        // session cookie, so the route sees the user. Non-fatal: a failure
+        // leaves the invites deferred and is logged, not hidden.
+        try {
+          const res = await fetch("/api/auth/process-deferred", { method: "POST" });
+          if (!res.ok) {
+            console.warn("[GoogleOneTap] process-deferred failed", { status: res.status, impact: "deferred invites stay deferred" });
+          }
+        } catch (err) {
+          console.warn("[GoogleOneTap] process-deferred request failed", {
+            error: err instanceof Error ? err.message : String(err),
+            impact: "deferred invites stay deferred",
+          });
+        }
+
         const { data: creds } = await supabase
           .from("integration_credentials")
           .select("id")
@@ -73,7 +94,8 @@ export default function GoogleOneTap() {
         if (creds) {
           router.push("/app/inbox");
         } else {
-          router.push("/app/onboarding");
+          // Same flag the callback sets for a first sign-in.
+          router.push("/app/onboarding?welcome=1");
         }
       }
     },
@@ -92,27 +114,43 @@ export default function GoogleOneTap() {
     }
 
     initializedRef.current = true;
+    let cancelled = false;
 
-    const script = document.createElement("script");
-    script.src = "https://accounts.google.com/gsi/client";
-    script.async = true;
-    script.defer = true;
-    script.onload = () => {
-      if (!window.google) return;
+    // Only prompt visitors who are signed out. The session check is async,
+    // so the script is loaded after it rather than before.
+    createClient()
+      .auth.getSession()
+      .then(({ data: { session } }) => {
+        if (cancelled || session) return;
 
-      window.google.accounts.id.initialize({
-        client_id: clientId,
-        callback: handleCredential,
-        auto_select: true,
-        itp_support: true,
-        context: "signin",
+        const script = document.createElement("script");
+        script.src = "https://accounts.google.com/gsi/client";
+        script.async = true;
+        script.defer = true;
+        script.onload = () => {
+          if (cancelled || !window.google) return;
+
+          window.google.accounts.id.initialize({
+            client_id: clientId,
+            callback: handleCredential,
+            auto_select: true,
+            itp_support: true,
+            context: "signin",
+          });
+
+          window.google.accounts.id.prompt();
+        };
+        document.head.appendChild(script);
+      })
+      .catch((err) => {
+        // Unknown session state: not prompting is the safe side.
+        console.warn("[GoogleOneTap] session check failed, not prompting", {
+          error: err instanceof Error ? err.message : String(err),
+        });
       });
 
-      window.google.accounts.id.prompt();
-    };
-    document.head.appendChild(script);
-
     return () => {
+      cancelled = true;
       if (window.google) {
         window.google.accounts.id.cancel();
       }
