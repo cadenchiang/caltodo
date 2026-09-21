@@ -27,3 +27,12 @@ describe("GoogleCalendarSettings popup poll", () => {
     expect(src.match(/router\.replace\(/g)).toHaveLength(1);
   });
 });
+
+describe("post-connect setup (L12)", () => {
+  it("no longer branches on a needsSync flag select-calendar never returns", () => {
+    expect(src).not.toContain("needsSync");
+    const setup = src.slice(src.indexOf("async function autoSetupCalendar"), src.indexOf("useEffect(() => {\n    const gcalParam"));
+    expect(setup).not.toContain('fetch("/api/gcal/initial-sync"');
+    expect(setup).toContain("Google Calendar connected! New tasks will sync automatically.");
+  });
+});

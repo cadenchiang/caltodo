@@ -231,10 +231,6 @@ export default function GoogleCalendarSettings() {
     (globalShowToast ?? showToast)(msg, opts);
   }
 
-  function toastProgress(progress: number) {
-    (globalUpdateProgress ?? updateToastProgress)(progress);
-  }
-
   function ifMounted<T>(setter: React.Dispatch<React.SetStateAction<T>>, value: NoInfer<T>) {
     if (mountedRef.current) setter(value);
   }
@@ -352,58 +348,18 @@ export default function GoogleCalendarSettings() {
         toast(`Failed to set up calendar: ${err.error || selectRes.status}`);
         return;
       }
-      const selectResult = await selectRes.json();
+      // Existing tasks are synced by the auto-sync effect once oauthConnecting
+      // clears (select-calendar does not report whether any are pending).
       const gcalUrl = googleEmail
         ? `https://calendar.google.com/calendar/r?authuser=${encodeURIComponent(googleEmail)}`
         : "https://calendar.google.com";
-      const openAction = {
+      toast("Google Calendar connected! New tasks will sync automatically.", {
         action: {
           label: "Open",
           icon: <ExternalLink size={14} />,
           onClick: () => window.open(gcalUrl, "_blank"),
         },
-      };
-      if (selectResult.needsSync) {
-        ifMounted(setSyncProgress, { synced: 0, total: 0 });
-        toast("Syncing tasks to Google Calendar...", { progress: 0 });
-        const syncRes = await fetch("/api/gcal/initial-sync", { method: "POST" });
-        const contentType = syncRes.headers.get("Content-Type") ?? "";
-        if (contentType.includes("application/json")) {
-          const syncResult = await syncRes.json();
-          if (!syncRes.ok) {
-            toast(`Sync failed: ${syncResult.error || syncRes.status}`);
-          } else if (syncResult.synced > 0) {
-            const msg = syncResult.synced === syncResult.total
-              ? `Synced ${syncResult.synced} task${syncResult.synced === 1 ? "" : "s"} to Google Calendar.`
-              : `Synced ${syncResult.synced} of ${syncResult.total} tasks to Google Calendar.`;
-            toast(msg, openAction);
-          } else {
-            toast("Calendar created! No tasks with due dates to sync.", openAction);
-          }
-          return;
-        }
-        const finalResult = await readSyncStream(syncRes, {
-          onProgress: (synced, total) => {
-            ifMounted(setSyncProgress, { synced, total });
-            if (total > 0) toastProgress(Math.round((synced / total) * 100));
-          },
-          onDone: () => ifMounted(setSyncProgress, null),
-        });
-        if (!finalResult) { toast("Sync failed: no response stream."); return; }
-        if (finalResult && finalResult.synced > 0) {
-          const msg = finalResult.synced === finalResult.total
-            ? `Synced ${finalResult.synced} task${finalResult.synced === 1 ? "" : "s"} to Google Calendar. New tasks will sync automatically.`
-            : `Synced ${finalResult.synced} of ${finalResult.total} tasks to Google Calendar. New tasks will sync automatically.`;
-          toast(msg, openAction);
-        } else if (finalResult && finalResult.total > 0 && finalResult.synced === 0) {
-          toast(`Sync failed for all ${finalResult.total} tasks. Check your Google Calendar permissions.`);
-        } else if (finalResult && finalResult.total === 0) {
-          toast("Google Calendar connected! No tasks to sync yet — new tasks will sync automatically.", openAction);
-        }
-        /* sync complete */
-      } else {
-        toast("Google Calendar connected! New tasks will sync automatically.", openAction);
-      }
+      });
     } catch (err) {
       console.error("Auto-setup calendar error:", err);
       toast("Failed to set up calendar. Please try again.");
