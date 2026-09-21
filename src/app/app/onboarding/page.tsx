@@ -10,6 +10,7 @@ import {
   loadProgress,
   saveProgress,
   clearProgress,
+  progressPercentForStep,
   type OnboardingStep,
   type OnboardingPlatform,
 } from "@/lib/onboarding-progress";
@@ -1226,17 +1227,7 @@ export default function OnboardingPage() {
             <div
               className="h-full rounded-l-full transition-[width] duration-500 ease-out relative bg-[#0e89d6]"
               style={{
-                width: `${({
-                  welcome: 0,
-                  school: 10,
-                  referral: 20,
-                  platforms: 30,
-                  canvas: 45,
-                  gradescope: 60,
-                  pensieve: 75,
-                  syllabus: 88,
-                  done: 100,
-                } as Record<Step, number>)[currentStep]}%`,
+                width: `${progressPercentForStep(currentStep)}%`,
               }}
             >
               {/* Subtle top sheen — inset from the rounded ends */}
