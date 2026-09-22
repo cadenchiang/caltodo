@@ -88,9 +88,11 @@ export function parseCanvasICalEvents(
     const { title, courseName } = parseCanvasSummary(summary);
 
     const externalId = canvasExternalId(uid, url);
+    const overrideId = uid.match(/^event-assignment-override-(\d+)/)?.[1];
 
     assignments.push({
       external_id: externalId,
+      ...(overrideId && overrideId !== externalId ? { legacy_external_id: overrideId } : {}),
       course_name: courseName,
       course_id: "canvas-ical",
       title: unescapeICalText(title),

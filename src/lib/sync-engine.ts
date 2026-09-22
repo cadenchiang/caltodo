@@ -34,6 +34,7 @@ import {
 import { CLASSROOM_AVAILABLE } from "@/lib/classroom-availability";
 import { getValidAccessToken } from "@/lib/gcal/token-manager";
 import { propagateUpsertedAssignments, propagateDismissedTasks, type PreUpsertRow } from "@/lib/gcal/propagate-sync";
+import { mergeLegacyKeyedTasks } from "@/lib/legacy-key-merge";
 import { after } from "next/server";
 import { reportSyncFailures } from "@/lib/integration-alerts";
 import {
@@ -1170,6 +1171,14 @@ async function upsertAssignments(
   // id, title, due_date, due_time and google_event_id are the pre-upsert
   // snapshot propagateUpsertedAssignments diffs against at the end (H17).
   type ExistingRow = PreUpsertRow & { due_date_manually_edited_at: string | null; due_time_manually_edited_at: string | null; dismissed_by_user: boolean | null };
+  // Re-keyed assignments (Canvas override events) are reconciled first, so
+  // the existing-rows read below sees the renamed row under its new key and
+  // a completed legacy row is never resurrected as a fresh incomplete task.
+  const legacyMerge = await mergeLegacyKeyedTasks(supabase, userId, source, assignments);
+  if (legacyMerge.hiddenTaskIds.length > 0) {
+    await propagateDismissedTasks(supabase, userId, legacyMerge.hiddenTaskIds);
+  }
+
   const existingTaskRows: ExistingRow[] = [];
   const EXISTING_PAGE = 1000;
   for (let from = 0; ; from += EXISTING_PAGE) {

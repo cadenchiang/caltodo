@@ -97,6 +97,12 @@ export interface NormalizedAssignment {
   points_possible: number | null;
   is_submitted?: boolean;
   description?: string | null;
+  /**
+   * The key this assignment was stored under before a re-keying change
+   * (Canvas iCal override events: the override id). The sync merges any
+   * existing row under this key into the new one instead of duplicating it.
+   */
+  legacy_external_id?: string;
 }
 
 /**

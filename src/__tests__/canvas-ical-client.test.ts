@@ -80,6 +80,13 @@ describe("parseCanvasICalEvents", () => {
     expect(events[3].external_id).toBe("9056628");
   });
 
+  it("carries the override id as the legacy key so old rows are merged, not duplicated", () => {
+    // The first sync after the re-key resurrected the hidden assignment-keyed
+    // row and stranded the completed override-keyed one.
+    expect(events[3].legacy_external_id).toBe("354070");
+    expect(events[0].legacy_external_id).toBeUndefined();
+  });
+
   it("should parse datetime due dates", () => {
     expect(events[0].due_date).toBe("2026-02-09T23:30:00Z");
   });
