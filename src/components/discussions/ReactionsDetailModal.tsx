@@ -1,11 +1,9 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
-import { X, EyeOff } from "lucide-react";
+import { EyeOff } from "lucide-react";
+import ChatModal from "./ChatModal";
 
-/**
- * A single reaction entry with user info for the detail modal.
- */
+/** A single reaction entry with user info for the detail modal. */
 export interface ReactionDetail {
   userId: string;
   emoji: string;
@@ -17,8 +15,10 @@ export interface ReactionDetail {
  * Props for the reactions detail modal.
  *
  * @param open - Whether the modal is visible
- * @param reactions - Flat list of reaction entries with user info
- * @param onClose - Fires when user closes the modal
+ * @param reactions - Flat list of reaction entries; names come from the
+ *                    room's member list (reactions are never anonymous,
+ *                    a missing name means the member list has not loaded)
+ * @param onClose - Fires on close, backdrop click, or Escape
  */
 interface ReactionsDetailModalProps {
   open: boolean;
@@ -26,128 +26,33 @@ interface ReactionsDetailModalProps {
   onClose: () => void;
 }
 
-/**
- * Modal showing all users who reacted to a message.
- * Displays each reactor's avatar, name, and the emoji they used.
- * Uses subtle fade + scale entrance animation.
- *
- * @param open - Controls visibility
- * @param reactions - List of { userId, emoji, userName, userAvatar }
- * @param onClose - Fires on X click, backdrop click, or Escape
- */
-export default function ReactionsDetailModal({
-  open,
-  reactions,
-  onClose,
-}: ReactionsDetailModalProps) {
-  const [visible, setVisible] = useState(false);
-  const [exiting, setExiting] = useState(false);
-
-  useEffect(() => {
-    if (open) {
-      setVisible(true);
-      setExiting(false);
-    }
-  }, [open]);
-
-  /**
-   * Triggers exit animation then fires the close callback.
-   */
-  const animateOut = useCallback(() => {
-    setExiting(true);
-    setTimeout(() => {
-      setVisible(false);
-      setExiting(false);
-      onClose();
-    }, 180);
-  }, [onClose]);
-
-  useEffect(() => {
-    if (!visible) return;
-    function handleKey(e: KeyboardEvent) {
-      if (e.key === "Escape") animateOut();
-    }
-    document.addEventListener("keydown", handleKey);
-    return () => document.removeEventListener("keydown", handleKey);
-  }, [visible, animateOut]);
-
-  if (!visible) return null;
-
-  const backdropClass = exiting
-    ? "animate-unsend-backdrop-out"
-    : "animate-unsend-backdrop-in";
-
-  const cardClass = exiting
-    ? "animate-unsend-card-out"
-    : "animate-unsend-card-in";
-
+/** Modal listing who reacted to a message and with what. */
+export default function ReactionsDetailModal({ open, reactions, onClose }: ReactionsDetailModalProps) {
   return (
-    <div
-      className={`fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-[2px] ${backdropClass}`}
-      onClick={animateOut}
-    >
-      <div
-        className={`bg-popover rounded-2xl border border-border shadow-xl w-full max-w-[340px] mx-4 overflow-hidden ${cardClass}`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-border">
-          <button
-            onClick={animateOut}
-            className="w-7 h-7 rounded-full flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors cursor-pointer"
-            aria-label="Close"
-          >
-            <X size={16} strokeWidth={2.5} />
-          </button>
-          <h3 className="text-[15px] font-semibold text-foreground">
-            Reactions
-          </h3>
-          {/* Spacer to center the title */}
-          <div className="w-7" />
-        </div>
-
-        {/* Reaction list */}
-        <div className="max-h-[320px] overflow-y-auto">
+    <ChatModal open={open} onClose={onClose} title="Reactions" size="sm">
+      {reactions.length === 0 ? (
+        <p className="py-4 text-center text-sm text-muted-foreground">No reactions yet</p>
+      ) : (
+        <ul className="-mx-4 -my-4 divide-y divide-border list-none">
           {reactions.map((r, i) => (
-            <div
-              key={`${r.userId}-${r.emoji}-${i}`}
-              className="flex items-center gap-3 px-4 py-3 border-b border-border/50 last:border-b-0"
-            >
-              {/* Avatar */}
+            <li key={`${r.userId}-${r.emoji}-${i}`} className="flex items-center gap-3 px-4 py-3">
               {r.userAvatar ? (
-                <img
-                  src={r.userAvatar}
-                  alt=""
-                  referrerPolicy="no-referrer"
-                  className="w-9 h-9 rounded-full object-cover shrink-0"
-                />
+                <img src={r.userAvatar} alt="" referrerPolicy="no-referrer" className="w-9 h-9 rounded-full object-cover shrink-0" />
               ) : r.userName ? (
-                <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center text-[13px] font-medium text-muted-foreground shrink-0">
+                <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center text-[13px] font-medium text-muted-foreground shrink-0" aria-hidden="true">
                   {r.userName[0]?.toUpperCase()}
                 </div>
               ) : (
-                <div className="w-9 h-9 rounded-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center shrink-0">
-                  <EyeOff size={14} className="text-zinc-500 dark:text-zinc-400" />
+                <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center shrink-0" aria-hidden="true">
+                  <EyeOff size={14} className="text-muted-foreground" />
                 </div>
               )}
-
-              {/* Name */}
-              <span className="flex-1 text-[14px] font-medium text-foreground truncate">
-                {r.userName ?? "Anonymous"}
-              </span>
-
-              {/* Emoji */}
-              <span className="text-[18px] shrink-0">{r.emoji}</span>
-            </div>
+              <span className="flex-1 text-sm font-medium text-foreground truncate">{r.userName ?? "Classmate"}</span>
+              <span className="text-lg shrink-0" aria-label={`Reacted with ${r.emoji}`}>{r.emoji}</span>
+            </li>
           ))}
-
-          {reactions.length === 0 && (
-            <div className="px-4 py-6 text-center text-sm text-muted-foreground">
-              No reactions yet
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+        </ul>
+      )}
+    </ChatModal>
   );
 }

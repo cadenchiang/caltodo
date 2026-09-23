@@ -110,7 +110,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Not a member" }, { status: 403 });
   }
 
-  // Verify the message actually belongs to this course — otherwise a member of
+  // Verify the message actually belongs to this course; otherwise a member of
   // course A could react to a message in course B (that they can't see) and
   // corrupt the denormalized course_id.
   const { data: msg } = await supabase

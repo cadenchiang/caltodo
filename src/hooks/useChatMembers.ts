@@ -5,13 +5,10 @@ import type { CourseMemberProfile } from "@/lib/types";
 
 const CACHE_PREFIX = "chat_members_cache_";
 const CACHE_TTL = 5 * 60_000;
+/** Members fetched per page. */
+export const MEMBERS_PAGE_SIZE = 50;
 
-/**
- * Reads cached members from sessionStorage.
- *
- * @param courseId - The course UUID
- * @returns Cached members array or null if missing/expired
- */
+/** Reads cached members from sessionStorage (null if missing or expired). */
 function readCache(courseId: string): CourseMemberProfile[] | null {
   try {
     const raw = sessionStorage.getItem(CACHE_PREFIX + courseId);
@@ -24,105 +21,76 @@ function readCache(courseId: string): CourseMemberProfile[] | null {
   }
 }
 
-/**
- * Writes members to sessionStorage cache.
- *
- * @param courseId - The course UUID
- * @param members - Members to cache
- */
+/** Writes members to sessionStorage cache. */
 function writeCache(courseId: string, members: CourseMemberProfile[]) {
   try {
-    sessionStorage.setItem(
-      CACHE_PREFIX + courseId,
-      JSON.stringify({ members, timestamp: Date.now() })
-    );
+    sessionStorage.setItem(CACHE_PREFIX + courseId, JSON.stringify({ members, timestamp: Date.now() }));
   } catch {
     /* sessionStorage unavailable */
   }
 }
 
 /**
- * Hook to fetch and cache course members for a given course.
- * Uses stale-while-revalidate: returns cached data instantly,
- * then refreshes from API in background.
- * Listens for "calchat-members-changed" custom events to refetch
- * when new members join or leave.
+ * Members of a room, paged.
  *
- * @param courseId - The course UUID to fetch members for
- * @returns members array, loading state, and refetch function
+ * Hydrates from the sessionStorage cache in an effect (not the state
+ * initializer, which also runs during SSR and produced a hydration
+ * mismatch), fetches the first page, and exposes loadMore for the rest.
+ *
+ * @param courseId - The course UUID
+ * @returns members, total, loading, hasMore, loadMore, refetch
  */
 export function useChatMembers(courseId: string): {
   members: CourseMemberProfile[];
+  total: number;
   loading: boolean;
+  hasMore: boolean;
+  loadMore: () => void;
   refetch: () => void;
 } {
-  const [members, setMembers] = useState<CourseMemberProfile[]>(
-    () => readCache(courseId) ?? []
-  );
-  const [loading, setLoading] = useState(() => !readCache(courseId));
-  const prevCourseIdRef = useRef(courseId);
-  /** Ref to track the active courseId for stale-guard in async callbacks. */
+  const [members, setMembers] = useState<CourseMemberProfile[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
   const activeCourseIdRef = useRef(courseId);
   activeCourseIdRef.current = courseId;
+  const loadingMoreRef = useRef(false);
 
-  // Synchronously update state when courseId changes (no flash frame)
-  if (prevCourseIdRef.current !== courseId) {
-    prevCourseIdRef.current = courseId;
-    const cached = readCache(courseId);
-    if (cached) {
-      setMembers(cached);
-      setLoading(false);
-    } else {
-      setMembers([]);
-      setLoading(true);
-    }
-  }
-
-  /**
-   * Fetches members from API and updates state + cache.
-   * Keeps existing data on failure to prevent list from disappearing.
-   */
-  const fetchMembers = useCallback(() => {
-    fetch(`/api/discussions/members?courseId=${encodeURIComponent(courseId)}`)
-      .then((res) => {
-        if (!res.ok) return null;
-        return res.json();
-      })
-      .then((data: CourseMemberProfile[] | null) => {
-        if (activeCourseIdRef.current !== courseId || !data) return;
-        setMembers(data);
-        writeCache(courseId, data);
-      })
-      .catch(() => {
-        // Keep existing members on network error
-      })
-      .finally(() => {
-        if (activeCourseIdRef.current === courseId) setLoading(false);
+  /** Fetches one page; offset 0 replaces the list, otherwise appends. */
+  const fetchPage = useCallback(async (offset: number) => {
+    try {
+      const res = await fetch(
+        `/api/discussions/members?courseId=${encodeURIComponent(courseId)}&limit=${MEMBERS_PAGE_SIZE}&offset=${offset}`,
+      );
+      if (!res.ok || activeCourseIdRef.current !== courseId) return;
+      const page: CourseMemberProfile[] = await res.json();
+      const totalHeader = parseInt(res.headers.get("X-Total-Count") ?? "", 10);
+      setTotal(Number.isFinite(totalHeader) ? totalHeader : offset + page.length);
+      setMembers((prev) => {
+        const next = offset === 0 ? page : [...prev, ...page.filter((m) => !prev.some((p) => p.user_id === m.user_id))];
+        writeCache(courseId, next);
+        return next;
       });
+    } catch {
+      // Keep existing members on network error
+    } finally {
+      if (activeCourseIdRef.current === courseId) setLoading(false);
+    }
   }, [courseId]);
 
   useEffect(() => {
     const cached = readCache(courseId);
-    if (cached) {
-      setMembers(cached);
-      setLoading(false);
-    }
+    setMembers(cached ?? []);
+    setTotal(cached?.length ?? 0);
+    setLoading(!cached);
+    fetchPage(0);
+  }, [courseId, fetchPage]);
 
-    fetchMembers();
+  const loadMore = useCallback(async () => {
+    if (loadingMoreRef.current || members.length >= total) return;
+    loadingMoreRef.current = true;
+    await fetchPage(members.length);
+    loadingMoreRef.current = false;
+  }, [fetchPage, members.length, total]);
 
-    // Listen for member change events (fired by useCourseChat on join/leave)
-    function handleMemberChange(e: Event) {
-      const detail = (e as CustomEvent).detail;
-      if (detail?.courseId === courseId) {
-        fetchMembers();
-      }
-    }
-    window.addEventListener("calchat-members-changed", handleMemberChange);
-
-    return () => {
-      window.removeEventListener("calchat-members-changed", handleMemberChange);
-    };
-  }, [courseId, fetchMembers]);
-
-  return { members, loading, refetch: fetchMembers };
+  return { members, total, loading, hasMore: members.length < total, loadMore, refetch: () => fetchPage(0) };
 }
