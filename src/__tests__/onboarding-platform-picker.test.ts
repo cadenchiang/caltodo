@@ -133,7 +133,9 @@ describe("skipping the step", () => {
     expect(page).toContain('trackEvent("onboarding_step_skipped", { step: "platforms" })');
   });
 
-  it("sends a skipping user to the end rather than into a platform step", () => {
-    expect(page).toMatch(/step: "platforms" \}\);\n\s*setCurrentStep\("done"\);/);
+  it("sends a skipping user straight into the app rather than into a platform step", () => {
+    // Nothing was selected, so there is nothing to sync on the done step;
+    // the skip exits through the same completion path as skip-setup.
+    expect(page).toMatch(/step: "platforms" \}\);\n\s*handleSyncAndGo\(\{ skipSync: true \}\);/);
   });
 });

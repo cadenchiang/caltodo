@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ChevronLeft, Monitor, FileText, Check } from "lucide-react";
+import { ChevronLeft, Monitor } from "lucide-react";
 import { useTaskContext } from "@/contexts/TaskContext";
 import { trackEvent } from "@/lib/analytics";
 import { CLASSROOM_AVAILABLE } from "@/lib/classroom-availability";
@@ -24,6 +24,8 @@ import CalendarStep from "@/components/onboarding/CalendarStep";
 import ClassroomStep from "@/components/onboarding/ClassroomStep";
 import AddCanvasStep from "@/components/onboarding/AddCanvasStep";
 import SyllabusStep from "@/components/onboarding/SyllabusStep";
+import DoneStep from "@/components/onboarding/DoneStep";
+import { buildSyncStats, type SyncStats } from "@/lib/onboarding-sync-stats";
 import SearchableSelect from "@/components/onboarding/SearchableSelect";
 import PlatformLogo from "@/components/onboarding/PlatformLogo";
 import { SCHOOL_OPTIONS, REFERRAL_OPTIONS } from "@/components/onboarding/onboardingOptions";
@@ -73,6 +75,9 @@ const STEPS_NEEDING_SKIP_CONTROL: readonly Step[] = [
   "pensieve",
   "syllabus",
 ];
+
+/** Where every exit from the flow lands unless a destination is passed. */
+const EXIT_ROUTE = "/app/inbox";
 
 /** Display labels for each step in the stepper bar. */
 const STEP_LABELS: Record<Step, string> = {
@@ -129,300 +134,6 @@ const SETUP_LABELS: Record<string, string> = {
   classroom: "Google Classroom",
 };
 
-/** Status blurbs cycled while syncing — mostly playful with a few technical ones. */
-const SYNC_BLURBS = [
-  "Hunting down sneaky deadlines...",
-  "Bribing the calendar gods...",
-  "Negotiating extensions for you...",
-  "Untangling your schedule...",
-  "Calibrating sync engine...",
-  "Color-coding your future...",
-  "Pretending finals aren't real...",
-  "Whispering to the registrar...",
-  "Sharpening pencils...",
-  "Cross-referencing due dates...",
-  "Convincing your TA to be lenient...",
-  "Stretching office hours...",
-  "Decoding mysterious syllabi...",
-  "Saving you from yourself...",
-  "Indexing your assignments...",
-  "Turning chaos into Tuesdays...",
-  "Reticulating splines...",
-  "Buttering up your professors...",
-  "Almost there, hang tight...",
-];
-
-interface SyncStats {
-  total: number;
-  perSource: Array<{ label: string; count: number }>;
-  courses: string[];
-}
-
-/**
- * "Done" step — actually waits for the sync to complete.
- * Phase 1 (syncing): progress bar + rotating blurb messages.
- * Phase 2 (complete): shows stats (assignments synced, courses) + "Let's Go" button.
- *
- * @param onComplete - Called when the user clicks "Let's Go" after seeing stats
- * @param triggerSync - Awaits sync completion; resolves when done
- * @param getSyncStats - Reads the latest SyncResult and turns it into display stats
- */
-function DoneStep({
-  onComplete,
-  triggerSync,
-  getSyncStats,
-}: {
-  onComplete: () => void;
-  triggerSync: () => Promise<void>;
-  getSyncStats: () => SyncStats | null;
-}) {
-  const [progress, setProgress] = useState(0);
-  const [blurbIndex, setBlurbIndex] = useState(0);
-  const [phase, setPhase] = useState<"syncing" | "complete">("syncing");
-  const [stats, setStats] = useState<SyncStats | null>(null);
-  const [fadingOut, setFadingOut] = useState(false);
-  const syncDoneRef = useRef(false);
-
-  // Kick off the sync once on mount — DON'T snap progress; let the tick interval ride it up.
-  useEffect(() => {
-    let cancelled = false;
-    triggerSync().finally(() => {
-      if (cancelled) return;
-      syncDoneRef.current = true;
-    });
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Tick progress up by 1 each interval — purposely slow so the user feels the build-up.
-  // While sync is in flight: cap at 92. Once sync resolves: keep climbing all the way to 100,
-  // then flip to the complete phase. The bar never "jumps".
-  useEffect(() => {
-    if (phase !== "syncing") return;
-    let tick = 0;
-    const id = setInterval(() => {
-      tick += 1;
-      // Rotate blurb every ~2.4s (12 ticks at 200ms).
-      if (tick % 12 === 0) setBlurbIndex((i) => (i + 1) % SYNC_BLURBS.length);
-      setProgress((p) => {
-        const cap = syncDoneRef.current ? 100 : 92;
-        if (p >= cap) return p;
-        return p + 1;
-      });
-    }, 200);
-    return () => clearInterval(id);
-  }, [phase]);
-
-  // When the bar reaches 100% AND sync is actually done:
-  //   1. Hold full state for the user to enjoy the checkmark.
-  //   2. Fade the syncing UI out fully.
-  //   3. Mount the recap which fades in slowly.
-  useEffect(() => {
-    if (phase !== "syncing") return;
-    if (progress < 100 || !syncDoneRef.current) return;
-    // Beat 1: 1.4s with full bar + checkmark visible
-    const fadeStart = setTimeout(() => setFadingOut(true), 1400);
-    // Beat 2: 1.0s after fade-out begins, swap to complete phase
-    const swap = setTimeout(() => {
-      setStats(getSyncStats());
-      setPhase("complete");
-    }, 2400);
-    return () => {
-      clearTimeout(fadeStart);
-      clearTimeout(swap);
-    };
-  }, [progress, phase, getSyncStats]);
-
-  if (phase === "syncing") {
-    return (
-      <div
-        key="syncing"
-        className={`text-center px-2 animate-phase-in -mt-[15vh] transition-opacity duration-1000 ease-out ${
-          fadingOut ? "opacity-0" : "opacity-100"
-        }`}
-      >
-        {/* caltodo logo */}
-        <div className="flex justify-center mb-6">
-          <img src="/logo.png" alt="caltodo" className="h-10 dark:invert" />
-        </div>
-        <h2 className="text-2xl font-bold text-foreground mb-2 tracking-tight">
-          Setting up your account
-        </h2>
-        <p className="text-sm text-foreground mb-8 min-h-[1.25rem] transition-opacity duration-500" key={blurbIndex}>
-          {SYNC_BLURBS[blurbIndex]}
-        </p>
-        <div className="w-full h-4 rounded-full bg-[#E5E5E7] dark:bg-[#3A3A3C] overflow-hidden mb-3">
-          <div
-            className="h-full rounded-l-full relative bg-[#0e89d6]"
-            style={{
-              width: `${progress}%`,
-              transition: "width 280ms cubic-bezier(0.4, 0, 0.2, 1)",
-            }}
-          >
-            <div className="absolute left-2.5 right-2.5 top-1 h-1 rounded-full bg-white/25" />
-          </div>
-        </div>
-        <div className="flex items-center justify-center gap-2 h-6">
-          {progress >= 100 ? (
-            <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#0e89d6] animate-check-in">
-              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#0e89d6] text-white">
-                <Check size={12} strokeWidth={3} />
-              </span>
-              Done
-            </span>
-          ) : (
-            <p className="text-sm font-medium text-foreground tabular-nums">{progress}%</p>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // Complete phase — analytics recap
-  return (
-    <div key="complete" className="text-center px-2 animate-phase-in">
-      {/* caltodo logo */}
-      <div className="flex justify-center mb-6">
-        <img src="/logo.png" alt="caltodo" className="h-10 dark:invert" />
-      </div>
-      <h2 className="text-2xl font-bold text-foreground mb-2 tracking-tight">
-        You&apos;re all set.
-      </h2>
-      <p className="text-sm text-foreground mb-8">
-        Here&apos;s what we synced.
-      </p>
-
-      {/* Top stats row: assignments + classes */}
-      <div className="grid grid-cols-2 gap-3 mb-3">
-        <div className="bg-[#f6f5f4] dark:bg-[#202022] rounded-2xl px-4 py-5">
-          <p className="text-4xl font-bold text-foreground tabular-nums tracking-tight">
-            {stats?.total ?? 0}
-          </p>
-          <p className="text-xs font-medium text-foreground mt-1.5">
-            {stats?.total === 1 ? "Assignment" : "Assignments"}
-          </p>
-        </div>
-        <div className="bg-[#f6f5f4] dark:bg-[#202022] rounded-2xl px-4 py-5">
-          <p className="text-4xl font-bold text-foreground tabular-nums tracking-tight">
-            {stats?.courses.length ?? 0}
-          </p>
-          <p className="text-xs font-medium text-foreground mt-1.5">
-            {stats?.courses.length === 1 ? "Class" : "Classes"}
-          </p>
-        </div>
-      </div>
-
-      {/* Per-source breakdown with logos */}
-      {stats && stats.perSource.length > 0 && (
-        <div className="bg-[#f6f5f4] dark:bg-[#202022] rounded-2xl p-3 mb-3">
-          <div className="flex flex-col gap-2">
-            {stats.perSource.map((row) => (
-              <div key={row.label} className="flex items-center gap-3 px-2 py-2 rounded-xl bg-white dark:bg-[#2a2a2c]">
-                <div className="w-7 h-7 flex items-center justify-center shrink-0">
-                  <SourceLogo label={row.label} />
-                </div>
-                <span className="flex-1 text-left text-sm font-semibold text-foreground">{row.label}</span>
-                <span className="text-sm font-semibold text-foreground tabular-nums">
-                  {row.count} {row.count === 1 ? "assignment" : "assignments"}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Classes list */}
-      {stats && stats.courses.length > 0 && (
-        <div className="bg-[#f6f5f4] dark:bg-[#202022] rounded-2xl px-4 py-4 mb-8 text-left">
-          <p className="text-xs font-semibold text-foreground mb-2.5 uppercase tracking-wide">
-            Your Classes
-          </p>
-          <div className="flex flex-wrap gap-1.5">
-            {stats.courses.slice(0, 14).map((name) => (
-              <span
-                key={name}
-                className="text-xs font-medium px-2.5 py-1 rounded-lg bg-white dark:bg-[#2a2a2c] text-foreground"
-              >
-                {name}
-              </span>
-            ))}
-            {stats.courses.length > 14 && (
-              <span className="text-xs font-medium px-2.5 py-1 text-foreground">
-                +{stats.courses.length - 14} more
-              </span>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Live sync indicator — forward-looking, sits just before the CTA */}
-      <p className="inline-flex items-center gap-1.5 text-xs font-medium text-[#0e89d6] mb-4">
-        <span className="relative inline-flex h-2 w-2">
-          <span className="absolute inline-flex h-full w-full rounded-full bg-[#0e89d6] opacity-75 animate-ping" />
-          <span className="relative inline-flex h-2 w-2 rounded-full bg-[#0e89d6]" />
-        </span>
-        Live sync is on. New assignments appear automatically.
-      </p>
-
-      <button
-        onClick={onComplete}
-        className="w-full px-5 py-2.5 rounded-full text-sm font-semibold bg-gray-900 dark:bg-white text-white dark:text-gray-900"
-      >
-        Let&apos;s Go
-      </button>
-    </div>
-  );
-}
-
-/** Renders the appropriate logo for a sync source label. */
-function SourceLogo({ label }: { label: string }) {
-  if (label === "Canvas") {
-    return <img src="/canvas-logo.png" alt="" className="w-full h-full object-contain" />;
-  }
-  if (label === "Gradescope") {
-    return (
-      <svg viewBox="0 0 14 14" fill="none" className="w-full h-full">
-        <rect width="14" height="14" rx="3" fill="#3AADA8" />
-        <rect x="1.5" y="8.5" width="2" height="3.5" rx="0.5" fill="white" />
-        <rect x="4.5" y="6.5" width="2" height="5.5" rx="0.5" fill="white" />
-        <rect x="7.5" y="4.5" width="2" height="7.5" rx="0.5" fill="white" />
-        <rect x="10.5" y="2.5" width="2" height="9.5" rx="0.5" fill="white" />
-      </svg>
-    );
-  }
-  if (label === "Pensive") {
-    return (
-      <div className="relative w-full h-full">
-        <div className="absolute inset-[10%] rounded-full bg-white" />
-        <img src="/pensieve-logo.png" alt="" className="w-full h-full object-contain relative" />
-      </div>
-    );
-  }
-  if (label === "Brightspace") {
-    return (
-      <div className="w-full h-full rounded-md bg-white flex items-center justify-center overflow-hidden">
-        <img src="/brightspace-logo.svg" alt="" className="w-full h-full object-contain" />
-      </div>
-    );
-  }
-  if (label === "Blackboard") {
-    return <img src="/blackboard-logo.svg" alt="" className="w-full h-full object-contain" />;
-  }
-  if (label === "Google Classroom") {
-    return <img src="/classroom-logo.png" alt="" className="w-full h-full object-contain" />;
-  }
-  if (label === "Syllabus") {
-    return (
-      <div className="w-full h-full rounded-md bg-muted flex items-center justify-center">
-        <FileText size={14} className="text-secondary-foreground" />
-      </div>
-    );
-  }
-  return null;
-}
-
 /**
  * Full-screen onboarding wizard with dynamic steps, always white background.
  * Features stepper-bar progress indicators with step labels.
@@ -436,7 +147,7 @@ function SourceLogo({ label }: { label: string }) {
 export default function OnboardingPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { triggerSync, syncResult } = useTaskContext();
+  const { triggerSync, syncResult, error: syncError } = useTaskContext();
 
   // Standalone single-step setup mode: ?setup=canvas|gradescope|pensieve
   const setupParam = searchParams.get("setup");
@@ -626,8 +337,7 @@ export default function OnboardingPage() {
   // path paid a cold route load after the exit fade had already finished,
   // which read as a stall and a loading-skeleton flash.
   useEffect(() => {
-    router.prefetch("/app/inbox");
-    router.prefetch("/app/inbox");
+    router.prefetch(EXIT_ROUTE);
   }, [router]);
 
   /**
@@ -1104,14 +814,18 @@ export default function OnboardingPage() {
   }
 
   /**
-   * Marks onboarding complete and navigates to /app/home.
+   * Marks onboarding complete and navigates into the app.
    *
-   * @param skipSync - When true, sync is fired in the background (used for Skip Setup
-   *                   path so the user can land in the app immediately without waiting).
-   *                   When false, sync has already completed in DoneStep so we don't
-   *                   re-fire it.
+   * @param skipSync - When true, sync is fired in the background (the skip
+   *                   paths, so the user lands in the app without waiting).
+   *                   When false, sync has already completed in DoneStep.
+   * @param destination - Route to land on. Defaults to the inbox; the recap's
+   *                      "Fix in settings" passes the integrations section.
    */
-  function handleSyncAndGo({ skipSync = false }: { skipSync?: boolean } = {}) {
+  function handleSyncAndGo({
+    skipSync = false,
+    destination = EXIT_ROUTE,
+  }: { skipSync?: boolean; destination?: string } = {}) {
     trackEvent("onboarding_completed");
     // Finished: drop the saved position so a later visit does not resume a
     // flow the user has already come out the far side of.
@@ -1148,7 +862,7 @@ export default function OnboardingPage() {
       triggerSync().catch(() => {});
     }
     // Navigate after fade-out animation completes
-    setTimeout(() => router.push("/app/inbox"), 500);
+    setTimeout(() => router.push(destination), 500);
   }
 
   /**
@@ -1171,45 +885,25 @@ export default function OnboardingPage() {
 
   /**
    * Reads the latest SyncResult from TaskContext and produces display stats
-   * for the post-sync recap (total assignments, per-source counts, course list).
+   * for the post-sync recap, including per-source errors.
    *
    * @returns Display stats, or null when nothing has been synced or imported
    * @remarks Syllabus counts come from handleSyllabusImported rather than
-   *          SyncResult, and are included even when no platform synced — a
-   *          syllabus-only setup still has something to show.
+   *          SyncResult, and are included even when no platform synced.
    */
   function getSyncStats(): SyncStats | null {
-    const syllabus = syllabusImportRef.current;
-    if (!syncResult && syllabus.count === 0) return null;
-
-    const total =
-      (syncResult?.canvas.synced ?? 0) +
-      (syncResult?.gradescope.synced ?? 0) +
-      (syncResult?.pensieve.synced ?? 0) +
-      (syncResult?.brightspace?.synced ?? 0) +
-      (syncResult?.blackboard?.synced ?? 0) +
-      (syncResult?.classroom?.synced ?? 0) +
-      syllabus.count;
-
-    const perSource: Array<{ label: string; count: number }> = [];
-    if (syncResult && syncResult.canvas.synced > 0) perSource.push({ label: "Canvas", count: syncResult.canvas.synced });
-    if (syncResult && syncResult.gradescope.synced > 0) perSource.push({ label: "Gradescope", count: syncResult.gradescope.synced });
-    if (syncResult && syncResult.pensieve.synced > 0) perSource.push({ label: "Pensive", count: syncResult.pensieve.synced });
-    if (syncResult?.brightspace?.synced) perSource.push({ label: "Brightspace", count: syncResult.brightspace.synced });
-    if (syncResult?.blackboard?.synced) perSource.push({ label: "Blackboard", count: syncResult.blackboard.synced });
-    if (syncResult?.classroom?.synced) perSource.push({ label: "Google Classroom", count: syncResult.classroom.synced });
-    if (syllabus.count > 0) perSource.push({ label: "Syllabus", count: syllabus.count });
-
     const selectedCanvas = canvasDraftRef.current.courses
       ?.filter((c) => canvasDraftRef.current.selectedIds.includes(c.id))
       .map((c) => c.name) ?? [];
     const selectedGradescope = (gradescopeDraftRef.current.courses ?? [])
       .filter((c) => gradescopeDraftRef.current.selectedIds.includes(c.id))
       .map((c) => c.name);
-    const courses = Array.from(
-      new Set([...selectedCanvas, ...selectedGradescope, ...syllabus.courses])
-    );
-    return { total, perSource, courses };
+    return buildSyncStats({
+      syncResult,
+      syncError: syncResult ? null : syncError,
+      syllabus: syllabusImportRef.current,
+      selectedCourseNames: [...selectedCanvas, ...selectedGradescope],
+    });
   }
 
   const isDoneStep = currentStep === "done";
@@ -1493,7 +1187,7 @@ export default function OnboardingPage() {
                   <button
                     onClick={() => {
                       trackEvent("onboarding_step_skipped", { step: "platforms" });
-                      setCurrentStep("done");
+                      handleSyncAndGo({ skipSync: true });
                     }}
                     className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
                   >
@@ -1603,7 +1297,7 @@ export default function OnboardingPage() {
 
             {currentStep === "done" && (
               <DoneStep
-                onComplete={() => handleSyncAndGo()}
+                onComplete={(destination) => handleSyncAndGo({ destination })}
                 triggerSync={() => triggerSync(undefined, undefined, { silent: true })}
                 getSyncStats={getSyncStats}
               />
@@ -1654,11 +1348,10 @@ export default function OnboardingPage() {
               </button>
               <button
                 onClick={() => {
-                  // Deliberately leaving, as opposed to a reload: forget the
-                  // position so they are not dropped back in on next visit.
-                  clearProgress();
+                  // Deliberately leaving: the same completion bookkeeping as
+                  // finishing (clears progress), with sync in the background.
                   setShowSkipModal(false);
-                  router.push("/app/inbox");
+                  handleSyncAndGo({ skipSync: true });
                 }}
                 className="px-4 py-2 rounded-full text-sm font-semibold bg-gray-900 dark:bg-white text-white dark:text-gray-900"
               >

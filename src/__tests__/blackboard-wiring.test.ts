@@ -152,7 +152,11 @@ describe("onboarding", () => {
   });
 
   it("counts its assignments on the done step", () => {
-    expect(page).toMatch(/syncResult\?\.blackboard\?\.synced/);
+    // The recap totals come from buildSyncStats, whose source list must
+    // include blackboard or its count silently drops out of the recap.
+    const stats = fs.readFileSync(path.join(ROOT, "src/lib/onboarding-sync-stats.ts"), "utf8");
+    expect(page).toContain("buildSyncStats({");
+    expect(stats).toMatch(/\{ key: "blackboard" \}/);
   });
 });
 
