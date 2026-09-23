@@ -30,6 +30,7 @@ import SearchableSelect from "@/components/onboarding/SearchableSelect";
 import PlatformLogo from "@/components/onboarding/PlatformLogo";
 import { SCHOOL_OPTIONS, REFERRAL_OPTIONS } from "@/components/onboarding/onboardingOptions";
 import { buildEntries, searchSchools } from "@/lib/school-search";
+import { canvasHostForSchool } from "@/lib/seo/schools";
 import type { IntegrationCredentials, AdditionalCanvasAccountInput } from "@/lib/types";
 
 /**
@@ -190,7 +191,7 @@ export default function OnboardingPage() {
     mode: "ical" | "api";
   }>({
     token: "",
-    baseUrl: "https://bcourses.berkeley.edu",
+    baseUrl: "",
     courses: null,
     selectedIds: [],
     icalUrl: "",
@@ -1212,6 +1213,7 @@ export default function OnboardingPage() {
                 initialIcalCourses={canvasDraftRef.current.icalCourses}
                 initialIcalSelectedNames={canvasDraftRef.current.icalSelectedNames}
                 initialMode={canvasDraftRef.current.mode}
+                schoolCanvasHost={canvasHostForSchool(school)}
                 onDraftChange={handleCanvasDraft}
               />
             )}

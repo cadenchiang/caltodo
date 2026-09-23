@@ -54,7 +54,9 @@ export default function DoneStep({ onComplete, triggerSync, getSyncStats }: Done
   const [phase, setPhase] = useState<"syncing" | "complete">("syncing");
   const [stats, setStats] = useState<SyncStats | null>(null);
   const getStatsRef = useRef(getSyncStats);
-  getStatsRef.current = getSyncStats;
+  useEffect(() => {
+    getStatsRef.current = getSyncStats;
+  });
 
   // Runs once: sync and the minimum display time race together, then the
   // bar fills, holds briefly, and the recap takes over.

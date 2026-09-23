@@ -1,20 +1,14 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
-import { Eye, EyeOff, Loader2, Play, X } from "lucide-react";
+import { useState, useEffect, useRef, type FormEvent } from "react";
 import { useToast } from "@/contexts/ToastContext";
-
-/**
- * Instruction steps for generating a bCourses access token (advanced mode).
- * Each step maps to a timestamp in the instruction video.
- */
-const TOKEN_STEPS: Array<{ label: string; time: number }> = [
-  { label: "Open Canvas settings", time: 0 },
-  { label: "Create + new access token", time: 5 },
-  { label: "Name the token whatever you want", time: 9 },
-  { label: "Set expiration to max (120 days)", time: 12 },
-  { label: "Copy and paste your token below", time: 18 },
-];
+import Button from "@/components/ui/Button";
+import CanvasFeedForm, { MODE_SWITCH_LINK } from "@/components/onboarding/CanvasFeedForm";
+import CanvasTokenForm from "@/components/onboarding/CanvasTokenForm";
+import CoursePicker from "@/components/onboarding/CoursePicker";
+import { baseUrlFromHost, normalizeCanvasHost } from "@/components/onboarding/HostField";
+import { StepHeading } from "@/components/onboarding/StepChrome";
+import { CLASS_NOUN_PLURAL } from "@/lib/copy";
 
 interface CanvasCourse {
   id: number;
@@ -22,15 +16,18 @@ interface CanvasCourse {
   course_code: string;
 }
 
+interface ICalCourse {
+  name: string;
+}
+
 /**
- * Generates a stable positive numeric ID from a course name string.
- * Used for iCal courses which don't have a Canvas numeric ID.
- * Uses a simple hash (djb2) to produce a unique, deterministic number.
+ * Generates a stable positive numeric ID from a course name (djb2), for
+ * feed courses that have no Canvas numeric id.
  *
- * @param name - Course name string
+ * @param name - Course name
  * @returns Positive 32-bit integer derived from the name
  */
-function stableIdFromName(name: string): number {
+export function stableIdFromName(name: string): number {
   let hash = 5381;
   for (let i = 0; i < name.length; i++) {
     hash = ((hash << 5) + hash + name.charCodeAt(i)) | 0;
@@ -38,8 +35,17 @@ function stableIdFromName(name: string): number {
   return Math.abs(hash);
 }
 
-interface ICalCourse {
-  name: string;
+/** Draft the step reports on unmount so navigating back restores it. */
+export interface CanvasDraft {
+  token: string;
+  /** Full https base URL, "" when no host has been entered. */
+  baseUrl: string;
+  courses: CanvasCourse[] | null;
+  selectedIds: number[];
+  icalUrl: string;
+  icalCourses: ICalCourse[] | null;
+  icalSelectedNames: string[];
+  mode: "ical" | "api";
 }
 
 interface CanvasStepProps {
@@ -61,72 +67,46 @@ interface CanvasStepProps {
   initialIcalCourses?: ICalCourse[] | null;
   initialIcalSelectedNames?: string[];
   initialMode?: "ical" | "api";
-  onDraftChange?: (draft: {
-    token: string;
-    baseUrl: string;
-    courses: CanvasCourse[] | null;
-    selectedIds: number[];
-    icalUrl: string;
-    icalCourses: ICalCourse[] | null;
-    icalSelectedNames: string[];
-    mode: "ical" | "api";
-  }) => void;
+  /** Canvas host for the school picked earlier, used when the draft has none. */
+  schoolCanvasHost?: string;
+  onDraftChange?: (draft: CanvasDraft) => void;
 }
 
 /**
- * Formats a timestamp in seconds to "M:SS" display format.
+ * Canvas onboarding step. Default mode pastes the calendar feed URL; the
+ * advanced mode takes the school's Canvas host plus an API token and then
+ * offers a class picker.
  *
- * @param seconds - Time in seconds
- * @returns Formatted string like "0:00", "0:15"
+ * @param schoolCanvasHost - Prefills the host field from the school step
+ * @param initialBaseUrl - Draft base URL; its host wins over schoolCanvasHost
  */
-function formatTimestamp(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m}:${String(s).padStart(2, "0")}`;
-}
-
-/**
- * Canvas onboarding step.
- * Default: paste calendar feed URL (simple).
- * Advanced: API token flow with course selection (for power users).
- */
-export default function CanvasStep({ onNext, onSkip, saving, error, setError, initialToken, initialBaseUrl, initialCourses, initialSelectedIds, initialIcalUrl, initialIcalCourses, initialIcalSelectedNames, initialMode, onDraftChange }: CanvasStepProps) {
+export default function CanvasStep({
+  onNext, saving, setError,
+  initialToken, initialBaseUrl, initialCourses, initialSelectedIds,
+  initialIcalUrl, initialIcalCourses, initialIcalSelectedNames, initialMode,
+  schoolCanvasHost, onDraftChange,
+}: CanvasStepProps) {
   const { showToast } = useToast();
   const [mode, setMode] = useState<"ical" | "api">(initialMode ?? "ical");
 
-  // iCal state — restored from draft when navigating back
   const [icalUrl, setIcalUrl] = useState(initialIcalUrl ?? "");
   const [icalCourses, setIcalCourses] = useState<ICalCourse[] | null>(initialIcalCourses ?? null);
   const [icalSelectedNames, setIcalSelectedNames] = useState<Set<string>>(new Set(initialIcalSelectedNames ?? []));
   const [icalLoading, setIcalLoading] = useState(false);
 
-  // API token state (advanced)
-  const [canvasToken, setCanvasToken] = useState(initialToken ?? "");
-  const [canvasBaseUrl, setCanvasBaseUrl] = useState(initialBaseUrl ?? "https://bcourses.berkeley.edu");
-  const [showToken, setShowToken] = useState(false);
+  const [token, setToken] = useState(initialToken ?? "");
+  const [host, setHost] = useState(() => normalizeCanvasHost(initialBaseUrl ?? "") || schoolCanvasHost || "");
   const [verifying, setVerifying] = useState(false);
   const [courses, setCourses] = useState<CanvasCourse[] | null>(initialCourses ?? null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set(initialSelectedIds ?? []));
-  const [videoExpanded, setVideoExpanded] = useState(false);
-  const [videoTime, setVideoTime] = useState(0);
-  const [showTokenHelp, setShowTokenHelp] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
 
-  /** Ref tracking latest state for unmount draft reporting. */
-  const draftRef = useRef({
-    token: canvasToken,
-    baseUrl: canvasBaseUrl,
-    courses,
-    selectedIds: Array.from(selectedIds),
-    icalUrl,
-    icalCourses,
-    icalSelectedNames: Array.from(icalSelectedNames),
-    mode,
+  const draftRef = useRef<CanvasDraft>({
+    token, baseUrl: baseUrlFromHost(host), courses, selectedIds: [], icalUrl, icalCourses, icalSelectedNames: [], mode,
   });
   useEffect(() => {
     draftRef.current = {
-      token: canvasToken,
-      baseUrl: canvasBaseUrl,
+      token,
+      baseUrl: baseUrlFromHost(host),
       courses,
       selectedIds: Array.from(selectedIds),
       icalUrl,
@@ -137,142 +117,64 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
   });
   useEffect(() => {
     return () => { onDraftChange?.(draftRef.current); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /** Updates current playback time for step highlighting. */
-  const handleTimeUpdate = useCallback(() => {
-    if (!videoRef.current) return;
-    const v = videoRef.current;
-    setVideoTime(v.currentTime);
-    if (v.currentTime >= 28 && !v.paused) {
-      v.pause();
-      v.currentTime = 0;
-      setVideoTime(0);
-      setVideoExpanded(false);
-    }
-  }, []);
-
-  /**
-   * Determines which step is currently active based on video playback time.
-   */
-  function getActiveStepIndex(): number {
-    if (!videoExpanded) return -1;
-    for (let i = TOKEN_STEPS.length - 1; i >= 0; i--) {
-      if (videoTime >= TOKEN_STEPS[i].time) return i;
-    }
-    return 0;
+  /** Surfaces a validation problem as an error toast. */
+  function warn(message: string) {
+    showToast(message, { variant: "error", duration: 4000 });
   }
 
-  /**
-   * Fetches course names from the iCal feed for course selection.
-   * If courses are already loaded, saves selected courses and advances.
-   */
-  async function handleICalSave() {
-    const url = icalUrl.trim();
-    if (!url) {
-      showToast("Please paste your calendar feed URL.", { variant: "error", duration: 4000 });
-      return;
-    }
+  /** Reports a fetch failure: network errors get a friendlier line. */
+  function reportFailure(err: unknown) {
+    if (err instanceof TypeError) warn("Network error. Check your connection.");
+    else warn(err instanceof Error ? err.message : String(err));
+  }
 
-    // Basic validation
-    if (!url.startsWith("https://") || !url.endsWith(".ics")) {
-      showToast("That doesn't look like a calendar feed URL. It should start with https:// and end with .ics", { variant: "error", duration: 4000 });
-      return;
-    }
-
+  /** Loads class names from the feed so the user can pick which to sync. */
+  async function loadFeedCourses() {
     setError(null);
-
-    // If courses already loaded, save selection and advance
-    if (icalCourses) {
-      const selected = icalCourses
-        .filter((c) => icalSelectedNames.has(c.name))
-        .map((c) => ({ id: stableIdFromName(c.name), name: c.name }));
-      const ok = await onNext({
-        canvas_ical_url: url,
-        selected_canvas_courses: selected,
-      });
-      if (!ok) return;
-      return;
-    }
-
-    // Fetch course preview from the iCal feed
     setIcalLoading(true);
     try {
       const res = await fetch("/api/canvas/ical-preview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ url: icalUrl.trim() }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error || `Failed to load feed: ${res.status}`);
       }
       const data = await res.json();
-      if (data.courses.length === 0) {
-        // No courses yet — still show the (empty) course selection screen
-        // so the user knows what happened instead of silently skipping
-        setIcalCourses([]);
-        return;
-      }
       setIcalCourses(data.courses);
       setIcalSelectedNames(new Set());
     } catch (err) {
-      if (err instanceof TypeError) {
-        showToast("Network error. Check your connection.", { variant: "error", duration: 4000 });
-      } else {
-        showToast(err instanceof Error ? err.message : String(err), { variant: "error", duration: 4000 });
-      }
+      reportFailure(err);
     } finally {
       setIcalLoading(false);
     }
   }
 
-  /**
-   * Toggles an iCal course's selected state by name.
-   */
-  function toggleIcalCourse(name: string) {
-    setIcalSelectedNames((prev) => {
-      const next = new Set(prev);
-      next.has(name) ? next.delete(name) : next.add(name);
-      return next;
-    });
+  /** Saves the feed URL and the picked classes. */
+  async function saveFeed(e: FormEvent) {
+    e.preventDefault();
+    if (!icalCourses) return;
+    const selected = icalCourses
+      .filter((c) => icalSelectedNames.has(c.name))
+      .map((c) => ({ id: stableIdFromName(c.name), name: c.name }));
+    await onNext({ canvas_ical_url: icalUrl.trim(), selected_canvas_courses: selected });
   }
 
-  /**
-   * Verifies the API token by fetching courses from Canvas.
-   */
-  async function handleVerify() {
-    if (!canvasToken.trim()) {
-      showToast("Please enter your Canvas access token.", { variant: "error", duration: 4000 });
-      return;
-    }
-
-    const trimmedUrl = canvasBaseUrl.trim();
-    if (!trimmedUrl.startsWith("https://")) {
-      showToast("Canvas URL must start with https://", { variant: "error", duration: 4000 });
-      return;
-    }
-    try {
-      const parsed = new URL(trimmedUrl);
-      if (!parsed.hostname || !parsed.hostname.includes(".")) {
-        showToast("Canvas URL must have a valid hostname.", { variant: "error", duration: 4000 });
-        return;
-      }
-    } catch {
-      showToast("Canvas URL is not a valid URL.", { variant: "error", duration: 4000 });
-      return;
-    }
-
+  /** Verifies the token against the host by listing courses. */
+  async function verifyToken() {
     setVerifying(true);
     setError(null);
-
     try {
       // The token goes in the body, never the URL, so it cannot be logged.
       const res = await fetch("/api/canvas/courses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: canvasToken.trim(), base_url: trimmedUrl }),
+        body: JSON.stringify({ token: token.trim(), base_url: baseUrlFromHost(host) }),
       });
       if (!res.ok) {
         if (res.status === 401) throw new Error("Invalid access token.");
@@ -284,432 +186,99 @@ export default function CanvasStep({ onNext, onSkip, saving, error, setError, in
       setCourses(data.courses);
       setSelectedIds(new Set());
     } catch (err) {
-      if (err instanceof TypeError) {
-        showToast("Network error. Check your connection.", { variant: "error", duration: 4000 });
-      } else {
-        showToast(err instanceof Error ? err.message : String(err), { variant: "error", duration: 4000 });
-      }
+      reportFailure(err);
     } finally {
       setVerifying(false);
     }
   }
 
-  /**
-   * Toggles a course's selected state.
-   */
-  function toggleCourse(id: number) {
-    setSelectedIds((prev) => {
+  /** Saves the token, host and picked classes. */
+  async function saveToken(e: FormEvent) {
+    e.preventDefault();
+    if (!courses) return;
+    const selected = courses.filter((c) => selectedIds.has(c.id)).map((c) => ({ id: c.id, name: c.name }));
+    await onNext({ canvas_token: token.trim(), canvas_base_url: baseUrlFromHost(host), selected_canvas_courses: selected });
+  }
+
+  const toggleIn = <T,>(set: (fn: (prev: Set<T>) => Set<T>) => void) => (id: T) =>
+    set((prev) => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
-  }
-
-  /**
-   * Saves API credentials and selected courses.
-   */
-  async function handleSaveAndNext() {
-    if (!courses) return;
-    const selected = courses
-      .filter((c) => selectedIds.has(c.id))
-      .map((c) => ({ id: c.id, name: c.name }));
-
-    const ok = await onNext({
-      canvas_token: canvasToken.trim(),
-      canvas_base_url: canvasBaseUrl.trim(),
-      selected_canvas_courses: selected,
-    });
-    if (!ok) return;
-  }
-
-  const activeStep = getActiveStepIndex();
 
   return (
-    <div className="text-center">
-      <div className="flex items-center justify-center gap-2 mb-4">
-        <img src="/canvas-logo.png" alt="Canvas" width={22} height={22} className="shrink-0 object-contain" />
-        <h2 className="text-lg font-bold text-foreground animate-drop-in">Canvas</h2>
-      </div>
+    <div>
+      <StepHeading provider="canvas" />
 
-      {/* ===== iCal mode (default) — URL input ===== */}
       {mode === "ical" && !icalCourses && (
-        <>
-          <div className="flex flex-col gap-1 mb-4 text-left animate-drop-in delay-100">
-            <div className="flex items-center gap-3 px-2 py-2">
-              <span className="w-7 h-7 rounded-full bg-foreground text-background flex items-center justify-center text-xs font-bold shrink-0">1</span>
-              <span className="text-sm font-medium text-foreground">
-                Go to your Canvas calendar
-              </span>
-            </div>
-            <div className="flex items-center gap-3 px-2 py-2">
-              <span className="w-7 h-7 rounded-full bg-foreground text-background flex items-center justify-center text-xs font-bold shrink-0">2</span>
-              <span className="text-sm font-medium text-foreground">Click &quot;Calendar Feed&quot; at the bottom right</span>
-            </div>
-            <div className="flex items-center gap-3 px-2 py-2">
-              <span className="w-7 h-7 rounded-full bg-foreground text-background flex items-center justify-center text-xs font-bold shrink-0">3</span>
-              <span className="text-sm font-medium text-foreground">Copy the feed URL and paste it below</span>
-            </div>
-          </div>
-
-          <div className="mb-5 animate-drop-in delay-200">
-            <input
-              type="url"
-              value={icalUrl}
-              onChange={(e) => setIcalUrl(e.target.value)}
-              placeholder="Paste calendar feed URL"
-              autoComplete="off"
-              className="w-full px-3 py-2.5 rounded-xl border border-foreground/20 bg-card text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-foreground/50 transition-colors"
-            />
-          </div>
-
-          <div className="animate-drop-in delay-300">
-            <button
-              onClick={handleICalSave}
-              disabled={saving || icalLoading || !icalUrl.trim()}
-              className={`w-full px-5 py-2.5 rounded-full text-sm font-semibold border border-transparent flex items-center justify-center gap-2 transition-colors ${
-                !icalUrl.trim()
-                  ? "bg-[#D1D1D6] dark:bg-[#3A3A3C] text-white/70 dark:text-white/40 cursor-not-allowed"
-                  : "bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 disabled:opacity-50"
-              }`}
-            >
-              {icalLoading && <Loader2 size={14} className="animate-spin" />}
-              {icalLoading ? "Loading courses..." : saving ? "Saving..." : "Connect"}
-            </button>
-          </div>
-
-          {/* Subtle advanced toggle */}
-          <button
-            type="button"
-            onClick={() => { setMode("api"); setError(null); }}
-            className="mt-4 text-[11px] text-muted-foreground/50 hover:text-muted-foreground transition-colors"
-          >
-            Use API key instead (advanced, more setup required)
-          </button>
-        </>
+        <CanvasFeedForm
+          url={icalUrl}
+          onUrlChange={setIcalUrl}
+          onSubmit={loadFeedCourses}
+          onInvalid={warn}
+          loading={icalLoading}
+          saving={saving}
+          onUseToken={() => { setMode("api"); setError(null); }}
+        />
       )}
 
-      {/* ===== iCal mode — course selection ===== */}
       {mode === "ical" && icalCourses && (
-        <>
-          <div className="mb-4">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-sm font-semibold text-foreground">
-                Select Courses to Sync ({icalSelectedNames.size}/{icalCourses.length})
-              </p>
-              <button
-                type="button"
-                onClick={() => {
-                  if (icalSelectedNames.size === icalCourses.length) {
-                    setIcalSelectedNames(new Set());
-                  } else {
-                    setIcalSelectedNames(new Set(icalCourses.map((c) => c.name)));
-                  }
-                }}
-                className="text-xs font-medium text-[#0e89d6] hover:text-[#3D8FE8] transition-colors"
-              >
-                {icalSelectedNames.size === icalCourses.length ? "Deselect All" : "Select All"}
-              </button>
-            </div>
-            <div className="flex flex-col gap-2 max-h-80 overflow-auto -mx-1 px-1 py-1">
-              {icalCourses.map((course) => {
-                const selected = icalSelectedNames.has(course.name);
-                return (
-                  <button
-                    key={course.name}
-                    type="button"
-                    onClick={() => toggleIcalCourse(course.name)}
-                    className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl bg-white dark:bg-[#2a2a2c] text-foreground border-2 transition-colors duration-150 focus:outline-none ${
-                      selected ? "border-[#0e89d6]" : "border-transparent hover:border-[#0e89d6]/30"
-                    }`}
-                  >
-                    <span className="flex-1 min-w-0 text-sm font-semibold text-foreground truncate">{course.name}</span>
-                    <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-colors ${
-                      selected ? "bg-[#0e89d6]" : "border border-muted-foreground/30"
-                    }`}>
-                      {selected && (
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-white">
-                          <polyline points="20 6 9 17 4 12" />
-                        </svg>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
-              {icalCourses.length === 0 && (
-                <div className="px-3 py-4 text-center bg-white dark:bg-[#2a2a2c] rounded-xl">
-                  <p className="text-sm text-foreground font-semibold mb-2">
-                    No courses found in your calendar feed.
-                  </p>
-                  <p className="text-xs text-foreground leading-relaxed">
-                    This usually means no assignments have been posted yet. You can continue and select courses later in Settings &gt; Classes.
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <button
-            onClick={handleICalSave}
-            disabled={saving}
-            className="w-full px-5 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-full text-sm font-semibold disabled:opacity-50 btn-elevated-primary"
-          >
-            {saving ? "Saving..." : icalSelectedNames.size > 0 ? "Save & Next" : "Next"}
-          </button>
-        </>
+        <form onSubmit={saveFeed} noValidate>
+          <CoursePicker
+            courses={icalCourses.map((c) => ({ id: c.name, name: c.name }))}
+            selectedIds={icalSelectedNames}
+            onToggle={toggleIn(setIcalSelectedNames)}
+            onSetSelection={(ids) => setIcalSelectedNames(new Set(ids))}
+            emptyState={
+              <div className="px-3 py-4 bg-card rounded-xl">
+                <p className="text-sm text-foreground font-semibold mb-2">No {CLASS_NOUN_PLURAL} found in your calendar feed.</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  This usually means no assignments have been posted yet. You can continue and pick {CLASS_NOUN_PLURAL} later in Settings.
+                </p>
+              </div>
+            }
+          />
+          <Button type="submit" variant="inverted" size="lg" className="w-full" loading={saving}>
+            {saving ? "Saving..." : icalSelectedNames.size > 0 ? "Save and continue" : "Continue"}
+          </Button>
+        </form>
       )}
 
-      {/* ===== API token mode (advanced) ===== */}
       {mode === "api" && !courses && (
         <>
-          <p className="text-xs text-foreground mb-4 animate-drop-in">
-            This method requires generating an API token and has more setup steps.
-          </p>
-
-          {/* Steps + video section */}
-          <div className="animate-drop-in delay-100">
-            {/* Expanded: side-by-side steps + video */}
-            <div
-              className={`grid overflow-hidden transition-all duration-500 ${videoExpanded ? "sm:-mx-80" : ""}`}
-              style={{
-                gridTemplateRows: videoExpanded ? "1fr" : "0fr",
-                opacity: videoExpanded ? 1 : 0,
-                transitionTimingFunction: "cubic-bezier(0.33, 1, 0.68, 1)",
-              }}
-            >
-              <div className="min-h-0 overflow-hidden">
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-8 mb-4">
-                  <div className="sm:w-56 shrink-0 flex flex-col gap-1.5">
-                    {TOKEN_STEPS.map((step, i) => {
-                      const isActive = activeStep === i;
-                      return (
-                        <button
-                          key={step.time}
-                          type="button"
-                          onClick={() => {
-                            if (videoRef.current) {
-                              videoRef.current.currentTime = step.time;
-                              videoRef.current.play().catch(() => {});
-                            }
-                          }}
-                          className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-200 ${
-                            isActive
-                              ? "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400"
-                              : "text-foreground hover:text-foreground hover:bg-accent"
-                          }`}
-                        >
-                          <span className="tabular-nums text-xs font-mono opacity-60 shrink-0 w-8 text-right">
-                            {formatTimestamp(step.time)}
-                          </span>
-                          <span
-                            className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-                              isActive ? "bg-blue-500 text-white" : "bg-foreground text-background"
-                            }`}
-                          >
-                            {i + 1}
-                          </span>
-                          <span className={`text-sm leading-tight ${isActive ? "font-semibold" : "font-medium"}`}>
-                            {i === 0 ? (
-                              <>
-                                Open{" "}
-                                <a href="https://bcourses.berkeley.edu/profile/settings" target="_blank" rel="noopener noreferrer" className="text-foreground hover:opacity-70 transition-opacity underline">
-                                  Canvas settings
-                                </a>
-                              </>
-                            ) : (
-                              step.label
-                            )}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="rounded-xl overflow-hidden shadow-lg">
-                      <video ref={videoRef} src="/bcourses-instructions.mp4" muted playsInline controls onTimeUpdate={handleTimeUpdate} className="w-full" />
-                    </div>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => { setVideoExpanded(false); videoRef.current?.pause(); }}
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors mb-4 flex items-center gap-1 mx-auto"
-                >
-                  <X size={14} />
-                  Hide video
-                </button>
-              </div>
-            </div>
-
-            {/* Collapsed: numbered steps */}
-            <div
-              className="grid overflow-hidden transition-[grid-template-rows,opacity] duration-500"
-              style={{
-                gridTemplateRows: videoExpanded ? "0fr" : "1fr",
-                opacity: videoExpanded ? 0 : 1,
-                transitionTimingFunction: "cubic-bezier(0.33, 1, 0.68, 1)",
-              }}
-            >
-              <div className="min-h-0 overflow-hidden">
-                <div className="flex flex-col gap-1 mb-4 text-left">
-                  {TOKEN_STEPS.map((step, i) => (
-                    <div key={step.time}>
-                      <div className="flex items-center gap-3 px-2 py-2">
-                        <span className="w-7 h-7 rounded-full bg-foreground text-background flex items-center justify-center text-xs font-bold shrink-0">
-                          {i + 1}
-                        </span>
-                        <span className="text-sm font-medium text-foreground flex items-center gap-1.5">
-                          {i === 0 ? (
-                            <>
-                              Open{" "}
-                              <a href="https://bcourses.berkeley.edu/profile/settings" target="_blank" rel="noopener noreferrer" className="text-foreground hover:opacity-70 transition-opacity underline">
-                                Canvas Settings
-                              </a>
-                            </>
-                          ) : i === 1 ? (
-                            <>
-                              {step.label}
-                              <button
-                                type="button"
-                                onClick={() => setShowTokenHelp(!showTokenHelp)}
-                                className="text-[#0e89d6] font-normal text-xs hover:text-[#3D8FE8] cursor-pointer transition-colors"
-                              >
-                                Having issues?
-                              </button>
-                            </>
-                          ) : (
-                            step.label
-                          )}
-                        </span>
-                      </div>
-                      {i === 1 && showTokenHelp && (
-                        <p className="text-xs text-foreground ml-12 mb-1 leading-relaxed">
-                          If you have any preexisting API tokens, delete them first, then create a new one.
-                        </p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setVideoExpanded(true);
-                    setTimeout(() => {
-                      if (videoRef.current) {
-                        videoRef.current.currentTime = 0;
-                        videoRef.current.play().catch(() => {});
-                        videoRef.current.playbackRate = 1.1;
-                      }
-                    }, 400);
-                  }}
-                  className="w-full flex items-center gap-2.5 px-3.5 py-3 mb-4 rounded-xl text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 hover:bg-blue-100 dark:hover:bg-blue-500/20 active:scale-[0.98] transition-all duration-150"
-                >
-                  <Play size={14} />
-                  Watch how to generate a token
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="mb-5 animate-drop-in delay-200">
-            <div className="relative">
-              <input
-                type={showToken ? "text" : "password"}
-                value={canvasToken}
-                onChange={(e) => setCanvasToken(e.target.value)}
-                placeholder="Paste access token"
-                autoComplete="off"
-                name="canvas-token-nofill"
-                className="w-full px-3 py-2.5 pr-10 rounded-xl border border-foreground/20 bg-card text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-foreground/50 transition-colors"
-              />
-              <button
-                type="button"
-                onClick={() => setShowToken(!showToken)}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-              >
-                {showToken ? <EyeOff size={15} /> : <Eye size={15} />}
-              </button>
-            </div>
-          </div>
-
-          <div className="animate-drop-in delay-300">
-            <button
-              onClick={handleVerify}
-              disabled={verifying || saving}
-              className="w-full px-5 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-full text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2 btn-elevated-primary"
-            >
-              {verifying && <Loader2 size={14} className="animate-spin" />}
-              {verifying ? "Verifying..." : "Connect"}
+          <CanvasTokenForm
+            host={host}
+            onHostChange={setHost}
+            token={token}
+            onTokenChange={setToken}
+            onSubmit={verifyToken}
+            onInvalid={warn}
+            verifying={verifying}
+            saving={saving}
+          />
+          <div className="text-center">
+            <button type="button" onClick={() => { setMode("ical"); setError(null); }} className={MODE_SWITCH_LINK}>
+              Use the calendar feed instead (easier)
             </button>
           </div>
-
-          {/* Back to simple mode */}
-          <button
-            type="button"
-            onClick={() => { setMode("ical"); setError(null); }}
-            className="mt-4 text-[11px] text-foreground/60 hover:text-foreground transition-colors"
-          >
-            Use calendar feed instead (easier)
-          </button>
         </>
       )}
 
-      {/* ===== Course selection (API mode only) ===== */}
       {mode === "api" && courses && (
-        <>
-          <div className="mb-4">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm font-medium text-muted-foreground">
-                select courses to sync ({selectedIds.size}/{courses.length})
-              </p>
-              <button
-                type="button"
-                onClick={() => {
-                  if (selectedIds.size === courses.length) {
-                    setSelectedIds(new Set());
-                  } else {
-                    setSelectedIds(new Set(courses.map((c) => c.id)));
-                  }
-                }}
-                className="text-xs text-blue-400 hover:text-blue-300 transition-colors duration-100"
-              >
-                {selectedIds.size === courses.length ? "deselect all" : "select all"}
-              </button>
-            </div>
-            <div className="max-h-80 overflow-auto rounded-xl border border-border">
-              {courses.map((course) => (
-                <label
-                  key={course.id}
-                  className="flex items-center gap-3 px-3 py-2.5 hover:bg-accent transition-colors duration-100 cursor-pointer border-b border-border last:border-0"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.has(course.id)}
-                    onChange={() => toggleCourse(course.id)}
-                    className="w-4 h-4 rounded accent-foreground"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <span className="text-sm text-foreground block truncate">{course.name}</span>
-                    <span className="text-xs text-muted-foreground block truncate">{course.course_code}</span>
-                  </div>
-                </label>
-              ))}
-              {courses.length === 0 && (
-                <div className="px-3 py-4 text-sm text-muted-foreground text-center">
-                  no active courses found.
-                </div>
-              )}
-            </div>
-          </div>
-
-          <button
-            onClick={handleSaveAndNext}
-            disabled={saving}
-            className="w-full px-5 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-full text-sm font-semibold disabled:opacity-50 btn-elevated-primary"
-          >
-            {saving ? "Saving..." : selectedIds.size > 0 ? "Save & Next" : "Next"}
-          </button>
-        </>
+        <form onSubmit={saveToken} noValidate>
+          <CoursePicker
+            courses={courses.map((c) => ({ id: c.id, name: c.name, detail: c.course_code }))}
+            selectedIds={selectedIds}
+            onToggle={toggleIn(setSelectedIds)}
+            onSetSelection={(ids) => setSelectedIds(new Set(ids))}
+            emptyState={<p className="px-3 py-4 text-sm text-muted-foreground text-center">No active {CLASS_NOUN_PLURAL} found.</p>}
+          />
+          <Button type="submit" variant="inverted" size="lg" className="w-full" loading={saving}>
+            {saving ? "Saving..." : selectedIds.size > 0 ? "Save and continue" : "Continue"}
+          </Button>
+        </form>
       )}
     </div>
   );
