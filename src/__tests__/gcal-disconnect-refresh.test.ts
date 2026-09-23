@@ -52,7 +52,7 @@ describe("IntegrationProvider.refresh", () => {
 
 describe("GoogleCalendarSettings.handleDisconnect", () => {
   const src = read("src/components/settings/GoogleCalendarSettings.tsx");
-  const body = src.slice(src.indexOf("async function handleDisconnect"), src.indexOf("function handleConnect"));
+  const body = src.slice(src.indexOf("async function handleDisconnect"), src.indexOf("async function handleReconnect"));
 
   it("checks the response status before clearing local state", () => {
     expect(body).toContain('const res = await fetch("/api/gcal/disconnect"');
@@ -64,6 +64,6 @@ describe("GoogleCalendarSettings.handleDisconnect", () => {
   it("returns without the success toast on a failed disconnect", () => {
     const failBranch = body.slice(body.indexOf("if (!res.ok)"), body.indexOf("localStorage.removeItem"));
     expect(failBranch).toContain("return;");
-    expect(failBranch).not.toContain("Google Calendar disconnected.");
+    expect(failBranch).not.toContain("disconnected.");
   });
 });

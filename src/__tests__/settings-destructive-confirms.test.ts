@@ -102,7 +102,7 @@ describe("AdvancedSection", () => {
   });
 
   it("passes the error variant on every failure toast", () => {
-    const failures = src.match(/showToast\([^;]*Failed[^;]*\);/gs) ?? [];
+    const failures = src.match(/showToast\([^;]*Failed[^;]*\);/g) ?? [];
     expect(failures.length).toBeGreaterThanOrEqual(3);
     for (const call of failures) expect(call).toContain('variant: "error"');
   });
@@ -121,7 +121,7 @@ describe("McpKeyList revoke", () => {
 
   it("McpSettings failure toasts use the error variant", () => {
     const settings = read("src/components/settings/McpSettings.tsx");
-    const failures = settings.match(/showToast\([^;]*Failed[^;]*\);/gs) ?? [];
+    const failures = settings.match(/showToast\([^;]*Failed[^;]*\);/g) ?? [];
     expect(failures.length).toBe(3);
     for (const call of failures) expect(call).toContain('variant: "error"');
   });

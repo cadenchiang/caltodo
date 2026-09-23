@@ -53,7 +53,11 @@ export default function GoogleCalendarList({ onSaved }: GoogleCalendarListProps)
       });
       return true;
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Failed to load calendars");
+      console.error("GoogleCalendarList: load failed", {
+        error: err instanceof Error ? err.message : String(err),
+        impact: "the picker stays closed",
+      });
+      showToast(err instanceof Error ? err.message : "Failed to load calendars", { variant: "error" });
       return false;
     } finally {
       setLoading(false);
@@ -64,7 +68,7 @@ export default function GoogleCalendarList({ onSaved }: GoogleCalendarListProps)
   const save = useCallback(
     async (ids: string[]) => {
       if (ids.length === 0) {
-        showToast("Keep at least one calendar.");
+        showToast("Keep at least one calendar.", { variant: "error" });
         return;
       }
       setSaving(true);
@@ -80,7 +84,11 @@ export default function GoogleCalendarList({ onSaved }: GoogleCalendarListProps)
         onSaved();
         showToast("Calendars updated.");
       } catch (err) {
-        showToast(err instanceof Error ? err.message : "Failed to save calendars");
+        console.error("GoogleCalendarList: save failed", {
+          error: err instanceof Error ? err.message : String(err),
+          impact: "the previous selection is unchanged",
+        });
+        showToast(err instanceof Error ? err.message : "Failed to save calendars", { variant: "error" });
       } finally {
         setSaving(false);
       }
@@ -95,6 +103,15 @@ export default function GoogleCalendarList({ onSaved }: GoogleCalendarListProps)
       return;
     }
     if (await load()) setPicking(true);
+  }
+
+  /** Toggles the picker: the add button becomes Cancel while it is open. */
+  function togglePicker() {
+    if (picking) {
+      setPicking(false);
+      return;
+    }
+    void openPicker();
   }
 
   // The first selected id is where tasks are written (getCalendarId reads
@@ -115,20 +132,16 @@ export default function GoogleCalendarList({ onSaved }: GoogleCalendarListProps)
     <div>
       {/* Same labelled shape as an account's Classes block. */}
       <div className="flex items-center justify-between gap-2 mb-1.5">
-        <p className="text-[11px] font-semibold text-foreground">
+        <p className="text-2xs font-semibold text-foreground">
           Calendars{selected.length > 0 ? ` · ${selected.length}` : ""}
         </p>
       </div>
       <div className="flex flex-wrap gap-1">
         {selected.map((calendar) =>
           calendar.id === writeCalendarId ? (
-            <span
-              key={calendar.id}
-              className={`${CLASS_PILL} gap-1 pr-1.5`}
-              title="Tasks are written to this calendar, so it cannot be removed."
-            >
+            <span key={calendar.id} className={`${CLASS_PILL} gap-1 pr-1.5`}>
               {calendar.summary}
-              <Lock size={11} className="shrink-0 opacity-60" aria-label="Write calendar, cannot be removed" />
+              <Lock size={11} className="shrink-0 opacity-60" aria-hidden="true" />
             </span>
           ) : (
             <span key={calendar.id} className={`${CLASS_PILL} gap-1 pr-1.5`}>
@@ -149,23 +162,30 @@ export default function GoogleCalendarList({ onSaved }: GoogleCalendarListProps)
 
         {!atLimit && (
           <button
-            onClick={openPicker}
+            type="button"
+            onClick={togglePicker}
             disabled={loading || saving}
-            aria-label="Add another calendar"
-            className={`${PILL_SHAPE} gap-1 cursor-pointer bg-[#0e89d6]/10 text-[#0e89d6] hover:bg-[#0e89d6]/20 transition-colors disabled:opacity-50`}
+            aria-expanded={picking}
+            className={`${PILL_SHAPE} gap-1 cursor-pointer transition-colors disabled:opacity-50 ${
+              picking
+                ? "bg-muted text-muted-foreground hover:text-foreground"
+                : "bg-blue-500/10 text-blue-500 hover:bg-blue-500/20"
+            }`}
           >
             {loading ? (
               <Loader2 size={11} className="animate-spin shrink-0" />
+            ) : picking ? (
+              <X size={12} className="shrink-0" />
             ) : (
               <Plus size={12} className="shrink-0" />
             )}
-            Add another calendar
+            {picking ? "Cancel" : "Add another calendar"}
           </button>
         )}
       </div>
       {selected.length > 0 && (
-        <p className="mt-1.5 text-[11px] text-muted-foreground">
-          Tasks are written to {selected[0].summary}. The others are read only.
+        <p className="mt-1.5 text-2xs text-muted-foreground">
+          Tasks are written to {selected[0].summary}, so it cannot be removed. The others are read only.
         </p>
       )}
 
@@ -185,11 +205,11 @@ export default function GoogleCalendarList({ onSaved }: GoogleCalendarListProps)
                 className="w-2 h-2 rounded-full shrink-0"
                 style={{ backgroundColor: calendar.backgroundColor || "#9ca3af" }}
               />
-              <span className="text-[11px] text-foreground truncate">{calendar.summary}</span>
+              <span className="text-2xs text-foreground truncate">{calendar.summary}</span>
             </button>
           ))}
           {unselected.length === 0 && (
-            <p className="px-2.5 py-3 text-[11px] text-muted-foreground text-center">
+            <p className="px-2.5 py-3 text-2xs text-muted-foreground text-center">
               Every calendar on this account is already syncing.
             </p>
           )}
