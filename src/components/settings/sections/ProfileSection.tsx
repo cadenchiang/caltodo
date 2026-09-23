@@ -88,10 +88,28 @@ export default function ProfileSection() {
   const [viewingUser, setViewingUser] = useState<SearchUser | null>(null);
   const [modalClosing, setModalClosing] = useState(false);
   const [viewingUserFriendCount, setViewingUserFriendCount] = useState<number>(0);
+  const [ownKarma, setOwnKarma] = useState<number | null>(null);
+  const [viewingUserKarma, setViewingUserKarma] = useState<number>(0);
 
-  // Fetch friend count when viewing a user profile
+  // Fetch own karma on mount
   useEffect(() => {
-    if (!viewingUser) { setViewingUserFriendCount(0); return; }
+    let cancelled = false;
+    async function fetchOwnKarma() {
+      try {
+        const res = await fetch("/api/users/karma?userId=self");
+        if (res.ok && !cancelled) {
+          const data = await res.json();
+          setOwnKarma(data.karma ?? 0);
+        }
+      } catch { /* non-critical */ }
+    }
+    fetchOwnKarma();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Fetch friend count and karma when viewing a user profile
+  useEffect(() => {
+    if (!viewingUser) { setViewingUserFriendCount(0); setViewingUserKarma(0); return; }
     let cancelled = false;
     async function fetchCount() {
       try {
@@ -102,7 +120,17 @@ export default function ProfileSection() {
         }
       } catch { /* non-critical */ }
     }
+    async function fetchKarma() {
+      try {
+        const res = await fetch(`/api/users/karma?userId=${encodeURIComponent(viewingUser!.id)}`);
+        if (res.ok && !cancelled) {
+          const data = await res.json();
+          setViewingUserKarma(data.karma ?? 0);
+        }
+      } catch { /* non-critical */ }
+    }
     fetchCount();
+    fetchKarma();
     return () => { cancelled = true; };
   }, [viewingUser]);
   const debouncedFriendQuery = useDebounce(friendQuery, 150);
@@ -584,6 +612,12 @@ export default function ProfileSection() {
             <span className="text-sm text-foreground">
               <span className="font-bold">{friends.length}</span> Friends
             </span>
+            <span className="text-sm text-foreground group relative cursor-default">
+              <span className="font-bold">{ownKarma ?? "–"}</span> Karma
+              <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1 rounded-lg bg-popover border border-border text-xs text-muted-foreground px-2.5 py-1.5 shadow-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
+                Total messages sent in Chat
+              </span>
+            </span>
           </div>
 
           {/* Edit Profile button */}
@@ -958,6 +992,12 @@ export default function ProfileSection() {
                   <div className="flex items-center gap-4 mt-2">
                     <span className="text-sm text-foreground">
                       <span className="font-bold">{viewingUserFriendCount}</span> Friends
+                    </span>
+                    <span className="text-sm text-foreground group relative cursor-default">
+                      <span className="font-bold">{viewingUserKarma}</span> Karma
+                      <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1 rounded-lg bg-popover border border-border text-xs text-muted-foreground px-2.5 py-1.5 shadow-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
+                        Total messages sent in Chat
+                      </span>
                     </span>
                   </div>
                 </div>

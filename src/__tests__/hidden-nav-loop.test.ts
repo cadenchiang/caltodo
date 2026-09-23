@@ -2,8 +2,8 @@
  * Tests for the mobile redirect loop when Inbox and Calendar are both hidden.
  *
  * Audit H13: HiddenRouteRedirect asked pickLandingPath without saying it
- * was on mobile, got a desktop-only route, and MobileRouteGuard sent the
- * user straight back. Settings let both landing-capable items be hidden.
+ * was on mobile, got desktop-only Chat, and MobileRouteGuard sent the user
+ * straight back. Settings let both landing-capable items be hidden.
  */
 
 import { describe, it, expect } from "vitest";
@@ -42,6 +42,7 @@ describe("canHideNavItem", () => {
   });
 
   it("always allows hiding a desktop-only item", () => {
+    expect(canHideNavItem("/app/discussions", new Set(["/app/inbox", "/app/calendar"]))).toEqual({ allowed: true });
     expect(canHideNavItem("/app/home", new Set(["/app/inbox"]))).toEqual({ allowed: true });
   });
 
@@ -52,15 +53,16 @@ describe("canHideNavItem", () => {
 
 describe("pickLandingPath on mobile", () => {
   it("never returns a desktop-only route, even with everything hidden", () => {
-    const everything = { hidden_nav_items: ["/app/home", "/app/inbox", "/app/calendar"] };
+    const everything = { hidden_nav_items: ["/app/home", "/app/inbox", "/app/calendar", "/app/discussions"] };
     const target = pickLandingPath(everything, { isMobile: true });
-    expect(target).not.toBe("/app/home");
+    expect(["/app/home", "/app/discussions"]).not.toContain(target);
     expect(target).toBe("/app/inbox");
   });
 
-  it("with Inbox and Calendar hidden falls back to Inbox on every device", () => {
+  it("with only Inbox and Calendar hidden falls back to Inbox rather than Chat", () => {
     expect(pickLandingPath({ hidden_nav_items: ["/app/inbox", "/app/calendar"] }, { isMobile: true })).toBe("/app/inbox");
-    expect(pickLandingPath({ hidden_nav_items: ["/app/inbox", "/app/calendar"] })).toBe("/app/inbox");
+    // Desktop still gets Chat, so the guard on the client must pass isMobile.
+    expect(pickLandingPath({ hidden_nav_items: ["/app/inbox", "/app/calendar"] })).toBe("/app/discussions");
   });
 });
 

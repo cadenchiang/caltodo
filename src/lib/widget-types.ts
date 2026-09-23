@@ -54,7 +54,7 @@ export interface WidgetTypeConfig {
 export interface WidgetInstance {
   id: string;
   type: WidgetType;
-  /** Per-widget config (e.g. calendarIds for the calendar widget). */
+  /** Per-widget config (e.g. courseId for recent-chat). */
   config: Record<string, string>;
 }
 

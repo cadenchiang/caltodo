@@ -40,8 +40,9 @@ export default function MobileTabBar() {
       window.removeEventListener("inbox-filter-change", handleFilterChange);
   }, []);
 
-  // Hide navigation during onboarding and settings
+  // Hide navigation during onboarding, settings, and inside a specific chat
   if (pathname.startsWith("/app/onboarding") || pathname.startsWith("/app/settings")) return null;
+  if (pathname.match(/^\/app\/discussions\/[^/]+$/)) return null;
 
   /** Returns the appropriate inbox icon based on the active filter. */
   function getInboxIcon() {

@@ -78,8 +78,8 @@ export async function loadCredentials(
 
   // A user is also considered onboarded if they belong to any class, even
   // without their own credentials configured — e.g. added by a classmate or
-  // already synced via a previous session. Users who clearly have classes
-  // should never be treated as un-onboarded.
+  // already synced via a previous session. This prevents the Chat "locked"
+  // state from showing for users who clearly have classes.
   let hasCourseMembership = false;
   if (!credentialsOnboarded) {
     const { count, error: membershipError } = await supabase

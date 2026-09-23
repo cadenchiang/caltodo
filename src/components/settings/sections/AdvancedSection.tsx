@@ -107,8 +107,8 @@ export default function AdvancedSection() {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || `Reset failed: ${res.status}`);
       }
-      // Every local "seen" flag; the server row alone is not what the
-      // modals read first.
+      // Every local "seen" flag, not just the chat one; the server row alone
+      // is not what the modals read first.
       for (const lsKey of Object.values(DISMISSED_MODAL_KEYS)) {
         localStorage.removeItem(lsKey);
       }

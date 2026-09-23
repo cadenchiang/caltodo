@@ -52,11 +52,11 @@ function writeCache(completed: boolean): void {
 /**
  * Hook that exposes whether the current user has completed onboarding.
  * Uses module-level + sessionStorage caching so multiple consumers
- * (Sidebar, MobileTabBar) don't re-fetch.
+ * (Sidebar, MobileTabBar, CalChat pages) don't re-fetch.
  * Listens for `onboarding-status-change` custom event so status
  * updates instantly after onboarding completes.
  *
- * @param options.skipCache - When true, always fetch fresh from API
+ * @param options.skipCache - When true, always fetch fresh from API (use on CalChat pages)
  * @returns { hasCompletedOnboarding, loading, refresh }
  */
 export function useOnboardingStatus(options?: { skipCache?: boolean }): {

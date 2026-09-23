@@ -9,6 +9,13 @@ import FadeIn from "@/components/landing/FadeIn";
  */
 const SLIDES = [
   {
+    src: "/chat-feature-preview.png",
+    alt: "caltodo class chat feature preview",
+    title: "Class Chat",
+    description: "Message classmates in real time, organized by course.",
+    badge: "New",
+  },
+  {
     src: "/app-screenshot-board.png",
     alt: "caltodo board view with drag-and-drop columns",
     title: "Dashboard",
@@ -32,8 +39,7 @@ const SLIDES = [
  * @returns React element for the feature carousel section.
  */
 export default function FeatureHighlight() {
-  // Dashboard opens centered, as it did when it sat in the middle of three slides.
-  const [active, setActive] = useState(0);
+  const [active, setActive] = useState(1);
   const [hoveredSlide, setHoveredSlide] = useState<number | null>(null);
   const [transitioning, setTransitioning] = useState(false);
 

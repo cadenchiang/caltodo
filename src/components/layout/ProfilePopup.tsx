@@ -65,7 +65,7 @@ export default function ProfilePopup({ avatarUrl, fullName, email }: ProfilePopu
    * Performs log-out immediately on click.
    *
    * Three things have to happen for log-out to actually stick:
-   *   1. Clear every per-user cache (tasks, profile, board state) so
+   *   1. Clear every per-user cache (tasks, profile, board, chat state) so
    *      the next user on this device sees their own data, not a stale paint
    *      of the previous account's.
    *   2. POST /auth/signout, clears the Supabase auth cookies on the server.

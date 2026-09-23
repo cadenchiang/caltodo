@@ -3,9 +3,9 @@
 /**
  * Keeps desktop-only routes off mobile.
  *
- * Home (the drag-and-drop widget board) is built for a pointer and a wide
- * canvas; it is not in the mobile tab bar. Without a guard it was still
- * reachable on a phone via history, a bookmark, a shared link, or the
+ * Home (the drag-and-drop widget board) and Chat are built for a pointer and
+ * a wide canvas; neither is in the mobile tab bar. Without a guard they were
+ * still reachable on a phone via history, a bookmark, a shared link, or the
  * post-login landing path — landing the user on a surface with no way back
  * except the browser's back button.
  *
@@ -19,7 +19,7 @@ import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
 /** Routes (and their subroutes) that are hidden on mobile. */
-const DESKTOP_ONLY_HREFS = ["/app/home"] as const;
+const DESKTOP_ONLY_HREFS = ["/app/home", "/app/discussions"] as const;
 
 /** Where mobile users go instead. */
 const MOBILE_FALLBACK = "/app/inbox";

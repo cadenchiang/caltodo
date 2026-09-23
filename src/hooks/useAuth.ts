@@ -14,7 +14,7 @@ export function useAuth() {
 
   /**
    * Signs the user out: drops every per-user cache first (tasks, profile,
-   * board state) so the next account on this device does not paint
+   * board, chat state) so the next account on this device does not paint
    * the previous one's data, then clears the server session.
    */
   async function signOut() {

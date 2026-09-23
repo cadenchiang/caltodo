@@ -4,8 +4,16 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { Camera, Check, Loader2, X } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
+import { usePresence, type UserStatus } from "@/contexts/PresenceContext";
 import { classifyImage } from "@/lib/nsfw-check";
 import ImageCropModal from "@/components/ui/ImageCropModal";
+
+/** Status option config for the picker. */
+const STATUS_OPTIONS: { value: UserStatus; label: string; color: string }[] = [
+  { value: "online", label: "Online", color: "bg-green-500" },
+  { value: "idle", label: "Idle", color: "bg-yellow-500" },
+  { value: "dnd", label: "Do Not Disturb", color: "bg-red-500" },
+];
 
 interface EditProfileModalProps {
   /** Whether the modal is open. */
@@ -39,6 +47,8 @@ export default function EditProfileModal({
   email,
 }: EditProfileModalProps) {
   const { showToast } = useToast();
+  const { userStatuses, setStatus, currentUserId } = usePresence();
+  const currentStatus = (currentUserId ? userStatuses.get(currentUserId) : undefined) ?? "online";
   const [closing, setClosing] = useState(false);
   const [localAvatar, setLocalAvatar] = useState(avatarUrl ?? null);
   const [nameInput, setNameInput] = useState(fullName ?? "");
@@ -328,6 +338,30 @@ export default function EditProfileModal({
             <p className="text-sm text-muted-foreground truncate">{email}</p>
           </div>
         )}
+
+        {/* Status picker */}
+        <div className="px-5 pb-4">
+          <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
+            Status
+          </label>
+          <div className="flex gap-1.5">
+            {STATUS_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setStatus(opt.value)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors ${
+                  currentStatus === opt.value
+                    ? "border-blue-500 bg-blue-500/10 text-foreground"
+                    : "border-border text-muted-foreground hover:text-foreground hover:bg-muted"
+                }`}
+              >
+                <span className={`w-2 h-2 rounded-full ${opt.color}`} />
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
 
         {/* Save button */}
         <div className="px-5 pb-5">

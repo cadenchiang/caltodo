@@ -14,6 +14,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import type { WidgetInstance } from "@/lib/widget-types";
 import type { GCalCalendarEntry } from "@/lib/types";
+import { useDiscussionBoards } from "@/hooks/useDiscussionBoards";
 import FontPicker from "@/components/ui/FontPicker";
 import SegmentedControl from "@/components/ui/SegmentedControl";
 import ColorPickerPopover from "@/components/ui/ColorPickerPopover";
@@ -134,6 +135,7 @@ export default function WidgetEditorPanel({
   onApplyFontToAll, onApplyBgResetToAll, onApplyTextColorToAll, onApplyBorderToAll, onApplyAccentToAll,
   savedImages, onAddSavedImage,
 }: Props) {
+  const { boards } = useDiscussionBoards();
   const { colorTheme } = useTheme();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);

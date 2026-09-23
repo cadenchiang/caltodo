@@ -16,6 +16,7 @@ const NAV_HREFS_IN_ORDER = [
   // "/app/home" is withdrawn while the board is reworked; see NAV_ITEMS.
   "/app/inbox",
   "/app/calendar",
+  "/app/discussions",
 ] as const;
 
 /** Last-resort destination if every nav item has somehow been hidden. */
@@ -23,16 +24,17 @@ const FALLBACK_LANDING = "/app/inbox";
 
 /**
  * Routes that don't exist on mobile: the widget board needs a pointer and a
- * wide canvas. It is not in the mobile tab bar, so landing a phone on it
- * would strand the user (MobileRouteGuard bounces them, but redirecting up
- * front avoids the flash).
+ * wide canvas, and Chat is desktop-only too. Neither is in the mobile tab
+ * bar, so landing a phone on one would strand the user (MobileRouteGuard
+ * bounces them, but redirecting up front avoids the flash).
  */
-const DESKTOP_ONLY_HREFS = new Set<string>(["/app/home"]);
+const DESKTOP_ONLY_HREFS = new Set<string>(["/app/home", "/app/discussions"]);
 
 /**
  * Nav items that can serve as a landing page on every device. At least one
- * of these must stay visible: hiding both would leave the user with nowhere
- * to land, so HiddenRouteRedirect would have no valid target.
+ * of these must stay visible: hiding both left mobile with nowhere to land
+ * (Chat is desktop-only), so HiddenRouteRedirect and MobileRouteGuard
+ * bounced the user between Inbox and Chat forever.
  */
 export const LANDING_CAPABLE_HREFS: readonly string[] = NAV_HREFS_IN_ORDER.filter(
   (href) => !DESKTOP_ONLY_HREFS.has(href)
@@ -63,7 +65,7 @@ export function canHideNavItem(href: string, hidden: ReadonlySet<string>): { all
  * wins with no entitlement gating.
  *
  * @param userMetadata - The Supabase user_metadata object
- * @param opts.isMobile - When true, skips desktop-only routes (Board)
+ * @param opts.isMobile - When true, skips desktop-only routes (Board, Chat)
  * @returns First eligible nav href, or FALLBACK_LANDING
  * @remarks On mobile the result is never a desktop-only route, even when
  *          every mobile-capable item is hidden: the fallback (Inbox) is
