@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 import { AlertTriangle } from "lucide-react";
 import type { IntegrationCredentials } from "@/lib/types";
 import { getCredentials } from "@/lib/credentials-client";
+import Modal from "@/components/ui/Modal";
+import Button from "@/components/ui/Button";
+import { ACTIONS } from "@/lib/copy";
 
 /** localStorage key to suppress modal for 24 hours after dismissal. */
 const DISMISS_KEY = "caltodo_canvas_token_expired_dismissed";
@@ -78,43 +81,44 @@ export default function CanvasTokenExpiredModal() {
     }
   }
 
-  if (!show) return null;
-
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="bg-popover rounded-2xl border border-border shadow-2xl w-full w-[calc(100%-2rem)] max-w-sm p-6 animate-modal-in">
-        <div className="flex justify-center mb-4">
-          <div className="w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center">
-            <AlertTriangle size={24} className="text-amber-500" />
-          </div>
-        </div>
-
-        <h3 className="text-lg font-semibold text-foreground text-center mb-2">
-          Your Canvas API key has expired
-        </h3>
-
-        <p className="text-sm text-muted-foreground text-center mb-6">
-          Canvas API keys expire after 120 days. Please generate a new one in Settings to continue syncing assignments.
-        </p>
-
-        <div className="flex flex-col gap-2">
-          <button
-            onClick={() => {
-              setShow(false);
-              router.push("/app/settings");
-            }}
-            className="w-full px-4 py-2.5 bg-foreground text-background rounded-xl text-sm font-medium hover:opacity-90 transition-opacity"
-          >
-            Go to Settings
-          </button>
-          <button
-            onClick={handleDismiss}
-            className="w-full px-4 py-2.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Dismiss
-          </button>
+    <Modal
+      open={show}
+      onClose={handleDismiss}
+      size="sm"
+      hideClose
+      aria-label="Your Canvas API key has expired"
+      className="text-center"
+    >
+      <div className="flex justify-center mb-4">
+        <div className="w-12 h-12 rounded-full bg-warning-tint flex items-center justify-center">
+          <AlertTriangle size={24} className="text-warning" aria-hidden="true" />
         </div>
       </div>
-    </div>
+
+      <h2 className="text-base font-semibold text-foreground mb-2">
+        Your Canvas API key has expired
+      </h2>
+
+      <p className="text-sm text-muted-foreground mb-6">
+        Canvas API keys expire after 120 days. Please generate a new one in Settings to continue syncing assignments.
+      </p>
+
+      <div className="flex flex-col gap-2">
+        <Button
+          variant="inverted"
+          className="w-full"
+          onClick={() => {
+            setShow(false);
+            router.push("/app/settings");
+          }}
+        >
+          {ACTIONS.goToSettings}
+        </Button>
+        <Button variant="ghost" className="w-full" onClick={handleDismiss}>
+          {ACTIONS.dismiss}
+        </Button>
+      </div>
+    </Modal>
   );
 }

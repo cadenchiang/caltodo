@@ -566,7 +566,7 @@ export default function TaskCreateModal({
   return createPortal(
     <div style={!open && keepMounted ? { display: 'none' } : undefined}>
     <div
-      className={`fixed inset-0 z-50 flex justify-center bg-black/40 ${
+      className={`fixed inset-0 z-overlay flex justify-center bg-black/40 ${
         keepMounted ? "items-start pt-[18vh]" : `items-center transition-opacity duration-150 ${closing ? "opacity-0" : "animate-in fade-in duration-150"}`
       }`}
       onMouseDown={(e) => {
