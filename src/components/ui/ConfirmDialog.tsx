@@ -19,6 +19,11 @@ export interface ConfirmDialogProps {
   destructive?: boolean;
   /** Shows a spinner on confirm and blocks every way of dismissing. */
   loading?: boolean;
+  /**
+   * Disables the confirm button without touching cancel. Use for gates the
+   * body enforces, such as typing a word before a deletion can proceed.
+   */
+  confirmDisabled?: boolean;
   /** Optional icon shown above the title (44px circle). */
   icon?: ReactNode;
   /** Called when the user confirms. */
@@ -33,6 +38,7 @@ export interface ConfirmDialogProps {
  *
  * @param destructive - Red confirm; focus starts on Cancel so Enter is safe
  * @param loading - Confirm shows a spinner; cancel, Escape and backdrop are disabled
+ * @param confirmDisabled - Confirm stays disabled while a gate in the body is unmet
  * @remarks Initial focus lands on Confirm for non-destructive prompts so a
  *          keyboard user can accept with Enter.
  */
@@ -44,6 +50,7 @@ export default function ConfirmDialog({
   cancelLabel = "Cancel",
   destructive = false,
   loading = false,
+  confirmDisabled = false,
   icon,
   onConfirm,
   onCancel,
@@ -75,6 +82,7 @@ export default function ConfirmDialog({
           ref={confirmRef}
           variant={destructive ? "destructive-filled" : "primary"}
           loading={loading}
+          disabled={confirmDisabled}
           onClick={onConfirm}
           className="w-full"
         >

@@ -104,7 +104,7 @@ export default function McpSettings() {
       mutate({ keys: [created.record, ...keys] }, { revalidate: false });
       setDialogOpen(false);
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Failed to create API key");
+      showToast(err instanceof Error ? err.message : "Failed to create API key", { variant: "error" });
     } finally {
       setCreating(false);
     }
@@ -133,7 +133,7 @@ export default function McpSettings() {
       const { record } = await res.json();
       mutate({ keys: keys.map((k) => (k.id === id ? record : k)) }, { revalidate: false });
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Failed to rename key");
+      showToast(err instanceof Error ? err.message : "Failed to rename key", { variant: "error" });
     }
   }
 
@@ -150,7 +150,7 @@ export default function McpSettings() {
       mutate({ keys: keys.filter((k) => k.id !== id) }, { revalidate: false });
       showToast("API key revoked.");
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Failed to revoke API key");
+      showToast(err instanceof Error ? err.message : "Failed to revoke API key", { variant: "error" });
     }
   }
 
