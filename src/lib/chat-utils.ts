@@ -137,6 +137,23 @@ export async function prefetchMessages(courseId: string): Promise<void> {
   }
 }
 
+/** Rooms already prefetched this session; a hover should not refetch. */
+const prefetchedRooms = new Set<string>();
+
+/**
+ * Prefetches a room's messages and members once per session. Called from
+ * the room row on hover / focus so only rooms the user is about to open are
+ * fetched, instead of every room on mount.
+ *
+ * @param courseId - The course UUID
+ */
+export function prefetchRoom(courseId: string): void {
+  if (prefetchedRooms.has(courseId)) return;
+  prefetchedRooms.add(courseId);
+  if (!hasFreshCache(courseId)) void prefetchMessages(courseId);
+  void prefetchMembers(courseId);
+}
+
 /**
  * Prefetches members for a course and stores them in sessionStorage.
  * Skips the fetch if a fresh cache already exists.

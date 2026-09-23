@@ -1,22 +1,23 @@
 /**
  * Tests for the shared chat action utilities in chat-actions.ts.
- * Verifies localStorage persistence, custom event dispatch,
- * and API call handling for mute, unread, pin, and leave operations.
+ * Verifies localStorage persistence, custom event dispatch, the system
+ * course mute default, the first-visit read baseline and the unread rule.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   toggleMute,
   markAsUnread,
+  markAsRead,
   togglePin,
   isPinned,
-  leaveGroup,
+  isChatMuted,
+  isChatUnread,
+  ensureReadBaseline,
   MUTE_KEY_PREFIX,
   READ_AT_PREFIX,
   PIN_KEY_PREFIX,
-  NAME_KEY_PREFIX,
-  MSG_CACHE_PREFIX,
-  MEM_CACHE_PREFIX,
+  LAST_SENT_PREFIX,
 } from "@/lib/chat-actions";
 
 // Mock localStorage
@@ -75,7 +76,6 @@ beforeEach(() => {
     return true;
   });
 
-  // Mock fetch for leaveGroup tests
   globalThis.fetch = vi.fn();
 });
 
@@ -161,6 +161,72 @@ describe("togglePin", () => {
   });
 });
 
+describe("isChatMuted", () => {
+  it("defaults system courses (CalYak) to muted", () => {
+    expect(isChatMuted("calyak", true)).toBe(true);
+  });
+
+  it("defaults class chats to unmuted", () => {
+    expect(isChatMuted("course-1", false)).toBe(false);
+  });
+
+  it("honours an explicit unmute on a system course", () => {
+    localStorageMock.setItem(MUTE_KEY_PREFIX + "calyak", "false");
+    expect(isChatMuted("calyak", true)).toBe(false);
+  });
+
+  it("honours an explicit mute on a class chat", () => {
+    localStorageMock.setItem(MUTE_KEY_PREFIX + "course-1", "true");
+    expect(isChatMuted("course-1", false)).toBe(true);
+  });
+});
+
+describe("ensureReadBaseline", () => {
+  it("marks never-opened rooms read as of now and leaves read rooms alone", () => {
+    localStorageMock.setItem(READ_AT_PREFIX + "old", "2026-01-01T00:00:00Z");
+    const seeded = ensureReadBaseline(["old", "new-1", "new-2"]);
+    expect(seeded).toEqual(["new-1", "new-2"]);
+    expect(localStorageMock.getItem(READ_AT_PREFIX + "old")).toBe("2026-01-01T00:00:00Z");
+    expect(localStorageMock.getItem(READ_AT_PREFIX + "new-1")).not.toBeNull();
+  });
+});
+
+describe("isChatUnread", () => {
+  it("is false with no messages", () => {
+    expect(isChatUnread("course-1", null)).toBe(false);
+  });
+
+  it("is false for a room with no read baseline (first visit is not unread)", () => {
+    expect(isChatUnread("course-1", "2026-09-23T10:00:00Z")).toBe(false);
+  });
+
+  it("is true when the newest message is after read_at", () => {
+    localStorageMock.setItem(READ_AT_PREFIX + "course-1", "2026-09-23T09:00:00Z");
+    expect(isChatUnread("course-1", "2026-09-23T10:00:00Z")).toBe(true);
+  });
+
+  it("is false when the user sent after the newest message", () => {
+    localStorageMock.setItem(READ_AT_PREFIX + "course-1", "2026-09-23T09:00:00Z");
+    localStorageMock.setItem(LAST_SENT_PREFIX + "course-1", String(Date.parse("2026-09-23T10:00:01Z")));
+    expect(isChatUnread("course-1", "2026-09-23T10:00:00Z")).toBe(false);
+  });
+
+  it("tolerates a message stamped a second after read_at (own send skew)", () => {
+    localStorageMock.setItem(READ_AT_PREFIX + "course-1", "2026-09-23T10:00:00Z");
+    expect(isChatUnread("course-1", "2026-09-23T10:00:01Z")).toBe(false);
+    expect(isChatUnread("course-1", "2026-09-23T10:00:05Z")).toBe(true);
+  });
+});
+
+describe("markAsRead", () => {
+  it("stores read_at and dispatches calchat-read-update", () => {
+    markAsRead("course-9");
+    expect(localStorageMock.setItem).toHaveBeenCalledWith(READ_AT_PREFIX + "course-9", expect.any(String));
+    expect(dispatchedEvents[0].type).toBe("calchat-read-update");
+    expect(dispatchedEvents[0].detail).toEqual({ courseId: "course-9" });
+  });
+});
+
 describe("isPinned", () => {
   it("returns true when localStorage has 'true'", () => {
     localStorageMock.getItem.mockReturnValue("true");
@@ -173,51 +239,3 @@ describe("isPinned", () => {
   });
 });
 
-describe("leaveGroup", () => {
-  it("calls the leave API and clears all caches on success", async () => {
-    const courseId = "course-leave";
-    // Set up some cached data
-    localStorageMock.setItem(NAME_KEY_PREFIX + courseId, "Test Group");
-    localStorageMock.setItem(MUTE_KEY_PREFIX + courseId, "true");
-    localStorageMock.setItem(PIN_KEY_PREFIX + courseId, "true");
-    localStorageMock.setItem(READ_AT_PREFIX + courseId, "2026-01-01T00:00:00Z");
-    sessionStorageMock.setItem(MSG_CACHE_PREFIX + courseId, "cached");
-    sessionStorageMock.setItem(MEM_CACHE_PREFIX + courseId, "cached");
-
-    vi.mocked(globalThis.fetch).mockResolvedValueOnce(
-      new Response(JSON.stringify({ success: true }), { status: 200 })
-    );
-
-    const result = await leaveGroup(courseId);
-    expect(result).toBe(true);
-    expect(globalThis.fetch).toHaveBeenCalledWith("/api/discussions/leave", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ courseId }),
-    });
-
-    // Verify all caches cleared
-    expect(sessionStorageMock.removeItem).toHaveBeenCalledWith(MSG_CACHE_PREFIX + courseId);
-    expect(sessionStorageMock.removeItem).toHaveBeenCalledWith(MEM_CACHE_PREFIX + courseId);
-    expect(localStorageMock.removeItem).toHaveBeenCalledWith(NAME_KEY_PREFIX + courseId);
-    expect(localStorageMock.removeItem).toHaveBeenCalledWith(MUTE_KEY_PREFIX + courseId);
-    expect(localStorageMock.removeItem).toHaveBeenCalledWith(PIN_KEY_PREFIX + courseId);
-    expect(localStorageMock.removeItem).toHaveBeenCalledWith(READ_AT_PREFIX + courseId);
-  });
-
-  it("returns false on API failure", async () => {
-    vi.mocked(globalThis.fetch).mockResolvedValueOnce(
-      new Response(JSON.stringify({ error: "Not enrolled" }), { status: 403 })
-    );
-
-    const result = await leaveGroup("course-fail");
-    expect(result).toBe(false);
-  });
-
-  it("returns false on network error", async () => {
-    vi.mocked(globalThis.fetch).mockRejectedValueOnce(new Error("Network error"));
-
-    const result = await leaveGroup("course-error");
-    expect(result).toBe(false);
-  });
-});

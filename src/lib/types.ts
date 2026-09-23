@@ -485,6 +485,12 @@ export interface MemberPreview {
  * @param last_message_at - Timestamp of the most recent message
  * @param member_count - Number of enrolled members
  * @param member_avatars - First 5 member avatars for preview
+ * @param hidden - True when the user hid this chat (membership soft-deleted).
+ *                 Hidden rooms are listed so they can be unhidden, but they
+ *                 carry no stats, are not subscribed to, and never notify.
+ * @param sources - Platforms the room's underlying course rows came from
+ *                  (e.g. ["canvas", "gradescope"]) for the platform badge
+ * @param past - True when the course name carries a term before the current one
  */
 export interface DiscussionBoard {
   course: Course;
@@ -494,6 +500,9 @@ export interface DiscussionBoard {
   last_message_at?: string | null;
   member_count: number;
   member_avatars: MemberPreview[];
+  hidden?: boolean;
+  sources?: string[];
+  past?: boolean;
 }
 
 /**

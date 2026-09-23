@@ -1,113 +1,45 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useDiscussionBoards } from "@/hooks/useDiscussionBoards";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
+import { useIsMobile } from "@/hooks/useMediaQuery";
 import CalChatLockedModal from "@/components/ui/CalChatLockedModal";
-
-const MSG_CACHE = "chat_messages_cache_";
-const MEM_CACHE = "chat_members_cache_";
-const CACHE_TTL = 5 * 60_000;
+import CalChatWelcomeModal from "@/components/discussions/CalChatWelcomeModal";
+import ChatSidebar from "@/components/discussions/ChatSidebar";
+import PageTransition from "@/components/ui/PageTransition";
+import { ChatPageSkeleton } from "@/components/discussions/ChatSkeleton";
+import { pickInitialRoom } from "@/lib/chat-hide";
 
 /**
- * Checks if a fresh cache entry exists.
+ * /app/discussions.
  *
- * @param key - SessionStorage key
- * @returns true if valid cache exists
- */
-function hasFreshCache(key: string): boolean {
-  try {
-    const raw = sessionStorage.getItem(key);
-    if (!raw) return false;
-    const entry = JSON.parse(raw);
-    return Date.now() - entry.timestamp < CACHE_TTL;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Prefetches messages for a course into sessionStorage.
- *
- * @param courseId - Course UUID
- */
-async function prefetchMessages(courseId: string): Promise<void> {
-  try {
-    const res = await fetch(
-      `/api/discussions/messages?courseId=${encodeURIComponent(courseId)}&limit=50`
-    );
-    if (!res.ok) return;
-    const data = await res.json();
-    const sorted = [...data].reverse();
-    sessionStorage.setItem(
-      MSG_CACHE + courseId,
-      JSON.stringify({ messages: sorted.slice(0, 200), timestamp: Date.now() })
-    );
-  } catch { /* silent */ }
-}
-
-/**
- * Prefetches members for a course into sessionStorage.
- *
- * @param courseId - Course UUID
- */
-async function prefetchMembers(courseId: string): Promise<void> {
-  try {
-    const res = await fetch(
-      `/api/discussions/members?courseId=${encodeURIComponent(courseId)}`
-    );
-    if (!res.ok) return;
-    const data = await res.json();
-    sessionStorage.setItem(
-      MEM_CACHE + courseId,
-      JSON.stringify({ members: data, timestamp: Date.now() })
-    );
-  } catch { /* silent */ }
-}
-
-/**
- * CalChat redirect page.
- * Loads boards, prefetches all chat data, then redirects to the
- * most recently active course chat (first board).
- * Falls back to a loading state if no boards exist yet.
+ * Below md this IS the room list, full screen; tapping a room navigates to
+ * it and the room's back button returns here. On md and up the list lives
+ * beside the room, so this page opens the last (or first) visible room.
  */
 export default function DiscussionsPage() {
   const router = useRouter();
-  const { boards, loading } = useDiscussionBoards();
+  const isMobile = useIsMobile();
+  const { boards, loading, error, refetch } = useDiscussionBoards();
   const { hasCompletedOnboarding, loading: onboardingLoading } = useOnboardingStatus({ skipCache: true });
   const [showLocked, setShowLocked] = useState(false);
+  // useIsMobile reports the server default (desktop) during hydration;
+  // wait for a real measurement before deciding whether to redirect.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
-  // Redirect to first board's chat only after confirming onboarding
+  // Desktop: open a room once boards and onboarding are known.
   useEffect(() => {
-    if (loading || onboardingLoading || !hasCompletedOnboarding || boards.length === 0) return;
+    if (!mounted || isMobile) return;
+    if (loading || onboardingLoading || !hasCompletedOnboarding) return;
+    const target = pickInitialRoom(boards);
+    if (!target) return;
+    router.replace(`/app/discussions/${target.course.id}?name=${encodeURIComponent(target.course.name)}`);
+  }, [mounted, isMobile, boards, loading, onboardingLoading, hasCompletedOnboarding, router]);
 
-    // Prefetch all chats in background
-    for (const board of boards) {
-      if (!hasFreshCache(MSG_CACHE + board.course.id)) {
-        prefetchMessages(board.course.id);
-      }
-      if (!hasFreshCache(MEM_CACHE + board.course.id)) {
-        prefetchMembers(board.course.id);
-      }
-    }
-
-    // Navigate to last-viewed chat if valid, otherwise first board
-    let target = boards[0];
-    try {
-      const lastCourseId = localStorage.getItem("calchat_last_course");
-      if (lastCourseId) {
-        const match = boards.find((b) => b.course.id === lastCourseId);
-        if (match) target = match;
-      }
-    } catch { /* ignore */ }
-
-    router.replace(
-      `/app/discussions/${target.course.id}?name=${encodeURIComponent(target.course.name)}`
-    );
-  }, [boards, loading, onboardingLoading, hasCompletedOnboarding, router]);
-
-  // Show locked modal after a short delay so user sees loading first
+  // Show the locked modal after a short delay so the user sees loading first
   useEffect(() => {
     if (!onboardingLoading && !hasCompletedOnboarding) {
       const timer = setTimeout(() => setShowLocked(true), 800);
@@ -115,53 +47,83 @@ export default function DiscussionsPage() {
     }
   }, [onboardingLoading, hasCompletedOnboarding]);
 
-  // Show ghost skeleton as base content; overlay locked modal after delay
+  const openRoom = useCallback(
+    (courseId: string, courseName: string) => {
+      router.push(`/app/discussions/${courseId}?name=${encodeURIComponent(courseName)}`);
+    },
+    [router],
+  );
+
+  const locked = <CalChatLockedModal open={showLocked} onClose={() => router.push("/app/inbox")} />;
+
+  // Mobile: the list is the page.
+  if (mounted && isMobile && hasCompletedOnboarding) {
+    return (
+      <PageTransition>
+        <div className="absolute inset-0 flex flex-col">
+          <ChatSidebar activeCourseId={null} onChatSelect={openRoom} />
+        </div>
+        <CalChatWelcomeModal />
+        {locked}
+      </PageTransition>
+    );
+  }
+
+  // Desktop (or not yet measured): a boards error needs a way out; otherwise
+  // the skeleton until the redirect fires.
+  if (error && boards.length === 0 && !loading) {
+    return (
+      <div className="absolute inset-0 flex items-center justify-center p-6">
+        <div className="text-center space-y-3 max-w-sm" role="alert">
+          <p className="text-sm font-medium text-foreground">Chat didn&apos;t load</p>
+          <p className="text-sm text-muted-foreground">{error}</p>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            className="px-4 py-2 text-sm rounded-xl bg-blue-500 text-white hover:bg-blue-600 transition-colors cursor-pointer"
+          >
+            Try again
+          </button>
+        </div>
+        {locked}
+      </div>
+    );
+  }
+
+  if (!loading && hasCompletedOnboarding && boards.length === 0) {
+    return (
+      <div className="absolute inset-0 flex items-center justify-center p-6">
+        <div className="text-center space-y-1 max-w-sm">
+          <p className="text-sm font-medium text-foreground">No chats yet</p>
+          <p className="text-sm text-muted-foreground">Your class chats appear here after your first sync.</p>
+        </div>
+        <CalChatWelcomeModal />
+      </div>
+    );
+  }
+
+  // Desktop with every room hidden: show the list so one can be unhidden.
+  if (mounted && !isMobile && !loading && hasCompletedOnboarding && pickInitialRoom(boards) === null) {
+    return (
+      <PageTransition>
+        <div className="absolute inset-0 flex">
+          <div className="flex w-72 shrink-0 border-r border-border flex-col">
+            <ChatSidebar activeCourseId={null} onChatSelect={openRoom} />
+          </div>
+          <div className="flex-1 flex items-center justify-center p-6">
+            <p className="text-sm text-muted-foreground text-center max-w-sm">
+              Every chat is hidden. Open Hidden chats in the list to bring one back.
+            </p>
+          </div>
+        </div>
+      </PageTransition>
+    );
+  }
+
   return (
     <>
-      <div id="tour-calchat-page" className="absolute inset-0 flex">
-        {/* Sidebar skeleton — chat row placeholders */}
-        <div className="hidden md:flex w-72 shrink-0 border-r border-black/30 dark:border-white/20 flex-col">
-          <div className="px-4 pt-5 pb-3 shrink-0">
-            <div className="h-6 w-24 rounded bg-muted animate-pulse" />
-          </div>
-          <div className="flex-1 px-2 py-1.5 space-y-1">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="flex items-center gap-3 px-3 py-2.5 animate-pulse">
-                <div className="w-11 h-11 rounded-full bg-muted shrink-0" />
-                <div className="flex-1 space-y-1.5">
-                  <div className="h-3.5 w-24 rounded bg-muted" />
-                  <div className="h-3 w-36 rounded bg-muted" />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-        {/* Center column skeleton — header + bubble placeholders */}
-        <div className="flex-1 min-w-0 flex flex-col">
-          <div className="flex items-center gap-3 px-4 pt-5 pb-3 border-b border-black/30 dark:border-white/20 shrink-0">
-            <div className="flex-1 space-y-1.5">
-              <div className="h-4 w-40 rounded bg-muted animate-pulse" />
-              <div className="h-2.5 w-24 rounded bg-muted animate-pulse" />
-            </div>
-          </div>
-          <div className="flex-1 overflow-hidden p-4 space-y-4">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div
-                key={i}
-                className={`flex gap-2 animate-pulse ${i % 3 === 0 ? "flex-row-reverse" : ""}`}
-              >
-                <div className="w-7 h-7 rounded-full bg-muted shrink-0" />
-                <div
-                  className={`rounded-2xl bg-muted ${
-                    i % 3 === 0 ? "w-40" : i % 2 === 0 ? "w-52" : "w-32"
-                  } h-9`}
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-      <CalChatLockedModal open={showLocked} onClose={() => router.push("/app/inbox")} />
+      <ChatPageSkeleton />
+      {locked}
     </>
   );
 }
