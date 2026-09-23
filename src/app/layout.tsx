@@ -7,6 +7,7 @@ import PostHogProvider from "@/components/PostHogProvider";
 import PostHogPageView from "@/components/PostHogPageView";
 import ChunkErrorRecovery from "@/components/ChunkErrorRecovery";
 import { validateEnv } from "@/lib/env-check";
+import { CLASSROOM_AVAILABLE } from "@/lib/classroom-availability";
 import "./globals.css";
 
 // Run env validation once at module load (server-side only)
@@ -29,9 +30,17 @@ const instrumentSerif = Instrument_Serif({
   style: ["normal", "italic"],
 });
 
+/**
+ * Sources named in the share-card copy. Google Classroom joins the list only
+ * once it can actually be connected; until then the card must not sell it.
+ */
+const SOURCE_LIST = CLASSROOM_AVAILABLE
+  ? "Canvas, Gradescope, Brightspace, and Google Classroom"
+  : "Canvas, Gradescope, and Brightspace";
+
 export const metadata: Metadata = {
   // The <title> feeds BOTH the browser tab and Google's result title (there's
-  // no separate field for the two). We keep the tab clean — just "caltodo" —
+  // no separate field for the two). We keep the tab clean, just "caltodo",
   // and let the richer pitch live in `description` (Google's gray snippet) and
   // in openGraph/twitter titles (the card shown when the link is shared in
   // iMessage/Slack/etc.). Google also tends to rewrite homepage titles down to
@@ -42,7 +51,11 @@ export const metadata: Metadata = {
   },
   description:
     "The student planner that keeps itself up to date. Deadlines sync from Canvas, Gradescope, Brightspace and more, plus any syllabus you upload.",
-  keywords: ["caltodo", "cal todo", "assignment management", "deadline tracker", "student planner", "syllabus upload", "class sync", "canvas calendar sync", "gradescope deadlines", "brightspace calendar", "google classroom planner"],
+  keywords: [
+    "caltodo", "cal todo", "assignment management", "deadline tracker", "student planner",
+    "syllabus upload", "class sync", "canvas calendar sync", "gradescope deadlines", "brightspace calendar",
+    ...(CLASSROOM_AVAILABLE ? ["google classroom planner"] : []),
+  ],
   metadataBase: new URL("https://caltodo.me"),
   alternates: { canonical: "/" },
   applicationName: "caltodo",
@@ -55,8 +68,7 @@ export const metadata: Metadata = {
     : {}),
   openGraph: {
     title: "caltodo: sync your classes, never miss a deadline",
-    description:
-      "Deadlines from Canvas, Gradescope, Brightspace, and Google Classroom, plus anything in your syllabus, all in one planner with a calendar, notes, and course chat. Free for students, forever.",
+    description: `Deadlines from ${SOURCE_LIST}, plus anything in your syllabus, all in one planner with a calendar, notes, and course chat. Free for students, forever.`,
     url: "https://caltodo.me",
     siteName: "caltodo",
     type: "website",
@@ -66,15 +78,14 @@ export const metadata: Metadata = {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "caltodo — your assignments, synced and organized",
+        alt: "caltodo, your assignments synced and organized",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
     title: "caltodo: sync your classes, never miss a deadline",
-    description:
-      "Deadlines from Canvas, Gradescope, Brightspace, and Google Classroom, plus anything in your syllabus, all in one planner. Free for students, forever.",
+    description: `Deadlines from ${SOURCE_LIST}, plus anything in your syllabus, all in one planner. Free for students, forever.`,
     images: ["/og-image.png"],
   },
   // Favicon + Apple touch icon are the real brand logo, served from
@@ -92,11 +103,10 @@ export const metadata: Metadata = {
   },
 };
 
+// Pinch zoom stays available: never cap the scale or disable user scaling (WCAG 1.4.4).
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
   viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#ffffff" },
@@ -122,7 +132,7 @@ const themeScript = `
       // Auto mode: compute sunset/sunrise. Without a granted location,
       // approximate longitude from the device's UTC offset (15 degrees per
       // hour) so solar noon lands near 12:00 local. A fixed Berkeley fallback
-      // put a London user's sunrise at 14:38 — dark at 10am, light at 10pm.
+      // put a London user's sunrise at 14:38, dark at 10am, light at 10pm.
       // Must stay in step with getFallbackCoords in lib/geolocation.ts.
       var now = new Date();
       var c = { lat: 37.87, lng: Math.max(-180, Math.min(180, (-now.getTimezoneOffset() / 60) * 15)) };
