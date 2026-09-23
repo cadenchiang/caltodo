@@ -29,17 +29,33 @@ export interface PendingAttachment {
  * iMessage-style chat input with auto-resizing textarea,
  * file attachments, emoji picker, and anonymous toggle.
  *
+ * The anonymous flag is controlled by the parent (ChatView) so the reply
+ * composer and the main composer share one setting: a reply started while
+ * anonymous stays anonymous.
+ *
  * @param onSend - Callback fired with the message text, optional files, and anonymous flag
  * @param disabled - Whether sending is disabled
  * @param error - Error message to display below input
+ * @param anonymous - Whether the next message is sent without a name
+ * @param onAnonymousChange - Called when the user toggles anonymous mode
+ * @param onTyping - Called on each keystroke while NOT anonymous; anonymous
+ *                   typing is never broadcast, since a typing indicator with
+ *                   the sender's name would identify the author of the
+ *                   anonymous message that follows
  */
 interface ChatInputProps {
   onSend: (body: string, files?: File[], anonymous?: boolean) => void;
   disabled?: boolean;
   error?: string | null;
+  anonymous: boolean;
+  onAnonymousChange: (anonymous: boolean) => void;
   /** Called on each keystroke so the parent can signal typing presence. */
   onTyping?: () => void;
 }
+
+/** Helper text shown while anonymous mode is on. Disclosed, not implied. */
+export const ANONYMOUS_HELPER_TEXT =
+  "Sending anonymously. You appear as #N, and #N is the same person within this chat.";
 
 /** Max file size: 10 MB */
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -47,9 +63,15 @@ const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "ap
 /** Max number of attachments per message. */
 const MAX_ATTACHMENTS = 10;
 
-export default function ChatInput({ onSend, disabled, error, onTyping }: ChatInputProps) {
+export default function ChatInput({
+  onSend,
+  disabled,
+  error,
+  anonymous,
+  onAnonymousChange,
+  onTyping,
+}: ChatInputProps) {
   const [value, setValue] = useState("");
-  const [anonymous, setAnonymous] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
   const [fileError, setFileError] = useState<string | null>(null);
@@ -72,9 +94,10 @@ export default function ChatInput({ onSend, disabled, error, onTyping }: ChatInp
     (e: ChangeEvent<HTMLTextAreaElement>) => {
       setValue(e.target.value);
       autoResize();
-      onTyping?.();
+      // Never broadcast typing while anonymous (see ChatInputProps.onTyping).
+      if (!anonymous) onTyping?.();
     },
-    [autoResize, onTyping]
+    [autoResize, onTyping, anonymous]
   );
 
   /**
@@ -268,12 +291,12 @@ export default function ChatInput({ onSend, disabled, error, onTyping }: ChatInp
         </div>
       )}
 
-      {/* Anonymous mode indicator */}
+      {/* Anonymous mode indicator: pseudonymity is disclosed, not implied */}
       {anonymous && (
-        <div className="flex items-center gap-1.5 mb-2 px-1">
-          <EyeOff size={12} className="text-zinc-500" />
-          <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
-            Sending anonymously — your name won&apos;t be shown
+        <div id="chat-anonymous-help" className="flex items-center gap-1.5 mb-2 px-1">
+          <EyeOff size={12} className="text-muted-foreground shrink-0" aria-hidden="true" />
+          <span className="text-[11px] text-muted-foreground">
+            {ANONYMOUS_HELPER_TEXT}
           </span>
         </div>
       )}
@@ -304,7 +327,9 @@ export default function ChatInput({ onSend, disabled, error, onTyping }: ChatInp
         </button>
         <button
           type="button"
-          onClick={() => setAnonymous(!anonymous)}
+          onClick={() => onAnonymousChange(!anonymous)}
+          aria-pressed={anonymous}
+          aria-describedby={anonymous ? "chat-anonymous-help" : undefined}
           className={`w-10 h-10 rounded-full border flex items-center justify-center shrink-0 transition-colors cursor-pointer active:scale-95 ${
             anonymous
               ? "bg-zinc-800 dark:bg-white border-zinc-800 dark:border-white text-white dark:text-zinc-900"

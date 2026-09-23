@@ -88,6 +88,23 @@ export default function ChatView({
   const [newMessageCount, setNewMessageCount] = useState(0);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const [replyTarget, setReplyTarget] = useState<ChatMessage | null>(null);
+  /**
+   * Anonymous mode lives here, not in ChatInput, so the reply composer
+   * inherits it: a reply started while anonymous is sent anonymously too.
+   */
+  const [anonymous, setAnonymous] = useState(false);
+
+  /**
+   * Toggles anonymous mode. Switching it on also clears any typing presence
+   * already broadcast, so the name-bearing indicator does not linger next
+   * to the anonymous message that follows.
+   *
+   * @param next - The new anonymous state
+   */
+  const handleAnonymousChange = useCallback((next: boolean) => {
+    setAnonymous(next);
+    if (next) onSendComplete?.();
+  }, [onSendComplete]);
   /** Map of anonymous userId → revealed identity. Shared across all MessageBubbles. */
   const [revealedIdentities, setRevealedIdentities] = useState<Map<string, { name: string; avatar: string | null }>>(new Map());
   /** Message ID pending unsend confirmation (null = modal closed). */
@@ -528,7 +545,7 @@ export default function ChatView({
           ))}
         </div>
         <div className="absolute bottom-0 left-0 right-0 z-10">
-          <ChatInput onSend={() => {}} disabled />
+          <ChatInput onSend={() => {}} disabled anonymous={false} onAnonymousChange={() => {}} />
         </div>
       </div>
     );
@@ -651,12 +668,14 @@ export default function ChatView({
       {!replyTarget && (
         <div ref={bottomBarRef} className="absolute bottom-0 left-0 right-0 z-10">
           <ChatInput
-            onSend={(body, files, anonymous) => {
-              onSend(body, files, anonymous);
+            onSend={(body, files, anon) => {
+              onSend(body, files, anon);
               onSendComplete?.();
             }}
             disabled={sending}
             error={error}
+            anonymous={anonymous}
+            onAnonymousChange={handleAnonymousChange}
             onTyping={onTyping}
           />
         </div>
@@ -695,13 +714,15 @@ export default function ChatView({
             onClick={(e) => e.stopPropagation()}
           >
             <ChatInput
-              onSend={(body, files, anonymous) => {
-                onSend(body, files, anonymous, replyTarget.id);
+              onSend={(body, files, anon) => {
+                onSend(body, files, anon, replyTarget.id);
                 setReplyTarget(null);
                 onSendComplete?.();
               }}
               disabled={sending}
               error={error}
+              anonymous={anonymous}
+              onAnonymousChange={handleAnonymousChange}
               onTyping={onTyping}
             />
           </div>

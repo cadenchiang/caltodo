@@ -68,7 +68,7 @@ export default function CalChatWelcomeModal() {
           className="text-xl font-semibold text-foreground mb-2 animate-drop-in"
           style={{ animationDelay: "150ms" }}
         >
-          welcome to Chat
+          Welcome to chat
         </h3>
 
         {/* Description */}
@@ -76,7 +76,7 @@ export default function CalChatWelcomeModal() {
           className="text-sm text-muted-foreground mb-6 leading-relaxed animate-drop-in"
           style={{ animationDelay: "220ms" }}
         >
-          chat with your classmates in real time. you can send messages with your name or anonymously.
+          Chat with your classmates in real time. You can send messages with your name or anonymously.
         </p>
 
         {/* Items */}
@@ -88,9 +88,9 @@ export default function CalChatWelcomeModal() {
           <div className="flex items-start gap-3.5 py-4 border-t border-border">
             <MessageCircle size={18} className="text-foreground shrink-0 mt-0.5" />
             <div className="min-w-0">
-              <p className="text-sm font-medium text-foreground">real-time class chat</p>
+              <p className="text-sm font-medium text-foreground">Real-time class chat</p>
               <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                message classmates, share files, and react to messages
+                Message classmates, share files, and react to messages.
               </p>
             </div>
           </div>
@@ -99,9 +99,9 @@ export default function CalChatWelcomeModal() {
           <div className="flex items-start gap-3.5 py-4 border-t border-border">
             <EyeOff size={18} className="text-foreground shrink-0 mt-0.5" />
             <div className="min-w-0">
-              <p className="text-sm font-medium text-foreground">anonymous mode</p>
+              <p className="text-sm font-medium text-foreground">Anonymous mode</p>
               <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                send messages anonymously — your identity is hidden from other students
+                Your name is hidden and you appear as a number like #3. The same number is the same person within a chat, so anonymous is pseudonymous, not untraceable.
               </p>
             </div>
           </div>
@@ -110,9 +110,9 @@ export default function CalChatWelcomeModal() {
           <div className="flex items-start gap-3.5 py-4 border-t border-border">
             <ShieldCheck size={18} className="text-foreground shrink-0 mt-0.5" />
             <div className="min-w-0">
-              <p className="text-sm font-medium text-foreground">safe and moderated</p>
+              <p className="text-sm font-medium text-foreground">Safe and moderated</p>
               <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                anonymous messages are tracked for safety but never shown to other students
+                Anonymous messages are linked to your account for safety. Only a caltodo admin can see who sent one, and every reveal is logged.
               </p>
             </div>
           </div>
@@ -157,7 +157,7 @@ export default function CalChatWelcomeModal() {
             disabled={!respectChecked || !trackingChecked}
             className="px-8 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-full text-sm font-medium hover:opacity-90 transition-opacity cursor-pointer active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            let&apos;s go &rarr;
+            Let&apos;s go
           </button>
         </div>
       </div>

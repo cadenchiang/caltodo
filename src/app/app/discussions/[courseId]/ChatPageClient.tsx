@@ -59,6 +59,7 @@ export default function ChatPageClient({ initialCourseId, initialMessages }: Cha
   const isSystemCourse = activeBoard?.course.source === "system";
 
   const [currentUserId, setCurrentUserId] = useState<string>("");
+  const [currentUserName, setCurrentUserName] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [ready, setReady] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
@@ -84,7 +85,7 @@ export default function ChatPageClient({ initialCourseId, initialMessages }: Cha
   const { onlineUserIds } = usePresence();
   const { members: chatMembers } = useChatMembers(activeCourseId);
   const { reactionsMap, toggleReaction } = useMessageReactions(activeCourseId);
-  const { typingUsers, startTyping, stopTyping } = useTypingIndicator(activeCourseId, currentUserId);
+  const { typingUsers, startTyping, stopTyping } = useTypingIndicator(activeCourseId, currentUserId, currentUserName);
 
   // Per-chat online count: only count members of THIS chat who are online
   const chatOnlineCount = useMemo(() => {
@@ -97,7 +98,8 @@ export default function ChatPageClient({ initialCourseId, initialMessages }: Cha
     supabaseRef.current.auth.getUser().then(({ data: { user } }) => {
       if (user) {
         setCurrentUserId(user.id);
-        // UI hint only — server enforces admin in /api/discussions/admin/reveal
+        setCurrentUserName(user.user_metadata?.full_name ?? null);
+        // UI hint only: the server enforces admin in /api/discussions/admin/reveal
         setIsAdmin(checkIsAdmin(user.email));
       }
       setReady(true);

@@ -50,8 +50,6 @@ export default function UserProfileModal({ userId, onClose }: UserProfileModalPr
   const [userName, setUserName] = useState<string | null>(null);
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
   const [sharedCourses, setSharedCourses] = useState<SharedCourse[]>([]);
-  const [friendCount, setFriendCount] = useState<number>(0);
-  const [karma, setKarma] = useState<number>(0);
   const [closing, setClosing] = useState(false);
   const [reporting, setReporting] = useState(false);
 
@@ -74,33 +72,7 @@ export default function UserProfileModal({ userId, onClose }: UserProfileModalPr
       }
     }
 
-    async function fetchFriendCount() {
-      try {
-        const res = await fetch(`/api/friends/count?userId=${encodeURIComponent(userId)}`);
-        if (res.ok && !cancelled) {
-          const data = await res.json();
-          setFriendCount(data.count ?? 0);
-        }
-      } catch {
-        /* non-critical */
-      }
-    }
-
-    async function fetchKarma() {
-      try {
-        const res = await fetch(`/api/users/karma?userId=${encodeURIComponent(userId)}`);
-        if (res.ok && !cancelled) {
-          const data = await res.json();
-          setKarma(data.karma ?? 0);
-        }
-      } catch {
-        /* non-critical */
-      }
-    }
-
     fetchProfile();
-    fetchFriendCount();
-    fetchKarma();
     return () => { cancelled = true; };
   }, [userId]);
 
@@ -206,17 +178,6 @@ export default function UserProfileModal({ userId, onClose }: UserProfileModalPr
                 <h3 className="text-lg font-bold text-foreground truncate">
                   {userName || "Unknown"}
                 </h3>
-                <div className="flex items-center gap-3 mt-1">
-                  <p className="text-xs text-muted-foreground">
-                    {friendCount} {friendCount === 1 ? "Friend" : "Friends"}
-                  </p>
-                  <p className="text-xs text-muted-foreground group relative cursor-default">
-                    {karma} Karma
-                    <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1 rounded-lg bg-popover border border-border text-xs text-muted-foreground px-2.5 py-1.5 shadow-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
-                      Total messages sent in Chat
-                    </span>
-                  </p>
-                </div>
               </div>
             </div>
 
