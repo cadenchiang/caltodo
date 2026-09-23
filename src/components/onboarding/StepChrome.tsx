@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { FileText } from "lucide-react";
 import IntegrationLogo from "@/components/ui/IntegrationLogo";
 import { PROVIDER_LABELS, type ProviderKey } from "@/lib/copy";
 import { cn } from "@/lib/utils";
@@ -32,7 +33,13 @@ export function StepHeading({ provider, title, description }: StepHeadingProps) 
   return (
     <div className={cn("text-left", description ? "mb-6" : "mb-4")}>
       <div className="flex items-center gap-2">
-        {provider && <IntegrationLogo provider={provider} size="sm" decorative className="w-[22px] h-[22px]" />}
+        {provider === "syllabus" ? (
+          <span aria-hidden="true" className="w-[22px] h-[22px] rounded bg-muted flex items-center justify-center shrink-0">
+            <FileText size={14} className="text-secondary-foreground" />
+          </span>
+        ) : provider ? (
+          <IntegrationLogo provider={provider} size="sm" decorative className="w-[22px] h-[22px]" />
+        ) : null}
         <h2 className="text-lg font-bold text-foreground">{text}</h2>
       </div>
       {description && <p className="text-sm text-muted-foreground mt-2">{description}</p>}

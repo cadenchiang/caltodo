@@ -15,6 +15,9 @@ import {
 } from "@/components/onboarding/DoneStep";
 import type { SyncResult } from "@/lib/types";
 
+/** The em dash, spelled out so this file never contains one itself. */
+const EM_DASH = String.fromCharCode(0x2014);
+
 const ROOT = path.resolve(__dirname, "../..");
 const read = (rel: string) => readFileSync(path.join(ROOT, rel), "utf8");
 
@@ -144,9 +147,9 @@ describe("DoneStep", () => {
   });
 
   it("keeps copy free of em dashes and uppercase labels", () => {
-    expect(src).not.toContain("—");
+    expect(src).not.toContain(EM_DASH);
     expect(src).not.toContain("uppercase");
-    for (const blurb of SYNC_BLURBS) expect(blurb).not.toContain("—");
+    for (const blurb of SYNC_BLURBS) expect(blurb).not.toContain(EM_DASH);
   });
 });
 

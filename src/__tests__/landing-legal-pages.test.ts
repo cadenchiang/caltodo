@@ -7,6 +7,9 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { MAX_ENTRANCE_DELAY_MS, sectionDelayMs } from "@/components/landing/LegalPage";
 
+/** The em dash, spelled out so this file never contains one itself. */
+const EM_DASH = String.fromCharCode(0x2014);
+
 const ROOT = path.resolve(__dirname, "../..");
 const read = (rel: string) => readFileSync(path.join(ROOT, rel), "utf8");
 const privacy = read("src/app/(landing)/privacy/page.tsx");
@@ -75,7 +78,7 @@ describe("shared legal shell", () => {
   it("uses tokens, no brand hex, no em dashes, no black alpha text", () => {
     for (const src of [privacy, terms, shell]) {
       expect(src).not.toMatch(/#0e89d6|#3D8FE8/);
-      expect(src).not.toContain("—");
+      expect(src).not.toContain(EM_DASH);
       expect(src).not.toMatch(/text-black\/[0-9]+/);
     }
     expect(shell).toContain("text-muted-foreground");

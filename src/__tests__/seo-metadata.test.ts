@@ -14,6 +14,9 @@ import { describe, it, expect } from "vitest";
 import * as fs from "fs";
 import * as path from "path";
 
+/** The em dash, spelled out so this file never contains one itself. */
+const EM_DASH = String.fromCharCode(0x2014);
+
 const SOURCE = fs.readFileSync(
   path.join(path.resolve(__dirname, "../.."), "src/app/layout.tsx"),
   "utf8",
@@ -85,6 +88,6 @@ describe("viewport", () => {
   });
 
   it("keeps the share-card alt text free of em dashes", () => {
-    expect(SOURCE).not.toContain("—");
+    expect(SOURCE).not.toContain(EM_DASH);
   });
 });

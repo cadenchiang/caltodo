@@ -15,6 +15,9 @@ import { stableIdFromName } from "@/components/onboarding/CanvasStep";
 import { BY_NORMALIZED_NAME, SCHOOLS, canvasHostForSchool } from "@/lib/seo/schools";
 import { SCHOOL_OPTIONS } from "@/components/onboarding/onboardingOptions";
 
+/** The em dash, spelled out so this file never contains one itself. */
+const EM_DASH = String.fromCharCode(0x2014);
+
 const ROOT = path.resolve(__dirname, "../..");
 const read = (rel: string) => readFileSync(path.join(ROOT, rel), "utf8");
 
@@ -128,7 +131,7 @@ describe("CanvasStep source", () => {
     for (const file of ["CanvasStep.tsx", "AddCanvasStep.tsx", "CanvasFeedForm.tsx", "CanvasTokenForm.tsx", "TokenVideoGuide.tsx", "HostField.tsx", "SecretField.tsx"]) {
       const src = read(`src/components/onboarding/${file}`);
       expect(src, file).not.toMatch(/#0e89d6|#3D8FE8|#2a2a2c|#D1D1D6|#3A3A3C/);
-      expect(src, file).not.toContain("—");
+      expect(src, file).not.toContain(EM_DASH);
     }
   });
 });
