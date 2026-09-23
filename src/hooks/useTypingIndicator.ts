@@ -23,6 +23,11 @@ const IDLE_TIMEOUT_MS = 500;
 /** Delay before broadcasting typing to others (avoids single-keystroke flicker). */
 const START_DEBOUNCE_MS = 50;
 
+/** Realtime topic for a room's typing channel. Must match the RLS policy. */
+export function typingTopic(courseId: string): string {
+  return `typing:${courseId}`;
+}
+
 /**
  * Subscribes to a Supabase Presence channel for typing indicators.
  * Exposes the list of other users currently typing, plus start/stop helpers.
@@ -61,8 +66,12 @@ export function useTypingIndicator(
     if (!courseId || !currentUserId) return;
 
     const supabase = supabaseRef.current;
-    const channel = supabase.channel(`typing:${courseId}`, {
-      config: { presence: { key: "user_id" } },
+    // Private: Realtime enforces RLS on realtime.messages, so only course
+    // members can watch or send typing state (migration 20260923000003).
+    // The presence key is the user's own id; an entry whose payload
+    // disagrees with its key is dropped as inconsistent.
+    const channel = supabase.channel(typingTopic(courseId), {
+      config: { private: true, presence: { key: currentUserId } },
     });
 
     channel.on("presence", { event: "sync" }, () => {
@@ -72,6 +81,7 @@ export function useTypingIndicator(
         const presences = state[key];
         if (presences && presences.length > 0) {
           const p = presences[0];
+          if (p.user_id !== key) continue;
           if (p.user_id !== currentUserId) {
             users.push({ userId: p.user_id, userName: p.user_name });
           }
