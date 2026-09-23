@@ -66,7 +66,7 @@ self.addEventListener("push", (event: PushEvent) => {
       tag: payload.tag,
       icon: "/pwa-icon-192.png",
       badge: "/pwa-icon-192.png",
-      data: { url: payload.url || "/app/today" },
+      data: { url: payload.url || "/app/inbox" },
     })
   );
 });
@@ -77,7 +77,7 @@ self.addEventListener("push", (event: PushEvent) => {
  */
 self.addEventListener("notificationclick", (event: NotificationEvent) => {
   event.notification.close();
-  const target = (event.notification.data as { url?: string } | null)?.url || "/app/today";
+  const target = (event.notification.data as { url?: string } | null)?.url || "/app/inbox";
   event.waitUntil(
     (async () => {
       const all = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
