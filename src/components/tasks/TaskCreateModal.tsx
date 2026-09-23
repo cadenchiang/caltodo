@@ -35,7 +35,11 @@ type RepeatUnit = "day" | "week" | "month";
 interface TaskCreateModalProps {
   open: boolean;
   onClose: () => void;
-  onAdd: (task: TaskInsert) => void;
+  /**
+   * Receives the new task. May return the insert promise (true on success,
+   * false when rolled back) so the success toast waits for the write.
+   */
+  onAdd: (task: TaskInsert) => void | Promise<boolean | void>;
   defaultDate?: string | null;
   /** Pre-fill due time in "HH:MM" 24h format (from time grid double-click). */
   defaultTime?: string | null;
@@ -246,7 +250,7 @@ export default function TaskCreateModal({
       // generic "Task updated" here would stack on top of it.
       onSave(editTask.id, buildUpdates());
     } else {
-      onAdd({
+      const result = onAdd({
         title: trimmed,
         description: description.trim() || undefined,
         due_date: dueDate,
@@ -259,7 +263,12 @@ export default function TaskCreateModal({
         repeat_end_date: repeatEndDate,
         repeat_end_count: repeatEndCount,
       });
-      showToast("Task created");
+      // Announce only once the insert has resolved; a failed insert already
+      // shows its own error toast from TaskContext, so a "Task created" here
+      // would contradict it.
+      Promise.resolve(result).then((inserted) => {
+        if (inserted !== false) showToast("Task created");
+      });
     }
 
     handleClose();

@@ -798,7 +798,11 @@ export default function InboxPage() {
           <TaskCreateModal
             open={showAddModal}
             onClose={() => { setShowAddModal(false); setAddModalCourseName(null); }}
-            onAdd={(task) => { addTask(task); setShowAddModal(false); setAddModalCourseName(null); }}
+            onAdd={(task) => {
+              setShowAddModal(false);
+              setAddModalCourseName(null);
+              return addTask(task);
+            }}
             defaultCourseName={addModalCourseName}
           />
 

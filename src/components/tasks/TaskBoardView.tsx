@@ -2,7 +2,10 @@
 
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDown, ChevronLeft, ChevronRight, MoreVertical, Palette, Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { AlertCircle, ChevronDown, ChevronLeft, ChevronRight, Palette, Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
+import EmptyState from "@/components/ui/EmptyState";
+import Button from "@/components/ui/Button";
+import { useTaskContext } from "@/contexts/TaskContext";
 import {
   DndContext,
   DragOverlay,
@@ -161,7 +164,7 @@ interface TaskBoardViewProps {
   error: string | null;
   selectedTaskId?: string | null;
   groupBy?: "class" | "date";
-  onAdd: (task: TaskInsert) => void;
+  onAdd: (task: TaskInsert) => void | Promise<boolean | void>;
   onToggle: (id: string) => void;
   onSelect: (task: Task, anchorRect?: DOMRect) => void;
   onDelete: (id: string) => void;
@@ -345,6 +348,7 @@ export default function TaskBoardView({
   onDeleteClass,
 }: TaskBoardViewProps) {
   const { colorTheme } = useTheme();
+  const { fetchTasks } = useTaskContext();
   const isMiffy = colorTheme === "miffy";
   const [aliases, setAliases] = useState<Map<string, string>>(() => loadColumnAliases());
   const [emptyStateCreateOpen, setEmptyStateCreateOpen] = useState(false);
@@ -555,17 +559,20 @@ export default function TaskBoardView({
     );
   }
 
+  // Only a failed initial load reaches here (TaskContext keeps write
+  // failures out of `error`), so there is nothing to keep on screen.
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
-        <p className="text-sm text-muted-foreground mb-4">{error}</p>
-        <button
-          onClick={() => window.location.reload()}
-          className="px-4 py-2 text-sm font-medium rounded-lg bg-gray-900 text-white dark:bg-white dark:text-gray-900 hover:opacity-90 transition-opacity"
-        >
-          Refresh
-        </button>
-      </div>
+      <EmptyState
+        icon={<AlertCircle size={20} />}
+        title={error}
+        description="Check your connection and try again."
+        action={
+          <Button variant="inverted" onClick={() => fetchTasks()}>
+            Try again
+          </Button>
+        }
+      />
     );
   }
 
@@ -583,7 +590,7 @@ export default function TaskBoardView({
           <TaskCreateModal
             open={emptyStateCreateOpen}
             onClose={() => setEmptyStateCreateOpen(false)}
-            onAdd={(task) => { onAdd(task); setEmptyStateCreateOpen(false); }}
+            onAdd={(task) => { setEmptyStateCreateOpen(false); return onAdd(task); }}
           />
         </div>
         <div className="flex flex-col items-center py-12 text-subtle-foreground text-sm gap-3">
@@ -738,7 +745,7 @@ interface BoardColumnProps {
   dragHandleListeners?: DragHandleListeners;
   tasks: Task[];
   selectedTaskId?: string | null;
-  onAdd: (task: TaskInsert) => void;
+  onAdd: (task: TaskInsert) => void | Promise<boolean | void>;
   onToggle: (id: string) => void;
   onSelect: (task: Task, anchorRect?: DOMRect) => void;
   onDelete: (id: string) => void;
@@ -1059,8 +1066,8 @@ function BoardColumn({
         open={showAddForm}
         onClose={() => setShowAddForm(false)}
         onAdd={(task) => {
-          onAdd({ ...task, course_name: name });
           setShowAddForm(false);
+          return onAdd({ ...task, course_name: name });
         }}
       />
 

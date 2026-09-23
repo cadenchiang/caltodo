@@ -133,6 +133,15 @@ function writeLastAutoSync(now: number): void {
 /** Tags always offered in the picker, even on an account with no tasks. */
 const DEFAULT_TAGS = ["Canvas", "Gradescope", "Pensive"] as const;
 
+/**
+ * Plain message shown in place of the list when the first load fails and
+ * there is nothing cached to show. Raw Supabase messages never reach the UI.
+ */
+export const LOAD_FAILED_MESSAGE = "Couldn't load your tasks.";
+
+/** Plain message for the sign-in guard on writes. */
+const NOT_SIGNED_IN_MESSAGE = "You're signed out. Sign in again to save changes.";
+
 interface TaskContextValue {
   tasks: Task[];
   loading: boolean;
@@ -146,7 +155,8 @@ interface TaskContextValue {
   availableCourses: string[];
   /** Maps each course_name to its dominant task color. */
   courseColors: Map<string, string>;
-  addTask: (data: TaskInsert) => Promise<void>;
+  /** Inserts a task. Resolves true on success, false when rolled back. */
+  addTask: (data: TaskInsert) => Promise<boolean>;
   /**
    * Writes fields to a task. Announces the edit with an Undo toast and
    * records it for Cmd+Z unless `announce` is false, which internal callers
@@ -234,6 +244,47 @@ export function TaskProvider({
   const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
   const hasCacheRef = useRef(preloaded);
   const supabase = createClient();
+
+  /**
+   * Reports a failed write without touching the list. The optimistic change
+   * has already been rolled back by the caller; this logs the cause and
+   * shows an error toast with a Retry action so the user can try again in
+   * place. The list-level `error` is reserved for a failed initial load.
+   *
+   * @param what - Plain sentence for the toast ("Couldn't save the task")
+   * @param cause - Underlying error message, for the log only
+   * @param retry - Re-runs the write; omitted when a retry makes no sense
+   */
+  const reportWriteFailure = useCallback(
+    (what: string, cause: string, retry?: () => unknown) => {
+      console.error("[TaskContext] write failed", {
+        what,
+        cause,
+        impact: "change rolled back; list kept; user offered a retry",
+      });
+      showToast(what, {
+        variant: "error",
+        duration: 8_000,
+        action: retry
+          ? {
+              label: "Retry",
+              onClick: () => {
+                const result = retry();
+                if (result instanceof Promise) {
+                  result.catch((err: unknown) => {
+                    console.error("[TaskContext] retry threw", {
+                      what,
+                      error: err instanceof Error ? err.message : String(err),
+                    });
+                  });
+                }
+              },
+            }
+          : undefined,
+      });
+    },
+    [showToast]
+  );
 
   // Hydrate from localStorage before first paint (useLayoutEffect runs synchronously
   // after DOM mutations but before the browser paints, eliminating the loading flash).
@@ -372,11 +423,21 @@ export function TaskProvider({
     );
 
     if (fetchError) {
+      // With nothing on screen this is a failed initial load, which is the
+      // one case the list-level error state is for. With cached or already
+      // loaded rows the list stays and a toast offers a retry instead.
+      const nothingToShow = !hasCacheRef.current && taskBaselineRef.current.length === 0;
       console.error("[TaskContext] fetchTasks: query failed", {
         error: fetchError.message,
-        impact: "list not refreshed; cached tasks stay on screen",
+        impact: nothingToShow
+          ? "no tasks to show; full-page load error"
+          : "list not refreshed; cached tasks stay on screen",
       });
-      setError(fetchError.message);
+      if (nothingToShow) {
+        setError(LOAD_FAILED_MESSAGE);
+      } else {
+        reportWriteFailure("Couldn't refresh your tasks.", fetchError.message, () => fetchTasks());
+      }
       setLoading(false);
       return [];
     }
@@ -407,7 +468,8 @@ export function TaskProvider({
     hasInitialFetchRef.current = true;
     setLoading(false);
     return mergedTasks;
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reportWriteFailure]);
 
   const fetchLastSynced = useCallback(async () => {
     // Shared deduped client — collapses the many concurrent /api/credentials
@@ -641,11 +703,15 @@ export function TaskProvider({
   /**
    * Adds a task with optimistic UI: immediately shows in the list with a temp ID,
    * then replaces with the real record on Supabase success. Reverts on failure.
+   *
+   * @param taskData - Columns for the new row plus optional invite emails
+   * @returns True when the row was inserted, false when it was rolled back
+   *          (the caller decides whether to announce success)
    */
-  async function addTask(taskData: TaskInsert) {
+  async function addTask(taskData: TaskInsert): Promise<boolean> {
     if (!userId) {
-      setError("Not authenticated. Please sign in again.");
-      return;
+      reportWriteFailure(NOT_SIGNED_IN_MESSAGE, "addTask called with no userId");
+      return false;
     }
 
     // Confirming "blip" the moment the user adds a task. Fires before the
@@ -696,7 +762,6 @@ export function TaskProvider({
       taskBaselineRef.current = updated;
       return updated;
     });
-    setError(null);
     trackEvent("task_created");
     markActivated("task_created");
 
@@ -711,10 +776,6 @@ export function TaskProvider({
       .single();
 
     if (insertError) {
-      console.error("[TaskContext] addTask: insert failed, removing optimistic row", {
-        tempId,
-        error: insertError.message,
-      });
       // Revert: remove the optimistic task
       setTasks((prev) => {
         const reverted = prev.filter((t) => t.id !== tempId);
@@ -722,8 +783,8 @@ export function TaskProvider({
         taskBaselineRef.current = reverted;
         return reverted;
       });
-      setError(insertError.message);
-      return;
+      reportWriteFailure("Couldn't add the task.", insertError.message, () => addTask(taskData));
+      return false;
     }
 
     if (data) {
@@ -759,6 +820,7 @@ export function TaskProvider({
         }
       }
     }
+    return true;
   }
 
   async function updateTask(id: string, updates: TaskUpdate, opts: { announce?: boolean } = {}) {
@@ -856,7 +918,7 @@ export function TaskProvider({
           return reverted;
         });
       }
-      setError(cause);
+      reportWriteFailure("Couldn't save the change.", cause, () => updateTask(id, updates, opts));
       return;
     }
 
@@ -1033,14 +1095,12 @@ export function TaskProvider({
       );
       const failed = results.find((r) => r.error);
       if (failed?.error) {
-        console.error("reorderTasks: a write failed, reconciling from server:", failed.error.message);
-        setError(failed.error.message);
+        reportWriteFailure("Couldn't save the new order.", failed.error.message, () => reorderTasks(updates));
         fetchTasks();
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      console.error("reorderTasks failed, reconciling from server:", message);
-      setError(message);
+      reportWriteFailure("Couldn't save the new order.", message, () => reorderTasks(updates));
       fetchTasks();
     }
   }
@@ -1069,52 +1129,54 @@ export function TaskProvider({
 
     const isSyncedTask = !!(taskToDelete?.source && taskToDelete?.external_id);
 
-    // Show an immediate, optimistic toast with Undo. Synced tasks restore by
-    // clearing dismissed_at (the row still exists). Manual tasks are
-    // re-inserted with the same id so any other UI references still work —
-    // Supabase will accept the same UUID since the original row was deleted.
+    // Announce the delete through the undo stack so the toast's Undo and
+    // Cmd+Z both restore it. Synced tasks restore by clearing dismissed_at
+    // (the row still exists). Manual tasks are re-inserted with the same id
+    // so any other UI references still work; Supabase accepts the same UUID
+    // since the original row was deleted.
     if (taskToDelete && !opts?.silent) {
-      showToast("Task deleted", {
-        action: {
-          label: "Undo",
-          icon: <Undo2 size={14} />,
-          onClick: async () => {
-            // The delete already removed the calendar event, so the old
-            // google_event_id is dangling. Restore with it cleared, both
-            // locally and in the row, so the create below attaches a fresh
-            // event (its conditional attach requires a null id; re-inserting
-            // the stale id made it delete its own new event).
-            const restoredTask: Task = { ...taskToDelete, dismissed_at: null, google_event_id: null };
-            // Restore in local state immediately at the original index
-            setTasks((prev) => {
-              if (prev.some((t) => t.id === taskToDelete.id)) return prev;
-              const restored = [...prev];
-              const insertAt = Math.min(Math.max(previousIndex, 0), restored.length);
-              restored.splice(insertAt, 0, restoredTask);
-              setCachedTasks(restored);
-              taskBaselineRef.current = restored;
-              return restored;
-            });
-            if (isSyncedTask) {
-              await supabase
-                .from("tasks")
-                .update({ dismissed_at: null, dismissed_by_user: false, google_event_id: null })
-                .eq("id", taskToDelete.id);
-            } else {
-              const { dismissed_at: _ignored, ...row } = restoredTask;
-              const { error: insertError } = await supabase.from("tasks").insert(row);
-              if (insertError) {
-                setError(insertError.message);
-                fetchTasks();
-              }
+      pushUndo({
+        label: "Task deleted",
+        undo: async () => {
+          // The delete already removed the calendar event, so the old
+          // google_event_id is dangling. Restore with it cleared, both
+          // locally and in the row, so the create below attaches a fresh
+          // event (its conditional attach requires a null id; re-inserting
+          // the stale id made it delete its own new event).
+          const restoredTask: Task = { ...taskToDelete, dismissed_at: null, google_event_id: null };
+          // Restore in local state immediately at the original index
+          setTasks((prev) => {
+            if (prev.some((t) => t.id === taskToDelete.id)) return prev;
+            const restored = [...prev];
+            const insertAt = Math.min(Math.max(previousIndex, 0), restored.length);
+            restored.splice(insertAt, 0, restoredTask);
+            setCachedTasks(restored);
+            taskBaselineRef.current = restored;
+            return restored;
+          });
+          if (isSyncedTask) {
+            const { error: restoreError } = await supabase
+              .from("tasks")
+              .update({ dismissed_at: null, dismissed_by_user: false, google_event_id: null })
+              .eq("id", taskToDelete.id);
+            if (restoreError) {
+              fetchTasks();
+              throw new Error(restoreError.message);
             }
-            // Re-create the GCal event we removed on delete.
-            if (taskToDelete.due_date) {
-              pushTaskToGCal("create", taskToDelete.id).then((eventId) =>
-                attachGoogleEventId(taskToDelete.id, eventId)
-              );
+          } else {
+            const { dismissed_at: _ignored, ...row } = restoredTask;
+            const { error: insertError } = await supabase.from("tasks").insert(row);
+            if (insertError) {
+              fetchTasks();
+              throw new Error(insertError.message);
             }
-          },
+          }
+          // Re-create the GCal event we removed on delete.
+          if (taskToDelete.due_date) {
+            pushTaskToGCal("create", taskToDelete.id).then((eventId) =>
+              attachGoogleEventId(taskToDelete.id, eventId)
+            );
+          }
         },
       });
     }
@@ -1137,7 +1199,9 @@ export function TaskProvider({
           .eq("id", id);
 
     if (deleteError) {
-      setError(deleteError.message);
+      // The row is still on the server, so bring it back into the list
+      // rather than leaving a phantom delete on screen.
+      reportWriteFailure("Couldn't delete the task.", deleteError.message, () => deleteTask(id, opts));
       fetchTasks();
       return;
     }
@@ -1187,7 +1251,7 @@ export function TaskProvider({
    */
   async function deleteTasksBySource(source: "canvas" | "gradescope" | "pensieve" | "brightspace" | "blackboard" | "syllabus") {
     if (!userId) {
-      setError("Not authenticated. Please sign in again.");
+      reportWriteFailure(NOT_SIGNED_IN_MESSAGE, "deleteTasksBySource called with no userId");
       return;
     }
 
@@ -1213,9 +1277,9 @@ export function TaskProvider({
       .eq("source", source);
 
     if (deleteError) {
-      setError(deleteError.message);
       setTasks(previousTasks);
       setCachedTasks(previousTasks);
+      reportWriteFailure("Couldn't delete those tasks.", deleteError.message, () => deleteTasksBySource(source));
       fetchTasks();
     }
   }
@@ -1229,7 +1293,7 @@ export function TaskProvider({
    */
   async function deleteSyllabusTasksByCourse(courseName: string) {
     if (!userId) {
-      setError("Not authenticated. Please sign in again.");
+      reportWriteFailure(NOT_SIGNED_IN_MESSAGE, "deleteSyllabusTasksByCourse called with no userId");
       return;
     }
 
@@ -1258,9 +1322,9 @@ export function TaskProvider({
       .eq("course_name", courseName);
 
     if (deleteError) {
-      setError(deleteError.message);
       setTasks(previousTasks);
       setCachedTasks(previousTasks);
+      reportWriteFailure("Couldn't delete those tasks.", deleteError.message, () => deleteSyllabusTasksByCourse(courseName));
       fetchTasks();
     }
   }
@@ -1274,7 +1338,7 @@ export function TaskProvider({
    */
   async function deleteTasksByExternalIdPrefix(prefix: string) {
     if (!userId) {
-      setError("Not authenticated. Please sign in again.");
+      reportWriteFailure(NOT_SIGNED_IN_MESSAGE, "deleteTasksByExternalIdPrefix called with no userId");
       return;
     }
 
@@ -1303,9 +1367,9 @@ export function TaskProvider({
       .like("external_id", `${prefix}%`);
 
     if (deleteError) {
-      setError(deleteError.message);
       setTasks(previousTasks);
       setCachedTasks(previousTasks);
+      reportWriteFailure("Couldn't delete those tasks.", deleteError.message, () => deleteTasksByExternalIdPrefix(prefix));
       fetchTasks();
     }
   }
@@ -1345,9 +1409,9 @@ export function TaskProvider({
       .in("course_name", courseNames);
 
     if (deleteError) {
-      setError(deleteError.message);
       setTasks(previousTasks);
       setCachedTasks(previousTasks);
+      reportWriteFailure("Couldn't delete those tasks.", deleteError.message, () => deleteTasksByCourseNames(courseNames));
       fetchTasks();
       return 0;
     }
@@ -1411,14 +1475,9 @@ export function TaskProvider({
 
     const failure = results.find((r) => r.error);
     if (failure?.error) {
-      console.error("deleteTag: failed to remove tag", {
-        tag: target,
-        taskCount: affected.length,
-        error: failure.error.message,
-      });
-      setError(failure.error.message);
       setTasks(previousTasks);
       setCachedTasks(previousTasks);
+      reportWriteFailure(`Couldn't remove the "${tag}" tag.`, failure.error.message, () => deleteTag(tag));
       fetchTasks();
       return 0;
     }
@@ -1468,14 +1527,9 @@ export function TaskProvider({
       .eq("course_name", target);
 
     if (clearError) {
-      console.error("deleteCourse: failed to clear class", {
-        course: target,
-        taskCount: affected.length,
-        error: clearError.message,
-      });
-      setError(clearError.message);
       setTasks(previousTasks);
       setCachedTasks(previousTasks);
+      reportWriteFailure(`Couldn't remove the "${target}" class.`, clearError.message, () => deleteCourse(courseName));
       fetchTasks();
       return 0;
     }
@@ -1531,15 +1585,13 @@ export function TaskProvider({
       .is("dismissed_at", null);
 
     if (dismissError) {
-      console.error("dismissTasksByCourseNames: dismiss failed", {
-        cause: dismissError.message,
-        source,
-        courseNames,
-        impact: "tasks were not hidden; local state reverted and refetched",
-      });
-      setError(dismissError.message);
       setTasks(previousTasks);
       setCachedTasks(previousTasks);
+      reportWriteFailure(
+        "Couldn't hide those tasks.",
+        `${dismissError.message} (source ${source}, ${courseNames.length} classes)`,
+        () => dismissTasksByCourseNames(courseNames, source)
+      );
       fetchTasks();
       return 0;
     }
@@ -1575,13 +1627,11 @@ export function TaskProvider({
       .select("id");
 
     if (undismissError) {
-      console.error("undismissTasksByCourseNames: restore failed", {
-        cause: undismissError.message,
-        source,
-        courseNames,
-        impact: "hidden tasks for the re-added class stay hidden",
-      });
-      setError(undismissError.message);
+      reportWriteFailure(
+        "Couldn't restore those tasks.",
+        `${undismissError.message} (source ${source}, ${courseNames.length} classes)`,
+        () => undismissTasksByCourseNames(courseNames, source)
+      );
       return 0;
     }
 
@@ -1667,10 +1717,13 @@ export function TaskProvider({
       .upsert(rows, { onConflict: "user_id,source,external_id" });
 
     if (upsertError) {
-      setError(upsertError.message);
+      reportWriteFailure("Couldn't import the syllabus tasks.", upsertError.message, () =>
+        importSyllabusTasks(syllabusTasks, color)
+      );
     }
 
-    // Reconcile from server to get real IDs
+    // Reconcile from server to get real IDs (and drop the optimistic rows
+    // on failure).
     await fetchTasks();
   }
 
@@ -1682,7 +1735,7 @@ export function TaskProvider({
    */
   async function deleteAllTasks() {
     if (!userId) {
-      setError("Not authenticated. Please sign in again.");
+      reportWriteFailure(NOT_SIGNED_IN_MESSAGE, "deleteAllTasks called with no userId");
       return;
     }
 
@@ -1709,9 +1762,9 @@ export function TaskProvider({
 
     const deleteError = softDeleteResult.error || hardDeleteResult.error;
     if (deleteError) {
-      setError(deleteError.message);
       setTasks(previousTasks);
       setCachedTasks(previousTasks);
+      reportWriteFailure("Couldn't delete your tasks.", deleteError.message, () => deleteAllTasks());
       fetchTasks();
     }
   }
@@ -1726,7 +1779,6 @@ export function TaskProvider({
     // auto-sync and manual sync update taskBaselineRef concurrently
     autoSyncAbortRef.current?.abort();
     setSyncing(true);
-    setError(null);
     setSyncResult(null);
     if (!silent) {
       showToast("Syncing assignments...", { duration: 60_000, progress: 0 });
@@ -1806,7 +1858,9 @@ export function TaskProvider({
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       trackEvent("sync_failed", { error: message });
-      setError(message);
+      // A failed sync is reported by the toast below; it must not replace
+      // the list with the error page (that state is for a failed load).
+      console.error("[TaskContext] triggerSync failed", { error: message, impact: "tasks not refreshed" });
       if (progressInterval) clearInterval(progressInterval);
       if (!silent) showToast(`Sync failed: ${message}`, { duration: 6_000 });
     } finally {

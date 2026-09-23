@@ -380,7 +380,7 @@ export default function CalendarPanel() {
             open={calendarMode === "assignments" || modals.createType === "task"}
             keepMounted={calendarMode !== "assignments"}
             onClose={closeCreateModal}
-            onAdd={(task) => { addTask(task); closeCreateModal(); }}
+            onAdd={(task) => { closeCreateModal(); return addTask(task); }}
             defaultDate={modals.addingDate}
             defaultTime={modals.addingTime}
             createTypeToggle={

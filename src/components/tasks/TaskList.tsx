@@ -3,9 +3,11 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { useNow } from "@/hooks/useNow";
 import { createPortal } from "react-dom";
-import { ChevronRight, MoreVertical, Eye, Check, Trash2 } from "lucide-react";
+import { ChevronRight, MoreVertical, Eye, Check, Trash2, AlertCircle } from "lucide-react";
 import type { Task, TaskInsert, PendingInvite } from "@/lib/types";
 import { useTaskContext } from "@/contexts/TaskContext";
+import EmptyState from "@/components/ui/EmptyState";
+import Button from "@/components/ui/Button";
 import TaskItem from "./TaskItem";
 import ClassGroupHeader from "./ClassGroupHeader";
 import UserAvatar from "@/components/ui/UserAvatar";
@@ -254,7 +256,7 @@ export default function TaskList({
   onAcceptAllInvites,
   onDeselect,
 }: TaskListProps) {
-  const { unsnoozeTask } = useTaskContext();
+  const { unsnoozeTask, fetchTasks } = useTaskContext();
   const { colorTheme } = useTheme();
   const isMiffy = colorTheme === "miffy";
   const [requestsExpanded, setRequestsExpanded] = useState(false);
@@ -463,17 +465,20 @@ export default function TaskList({
     );
   }
 
+  // Only a failed initial load reaches here (TaskContext keeps write
+  // failures out of `error`), so there is nothing to keep on screen.
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
-        <p className="text-sm text-muted-foreground mb-4">{error}</p>
-        <button
-          onClick={() => window.location.reload()}
-          className="px-4 py-2 text-sm font-medium rounded-lg bg-gray-900 text-white dark:bg-white dark:text-gray-900 hover:opacity-90 transition-opacity"
-        >
-          Refresh
-        </button>
-      </div>
+      <EmptyState
+        icon={<AlertCircle size={20} />}
+        title={error}
+        description="Check your connection and try again."
+        action={
+          <Button variant="inverted" onClick={() => fetchTasks()}>
+            Try again
+          </Button>
+        }
+      />
     );
   }
 
