@@ -9,7 +9,8 @@
  * Sources of truth:
  *  - persistent DB flags for every connection (`canvas_token_expired`,
  *    `canvas_auth_failed`, `canvas_ical_failed`, `gradescope_auth_failed`,
- *    `google_auth_failed`, `pensieve_auth_failed`, `brightspace_auth_failed`),
+ *    `google_auth_failed`, `pensieve_auth_failed`, `brightspace_auth_failed`,
+ *    `blackboard_auth_failed`, `classroom_auth_failed`),
  *    so a break surfaces on a cold load / other device / after a background
  *    sync, not only when the failing sync ran in this browser session;
  *  - the latest in-session `syncResult` as an immediate supplement for the
@@ -17,13 +18,24 @@
  */
 
 import type { IntegrationCredentials, SyncResult } from "@/lib/types";
+import { CLASSROOM_AVAILABLE } from "@/lib/classroom-availability";
+import { PROVIDER_LABELS } from "@/lib/copy";
+
+/** Providers whose fix is an onboarding setup step. */
+export type SetupProvider = "canvas" | "gradescope" | "pensieve" | "brightspace" | "blackboard";
 
 /** What the fix button does. */
 export type HealthAction =
   /** Send the user to an onboarding step to re-enter this connection. */
-  | { kind: "setup"; provider: "canvas" | "gradescope" | "pensieve" | "brightspace" }
+  | { kind: "setup"; provider: SetupProvider }
   /** Navigate straight to a URL, for OAuth flows that have no setup step. */
   | { kind: "href"; url: string };
+
+/** The one wording for every reconnect action. */
+export const RECONNECT_ACTION = "Reconnect";
+
+/** Where Classroom re-consent lives: the Google grant with the Classroom scopes. */
+export const CLASSROOM_RECONNECT_URL = "/api/gcal/auth?classroom=1";
 
 /** A single integration that currently needs the user's attention. */
 export interface HealthIssue {
@@ -67,27 +79,27 @@ export function buildHealthIssues(
     // heuristic (token revoked/regenerated early). Takes priority.
     issues.push({
       id: "canvas",
-      label: "bCourses / Canvas",
+      label: PROVIDER_LABELS.canvas,
       detail:
         "Canvas rejected your access token (it may have been reset). Reconnect to resume syncing assignments.",
-      actionLabel: "Reconnect",
+      actionLabel: RECONNECT_ACTION,
       action: CANVAS_SETUP,
     });
   } else if (canvasSyncsViaToken && credentials.canvas_token_expired) {
     issues.push({
       id: "canvas",
-      label: "bCourses / Canvas",
-      detail: "Your access token expired (they last ~120 days). Reconnect to keep syncing assignments.",
-      actionLabel: "Reconnect",
+      label: PROVIDER_LABELS.canvas,
+      detail: "Your access token expired (they last about 120 days). Reconnect to keep syncing assignments.",
+      actionLabel: RECONNECT_ACTION,
       action: CANVAS_SETUP,
     });
   } else if (canvasSyncsViaToken && credentials.canvas_token_expiring_soon) {
     // Proactive warning BEFORE the token dies, so sync never silently stops.
     issues.push({
       id: "canvas-expiring",
-      label: "bCourses / Canvas",
-      detail: "Your access token expires within a week. Reconnect now so assignment sync doesn't stop.",
-      actionLabel: "Reconnect",
+      label: PROVIDER_LABELS.canvas,
+      detail: "Your access token expires within a week. Reconnect now so assignment sync does not stop.",
+      actionLabel: RECONNECT_ACTION,
       action: CANVAS_SETUP,
     });
   }
@@ -105,7 +117,7 @@ export function buildHealthIssues(
   ) {
     issues.push({
       id: "canvas-ical",
-      label: "bCourses / Canvas (calendar feed)",
+      label: `${PROVIDER_LABELS.canvas} (calendar feed)`,
       detail: "Your Canvas calendar feed stopped loading. The URL may have been reset, so update it to resume syncing.",
       actionLabel: "Update URL",
       action: CANVAS_SETUP,
@@ -121,7 +133,7 @@ export function buildHealthIssues(
       id: `canvas-account-${account.id}`,
       label: account.label,
       detail: "Access token rejected",
-      actionLabel: "Reconnect",
+      actionLabel: RECONNECT_ACTION,
       action: CANVAS_SETUP,
     });
   }
@@ -129,7 +141,7 @@ export function buildHealthIssues(
   if (credentials.gradescope_auth_failed) {
     issues.push({
       id: "gradescope",
-      label: "Gradescope",
+      label: PROVIDER_LABELS.gradescope,
       detail: "Login failed",
       actionLabel: "Update password",
       action: { kind: "setup", provider: "gradescope" },
@@ -139,9 +151,9 @@ export function buildHealthIssues(
   if (credentials.google_auth_failed) {
     issues.push({
       id: "gcal",
-      label: "Google Calendar",
+      label: PROVIDER_LABELS.gcal,
       detail: "Access revoked",
-      actionLabel: "Reconnect",
+      actionLabel: RECONNECT_ACTION,
       action: { kind: "href", url: "/api/gcal/auth" },
     });
   }
@@ -149,32 +161,62 @@ export function buildHealthIssues(
   // iCal feeds: the persistent DB flag is the primary signal (it survives a
   // reload and reflects background/cron/other-device syncs); the in-session
   // error is an immediate supplement so a fresh failure shows before the flag
-  // round-trips. Both providers are feed-only, so any error is a feed error.
+  // round-trips. All three providers are feed-only, so any error is a feed
+  // error.
   if (
     credentials.pensieve_calendar_url &&
     (credentials.pensieve_auth_failed || (syncResult?.pensieve.errors.length ?? 0) > 0)
   ) {
-    issues.push({
-      id: "pensieve",
-      label: "Pensive",
-      detail: syncResult?.pensieve.errors[0] || "Feed stopped loading",
-      actionLabel: "Update URL",
-      action: { kind: "setup", provider: "pensieve" },
-    });
+    issues.push(feedIssue("pensieve", syncResult?.pensieve.errors[0]));
   }
 
   if (
     credentials.brightspace_calendar_url &&
     (credentials.brightspace_auth_failed || (syncResult?.brightspace.errors.length ?? 0) > 0)
   ) {
+    issues.push(feedIssue("brightspace", syncResult?.brightspace.errors[0]));
+  }
+
+  if (
+    credentials.blackboard_calendar_url &&
+    (credentials.blackboard_auth_failed || (syncResult?.blackboard?.errors.length ?? 0) > 0)
+  ) {
+    issues.push(feedIssue("blackboard", syncResult?.blackboard?.errors[0]));
+  }
+
+  // Classroom rides on the Google grant. Its failure is Google refusing the
+  // Classroom scopes, so the fix is re-consenting with them, not a setup step.
+  // Suppressed while Classroom is not offered at all: a "fix" for a sync that
+  // cannot run would send the user to a consent screen that rejects them.
+  if (CLASSROOM_AVAILABLE && credentials.classroom_enabled && credentials.classroom_auth_failed) {
     issues.push({
-      id: "brightspace",
-      label: "Brightspace",
-      detail: syncResult?.brightspace.errors[0] || "Feed stopped loading",
-      actionLabel: "Update URL",
-      action: { kind: "setup", provider: "brightspace" },
+      id: "classroom",
+      label: PROVIDER_LABELS.classroom,
+      detail: "Google has not granted Classroom access",
+      actionLabel: RECONNECT_ACTION,
+      action: { kind: "href", url: CLASSROOM_RECONNECT_URL },
     });
   }
 
   return issues;
+}
+
+/**
+ * Builds the issue for a broken calendar feed.
+ *
+ * @param provider - Which feed provider
+ * @param firstError - The in-session error, if any, shown over the generic line
+ * @returns The issue, whose fix is that provider's setup step
+ */
+function feedIssue(
+  provider: "pensieve" | "brightspace" | "blackboard",
+  firstError: string | undefined
+): HealthIssue {
+  return {
+    id: provider,
+    label: PROVIDER_LABELS[provider],
+    detail: firstError || "Feed stopped loading",
+    actionLabel: "Update URL",
+    action: { kind: "setup", provider },
+  };
 }
