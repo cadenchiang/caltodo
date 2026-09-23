@@ -49,11 +49,16 @@ function toDateStr(date: Date): string {
  * so each repeating task appears exactly once in the list. The calendar is
  * the only view that expands future occurrences.
  *
+ * "all" returns everything: the list folds tasks due more than 30 days out
+ * into a collapsed Later section instead of dropping them.
+ *
  * @param tasks - Array of tasks to filter
- * @param filter - Time window filter ("all" = no filter, "today" = due today or earlier + undated, "7days" = next 7 days)
+ * @param filter - Time window filter ("all" = everything, "today" = due today or earlier + undated, "7days" = next 7 days)
  * @returns Filtered tasks
  */
-function filterTasksByDate(tasks: Task[], filter: InboxFilter): Task[] {
+export function filterTasksByDate(tasks: Task[], filter: InboxFilter): Task[] {
+  if (filter === "all") return tasks;
+
   const now = new Date();
   now.setHours(0, 0, 0, 0);
   const todayStr = toDateStr(now);
@@ -65,9 +70,8 @@ function filterTasksByDate(tasks: Task[], filter: InboxFilter): Task[] {
     });
   }
 
-  // "all" looks 30 days ahead, "7days" one week.
   const rangeEnd = new Date(now);
-  rangeEnd.setDate(rangeEnd.getDate() + (filter === "7days" ? 7 : 30));
+  rangeEnd.setDate(rangeEnd.getDate() + 7);
   const rangeEndStr = toDateStr(rangeEnd);
   return tasks.filter((t) => {
     if (!t.due_date) return true;
@@ -268,6 +272,16 @@ export default function InboxPage() {
   useEffect(() => {
     const savedFilter = localStorage.getItem("inbox-filter") as InboxFilter | null;
     if (savedFilter) setFilterRaw(savedFilter);
+    // /app/today redirects here with ?filter=today; an explicit query wins
+    // over the remembered filter and is persisted like a click would be.
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlFilter = urlParams.get("filter");
+    if (urlFilter && FILTER_OPTIONS.some((o) => o.key === urlFilter)) {
+      setFilter(urlFilter as InboxFilter);
+      // Drop the query once applied; the ?task= effect below owns the URL
+      // when a task deep link is present.
+      if (!urlParams.get("task")) window.history.replaceState(null, "", "/app/inbox");
+    }
     const savedView = localStorage.getItem("inbox-view-mode");
     // Use the raw state setter (NOT the persisted wrapper) so the
     // hydrate-read doesn't immediately re-save itself.
@@ -591,16 +605,12 @@ export default function InboxPage() {
   }
 
   /**
-   * Handles drag-and-drop reorder by mapping new ID order to sort_order values.
-   * Uses gaps of 1000 between values to allow future insertions without reindexing.
+   * Persists a reorder. The list already limits the writes to the moved
+   * task's same-date siblings, so this is a pass-through.
    *
-   * @param reorderedIds - Task IDs in their new display order
+   * @param updates - sort_order values for the affected tasks
    */
-  const handleReorder = useCallback((reorderedIds: string[]) => {
-    const updates = reorderedIds.map((id, index) => ({
-      id,
-      sort_order: (index + 1) * 1000,
-    }));
+  const handleReorder = useCallback((updates: Array<{ id: string; sort_order: number }>) => {
     reorderTasks(updates);
   }, [reorderTasks]);
 
@@ -822,6 +832,8 @@ export default function InboxPage() {
                   error={error}
                   selectedTaskId={selectedTask?.id}
                   sortMode={sortMode}
+                  filter={filter}
+                  onAddClick={() => setShowAddModal(true)}
                   onAdd={addTask}
                   onToggle={toggleComplete}
                   onSelect={handleTaskSelect}

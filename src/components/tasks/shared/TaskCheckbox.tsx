@@ -8,7 +8,8 @@
  * - "lg" (20px): used in detail panel and popover previews
  *
  * Every size shows a ghost checkmark on hover, so an empty box reads as
- * something to click rather than decoration.
+ * something to click rather than decoration. The hit area is 44px at every
+ * size (an ::after pseudo-element) while the visual box keeps its size.
  */
 
 interface TaskCheckboxProps {
@@ -39,6 +40,9 @@ export default function TaskCheckbox({
   const isLg = size === "lg";
   const isXs = size === "xs";
   const sizeClass = isLg ? "w-5 h-5" : isXs ? "w-3.5 h-3.5" : "w-4 h-4";
+  // The painted box stays small; an invisible pseudo-element grows the hit
+  // area to 44px (WCAG 2.5.8) without moving the neighbours.
+  const hitArea = isLg ? "after:-inset-3" : isXs ? "after:-inset-[15px]" : "after:-inset-3.5";
   // Thinner borders for smaller sizes.
   const borderWidth = isLg ? "1.25px" : "1px";
   const svgWidth = isLg ? 10 : isXs ? 7 : 8;
@@ -47,11 +51,13 @@ export default function TaskCheckbox({
 
   return (
     <button
+      type="button"
       onClick={(e) => {
         e.stopPropagation();
         onToggle();
       }}
-      className={`group/check flex-shrink-0 ${sizeClass} rounded-[4px] flex items-center justify-center transition-all cursor-pointer ${
+      onKeyDown={(e) => e.stopPropagation()}
+      className={`group/check relative flex-shrink-0 ${sizeClass} rounded-[4px] flex items-center justify-center transition-all cursor-pointer after:absolute after:content-[''] ${hitArea} ${
         isLg ? "mt-1" : ""
       }`}
       style={{

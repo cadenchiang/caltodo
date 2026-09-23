@@ -55,8 +55,9 @@ describe("popover backgrounds", () => {
     ["components/tasks/TaskAddPopover.tsx", "overflow-visible bg-popover rounded-2xl"],
     ["components/onboarding/SearchableSelect.tsx", "mt-1 w-full bg-popover border"],
     ["components/discussions/ChatInput.tsx", "z-30 bg-popover shadow-xl rounded-xl"],
-    ["components/tasks/TaskItem.tsx", 'className="fixed z-50 bg-popover rounded-lg shadow-xl'],
-    ["components/tasks/TaskItem.tsx", "ml-1 bg-popover rounded-lg shadow-xl"],
+    // TaskItem's menus now render through TaskContextMenu, which uses the
+    // Popover primitive (POPOVER_SURFACE carries bg-popover).
+    ["components/tasks/shared/TaskContextMenu.tsx", 'import Popover, { POPOVER_SURFACE } from "@/components/ui/Popover";'],
     ["components/tasks/TaskBoardView.tsx", 'className="fixed z-50 bg-popover rounded-lg shadow-xl'],
     ["components/calendar/DayOverflowPopover.tsx", "bg-popover overflow-hidden animate-in"],
   ])("%s paints bg-popover", (file, needle) => {

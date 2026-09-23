@@ -30,6 +30,7 @@ import { getCredentials } from "@/lib/credentials-client";
 import { readHiddenTags, hideTag } from "@/lib/hidden-tags";
 import { findNewAssignments } from "@/lib/new-assignments";
 import { collectSyncErrors, describeSyncedCounts } from "@/lib/sync-result-summary";
+import { formatSnoozeDuration } from "@/lib/snooze";
 
 /** localStorage key and version for stale-while-revalidate task caching. */
 const CACHE_KEY = "caltodo_tasks_cache";
@@ -163,7 +164,7 @@ interface TaskContextValue {
    * (completion, snooze, the undo itself) pass because they either carry
    * their own toast or are not an edit the user made.
    */
-  updateTask: (id: string, updates: TaskUpdate, opts?: { announce?: boolean }) => Promise<void>;
+  updateTask: (id: string, updates: TaskUpdate, opts?: { announce?: boolean }) => Promise<boolean>;
   toggleComplete: (id: string) => Promise<void>;
   deleteTask: (id: string, opts?: { silent?: boolean; skipGCal?: boolean }) => Promise<void>;
   deleteTasksBySource: (source: "canvas" | "gradescope" | "pensieve" | "brightspace" | "blackboard" | "syllabus") => Promise<void>;
@@ -823,7 +824,16 @@ export function TaskProvider({
     return true;
   }
 
-  async function updateTask(id: string, updates: TaskUpdate, opts: { announce?: boolean } = {}) {
+  /**
+   * Writes fields to a task with optimistic UI and rollback.
+   *
+   * @param id - Task to edit
+   * @param updates - Columns to write
+   * @param opts.announce - Push an Undo toast (default true)
+   * @returns True when the write landed (or nothing needed writing), false
+   *          when it was rolled back
+   */
+  async function updateTask(id: string, updates: TaskUpdate, opts: { announce?: boolean } = {}): Promise<boolean> {
     trackEvent("task_updated");
     markActivated("task_updated");
 
@@ -840,7 +850,7 @@ export function TaskProvider({
     if (announce && before && !summary) {
       // Nothing would change; announcing it would offer an undo that does
       // nothing. The write is still skipped below for the same reason.
-      return;
+      return true;
     }
     // When the user manually edits due_date / due_time on a synced task,
     // stamp the corresponding manual-edit column so sync-engine.ts won't
@@ -919,7 +929,7 @@ export function TaskProvider({
         });
       }
       reportWriteFailure("Couldn't save the change.", cause, () => updateTask(id, updates, opts));
-      return;
+      return false;
     }
 
     // Record the server's stamp so a later fetch compares like with like.
@@ -936,7 +946,9 @@ export function TaskProvider({
         label: summary.label,
         // The revert is itself an update, but not one to announce or record:
         // an undo of an undo is redo, which this stack does not offer.
-        undo: () => updateTask(id, summary.revert, { announce: false }),
+        undo: async () => {
+          await updateTask(id, summary.revert, { announce: false });
+        },
       });
     }
 
@@ -952,6 +964,7 @@ export function TaskProvider({
         attachGoogleEventId(id, eventId)
       );
     }
+    return true;
   }
 
   async function toggleComplete(id: string) {
@@ -1044,7 +1057,9 @@ export function TaskProvider({
 
   /**
    * Snoozes a task by setting snoozed_until to a future timestamp.
-   * Optimistically removes the task from the list immediately.
+   * Optimistically removes the task from the list immediately, then
+   * announces it ("Hidden for 1 week") with an Undo that clears the snooze,
+   * through the undo stack so Cmd+Z works too.
    *
    * @param id - Task ID to snooze
    * @param hours - Number of hours to hide the task
@@ -1052,7 +1067,12 @@ export function TaskProvider({
   async function snoozeTask(id: string, hours: number) {
     const snoozedUntil = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
     trackEvent("task_snoozed", { hours });
-    await updateTask(id, { snoozed_until: snoozedUntil }, { announce: false });
+    const written = await updateTask(id, { snoozed_until: snoozedUntil }, { announce: false });
+    if (!written) return;
+    pushUndo({
+      label: `Hidden for ${formatSnoozeDuration(hours)}`,
+      undo: () => unsnoozeTask(id),
+    });
   }
 
   /**
