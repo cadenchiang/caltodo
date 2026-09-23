@@ -366,7 +366,7 @@ export default function PomodoroWidget({
             <button onClick={handleReset} disabled={editMode} className="w-8 h-8 rounded-full flex items-center justify-center text-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-40 disabled:pointer-events-none" aria-label="Reset timer">
               <RotateCcw size={14} />
             </button>
-            <button onClick={handlePlayPause} disabled={editMode} className="w-10 h-10 rounded-full flex items-center justify-center text-white shadow-lg hover:scale-105 transition-transform disabled:opacity-40 disabled:pointer-events-none" style={{ backgroundColor: workColor }} aria-label={running ? "Pause timer" : "Start timer"}>
+            <button onClick={handlePlayPause} disabled={editMode} className="w-10 h-10 rounded-full flex items-center justify-center text-white shadow-lg dark:shadow-none hover:scale-105 transition-transform disabled:opacity-40 disabled:pointer-events-none" style={{ backgroundColor: workColor }} aria-label={running ? "Pause timer" : "Start timer"}>
               {running ? <Pause size={18} /> : <Play size={18} className="ml-0.5" />}
             </button>
             <button onClick={handleSkip} disabled={editMode} className="w-8 h-8 rounded-full flex items-center justify-center text-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-40 disabled:pointer-events-none" aria-label="Skip to next phase">

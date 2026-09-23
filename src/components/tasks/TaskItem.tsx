@@ -159,7 +159,7 @@ function TaskItemImpl({ task, isSelected, onToggle, onSelect, onDelete }: TaskIt
             onContextMenu={(e) => { e.preventDefault(); setMenuOpen(false); setSnoozeOpen(false); }}
           />
           <div
-            className="fixed z-50 bg-card rounded-lg shadow-xl border border-input-border py-1 min-w-[140px]"
+            className="fixed z-50 bg-popover rounded-lg shadow-xl border border-input-border py-1 min-w-[140px]"
             style={{ top: menuPos.y, left: menuPos.x }}
           >
             {/* Hide for... (snooze) submenu */}
@@ -172,7 +172,7 @@ function TaskItemImpl({ task, isSelected, onToggle, onSelect, onDelete }: TaskIt
                 Hide for...
               </button>
               {snoozeOpen && (
-                <div className="absolute left-full top-0 ml-1 bg-card rounded-lg shadow-xl border border-input-border py-1 min-w-[140px] z-50">
+                <div className="absolute left-full top-0 ml-1 bg-popover rounded-lg shadow-xl border border-input-border py-1 min-w-[140px] z-50">
                   {SNOOZE_PRESETS.map((preset) => (
                     <button
                       key={preset.hours}

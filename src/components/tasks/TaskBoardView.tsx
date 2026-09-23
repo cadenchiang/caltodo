@@ -1278,7 +1278,7 @@ function TaskCard({ task, isSelected, onToggle, onSelect, onDelete }: TaskCardPr
           />
           <div
             ref={menuDropdownRef}
-            className="fixed z-50 bg-card rounded-lg shadow-xl border border-input-border py-1 min-w-[120px]"
+            className="fixed z-50 bg-popover rounded-lg shadow-xl border border-input-border py-1 min-w-[120px]"
             style={{
               top: menuBtnRef.current.getBoundingClientRect().bottom + 4,
               left: Math.min(

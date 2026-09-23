@@ -369,7 +369,7 @@ export default function HomeBoard({ embedded = false }: HomeBoardProps = {}) {
                       }
                     }}
                     style={{ height: 30 }}
-                    className="flex items-center gap-1.5 px-3.5 text-sm font-semibold rounded-xl border border-border bg-white/85 dark:bg-gray-800/85 backdrop-blur-md text-foreground hover:bg-white dark:hover:bg-gray-700 shadow-sm transition-colors"
+                    className="flex items-center gap-1.5 px-3.5 text-sm font-semibold rounded-xl border border-border bg-white/85 dark:bg-gray-800/85 backdrop-blur-md text-foreground hover:bg-white dark:hover:bg-gray-700 shadow-sm dark:shadow-none transition-colors"
                   >
                     <RotateCcw size={14} />
                     Reset
@@ -378,7 +378,7 @@ export default function HomeBoard({ embedded = false }: HomeBoardProps = {}) {
                     id="add-widget-btn"
                     onClick={() => setGalleryOpen(true)}
                     style={{ height: 30 }}
-                    className="flex items-center gap-1.5 px-3.5 text-sm font-semibold rounded-xl border border-border bg-white/85 dark:bg-gray-800/85 backdrop-blur-md text-foreground hover:bg-white dark:hover:bg-gray-700 shadow-sm transition-colors"
+                    className="flex items-center gap-1.5 px-3.5 text-sm font-semibold rounded-xl border border-border bg-white/85 dark:bg-gray-800/85 backdrop-blur-md text-foreground hover:bg-white dark:hover:bg-gray-700 shadow-sm dark:shadow-none transition-colors"
                   >
                     <Plus size={14} />
                     Add Widget

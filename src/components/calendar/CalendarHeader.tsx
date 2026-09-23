@@ -199,7 +199,7 @@ export default function CalendarHeader({
         {onAddClick && (
           <button
             onClick={onAddClick}
-            className="w-8 h-8 rounded-full bg-white dark:bg-white text-gray-900 flex items-center justify-center shadow-sm hover:opacity-80 active:scale-95 transition-all shrink-0"
+            className="w-8 h-8 rounded-full bg-white dark:bg-white text-gray-900 flex items-center justify-center shadow-sm dark:shadow-none hover:opacity-80 active:scale-95 transition-all shrink-0"
             title="Add task or event"
           >
             <Plus size={16} strokeWidth={2.5} />
@@ -323,7 +323,7 @@ export default function CalendarHeader({
               onClick={() => onViewModeChange(mode)}
               className={`px-2.5 py-1 md:px-4 md:py-1.5 text-xs md:text-sm font-semibold capitalize transition-all duration-200 ease-out ${
                 viewMode === mode
-                  ? "bg-white dark:bg-white text-black shadow-sm"
+                  ? "bg-white dark:bg-white text-black shadow-sm dark:shadow-none"
                   : "text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-black/5 dark:hover:bg-white/10"
               }`}
             >
