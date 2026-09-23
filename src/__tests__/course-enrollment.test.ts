@@ -21,16 +21,21 @@ function createMockAdminClient(options?: {
   selectData?: { id: string } | null;
   selectError?: { message: string } | null;
   membershipError?: { message: string } | null;
+  /** Rows the primary-room lookup (courses by name) returns. */
+  siblingRows?: Array<{ id: string; source: string; name: string; created_at: string }>;
 }) {
   const opts = {
     upsertError: null,
     selectData: { id: "course-uuid-1" },
     selectError: null,
     membershipError: null,
+    siblingRows: [],
     ...options,
   };
 
+  const membershipUpsert = vi.fn().mockReturnValue({ error: opts.membershipError });
   return {
+    _membershipUpsert: membershipUpsert,
     from: vi.fn((table: string) => {
       if (table === "courses") {
         return {
@@ -44,13 +49,14 @@ function createMockAdminClient(options?: {
                 }),
               }),
             }),
+            in: vi.fn().mockReturnValue({
+              neq: vi.fn().mockResolvedValue({ data: opts.siblingRows, error: null }),
+            }),
           }),
         };
       }
       if (table === "course_memberships") {
-        return {
-          upsert: vi.fn().mockReturnValue({ error: opts.membershipError }),
-        };
+        return { upsert: membershipUpsert };
       }
       return {};
     }),
@@ -58,6 +64,26 @@ function createMockAdminClient(options?: {
 }
 
 describe("syncCourseEnrollments", () => {
+  it("also enrolls the user into the oldest sibling row (the class room, D4)", async () => {
+    const client = createMockAdminClient({
+      selectData: { id: "gs-row" },
+      siblingRows: [
+        { id: "gs-row", source: "gradescope", name: "CS 61A", created_at: "2026-02-01T00:00:00Z" },
+        { id: "canvas-row", source: "canvas", name: "CS 61A", created_at: "2025-09-01T00:00:00Z" },
+      ],
+    });
+
+    await syncCourseEnrollments(client as any, "user-1", [
+      { source: "gradescope", external_id: "g1", name: "CS 61A" },
+    ]);
+
+    // Second upsert is the primary-room membership, ON CONFLICT DO NOTHING.
+    expect(client._membershipUpsert).toHaveBeenLastCalledWith(
+      [{ user_id: "user-1", course_id: "canvas-row" }],
+      { onConflict: "user_id,course_id", ignoreDuplicates: true },
+    );
+  });
+
   it("should return 0 when no courses provided", async () => {
     const client = createMockAdminClient();
     const result = await syncCourseEnrollments(client as any, "user-1", []);
@@ -117,6 +143,9 @@ describe("syncCourseEnrollments", () => {
                     error: null,
                   }),
                 }),
+              }),
+              in: vi.fn().mockReturnValue({
+                neq: vi.fn().mockResolvedValue({ data: [], error: null }),
               }),
             }),
           };
