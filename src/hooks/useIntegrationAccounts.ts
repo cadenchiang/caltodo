@@ -89,8 +89,13 @@ export function useIntegrationAccounts({
         const data: { accounts?: AccountRow[] } = await res.json();
         if (cancelled) return;
         setFeedAccounts((data.accounts ?? []).filter((a) => a.provider === provider));
-      } catch {
+      } catch (err) {
         // Non-critical: the primary account still lists on its own.
+        console.warn("useIntegrationAccounts: extra accounts failed to load", {
+          provider,
+          error: err instanceof Error ? err.message : String(err),
+          impact: "only the primary account is listed",
+        });
       }
     })();
     return () => {
@@ -111,7 +116,13 @@ export function useIntegrationAccounts({
         setFeedAccounts((prev) => prev.filter((a) => a.id !== id));
         showToast(`Removed the extra ${PROVIDER_META[provider].label} calendar.`);
       } catch (err) {
-        showToast(err instanceof Error ? err.message : "Failed to remove account");
+        console.error("useIntegrationAccounts: feed account removal failed", {
+          provider,
+          id,
+          error: err instanceof Error ? err.message : String(err),
+          impact: "the account row is still present",
+        });
+        showToast(err instanceof Error ? err.message : "Failed to remove account", { variant: "error" });
       }
     },
     [provider, showToast]
@@ -137,7 +148,12 @@ export function useIntegrationAccounts({
         await deleteTasksByExternalIdPrefix(`${id}:`);
         showToast("Removed the extra Canvas school.");
       } catch (err) {
-        showToast(err instanceof Error ? err.message : "Failed to remove account");
+        console.error("useIntegrationAccounts: Canvas account removal failed", {
+          id,
+          error: err instanceof Error ? err.message : String(err),
+          impact: "the account and its tasks are still present",
+        });
+        showToast(err instanceof Error ? err.message : "Failed to remove account", { variant: "error" });
       }
     },
     [credentials.additional_canvas_accounts, onUpdate, showToast, deleteTasksByExternalIdPrefix]
@@ -263,7 +279,7 @@ export function useIntegrationAccounts({
             },
           })
         );
-        showToast("Classes saved, but their tasks did not update. Try syncing.");
+        showToast("Classes saved, but their tasks did not update. Try syncing.", { variant: "error" });
       }
     },
     [

@@ -37,6 +37,11 @@ export interface DisclosureMeta {
   /** Tailwind sizing for that image, which differs by artwork. */
   logoClassName: string;
   /**
+   * Classes for the tile behind the image. One recipe per provider so the
+   * connected card and the available card paint the same tile.
+   */
+  logoTileClassName: string;
+  /**
    * Line under the provider name, given the current credentials.
    *
    * Says which kind of connection this is, or which account it is, so the
@@ -64,6 +69,16 @@ export interface DisclosureMeta {
   authFailed: (credentials: IntegrationCredentials) => boolean;
 }
 
+/** The default logo tile: a muted rounded square. */
+export const LOGO_TILE = "bg-muted";
+
+/**
+ * Brightspace's tile is white in dark mode: the D2L mark is a black wordmark
+ * on its own white plate, which otherwise reads as a harsh square inside a
+ * grey rounded tile.
+ */
+export const BRIGHTSPACE_LOGO_TILE = "bg-muted dark:bg-white";
+
 /**
  * Per-provider data for the connected card.
  *
@@ -74,16 +89,24 @@ export const DISCLOSURE_META: Record<DisclosureProvider, DisclosureMeta> = {
   canvas: {
     logo: "/canvas-logo.png",
     logoClassName: "w-7 h-7 object-contain",
+    logoTileClassName: LOGO_TILE,
     // Which of the two ways Canvas can be connected, since they behave
     // differently: a token lists courses, a feed only carries events.
     subtitle: (c) => (c.has_canvas_token ? "API token" : "Calendar feed"),
     disconnectPayload: { canvas_token: null, canvas_ical_url: null },
     taskSource: "canvas",
-    authFailed: (c) => !!c.canvas_token_expired || !!c.canvas_ical_failed,
+    // canvas_auth_failed is a real 401 from Canvas; canvas_token_expired is
+    // the 120-day age heuristic. Both concern the token, which is not what
+    // syncs once a calendar feed is stored (see buildHealthIssues), so they
+    // are suppressed then. A broken feed always counts.
+    authFailed: (c) =>
+      (!c.canvas_ical_url && (!!c.canvas_auth_failed || !!c.canvas_token_expired)) ||
+      !!c.canvas_ical_failed,
   },
   gradescope: {
     logo: "/gradescope-logo.png",
     logoClassName: "w-5 h-5",
+    logoTileClassName: LOGO_TILE,
     subtitle: (c) => c.gradescope_email ?? "Sync assignments from Gradescope",
     disconnectPayload: { gradescope_email: null, gradescope_password: null },
     taskSource: "gradescope",
@@ -92,6 +115,7 @@ export const DISCLOSURE_META: Record<DisclosureProvider, DisclosureMeta> = {
   pensieve: {
     logo: "/pensieve-logo.png",
     logoClassName: "w-5 h-5",
+    logoTileClassName: LOGO_TILE,
     subtitle: () => "Assignments from your Pensive calendar",
     disconnectPayload: { pensieve_calendar_url: null },
     taskSource: "pensieve",
@@ -100,6 +124,7 @@ export const DISCLOSURE_META: Record<DisclosureProvider, DisclosureMeta> = {
   brightspace: {
     logo: "/brightspace-logo.svg",
     logoClassName: "w-6 h-6 object-contain",
+    logoTileClassName: BRIGHTSPACE_LOGO_TILE,
     subtitle: () => "Assignments from your D2L calendar",
     disconnectPayload: { brightspace_calendar_url: null },
     taskSource: "brightspace",
@@ -108,6 +133,8 @@ export const DISCLOSURE_META: Record<DisclosureProvider, DisclosureMeta> = {
   blackboard: {
     logo: "/blackboard-logo.svg",
     logoClassName: "w-6 h-6 object-contain",
+    // No white plate: the Blackboard mark is already a dark rounded tile.
+    logoTileClassName: LOGO_TILE,
     subtitle: () => "Assignments from your Blackboard calendar",
     disconnectPayload: { blackboard_calendar_url: null },
     taskSource: "blackboard",
