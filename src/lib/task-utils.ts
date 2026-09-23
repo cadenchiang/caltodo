@@ -15,12 +15,65 @@ export function formatTime12h(time24: string): string {
   return `${hour12}:${minute} ${ampm}`;
 }
 
+/** How close a due date is. Drives the chip color. */
+export type DateUrgency = "overdue" | "soon" | "later";
+
+/**
+ * The one relative date label: "Overdue 2 days", "Today", "Tomorrow",
+ * "In 3 days", or "Sep 3". Shared by every due-date chip so the wording
+ * never drifts between the inbox, board, previews and onboarding.
+ *
+ * @param dueDate - ISO date string ("YYYY-MM-DD")
+ * @param now - Reference date; defaults to the current time (tests pass a fixed date)
+ * @returns The label, the signed day distance, and the urgency bucket
+ * @remarks Anything more than 7 days out is a calendar date, not a distance.
+ */
+export function getRelativeDateLabel(
+  dueDate: string,
+  now: Date = new Date()
+): { label: string; diffDays: number; urgency: DateUrgency } {
+  const today = new Date(now);
+  today.setHours(0, 0, 0, 0);
+  const due = new Date(dueDate + "T00:00:00");
+  const diffDays = Math.round((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) {
+    const daysLate = Math.abs(diffDays);
+    const label = daysLate === 1 ? "Overdue 1 day" : `Overdue ${daysLate} days`;
+    return { label, diffDays, urgency: "overdue" };
+  }
+  if (diffDays === 0) return { label: "Today", diffDays, urgency: "soon" };
+  if (diffDays === 1) return { label: "Tomorrow", diffDays, urgency: "soon" };
+  if (diffDays <= 7) return { label: `In ${diffDays} days`, diffDays, urgency: "soon" };
+
+  const month = due.toLocaleString("en-US", { month: "short" });
+  return { label: `${month} ${due.getDate()}`, diffDays, urgency: "later" };
+}
+
+/**
+ * Text color classes for a due-date chip. Light mode uses the 600 step so
+ * the chip passes 4.5:1 on white; dark mode uses 400.
+ *
+ * @param urgency - Bucket from getRelativeDateLabel
+ * @param isCompleted - Completed tasks read muted regardless of urgency
+ * @returns Tailwind classes
+ */
+export function getUrgencyClass(urgency: DateUrgency, isCompleted = false): string {
+  if (isCompleted) return "text-muted-foreground";
+  if (urgency === "overdue") return "text-red-600 dark:text-red-400";
+  if (urgency === "soon") return "text-blue-600 dark:text-blue-400";
+  return "text-subtle-foreground";
+}
+
 /**
  * Returns a human-readable due date label, optional time label, and color class.
  *
  * @param dueDate - ISO date string ("YYYY-MM-DD") or null
  * @param dueTime - 24-hour time string ("HH:MM") or null
  * @returns Object with dateLabel, timeLabel, and className, or null if no date
+ * @remarks Legacy consumer of getRelativeDateLabel. The className values are the
+ *          older 400-step colors that TaskItem keys its Miffy swap on; new
+ *          chips should use DueDatePill / getUrgencyClass instead.
  */
 export function getDueDateInfo(
   dueDate: string | null,
@@ -28,38 +81,18 @@ export function getDueDateInfo(
 ): { dateLabel: string; timeLabel: string | null; className: string } | null {
   if (!dueDate) return null;
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const due = new Date(dueDate + "T00:00:00");
-
-  const diffMs = due.getTime() - today.getTime();
-  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
-
+  const { label, urgency } = getRelativeDateLabel(dueDate);
   const timeLabel = dueTime ? formatTime12h(dueTime) : null;
 
-  if (diffDays < 0) {
-    // Overdue: show "Overdue N day(s)" so the urgency is unmistakable.
+  if (urgency === "overdue") {
     // timeLabel is suppressed (no clock time on a past task) so the
     // pill stays short.
-    const daysLate = Math.abs(diffDays);
-    const label = daysLate === 1 ? "Overdue 1 day" : `Overdue ${daysLate} days`;
     return { dateLabel: label, timeLabel: null, className: "text-red-400" };
   }
-  if (diffDays === 0) {
-    return { dateLabel: "Today", timeLabel, className: "text-blue-400" };
+  if (urgency === "soon") {
+    return { dateLabel: label, timeLabel, className: "text-blue-400" };
   }
-  if (diffDays === 1) {
-    return { dateLabel: "Tomorrow", timeLabel, className: "text-blue-400" };
-  }
-  if (diffDays <= 7) {
-    // Inside a week, distance reads faster than a date: "In 3 days" says how
-    // much runway is left, where "Sep 3" makes the reader do the subtraction.
-    return { dateLabel: `In ${diffDays} days`, timeLabel, className: "text-blue-400" };
-  }
-
-  const month = due.toLocaleString("en-US", { month: "short" });
-  const day = due.getDate();
-  return { dateLabel: `${month} ${day}`, timeLabel, className: "text-subtle-foreground" };
+  return { dateLabel: label, timeLabel, className: "text-subtle-foreground" };
 }
 
 /**

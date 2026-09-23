@@ -219,7 +219,7 @@ export default function ChatInput({ onSend, disabled, error, onTyping }: ChatInp
     <div className="px-5 pt-2 pb-4 relative">
       {/* Emoji picker popover */}
       {showEmojiPicker && (
-        <div ref={emojiRef} className="absolute bottom-16 right-4 z-30 shadow-xl rounded-xl overflow-hidden">
+        <div ref={emojiRef} className="absolute bottom-16 right-4 z-30 bg-popover shadow-xl rounded-xl overflow-hidden">
           <ChatEmojiPicker onSelect={handleEmojiSelect} />
         </div>
       )}

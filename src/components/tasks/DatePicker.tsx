@@ -222,7 +222,7 @@ export default function DatePicker({
               onClick={() => onChange(dateStr)}
               className={`w-8 h-8 text-xs rounded-full flex items-center justify-center mx-auto transition-all ${
                 isSelected
-                  ? "bg-blue-500 text-white shadow-sm"
+                  ? "bg-blue-500 text-white shadow-sm dark:shadow-none"
                   : isToday
                     ? "bg-blue-500/10 text-blue-600 font-medium"
                     : isPast

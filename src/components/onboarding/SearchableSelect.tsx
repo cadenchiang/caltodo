@@ -150,7 +150,7 @@ export default function SearchableSelect({
       </button>
 
       {open && (
-        <div className="absolute z-50 mt-1 w-full bg-white dark:bg-[#1c1c1e] border border-black/10 dark:border-white/10 rounded-xl shadow-[0_8px_30px_-12px_rgba(0,0,0,0.2)] overflow-hidden">
+        <div className="absolute z-50 mt-1 w-full bg-popover border border-black/10 dark:border-white/10 rounded-xl shadow-[0_8px_30px_-12px_rgba(0,0,0,0.2)] overflow-hidden">
           <div className="flex items-center gap-2 px-3 py-2 border-b border-black/5 dark:border-white/5">
             <Search size={14} className="text-muted-foreground shrink-0" />
             <input

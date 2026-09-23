@@ -21,7 +21,7 @@ export default function OfflinePage() {
         <WifiOff size={32} className="text-muted-foreground" aria-hidden />
         <h1 className="text-base font-semibold text-foreground">You&apos;re offline</h1>
         <p className="text-xs text-muted-foreground">
-          Reconnect to sync your tasks. CalTodo will load again automatically
+          Reconnect to sync your tasks. caltodo will load again automatically
           once you&apos;re back online.
         </p>
       </div>

@@ -98,7 +98,7 @@ npx vitest run src/__tests__/gradescope-client.test.ts  # Run specific test
 - Dropdowns/popovers use `bg-popover` (solid, never transparent)
 - API routes include structured logging via `logger` from `@/lib/logger`
 - Optimistic UI updates with rollback on error (see TaskContext patterns)
-- **UI consistency**: See `UI_STYLE_GUIDE.md` for complete patterns (modals, buttons, colors, typography, animations). Never use gray all-caps text for labels, hardcoded colors, or transparent popover backgrounds.
+- **UI consistency**: Use the primitives in `src/components/ui/` (Button, IconButton, Modal, ConfirmDialog, Popover, Badge, TextField, TextArea, EmptyState, Skeleton, Spinner, PageHeader, SectionHeading, DueDatePill, IntegrationLogo) and the glossary in `src/lib/copy.ts`. See `UI_STYLE_GUIDE.md` for the rules and `DESIGN_SYSTEM.md` for token values. Never use gray all-caps text for labels, hardcoded colors, or transparent popover backgrounds.
 
 ### Git Workflow
 
@@ -106,13 +106,14 @@ npx vitest run src/__tests__/gradescope-client.test.ts  # Run specific test
 
 ### After Multi-File Changes
 
-Clear `.next` cache and restart dev server to avoid stale UI:
+Restart the dev server without clearing `.next` (clearing forces a slow full recompile):
 
 ```bash
-rm -rf .next && npm run dev
+lsof -ti:3000 | xargs kill -9; npm run dev
 ```
 
-Then hard refresh the browser (Cmd+Shift+R).
+Then hard refresh the browser (Cmd+Shift+R). Only if the UI is still genuinely stale or
+broken after a hard refresh, clear the cache as a last resort: `rm -rf .next && npm run dev`.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

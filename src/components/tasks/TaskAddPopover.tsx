@@ -224,7 +224,7 @@ export default function TaskAddPopover({ date, anchorRect, onClose, onAdd }: Tas
   return createPortal(
     <div
       ref={ref}
-      className={`fixed z-50 w-[min(340px,calc(100vw-16px))] overflow-visible bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl border border-border transition-all duration-150 ease-out ${
+      className={`fixed z-50 w-[min(340px,calc(100vw-16px))] overflow-visible bg-popover rounded-2xl shadow-2xl border border-border transition-all duration-150 ease-out ${
         visible
           ? "opacity-100 scale-100 translate-y-0"
           : "opacity-0 scale-95 -translate-y-1"

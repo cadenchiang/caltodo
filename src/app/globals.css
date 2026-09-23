@@ -3,20 +3,27 @@
 /* Enable class-based dark mode for manual toggle (used only for status-color overrides) */
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Override Tailwind's default blue scale to the brand blue #0e89d6.
-   Any `text-blue-*`, `bg-blue-*`, `border-blue-*`, `ring-blue-*` etc.
-   in the codebase now picks up the same brand color. */
+/* ── Design-system scale tokens ──
+   Text steps below Tailwind's `text-xs` (12px). These replace the ad hoc
+   `text-[11px]` / `text-[10px]` literals: 2xs is the caption step (pill
+   labels, timestamps), 3xs is the badge step (count and status badges).
+   Nothing user-readable goes below 3xs.
+
+   Z-index ladder. One value per layer so overlays never leapfrog each other
+   with arbitrary `z-[9999]`. Sticky chrome sits under dropdowns; modals sit
+   at overlay; toasts sit above modals so "Task deleted / Undo" is reachable
+   while a dialog is open; tooltips sit above everything. */
 @theme {
-  --color-blue-50:  #e8f4fc;
-  --color-blue-100: #c5e3f7;
-  --color-blue-200: #9fd1f1;
-  --color-blue-300: #5fb1e6;
-  --color-blue-400: #2a9bdd;
-  --color-blue-500: #0e89d6;
-  --color-blue-600: #0c78bd;
-  --color-blue-700: #0a67a3;
-  --color-blue-800: #08568a;
-  --color-blue-900: #064571;
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+  --text-3xs: 0.625rem;
+  --text-3xs--line-height: 0.875rem;
+
+  --z-index-sticky: 40;
+  --z-index-dropdown: 50;
+  --z-index-overlay: 100;
+  --z-index-toast: 200;
+  --z-index-tooltip: 300;
 }
 
 /* ── Semantic color tokens ── */
@@ -55,6 +62,22 @@
 
   /* Interactive */
   --ring: #bfdbfe;
+
+  /* Status colors. Fixed across themes on purpose: success, warning and
+     danger must read the same in Miffy pink as in Forest green, so they do
+     not follow the accent ramp. The -tint variants are the 10% fills used
+     behind status text and inside status badges. */
+  --success: #10b981;
+  --success-tint: rgba(16, 185, 129, 0.1);
+  --warning: #f59e0b;
+  --warning-tint: rgba(245, 158, 11, 0.1);
+  --danger: #ef4444;
+  --danger-tint: rgba(239, 68, 68, 0.1);
+
+  /* Hairline: the one translucent divider for chrome that sits on any
+     surface (black/10 light, white/10 dark). Backdrop: the modal scrim. */
+  --hairline: rgba(0, 0, 0, 0.1);
+  --backdrop: rgba(0, 0, 0, 0.5);
 
   /* Sidebar / nav active states. The sidebar always renders with a 1px
      right border keyed off this variable; using --border here keeps the
@@ -95,6 +118,8 @@
   --border-subtle: #404040;
 
   --ring: #1e3a5f;
+
+  --hairline: rgba(255, 255, 255, 0.1);
 
   --nav-active-bg: rgba(255, 255, 255, 0.06);
   --sidebar-border-color: var(--border);
@@ -298,25 +323,40 @@ body[data-route="settings"] .miffy-glow::before {
   --color-border-subtle: var(--border-subtle);
   --color-ring: var(--ring);
 
-  /* Standard Tailwind blue scale — consistent across all pages */
+  /* Status tokens: bg-success, text-danger, bg-warning-tint, border-hairline,
+     bg-backdrop. See the :root block for the values. */
+  --color-success: var(--success);
+  --color-success-tint: var(--success-tint);
+  --color-warning: var(--warning);
+  --color-warning-tint: var(--warning-tint);
+  --color-danger: var(--danger);
+  --color-danger-tint: var(--danger-tint);
+  --color-hairline: var(--hairline);
+  --color-backdrop: var(--backdrop);
+
+  /* Default (caltodo) accent ramp. blue-500 is the brand blue #0e89d6 and
+     every step is a tint or shade of that same hue, so hover (600) and
+     pressed (700) darken instead of jumping to a different blue. Every
+     theme-* block below overrides this whole ramp with its own accent. */
   --color-blue-50: #eff6ff;
   --color-blue-100: #dbeafe;
   --color-blue-200: #bfdbfe;
   --color-blue-300: #93c5fd;
-  --color-blue-400: #60a5fa;
+  --color-blue-400: #2a9bdd;
   --color-blue-500: #0e89d6;
-  --color-blue-600: #2563eb;
-  --color-blue-700: #0e89d6;
+  --color-blue-600: #0c78bd;
+  --color-blue-700: #0a67a3;
   --color-blue-800: #1e40af;
   --color-blue-900: #1e3a8a;
   --color-blue-950: #172554;
 
+  /* The accent hover step. Resolves per theme because it reads the ramp at
+     use time. Use bg-accent-hover instead of the retired literal #3D8FE8. */
+  --color-accent-hover: var(--color-blue-600);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --font-serif: var(--font-instrument-serif);
-
-  --animate-shimmer-slide: shimmer-slide var(--speed) ease-in-out infinite alternate;
-  --animate-spin-around: spin-around calc(var(--speed) * 2) infinite linear;
 }
 
 /* Rose-pink accent overrides for Miffy theme (replaces blue-* scale) */
@@ -997,19 +1037,6 @@ body[data-route="settings"] .miffy-glow::before {
 .dark.theme-tokyo-night *::-webkit-scrollbar-thumb { background: rgba(122, 162, 247, 0.2); }
 .dark.theme-tokyo-night *::-webkit-scrollbar-thumb:hover { background: rgba(122, 162, 247, 0.35); }
 
-/* Shake animation for wrong code entry */
-@keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  20% { transform: translateX(-6px); }
-  40% { transform: translateX(6px); }
-  60% { transform: translateX(-4px); }
-  80% { transform: translateX(4px); }
-}
-
-.animate-shake {
-  animation: shake 400ms ease-out;
-}
-
 /* Nav item active state — uses theme-aware CSS variable */
 .nav-item-active {
   background-color: var(--nav-active-bg);
@@ -1031,6 +1058,44 @@ body {
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
   min-height: 100dvh;
   padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* ── Keyboard focus ──
+   One visible focus ring for every focusable element, drawn only for
+   keyboard focus (:focus-visible), so mouse clicks stay clean. Wrapped in
+   :where() so it has zero specificity: any component that draws its own
+   ring (focus-visible:ring-2) or removes the outline (focus:outline-none
+   with a ring replacement) wins without !important. react-grid-layout
+   items are excluded because their own stylesheet reset (outline: none
+   !important, below) exists on purpose and would otherwise conflict. */
+:where(:focus-visible):not(.react-grid-item) {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* ── Reduced motion ──
+   Collapses every animation and transition to a single frame when the OS
+   asks for reduced motion. Durations go to 0.01ms rather than `none` so
+   animationend / transitionend still fire and exit-animation timers in
+   modals keep working. Spinners are exempt: an indeterminate spinner that
+   stops looks frozen, so `animate-spin` keeps running, and `.motion-essential`
+   opts any other element out of the collapse. */
+@media (prefers-reduced-motion: reduce) {
+  :where(*:not(.animate-spin):not(.motion-essential)),
+  :where(*:not(.animate-spin):not(.motion-essential))::before,
+  :where(*:not(.animate-spin):not(.motion-essential))::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Typing indicator dots (discussions/TypingIndicator.tsx). Lives here so
+   the component can drop its inline <style> block. */
+@keyframes typing-bounce {
+  0%, 60%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-4px); }
 }
 
 
@@ -1241,50 +1306,6 @@ body {
   will-change: opacity, transform, filter;
 }
 
-/* Directional siblings to fadeUp — used when layout has a left/right split
- * (e.g. login page) and elements should slide in from their own side. */
-@keyframes fadeRight {
-  0% {
-    opacity: 0;
-    transform: translate3d(-28px, 0, 0);
-    filter: blur(6px);
-  }
-  100% {
-    opacity: 1;
-    transform: translate3d(0, 0, 0);
-    filter: blur(0);
-  }
-}
-
-.animate-fade-right {
-  animation-name: fadeRight;
-  animation-duration: 900ms;
-  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
-  animation-fill-mode: both;
-  will-change: opacity, transform, filter;
-}
-
-@keyframes fadeLeft {
-  0% {
-    opacity: 0;
-    transform: translate3d(28px, 0, 0);
-    filter: blur(6px);
-  }
-  100% {
-    opacity: 1;
-    transform: translate3d(0, 0, 0);
-    filter: blur(0);
-  }
-}
-
-.animate-fade-left {
-  animation-name: fadeLeft;
-  animation-duration: 900ms;
-  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
-  animation-fill-mode: both;
-  will-change: opacity, transform, filter;
-}
-
 /* Hero integration cluster — caltodo logo spawns in first (scale + blur ramp),
  * then surrounding logos emerge horizontally from behind it. Side items use a
  * CSS variable for the direction/distance so one keyframe covers both sides. */
@@ -1320,32 +1341,6 @@ body {
 .cluster-emerge {
   animation: clusterEmerge 1100ms cubic-bezier(0.22, 1, 0.36, 1) both;
   will-change: opacity, transform;
-}
-
-/* Hero appear animation */
-@keyframes appear {
-  0% {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.animate-appear {
-  animation: appear 0.6s cubic-bezier(0.2, 0.85, 0.45, 1) forwards;
-}
-
-@keyframes calViewFade {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes slideDown {
-  from { opacity: 0; transform: translateY(-12px); }
-  to { opacity: 1; transform: translateY(0); }
 }
 
 .delay-100 {
@@ -1422,21 +1417,6 @@ body {
 }
 
 /* Checkbox checkmark pop-in animation */
-@keyframes checkScale {
-  0% {
-    transform: scale(0);
-    opacity: 0;
-  }
-  60% {
-    transform: scale(1.15);
-    opacity: 1;
-  }
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
-
 /* Toast slide-in animation (slides up from bottom) */
 @keyframes toastIn {
   from {
@@ -1469,21 +1449,6 @@ body {
 }
 
 /* Indeterminate progress bar — fast left-to-right sweep */
-@keyframes progress {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(300%); }
-}
-
-/* Page transition — barely perceptible on tab switch */
-@keyframes pageIn {
-  from { opacity: 0.96; }
-  to { opacity: 1; }
-}
-
-.animate-page-in {
-  animation: pageIn 120ms ease-out both;
-}
-
 /* Settings section swap — fades + slides up 6px. No animation-delay and
    no `backwards` fill mode so the content is never invisibly absent before
    the animation starts (avoids the flash that plain animate-stagger causes
@@ -1580,43 +1545,6 @@ body {
 
 .delay-1200 {
   animation-delay: 1200ms;
-}
-
-/* Sync bar — smooth indeterminate sliding animation for integration cards */
-@keyframes syncBar {
-  0% {
-    transform: translateX(-100%);
-    width: 33%;
-  }
-  50% {
-    width: 50%;
-  }
-  100% {
-    transform: translateX(300%);
-    width: 33%;
-  }
-}
-
-.animate-sync-bar {
-  animation: syncBar 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-}
-
-/* Loading bar — fills left to right, pauses, resets */
-@keyframes loadingBar {
-  0% {
-    transform: scaleX(0);
-  }
-  60% {
-    transform: scaleX(1);
-  }
-  80% {
-    transform: scaleX(1);
-    opacity: 1;
-  }
-  100% {
-    transform: scaleX(1);
-    opacity: 0;
-  }
 }
 
 /* Elevated button — press-in hover effect (primary: dark bg, secondary: light bg) */
@@ -1881,16 +1809,8 @@ textarea:-webkit-autofill {
   animation: eventModalBackdropIn 200ms ease-out both;
 }
 
-.animate-backdrop-out {
-  animation: eventModalBackdropOut 200ms ease-in both;
-}
-
 .animate-dialog-in {
   animation: eventModalCardIn 250ms cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-.animate-dialog-out {
-  animation: eventModalCardOut 200ms ease-in both;
 }
 
 /* Course row staggered fade-in */
@@ -1967,20 +1887,6 @@ textarea:-webkit-autofill {
   animation: announceCardOut 200ms ease-in both;
 }
 
-/* Sync progress bar — subtle smooth glow */
-@keyframes syncGlow {
-  0%, 100% {
-    opacity: 0.7;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
-.animate-sync-glow {
-  animation: syncGlow 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
 /* Element-level entrance animations were removed at the user's
    request. The class hooks remain as no-ops so existing markup still
    compiles, but no transform/opacity choreography fires. */
@@ -2013,39 +1919,6 @@ textarea:-webkit-autofill {
 .tour-click-pulse {
   animation: tourClickPulse 400ms cubic-bezier(0.16, 1, 0.3, 1) both;
   z-index: 10000;
-}
-
-/* Shimmer button — rotating conic-gradient spark */
-@keyframes shimmer-slide {
-  to {
-    transform: translate(calc(100cqw - 100%), 0);
-  }
-}
-
-@keyframes spin-around {
-  0% {
-    transform: translateZ(0) rotate(0);
-  }
-  15%, 35% {
-    transform: translateZ(0) rotate(90deg);
-  }
-  65%, 85% {
-    transform: translateZ(0) rotate(270deg);
-  }
-  100% {
-    transform: translateZ(0) rotate(360deg);
-  }
-}
-
-/* Rotating border for glassy GCal sync button */
-@keyframes borderSpin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.animate-border-spin {
-  animation: borderSpin 4s linear infinite;
 }
 
 /* ── Content-visibility optimizations for off-screen content ── */
@@ -2501,11 +2374,6 @@ input[type="range"].slider-blue::-moz-range-track {
 }
 
 /* ── Aesthetic widget keyframes ── */
-@keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-6px); }
-}
-
 @keyframes colonBlink {
   0%, 100% { opacity: 1; }
   50% { opacity: 0; }

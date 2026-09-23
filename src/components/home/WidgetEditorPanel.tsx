@@ -407,7 +407,7 @@ export default function WidgetEditorPanel({
         <button
           onClick={handleDone}
           style={{ height: 30 }}
-          className="px-4 text-sm font-semibold rounded-xl bg-blue-500 text-white hover:bg-blue-500/90 shadow-sm active:scale-[0.97] transition-all"
+          className="px-4 text-sm font-semibold rounded-xl bg-blue-500 text-white hover:bg-blue-500/90 shadow-sm dark:shadow-none active:scale-[0.97] transition-all"
         >
           Done
         </button>
