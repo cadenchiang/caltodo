@@ -436,7 +436,13 @@ export interface CourseMembership {
 export interface ChatMessage {
   id: string;
   course_id: string;
-  author_id: string;
+  /**
+   * Keyed server-side hash of (author, course). The same person has the
+   * same key within a chat and a different key in another chat. Clients
+   * never receive author_id (audit C2); own messages are recognised by
+   * comparing against the viewer's own key for the room.
+   */
+  author_key: string;
   author_name?: string | null;
   author_avatar?: string | null;
   body: string;
@@ -444,10 +450,10 @@ export interface ChatMessage {
   updated_at: string;
   /** UUID of the message this is a reply to (null if not a reply). */
   reply_to_id?: string | null;
+  /** Client-generated id that matches the optimistic bubble to the server row. */
+  client_nonce?: string | null;
   /** Client-only delivery status for optimistic UI. */
   _status?: "sending" | "delivered" | "failed";
-  /** Client-only system event text (e.g. "X unsent a message"). When set, renders as a centered notice instead of a bubble. */
-  _systemText?: string;
 }
 
 /**

@@ -40,12 +40,16 @@ export const USER_CACHE_KEY_PREFIXES: readonly string[] = [
   "calchat_pinned_",
   "calchat_name_",
   "calchat_last_sent_",
-  "calchat_pending_joins_",
+  "calchat_hidden_system_",
   "caltodo_board_completed_",
 ];
 
 /** sessionStorage key prefixes holding one user's data. */
-export const USER_SESSION_KEY_PREFIXES: readonly string[] = ["chat_messages_cache_"];
+export const USER_SESSION_KEY_PREFIXES: readonly string[] = [
+  "chat_messages_cache_",
+  "chat_members_cache_",
+  "calchat_author_key_",
+];
 
 /**
  * Removes every key in `storage` that matches the given names or prefixes.

@@ -1,12 +1,13 @@
 /**
- * Chat room page — server wrapper that pre-fetches the latest 50 messages
- * so the first visible frame is already pinned to the bottom of the chat
- * with no top-then-scroll flash. Delegates all interactive UI to
- * ChatPageClient which runs as a client component.
+ * Chat room page: server wrapper that pre-fetches the latest 50 messages so
+ * the first visible frame is already pinned to the bottom of the chat, and
+ * computes the viewer's author key for the room so own messages are
+ * recognised before any API call. Delegates all interactive UI to
+ * ChatPageClient.
  */
 import { createClient } from "@/lib/supabase/server";
-import { isAdmin } from "@/lib/admin";
-import { obfuscateAuthorId } from "@/lib/author-obfuscate";
+import { computeAuthorKey } from "@/lib/chat-author-key";
+import { MESSAGE_COLUMNS } from "@/lib/chat-message-shape";
 import type { ChatMessage } from "@/lib/types";
 import ChatPageClient from "./ChatPageClient";
 
@@ -17,21 +18,17 @@ interface PageProps {
 }
 
 /**
- * Fetches the most recent PAGE_SIZE messages for the target chat room,
- * verifying membership and applying the same author-id obfuscation rules
- * the API route uses. Returns oldest-first (display order).
+ * Fetches the most recent PAGE_SIZE messages for the room, verifying live
+ * membership, selecting only client-safe columns. Returns oldest-first.
  *
- * Any failure returns an empty array so the client can render its
- * existing skeleton; the useCourseChat hook will then fall back to
- * sessionStorage cache + the /api/discussions/messages endpoint.
+ * Any failure returns an empty list so the client renders its skeleton and
+ * falls back to the sessionStorage cache plus the API.
  */
-async function fetchInitialMessages(courseId: string): Promise<ChatMessage[]> {
+async function fetchInitial(courseId: string): Promise<{ messages: ChatMessage[]; authorKey: string | null }> {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return [];
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { messages: [], authorKey: null };
 
     const { data: membership } = await supabase
       .from("course_memberships")
@@ -40,34 +37,25 @@ async function fetchInitialMessages(courseId: string): Promise<ChatMessage[]> {
       .eq("course_id", courseId)
       .is("deleted_at", null)
       .maybeSingle();
-    if (!membership) return [];
+    if (!membership) return { messages: [], authorKey: null };
 
     const { data: rows, error } = await supabase
       .from("chat_messages")
-      .select("*")
+      .select(MESSAGE_COLUMNS)
       .eq("course_id", courseId)
       .order("created_at", { ascending: false })
       .limit(PAGE_SIZE);
-    if (error || !rows) return [];
+    if (error || !rows) return { messages: [], authorKey: computeAuthorKey(user.id, courseId) };
 
-    const userIsAdmin = isAdmin(user.email);
-    const sanitized = rows.map((msg) => {
-      if (userIsAdmin) return msg;
-      if (msg.author_id === user.id) return msg;
-      if (msg.author_name) return msg;
-      return { ...msg, author_id: obfuscateAuthorId(msg.author_id, courseId) };
-    });
-
-    // API returns newest-first; reverse for oldest-first display order.
-    return sanitized.reverse() as ChatMessage[];
+    return { messages: (rows as ChatMessage[]).reverse(), authorKey: computeAuthorKey(user.id, courseId) };
   } catch {
-    return [];
+    return { messages: [], authorKey: null };
   }
 }
 
 export default async function CourseChatPage({ params }: PageProps) {
   const { courseId } = await params;
-  const initialMessages = await fetchInitialMessages(courseId);
+  const { messages, authorKey } = await fetchInitial(courseId);
 
-  return <ChatPageClient initialCourseId={courseId} initialMessages={initialMessages} />;
+  return <ChatPageClient initialCourseId={courseId} initialMessages={messages} initialAuthorKey={authorKey} />;
 }

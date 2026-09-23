@@ -1,47 +1,43 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect, type KeyboardEvent, type ChangeEvent } from "react";
-import { EyeOff, Plus, Smile, X } from "lucide-react";
+import { useState, useRef, useCallback, useEffect, useId, type KeyboardEvent, type ChangeEvent } from "react";
+import { EyeOff, Plus, Smile, SendHorizontal, Loader2 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { classifyImage } from "@/lib/nsfw-check";
+import { MAX_ATTACHMENTS, MAX_FILE_SIZE, ALLOWED_TYPES } from "@/lib/chat-upload";
+import { MAX_MESSAGE_LENGTH } from "@/lib/chat-message-shape";
+import ChatAttachmentPreview, { type PendingAttachment } from "./ChatAttachmentPreview";
 
 // The picker statically pulls in the ~432KB @emoji-mart/data dataset, so it
-// is loaded on demand (client-only) rather than in the discussions route's
-// first-load bundle. It only mounts once the user opens it.
+// is loaded on demand (client-only) rather than in the first-load bundle.
 const ChatEmojiPicker = dynamic(() => import("./ChatEmojiPicker"), { ssr: false });
 
-/**
- * A single pending attachment with preview info.
- *
- * @property file - The raw File object
- * @property previewUrl - Blob URL for image preview (empty string for non-images)
- * @property isImage - Whether the file is an image type
- * @property isSensitive - Whether the image was flagged as NSFW by classification
- */
-export interface PendingAttachment {
-  file: File;
-  previewUrl: string;
-  isImage: boolean;
-  isSensitive?: boolean;
-}
+/** Helper text shown while anonymous mode is on. Disclosed, not implied. */
+export const ANONYMOUS_HELPER_TEXT =
+  "Sending anonymously. You appear as #N, and #N is the same person within this chat.";
+
+/** Show the character counter once the body is within this many of the limit. */
+export const COUNTER_THRESHOLD = MAX_MESSAGE_LENGTH - 500;
 
 /**
- * iMessage-style chat input with auto-resizing textarea,
- * file attachments, emoji picker, and anonymous toggle.
+ * Chat composer: auto-resizing textarea, attachments, emoji picker,
+ * anonymous toggle, and a send button.
  *
  * The anonymous flag is controlled by the parent (ChatView) so the reply
- * composer and the main composer share one setting: a reply started while
- * anonymous stays anonymous.
+ * composer and the main composer share one setting. Enter sends only on
+ * fine-pointer devices (Shift+Enter for a newline); on touch devices Enter
+ * inserts a newline and the send button is the way to send. While a send
+ * is in flight the send button is disabled and shows a spinner; the text
+ * stays in the box, so nothing is ever dropped.
  *
- * @param onSend - Callback fired with the message text, optional files, and anonymous flag
- * @param disabled - Whether sending is disabled
- * @param error - Error message to display below input
+ * @param onSend - Called with the text, optional files, and the anonymous flag
+ * @param disabled - Disables sending (not typing) while a send is in flight
+ * @param error - Message shown under the composer
  * @param anonymous - Whether the next message is sent without a name
- * @param onAnonymousChange - Called when the user toggles anonymous mode
+ * @param onAnonymousChange - Toggle handler
  * @param onTyping - Called on each keystroke while NOT anonymous; anonymous
- *                   typing is never broadcast, since a typing indicator with
- *                   the sender's name would identify the author of the
- *                   anonymous message that follows
+ *                   typing is never broadcast
+ * @param autoFocus - Focus the textarea on mount (reply composer)
  */
 interface ChatInputProps {
   onSend: (body: string, files?: File[], anonymous?: boolean) => void;
@@ -49,40 +45,40 @@ interface ChatInputProps {
   error?: string | null;
   anonymous: boolean;
   onAnonymousChange: (anonymous: boolean) => void;
-  /** Called on each keystroke so the parent can signal typing presence. */
   onTyping?: () => void;
+  autoFocus?: boolean;
 }
 
-/** Helper text shown while anonymous mode is on. Disclosed, not implied. */
-export const ANONYMOUS_HELPER_TEXT =
-  "Sending anonymously. You appear as #N, and #N is the same person within this chat.";
+const ROUND_BTN =
+  "w-10 h-10 rounded-full border border-border bg-card flex items-center justify-center shrink-0 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer active:scale-95 motion-reduce:active:scale-100 disabled:opacity-50 disabled:cursor-not-allowed";
 
-/** Max file size: 10 MB */
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf"];
-/** Max number of attachments per message. */
-const MAX_ATTACHMENTS = 10;
-
-export default function ChatInput({
-  onSend,
-  disabled,
-  error,
-  anonymous,
-  onAnonymousChange,
-  onTyping,
-}: ChatInputProps) {
+export default function ChatInput({ onSend, disabled, error, anonymous, onAnonymousChange, onTyping, autoFocus }: ChatInputProps) {
   const [value, setValue] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
   const [fileError, setFileError] = useState<string | null>(null);
+  const [coarsePointer, setCoarsePointer] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const emojiRef = useRef<HTMLDivElement>(null);
   const emojiBtnRef = useRef<HTMLButtonElement>(null);
+  const helpId = useId();
+  const errorId = useId();
 
-  /**
-   * Auto-resizes the textarea to fit content up to 120px.
-   */
+  // Enter-to-send only where a keyboard with a Shift key is the norm.
+  useEffect(() => {
+    const mql = window.matchMedia("(pointer: coarse)");
+    setCoarsePointer(mql.matches);
+    const onChange = () => setCoarsePointer(mql.matches);
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, []);
+
+  useEffect(() => {
+    if (autoFocus) textareaRef.current?.focus();
+  }, [autoFocus]);
+
+  /** Auto-resizes the textarea to fit content up to 120px. */
   const autoResize = useCallback(() => {
     const el = textareaRef.current;
     if (!el) return;
@@ -92,276 +88,203 @@ export default function ChatInput({
 
   const handleChange = useCallback(
     (e: ChangeEvent<HTMLTextAreaElement>) => {
-      setValue(e.target.value);
+      setValue(e.target.value.slice(0, MAX_MESSAGE_LENGTH));
       autoResize();
       // Never broadcast typing while anonymous (see ChatInputProps.onTyping).
       if (!anonymous) onTyping?.();
     },
-    [autoResize, onTyping, anonymous]
+    [autoResize, onTyping, anonymous],
   );
 
-  /**
-   * Sends the message with any attachments.
-   */
-  const handleSend = useCallback(() => {
-    const hasText = value.trim().length > 0;
-    const hasFiles = attachments.length > 0;
-    if ((!hasText && !hasFiles) || disabled) return;
+  const hasText = value.trim().length > 0;
+  const canSend = (hasText || attachments.length > 0) && !disabled;
 
-    onSend(value.trim(), hasFiles ? attachments.map((a) => a.file) : undefined, anonymous);
+  /** Sends the message with any attachments. */
+  const handleSend = useCallback(() => {
+    if (!canSend) return;
+    onSend(value.trim(), attachments.length > 0 ? attachments.map((a) => a.file) : undefined, anonymous);
     setValue("");
     setAttachments([]);
     setFileError(null);
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
-      // Keep cursor in the textarea so user can keep typing
       textareaRef.current.focus();
     }
-  }, [value, attachments, disabled, anonymous, onSend]);
+  }, [canSend, value, attachments, anonymous, onSend]);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLTextAreaElement>) => {
-      if (e.key === "Enter" && !e.shiftKey) {
+      if (e.key === "Enter" && !e.shiftKey && !coarsePointer && !e.nativeEvent.isComposing) {
         e.preventDefault();
         handleSend();
       }
     },
-    [handleSend]
+    [handleSend, coarsePointer],
   );
 
-  /**
-   * Handles file selection from the file input.
-   */
+  /** Validates and queues selected files, classifying images in the background. */
   const handleFileSelect = useCallback((e: ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
     setFileError(null);
-
-    const newAttachments: PendingAttachment[] = [];
-    const remaining = MAX_ATTACHMENTS - attachments.length;
-    const selectedFiles = Array.from(files).slice(0, remaining);
-    if (Array.from(files).length > remaining) {
-      setFileError(`Maximum ${MAX_ATTACHMENTS} attachments per message`);
-    }
-    for (const file of selectedFiles) {
-      if (file.size > MAX_FILE_SIZE) {
-        setFileError(`${file.name} exceeds 10 MB limit`);
-        continue;
+    setAttachments((prev) => {
+      const remaining = MAX_ATTACHMENTS - prev.length;
+      const selected = Array.from(files);
+      if (selected.length > remaining) setFileError(`You can attach up to ${MAX_ATTACHMENTS} files per message.`);
+      const added: PendingAttachment[] = [];
+      for (const file of selected.slice(0, Math.max(remaining, 0))) {
+        if (file.size > MAX_FILE_SIZE) { setFileError(`${file.name} is larger than 10 MB.`); continue; }
+        if (!ALLOWED_TYPES.includes(file.type)) { setFileError(`${file.name} is not a supported file type.`); continue; }
+        const isImage = file.type.startsWith("image/");
+        added.push({ file, previewUrl: isImage ? URL.createObjectURL(file) : "", isImage });
+        if (isImage) {
+          classifyImage(file)
+            .then((r) => setAttachments((cur) => cur.map((a) => (a.file === file ? { ...a, isSensitive: r.isSensitive } : a))))
+            .catch(() => setAttachments((cur) => cur.map((a) => (a.file === file ? { ...a, isSensitive: true } : a))));
+        }
       }
-      if (!ALLOWED_TYPES.includes(file.type)) {
-        setFileError(`${file.name}: unsupported file type`);
-        continue;
-      }
-      const isImage = file.type.startsWith("image/");
-      const previewUrl = isImage ? URL.createObjectURL(file) : "";
-      newAttachments.push({ file, previewUrl, isImage });
-
-      // Run NSFW classification in background for image files
-      if (isImage) {
-        classifyImage(file).then((result) => {
-          setAttachments((prev) =>
-            prev.map((att) =>
-              att.file === file ? { ...att, isSensitive: result.isSensitive } : att
-            )
-          );
-        }).catch(() => {
-          // Fail-closed: classification error marks image as sensitive
-          setAttachments((prev) =>
-            prev.map((att) =>
-              att.file === file ? { ...att, isSensitive: true } : att
-            )
-          );
-        });
-      }
-    }
-
-    setAttachments((prev) => [...prev, ...newAttachments]);
-    // Reset input so re-selecting the same file works
+      return [...prev, ...added];
+    });
     e.target.value = "";
   }, []);
 
-  /**
-   * Removes a pending attachment by index.
-   */
   const removeAttachment = useCallback((index: number) => {
     setAttachments((prev) => {
-      const removed = prev[index];
-      if (removed.previewUrl) URL.revokeObjectURL(removed.previewUrl);
+      if (prev[index]?.previewUrl) URL.revokeObjectURL(prev[index].previewUrl);
       return prev.filter((_, i) => i !== index);
     });
   }, []);
 
-  /**
-   * Inserts selected emoji at cursor position in textarea.
-   */
-  const handleEmojiSelect = useCallback(
-    (native: string) => {
-      const el = textareaRef.current;
-      if (el) {
-        const start = el.selectionStart;
-        const end = el.selectionEnd;
-        const newValue = value.slice(0, start) + native + value.slice(end);
-        setValue(newValue);
-        requestAnimationFrame(() => {
-          el.selectionStart = el.selectionEnd = start + native.length;
-          el.focus();
-        });
-      } else {
-        setValue((prev) => prev + native);
-      }
-      setShowEmojiPicker(false);
-    },
-    [value]
-  );
+  /** Inserts the emoji at the cursor. */
+  const handleEmojiSelect = useCallback((native: string) => {
+    const el = textareaRef.current;
+    if (el) {
+      const start = el.selectionStart;
+      const end = el.selectionEnd;
+      setValue((v) => v.slice(0, start) + native + v.slice(end));
+      requestAnimationFrame(() => {
+        el.selectionStart = el.selectionEnd = start + native.length;
+        el.focus();
+      });
+    } else {
+      setValue((v) => v + native);
+    }
+    setShowEmojiPicker(false);
+  }, []);
 
-  // Close emoji picker on outside click (ignore clicks on the toggle button)
+  // Close emoji picker on outside click or Escape
   useEffect(() => {
     if (!showEmojiPicker) return;
     function handleClick(e: MouseEvent) {
       const target = e.target as Node;
       if (emojiBtnRef.current?.contains(target)) return;
-      if (emojiRef.current && !emojiRef.current.contains(target)) {
-        setShowEmojiPicker(false);
-      }
+      if (emojiRef.current && !emojiRef.current.contains(target)) setShowEmojiPicker(false);
+    }
+    function handleKey(e: globalThis.KeyboardEvent) {
+      if (e.key === "Escape") setShowEmojiPicker(false);
     }
     document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("keydown", handleKey);
+    };
   }, [showEmojiPicker]);
 
-  // Cleanup object URLs on unmount
-  useEffect(() => {
-    return () => {
-      attachments.forEach((a) => {
-        if (a.previewUrl) URL.revokeObjectURL(a.previewUrl);
-      });
-    };
+  // Revoke object URLs on unmount
+  useEffect(() => () => attachments.forEach((a) => a.previewUrl && URL.revokeObjectURL(a.previewUrl)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    []);
+
+  const shownError = error || fileError;
+  const showCounter = value.length >= COUNTER_THRESHOLD;
 
   return (
-    <div className="px-5 pt-2 pb-4 relative">
-      {/* Emoji picker popover */}
+    <div className="px-3 md:px-5 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))] relative">
       {showEmojiPicker && (
         <div ref={emojiRef} className="absolute bottom-16 right-4 z-30 shadow-xl rounded-xl overflow-hidden">
           <ChatEmojiPicker onSelect={handleEmojiSelect} />
         </div>
       )}
 
-      {/* Attachment previews */}
-      {attachments.length > 0 && (
-        <div className="flex gap-3 mb-3 flex-wrap px-1">
-          {attachments.map((att, i) => (
-            <div key={i} className="relative">
-              {att.isImage ? (
-                <div className="rounded-2xl overflow-hidden border border-black/10 dark:border-white/10 shadow-sm relative">
-                  <img
-                    src={att.previewUrl}
-                    alt={att.file.name}
-                    className={`max-w-[200px] max-h-[160px] object-cover ${att.isSensitive ? "blur-lg" : ""}`}
-                  />
-                  {att.isSensitive && (
-                    <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-md bg-red-500/80 text-white text-[9px] font-medium">
-                      Sensitive
-                    </div>
-                  )}
-                  <div className="px-2.5 py-1.5 bg-white dark:bg-zinc-800 text-[10px] text-muted-foreground truncate">
-                    {att.file.name}
-                  </div>
-                </div>
-              ) : (
-                <div className="w-[140px] rounded-2xl border border-black/10 dark:border-white/10 shadow-sm bg-white dark:bg-zinc-800 p-3 flex flex-col items-center gap-1.5">
-                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-                    <span className="text-[10px] font-bold text-muted-foreground">
-                      {att.file.name.split(".").pop()?.toUpperCase()}
-                    </span>
-                  </div>
-                  <span className="text-[10px] text-muted-foreground truncate w-full text-center">
-                    {att.file.name}
-                  </span>
-                </div>
-              )}
-              <button
-                onClick={() => removeAttachment(i)}
-                className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-black/70 dark:bg-white/80 text-white dark:text-black flex items-center justify-center shadow-sm cursor-pointer hover:bg-black/90 dark:hover:bg-white transition-colors"
-              >
-                <X size={14} />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
+      <ChatAttachmentPreview attachments={attachments} onRemove={removeAttachment} />
 
-      {/* Anonymous mode indicator: pseudonymity is disclosed, not implied */}
       {anonymous && (
-        <div id="chat-anonymous-help" className="flex items-center gap-1.5 mb-2 px-1">
+        <div id={helpId} className="flex items-center gap-1.5 mb-2 px-1">
           <EyeOff size={12} className="text-muted-foreground shrink-0" aria-hidden="true" />
-          <span className="text-[11px] text-muted-foreground">
-            {ANONYMOUS_HELPER_TEXT}
-          </span>
+          <span className="text-[11px] text-muted-foreground">{ANONYMOUS_HELPER_TEXT}</span>
         </div>
       )}
 
-      {(error || fileError) && (
-        <div className="text-xs text-red-500 mb-1.5 px-1">{error || fileError}</div>
+      {shownError && (
+        <div id={errorId} role="alert" className="text-xs text-red-500 mb-1.5 px-1">{shownError}</div>
       )}
 
-      {/* Hidden file input */}
       <input
         ref={fileInputRef}
         type="file"
         multiple
-        accept="image/jpeg,image/png,image/gif,image/webp,application/pdf"
+        accept={ALLOWED_TYPES.join(",")}
         onChange={handleFileSelect}
         className="hidden"
+        aria-hidden="true"
+        tabIndex={-1}
       />
 
-      {/* Input row: [+] [🕵] [Message] [😊] */}
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          className="w-10 h-10 rounded-full bg-gray-200/80 dark:bg-black/50 dark:backdrop-blur-sm border border-black/5 dark:border-white/15 flex items-center justify-center shrink-0 text-gray-500 dark:text-gray-300 hover:bg-gray-300/80 dark:hover:bg-black/60 transition-colors cursor-pointer active:scale-95"
-          aria-label="Add attachment"
-        >
-          <Plus size={20} strokeWidth={2.5} />
+      <div className="flex items-end gap-2">
+        <button type="button" onClick={() => fileInputRef.current?.click()} className={ROUND_BTN} aria-label="Add attachment">
+          <Plus size={20} strokeWidth={2.5} aria-hidden="true" />
         </button>
         <button
           type="button"
           onClick={() => onAnonymousChange(!anonymous)}
           aria-pressed={anonymous}
-          aria-describedby={anonymous ? "chat-anonymous-help" : undefined}
-          className={`w-10 h-10 rounded-full border flex items-center justify-center shrink-0 transition-colors cursor-pointer active:scale-95 ${
-            anonymous
-              ? "bg-zinc-800 dark:bg-white border-zinc-800 dark:border-white text-white dark:text-zinc-900"
-              : "bg-gray-200/80 dark:bg-black/50 dark:backdrop-blur-sm border-black/5 dark:border-white/15 text-gray-500 dark:text-gray-300 hover:bg-gray-300/80 dark:hover:bg-black/60"
-          }`}
-          aria-label={anonymous ? "Switch to named message" : "Send anonymously"}
-          title={anonymous ? "Anonymous mode on" : "Send anonymously"}
+          aria-describedby={anonymous ? helpId : undefined}
+          aria-label={anonymous ? "Anonymous mode on. Switch to named messages" : "Send anonymously"}
+          className={anonymous ? `${ROUND_BTN} bg-gray-900 text-white border-gray-900 hover:bg-gray-900 hover:text-white dark:bg-white dark:text-gray-900 dark:border-white dark:hover:bg-white dark:hover:text-gray-900` : ROUND_BTN}
         >
-          <EyeOff size={18} />
+          <EyeOff size={18} aria-hidden="true" />
         </button>
-        <div className="flex-1 bg-gray-200/80 dark:bg-black/50 dark:backdrop-blur-sm rounded-[22px] border border-black/5 dark:border-white/15 px-4 py-2.5 flex items-center">
+        <div className="flex-1 min-w-0 bg-card rounded-[22px] border border-input-border px-4 py-2 flex items-center focus-within:ring-2 focus-within:ring-ring">
           <textarea
             ref={textareaRef}
             value={value}
             onChange={handleChange}
             onKeyDown={handleKeyDown}
             placeholder="Message"
-            aria-label="Type a message"
+            aria-label="Message"
+            aria-describedby={shownError ? errorId : undefined}
+            aria-invalid={!!shownError || undefined}
+            maxLength={MAX_MESSAGE_LENGTH}
             rows={1}
-            className="flex-1 bg-transparent text-[15px] text-foreground placeholder:text-gray-400 dark:placeholder:text-zinc-500 resize-none outline-none min-h-[24px] max-h-[120px] leading-[24px] py-0"
+            className="flex-1 bg-transparent text-[15px] text-foreground placeholder:text-muted-foreground resize-none outline-none min-h-[24px] max-h-[120px] leading-[24px] py-0"
           />
+          {showCounter && (
+            <span
+              className={`ml-2 text-[11px] tabular-nums shrink-0 ${value.length >= MAX_MESSAGE_LENGTH ? "text-red-500" : "text-muted-foreground"}`}
+              aria-live="polite"
+            >
+              {value.length}/{MAX_MESSAGE_LENGTH}
+            </span>
+          )}
         </div>
+        <button ref={emojiBtnRef} type="button" onClick={() => setShowEmojiPicker((v) => !v)} className={ROUND_BTN} aria-label="Add emoji" aria-expanded={showEmojiPicker}>
+          <Smile size={20} aria-hidden="true" />
+        </button>
         <button
-          ref={emojiBtnRef}
           type="button"
-          onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-          className="w-10 h-10 rounded-full bg-gray-200/80 dark:bg-black/50 dark:backdrop-blur-sm border border-black/5 dark:border-white/15 flex items-center justify-center shrink-0 text-gray-500 dark:text-gray-300 hover:bg-gray-300/80 dark:hover:bg-black/60 transition-colors cursor-pointer active:scale-95"
-          aria-label="Emoji"
+          onClick={handleSend}
+          disabled={!canSend}
+          aria-label={disabled ? "Sending" : "Send message"}
+          aria-busy={disabled}
+          className="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center shrink-0 hover:bg-blue-600 transition-colors cursor-pointer active:scale-95 motion-reduce:active:scale-100 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <Smile size={20} />
+          {disabled ? <Loader2 size={18} className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <SendHorizontal size={18} aria-hidden="true" />}
         </button>
       </div>
+      {!coarsePointer && (
+        <p className="sr-only">Press Enter to send, Shift and Enter for a new line.</p>
+      )}
     </div>
   );
 }

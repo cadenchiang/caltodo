@@ -1,646 +1,221 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { ensureRealtimeAuth } from "@/lib/supabase/realtime-auth";
 import type { ChatMessage } from "@/lib/types";
-import type { RealtimeChannel } from "@supabase/supabase-js";
-import { createSystemEvent, fetchUserName } from "./chatSystemEvents";
-import { readCache, writeCache } from "./chatCache";
-import { obfuscateAuthorId } from "@/lib/author-obfuscate";
-import { compressImage } from "@/lib/compress-image";
-import { classifyImage } from "@/lib/nsfw-check";
-import { playMessageSent } from "@/lib/sounds";
-import { READ_AT_PREFIX } from "@/lib/chat-actions";
+import { readCache, writeCache, readAuthorKey, writeAuthorKey } from "./chatCache";
+import { subscribeRoomEvents } from "@/lib/chat-realtime";
+import { mergeIncoming, prependOlder, replaceWithFetched, removeMessage } from "@/lib/chat-message-merge";
+import { friendlyChatError } from "@/lib/chat-errors";
+import { AUTHOR_KEY_HEADER } from "@/lib/chat-message-shape";
+import { useChatSender } from "./useChatSender";
+import { useOnlineStatus } from "./useOnlineStatus";
 
 const PAGE_SIZE = 50;
 
 /**
- * Core hook for course group chat.
- * Fetches message history, subscribes to Realtime for live messages,
- * tracks Presence for online users, and provides sendMessage/loadMore.
+ * Core hook for a course group chat.
+ * Fetches history (cache first), subscribes to the room's private
+ * broadcast channel for inserts and deletes, paginates with an in-flight
+ * guard and id dedupe (M19), keeps the newest 200 messages in the
+ * sessionStorage cache on every change (M21), and exposes the viewer's own
+ * author key so the UI can tell its messages apart without author ids.
  *
  * @param courseId - The course UUID to chat in
- * @returns Messages, online users, loading state, and action functions
+ * @param options.initialMessages - Server-prefetched page for the initial SSR room
+ * @param options.initialAuthorKey - Viewer's author key from the server page
+ * @param options.currentUserId - The viewer's auth id (for upload paths)
+ * @param options.currentUserName - The viewer's display name (optimistic bubbles)
  */
-/** Interval for flushing batched join events in system courses. */
-const JOIN_BATCH_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
-
 export function useCourseChat(
   courseId: string,
-  options?: {
-    isSystemCourse?: boolean;
-    isAdmin?: boolean;
-    /**
-     * Server-pre-fetched messages for instant first paint at the chat bottom.
-     * Only applied when courseId matches the initial SSR courseId; consumers
-     * must pass undefined on subsequent room switches so the hook falls back
-     * to sessionStorage cache + API.
-     */
-     initialMessages?: ChatMessage[];
-  }
+  options: {
+    initialMessages?: ChatMessage[];
+    initialAuthorKey?: string | null;
+    currentUserId: string;
+    currentUserName: string | null;
+  },
 ) {
-  const isSystemCourse = options?.isSystemCourse ?? false;
-  const isAdminUser = options?.isAdmin ?? false;
-  const initialMessages = options?.initialMessages;
-  const hasSeedRef = useRef(initialMessages && initialMessages.length > 0);
+  const { initialMessages, initialAuthorKey, currentUserId, currentUserName } = options;
+  const hasSeed = !!initialMessages && initialMessages.length > 0;
+
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
-    // Persist the SSR seed into the sessionStorage cache so a subsequent
-    // tab navigation (without SSR seed) still hydrates instantly.
-    if (initialMessages && initialMessages.length > 0) {
-      writeCache(courseId, initialMessages);
-    }
+    if (hasSeed) writeCache(courseId, initialMessages!);
     return initialMessages ?? [];
   });
-  const [loading, setLoading] = useState(!hasSeedRef.current);
+  const [loading, setLoading] = useState(!hasSeed);
   const [error, setError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
-  const [sending, setSending] = useState(false);
-  const [spamCooldownEnd, setSpamCooldownEnd] = useState<number>(0);
-  const [initialFetchDone, setInitialFetchDone] = useState(hasSeedRef.current ?? false);
-  const channelRef = useRef<RealtimeChannel | null>(null);
-  const cooldownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [initialFetchDone, setInitialFetchDone] = useState(hasSeed);
+  const [notMember, setNotMember] = useState(false);
+  const [myAuthorKey, setMyAuthorKey] = useState<string | null>(initialAuthorKey ?? null);
+  const loadingMoreRef = useRef(false);
   const prevCourseIdRef = useRef(courseId);
-  /** Accumulates join names for system courses to batch into one notification. */
-  const pendingJoinsRef = useRef<string[]>([]);
-  const joinTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  /** Maps temporary optimistic IDs to server-assigned IDs for deduplication. */
-  const tempToServerIdRef = useRef<Map<string, string>>(new Map());
-  /** Always points to the current courseId so async callbacks can detect staleness. */
+  /** Always the current courseId so async callbacks can detect staleness. */
   const activeCourseIdRef = useRef(courseId);
   activeCourseIdRef.current = courseId;
-  const supabase = createClient();
+  const online = useOnlineStatus();
 
-  // Synchronously reset state when courseId changes (prevents stale frame)
+  // Synchronously reset state when the room changes (no stale frame)
   if (prevCourseIdRef.current !== courseId) {
     prevCourseIdRef.current = courseId;
     const cached = readCache(courseId);
-    if (cached && cached.length > 0) {
-      setMessages(cached);
-      setLoading(false);
-    } else {
-      setMessages([]);
-      setLoading(true);
-    }
+    setMessages(cached ?? []);
+    setLoading(!cached);
     setError(null);
     setHasMore(false);
     setInitialFetchDone(false);
+    setNotMember(false);
+    setMyAuthorKey(readAuthorKey(courseId));
   }
 
+  /** Records the viewer's author key from a response header. */
+  const noteAuthorKey = useCallback((res: Response) => {
+    const key = res.headers.get(AUTHOR_KEY_HEADER);
+    if (key) {
+      writeAuthorKey(courseId, key);
+      setMyAuthorKey(key);
+    }
+  }, [courseId]);
+
   /**
-   * Fetches initial message history from the API.
-   * Shows cached data first (stale-while-revalidate).
-   * Guards against stale responses when courseId changes mid-flight.
+   * Fetches the latest page (stale-while-revalidate over the cache).
+   * A 403 means the viewer is not (or no longer) a member.
    */
   const fetchMessages = useCallback(async () => {
     setError(null);
-
-    // Show cached data first
     const cached = readCache(courseId);
     if (cached && cached.length > 0) {
-      setMessages(cached);
+      setMessages((prev) => replaceWithFetched(prev, cached));
       setLoading(false);
     }
 
     try {
-      const res = await fetch(
-        `/api/discussions/messages?courseId=${encodeURIComponent(courseId)}&limit=${PAGE_SIZE}`
-      );
-      // Stale guard: discard response if user switched chats during fetch
+      const res = await fetch(`/api/discussions/messages?courseId=${encodeURIComponent(courseId)}&limit=${PAGE_SIZE}`);
       if (activeCourseIdRef.current !== courseId) return;
-
+      if (res.status === 403) {
+        setNotMember(true);
+        return;
+      }
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || `Failed to fetch messages (${res.status})`);
+        throw new Error(friendlyChatError(res.status, data.error, "load this chat"));
       }
+      noteAuthorKey(res);
       const data: ChatMessage[] = await res.json();
-      // Double-check after parsing JSON
       if (activeCourseIdRef.current !== courseId) return;
-
-      // API returns newest first; reverse for display (oldest at top)
       const sorted = [...data].reverse();
-      // Merge: preserve any in-flight optimistic messages (temp-ID) so they
-      // don't vanish when the server fetch returns before the send completes.
       setMessages((prev) => {
-        const optimistic = prev.filter((m) => m.id.startsWith("temp-"));
-        if (optimistic.length === 0) return sorted;
-        return [...sorted, ...optimistic];
+        const next = replaceWithFetched(prev, sorted);
+        writeCache(courseId, next);
+        return next;
       });
-      writeCache(courseId, sorted);
       setHasMore(data.length >= PAGE_SIZE);
     } catch (err) {
       if (activeCourseIdRef.current !== courseId) return;
-      const msg = err instanceof Error ? err.message : String(err);
-      setError(msg);
+      setError(err instanceof Error ? err.message : friendlyChatError(0, null, "load this chat"));
     } finally {
       if (activeCourseIdRef.current === courseId) {
         setLoading(false);
         setInitialFetchDone(true);
       }
     }
-  }, [courseId]);
+  }, [courseId, noteAuthorKey]);
 
   /**
-   * Loads older messages before the earliest current message.
-   * Prepends to existing messages array.
+   * Loads the page before the earliest loaded message. Guarded so scroll
+   * events cannot start a second request while one is in flight.
    */
   const loadMore = useCallback(async () => {
-    if (!hasMore || messages.length === 0) return;
-
+    if (!hasMore || messages.length === 0 || loadingMoreRef.current) return;
+    loadingMoreRef.current = true;
     const oldest = messages[0];
     try {
       const res = await fetch(
-        `/api/discussions/messages?courseId=${encodeURIComponent(courseId)}&limit=${PAGE_SIZE}&before=${encodeURIComponent(oldest.created_at)}`
+        `/api/discussions/messages?courseId=${encodeURIComponent(courseId)}&limit=${PAGE_SIZE}&before=${encodeURIComponent(oldest.created_at)}`,
       );
       if (!res.ok || activeCourseIdRef.current !== courseId) return;
       const data: ChatMessage[] = await res.json();
       if (activeCourseIdRef.current !== courseId) return;
       const sorted = [...data].reverse();
       setMessages((prev) => {
-        const updated = [...sorted, ...prev];
-        writeCache(courseId, updated);
-        return updated;
+        const next = prependOlder(prev, sorted);
+        writeCache(courseId, next);
+        return next;
       });
       setHasMore(data.length >= PAGE_SIZE);
     } catch {
-      // Silent failure for pagination
+      setError(friendlyChatError(0, null, "load older messages"));
+    } finally {
+      loadingMoreRef.current = false;
     }
   }, [courseId, hasMore, messages]);
 
-  /**
-   * Uploads files to Supabase Storage and returns their public URLs.
-   *
-   * @param files - Array of File objects to upload
-   * @returns Array of public URLs for the uploaded files
-   */
-  const uploadFiles = useCallback(async (files: File[]): Promise<string[]> => {
-    const urls: string[] = [];
-    for (const file of files) {
-      const processedFile = await compressImage(file);
-
-      // Classify image files for NSFW content before upload
-      let isSensitive = false;
-      if (processedFile.type.startsWith("image/")) {
-        const result = await classifyImage(processedFile);
-        isSensitive = result.isSensitive;
-      }
-
-      const ext = processedFile.name.split(".").pop() ?? "bin";
-      const path = `${courseId}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
-      const { error: uploadError } = await supabase.storage
-        .from("chat-attachments")
-        .upload(path, processedFile, { cacheControl: "3600", upsert: false });
-      if (uploadError) {
-        const isBucketMissing = uploadError.message?.includes("Bucket not found");
-        throw new Error(
-          isBucketMissing
-            ? "File uploads are not configured yet. Please run 'supabase db push' to set up storage."
-            : `Upload failed: ${uploadError.message}`
-        );
-      }
-      const { data: urlData } = supabase.storage
-        .from("chat-attachments")
-        .getPublicUrl(path);
-      // Prefix sensitive image URLs with [sensitive] marker
-      const publicUrl = isSensitive
-        ? `[sensitive]${urlData.publicUrl}`
-        : urlData.publicUrl;
-      urls.push(publicUrl);
-    }
-    return urls;
-  }, [courseId, supabase.storage]);
+  const { sending, sendMessage, retryMessage } = useChatSender({
+    courseId,
+    currentUserId,
+    currentUserName,
+    myAuthorKey,
+    setMessages,
+    setError,
+    onResponse: noteAuthorKey,
+  });
 
   /**
-   * Sends a new message via the API, optionally with file attachments.
-   * Uses optimistic UI: message appears instantly with "sending" status,
-   * then updates to "delivered" or "failed" based on API response.
-   *
-   * @param body - The message text
-   * @param files - Optional array of files to attach
-   * @param anonymous - Whether to send the message anonymously (no name/avatar stored)
-   * @param replyToId - Optional ID of the message being replied to
-   */
-  const sendMessage = useCallback(async (body: string, files?: File[], anonymous?: boolean, replyToId?: string) => {
-    if ((!body.trim() && (!files || files.length === 0)) || sending) return;
-
-    setSending(true);
-    setError(null);
-
-    // Generate a temporary ID for optimistic display
-    const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-
-    try {
-      let finalBody = body.trim();
-
-      // Upload attachments if any
-      if (files && files.length > 0) {
-        const urls = await uploadFiles(files);
-        const attachmentText = urls.join("\n");
-        finalBody = finalBody ? `${finalBody}\n${attachmentText}` : attachmentText;
-      }
-
-      // Get current user info for optimistic message
-      const { data: { user } } = await supabase.auth.getUser();
-      const now = new Date().toISOString();
-
-      // Create optimistic message and append immediately
-      const optimisticMsg: ChatMessage = {
-        id: tempId,
-        course_id: courseId,
-        author_id: user?.id ?? "",
-        author_name: anonymous ? null : (user?.user_metadata?.full_name ?? null),
-        author_avatar: anonymous ? null : (user?.user_metadata?.avatar_url ?? null),
-        body: finalBody,
-        created_at: now,
-        updated_at: now,
-        reply_to_id: replyToId ?? null,
-        _status: "sending",
-      };
-
-      setMessages((prev) => [...prev, optimisticMsg]);
-
-      // Register pending sentinel so the Realtime handler can detect
-      // that this tempId is awaiting a server ID, even if the INSERT
-      // event fires before the API response arrives.
-      tempToServerIdRef.current.set(tempId, "pending");
-
-      const res = await fetch("/api/discussions/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ courseId, body: finalBody, anonymous: anonymous ?? false, replyToId: replyToId ?? undefined }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-
-        // Handle spam detection 429 with retryAfter countdown
-        if (res.status === 429 && data.retryAfter) {
-          const endTime = Date.now() + data.retryAfter * 1000;
-          setSpamCooldownEnd(endTime);
-
-          // Clear any existing countdown timer
-          if (cooldownTimerRef.current) {
-            clearInterval(cooldownTimerRef.current);
-          }
-
-          const updateCountdown = () => {
-            const remaining = Math.ceil((endTime - Date.now()) / 1000);
-            if (remaining <= 0) {
-              setError(null);
-              setSpamCooldownEnd(0);
-              if (cooldownTimerRef.current) {
-                clearInterval(cooldownTimerRef.current);
-                cooldownTimerRef.current = null;
-              }
-            } else {
-              setError(`Sending too fast. Try again in ${remaining}s.`);
-            }
-          };
-
-          updateCountdown();
-          cooldownTimerRef.current = setInterval(updateCountdown, 1000);
-
-          // Remove the optimistic message and clean up sentinel
-          tempToServerIdRef.current.delete(tempId);
-          setMessages((prev) => prev.filter((m) => m.id !== tempId));
-          setSending(false);
-          return;
-        }
-
-        throw new Error(data.error || "Failed to send message");
-      }
-
-      // API returns the created message with real ID
-      const serverMsg: ChatMessage = await res.json();
-
-      // Update the mapping with the real server ID for Realtime dedup
-      tempToServerIdRef.current.set(tempId, serverMsg.id);
-
-      // Replace optimistic message with server version
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === tempId
-            ? { ...serverMsg, _status: "delivered" as const }
-            : m
-        )
-      );
-      playMessageSent();
-
-      // Mark this course as recently sent — GlobalChatNotifier uses this as a
-      // secondary filter to suppress self-notifications on quick navigation.
-      try {
-        localStorage.setItem(`calchat_last_sent_${courseId}`, String(Date.now()));
-      } catch { /* non-critical */ }
-
-      // Update read_at so the user's own message doesn't trigger an unread badge
-      try {
-        localStorage.setItem(READ_AT_PREFIX + courseId, new Date().toISOString());
-      } catch { /* non-critical */ }
-      window.dispatchEvent(new CustomEvent("calchat-read-update", { detail: { courseId } }));
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      setError(msg);
-
-      // Clean up the pending sentinel on failure
-      tempToServerIdRef.current.delete(tempId);
-
-      // Mark optimistic message as failed
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === tempId ? { ...m, _status: "failed" as const } : m
-        )
-      );
-    } finally {
-      setSending(false);
-    }
-  }, [courseId, sending, uploadFiles, supabase.auth]);
-
-  /**
-   * Unsends a message by ID via the API and removes it from local state.
-   * Shows a system event: "Name unsent a message" or "Anonymous #N unsent a message".
-   *
-   * @param messageId - The ID of the message to unsend
+   * Unsends a message: removes it locally, then asks the API. A failure
+   * refetches so the list matches the server.
    */
   const deleteMessage = useCallback(async (messageId: string) => {
-    // Compute label before removing, then remove + add system event atomically
     setMessages((prev) => {
-      const msg = prev.find((m) => m.id === messageId);
-      if (!msg) return prev;
-
-      let label: string;
-      if (msg.author_name) {
-        label = msg.author_name;
-      } else {
-        // Compute anonymous number from current message order
-        const anonMap = new Map<string, number>();
-        let counter = 0;
-        for (const m of prev) {
-          if (!m.author_name && !m._systemText && !anonMap.has(m.author_id)) {
-            counter++;
-            anonMap.set(m.author_id, counter);
-          }
-        }
-        const num = anonMap.get(msg.author_id);
-        label = `#${num ?? "?"}`;
-      }
-
-      const filtered = prev.filter((m) => m.id !== messageId);
-      return [...filtered, createSystemEvent(courseId, `sys-unsend-${messageId}`, `${label} unsent a message`)];
+      const next = removeMessage(prev, messageId);
+      writeCache(courseId, next);
+      return next;
     });
-
     try {
       const res = await fetch("/api/discussions/messages", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messageId }),
       });
-
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        console.error("Failed to unsend message:", data.error ?? res.statusText);
+        setError(friendlyChatError(res.status, data.error, "unsend that message"));
         fetchMessages();
       }
-    } catch (err) {
-      console.error("Unsend message error:", err);
+    } catch {
+      setError(friendlyChatError(0, null, "unsend that message"));
       fetchMessages();
     }
   }, [courseId, fetchMessages]);
 
-  // Subscribe to Realtime for new messages and presence
+  // Fetch and subscribe per room
   useEffect(() => {
     fetchMessages();
-
-    const channel = supabase.channel(`chat:${courseId}`);
-
-    // Listen for new messages via postgres_changes
-    channel.on(
-      "postgres_changes",
-      {
-        event: "INSERT",
-        schema: "public",
-        table: "chat_messages",
-        filter: `course_id=eq.${courseId}`,
-      },
-      (payload) => {
-        const newMsg = payload.new as ChatMessage;
+    const unsubscribe = subscribeRoomEvents(courseId, {
+      onInserted: (msg) => {
+        if (msg.course_id !== courseId) return;
         setMessages((prev) => {
-          // Check if this server message matches an optimistic message
-          const tempEntry = Array.from(tempToServerIdRef.current.entries())
-            .find(([, serverId]) => serverId === newMsg.id);
-
-          if (tempEntry) {
-            // Already replaced by optimistic flow — skip Realtime duplicate
-            tempToServerIdRef.current.delete(tempEntry[0]);
-            return prev;
-          }
-
-          // If any temp message is still "pending" (API hasn't responded yet)
-          // and the author matches, this Realtime event is likely for our
-          // in-flight send. Replace the optimistic message with the real one.
-          const pendingEntry = Array.from(tempToServerIdRef.current.entries())
-            .find(([, serverId]) => serverId === "pending");
-          if (pendingEntry) {
-            const [pendingTempId] = pendingEntry;
-            const optimistic = prev.find((m) => m.id === pendingTempId);
-            if (optimistic && optimistic.author_id === newMsg.author_id) {
-              tempToServerIdRef.current.set(pendingTempId, newMsg.id);
-              return prev.map((m) =>
-                m.id === pendingTempId
-                  ? { ...newMsg, _status: "delivered" as const }
-                  : m
-              );
-            }
-          }
-
-          // Avoid duplicates from normal flow
-          if (prev.some((m) => m.id === newMsg.id)) return prev;
-          // Obfuscate anonymous messages from other users (non-admin)
-          const finalMsg = (!isAdminUser && !newMsg.author_name)
-            ? { ...newMsg, author_id: obfuscateAuthorId(newMsg.author_id, courseId) }
-            : newMsg;
-          const updated = [...prev, finalMsg];
-          writeCache(courseId, updated);
-          return updated;
+          const next = mergeIncoming(prev, msg);
+          if (next !== prev) writeCache(courseId, next);
+          return next;
         });
-      }
-    );
-
-    // Listen for deleted messages via postgres_changes
-    channel.on(
-      "postgres_changes",
-      {
-        event: "DELETE",
-        schema: "public",
-        table: "chat_messages",
-        filter: `course_id=eq.${courseId}`,
       },
-      (payload) => {
-        const old = payload.old as ChatMessage | undefined;
-        if (!old?.id) return;
+      onDeleted: ({ id }) => {
         setMessages((prev) => {
-          // Skip if this was our own unsend (system event already added locally)
-          if (prev.some((m) => m.id === `sys-unsend-${old.id}`)) {
-            return prev.filter((m) => m.id !== old.id);
-          }
-
-          let label: string;
-          if (old.author_name) {
-            label = old.author_name;
-          } else {
-            // Compute anonymous number from current messages
-            const anonMap = new Map<string, number>();
-            let counter = 0;
-            for (const m of prev) {
-              if (!m.author_name && !m._systemText && !anonMap.has(m.author_id)) {
-                counter++;
-                anonMap.set(m.author_id, counter);
-              }
-            }
-            const num = old.author_id ? anonMap.get(old.author_id) : undefined;
-            label = `#${num ?? "?"}`;
-          }
-
-          const filtered = prev.filter((m) => m.id !== old.id);
-          return [...filtered, createSystemEvent(courseId, `sys-unsend-${old.id}`, `${label} unsent a message`)];
+          const next = removeMessage(prev, id);
+          writeCache(courseId, next);
+          return next;
         });
-      }
-    );
-
-    // Subscribe to membership changes for join/leave system events
-    const memberChannel = supabase.channel(`members:${courseId}`);
-
-    /** localStorage key for persisting pending join names across navigation. */
-    const JOIN_STORAGE_KEY = `calchat_pending_joins_${courseId}`;
-
-    /** Reads persisted pending joins from localStorage. */
-    function loadPendingJoins(): string[] {
-      try {
-        const raw = localStorage.getItem(JOIN_STORAGE_KEY);
-        return raw ? JSON.parse(raw) : [];
-      } catch { return []; }
-    }
-
-    /** Persists pending joins to localStorage. */
-    function savePendingJoins(names: string[]): void {
-      try {
-        if (names.length === 0) {
-          localStorage.removeItem(JOIN_STORAGE_KEY);
-        } else {
-          localStorage.setItem(JOIN_STORAGE_KEY, JSON.stringify(names));
-        }
-      } catch { /* localStorage unavailable */ }
-    }
-
-    // Restore any pending joins from a previous session
-    if (isSystemCourse) {
-      const persisted = loadPendingJoins();
-      if (persisted.length > 0) {
-        pendingJoinsRef.current = persisted;
-      }
-    }
-
-    /**
-     * Flushes accumulated join names into a single batched system event.
-     * Called on an interval for system courses (calfam).
-     */
-    function flushJoinBatch() {
-      const names = pendingJoinsRef.current.splice(0);
-      savePendingJoins([]);
-      if (names.length === 0) return;
-      const text = names.length === 1
-        ? `${names[0]} joined the group`
-        : `${names.length} new members joined the group`;
-      setMessages((prev) => [...prev, createSystemEvent(courseId, `sys-join-batch-${Date.now()}`, text)]);
-    }
-
-    memberChannel.on(
-      "postgres_changes",
-      {
-        event: "INSERT",
-        schema: "public",
-        table: "course_memberships",
-        filter: `course_id=eq.${courseId}`,
       },
-      async (payload) => {
-        const newMember = payload.new as { user_id: string };
-        const name = await fetchUserName(newMember.user_id);
-        // Notify member list hooks to refetch
-        window.dispatchEvent(new CustomEvent("calchat-members-changed", { detail: { courseId } }));
-        if (isSystemCourse) {
-          pendingJoinsRef.current.push(name);
-          savePendingJoins(pendingJoinsRef.current);
-        } else {
-          setMessages((prev) => [...prev, createSystemEvent(courseId, `sys-join-${newMember.user_id}-${Date.now()}`, `${name} joined the group`)]);
-        }
-      }
-    );
+    });
+    return unsubscribe;
+  }, [courseId, fetchMessages]);
 
-    // For system courses, flush batched joins every hour
-    if (isSystemCourse) {
-      joinTimerRef.current = setInterval(flushJoinBatch, JOIN_BATCH_INTERVAL_MS);
-    }
-
-    memberChannel.on(
-      "postgres_changes",
-      {
-        event: "DELETE",
-        schema: "public",
-        table: "course_memberships",
-        filter: `course_id=eq.${courseId}`,
-      },
-      async (payload) => {
-        const old = payload.old as { user_id?: string };
-        if (!old.user_id) return;
-        const name = await fetchUserName(old.user_id);
-        // Notify member list hooks to refetch
-        window.dispatchEvent(new CustomEvent("calchat-members-changed", { detail: { courseId } }));
-        setMessages((prev) => [...prev, createSystemEvent(courseId, `sys-leave-${old.user_id}-${Date.now()}`, `${name} left the group`)]);
-      }
-    );
-
-    // Set Realtime auth token BEFORE subscribing so RLS allows events
-    let cancelled = false;
-    (async () => {
-      await ensureRealtimeAuth(supabase);
-      if (cancelled) return;
-      channel.subscribe();
-      channelRef.current = channel;
-      memberChannel.subscribe();
-    })();
-
-    // Listen for local group name change events
-    function handleNameChange(e: Event) {
-      const detail = (e as CustomEvent).detail;
-      if (detail?.courseId !== courseId) return;
-      setMessages((prev) => [...prev, createSystemEvent(courseId, `sys-name-${Date.now()}`, `Group name changed to "${detail.newName}"`)]);
-    }
-    window.addEventListener("calchat-name-changed", handleNameChange);
-
-    return () => {
-      cancelled = true;
-      channel.unsubscribe();
-      memberChannel.unsubscribe();
-      window.removeEventListener("calchat-name-changed", handleNameChange);
-      channelRef.current = null;
-      if (joinTimerRef.current) {
-        clearInterval(joinTimerRef.current);
-        joinTimerRef.current = null;
-      }
-      // Persist any remaining pending joins so they survive navigation
-      savePendingJoins(pendingJoinsRef.current);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [courseId]);
-
-  // Clean up cooldown timer on unmount
+  // Reconnect: refetch when the browser comes back online
+  const wasOnlineRef = useRef(online);
   useEffect(() => {
-    return () => {
-      if (cooldownTimerRef.current) {
-        clearInterval(cooldownTimerRef.current);
-        cooldownTimerRef.current = null;
-      }
-    };
-  }, []);
+    if (online && !wasOnlineRef.current) fetchMessages();
+    wasOnlineRef.current = online;
+  }, [online, fetchMessages]);
 
   return {
     messages,
@@ -649,10 +224,13 @@ export function useCourseChat(
     hasMore,
     initialFetchDone,
     sending,
-    /** Unix timestamp (ms) when the spam cooldown expires. 0 = no cooldown. */
-    spamCooldownEnd,
+    notMember,
+    online,
+    myAuthorKey,
     sendMessage,
+    retryMessage,
     deleteMessage,
     loadMore,
+    refetch: fetchMessages,
   };
 }

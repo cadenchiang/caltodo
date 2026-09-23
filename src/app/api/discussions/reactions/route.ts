@@ -12,9 +12,13 @@ import { rateLimit } from "@/lib/rate-limit";
 /** Allowed tapback emoji to prevent abuse. */
 const ALLOWED_EMOJI = new Set(["❤️", "👍", "👎", "😂", "‼️", "❓"]);
 
+/** Most message ids one reactions request may cover. */
+const MAX_IDS_PER_REQUEST = 100;
+
 /**
- * GET /api/discussions/reactions?courseId=<uuid>
- * Returns all reactions for messages in a course.
+ * GET /api/discussions/reactions?courseId=<uuid>&messageIds=<uuid,uuid,...>
+ * Returns reactions for the given messages (up to 100 per request) in a
+ * course, so a busy room does not fetch every reaction it ever had.
  * Requires course enrollment.
  *
  * @returns Array of { message_id, emoji, user_id }
@@ -27,6 +31,11 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const courseId = searchParams.get("courseId");
   if (!courseId) return NextResponse.json({ error: "courseId required" }, { status: 422 });
+  const messageIds = (searchParams.get("messageIds") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  if (messageIds.length === 0) return NextResponse.json([]);
+  if (messageIds.length > MAX_IDS_PER_REQUEST) {
+    return NextResponse.json({ error: `At most ${MAX_IDS_PER_REQUEST} messageIds per request` }, { status: 422 });
+  }
 
   // Rate limit
   const rl = rateLimit(`reactions-read:${user.id}`, 30, 60_000);
@@ -47,7 +56,8 @@ export async function GET(request: Request) {
   const { data, error } = await supabase
     .from("message_reactions")
     .select("message_id, emoji, user_id")
-    .eq("course_id", courseId);
+    .eq("course_id", courseId)
+    .in("message_id", messageIds);
 
   if (error) {
     logger.error("Failed to fetch reactions", { userId: user.id, courseId, error: error.message });
