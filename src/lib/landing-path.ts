@@ -24,24 +24,24 @@ const FALLBACK_LANDING = "/app/inbox";
 
 /**
  * Routes that don't exist on mobile: the widget board needs a pointer and a
- * wide canvas, and Chat is desktop-only too. Neither is in the mobile tab
- * bar, so landing a phone on one would strand the user (MobileRouteGuard
- * bounces them, but redirecting up front avoids the flash).
+ * wide canvas and is not in the mobile tab bar, so landing a phone on it
+ * would strand the user (MobileRouteGuard bounces them, but redirecting up
+ * front avoids the flash). Chat ships on mobile and is not listed.
  */
-const DESKTOP_ONLY_HREFS = new Set<string>(["/app/home", "/app/discussions"]);
+const DESKTOP_ONLY_HREFS = new Set<string>(["/app/home"]);
 
 /**
  * Nav items that can serve as a landing page on every device. At least one
- * of these must stay visible: hiding both left mobile with nowhere to land
- * (Chat is desktop-only), so HiddenRouteRedirect and MobileRouteGuard
- * bounced the user between Inbox and Chat forever.
+ * of these must stay visible: hiding all of them left mobile with nowhere to
+ * land, so HiddenRouteRedirect and MobileRouteGuard bounced the user
+ * between routes forever.
  */
 export const LANDING_CAPABLE_HREFS: readonly string[] = NAV_HREFS_IN_ORDER.filter(
   (href) => !DESKTOP_ONLY_HREFS.has(href)
 );
 
 /** Why the last landing-capable nav item cannot be hidden. */
-export const LAST_LANDING_ITEM_REASON = "At least one of Inbox or Calendar must stay visible so there is always a page to land on.";
+export const LAST_LANDING_ITEM_REASON = "At least one of Inbox, Calendar, or Chat must stay visible so there is always a page to land on.";
 
 /**
  * Whether hiding a nav item would leave the user with no landing page.
@@ -65,7 +65,7 @@ export function canHideNavItem(href: string, hidden: ReadonlySet<string>): { all
  * wins with no entitlement gating.
  *
  * @param userMetadata - The Supabase user_metadata object
- * @param opts.isMobile - When true, skips desktop-only routes (Board, Chat)
+ * @param opts.isMobile - When true, skips desktop-only routes (Board)
  * @returns First eligible nav href, or FALLBACK_LANDING
  * @remarks On mobile the result is never a desktop-only route, even when
  *          every mobile-capable item is hidden: the fallback (Inbox) is

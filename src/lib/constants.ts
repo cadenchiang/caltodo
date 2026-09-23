@@ -1,16 +1,15 @@
-import { Inbox, CalendarDays, type LucideIcon } from "lucide-react";
+import { Inbox, CalendarDays, MessageCircle, type LucideIcon } from "lucide-react";
 
 /**
- * Navigation items for the sidebar.
+ * Navigation items for the sidebar and the mobile tab bar.
  *
- * Chat (CalChat / discussions) was removed from the product — the
- * sidebar no longer surfaces it and the CalChat widget is hidden in
- * the gallery. The /app/discussions route still exists for legacy
- * links but isn't promoted anywhere.
+ * Chat (/app/discussions) is the per-class group chat. It ships on every
+ * device: the room list is the page below the md breakpoint and a room
+ * opens full screen with a back button to the list.
  *
- * Home (the widget board) is withdrawn the same way while it is being
- * reworked: /app/home and everything under src/components/home stay in the
- * tree and keep building, but nothing links to them and the route redirects.
+ * Home (the widget board) is withdrawn while it is being reworked:
+ * /app/home and everything under src/components/home stay in the tree and
+ * keep building, but nothing links to them and the route redirects.
  * Restoring it is putting this entry back and removing the redirect in
  * src/app/app/home/page.tsx.
  */
@@ -28,6 +27,7 @@ export interface NavItem {
 export const NAV_ITEMS: readonly NavItem[] = [
   { label: "Inbox", href: "/app/inbox", icon: Inbox },
   { label: "Calendar", href: "/app/calendar", icon: CalendarDays },
+  { label: "Chat", href: "/app/discussions", icon: MessageCircle },
 ];
 
 /**

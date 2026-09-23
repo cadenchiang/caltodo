@@ -18,8 +18,7 @@ import { SpotifyPlayerProvider } from "@/contexts/SpotifyPlayerContext";
 import { PresenceProvider } from "@/contexts/PresenceContext";
 
 import CanvasTokenExpiredModal from "@/components/ui/CanvasTokenExpiredModal";
-// GlobalChatNotifier import removed — CalChat was deleted from the
-// product. The notifier file is left on disk but no longer mounted.
+import GlobalChatNotifier from "@/components/ui/GlobalChatNotifier";
 import NewAssignmentsModal from "@/components/ui/NewAssignmentsModal";
 import HiddenRouteRedirect from "@/components/layout/HiddenRouteRedirect";
 import MobileRouteGuard from "@/components/layout/MobileRouteGuard";
@@ -137,7 +136,7 @@ export default async function AppLayout({
             <MobileRouteGuard />
             <RouteHistoryTracker />
             <CanvasTokenExpiredModal />
-            {/* GlobalChatNotifier removed with CalChat */}
+            <GlobalChatNotifier />
             <NewAssignmentsModal />
             </SpotifyPlayerProvider>
           </TaskProvider>
