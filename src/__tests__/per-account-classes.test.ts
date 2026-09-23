@@ -198,6 +198,7 @@ describe("removing a class removes its tasks", () => {
   it("ticks the picker against the list it is about to show", () => {
     // Seeding from stored ids alone opened the picker empty for feed-derived
     // accounts, and closing it then saved that emptiness back.
-    expect(editor).toContain("setDraft(seedSelection(courses, selected))");
+    expect(editor).toContain("const seeded = seedSelection(courses, selected);");
+    expect(editor).toContain("setDraft(seeded);");
   });
 });

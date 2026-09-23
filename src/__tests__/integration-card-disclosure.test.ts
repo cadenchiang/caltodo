@@ -135,7 +135,7 @@ describe("an account's classes read as one line", () => {
     // colour: small caps in a subtle grey read as a form legend over the
     // pills rather than as the name of what is under it.
     expect(classes).not.toContain("uppercase");
-    expect(classes).toContain('text-[11px] font-semibold text-foreground');
+    expect(classes).toContain('text-2xs font-semibold text-foreground');
     expect(classes).toContain("Classes{selected.length > 0 ?");
     expect(classes).toContain("justify-between");
     expect(classes).toMatch(/selected\.length > 0 \? "Edit" : "Choose"/);
