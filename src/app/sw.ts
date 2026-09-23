@@ -7,7 +7,7 @@ import type { PrecacheEntry, SerwistGlobalConfig } from "serwist";
 import { Serwist } from "serwist";
 
 /**
- * Service worker entry for CalTodo PWA.
+ * Service worker entry for the caltodo PWA.
  *
  * Built by @serwist/next at `next build` and emitted to /public/sw.js.
  * Uses Serwist's defaultCache recipe (Workbox-derived) for static assets,
@@ -57,9 +57,9 @@ self.addEventListener("push", (event: PushEvent) => {
   try {
     payload = event.data.json();
   } catch {
-    payload = { title: "CalTodo", body: event.data.text() };
+    payload = { title: "caltodo", body: event.data.text() };
   }
-  const title = payload.title || "CalTodo";
+  const title = payload.title || "caltodo";
   event.waitUntil(
     self.registration.showNotification(title, {
       body: payload.body || "",
@@ -72,7 +72,7 @@ self.addEventListener("push", (event: PushEvent) => {
 });
 
 /**
- * Notification click — focuses an existing CalTodo tab/window if open,
+ * Notification click — focuses an existing caltodo tab/window if open,
  * otherwise opens a new one at the URL stored in the notification's data.
  */
 self.addEventListener("notificationclick", (event: NotificationEvent) => {

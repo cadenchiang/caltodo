@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
 
   if (!calendarUrl) {
     return NextResponse.json(
-      { error: "No Pensieve calendar URL configured." },
+      { error: "No Pensive calendar URL configured." },
       { status: 400 }
     );
   }
@@ -78,6 +78,6 @@ export async function GET(request: NextRequest) {
       userId: user.id,
       error: message,
     });
-    return NextResponse.json({ error: "Failed to load Pensieve courses" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to load Pensive courses" }, { status: 500 });
   }
 }

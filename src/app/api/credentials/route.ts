@@ -160,7 +160,7 @@ export async function PUT(request: Request) {
     // 169.254.169.254, CGNAT, IPv6, numeric encodings) and non-HTTPS.
     if (body.pensieve_calendar_url && !isAllowedCanvasUrl(body.pensieve_calendar_url)) {
       logger.warn("PUT /api/credentials: rejected disallowed Pensieve URL", { userId: user.id });
-      return NextResponse.json({ error: "Invalid Pensieve calendar URL" }, { status: 400 });
+      return NextResponse.json({ error: "Invalid Pensive calendar URL" }, { status: 400 });
     }
     updateData.pensieve_calendar_url = body.pensieve_calendar_url;
     // Clear the stale failure flag on save (the fix action).

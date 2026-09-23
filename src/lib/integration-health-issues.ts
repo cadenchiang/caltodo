@@ -156,7 +156,7 @@ export function buildHealthIssues(
   ) {
     issues.push({
       id: "pensieve",
-      label: "Pensieve",
+      label: "Pensive",
       detail: syncResult?.pensieve.errors[0] || "Feed stopped loading",
       actionLabel: "Update URL",
       action: { kind: "setup", provider: "pensieve" },
