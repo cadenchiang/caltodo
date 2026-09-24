@@ -7,6 +7,7 @@
  * since Blackboard was built to mirror it.
  */
 
+import { DISCLOSURE_META } from "@/lib/integration-disclosure";
 import { describe, it, expect } from "vitest";
 import * as fs from "fs";
 import * as path from "path";
@@ -157,10 +158,9 @@ describe("onboarding", () => {
 });
 
 describe("settings", () => {
-  it("renders a card where credentials are in scope", () => {
+  it("renders a card in the available group", () => {
     const list = read("src/components/settings/IntegrationList.tsx");
-    expect(list).toMatch(/<BlackboardSettings/);
-    expect(list).toMatch(/credentials,$/m);
+    expect(list).toMatch(/<BlackboardSettings \/>/);
   });
 
   it("is listed as an integration the user can connect", () => {
@@ -171,10 +171,13 @@ describe("settings", () => {
     expect(PROVIDER_META.blackboard.setupRoute).toBe("blackboard");
   });
 
-  it("disconnecting clears the URL and removes its tasks", () => {
-    const card = read("src/components/settings/BlackboardSettings.tsx");
-    expect(card).toMatch(/blackboard_calendar_url: null/);
-    expect(card).toMatch(/deleteTasksBySource\("blackboard"\)/);
+  it("disconnecting clears the URL and removes its tasks through the shared card", () => {
+    // The provider card only renders while unconnected; the connected card
+    // reads the disconnect payload and task source from DISCLOSURE_META.
+    expect(DISCLOSURE_META.blackboard.disconnectPayload).toEqual({ blackboard_calendar_url: null });
+    expect(DISCLOSURE_META.blackboard.taskSource).toBe("blackboard");
+    const card = read("src/components/settings/ConnectedIntegrationCard.tsx");
+    expect(card).toContain("deleteTasksBySource(meta.taskSource)");
   });
 
   it("shows as a connected platform in settings", () => {

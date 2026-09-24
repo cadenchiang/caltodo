@@ -128,8 +128,6 @@ describe("the keys match what the app actually writes", () => {
     ["caltodo_friends_cache", "src/components/profile/profile-utils.ts"],
     ["caltodo_suggestions_cache", "src/components/profile/profile-utils.ts"],
     ["caltodo_credentials_cache", "src/components/settings/IntegrationSettings.tsx"],
-    ["caltodo_calendar_token_cache", "src/components/settings/CalendarFeedSettings.tsx"],
-    ["caltodo_course_totals", "src/components/settings/ClassesSection.tsx"],
     ["caltodo_sync_course_selections", "src/app/app/inbox/page.tsx"],
     ["caltodo_hidden_nav_items", "src/hooks/useHiddenNavItems.ts"],
     ["gcal_status", "src/components/calendar/CalendarHeader.tsx"],
@@ -138,6 +136,15 @@ describe("the keys match what the app actually writes", () => {
   ])("%s is written by %s", (key, file) => {
     expect(USER_CACHE_KEYS).toContain(key);
     expect(read(file)).toContain(`"${key}"`);
+  });
+
+  it.each([
+    // Their writers (CalendarFeedSettings, ClassesSection) were dead code and
+    // are deleted; the keys stay listed so old browsers are still cleaned.
+    ["caltodo_calendar_token_cache"],
+    ["caltodo_course_totals"],
+  ])("%s is a legacy key that is still cleared", (key) => {
+    expect(USER_CACHE_KEYS).toContain(key);
   });
 
   it.each([

@@ -16,7 +16,6 @@
  */
 
 import type { IntegrationCredentials } from "@/lib/types";
-import { useTaskContext } from "@/contexts/TaskContext";
 import { splitByConnection, type CatalogEntry, type CatalogId } from "@/lib/integration-catalog";
 import { hasDisclosure } from "@/lib/integration-disclosure";
 import { SETTINGS_GROUP_LABEL } from "@/lib/settingsConfig";
@@ -30,41 +29,34 @@ import GoogleClassroomSettings from "./GoogleClassroomSettings";
 import SyllabusSettings from "./SyllabusSettings";
 import ConnectedIntegration from "./ConnectedIntegration";
 
-/** Everything a provider card needs from the page around it. */
+/** Everything a connected card needs from the page around it. */
 interface CardContext {
   credentials: IntegrationCredentials;
   onUpdate: (updated: IntegrationCredentials) => void;
-  syncing: boolean;
-  lastSyncedAt: string | null;
-  syncedCount: Partial<Record<CatalogId, number | undefined>>;
 }
 
 /**
- * Renders the card for one catalog entry.
+ * Renders the card for one catalog entry in the Available group.
  *
  * @param id - Which integration to render.
- * @param ctx - Credentials, the update callback, and sync status.
- * @returns That integration's existing settings card.
- * @remarks A switch rather than a lookup table because the cards do not share
- *          a prop shape: three of them read the credentials context directly
- *          and take none at all.
+ * @returns That integration's available-state card.
+ * @remarks A switch rather than a lookup table so the catalog id stays the
+ *          single source of which card exists.
  */
-function IntegrationCard({ id, ctx }: { id: CatalogId; ctx: CardContext }) {
-  const { credentials, onUpdate, syncing, lastSyncedAt, syncedCount } = ctx;
-  const shared = { credentials, onUpdate, syncing, lastSyncedAt };
+function IntegrationCard({ id }: { id: CatalogId }) {
   switch (id) {
     case "gcal":
       return <GoogleCalendarSettings />;
     case "canvas":
-      return <CanvasSettings {...shared} syncedCount={syncedCount.canvas} />;
+      return <CanvasSettings />;
     case "gradescope":
-      return <GradescopeSettings {...shared} syncedCount={syncedCount.gradescope} />;
+      return <GradescopeSettings />;
     case "pensieve":
-      return <PensieveSettings {...shared} syncedCount={syncedCount.pensieve} />;
+      return <PensieveSettings />;
     case "brightspace":
-      return <BrightspaceSettings {...shared} syncedCount={syncedCount.brightspace} />;
+      return <BrightspaceSettings />;
     case "blackboard":
-      return <BlackboardSettings {...shared} syncedCount={syncedCount.blackboard} />;
+      return <BlackboardSettings />;
     case "classroom":
       return <GoogleClassroomSettings />;
     case "syllabus":
@@ -92,7 +84,7 @@ function ConnectedEntry({ entry, ctx }: { entry: CatalogEntry; ctx: CardContext 
       />
     );
   }
-  return <IntegrationCard id={entry.id} ctx={ctx} />;
+  return <IntegrationCard id={entry.id} />;
 }
 
 /** Small heading separating the two groups; the one settings group recipe. */
@@ -123,22 +115,8 @@ interface IntegrationListProps {
  *          nothing.
  */
 export default function IntegrationList({ credentials, onUpdate, connectedOnly = false }: IntegrationListProps) {
-  const { syncing, lastSyncedAt, syncResult } = useTaskContext();
   const { connected, available } = splitByConnection(credentials);
-
-  const ctx: CardContext = {
-    credentials,
-    onUpdate,
-    syncing,
-    lastSyncedAt,
-    syncedCount: {
-      canvas: syncResult?.canvas.synced,
-      gradescope: syncResult?.gradescope.synced,
-      pensieve: syncResult?.pensieve.synced,
-      brightspace: syncResult?.brightspace?.synced,
-      blackboard: syncResult?.blackboard?.synced,
-    },
-  };
+  const ctx: CardContext = { credentials, onUpdate };
 
   return (
     <div className="space-y-6">
@@ -158,7 +136,7 @@ export default function IntegrationList({ credentials, onUpdate, connectedOnly =
           {connected.length > 0 && <GroupHeading>Available</GroupHeading>}
           <div className="space-y-3">
             {available.map((entry) => (
-              <IntegrationCard key={entry.id} id={entry.id} ctx={ctx} />
+              <IntegrationCard key={entry.id} id={entry.id} />
             ))}
           </div>
         </div>

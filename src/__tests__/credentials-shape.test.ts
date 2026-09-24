@@ -192,7 +192,7 @@ describe("no path hands a Canvas token to the browser", () => {
   it("no client reads a raw canvas_token off the credentials object", () => {
     const clientFiles = [
       "src/components/settings/CanvasSettings.tsx",
-      "src/components/settings/ClassesSection.tsx",
+      "src/components/settings/ConnectedIntegrationCard.tsx",
       "src/components/ui/CanvasTokenExpiredModal.tsx",
       "src/lib/integration-catalog.ts",
       "src/lib/integration-disclosure.ts",

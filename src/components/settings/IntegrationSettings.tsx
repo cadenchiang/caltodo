@@ -4,7 +4,6 @@ import { createContext, useContext, useState, useEffect, useLayoutEffect, useCal
 import type { IntegrationCredentials } from "@/lib/types";
 import { getCredentials, invalidateCredentials } from "@/lib/credentials-client";
 import IntegrationList from "./IntegrationList";
-import ClassesSection from "./ClassesSection";
 
 const CACHE_KEY = "caltodo_credentials_cache";
 
@@ -81,7 +80,7 @@ const EMPTY_CREDENTIALS: IntegrationCredentials = {
   dismissed_modals: {},
 };
 
-/** Shared context so IntegrationSettings and IntegrationClasses use the same credentials state. */
+/** Shared context so every settings card reads the same credentials state. */
 const CredentialsContext = createContext<{
   credentials: IntegrationCredentials;
   loading: boolean;
@@ -102,8 +101,8 @@ export function useCredentials() {
 
 /**
  * Provider that fetches and caches integration credentials.
- * Wrap both IntegrationSettings and IntegrationClasses in this provider
- * so they share the same credential state.
+ * Wrap IntegrationSettings (and any card reading useCredentials) in this
+ * provider so they share the same credential state.
  *
  * @param children - Child components that consume credentials context
  */
@@ -130,8 +129,11 @@ export function IntegrationProvider({ children }: { children: React.ReactNode })
         setCredentials(data);
         setCachedCredentials(data);
       }
-    } catch {
-      /* silently fail — cached or empty state is already shown */
+    } catch (err) {
+      console.error("IntegrationProvider: credentials fetch failed", {
+        error: err instanceof Error ? err.message : String(err),
+        impact: "the cached or empty credentials stay on screen",
+      });
     } finally {
       setLoading(false);
     }
@@ -158,7 +160,6 @@ export function IntegrationProvider({ children }: { children: React.ReactNode })
   useEffect(() => {
     if (typeof window === "undefined") return;
     const logos = [
-      "/bcourses-logo.png",
       "/gradescope-logo.png",
       "/pensieve-logo.png",
       "/canvas-logo.png",
@@ -237,16 +238,4 @@ export default function IntegrationSettings({ connectedOnly = false }: { connect
       connectedOnly={connectedOnly}
     />
   );
-}
-
-/**
- * Classes section showing selected courses as chips with edit modal.
- * Must be rendered inside an IntegrationProvider.
- */
-export function IntegrationClasses() {
-  const ctx = useContext(CredentialsContext);
-  if (!ctx) throw new Error("IntegrationClasses must be inside IntegrationProvider");
-  const { credentials, handleUpdate } = ctx;
-
-  return <ClassesSection credentials={credentials} onUpdate={handleUpdate} />;
 }
