@@ -80,7 +80,7 @@ describe("onAdd wrappers return the insert promise", () => {
     ["app/app/inbox/page.tsx", "return addTask(task);"],
     ["components/home/widgets/TasksTodayWidget.tsx", "return addTask(task);"],
     ["components/calendar/CalendarPanel.tsx", "return addTask(task);"],
-    ["components/tasks/TaskBoardView.tsx", "return onAdd({ ...task, course_name: name });"],
+    ["components/tasks/board/BoardColumn.tsx", "return onAdd({ ...task, course_name: name });"],
   ])("%s", (file, needle) => {
     expect(read(file)).toContain(needle);
   });

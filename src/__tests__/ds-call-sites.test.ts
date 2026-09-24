@@ -58,7 +58,9 @@ describe("popover backgrounds", () => {
     // TaskItem's menus now render through TaskContextMenu, which uses the
     // Popover primitive (POPOVER_SURFACE carries bg-popover).
     ["components/tasks/shared/TaskContextMenu.tsx", 'import Popover, { POPOVER_SURFACE } from "@/components/ui/Popover";'],
-    ["components/tasks/TaskBoardView.tsx", 'className="fixed z-50 bg-popover rounded-lg shadow-xl'],
+    // Board card and column menus also render through the Popover primitive.
+    ["components/tasks/board/BoardTaskCard.tsx", 'import TaskContextMenu from "../shared/TaskContextMenu";'],
+    ["components/tasks/board/BoardColumn.tsx", 'import ClassMenu from "../shared/ClassMenu";'],
     ["components/calendar/DayOverflowPopover.tsx", "bg-popover overflow-hidden animate-in"],
   ])("%s paints bg-popover", (file, needle) => {
     expect(read(file)).toContain(needle);
