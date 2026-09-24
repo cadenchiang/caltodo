@@ -59,9 +59,11 @@ describe("the Canvas add step", () => {
     expect(canvas).toContain('<div className="mt-3 text-center">');
   });
 
-  it("brightspace keeps its quiet cancel too", () => {
-    expect(brightspace).toMatch(/onClick=\{onSkip\}/);
-    expect(brightspace).not.toContain("btn-elevated-secondary");
+  it("brightspace keeps its quiet cancel too, through the shared feed step", () => {
+    expect(brightspace).toContain("onSkip={onSkip}");
+    const feed = read("src/components/onboarding/FeedUrlStep.tsx");
+    expect(feed).toContain(QUIET_CANCEL);
+    expect(feed).not.toContain("btn-elevated-secondary");
   });
 });
 

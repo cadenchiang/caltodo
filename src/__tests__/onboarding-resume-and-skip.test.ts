@@ -107,9 +107,14 @@ describe("shared skip control", () => {
 
 describe("step components still have a reachable skip", () => {
   it("brightspace renders its own, so it is genuinely covered", () => {
+    // BrightspaceStep passes onSkip into the shared FeedUrlStep, which
+    // renders the control.
     const bs = fs.readFileSync(
       path.join(ROOT, "src/components/onboarding/BrightspaceStep.tsx"), "utf8");
-    expect(bs).toMatch(/onClick=\{onSkip\}/);
+    expect(bs).toContain("onSkip={onSkip}");
+    const feed = fs.readFileSync(
+      path.join(ROOT, "src/components/onboarding/FeedUrlStep.tsx"), "utf8");
+    expect(feed).toMatch(/onClick=\{onSkip\}/);
   });
 
   it("the other four are covered by the shared control, not their own", () => {
