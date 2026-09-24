@@ -30,8 +30,8 @@ export default function TypingIndicator({
             {[0, 1, 2].map((i) => (
               <span
                 key={i}
-                className="w-[4px] h-[4px] rounded-full bg-muted-foreground typing-dot"
-                style={{ animationDelay: `${i * 0.2}s` }}
+                className="w-[4px] h-[4px] rounded-full bg-muted-foreground"
+                style={{ animation: "typing-bounce 1.2s ease-in-out infinite", animationDelay: `${i * 0.2}s` }}
               />
             ))}
           </span>
@@ -39,15 +39,7 @@ export default function TypingIndicator({
         </>
       )}
 
-      {/* Keyframes injected once via inline style tag; still under reduced motion */}
-      <style>{`
-        .typing-dot { animation: typing-bounce 1.2s ease-in-out infinite; }
-        @keyframes typing-bounce {
-          0%, 60%, 100% { transform: translateY(0); }
-          30% { transform: translateY(-4px); }
-        }
-        @media (prefers-reduced-motion: reduce) { .typing-dot { animation: none; } }
-      `}</style>
+      {/* @keyframes typing-bounce and the reduced-motion guard live in globals.css */}
     </div>
   );
 }
