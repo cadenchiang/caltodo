@@ -71,9 +71,9 @@ export function getUrgencyClass(urgency: DateUrgency, isCompleted = false): stri
  * @param dueDate - ISO date string ("YYYY-MM-DD") or null
  * @param dueTime - 24-hour time string ("HH:MM") or null
  * @returns Object with dateLabel, timeLabel, and className, or null if no date
- * @remarks Legacy consumer of getRelativeDateLabel. The className values are the
- *          older 400-step colors that TaskItem keys its Miffy swap on; new
- *          chips should use DueDatePill / getUrgencyClass instead.
+ * @remarks Wraps getRelativeDateLabel and getUrgencyClass, so the classes are
+ *          the AA-passing 600-step light / 400-step dark pair. New chips
+ *          should use DueDatePill directly.
  */
 export function getDueDateInfo(
   dueDate: string | null,
@@ -82,17 +82,10 @@ export function getDueDateInfo(
   if (!dueDate) return null;
 
   const { label, urgency } = getRelativeDateLabel(dueDate);
-  const timeLabel = dueTime ? formatTime12h(dueTime) : null;
-
-  if (urgency === "overdue") {
-    // timeLabel is suppressed (no clock time on a past task) so the
-    // pill stays short.
-    return { dateLabel: label, timeLabel: null, className: "text-red-400" };
-  }
-  if (urgency === "soon") {
-    return { dateLabel: label, timeLabel, className: "text-blue-400" };
-  }
-  return { dateLabel: label, timeLabel, className: "text-subtle-foreground" };
+  // timeLabel is suppressed on an overdue task (no clock time on a past
+  // task) so the pill stays short.
+  const timeLabel = dueTime && urgency !== "overdue" ? formatTime12h(dueTime) : null;
+  return { dateLabel: label, timeLabel, className: getUrgencyClass(urgency) };
 }
 
 /**

@@ -2,26 +2,22 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { format } from "date-fns";
+import { ExternalLink } from "lucide-react";
 import { getRepeatLabel } from "@/lib/repeat";
 import { getThemeColor } from "@/lib/constants";
-import { getDueDateInfo } from "@/lib/task-utils";
-import { ExternalLink } from "lucide-react";
+import { getDetailDateInfo } from "@/lib/task-utils";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useTaskContext } from "@/contexts/TaskContext";
+import { MODAL_BACKDROP } from "@/components/ui/Modal";
+import { useDialog } from "@/components/ui/useDialog";
 import type { Task } from "@/lib/types";
 import TaskCheckbox from "./shared/TaskCheckbox";
 import TaskActionBar from "./shared/TaskActionBar";
-import {
-  TaskDateTimeLabel,
-  TaskRepeatLabel,
-  TaskCourseRow,
-  TaskTagsRow,
-  TaskDescriptionRow,
-} from "./shared/TaskDetailRows";
+import { TaskDateTimeLabel, TaskRepeatLabel, TaskCourseRow, TaskTagsRow, TaskDescriptionRow } from "./shared/TaskDetailRows";
 
-/** Width of the popover in pixels. */
+/** Width of the popover in pixels (desktop). */
 const POPOVER_WIDTH = 448;
-/** Estimated max height for overflow detection. */
+/** Maximum height before the body scrolls (desktop). */
 const POPOVER_MAX_HEIGHT = 520;
 /** Gap between anchor and popover edge. */
 const GAP = 6;
@@ -33,252 +29,141 @@ interface TaskPreviewPopoverProps {
   anchorRect: DOMRect;
   /** Called when the popover should close. */
   onClose: () => void;
-  /** Called when the user opens the full edit modal (date-pill click). */
+  /** Called when the user opens the full edit modal. */
   onEdit: (task: Task) => void;
-  /** Called when the user clicks the delete (trash) button. */
+  /** Called when the user deletes the task. */
   onDelete: (id: string) => void;
   /** Called when the user toggles the completion checkbox. */
   onToggle: (id: string) => void;
-  /**
-   * Optional inline-save handler. When provided, the title can be edited
-   * directly in the popover and saved via this callback. Without it the
-   * title falls back to a read-only span.
-   */
-  onSave?: (id: string, updates: { title?: string }) => void;
 }
 
 /**
- * Lightweight read-only preview popover positioned near a clicked task.
- * Follows the Google Calendar two-step pattern: first click shows preview,
- * then clicking Edit opens the full TaskCreateModal.
+ * Task preview beside a clicked card or row: a dialog with a focus trap,
+ * Escape and focus restore (useDialog), positioned next to the anchor on
+ * desktop and as a bottom sheet with a real backdrop on phones. The date
+ * uses the same relative wording as the detail panel.
  *
  * @param task - Task data to display
  * @param anchorRect - DOMRect of the clicked element for positioning
  * @param onClose - Close handler
- * @param onEdit - Edit handler, receives the task
- * @param onDelete - Delete handler, receives the task ID
- * @param onToggle - Toggle completion handler, receives task ID
+ * @param onEdit - Opens the full editor
+ * @param onDelete - Deletes the task (single click; the toast has Undo)
+ * @param onToggle - Toggles completion
  */
-export default function TaskPreviewPopover({
-  task,
-  anchorRect,
-  onClose,
-  onEdit,
-  onSave,
-  onDelete,
-  onToggle,
-}: TaskPreviewPopoverProps) {
-  const ref = useRef<HTMLDivElement>(null);
+export default function TaskPreviewPopover({ task, anchorRect, onClose, onEdit, onDelete, onToggle }: TaskPreviewPopoverProps) {
   const { colorTheme } = useTheme();
+  const { snoozeTask } = useTaskContext();
   const [visible, setVisible] = useState(false);
-  const closingRef = useRef(false);
-
-  /**
-   * Triggers the close animation, then calls onClose after it completes.
-   */
-  const animateClose = () => {
-    if (closingRef.current) return;
-    closingRef.current = true;
-    setVisible(false);
-    setTimeout(onClose, 150);
-  };
+  const [pos, setPos] = useState({ left: -9999, top: -9999 });
+  const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
+  const { containerRef, handleBackdropClick } = useDialog({ open: true, onClose, closeOnBackdrop: true });
+  // Desktop has no backdrop, so an outside click closes it directly (no
+  // exit delay, so clicking another card can open its preview at once).
+  // Clicks inside the portaled action menu are not "outside".
+  const outsideRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (isMobile) return;
+    function onPointerDown(e: MouseEvent | TouchEvent) {
+      const target = ("touches" in e ? e.touches[0]?.target : e.target) as Element | null;
+      if (!target || !outsideRef.current) return;
+      if (outsideRef.current.contains(target) || target.closest('[role="menu"]')) return;
+      onClose();
+    }
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("touchstart", onPointerDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("touchstart", onPointerDown);
+    };
+  }, [isMobile, onClose]);
 
   useEffect(() => {
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => setVisible(true));
-    });
+    const raf = requestAnimationFrame(() => requestAnimationFrame(() => setVisible(true)));
+    return () => cancelAnimationFrame(raf);
   }, []);
 
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") animateClose();
-    }
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
-
-  useEffect(() => {
-    function handlePointerDown(e: MouseEvent | TouchEvent) {
-      const target = "touches" in e ? e.touches[0]?.target : e.target;
-      if (ref.current && target && !ref.current.contains(target as Node)) {
-        // Close immediately (no animation delay) so clicking another task
-        // can set the new preview without it being wiped by a delayed close.
-        onClose();
-      }
-    }
-    document.addEventListener("mousedown", handlePointerDown);
-    document.addEventListener("touchstart", handlePointerDown);
-    return () => {
-      document.removeEventListener("mousedown", handlePointerDown);
-      document.removeEventListener("touchstart", handlePointerDown);
-    };
-  }, [onClose]);
-
-  const [pos, setPos] = useState({ left: -9999, top: -9999 });
-
-  /**
-   * Positions the popover adjacent to the anchor element.
-   * Vertically aligns the popover top with the anchor top, then clamps
-   * to keep it within the viewport.
-   */
+  /** Places the popover beside the anchor (toward the viewport centre) and clamps it. */
   useLayoutEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-
-    const popoverHeight = el.scrollHeight;
+    const el = containerRef.current;
+    if (!el || isMobile) return;
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     const anchorCenterX = anchorRect.left + anchorRect.width / 2;
-
-    // Horizontal: place on the side of the anchor towards viewport center
-    let left: number;
-    if (anchorCenterX < vw / 2) {
-      // Anchor is on left half — popover goes right
-      left = anchorRect.right + GAP;
-    } else {
-      // Anchor is on right half — popover goes left
-      left = anchorRect.left - POPOVER_WIDTH - GAP;
-    }
+    let left = anchorCenterX < vw / 2 ? anchorRect.right + GAP : anchorRect.left - POPOVER_WIDTH - GAP;
     left = Math.max(GAP, Math.min(left, vw - POPOVER_WIDTH - GAP));
-
-    // Vertical: align popover top with anchor top, then clamp to viewport
     let top = anchorRect.top;
-
-    // Clamp to viewport
-    if (top + popoverHeight > vh - GAP) {
-      top = vh - popoverHeight - GAP;
-    }
-    top = Math.max(GAP, top);
-
-    setPos({ left, top });
-  }, [anchorRect]);
+    if (top + el.scrollHeight > vh - GAP) top = vh - el.scrollHeight - GAP;
+    setPos({ left, top: Math.max(GAP, top) });
+  }, [anchorRect, containerRef, isMobile]);
 
   const dotColor = getThemeColor(task.color, colorTheme);
-
-  // Mirror the list detail panel: overdue tasks show "Overdue N day(s)"
-  // (no time); everything else gets the long EEE, MMM d, yyyy formatting.
-  // Completed tasks NEVER show "Overdue" — the check mark already
-  // conveys done, and overdue on a finished task is misleading.
-  const dueInfo = getDueDateInfo(task.due_date, task.due_time);
-  const isOverdue = !task.is_completed && !!dueInfo && dueInfo.dateLabel.startsWith("Overdue");
-  const dateLabel = isOverdue
-    ? dueInfo!.dateLabel
-    : task.due_date
-      ? format(new Date(task.due_date + "T00:00:00"), "EEE, MMM d, yyyy")
-      : null;
-  const timeLabel = isOverdue
-    ? null
-    : task.due_time
-      ? format(new Date(`2000-01-01T${task.due_time}`), "h:mm a")
-      : null;
-  // Completed: drop the urgency color so the pill reads as a neutral
-  // info chip instead of red.
-  const urgencyClass = task.is_completed ? "text-muted-foreground" : dueInfo?.className;
-
-  const repeatLabel =
-    task.repeat_interval && task.repeat_unit
-      ? getRepeatLabel(task.repeat_interval, task.repeat_unit)
-      : null;
-
-  const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
+  // Same wording as the detail panel: relative for near dates with the
+  // calendar date beside it, the long date form further out.
+  const dueInfo = getDetailDateInfo(task.due_date, task.due_time, !!task.is_completed);
+  const repeatLabel = task.repeat_interval && task.repeat_unit ? getRepeatLabel(task.repeat_interval, task.repeat_unit) : null;
 
   return createPortal(
-    <>
-      {/* Transparent backdrop for easy mobile dismissal */}
-      {isMobile && (
-        <div
-          className="fixed inset-0 z-[9998]"
-          onClick={animateClose}
-          onTouchStart={animateClose}
-        />
-      )}
+    <div className={`fixed inset-0 z-overlay ${isMobile ? "flex items-end" : "pointer-events-none"}`}>
+      {isMobile && <div className={MODAL_BACKDROP} onClick={handleBackdropClick} aria-hidden="true" />}
       <div
-        ref={ref}
-        data-task-preview-popover
-        role="dialog"
-        aria-label={`Preview: ${task.title}`}
-        className={`fixed z-[9999] rounded-2xl shadow-2xl border border-border bg-popover transition-[opacity,transform] duration-150 ease-out ${
-          visible ? "opacity-100 scale-100" : "opacity-0 scale-95"
-        }`}
-        style={{
-          left: isMobile ? 12 : pos.left,
-          top: isMobile ? undefined : pos.top,
-          bottom: isMobile ? 12 : undefined,
-          width: isMobile ? "calc(100vw - 24px)" : POPOVER_WIDTH,
-          maxHeight: isMobile ? "70vh" : POPOVER_MAX_HEIGHT,
-          overflowY: "auto",
+        ref={(node) => {
+          containerRef.current = node;
+          outsideRef.current = node;
         }}
+        role="dialog"
+        aria-modal={isMobile ? "true" : undefined}
+        aria-label={`Preview: ${task.title}`}
+        tabIndex={-1}
+        data-task-preview-popover
+        className={`pointer-events-auto bg-popover border border-border shadow-2xl transition-[opacity,transform] duration-150 ease-out focus:outline-none overflow-y-auto ${
+          isMobile ? "relative w-full rounded-t-2xl max-h-[70vh]" : "fixed rounded-2xl"
+        } ${visible ? "opacity-100 translate-y-0 scale-100" : isMobile ? "opacity-0 translate-y-4" : "opacity-0 scale-95"}`}
+        style={isMobile ? undefined : { left: pos.left, top: pos.top, width: POPOVER_WIDTH, maxHeight: POPOVER_MAX_HEIGHT }}
       >
-      {/* Header — pencil/edit + close. Pencil opens the full edit modal. */}
-      <TaskActionBar
-        onEdit={() => onEdit(task)}
-        onDelete={() => onDelete(task.id)}
-        onClose={animateClose}
-        sourceUrl={task.source_url}
-      />
+        <TaskActionBar
+          onEdit={() => onEdit(task)}
+          onDelete={() => onDelete(task.id)}
+          onSnooze={(hours) => { snoozeTask(task.id, hours); onClose(); }}
+          onClose={onClose}
+          sourceUrl={task.source_url}
+        />
 
-      {/* Body */}
-      <div className="px-6 pb-6">
-        {/* Title row — read-only; deeper edits go through the pencil. */}
-        <div className="flex items-start gap-4">
-          <TaskCheckbox
-            color={dotColor}
-            isCompleted={task.is_completed}
-            onToggle={() => onToggle(task.id)}
-            size="lg"
-          />
-          <span className="text-xl font-semibold text-foreground leading-snug break-words min-w-0">
-            {task.title}
-          </span>
-        </div>
-
-        {/* Date + Time pill — click to open the full editor for date/time changes. */}
-        <button
-          type="button"
-          onClick={() => onEdit(task)}
-          className="block text-left hover:opacity-80 transition-opacity"
-          aria-label="Edit date and time"
-        >
-          <TaskDateTimeLabel
-            dateLabel={dateLabel}
-            timeLabel={timeLabel}
-            urgencyClassName={urgencyClass}
-          />
-        </button>
-
-        <TaskRepeatLabel repeatLabel={repeatLabel} />
-
-        {/* Divider */}
-        <div className="border-t border-border my-5" />
-
-        {/* Open Assignment — at the top of the body when the task has a source URL. */}
-        {task.source_url && (
-          <div className="flex items-start gap-4 py-3 min-w-0">
-            <div className="shrink-0 w-5 h-5 flex items-center justify-center">
-              <ExternalLink size={16} className="text-muted-foreground" />
-            </div>
-            <a
-              href={task.source_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm font-medium text-muted-foreground hover:text-foreground hover:underline truncate transition-colors"
-            >
-              Open assignment
-            </a>
+        <div className="px-6 pb-6">
+          <div className="flex items-start gap-4">
+            <TaskCheckbox color={dotColor} isCompleted={task.is_completed} onToggle={() => onToggle(task.id)} size="lg" />
+            <span className="text-xl font-semibold text-foreground leading-snug break-words min-w-0">{task.title}</span>
           </div>
-        )}
 
-        {/* Course name row */}
-        <TaskCourseRow courseName={task.course_name} />
+          <button type="button" onClick={() => onEdit(task)} className="block text-left hover:opacity-80 transition-opacity rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label="Edit date and time">
+            <TaskDateTimeLabel
+              dateLabel={dueInfo?.dateLabel ?? null}
+              exactDate={dueInfo?.exactDate ?? null}
+              timeLabel={dueInfo?.timeLabel ?? null}
+              urgencyClassName={dueInfo?.className}
+            />
+          </button>
 
-        {/* Tags row */}
-        <TaskTagsRow tags={task.tags ?? []} />
+          <TaskRepeatLabel repeatLabel={repeatLabel} />
 
-        {/* Description row */}
-        <TaskDescriptionRow description={task.description} lineClamp={3} />
+          <div className="border-t border-border my-5" />
+
+          {task.source_url && (
+            <div className="flex items-start gap-4 py-3 min-w-0">
+              <div className="shrink-0 w-5 h-5 flex items-center justify-center">
+                <ExternalLink size={16} className="text-muted-foreground" />
+              </div>
+              <a href={task.source_url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-muted-foreground hover:text-foreground hover:underline truncate transition-colors">
+                Open assignment
+              </a>
+            </div>
+          )}
+
+          <TaskCourseRow courseName={task.course_name} />
+          <TaskTagsRow tags={task.tags ?? []} />
+          <TaskDescriptionRow description={task.description} lineClamp={3} />
+        </div>
       </div>
-    </div>
-    </>,
-    document.body,
+    </div>,
+    document.body
   );
 }

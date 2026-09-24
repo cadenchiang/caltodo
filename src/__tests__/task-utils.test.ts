@@ -51,7 +51,7 @@ describe("getDueDateInfo", () => {
     const result = getDueDateInfo("2025-03-15", null);
     expect(result).not.toBeNull();
     expect(result!.dateLabel).toBe("Today");
-    expect(result!.className).toBe("text-blue-400");
+    expect(result!.className).toBe("text-blue-600 dark:text-blue-400");
     expect(result!.timeLabel).toBeNull();
   });
 
@@ -59,19 +59,19 @@ describe("getDueDateInfo", () => {
     const result = getDueDateInfo("2025-03-16", null);
     expect(result).not.toBeNull();
     expect(result!.dateLabel).toBe("Tomorrow");
-    expect(result!.className).toBe("text-blue-400");
+    expect(result!.className).toBe("text-blue-600 dark:text-blue-400");
   });
 
   it("returns red class for past dates", () => {
     const result = getDueDateInfo("2025-03-10", null);
     expect(result).not.toBeNull();
-    expect(result!.className).toBe("text-red-400");
+    expect(result!.className).toBe("text-red-600 dark:text-red-400");
   });
 
   it("returns blue class for dates within 7 days", () => {
     const result = getDueDateInfo("2025-03-20", null);
     expect(result).not.toBeNull();
-    expect(result!.className).toBe("text-blue-400");
+    expect(result!.className).toBe("text-blue-600 dark:text-blue-400");
   });
 
   it("returns subtle class for dates beyond 7 days", () => {

@@ -53,7 +53,7 @@ export function TaskDateTimeLabel({ dateLabel, exactDate, timeLabel, urgencyClas
 
   const pill = (
     <span
-      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[12px] font-semibold ${colorClass}`}
+      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${colorClass}`}
       style={{ backgroundColor: "color-mix(in srgb, currentColor 14%, transparent)" }}
     >
       {timeLabel && <span className="opacity-60 mr-1">{timeLabel}</span>}
@@ -83,7 +83,7 @@ export function TaskRepeatLabel({ repeatLabel }: TaskRepeatLabelProps) {
   return (
     <div className="pl-9 mt-1.5">
       <span
-        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[12px] font-semibold text-purple-400"
+        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold text-purple-600 dark:text-purple-400"
         style={{ backgroundColor: "color-mix(in srgb, currentColor 14%, transparent)" }}
       >
         <Repeat size={11} strokeWidth={2.5} />
@@ -210,7 +210,7 @@ export function TaskDescriptionRow({ description, lineClamp, iconSize = DEFAULT_
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
-              className="inline-flex items-center gap-1 text-[#0e89d6] hover:underline break-all"
+              className="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400 hover:underline break-all"
             >
               {looksLikeDocument(seg.href, seg.label) && (
                 <FileText size={13} className="shrink-0" />

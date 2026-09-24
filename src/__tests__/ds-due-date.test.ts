@@ -47,7 +47,7 @@ describe("getDueDateInfo stays label-compatible", () => {
   it("produces the same wording as getRelativeDateLabel", () => {
     const today = new Date();
     const iso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-    expect(getDueDateInfo(iso, "09:00")).toEqual({ dateLabel: "Today", timeLabel: "9:00 AM", className: "text-blue-400" });
+    expect(getDueDateInfo(iso, "09:00")).toEqual({ dateLabel: "Today", timeLabel: "9:00 AM", className: "text-blue-600 dark:text-blue-400" });
   });
 });
 

@@ -20,10 +20,10 @@ export interface TaskContextMenuProps {
   triggerRef?: RefObject<HTMLElement | null>;
   /** Preferred side. Defaults to bottom-start. */
   placement?: PopoverPlacement;
-  /** Hides the task for the given hours. */
-  onSnooze: (hours: number) => void;
-  /** Deletes the task (single click; the toast carries Undo). */
-  onDelete: () => void;
+  /** Hides the task for the given hours. Omit to hide the entry. */
+  onSnooze?: (hours: number) => void;
+  /** Deletes the task (single click; the toast carries Undo). Omit to hide. */
+  onDelete?: () => void;
   /** Moves the task one place up among its same-date siblings. */
   onMoveUp?: () => void;
   /** Moves the task one place down among its same-date siblings. */
@@ -88,6 +88,7 @@ export default function TaskContextMenu({
       aria-label="Task actions"
       className="py-1 min-w-[160px]"
     >
+      {onSnooze && (
       <div className="relative">
         <button
           ref={snoozeItemRef}
@@ -112,10 +113,11 @@ export default function TaskContextMenu({
           </div>
         )}
       </div>
+      )}
 
       {(onMoveUp || onMoveDown) && (
         <>
-          <div className="border-t border-border my-1" />
+          {onSnooze && <div className="border-t border-border my-1" />}
           <button
             type="button"
             role="menuitem"
@@ -153,16 +155,20 @@ export default function TaskContextMenu({
         </a>
       )}
 
-      <div className="border-t border-border my-1" />
-      <button
-        type="button"
-        role="menuitem"
-        onClick={() => { closeAll(); onDelete(); }}
-        className={`${MENU_ITEM} text-red-600 dark:text-red-400 hover:bg-danger-tint focus-visible:bg-danger-tint`}
-      >
-        <Trash2 size={14} />
-        Delete task
-      </button>
+      {onDelete && (
+        <>
+          {(onSnooze || onMoveUp || onMoveDown || sourceUrl) && <div className="border-t border-border my-1" />}
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => { closeAll(); onDelete(); }}
+            className={`${MENU_ITEM} text-red-600 dark:text-red-400 hover:bg-danger-tint focus-visible:bg-danger-tint`}
+          >
+            <Trash2 size={14} />
+            Delete task
+          </button>
+        </>
+      )}
     </Popover>
   );
 }

@@ -7,17 +7,33 @@ import { parseLinks, looksLikeDocument } from "@/lib/link-text";
 import { summariseTaskEdit } from "@/lib/task-edit-summary";
 import { useTheme } from "@/contexts/ThemeContext";
 import type { Task, TaskUpdate } from "@/lib/types";
+import { useEffect } from "react";
+import { useTaskContext } from "@/contexts/TaskContext";
 import TaskCheckbox from "./shared/TaskCheckbox";
+import TaskActionBar from "./shared/TaskActionBar";
 import TaskDuplicatesBanner from "./TaskDuplicatesBanner";
 import TaskDetailEmpty from "./TaskDetailEmpty";
-import DeleteTaskButton from "./inline/DeleteTaskButton";
+import InviteSection from "./InviteSection";
 import ConfirmedDatePicker from "./ConfirmedDatePicker";
 import TaskDetailPickers from "./TaskDetailPickers";
 import InlineTextEdit from "./inline/InlineTextEdit";
 import TaskLinkField from "./TaskLinkField";
 import InlinePicker from "./inline/InlinePicker";
 import { TaskDateTimeLabel, TaskRepeatLabel } from "./shared/TaskDetailRows";
-import { ExternalLink, AlignLeft, CalendarDays, FileText } from "lucide-react";
+import { ExternalLink, AlignLeft, CalendarDays, FileText, Send } from "lucide-react";
+
+/**
+ * Reports whether Escape should be left alone: a modal or popover is open
+ * (they own Escape through useDialog) or the user is typing in a field.
+ *
+ * @param target - The keydown target
+ * @returns True when the panel must not react
+ */
+function escapeBelongsElsewhere(target: EventTarget | null): boolean {
+  if (document.querySelector('[role="dialog"][aria-modal="true"], [role="menu"]')) return true;
+  if (!(target instanceof HTMLElement)) return false;
+  return target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName);
+}
 
 interface TaskDetailPanelProps {
   /** The selected task, or null for empty state. */
@@ -77,7 +93,9 @@ function RowIcon({ children }: { children: React.ReactNode }) {
 /**
  * Right-side task detail panel. Every field edits in place: hovering tints
  * the field, clicking turns it into an editor or opens its picker. There is
- * no edit button and no modal — the panel is the editor.
+ * no edit button and no modal: the panel is the editor. The header carries
+ * Close (also Escape) and an overflow menu with Hide for..., Open assignment
+ * and a single-click Delete whose toast has Undo.
  *
  * @param task - The task being viewed, or null for empty state
  * @param onClose - Callback to deselect the task
@@ -86,6 +104,19 @@ function RowIcon({ children }: { children: React.ReactNode }) {
  */
 export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: TaskDetailPanelProps) {
   const { colorTheme } = useTheme();
+  const { snoozeTask } = useTaskContext();
+  const taskId = task?.id ?? null;
+
+  // Escape closes the panel unless a dialog, a menu or a text field owns it.
+  useEffect(() => {
+    if (!taskId) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key !== "Escape" || escapeBelongsElsewhere(e.target)) return;
+      onClose();
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [taskId, onClose]);
 
   if (!task) return <TaskDetailEmpty />;
 
@@ -130,20 +161,14 @@ export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: Tas
 
   return (
     <div className="flex-1 h-full border-l border-border flex flex-col min-w-0">
-      {/* Header — delete only. Editing happens in the fields themselves, so
-          there is no pencil to reach for. */}
-      <div className="shrink-0 flex items-center justify-end pl-3 pr-3 md:pr-6 pt-4 md:pt-5 pb-2">
-        {onDelete && (
-          // Keyed by task so the armed state cannot survive a switch.
-          <DeleteTaskButton
-            key={task.id}
-            onConfirm={() => {
-              onDelete(task.id);
-              onClose();
-            }}
-          />
-        )}
-      </div>
+      {/* Header: overflow menu and Close. Editing happens in the fields
+          themselves, so there is no pencil to reach for. */}
+      <TaskActionBar
+        onClose={onClose}
+        onSnooze={(hours) => { snoozeTask(task.id, hours); onClose(); }}
+        onDelete={onDelete ? () => { onDelete(task.id); onClose(); } : undefined}
+        sourceUrl={task.source_url}
+      />
 
       {/* Title block — pinned while the body scrolls. */}
       <div className="shrink-0 px-6 pt-1 pb-4 border-b border-border min-w-0">
@@ -267,7 +292,7 @@ export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: Tas
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={(e) => e.stopPropagation()}
-                    className="inline-flex items-center gap-1 text-[#0e89d6] hover:underline break-all"
+                    className="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400 hover:underline break-all"
                   >
                     {looksLikeDocument(seg.href, seg.label) && <FileText size={13} className="shrink-0" />}
                     {seg.label}
@@ -277,6 +302,18 @@ export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: Tas
             </InlineTextEdit>
           </div>
         </div>
+
+        {/* Share: invite a friend to a copy of this task. Only saved rows the
+            user owns can be shared, so an optimistic temp row and a pseudo
+            task built from a pending invite (user_id "") are skipped. */}
+        {!task.id.startsWith("temp-") && task.user_id !== "" && (
+          <div className="flex items-start gap-4 py-2 min-w-0">
+            <RowIcon><Send size={ROW_ICON_SIZE} /></RowIcon>
+            <div className={ROW_VALUE_COLUMN}>
+              <InviteSection key={task.id} taskId={task.id} />
+            </div>
+          </div>
+        )}
 
         <TaskDuplicatesBanner task={task} />
       </div>

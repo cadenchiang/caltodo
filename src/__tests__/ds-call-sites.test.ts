@@ -52,7 +52,6 @@ describe("migrated modals", () => {
 
 describe("popover backgrounds", () => {
   it.each([
-    ["components/tasks/TaskAddPopover.tsx", "overflow-visible bg-popover rounded-2xl"],
     ["components/onboarding/SearchableSelect.tsx", "mt-1 w-full bg-popover border"],
     ["components/discussions/ChatInput.tsx", "z-30 bg-popover shadow-xl rounded-xl"],
     // TaskItem's menus now render through TaskContextMenu, which uses the

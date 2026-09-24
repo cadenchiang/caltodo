@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Send, UserPlus, X, Loader2 } from "lucide-react";
+import { UserPlus, X, Loader2 } from "lucide-react";
 import { useDebounce } from "@/hooks/useDebounce";
 import UserAvatar from "@/components/ui/UserAvatar";
 
@@ -181,7 +181,7 @@ export default function InviteSection({ taskId }: InviteSectionProps) {
       setQuery("");
       setSuggestions([]);
     } catch {
-      setError("Network error — please try again");
+      setError("Network error. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -200,9 +200,13 @@ export default function InviteSection({ taskId }: InviteSectionProps) {
       });
       if (res.ok) {
         setShares((prev) => prev.filter((s) => s.id !== shareId));
+      } else {
+        console.error("[InviteSection] revoke rejected", { shareId, status: res.status, impact: "share kept" });
+        setError("Couldn't remove that person. Try again.");
       }
-    } catch {
-      // Silently fail — user can retry
+    } catch (err) {
+      console.error("[InviteSection] revoke failed", { shareId, error: err instanceof Error ? err.message : String(err), impact: "share kept" });
+      setError("Couldn't remove that person. Try again.");
     } finally {
       setRemovingId(null);
     }
@@ -251,11 +255,11 @@ export default function InviteSection({ taskId }: InviteSectionProps) {
                 {share.invitee_name || share.invitee_email}
               </span>
               {share.status === "pending" && (
-                <span className="text-[9px] text-amber-500 font-medium">pending</span>
+                <span className="text-3xs text-amber-600 dark:text-amber-400 font-medium">pending</span>
               )}
               {share.status === "deferred" && (
                 <span
-                  className="text-[9px] text-blue-500 font-medium cursor-help"
+                  className="text-3xs text-blue-600 dark:text-blue-400 font-medium cursor-help"
                   title="They'll see this when they join caltodo"
                 >
                   invited
@@ -280,43 +284,41 @@ export default function InviteSection({ taskId }: InviteSectionProps) {
 
       {/* Single layout — collapsed shows text, expanded shows input in-place */}
       <div className="relative">
-        <div
-          className={`flex items-center gap-3 py-2 px-1.5 ${!expanded ? "cursor-text" : ""}`}
-          onClick={() => !expanded && setExpanded(true)}
-        >
-          <Send size={16} className="text-muted-foreground shrink-0" />
-          <div
-            className={`flex-1 flex items-center rounded-lg px-2 py-1.5 transition-colors duration-200 ${
-              expanded ? "bg-accent/60" : ""
-            }`}
-          >
-            {expanded ? (
-              <input
-                ref={inputRef}
-                type="text"
-                value={query}
-                onChange={(e) => { setQuery(e.target.value); setError(null); }}
-                onKeyDown={handleKeyDown}
-                placeholder="Search by name or email..."
-                className="flex-1 min-w-0 bg-transparent text-foreground placeholder-muted-foreground focus:outline-none text-sm"
-              />
-            ) : (
-              <span className="text-sm text-muted-foreground">Send assignment</span>
-            )}
-            {expanded && searching && (
-              <Loader2 size={12} className="animate-spin text-muted-foreground shrink-0 ml-2" />
-            )}
+        {expanded ? (
+          <div className="flex items-center rounded-lg px-2 py-1.5 bg-accent/60 transition-colors duration-200">
+            <label htmlFor={`invite-search-${taskId}`} className="sr-only">
+              Share with
+            </label>
+            <input
+              id={`invite-search-${taskId}`}
+              ref={inputRef}
+              type="text"
+              value={query}
+              onChange={(e) => { setQuery(e.target.value); setError(null); }}
+              onKeyDown={handleKeyDown}
+              placeholder="Search by name or email..."
+              className="flex-1 min-w-0 bg-transparent text-foreground placeholder-muted-foreground focus:outline-none text-sm"
+            />
+            {searching && <Loader2 size={12} className="animate-spin text-muted-foreground shrink-0 ml-2" />}
           </div>
-        </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setExpanded(true)}
+            className="w-full text-left rounded-lg px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent/60 focus-visible:bg-accent/60 focus-visible:outline-none transition-colors"
+          >
+            Share task
+          </button>
+        )}
 
         {/* Error message */}
         {expanded && error && (
-          <p className="text-xs text-red-500 dark:text-red-400 px-1 mt-1 ml-7">{error}</p>
+          <p className="text-xs text-red-600 dark:text-red-400 px-1 mt-1" role="alert">{error}</p>
         )}
 
         {/* Autocomplete dropdown */}
         {expanded && (suggestions.length > 0 || (query.includes("@") && query.length >= 3 && suggestions.length === 0 && !searching)) && (
-          <div className="absolute left-7 right-0 top-full mt-1 z-50 rounded-lg border border-border bg-popover shadow-xl overflow-hidden max-h-[200px] overflow-y-auto">
+          <div className="absolute left-0 right-0 top-full mt-1 z-dropdown rounded-lg border border-border bg-popover shadow-xl overflow-hidden max-h-[200px] overflow-y-auto">
             {suggestions.map((user) => (
               <button
                 key={user.id}

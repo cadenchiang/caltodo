@@ -149,7 +149,7 @@ export default function TaskLinkField({ value, onCommit }: TaskLinkFieldProps) {
         target="_blank"
         rel="noopener noreferrer"
         title={value}
-        className="text-sm font-medium text-[#0e89d6] hover:underline truncate min-w-0"
+        className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline truncate min-w-0"
       >
         {displayTaskLink(value)}
       </a>
