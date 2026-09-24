@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 
 /** Where a completed checkout lands. Everything is free, so there is nothing to show. */
-export const BILLING_SUCCESS_REDIRECT = "/app/inbox";
+const BILLING_SUCCESS_REDIRECT = "/app/inbox";
 
 /**
  * Post-checkout landing. Stripe's success_url still points here, and the

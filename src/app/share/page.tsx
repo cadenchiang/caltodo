@@ -4,26 +4,7 @@ import { useEffect, useState } from "react";
 import { Check, Copy } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { BRAND } from "@/lib/copy";
-
-/** The text the sms: link pre-fills, shown as a fallback where sms: cannot open. */
-export const SHARE_MESSAGE = "Hey, you should try this. It is free for life right now: https://caltodo.me";
-
-/** The sms: URL. Encoded from SHARE_MESSAGE so the two can never drift. */
-export const SHARE_SMS_URL = `sms:?body=${encodeURIComponent(SHARE_MESSAGE)}`;
-
-/** How long to wait for Messages before showing the copy fallback. */
-export const FALLBACK_AFTER_MS = 1500;
-
-/**
- * Whether this device can plausibly open an sms: link. Desktop browsers
- * without a paired Messages app leave the page sitting on "opening" forever.
- *
- * @param userAgent - navigator.userAgent
- * @returns True for phones and tablets
- */
-export function canOpenSms(userAgent: string): boolean {
-  return /iPhone|iPad|iPod|Android/i.test(userAgent);
-}
+import { SHARE_MESSAGE, SHARE_SMS_URL, FALLBACK_AFTER_MS, canOpenSms } from "@/lib/share-page";
 
 /**
  * Share page used in email campaigns, where sms: links are blocked. On a

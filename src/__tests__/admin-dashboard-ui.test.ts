@@ -11,7 +11,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { CHART_COLOR_VARS, resolveChartColors } from "@/components/admin/useChartColors";
 import { barColor, buildPlatformRows } from "@/components/admin/PlatformAdoption";
-import { countSyllabusUsers } from "@/app/api/admin/overview/route";
+import { countSyllabusUsers } from "@/lib/admin-overview-helpers";
 
 const DIR = path.resolve(__dirname, "..", "components/admin");
 const read = (name: string) => readFileSync(path.join(DIR, name), "utf8");

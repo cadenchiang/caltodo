@@ -17,7 +17,7 @@ describe("/app/billing/success", () => {
 
   it("redirects to the inbox and renders no Pro copy", () => {
     expect(src).toContain('import { redirect } from "next/navigation";');
-    expect(src).toContain('export const BILLING_SUCCESS_REDIRECT = "/app/inbox";');
+    expect(src).toContain('const BILLING_SUCCESS_REDIRECT = "/app/inbox";');
     expect(src).toContain("redirect(BILLING_SUCCESS_REDIRECT);");
     expect(src).not.toMatch(/You&rsquo;re Pro|You're Pro/);
     expect(src).not.toContain("#0e89d6");

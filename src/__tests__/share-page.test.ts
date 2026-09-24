@@ -5,7 +5,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { FALLBACK_AFTER_MS, SHARE_MESSAGE, SHARE_SMS_URL, canOpenSms } from "@/app/share/page";
+import { FALLBACK_AFTER_MS, SHARE_MESSAGE, SHARE_SMS_URL, canOpenSms } from "@/lib/share-page";
 
 const ROOT = path.resolve(__dirname, "../..");
 const page = readFileSync(path.join(ROOT, "src/app/share/page.tsx"), "utf8");
