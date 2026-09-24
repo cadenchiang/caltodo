@@ -1204,7 +1204,7 @@ body {
    route swaps. (The hard 0->1 fade keyframe below was duplicate and
    overrode the intent; removed.) */
 .animate-fade-in {
-  animation: pageFadeIn 140ms ease-out;
+  animation: pageFadeIn 150ms ease-out;
 }
 
 /* Overlay entry — a plain fade for a full-screen panel arriving over the app.
@@ -1449,36 +1449,6 @@ body {
 }
 
 /* Indeterminate progress bar — fast left-to-right sweep */
-/* Settings section swap — fades + slides up 6px. No animation-delay and
-   no `backwards` fill mode so the content is never invisibly absent before
-   the animation starts (avoids the flash that plain animate-stagger causes
-   on frequent switches). */
-/* sectionIn entrance was removed; class hook no-ops. */
-.animate-section-in {
-  animation: none;
-}
-
-/* Staggered section entrance — neutralized at the user's request.
-   The page-level PageTransition wrapper now handles the fade-in
-   gesture once; in-page sections used to layer their own delayed
-   stagger animations on top, which read as busy and slow. Keeping
-   the class hooks but making them a no-op so existing markup
-   compiles without animating. */
-.animate-stagger,
-.stagger-1,
-.stagger-2,
-.stagger-3,
-.stagger-4 {
-  animation: none;
-}
-
-/* When PageTransition decides the current mount shouldn't animate
-   (first session load or chat pages), suppress nested stagger
-   animations too so the page just appears. */
-.no-page-anim .animate-stagger {
-  animation: none;
-}
-
 /* Drop-in animation — drops from above with subtle bounce */
 @keyframes dropIn {
   0% {
@@ -1885,15 +1855,6 @@ textarea:-webkit-autofill {
 
 .animate-announce-card-out {
   animation: announceCardOut 200ms ease-in both;
-}
-
-/* Element-level entrance animations were removed at the user's
-   request. The class hooks remain as no-ops so existing markup still
-   compiles, but no transform/opacity choreography fires. */
-.animate-task-slide-in,
-.animate-view-switch,
-.animate-section-in {
-  animation: none;
 }
 
 /* Tour click pulse — press-down + spring-back with expanding ring ripple */

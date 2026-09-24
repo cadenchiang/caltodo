@@ -10,6 +10,7 @@ import TaskBoardView from "@/components/tasks/TaskBoardView";
 import TaskDetailPanel from "@/components/tasks/TaskDetailPanel";
 import TaskCreateModal from "@/components/tasks/TaskCreateModal";
 import SyncClassesModal from "@/components/calendar/SyncClassesModal";
+import { ADD_TASK_EVENT } from "@/components/layout/MobileTabBar";
 import PageTransition from "@/components/ui/PageTransition";
 import type { Task } from "@/lib/types";
 import InboxToolbar from "./InboxToolbar";
@@ -71,6 +72,18 @@ export default function InboxPage() {
   }, []);
 
   const closePreview = useCallback(() => { setPreviewTask(null); setPreviewRect(null); }, []);
+
+  // The mobile tab bar's Add button: an event when already here, ?add=1
+  // when it navigated here first.
+  useEffect(() => {
+    const open = () => setShowAddModal(true);
+    window.addEventListener(ADD_TASK_EVENT, open);
+    if (new URLSearchParams(window.location.search).get("add") === "1") {
+      open();
+      window.history.replaceState(null, "", "/app/inbox");
+    }
+    return () => window.removeEventListener(ADD_TASK_EVENT, open);
+  }, []);
 
   // Auto-select task from ?task= (notification click-through, /app/today redirect).
   const taskParamHandled = useRef(false);

@@ -252,6 +252,13 @@ export function TaskProvider({
   const [error, setError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
+  /**
+   * Mirror of `syncing` for the auto-sync effect, which must not list the
+   * state in its deps: doing so tore down and re-armed the mount timer, the
+   * interval and the visibility listener on every manual sync toggle.
+   */
+  const syncingRef = useRef(false);
+  syncingRef.current = syncing;
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
   const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
   const hasCacheRef = useRef(preloaded);
@@ -525,7 +532,7 @@ export function TaskProvider({
       // Skip when tab is not visible to save server CPU on idle/background tabs.
       if (typeof document !== "undefined" && document.hidden) return;
       const now = Date.now();
-      if (syncing || now - lastAutoSyncRef.current < AUTO_SYNC_COOLDOWN_MS) return;
+      if (syncingRef.current || now - lastAutoSyncRef.current < AUTO_SYNC_COOLDOWN_MS) return;
       lastAutoSyncRef.current = now;
       writeLastAutoSync(now);
 
@@ -710,7 +717,7 @@ export function TaskProvider({
       abortController.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [syncing, fetchTasks, syncUnsyncedToGCal]);
+  }, [fetchTasks, syncUnsyncedToGCal]);
 
   /**
    * Adds a task with optimistic UI: immediately shows in the list with a temp ID,

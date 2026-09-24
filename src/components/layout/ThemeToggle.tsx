@@ -13,40 +13,31 @@ const SEGMENTS: { value: ThemePreference; label: string; Icon: typeof Sun }[] = 
 ];
 
 /**
- * 3-segment pill theme toggle: Light | Auto | Dark.
- * Each segment is an accessible button with an icon.
- * A sliding highlight indicator animates between positions.
+ * 3-segment pill theme toggle: Light | Auto | Dark. Painted with the design
+ * tokens and `dark:` variants, so it follows the resolved theme from
+ * ThemeContext (and the colour theme) instead of a hardcoded zinc/gray pair
+ * that flashed light before hydration.
  *
  * @param className - Optional additional CSS classes
  */
 export default function ThemeToggle({ className }: { className?: string }) {
-  const { preference, resolvedTheme, setPreference } = useTheme();
-  const isDark = resolvedTheme === "dark";
-
+  const { preference, setPreference } = useTheme();
   const activeIndex = SEGMENTS.findIndex((s) => s.value === preference);
 
   return (
     <div
-      className={cn(
-        "theme-toggle relative flex w-fit h-11 md:h-9 rounded-full p-1 transition-colors duration-300",
-        isDark
-          ? "bg-zinc-950 border border-zinc-800"
-          : "bg-white border border-zinc-200",
-        className
-      )}
+      role="group"
+      aria-label="Theme"
+      className={cn("theme-toggle relative flex w-fit h-11 md:h-9 rounded-full p-1 border border-border bg-card transition-colors duration-300", className)}
     >
       {/* Sliding highlight indicator. The step is a CSS var rather than an
           inline pixel value so it can follow the wider mobile segments. */}
       <div
-        className={cn(
-          "theme-toggle-indicator absolute top-1 left-1 h-9 w-11 md:h-7 md:w-8 rounded-full transition-all duration-300 ease-in-out",
-          isDark ? "bg-zinc-800" : "bg-gray-200"
-        )}
+        className="theme-toggle-indicator absolute top-1 left-1 h-9 w-11 md:h-7 md:w-8 rounded-full bg-muted dark:bg-white/10 transition-all duration-300 ease-in-out"
         style={{ ["--seg-index" as string]: activeIndex }}
         aria-hidden
       />
 
-      {/* Segment buttons */}
       {SEGMENTS.map(({ value, label, Icon }) => {
         const isActive = preference === value;
         return (
@@ -55,24 +46,14 @@ export default function ThemeToggle({ className }: { className?: string }) {
             type="button"
             onClick={() => setPreference(value)}
             aria-label={label}
+            title={label}
             aria-pressed={isActive}
-            className={cn(
-              "relative z-10 flex h-9 w-11 md:h-7 md:w-8 items-center justify-center rounded-full transition-colors duration-200",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-            )}
+            className="relative z-10 flex h-9 w-11 md:h-7 md:w-8 items-center justify-center rounded-full transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <Icon
-              className={cn(
-                "h-4 w-4 transition-colors duration-200",
-                isActive
-                  ? isDark
-                    ? "text-white"
-                    : "text-gray-700"
-                  : isDark
-                    ? "text-zinc-500"
-                    : "text-gray-400"
-              )}
+              className={cn("h-4 w-4 transition-colors duration-200", isActive ? "text-foreground" : "text-muted-foreground")}
               strokeWidth={1.5}
+              aria-hidden="true"
             />
           </button>
         );

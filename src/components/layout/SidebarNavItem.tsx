@@ -125,6 +125,7 @@ export default function SidebarNavItem({ label, href, icon: Icon, badge, badgeCo
       prefetch={true}
       onClick={onClick}
       data-nav-href={href}
+      aria-current={isActive ? "page" : undefined}
       className={navItemClasses(isActive, isMiffy)}
     >
       {isActive && <SidebarActivePill />}
@@ -143,7 +144,7 @@ export default function SidebarNavItem({ label, href, icon: Icon, badge, badgeCo
         </span>
       )}
       {badgeText && (
-        <span className="relative z-10 ml-auto px-1.5 py-0.5 rounded-md bg-[#0e89d6] text-white text-[9px] font-bold tracking-wide shrink-0">
+        <span className="relative z-10 ml-auto px-1.5 py-0.5 rounded-md bg-blue-500 text-white text-3xs font-bold tracking-wide shrink-0">
           {badgeText}
         </span>
       )}

@@ -98,7 +98,7 @@ export default function RepeatPicker({
     !options.some((o) => o.interval === interval && o.unit === unit);
 
   return (
-    <div className="bg-popover rounded-xl shadow-2xl border border-border py-1 w-64 animate-in fade-in zoom-in-95 duration-100">
+    <div className="bg-popover rounded-xl shadow-2xl border border-border py-1 w-64">
       {options.map((opt) => (
         <button
           key={opt.label}

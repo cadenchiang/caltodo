@@ -4,9 +4,9 @@
  * Per-route template wrapper for authenticated /app routes.
  *
  * Next.js mounts a fresh instance of this on every route change, which
- * lets us run the subtle `.animate-fade-in` keyframe on the new page
- * each time it appears. Without this wrapper the fade-in CSS exists
- * but is never applied to route swaps, leaving navigation abrupt.
+ * runs the one page fade (`.animate-fade-in`, 150ms) on the new page each
+ * time it appears. This is the only page-level fade: PageTransition is a
+ * plain wrapper, so nothing stacks a second fade on top.
  *
  * Keep the wrapper styling minimal so it doesn't interfere with each
  * page's own layout (no width/height changes, no background).
