@@ -156,7 +156,7 @@ export default function McpSettings() {
 
   /** Summary line under the card title. */
   const subtitle = isLoading
-    ? "Loading…"
+    ? "Loading..."
     : error
       ? "Couldn't load your keys"
       : connected
@@ -168,7 +168,7 @@ export default function McpSettings() {
 
   return (
     <div className="rounded-2xl border border-border bg-card shadow-sm dark:shadow-none overflow-hidden">
-      {/* Header row — mirrors the other integration cards on this page. */}
+      {/* Header row, mirroring the other integration cards on this page. */}
       <button
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
@@ -230,7 +230,7 @@ export default function McpSettings() {
           {newKey && (
             <div className="rounded-xl border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 p-3 animate-row-fade-in">
               <p className="text-xs font-medium text-emerald-800 dark:text-emerald-300 mb-2">
-                Copy this key now — it will not be shown again.
+                Copy this key now. It will not be shown again.
               </p>
               <div className="flex items-center gap-1.5 pl-3 pr-1.5 py-1.5 rounded-lg border border-emerald-200 dark:border-emerald-500/30 bg-card">
                 <input
@@ -255,7 +255,7 @@ export default function McpSettings() {
             <p className="text-xs font-medium text-foreground mb-1.5">API keys</p>
 
             {isLoading ? (
-              <p className="text-xs text-muted-foreground py-2">Loading…</p>
+              <p className="text-xs text-muted-foreground py-2">Loading...</p>
             ) : error ? (
               <p className="text-xs text-red-500 py-2">
                 {error instanceof Error ? error.message : "Failed to load API keys"}

@@ -126,3 +126,26 @@ describe("McpKeyList revoke", () => {
     for (const call of failures) expect(call).toContain('variant: "error"');
   });
 });
+
+describe("McpKeyDialog", () => {
+  const src = read("src/components/settings/McpKeyDialog.tsx");
+
+  it("is built on Modal with TextField and Buttons, no hand-rolled overlay", () => {
+    expect(src).toContain('import Modal from "@/components/ui/Modal";');
+    expect(src).toContain('import TextField from "@/components/ui/TextField";');
+    expect(src).toContain("initialFocusRef={nameRef}");
+    expect(src).not.toContain("createPortal");
+    expect(src).not.toContain("z-[9999]");
+    expect(src).not.toContain("addEventListener");
+    expect(src).not.toContain("…");
+  });
+
+  it("MCP copy has no em dashes or ellipsis characters and CopyField failures use the error variant", () => {
+    const settings = read("src/components/settings/McpSettings.tsx");
+    expect(settings).not.toContain("—");
+    expect(settings).not.toContain("…");
+    expect(read("src/components/settings/CopyField.tsx")).toContain(
+      'showToast(`Failed to copy ${label.toLowerCase()}.`, { variant: "error" })'
+    );
+  });
+});
