@@ -13,7 +13,7 @@ const PUBLIC_DIR = path.join(ROOT, "public");
 
 /** Video assets required by the onboarding flow. */
 const REQUIRED_VIDEOS = [
-  { file: "bcourses-instructions.mp4", component: "CanvasStep.tsx" },
+  { file: "bcourses-instructions.mp4", component: "TokenVideoGuide.tsx" },
 ];
 
 describe("onboarding video assets", () => {

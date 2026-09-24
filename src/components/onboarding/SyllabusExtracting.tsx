@@ -51,7 +51,7 @@ export default function SyllabusExtracting({
     <div className="flex-1 flex flex-col items-center justify-center py-12 px-4">
       <FileText
         size={48}
-        className="text-purple-500 mb-6 animate-drop-in"
+        className="text-blue-500 mb-6 animate-drop-in"
       />
 
       <h2 className="text-lg font-bold text-foreground mb-1 animate-drop-in delay-100">
@@ -67,7 +67,7 @@ export default function SyllabusExtracting({
       <div className="w-full max-w-xs mb-3 animate-drop-in delay-300">
         <div className="h-2 rounded-full bg-muted overflow-hidden">
           <div
-            className="h-full rounded-full bg-purple-500 transition-all duration-700 ease-out"
+            className="h-full rounded-full bg-blue-500 transition-all duration-700 ease-out"
             style={{ width: `${progressPercent}%` }}
           />
         </div>

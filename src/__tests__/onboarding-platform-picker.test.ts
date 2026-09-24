@@ -17,6 +17,7 @@ import { INTEGRATION_CATALOG } from "@/lib/integration-catalog";
 const ROOT = path.resolve(__dirname, "../..");
 const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), "utf8");
 const page = read("src/app/app/onboarding/page.tsx");
+const picker = read("src/components/onboarding/PlatformsStep.tsx");
 
 describe("every integration is offered", () => {
   it("lists the same set the settings catalog does", () => {
@@ -29,12 +30,12 @@ describe("every integration is offered", () => {
 
   it("renders an option for each", () => {
     for (const platform of ONBOARDING_PLATFORMS) {
-      expect(page).toMatch(new RegExp(`id: "${platform}", label:`));
+      expect(picker).toMatch(new RegExp(`id: "${platform}", label:`));
     }
   });
 
   it("ships a logo for each option", () => {
-    const logos = page.match(/logo: "([^"]+)"/g) ?? [];
+    const logos = picker.match(/logo: "([^"]+)"/g) ?? [];
     expect(logos.length).toBe(ONBOARDING_PLATFORMS.length);
     for (const entry of logos) {
       const file = entry.slice('logo: "'.length, -1);
@@ -99,7 +100,7 @@ describe("every option has a step behind it", () => {
 
 describe("the step fits without scrolling", () => {
   it("lays the options out in two columns", () => {
-    expect(page).toContain('className="grid grid-cols-2 gap-2 mb-6"');
+    expect(picker).toContain('className="grid grid-cols-2 gap-2 mb-6"');
   });
 
   it("drops the 20vh lift that pushed Continue past the fold", () => {
@@ -118,12 +119,11 @@ describe("skipping the step", () => {
     // one that matters is the one this picker owns. Continue spans the card,
     // so a bare inline button under it sat against the left edge and read as
     // a stray link rather than the pair's second option.
-    const step = page.slice(page.indexOf('currentStep === "platforms" && ('));
-    const continueEnd = step.indexOf("Continue\n");
-    const skip = step.indexOf("Skip for now");
+    const continueEnd = picker.indexOf("Continue\n");
+    const skip = picker.indexOf("{SKIP_LABEL}");
     expect(continueEnd).toBeGreaterThan(-1);
     expect(skip).toBeGreaterThan(continueEnd);
-    expect(step.slice(continueEnd, skip)).toContain("mt-3 flex justify-center");
+    expect(picker.slice(continueEnd, skip)).toContain("mt-3 flex justify-center");
   });
 
   it("reports a completion as well as a skip", () => {
@@ -133,7 +133,9 @@ describe("skipping the step", () => {
     expect(page).toContain('trackEvent("onboarding_step_skipped", { step: "platforms" })');
   });
 
-  it("sends a skipping user to the end rather than into a platform step", () => {
-    expect(page).toMatch(/step: "platforms" \}\);\n\s*setCurrentStep\("done"\);/);
+  it("sends a skipping user straight into the app rather than into a platform step", () => {
+    // Nothing was selected, so there is nothing to sync on the done step;
+    // the skip exits through the same completion path as skip-setup.
+    expect(page).toMatch(/step: "platforms" \}\);\n\s*handleSyncAndGo\(\{ skipSync: true \}\);/);
   });
 });

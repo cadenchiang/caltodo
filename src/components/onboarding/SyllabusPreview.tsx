@@ -29,7 +29,7 @@ interface SyllabusPreviewProps {
  *
  * @param dateStr - YYYY-MM-DD date string or null
  * @param timeStr - HH:MM time string or null
- * @returns Object with dateLabel, timeLabel, className — or null if no date
+ * @returns Object with dateLabel, timeLabel, className, or null if no date
  */
 function getDueBadge(dateStr: string | null, timeStr: string | null | undefined): {
   dateLabel: string; timeLabel: string | null; className: string;
@@ -45,7 +45,7 @@ function getDueBadge(dateStr: string | null, timeStr: string | null | undefined)
   let className: string;
   if (diffDays < 0) {
     dateLabel = date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-    className = "text-red-400";
+    className = "text-red-600 dark:text-red-400";
   } else if (diffDays === 0) {
     dateLabel = "Today";
     className = "text-blue-400";
@@ -101,7 +101,7 @@ function formatTime(time: string | null | undefined): string | null {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Per-card sub-component — owns its own refs and date picker state  */
+/*  Per-card sub-component: owns its own refs and date picker state  */
 /* ------------------------------------------------------------------ */
 
 interface CardProps {
@@ -159,21 +159,21 @@ function SyllabusAssignmentCard({
         onClick={() => onUpdate(i, { selected: !a.selected })}
         className={`w-[16px] h-[16px] rounded flex items-center justify-center shrink-0 transition-all cursor-pointer border-2 ${
           a.selected
-            ? "border-purple-500 bg-purple-500"
+            ? "border-blue-500 bg-blue-500"
             : "border-muted-foreground/30 hover:border-muted-foreground/50"
         }`}
       >
         {a.selected && <Check size={10} className="text-white" strokeWidth={3} />}
       </button>
 
-      {/* Title — text or inline input */}
+      {/* Title: text or inline input */}
       {isEditing ? (
         <input
           type="text"
           value={a.title}
           onChange={(e) => onUpdate(i, { title: e.target.value })}
           onKeyDown={(e) => { if (e.key === "Enter") handleDone(); }}
-          className="flex-1 min-w-0 text-sm font-medium text-foreground bg-transparent outline-none border-b border-purple-500/50 focus:border-purple-500 transition-colors placeholder:text-muted-foreground"
+          className="flex-1 min-w-0 text-sm font-medium text-foreground bg-transparent outline-none border-b border-blue-500/50 focus:border-blue-500 transition-colors placeholder:text-muted-foreground"
           placeholder="Assignment title"
           autoFocus
         />
@@ -195,7 +195,7 @@ function SyllabusAssignmentCard({
             ref={dateButtonRef}
             type="button"
             onClick={() => setShowDatePicker((v) => !v)}
-            className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md bg-muted/60 hover:bg-muted transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md bg-muted hover:bg-accent transition-colors cursor-pointer"
             style={{ color: taskColor }}
           >
             <span>{formatDateShort(a.due_date)}</span>
@@ -228,14 +228,14 @@ function SyllabusAssignmentCard({
           {badge.dateLabel}
         </span>
       ) : (
-        <span className="text-[11px] shrink-0 italic text-muted-foreground/50">No date</span>
+        <span className="text-[11px] shrink-0 italic text-muted-foreground">No date</span>
       )}
 
       {/* Edit / Done button */}
       {isEditing ? (
         <button
           onClick={handleDone}
-          className="px-2 py-0.5 text-[11px] font-medium rounded-md bg-purple-500/10 text-purple-500 hover:bg-purple-500/20 transition-colors cursor-pointer shrink-0"
+          className="px-2 py-0.5 text-[11px] font-medium rounded-md bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 transition-colors cursor-pointer shrink-0"
         >
           Done
         </button>
@@ -310,7 +310,7 @@ export default function SyllabusPreview({
             layout="compact"
           />
           {error && (
-            <span className="text-xs text-red-400">{error}</span>
+            <span className="text-xs text-red-600 dark:text-red-400">{error}</span>
           )}
           <button
             onClick={() => onImport(taskColor)}
@@ -368,7 +368,7 @@ export default function SyllabusPreview({
               }
               className="text-xs font-medium text-blue-500 hover:text-blue-600 cursor-pointer"
             >
-              {allSelected ? "Deselect All" : "Select All"}
+              {allSelected ? "Deselect all" : "Select all"}
             </button>
           </div>
 

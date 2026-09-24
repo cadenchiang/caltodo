@@ -16,6 +16,7 @@ import {
   saveProgress,
   clearProgress,
   progressPercentForStep,
+  progressPercentInList,
 } from "@/lib/onboarding-progress";
 import * as fs from "fs";
 import * as path from "path";
@@ -195,9 +196,30 @@ describe("progressPercentForStep (audit L13)", () => {
     for (let i = 1; i < widths.length; i++) expect(widths[i]).toBeGreaterThan(widths[i - 1]);
   });
 
-  it("is what the onboarding page renders", () => {
+  it("is what the onboarding page renders, against the user's own step list", () => {
     const page = fs.readFileSync(path.resolve(__dirname, "../app/app/onboarding/page.tsx"), "utf8");
-    expect(page).toContain("width: `${progressPercentForStep(currentStep)}%`");
+    expect(page).toContain("const progressPercent = progressPercentInList(currentStep, steps);");
+    expect(page).toContain("width: `${progressPercent}%`");
+    expect(page).toContain('role="progressbar"');
     expect(page).not.toContain("} as Record<Step, number>)[currentStep]");
+  });
+});
+
+describe("progressPercentInList", () => {
+  it("reaches 100 on the last step of a short dynamic list", () => {
+    const steps = ["welcome", "school", "referral", "platforms", "canvas", "done"] as const;
+    expect(progressPercentInList("welcome", steps)).toBe(0);
+    expect(progressPercentInList("canvas", steps)).toBe(80);
+    expect(progressPercentInList("done", steps)).toBe(100);
+  });
+
+  it("returns 0 for a step outside the list", () => {
+    expect(progressPercentInList("gcal", ["welcome", "done"])).toBe(0);
+  });
+
+  it("matches the static helper when given the full list", () => {
+    for (const step of ONBOARDING_STEPS) {
+      expect(progressPercentInList(step, ONBOARDING_STEPS)).toBe(progressPercentForStep(step));
+    }
   });
 });

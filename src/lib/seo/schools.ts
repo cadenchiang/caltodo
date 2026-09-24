@@ -89,3 +89,44 @@ const BY_SLUG = new Map(SCHOOLS.map((s) => [s.slug, s]));
 export function getSchool(slug: string): School | undefined {
   return BY_SLUG.get(slug);
 }
+
+/**
+ * Collapses a school name for loose matching: lowercase, no punctuation,
+ * no parenthesized alias, no filler words.
+ *
+ * @param name - A display name from either list
+ * @returns The normalized key
+ */
+function normalizeSchoolName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/\([^)]*\)/g, " ")
+    .replace(/[^a-z0-9 ]+/g, " ")
+    .replace(/\b(university|of|the)\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Normalized-name lookup index, built once at module load. Exported for the
+    uniqueness test: two schools collapsing to one key would shadow each other. */
+export const BY_NORMALIZED_NAME = new Map(SCHOOLS.map((s) => [normalizeSchoolName(s.name), s]));
+
+/**
+ * Finds the Canvas host for a school the user picked on the school step.
+ *
+ * @param name - School name as written in the onboarding picker
+ * @returns The Canvas hostname, or undefined when the school is unknown so
+ *          the host field stays empty rather than guessing
+ * @remarks Matches exactly first, then on a normalized form so "Florida
+ *          State" finds "Florida State University". Never partial-matches
+ *          beyond that, since "UC Irvine" must not resolve to "UC Riverside".
+ */
+export function canvasHostForSchool(name: string): string | undefined {
+  const trimmed = name.trim();
+  if (!trimmed) return undefined;
+  const exact = SCHOOLS.find((s) => s.name.toLowerCase() === trimmed.toLowerCase());
+  if (exact) return exact.canvasHost;
+  const key = normalizeSchoolName(trimmed);
+  if (!key) return undefined;
+  return BY_NORMALIZED_NAME.get(key)?.canvasHost;
+}

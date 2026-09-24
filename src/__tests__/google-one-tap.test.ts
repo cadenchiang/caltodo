@@ -31,10 +31,13 @@ describe("GoogleOneTap", () => {
     expect(handler.indexOf("process-deferred")).toBeLessThan(handler.indexOf("router.push("));
   });
 
-  it("sends new users to onboarding with the callback's welcome flag", () => {
-    expect(oneTap).toContain('router.push("/app/onboarding?welcome=1")');
+  it("sends new users to onboarding without the unread welcome flag", () => {
+    // Nothing ever read ?welcome=1; the onboarding page decides what to show
+    // from the credentials row, so neither entry point sets it any more.
+    expect(oneTap).toContain('router.push("/app/onboarding")');
+    expect(oneTap).not.toContain("welcome=1");
     const callback = fs.readFileSync(path.join(ROOT, "src/app/auth/callback/route.ts"), "utf8");
-    expect(callback).toContain('redirectTo.searchParams.set("welcome", "1")');
+    expect(callback).not.toContain('searchParams.set("welcome"');
   });
 
   it("cancels an in-flight load on unmount", () => {

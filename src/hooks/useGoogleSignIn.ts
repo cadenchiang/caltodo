@@ -2,7 +2,6 @@
 
 import { useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { trackEvent } from "@/lib/analytics";
 import { trackAuthSubmitted, trackAuthError, type AuthMode } from "@/lib/auth-analytics";
 import { classifyPopupUrl } from "@/lib/oauth-popup";
 
@@ -17,24 +16,27 @@ const SESSION_WAIT_MS = 5000;
  * Desktop: opens Google consent in a centered popup, polls for completion.
  * Mobile: full-page redirect to Google, then back to /auth/callback.
  *
- * Emits the funnel step for the handoff (`sign_up_submitted` or
- * `sign_in_submitted`) and `auth_error` on failure, so an abandoned or broken
- * consent screen is visible rather than showing up only as a missing
- * `$identify`.
+ * Emits exactly one funnel step per click (`sign_up_submitted` or
+ * `sign_in_submitted`; the older duplicate `google_oauth_clicked` is gone)
+ * and `auth_error` on failure, so an abandoned or broken consent screen is
+ * visible rather than showing up only as a missing `$identify`.
  *
  * @param mode - Which side of the funnel this button belongs to. Defaults to
  *               "sign_in" so an existing caller that omits it still records a
  *               step instead of silently dropping one.
- * @returns {{ handleGoogleSignIn: () => Promise<void>, error: string | null }}
+ * @returns {{ handleGoogleSignIn, error, pending }}
  *   - handleGoogleSignIn: call from a click handler (must be synchronous user gesture for popup)
  *   - error: OAuth error message, or null
+ *   - pending: true from the click until the attempt fails or this window
+ *     navigates away; the button disables and says "Opening Google..."
  */
 export function useGoogleSignIn(mode: AuthMode = "sign_in") {
   const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
 
   const handleGoogleSignIn = useCallback(async () => {
     setError(null);
-    trackEvent("google_oauth_clicked");
+    setPending(true);
     trackAuthSubmitted(mode, "google");
     const supabase = createClient();
 
@@ -65,13 +67,14 @@ export function useGoogleSignIn(mode: AuthMode = "sign_in") {
       if (oauthError) {
         trackAuthError("oauth_start", mode, oauthError.message);
         setError(oauthError.message);
+        setPending(false);
         popup?.close();
         return;
       }
 
       if (data?.url) {
         if (!popup || popup.closed) {
-          // Popup was closed before URL was ready — fall back to full redirect
+          // Popup was closed before URL was ready: fall back to full redirect
           await supabase.auth.signInWithOAuth({
             provider: "google",
             options: {
@@ -105,6 +108,10 @@ export function useGoogleSignIn(mode: AuthMode = "sign_in") {
                 // Bounce through /; the proxy picks /app/home for Pro,
                 // /app/inbox for free, respecting hidden_nav_items.
                 window.location.href = "/";
+              } else {
+                // The user closed the popup without finishing: the button
+                // goes back to its resting state so they can try again.
+                setPending(false);
               }
               return;
             }
@@ -117,6 +124,7 @@ export function useGoogleSignIn(mode: AuthMode = "sign_in") {
               popup.close();
               trackAuthError("callback", mode, outcome.reason);
               setError(POPUP_ERROR_MESSAGE);
+              setPending(false);
               return;
             }
 
@@ -146,10 +154,11 @@ export function useGoogleSignIn(mode: AuthMode = "sign_in") {
                 });
                 trackAuthError("callback", mode, "session_not_visible_after_popup");
                 setError(POPUP_ERROR_MESSAGE);
+                setPending(false);
               }
             }, 100);
           } catch {
-            // Cross-origin — popup is still on Google/Supabase domain, keep polling
+            // Cross-origin: popup is still on Google/Supabase domain, keep polling
           }
         }, 300);
       }
@@ -166,9 +175,10 @@ export function useGoogleSignIn(mode: AuthMode = "sign_in") {
       if (oauthError) {
         trackAuthError("oauth_start", mode, oauthError.message);
         setError(oauthError.message);
+        setPending(false);
       }
     }
   }, [mode]);
 
-  return { handleGoogleSignIn, error };
+  return { handleGoogleSignIn, error, pending };
 }

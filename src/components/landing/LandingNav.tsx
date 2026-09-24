@@ -1,35 +1,42 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ArrowRight, Menu, X } from "lucide-react";
 import { useIsLoggedIn } from "@/hooks/useIsLoggedIn";
+import { useDialog } from "@/components/ui/useDialog";
+import { AUTH } from "@/lib/copy";
+import { cn } from "@/lib/utils";
+
+/** Primary CTA recipe on the landing pages (accent, force-light). */
+const NAV_CTA =
+  "px-3.5 sm:px-4 py-2.5 sm:py-2 min-h-11 sm:min-h-0 rounded-xl bg-blue-500 text-white text-xs sm:text-sm font-medium hover:bg-blue-600 transition-colors duration-200 inline-flex items-center gap-1.5";
 
 interface LandingNavProps {
   /**
-   * Optional override. Normally left undefined — the nav fetches the auth
+   * Optional override. Normally left undefined, the nav fetches the auth
    * state client-side so the parent layout can stay statically generated.
    */
   loggedIn?: boolean;
 }
 
 /**
- * Shared top navigation used across the landing pages (/, /about, /contact).
- * Logo on the left, page links centered, Get started + Login on the right.
+ * Shared top navigation used across the landing pages (/, /about, /guides,
+ * /contact). Page links centered, Get started + Sign in on the right.
  * Highlights the active route by bolding the matching nav link.
  *
  * Auth detection is client-side, via the shared useIsLoggedIn hook, so the
  * layout remains static and edge-cached. The nav renders the public state on
  * the first paint and upgrades the Login/Get started buttons once the check
- * resolves — there is no flicker because we only swap the right-side CTAs.
+ * resolves; there is no flicker because we only swap the right-side CTAs.
  */
 export default function LandingNav({ loggedIn: loggedInProp }: LandingNavProps = {}) {
   const pathname = usePathname();
   const loggedIn = useIsLoggedIn(loggedInProp);
   /** Tracks which on-page section is currently in view (home page only). */
   const [activeHash, setActiveHash] = useState<string>("");
-  /** True once the user has scrolled past the top — used to toggle the divider. */
+  /** True once the user has scrolled past the top, used to toggle the divider. */
   const [scrolled, setScrolled] = useState(false);
   /**
    * Timestamp until which the IntersectionObserver should NOT touch activeHash.
@@ -57,15 +64,17 @@ export default function LandingNav({ loggedIn: loggedInProp }: LandingNavProps =
     setMobileMenuOpen(false);
   }, [pathname]);
 
-  // Lock body scroll while the mobile menu is open so the page beneath
-  // doesn't scroll through the overlay.
+  // The mobile menu is a dialog: useDialog locks body scroll, traps Tab,
+  // closes on Escape and restores focus to the hamburger on close. The page
+  // behind it is hidden from assistive tech while it is open.
+  const closeMenu = useCallback(() => setMobileMenuOpen(false), []);
+  const { containerRef: menuRef, handleBackdropClick } = useDialog({ open: mobileMenuOpen, onClose: closeMenu });
   useEffect(() => {
     if (!mobileMenuOpen) return;
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = previous;
-    };
+    const main = document.querySelector("main");
+    if (!main) return;
+    main.setAttribute("aria-hidden", "true");
+    return () => main.removeAttribute("aria-hidden");
   }, [mobileMenuOpen]);
 
   // Clear any section highlight when leaving the home route.
@@ -81,6 +90,7 @@ export default function LandingNav({ loggedIn: loggedInProp }: LandingNavProps =
   const links: Array<{ label: string; href: string }> = [
     { label: "Home", href: homeHref },
     { label: "About", href: "/about" },
+    { label: "Guides", href: "/guides" },
     { label: "Contact", href: "/contact" },
   ];
 
@@ -95,7 +105,7 @@ export default function LandingNav({ loggedIn: loggedInProp }: LandingNavProps =
   function isActive(href: string): boolean {
     const hashIndex = href.indexOf("#");
     const targetHash = hashIndex >= 0 ? href.slice(hashIndex) : "";
-    // Path part only — strip any "?landing=1" query so logged-in / logged-out
+    // Path part only: strip any "?landing=1" query so logged-in / logged-out
     // hrefs compare cleanly against pathname.
     const pathPart = (hashIndex >= 0 ? href.slice(0, hashIndex) : href).split("?")[0] || "/";
 
@@ -113,7 +123,7 @@ export default function LandingNav({ loggedIn: loggedInProp }: LandingNavProps =
    * Clicking a hash link needs special handling in two cases:
    *
    *   1. On the home route already: Next.js wouldn't trigger any navigation
-   *      so the browser would skip the scroll entirely — we scroll smoothly
+   *      so the browser would skip the scroll entirely, so we scroll smoothly
    *      via scrollIntoView and update the URL hash.
    *   2. On any other route: Next.js's App Router does NOT honor URL hash
    *      anchors during client-side navigations, so navigating to "/#pricing"
@@ -151,7 +161,7 @@ export default function LandingNav({ loggedIn: loggedInProp }: LandingNavProps =
     try {
       sessionStorage.setItem("caltodo_pending_scroll", id);
     } catch {
-      /* sessionStorage can throw in private-browsing — fall through to default nav */
+      /* sessionStorage can throw in private-browsing; fall through to default nav */
     }
     // Let the Link continue with its normal navigation to "/".
   }
@@ -172,7 +182,7 @@ export default function LandingNav({ loggedIn: loggedInProp }: LandingNavProps =
 
   return (
     <>
-      {/* iOS-style progressive (variable) blur at the very top edge — the
+      {/* iOS-style progressive (variable) blur at the very top edge, the
           SwiftUI "scroll edge effect" / iOS 26 Liquid Glass look. Instead of a
           hard divider or a flat frosted rectangle, several backdrop-blur layers
           at increasing radii are each masked to a band anchored at the top, so
@@ -188,7 +198,7 @@ export default function LandingNav({ loggedIn: loggedInProp }: LandingNavProps =
         {/* Painted lightest-first so the HEAVIEST blur is on top and dominates
             the very top edge; each layer is masked to a band anchored at the
             top and every band fades to transparent by ~82% of the height, so
-            the blur ramps down and fully vanishes — nothing below it is blurred
+            the blur ramps down and fully vanishes; nothing below it is blurred
             (the bottom ~18% is a guaranteed-sharp zone).
 
             Two variants: a rich 5-layer stack on desktop (hidden sm:block), and
@@ -240,20 +250,21 @@ export default function LandingNav({ loggedIn: loggedInProp }: LandingNavProps =
       <nav
         className="sticky top-0 z-40 w-full px-4 sm:px-8 py-3 sm:py-4 flex items-center justify-between sm:grid sm:grid-cols-3 bg-transparent"
       >
-        {/* Left: hamburger on mobile only. No logo — the hero owns the brand. */}
+        {/* Left: hamburger on mobile only. No logo: the hero owns the brand. */}
         <div className="justify-self-start flex items-center">
           <button
             type="button"
             onClick={() => setMobileMenuOpen((v) => !v)}
             aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
             aria-expanded={mobileMenuOpen}
-            className="sm:hidden -ml-1 inline-flex items-center justify-center w-10 h-10 rounded-lg text-black active:bg-black/5 transition-colors"
+            aria-controls="landing-mobile-menu"
+            className="sm:hidden -ml-1 inline-flex items-center justify-center w-11 h-11 rounded-lg text-foreground active:bg-muted transition-colors"
           >
             {mobileMenuOpen ? <X size={22} strokeWidth={2} /> : <Menu size={22} strokeWidth={2} />}
           </button>
         </div>
 
-        {/* Center: nav links — desktop only */}
+        {/* Center: nav links, desktop only */}
         <div className="hidden sm:flex justify-self-center items-center gap-6 text-sm">
           {links.map((item) => {
             const active = isActive(item.href);
@@ -271,11 +282,10 @@ export default function LandingNav({ loggedIn: loggedInProp }: LandingNavProps =
                       ? handleHomeClick
                       : undefined
                 }
-                className={`transition-colors ${
-                  active
-                    ? "font-bold text-black"
-                    : "font-medium text-gray-400 hover:text-black"
-                }`}
+                className={cn(
+                  "transition-colors rounded px-1 py-2 -my-2",
+                  active ? "font-bold text-foreground" : "font-medium text-gray-600 hover:text-foreground"
+                )}
               >
                 {item.label}
               </Link>
@@ -283,92 +293,86 @@ export default function LandingNav({ loggedIn: loggedInProp }: LandingNavProps =
           })}
         </div>
 
-        {/* Right: CTAs — public-state default, upgrades to "Open app" if signed in.
-            On mobile, "Login" is hidden to save space; it lives inside the menu. */}
+        {/* Right: CTAs, public-state default, upgrades to "Open app" if signed in.
+            On mobile, "Sign in" is hidden to save space; it lives inside the menu. */}
         <div className="justify-self-end flex items-center gap-1 sm:gap-1.5">
           {loggedIn ? (
-            <Link
-              href="/app/inbox"
-              className="px-3.5 sm:px-4 py-2.5 sm:py-2 min-h-11 sm:min-h-0 rounded-xl bg-[#0e89d6] text-white text-xs sm:text-sm font-medium hover:bg-[#3D8FE8] transition-colors duration-200 inline-flex items-center gap-1.5"
-            >
+            <Link href="/app/inbox" className={NAV_CTA}>
               Open app
               <ArrowRight size={14} strokeWidth={2.5} />
             </Link>
           ) : (
             <>
-              <Link
-                href="/login?signup=true"
-                className="px-3.5 sm:px-4 py-2.5 sm:py-2 min-h-11 sm:min-h-0 rounded-xl bg-[#0e89d6] text-white text-xs sm:text-sm font-medium hover:bg-[#3D8FE8] transition-colors duration-200 inline-flex items-center gap-1.5"
-              >
+              <Link href="/login?signup=true" className={NAV_CTA}>
                 Get started
                 <ArrowRight size={14} strokeWidth={2.5} />
               </Link>
               <Link
                 href="/login"
-                className="hidden sm:inline-flex px-4 py-1.5 text-xs sm:px-5 sm:py-2 sm:text-sm font-medium rounded-lg text-black hover:bg-black/10 transition-colors duration-200"
+                className="hidden sm:inline-flex px-4 py-1.5 text-xs sm:px-5 sm:py-2 sm:text-sm font-medium rounded-lg text-foreground hover:bg-muted transition-colors duration-200"
               >
-                Login
+                {AUTH.signIn}
               </Link>
             </>
           )}
         </div>
       </nav>
 
-      {/* Mobile menu overlay — sits below the sticky nav. Tapping the backdrop
-          or any link closes it (links via the pathname effect). */}
-      <div
-        className={`sm:hidden fixed inset-0 top-16 z-30 bg-black/30 backdrop-blur-[2px] transition-opacity duration-200 ${
-          mobileMenuOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
-        }`}
-        onClick={() => setMobileMenuOpen(false)}
-        aria-hidden={!mobileMenuOpen}
-      >
+      {/* Mobile menu, rendered only while open so it is a real dialog: the
+          backdrop closes it, Escape closes it, Tab stays inside it. */}
+      {mobileMenuOpen && (
         <div
-          className={`bg-white border-b border-black/5 transition-transform duration-200 ease-out origin-top ${
-            mobileMenuOpen ? "translate-y-0" : "-translate-y-4"
-          }`}
-          onClick={(e) => e.stopPropagation()}
+          className="sm:hidden fixed inset-0 top-16 z-30 bg-backdrop backdrop-blur-[2px] animate-announce-backdrop-in"
+          onClick={handleBackdropClick}
         >
-          <ul className="flex flex-col py-2">
-            {links.map((item) => {
-              const active = isActive(item.href);
-              const isHashLink = item.href.includes("#");
-              const isHomeLink = item.href === "/";
-              return (
-                <li key={item.href}>
+          <div
+            ref={menuRef}
+            id="landing-mobile-menu"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Menu"
+            tabIndex={-1}
+            className="bg-white border-b border-border animate-announce-card-in focus:outline-none"
+          >
+            <ul className="flex flex-col py-2">
+              {links.map((item) => {
+                const active = isActive(item.href);
+                const isHashLink = item.href.includes("#");
+                const isHomeLink = item.href === "/";
+                return (
+                  <li key={item.href}>
+                    <Link
+                      href={item.href}
+                      onClick={(e) => {
+                        if (isHashLink) handleHashClick(e, item.href);
+                        else if (isHomeLink) handleHomeClick(e);
+                        closeMenu();
+                      }}
+                      className={cn(
+                        "block px-5 py-3 min-h-11 text-base transition-colors",
+                        active ? "font-bold text-foreground" : "font-medium text-gray-600 hover:text-foreground"
+                      )}
+                    >
+                      {item.label}
+                    </Link>
+                  </li>
+                );
+              })}
+              {!loggedIn && (
+                <li className="border-t border-border mt-1 pt-1">
                   <Link
-                    href={item.href}
-                    prefetch
-                    onClick={(e) => {
-                      if (isHashLink) handleHashClick(e, item.href);
-                      else if (isHomeLink) handleHomeClick(e);
-                      setMobileMenuOpen(false);
-                    }}
-                    className={`block px-5 py-3 text-base transition-colors ${
-                      active
-                        ? "font-bold text-black"
-                        : "font-medium text-gray-500 hover:text-black"
-                    }`}
+                    href="/login"
+                    onClick={closeMenu}
+                    className="block px-5 py-3 min-h-11 text-base font-medium text-foreground hover:bg-muted transition-colors"
                   >
-                    {item.label}
+                    {AUTH.signIn}
                   </Link>
                 </li>
-              );
-            })}
-            {!loggedIn && (
-              <li className="border-t border-black/5 mt-1 pt-1">
-                <Link
-                  href="/login"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="block px-5 py-3 text-base font-medium text-black hover:bg-black/5 transition-colors"
-                >
-                  Login
-                </Link>
-              </li>
-            )}
-          </ul>
+              )}
+            </ul>
+          </div>
         </div>
-      </div>
+      )}
     </>
   );
 }

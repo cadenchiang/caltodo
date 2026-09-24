@@ -33,24 +33,26 @@ describe("SyncedCount roll timing", () => {
    * the last delay declared before <SyncedCount>, since Hero staggers several
    * elements and a file-wide match would pick up an unrelated one.
    */
-  const delaysBeforeCounter = [
-    ...hero
-      .slice(0, hero.indexOf("<SyncedCount"))
-      .matchAll(/animationDelay:\s*"(\d+)ms"/g),
-  ];
-  const eyebrowDelay = Number(
-    delaysBeforeCounter.at(-1)?.[1] ?? NaN
-  );
+  // Hero reads it from HERO_DELAYS.eyebrow, which is EYEBROW_DELAY_MS from
+  // the timing module, so the number is resolved from there.
+  const eyebrowDelay = Number(counter.match(/EYEBROW_DELAY_MS = (\d+)/)?.[1] ?? NaN);
   /** Duration of the `.animate-fade-up` keyframe the eyebrow uses. */
   const fadeDuration = Number(
     css
       .match(/\.animate-fade-up\s*\{[^}]*animation-duration:\s*(\d+)ms/)?.[1] ??
       NaN
   );
-  const rollStart = Number(counter.match(/ROLL_START_MS = (\d+)/)?.[1] ?? NaN);
+  // ROLL_START_MS is defined as EYEBROW_DELAY_MS, so resolve it the same way.
+  const rollStart = counter.includes("ROLL_START_MS = EYEBROW_DELAY_MS")
+    ? eyebrowDelay
+    : Number(counter.match(/ROLL_START_MS = (\d+)/)?.[1] ?? NaN);
 
   it("reads a real delay off the eyebrow and a real fade duration off the CSS", () => {
-    expect(eyebrowDelay).toBe(1000);
+    // Capped with the rest of the first-paint choreography at 400 ms.
+    expect(eyebrowDelay).toBe(250);
+    expect(eyebrowDelay).toBeLessThanOrEqual(400);
+    expect(hero).toContain("eyebrow: EYEBROW_DELAY_MS");
+    expect(hero).toContain("animationDelay: `${HERO_DELAYS.eyebrow}ms`");
     expect(fadeDuration).toBe(900);
   });
 
@@ -168,11 +170,13 @@ describe("Hero wiring", () => {
     // the pill, gray on gray, so it reads as a status chip under the logos
     // rather than a second headline.
     expect(hero).toMatch(/text-sm sm:text-base font-semibold tracking-tight/);
-    expect(hero).toContain("rounded-full bg-neutral-100 px-3.5 py-1.5 text-neutral-500");
+    expect(hero).toContain("rounded-full bg-muted px-3.5 py-1.5 text-muted-foreground");
   });
 
   it("still falls back to the brand name when there is no count", () => {
     expect(hero).toMatch(/assignmentCount > 0 \?/);
-    expect(hero).toContain('"Caltodo"');
+    // Lowercase brand, from the glossary rather than retyped.
+    expect(hero).toMatch(/\) : \(\s*BRAND\s*\)/);
+    expect(hero).not.toContain('"Caltodo"');
   });
 });

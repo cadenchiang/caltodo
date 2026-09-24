@@ -54,7 +54,10 @@ describe("resume", () => {
   });
 
   it("clears progress when the user deliberately skips out", () => {
-    expect(page).toMatch(/clearProgress\(\);[\s\S]{0,200}router\.push\("\/app\/inbox"\)/);
+    // The skip-setup exit goes through handleSyncAndGo, which clears progress
+    // before navigating, so the two exits share one bookkeeping path.
+    expect(page).toMatch(/setShowSkipModal\(false\);\s*handleSyncAndGo\(\{ skipSync: true \}\)/);
+    expect(page).toMatch(/clearProgress\(\);[\s\S]{0,2500}router\.push\(destination\)/);
   });
 
   it("derives its Step type from the persisted union so they cannot drift", () => {
@@ -104,9 +107,14 @@ describe("shared skip control", () => {
 
 describe("step components still have a reachable skip", () => {
   it("brightspace renders its own, so it is genuinely covered", () => {
+    // BrightspaceStep passes onSkip into the shared FeedUrlStep, which
+    // renders the control.
     const bs = fs.readFileSync(
       path.join(ROOT, "src/components/onboarding/BrightspaceStep.tsx"), "utf8");
-    expect(bs).toMatch(/onClick=\{onSkip\}/);
+    expect(bs).toContain("onSkip={onSkip}");
+    const feed = fs.readFileSync(
+      path.join(ROOT, "src/components/onboarding/FeedUrlStep.tsx"), "utf8");
+    expect(feed).toMatch(/onClick=\{onSkip\}/);
   });
 
   it("the other four are covered by the shared control, not their own", () => {

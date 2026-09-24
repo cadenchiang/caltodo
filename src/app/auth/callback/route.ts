@@ -51,11 +51,11 @@ export async function GET(request: NextRequest) {
           .single();
 
         if (!creds) {
-          // New user — create bare credentials row and add welcome flag
+          // New user: create the bare credentials row. The onboarding route
+          // decides what to show from that row, so no query flag is needed.
           await supabase
             .from("integration_credentials")
             .upsert({ user_id: user.id }, { onConflict: "user_id" });
-          redirectTo.searchParams.set("welcome", "1");
 
           // Seed default hidden-nav preferences for new users.
           // Board (Home) is opt-in: hidden by default. New users see only

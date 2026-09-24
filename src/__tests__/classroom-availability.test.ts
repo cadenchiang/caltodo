@@ -18,6 +18,7 @@ const ROOT = path.resolve(__dirname, "../..");
 const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), "utf8");
 
 const onboarding = read("src/app/app/onboarding/page.tsx");
+const picker = read("src/components/onboarding/PlatformsStep.tsx");
 const settings = read("src/components/settings/GoogleClassroomSettings.tsx");
 
 describe("the flag", () => {
@@ -34,20 +35,20 @@ describe("the flag", () => {
 
 describe("the onboarding picker", () => {
   it("reads the flag rather than hard-coding the state", () => {
-    expect(onboarding).toContain('import { CLASSROOM_AVAILABLE } from "@/lib/classroom-availability"');
-    expect(onboarding).toContain('opt.id === "classroom" && !CLASSROOM_AVAILABLE');
+    expect(picker).toContain('import { CLASSROOM_AVAILABLE } from "@/lib/classroom-availability"');
+    expect(picker).toContain('return id !== "classroom" || CLASSROOM_AVAILABLE;');
   });
 
   it("disables the tile and labels it, instead of hiding it", () => {
     // Hiding it would answer "does this work with Classroom?" with silence.
-    expect(onboarding).toContain("disabled={comingSoon}");
-    expect(onboarding).toContain("Coming soon");
+    expect(picker).toContain("disabled={comingSoon}");
+    expect(picker).toContain("Coming soon");
   });
 
   it("refuses the selection too, not only the click", () => {
     // A disabled attribute is not a guarantee: keyboard activation and stale
     // clicks both reach the handler.
-    expect(onboarding).toContain('if (platform === "classroom" && !CLASSROOM_AVAILABLE) return;');
+    expect(onboarding).toContain("if (!isPlatformSelectable(platform)) return;");
   });
 
   it("does not accept ?setup=classroom while unavailable (audit L17)", () => {

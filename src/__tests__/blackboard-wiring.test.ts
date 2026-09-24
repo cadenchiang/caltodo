@@ -123,7 +123,7 @@ describe("onboarding", () => {
   const page = read("src/app/app/onboarding/page.tsx");
 
   it("is offered on the platform picker", () => {
-    expect(page).toMatch(/\{ id: "blackboard", label: "Blackboard"/);
+    expect(read("src/components/onboarding/PlatformsStep.tsx")).toMatch(/\{ id: "blackboard", label: PROVIDER_LABELS\.blackboard/);
   });
 
   it("is a known step and a known platform", () => {
@@ -153,7 +153,11 @@ describe("onboarding", () => {
   });
 
   it("counts its assignments on the done step", () => {
-    expect(page).toMatch(/syncResult\?\.blackboard\?\.synced/);
+    // The recap totals come from buildSyncStats, whose source list must
+    // include blackboard or its count silently drops out of the recap.
+    const stats = fs.readFileSync(path.join(ROOT, "src/lib/onboarding-sync-stats.ts"), "utf8");
+    expect(page).toContain("buildSyncStats({");
+    expect(stats).toMatch(/\{ key: "blackboard" \}/);
   });
 });
 

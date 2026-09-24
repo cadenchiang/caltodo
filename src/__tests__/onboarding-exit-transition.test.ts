@@ -20,27 +20,22 @@ const SOURCE = fs.readFileSync(
   "utf8",
 );
 
-/** Routes onboarding navigates to when the flow ends. */
-// Home is withdrawn, so both exits land on the inbox.
-const EXIT_ROUTES = ["/app/inbox"];
+/** Route onboarding navigates to when the flow ends, unless the recap
+    passes another destination. Home is withdrawn, so exits land on the inbox. */
+const EXIT_ROUTE = "/app/inbox";
 
 describe("onboarding exit transition", () => {
-  it.each(EXIT_ROUTES)("prefetches %s before navigating there", (route) => {
-    expect(SOURCE).toContain(`router.prefetch("${route}")`);
+  it("declares the exit route once and prefetches it", () => {
+    expect(SOURCE).toContain(`const EXIT_ROUTE = "${EXIT_ROUTE}";`);
+    expect(SOURCE).toContain("router.prefetch(EXIT_ROUTE)");
+    // Exactly one prefetch call: the duplicate inbox prefetch is gone.
+    expect(SOURCE.match(/router\.prefetch\(/g)).toHaveLength(1);
   });
 
-  it.each(EXIT_ROUTES)("still navigates to %s", (route) => {
-    expect(SOURCE).toContain(`router.push("${route}")`);
-  });
-
-  it("prefetches every bare /app route it pushes to", () => {
-    const pushed = new Set(
-      [...SOURCE.matchAll(/router\.push\("(\/app\/[a-z]+)"\)/g)].map((m) => m[1]),
-    );
-    const prefetched = new Set(
-      [...SOURCE.matchAll(/router\.prefetch\("(\/app\/[a-z]+)"\)/g)].map((m) => m[1]),
-    );
-    for (const route of pushed) expect(prefetched).toContain(route);
+  it("navigates to the exit route by default and to the recap's destination otherwise", () => {
+    expect(SOURCE).toContain("destination = EXIT_ROUTE,");
+    expect(SOURCE).toContain("router.push(destination)");
+    expect(SOURCE).not.toContain(`router.push("${EXIT_ROUTE}")`);
   });
 
   it("fades the overlay out before navigating", () => {

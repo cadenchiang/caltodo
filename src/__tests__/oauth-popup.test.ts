@@ -44,7 +44,7 @@ describe("classifyPopupUrl", () => {
   });
 
   it("sends new users to onboarding and everyone else through /", () => {
-    expect(classifyPopupUrl(`${ORIGIN}/app/onboarding?welcome=1`, ORIGIN)).toEqual({
+    expect(classifyPopupUrl(`${ORIGIN}/app/onboarding`, ORIGIN)).toEqual({
       kind: "success",
       destination: "/app/onboarding",
     });
