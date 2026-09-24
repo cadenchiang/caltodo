@@ -19,6 +19,7 @@ import type { IntegrationCredentials } from "@/lib/types";
 import { useTaskContext } from "@/contexts/TaskContext";
 import { splitByConnection, type CatalogEntry, type CatalogId } from "@/lib/integration-catalog";
 import { hasDisclosure } from "@/lib/integration-disclosure";
+import { SETTINGS_GROUP_LABEL } from "@/lib/settingsConfig";
 import GoogleCalendarSettings from "./GoogleCalendarSettings";
 import CanvasSettings from "./CanvasSettings";
 import GradescopeSettings from "./GradescopeSettings";
@@ -94,13 +95,9 @@ function ConnectedEntry({ entry, ctx }: { entry: CatalogEntry; ctx: CardContext 
   return <IntegrationCard id={entry.id} ctx={ctx} />;
 }
 
-/** Small heading separating the two groups. */
+/** Small heading separating the two groups; the one settings group recipe. */
 function GroupHeading({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="text-[11px] font-semibold text-foreground mb-2 px-1">
-      {children}
-    </p>
-  );
+  return <p className={`${SETTINGS_GROUP_LABEL} mb-2 px-1`}>{children}</p>;
 }
 
 interface IntegrationListProps {

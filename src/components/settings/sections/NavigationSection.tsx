@@ -13,19 +13,18 @@
 import { NAV_ITEMS } from "@/lib/constants";
 import { useHiddenNavItems } from "@/hooks/useHiddenNavItems";
 import { canHideNavItem } from "@/lib/landing-path";
+import Badge from "@/components/ui/Badge";
+import SectionHeading from "@/components/ui/SectionHeading";
 
 export default function NavigationSection() {
   const { hidden, isHidden, toggle } = useHiddenNavItems();
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground mb-1">Navigation</h1>
-        <p className="text-sm text-muted-foreground">
-          Hide pages you don&apos;t use from the sidebar and mobile tab bar. You can still
-          visit them by typing the URL directly.
-        </p>
-      </div>
+    <section>
+      <SectionHeading
+        title="Navigation"
+        description="Hide pages you don't use from the sidebar and mobile tab bar. You can still visit them by typing the URL directly."
+      />
 
       <div className="border border-border rounded-xl divide-y divide-border overflow-hidden">
         {NAV_ITEMS.map((item) => {
@@ -39,15 +38,11 @@ export default function NavigationSection() {
               key={item.href}
               className={`flex items-center gap-3 px-4 py-3 transition-colors ${locked ? "cursor-not-allowed" : "hover:bg-accent/40 cursor-pointer"}`}
             >
-              <Icon size={16} className="text-foreground/70 shrink-0" />
+              <Icon size={16} className="text-muted-foreground shrink-0" aria-hidden="true" />
               <span className="flex-1 flex flex-col min-w-0">
                 <span className="flex items-center gap-1.5">
                   <span className="text-sm font-medium text-foreground">{item.label}</span>
-                  {item.beta && (
-                    <span className="text-[9px] font-medium text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-500/10 px-1.5 py-0.5 rounded-full leading-none shrink-0">
-                      Beta
-                    </span>
-                  )}
+                  {item.beta && <Badge variant="beta">Beta</Badge>}
                 </span>
                 {locked && (
                   <span className="text-xs text-muted-foreground mt-0.5">{hideCheck.reason}</span>
@@ -71,6 +66,6 @@ export default function NavigationSection() {
           );
         })}
       </div>
-    </div>
+    </section>
   );
 }
