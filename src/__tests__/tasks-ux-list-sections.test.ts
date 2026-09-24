@@ -210,10 +210,9 @@ describe("TaskList split", () => {
   });
 
   it("the inbox no longer cuts the list at 30 days and forwards the redirect filter", () => {
-    const src = read("app/app/inbox/page.tsx");
-    expect(src).toContain('if (filter === "all") return tasks;');
-    expect(src).not.toContain("? 7 : 30");
-    expect(src).toContain('urlParams.get("filter")');
+    expect(read("app/app/inbox/inbox-helpers.ts")).toContain('if (filter === "all") return tasks;');
+    expect(read("app/app/inbox/inbox-helpers.ts")).not.toContain("? 7 : 30");
+    expect(read("app/app/inbox/useInboxPreferences.ts")).toContain('urlParams.get("filter")');
   });
 });
 

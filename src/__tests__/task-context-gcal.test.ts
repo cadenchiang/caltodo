@@ -68,22 +68,19 @@ describe("TaskContext Google Calendar paths", () => {
 describe("bulk class delete", () => {
   const inbox = readFileSync(join(process.cwd(), "src/app/app/inbox/page.tsx"), "utf8");
 
-  it("issues one batched calendar delete before the per-task row deletes", () => {
-    const handlers = inbox.split("onDeleteClass={").slice(1);
-    expect(handlers).toHaveLength(2);
-    for (const h of handlers) {
-      const batch = h.indexOf("await pushBatchDeleteToGCal(");
-      const rowDelete = h.indexOf("deleteTask(t.id, { silent: true, skipGCal: true })");
-      expect(batch).toBeGreaterThan(-1);
-      expect(rowDelete).toBeGreaterThan(batch);
-    }
+  it("issues one batched calendar delete before the batched row delete", () => {
+    // One shared handler now serves both the list and the board.
+    const handler = inbox.slice(inbox.indexOf("const handleDeleteClass"), inbox.indexOf("const isList"));
+    const batch = handler.indexOf("await pushBatchDeleteToGCal(ids);");
+    const rowDelete = handler.indexOf("await deleteTasks(ids);");
+    expect(batch).toBeGreaterThan(-1);
+    expect(rowDelete).toBeGreaterThan(batch);
+    expect(inbox.split("onDeleteClass={handleDeleteClass}")).toHaveLength(3);
   });
 
   it("does not call Google for class color changes", () => {
-    const handlers = inbox.split("onColorChange={").slice(1);
-    expect(handlers).toHaveLength(2);
-    for (const h of handlers) {
-      expect(h.slice(0, h.indexOf("}}"))).not.toMatch(/gcal/i);
-    }
+    const handler = inbox.slice(inbox.indexOf("const handleColorChange"), inbox.indexOf("const handleDeleteClass"));
+    expect(handler).not.toMatch(/gcal/i);
+    expect(inbox.split("onColorChange={handleColorChange}")).toHaveLength(3);
   });
 });

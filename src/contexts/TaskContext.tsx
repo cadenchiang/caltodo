@@ -201,6 +201,17 @@ interface TaskContextValue {
   snoozeTask: (id: string, hours: number) => Promise<void>;
   unsnoozeTask: (id: string) => Promise<void>;
   reorderTasks: (updates: Array<{ id: string; sort_order: number }>) => Promise<void>;
+  /**
+   * Recolors many tasks in one request (`.in("id", ids)`), announced with
+   * a single Undo. Used by "Change color" on a class.
+   */
+  recolorTasks: (ids: string[], color: string) => Promise<void>;
+  /**
+   * Deletes many tasks in two requests (soft-delete synced, hard-delete
+   * manual), announced with a single Undo. The caller removes the calendar
+   * events in one batch beforehand.
+   */
+  deleteTasks: (ids: string[]) => Promise<void>;
   triggerSync: (courseOverrides?: { canvas_courses?: Array<{ id: number; name: string }>; gradescope_courses?: Array<{ id: string; name: string }> }, platforms?: Array<"canvas" | "gradescope" | "pensieve" | "brightspace" | "blackboard">, options?: { silent?: boolean }) => Promise<void>;
   fetchTasks: () => Promise<Task[]>;
   /**
@@ -1228,6 +1239,115 @@ export function TaskProvider({
   }
 
   /**
+   * Applies a set of rows to local state, cache and baseline in one step.
+   *
+   * @param next - Updater producing the new task list
+   */
+  function commitTasks(next: (prev: Task[]) => Task[]) {
+    setTasks((prev) => {
+      const updated = next(prev);
+      setCachedTasks(updated);
+      taskBaselineRef.current = updated;
+      return updated;
+    });
+  }
+
+  /**
+   * Recolors many tasks with one `.in("id", ids)` update instead of one
+   * request per task, and records one Undo that restores each previous
+   * colour (grouped so the revert is one request per distinct colour).
+   *
+   * @param ids - Tasks to recolor
+   * @param color - New hex colour
+   */
+  async function recolorTasks(ids: string[], color: string) {
+    const targets = taskBaselineRef.current.filter((t) => ids.includes(t.id) && t.color !== color);
+    if (targets.length === 0) return;
+    const targetIds = targets.map((t) => t.id);
+    const previousById = new Map(targets.map((t) => [t.id, t.color]));
+    trackEvent("task_updated");
+
+    commitTasks((prev) => prev.map((t) => (previousById.has(t.id) ? { ...t, color } : t)));
+    const { error: updateError } = await supabase.from("tasks").update({ color }).in("id", targetIds);
+    if (updateError) {
+      commitTasks((prev) => prev.map((t) => (previousById.has(t.id) ? { ...t, color: previousById.get(t.id)! } : t)));
+      reportWriteFailure("Couldn't change the color.", updateError.message, () => recolorTasks(ids, color));
+      return;
+    }
+    pushUndo({
+      label: targets.length === 1 ? "Color changed" : `Color changed on ${targets.length} tasks`,
+      undo: async () => {
+        commitTasks((prev) => prev.map((t) => (previousById.has(t.id) ? { ...t, color: previousById.get(t.id)! } : t)));
+        const byColor = new Map<string, string[]>();
+        for (const [id, prevColor] of previousById) byColor.set(prevColor, [...(byColor.get(prevColor) ?? []), id]);
+        const results = await Promise.all(
+          [...byColor.entries()].map(([prevColor, group]) => supabase.from("tasks").update({ color: prevColor }).in("id", group))
+        );
+        const failed = results.find((r) => r.error);
+        if (failed?.error) throw new Error(failed.error.message);
+      },
+    });
+  }
+
+  /**
+   * Deletes many tasks at once: synced rows are soft-deleted and manual rows
+   * hard-deleted, each with one `.in("id", ids)` request. One toast with
+   * Undo restores them all.
+   *
+   * @param ids - Tasks to delete
+   * @remarks Calendar events are not touched here; callers batch that with
+   *          pushBatchDeleteToGCal before calling.
+   */
+  async function deleteTasks(ids: string[]) {
+    const targets = taskBaselineRef.current.filter((t) => ids.includes(t.id));
+    if (targets.length === 0) return;
+    const targetIds = new Set(targets.map((t) => t.id));
+    const synced = targets.filter((t) => t.source && t.external_id);
+    const manual = targets.filter((t) => !(t.source && t.external_id));
+    trackEvent("task_deleted");
+
+    commitTasks((prev) => prev.filter((t) => !targetIds.has(t.id)));
+    const [softResult, hardResult] = await Promise.all([
+      synced.length > 0
+        ? supabase.from("tasks").update({ dismissed_at: new Date().toISOString(), dismissed_by_user: true }).in("id", synced.map((t) => t.id))
+        : Promise.resolve({ error: null }),
+      manual.length > 0 ? supabase.from("tasks").delete().in("id", manual.map((t) => t.id)) : Promise.resolve({ error: null }),
+    ]);
+    const deleteError = softResult.error ?? hardResult.error;
+    if (deleteError) {
+      reportWriteFailure("Couldn't delete those tasks.", deleteError.message, () => deleteTasks(ids));
+      fetchTasks();
+      return;
+    }
+    pushUndo({
+      label: targets.length === 1 ? "Task deleted" : `${targets.length} tasks deleted`,
+      undo: async () => {
+        const restored = targets.map((t) => ({ ...t, dismissed_at: null, google_event_id: null }));
+        commitTasks((prev) => {
+          const present = new Set(prev.map((t) => t.id));
+          return [...restored.filter((t) => !present.has(t.id)), ...prev];
+        });
+        const [softBack, hardBack] = await Promise.all([
+          synced.length > 0
+            ? supabase.from("tasks").update({ dismissed_at: null, dismissed_by_user: false, google_event_id: null }).in("id", synced.map((t) => t.id))
+            : Promise.resolve({ error: null }),
+          manual.length > 0
+            ? supabase.from("tasks").insert(restored.filter((t) => manual.some((m) => m.id === t.id)).map(({ dismissed_at: _d, ...row }) => row))
+            : Promise.resolve({ error: null }),
+        ]);
+        const restoreError = softBack.error ?? hardBack.error;
+        if (restoreError) {
+          fetchTasks();
+          throw new Error(restoreError.message);
+        }
+        for (const t of restored) {
+          if (t.due_date) pushTaskToGCal("create", t.id).then((eventId) => attachGoogleEventId(t.id, eventId));
+        }
+      },
+    });
+  }
+
+  /**
    * Merges duplicate assignments into a single survivor task.
    * Appends each duplicate's source link to the survivor's description and
    * dismisses the duplicates so the sync engine won't resurrect them.
@@ -1966,6 +2086,8 @@ export function TaskProvider({
     snoozeTask,
     unsnoozeTask,
     reorderTasks,
+    recolorTasks,
+    deleteTasks,
     triggerSync,
     fetchTasks,
     mergeDuplicates,
@@ -1988,6 +2110,8 @@ export function TaskProvider({
     snoozeTask,
     unsnoozeTask,
     reorderTasks,
+    recolorTasks,
+    deleteTasks,
     triggerSync,
     fetchTasks,
     mergeDuplicates,
@@ -2012,6 +2136,8 @@ export function TaskProvider({
     snoozeTask: ((...args) => methodsRef.current.snoozeTask(...args)) as typeof snoozeTask,
     unsnoozeTask: ((...args) => methodsRef.current.unsnoozeTask(...args)) as typeof unsnoozeTask,
     reorderTasks: ((...args) => methodsRef.current.reorderTasks(...args)) as typeof reorderTasks,
+    recolorTasks: ((...args) => methodsRef.current.recolorTasks(...args)) as typeof recolorTasks,
+    deleteTasks: ((...args) => methodsRef.current.deleteTasks(...args)) as typeof deleteTasks,
     triggerSync: ((...args) => methodsRef.current.triggerSync(...args)) as typeof triggerSync,
     fetchTasks: ((...args) => methodsRef.current.fetchTasks(...args)) as typeof fetchTasks,
     mergeDuplicates: ((...args) => methodsRef.current.mergeDuplicates(...args)) as typeof mergeDuplicates,

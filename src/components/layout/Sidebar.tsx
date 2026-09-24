@@ -20,7 +20,7 @@ import { useHiddenNavItems } from "@/hooks/useHiddenNavItems";
 const FILTER_CONFIG: Record<string, { label: string; icon: typeof Inbox }> = {
   all: { label: "Inbox", icon: Inbox },
   today: { label: "Today", icon: Sun },
-  "7days": { label: "Next 7 Days", icon: CalendarRange },
+  "7days": { label: "Next 7 days", icon: CalendarRange },
 };
 
 interface SidebarProps {

@@ -25,6 +25,8 @@ export const USER_CACHE_KEYS: readonly string[] = [
   "caltodo_credentials_cache",
   "caltodo_calendar_token_cache",
   "caltodo_course_totals",
+  // No longer written (the inbox's own sync modal was removed); kept so
+  // sign-out still clears it for accounts that used the old build.
   "caltodo_sync_course_selections",
   "caltodo_hidden_nav_items",
   "gcal_status",
