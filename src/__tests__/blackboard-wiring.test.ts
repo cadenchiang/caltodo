@@ -122,7 +122,7 @@ describe("onboarding", () => {
   const page = read("src/app/app/onboarding/page.tsx");
 
   it("is offered on the platform picker", () => {
-    expect(page).toMatch(/\{ id: "blackboard", label: "Blackboard"/);
+    expect(read("src/components/onboarding/PlatformsStep.tsx")).toMatch(/\{ id: "blackboard", label: PROVIDER_LABELS\.blackboard/);
   });
 
   it("is a known step and a known platform", () => {

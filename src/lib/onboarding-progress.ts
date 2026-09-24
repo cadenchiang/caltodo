@@ -89,8 +89,24 @@ export interface OnboardingProgress {
  * @returns 0 for the first step, 100 for the last, evenly spaced between.
  */
 export function progressPercentForStep(step: OnboardingStep): number {
-  const index = ONBOARDING_STEPS.indexOf(step);
-  const last = ONBOARDING_STEPS.length - 1;
+  return progressPercentInList(step, ONBOARDING_STEPS);
+}
+
+/**
+ * Progress-bar width for a step within the user's own step list.
+ *
+ * The full list has thirteen steps but a user who picked one platform walks
+ * six, so dividing by the static list left the bar under half full on the
+ * last real step. Dividing by the dynamic list makes it reach 100 on "done".
+ *
+ * @param step - The step being shown.
+ * @param steps - The dynamic list the flow derived from the user's choices.
+ * @returns 0 for the first step, 100 for the last, evenly spaced between;
+ *          0 when the step is not in the list.
+ */
+export function progressPercentInList(step: OnboardingStep, steps: readonly OnboardingStep[]): number {
+  const index = steps.indexOf(step);
+  const last = steps.length - 1;
   if (index < 0 || last <= 0) return 0;
   return Math.round((index / last) * 100);
 }
