@@ -60,7 +60,7 @@ describe("popover backgrounds", () => {
     // Board card and column menus also render through the Popover primitive.
     ["components/tasks/board/BoardTaskCard.tsx", 'import TaskContextMenu from "../shared/TaskContextMenu";'],
     ["components/tasks/board/BoardColumn.tsx", 'import ClassMenu from "../shared/ClassMenu";'],
-    ["components/calendar/DayOverflowPopover.tsx", "bg-popover overflow-hidden animate-in"],
+    ["components/calendar/DayOverflowPopover.tsx", "pointer-events-auto bg-popover border border-border"],
   ])("%s paints bg-popover", (file, needle) => {
     expect(read(file)).toContain(needle);
   });
@@ -76,7 +76,7 @@ describe("dark-mode shadow rule", () => {
     ["components/home/widgets/PomodoroWidget.tsx", 1],
     ["components/home/widgets/SpotifyWidget.tsx", 1],
     ["components/tasks/DatePicker.tsx", 1],
-    ["components/calendar/CalendarHeader.tsx", 2],
+    ["components/calendar/CalendarHeader.tsx", 1],
     ["components/calendar/CalendarSettingsPopover.tsx", 2],
   ])("%s has %i dark:shadow-none", (file, count) => {
     const matches = read(file).match(/dark:shadow-none/g) ?? [];
