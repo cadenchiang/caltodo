@@ -11,6 +11,7 @@
 
 import { SupabaseClient } from "@supabase/supabase-js";
 import { logger } from "@/lib/logger";
+import { ensurePrimaryRoomMemberships } from "@/lib/course-primary-rooms";
 
 /**
  * A course to enroll, gathered from integration credentials.
@@ -125,6 +126,14 @@ export async function syncCourseEnrollments(
     });
     return 0;
   }
+
+  // One room per class (D4): sibling rows that share a canonical name are
+  // one chat, and its room is the oldest row. Make sure the user is in it.
+  await ensurePrimaryRoomMemberships(
+    adminClient,
+    userId,
+    uniqueCourses.map((c) => c.name),
+  );
 
   logger.info("syncCourseEnrollments: complete", {
     userId,

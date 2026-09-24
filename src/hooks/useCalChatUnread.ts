@@ -1,44 +1,35 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-
-const CACHE_KEY = "discussion_boards_cache_v4";
-const MUTE_KEY_PREFIX = "calchat_muted_";
-const READ_AT_PREFIX = "calchat_read_at_";
+import type { DiscussionBoard } from "@/lib/types";
+import { isChatMuted, isChatUnread } from "@/lib/chat-actions";
+import { BOARDS_CACHE_KEY, BOARDS_CHANGED_EVENT, isBoardHidden } from "@/lib/chat-hide";
 
 /**
- * Counts how many non-muted CalChat boards have unread messages.
- * Reads boards from sessionStorage cache and compares timestamps.
- * Re-checks on storage events, custom events, and a 10-second interval.
+ * Counts unread rooms for the nav badge.
  *
- * @returns Number of boards with unread messages
+ * Reads the boards cache and compares each room's newest message with the
+ * device's read_at. Hidden rooms and muted rooms (system rooms are muted by
+ * default) never count, and a room with no read baseline is not unread
+ * (the first visit seeds one). Re-checks on storage and chat events and
+ * every 10 seconds.
+ *
+ * @returns Number of rooms with unread messages
  */
 export function useCalChatUnread(): number {
   const [unreadCount, setUnreadCount] = useState(0);
 
   const check = useCallback(() => {
     try {
-      const raw = sessionStorage.getItem(CACHE_KEY);
+      const raw = sessionStorage.getItem(BOARDS_CACHE_KEY);
       if (!raw) return;
-      const entry = JSON.parse(raw);
-      const boards: Array<{
-        course: { id: string };
-        last_message_at?: string | null;
-      }> = entry.boards ?? [];
-
+      const boards: DiscussionBoard[] = JSON.parse(raw).boards ?? [];
       let count = 0;
       for (const board of boards) {
-        if (!board.last_message_at) continue;
-        try {
-          if (localStorage.getItem(MUTE_KEY_PREFIX + board.course.id) === "true") continue;
-          const readAt = localStorage.getItem(READ_AT_PREFIX + board.course.id);
-          if (!readAt) { count++; continue; }
-          if (new Date(board.last_message_at!) > new Date(readAt)) count++;
-        } catch {
-          // Storage unavailable for this board
-        }
+        if (isBoardHidden(board)) continue;
+        if (isChatMuted(board.course.id, board.course.source === "system")) continue;
+        if (isChatUnread(board.course.id, board.last_message_at)) count++;
       }
-
       setUnreadCount(count);
     } catch {
       // Storage unavailable
@@ -47,19 +38,17 @@ export function useCalChatUnread(): number {
 
   useEffect(() => {
     check();
-
     const interval = setInterval(check, 10_000);
-
-    function handleStorage() { check(); }
-    function handleReadUpdate() { check(); }
-
-    window.addEventListener("storage", handleStorage);
-    window.addEventListener("calchat-read-update", handleReadUpdate);
-
+    window.addEventListener("storage", check);
+    window.addEventListener("calchat-read-update", check);
+    window.addEventListener("calchat-mute-changed", check);
+    window.addEventListener(BOARDS_CHANGED_EVENT, check);
     return () => {
       clearInterval(interval);
-      window.removeEventListener("storage", handleStorage);
-      window.removeEventListener("calchat-read-update", handleReadUpdate);
+      window.removeEventListener("storage", check);
+      window.removeEventListener("calchat-read-update", check);
+      window.removeEventListener("calchat-mute-changed", check);
+      window.removeEventListener(BOARDS_CHANGED_EVENT, check);
     };
   }, [check]);
 

@@ -11,7 +11,7 @@ import { SETTINGS_SECTIONS, SETTINGS_GROUPS, DEFAULT_SECTION, type SettingsSecti
 import SidebarNavItem, { navItemClasses, SidebarActivePill } from "./SidebarNavItem";
 import ProfilePopup from "./ProfilePopup";
 import { useTheme } from "@/contexts/ThemeContext";
-// useCalChatUnread import removed — CalChat is no longer in the sidebar.
+import { useCalChatUnread } from "@/hooks/useCalChatUnread";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { useHiddenNavItems } from "@/hooks/useHiddenNavItems";
 
@@ -70,7 +70,8 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
     window.addEventListener("profile-updated", handleProfileUpdate);
     return () => window.removeEventListener("profile-updated", handleProfileUpdate);
   }, []);
-  // CalChat removed — no unread badge to compute.
+  // Unread chat rooms, shown as a count badge on the Chat entry.
+  const chatUnread = useCalChatUnread();
   useOnboardingStatus();
   const { isHidden: isNavItemHidden } = useHiddenNavItems();
   // Active settings section: URL is the source of truth, but we keep an
@@ -192,6 +193,7 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
               .filter((item) => !isNavItemHidden(item.href))
               .map((item) => {
               const isInbox = item.href === "/app/inbox";
+              const isChat = item.href === "/app/discussions";
               return (
                 <SidebarNavItem
                   key={item.href}
@@ -199,7 +201,7 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
                   href={item.href}
                   icon={isInbox ? inboxConfig.icon : item.icon}
                   badge={false}
-                  badgeCount={undefined}
+                  badgeCount={isChat ? chatUnread : undefined}
                   id={`tour-nav-${item.label.toLowerCase()}`}
                   imageSrc={undefined}
                   imageClassName={undefined}

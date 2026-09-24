@@ -1,9 +1,10 @@
-import { Plug, Palette, Wrench, LayoutList, type LucideIcon } from "lucide-react";
+import { Plug, Palette, Wrench, LayoutList, MessageCircle, type LucideIcon } from "lucide-react";
 
 /** Valid settings section identifiers. */
 export type SettingsSectionId =
   | "integrations"
   | "appearance"
+  | "chat"
   | "navigation"
   | "advanced";
 
@@ -32,6 +33,7 @@ export interface SettingsSection {
 export const SETTINGS_SECTIONS: SettingsSection[] = [
   { id: "integrations", label: "Integrations", icon: Plug, group: "General" },
   { id: "appearance", label: "Appearance", icon: Palette, group: "System" },
+  { id: "chat", label: "Chat", icon: MessageCircle, group: "System" },
   { id: "navigation", label: "Navigation", icon: LayoutList, group: "System" },
   { id: "advanced", label: "Advanced", icon: Wrench, group: "System" },
 ];

@@ -1,10 +1,17 @@
 /**
  * Logic tests for the ChatContextMenu component.
- * Tests label toggling for mute/pin states, Leave Group visibility
- * for system courses, and viewport position clamping.
+ * Tests label toggling for mute/pin states, the menu's accessibility
+ * contract (source-level), and viewport position clamping.
  */
 
 import { describe, it, expect } from "vitest";
+import * as fs from "fs";
+import * as path from "path";
+
+const MENU_SRC = fs.readFileSync(
+  path.resolve(__dirname, "../components/discussions/ChatContextMenu.tsx"),
+  "utf8",
+);
 
 /**
  * Computes the clamped menu position to keep it within viewport bounds.
@@ -48,16 +55,6 @@ function getPinLabel(isPinned: boolean): string {
   return isPinned ? "Unpin" : "Pin";
 }
 
-/**
- * Determines whether Leave Group should be visible.
- *
- * @param isSystemCourse - Whether the course is a system course
- * @returns true if Leave Group should be shown
- */
-function showLeaveGroup(isSystemCourse: boolean): boolean {
-  return !isSystemCourse;
-}
-
 describe("ChatContextMenu labels", () => {
   it("shows 'Mute' when not muted", () => {
     expect(getMuteLabel(false)).toBe("Mute");
@@ -76,13 +73,18 @@ describe("ChatContextMenu labels", () => {
   });
 });
 
-describe("ChatContextMenu Leave Group visibility", () => {
-  it("hides Leave Group for system courses", () => {
-    expect(showLeaveGroup(true)).toBe(false);
+describe("ChatContextMenu hide action", () => {
+  it("offers Hide chat for every room (system courses hide per device)", () => {
+    expect(MENU_SRC).toContain("Hide chat");
+    expect(MENU_SRC).not.toContain("isSystemCourse");
+    expect(MENU_SRC).not.toContain("Leave Group");
   });
 
-  it("shows Leave Group for non-system courses", () => {
-    expect(showLeaveGroup(false)).toBe(true);
+  it("is a keyboard-accessible menu", () => {
+    expect(MENU_SRC).toContain('role="menu"');
+    expect(MENU_SRC).toContain('role="menuitem"');
+    expect(MENU_SRC).toContain('e.key === "Escape"');
+    expect(MENU_SRC).toContain("openerRef.current?.focus?.()");
   });
 });
 

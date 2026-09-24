@@ -1,13 +1,17 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { createPortal } from "react-dom";
-import { Flag, X } from "lucide-react";
+import { Flag, Ban, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import ChatModal from "./ChatModal";
+import ChatConfirmDialog from "./ChatConfirmDialog";
+import { useToast } from "@/contexts/ToastContext";
+import { setUserBlocked } from "@/hooks/useBlockedUsers";
+import { platformLabel } from "@/lib/chat-room-groups";
+import { REPORT_REASONS, type ReportReason } from "@/lib/chat-report-reasons";
+import { friendlyChatError } from "@/lib/chat-errors";
 
-/**
- * Shared course entry returned by the profile API.
- */
+/** Shared course entry returned by the profile API. */
 interface SharedCourse {
   id: string;
   name: string;
@@ -19,244 +23,198 @@ interface SharedCourse {
  *
  * @param userId - The target user's UUID
  * @param onClose - Callback to close the modal
+ * @param blocked - Whether the viewer has blocked this user
  */
 interface UserProfileModalProps {
   userId: string;
   onClose: () => void;
+  blocked?: boolean;
 }
 
 /**
- * Returns a human-readable badge label for a course source.
- *
- * @param source - The course source ("canvas", "gradescope", "pensieve")
- * @returns Display label string
+ * A classmate's profile: name, avatar, shared classes, report (with a
+ * reason) and block (hides their messages for you; they are not told).
+ * No scores or friend counts (D6).
  */
-function getSourceLabel(source: string): string {
-  switch (source) {
-    case "canvas": return "bCourses";
-    case "gradescope": return "Gradescope";
-    case "pensieve": return "Pensive";
-    default: return source;
-  }
-}
-
-/**
- * Portal modal showing a user's profile (avatar, name) and shared courses.
- * Each shared course is clickable and navigates to its discussion chat.
- */
-export default function UserProfileModal({ userId, onClose }: UserProfileModalProps) {
+export default function UserProfileModal({ userId, onClose, blocked = false }: UserProfileModalProps) {
   const router = useRouter();
+  const { showToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState<string | null>(null);
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
   const [sharedCourses, setSharedCourses] = useState<SharedCourse[]>([]);
-  const [friendCount, setFriendCount] = useState<number>(0);
-  const [karma, setKarma] = useState<number>(0);
-  const [closing, setClosing] = useState(false);
+  const [isBlocked, setIsBlocked] = useState(blocked);
+  const [busy, setBusy] = useState<"report" | "block" | null>(null);
   const [reporting, setReporting] = useState(false);
+  const [reason, setReason] = useState<ReportReason>("harassment");
+  const [confirmBlock, setConfirmBlock] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-
-    async function fetchProfile() {
-      try {
-        const res = await fetch(`/api/discussions/profile?userId=${encodeURIComponent(userId)}`);
-        if (res.ok && !cancelled) {
-          const data = await res.json();
-          setUserName(data.userName);
-          setUserAvatar(data.userAvatar);
-          setSharedCourses(data.sharedCourses ?? []);
-        }
-      } catch {
-        /* non-critical */
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-
-    async function fetchFriendCount() {
-      try {
-        const res = await fetch(`/api/friends/count?userId=${encodeURIComponent(userId)}`);
-        if (res.ok && !cancelled) {
-          const data = await res.json();
-          setFriendCount(data.count ?? 0);
-        }
-      } catch {
-        /* non-critical */
-      }
-    }
-
-    async function fetchKarma() {
-      try {
-        const res = await fetch(`/api/users/karma?userId=${encodeURIComponent(userId)}`);
-        if (res.ok && !cancelled) {
-          const data = await res.json();
-          setKarma(data.karma ?? 0);
-        }
-      } catch {
-        /* non-critical */
-      }
-    }
-
-    fetchProfile();
-    fetchFriendCount();
-    fetchKarma();
+    fetch(`/api/discussions/profile?userId=${encodeURIComponent(userId)}`)
+      .then(async (res) => {
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        setUserName(data.userName);
+        setUserAvatar(data.userAvatar);
+        setSharedCourses(data.sharedCourses ?? []);
+      })
+      .catch(() => { /* the modal still offers report and block */ })
+      .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [userId]);
 
-  /**
-   * Animates the modal closed then calls onClose.
-   */
-  const handleClose = useCallback(() => {
-    setClosing(true);
-    setTimeout(() => onClose(), 150);
-  }, [onClose]);
-
-  /**
-   * Reports the user via POST /api/users/report and shows a confirmation alert.
-   */
-  async function handleReport() {
-    if (reporting) return;
-    setReporting(true);
+  /** Reports the user with the chosen reason. */
+  const handleReport = useCallback(async () => {
+    setBusy("report");
     try {
       const res = await fetch("/api/users/report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId }),
+        body: JSON.stringify({ userId, reason: REPORT_REASONS[reason] }),
       });
       if (res.ok) {
-        alert("Report submitted. Thank you.");
+        showToast("Thanks, an admin will take a look.");
+        setReporting(false);
       } else {
         const data = await res.json().catch(() => ({}));
-        alert(data.error || "Failed to submit report.");
+        showToast(friendlyChatError(res.status, data.error, "send your report"), { variant: "error" });
       }
     } catch {
-      alert("Failed to submit report.");
+      showToast(friendlyChatError(0, null, "send your report"), { variant: "error" });
     } finally {
-      setReporting(false);
+      setBusy(null);
     }
-  }
+  }, [userId, reason, showToast]);
 
-  return createPortal(
-    <div
-      className={`fixed inset-0 z-50 flex items-center justify-center bg-black/50 transition-opacity duration-150 ${
-        closing ? "opacity-0" : "animate-in fade-in duration-150"
-      }`}
-      onClick={handleClose}
-    >
-      <div
-        className={`relative bg-card rounded-2xl border border-border shadow-2xl w-[380px] max-w-[90vw] overflow-hidden transition-all duration-150 ${
-          closing ? "scale-95 opacity-0" : "animate-in zoom-in-95 fade-in duration-200"
-        }`}
-        onClick={(e) => e.stopPropagation()}
+  /** Blocks or unblocks the user. */
+  const handleBlockToggle = useCallback(async () => {
+    setBusy("block");
+    const ok = await setUserBlocked(userId, !isBlocked);
+    setBusy(null);
+    setConfirmBlock(false);
+    if (!ok) {
+      showToast(`We couldn't ${isBlocked ? "unblock" : "block"} that person. Try again.`, { variant: "error" });
+      return;
+    }
+    setIsBlocked(!isBlocked);
+    showToast(isBlocked ? "Unblocked. Their messages show again." : "Blocked. Their messages are hidden for you.");
+  }, [userId, isBlocked, showToast]);
+
+  const name = userName || "Classmate";
+
+  return (
+    <>
+      <ChatModal
+        open
+        onClose={onClose}
+        title={loading ? "Profile" : name}
+        size="sm"
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => setReporting((v) => !v)}
+              aria-expanded={reporting}
+              className="px-3 py-2 text-sm rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer flex items-center gap-1.5"
+            >
+              <Flag size={14} aria-hidden="true" />
+              Report
+            </button>
+            <button
+              type="button"
+              onClick={() => (isBlocked ? handleBlockToggle() : setConfirmBlock(true))}
+              disabled={busy === "block"}
+              className="px-3 py-2 text-sm rounded-xl text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+            >
+              {busy === "block" ? <Loader2 size={14} className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <Ban size={14} aria-hidden="true" />}
+              {isBlocked ? "Unblock" : "Block"}
+            </button>
+          </>
+        }
       >
-        {/* Report + Close buttons */}
-        <div className="absolute top-3 right-3 z-10 flex items-center gap-1">
-          <button
-            onClick={handleReport}
-            disabled={reporting}
-            className="p-1.5 text-muted-foreground hover:text-red-500 rounded-lg hover:bg-accent transition-colors cursor-pointer disabled:opacity-40"
-            aria-label="Report user"
-            title="Report user"
-          >
-            <Flag size={14} />
-          </button>
-          <button
-            onClick={handleClose}
-            className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-accent transition-colors cursor-pointer"
-            aria-label="Close profile"
-          >
-            <X size={16} />
-          </button>
-        </div>
-
         {loading ? (
-          /* Loading skeleton */
-          <div className="p-6 space-y-4 animate-pulse">
-            <div className="flex items-center gap-4">
-              <div className="w-20 h-20 rounded-full bg-muted shrink-0" />
-              <div className="flex-1 space-y-2">
-                <div className="h-5 bg-muted rounded w-32" />
-                <div className="h-3 bg-muted rounded w-20" />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <div className="h-3 bg-muted rounded w-24" />
-              <div className="h-8 bg-muted rounded" />
-              <div className="h-8 bg-muted rounded" />
+          <div className="flex items-center gap-4 animate-pulse motion-reduce:animate-none" aria-hidden="true">
+            <div className="w-16 h-16 rounded-full bg-muted shrink-0" />
+            <div className="flex-1 space-y-2">
+              <div className="h-4 bg-muted rounded w-32" />
+              <div className="h-3 bg-muted rounded w-20" />
             </div>
           </div>
         ) : (
-          <>
-            {/* Profile header */}
-            <div className="flex items-center gap-5 p-5 pb-4">
-              {userAvatar ? (
-                <img
-                  src={userAvatar}
-                  alt=""
-                  className="w-20 h-20 rounded-full shrink-0"
-                  referrerPolicy="no-referrer"
-                />
-              ) : (
-                <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center text-2xl font-medium text-muted-foreground shrink-0">
-                  {(userName ?? "?")[0]?.toUpperCase()}
-                </div>
-              )}
-              <div className="flex-1 min-w-0">
-                <h3 className="text-lg font-bold text-foreground truncate">
-                  {userName || "Unknown"}
-                </h3>
-                <div className="flex items-center gap-3 mt-1">
-                  <p className="text-xs text-muted-foreground">
-                    {friendCount} {friendCount === 1 ? "Friend" : "Friends"}
-                  </p>
-                  <p className="text-xs text-muted-foreground group relative cursor-default">
-                    {karma} Karma
-                    <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1 rounded-lg bg-popover border border-border text-xs text-muted-foreground px-2.5 py-1.5 shadow-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
-                      Total messages sent in Chat
-                    </span>
-                  </p>
-                </div>
+          <div className="flex items-center gap-4">
+            {userAvatar ? (
+              <img src={userAvatar} alt="" className="w-16 h-16 rounded-full shrink-0 object-cover" referrerPolicy="no-referrer" />
+            ) : (
+              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center text-xl font-medium text-muted-foreground shrink-0" aria-hidden="true">
+                {name[0]?.toUpperCase()}
               </div>
+            )}
+            <div className="min-w-0">
+              <p className="text-base font-semibold text-foreground truncate">{name}</p>
+              {isBlocked && <p className="text-xs text-muted-foreground">Blocked. Their messages are hidden for you.</p>}
             </div>
-
-            {/* Shared courses */}
-            {sharedCourses.length > 0 && (
-              <div className="px-5 pb-5">
-                <p className="text-[11px] font-medium text-foreground mb-2">
-                  Shared Courses
-                </p>
-                <div className="space-y-1">
-                  {sharedCourses.map((course) => (
-                    <button
-                      key={course.id}
-                      onClick={() => {
-                        router.push(`/app/discussions/${course.id}`);
-                        handleClose();
-                      }}
-                      className="flex items-center gap-2.5 w-full text-left px-3 py-2 rounded-lg hover:bg-accent transition-colors cursor-pointer"
-                    >
-                      <span className="text-sm text-foreground truncate flex-1">
-                        {course.name}
-                      </span>
-                      <span className="text-[10px] font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded shrink-0">
-                        {getSourceLabel(course.source)}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {sharedCourses.length === 0 && (
-              <div className="px-5 pb-5">
-                <p className="text-xs text-muted-foreground">No shared courses.</p>
-              </div>
-            )}
-          </>
+          </div>
         )}
-      </div>
-    </div>,
-    document.body
+
+        <div>
+          <p className="text-xs font-medium text-foreground mb-2">Shared classes</p>
+          {sharedCourses.length === 0 ? (
+            <p className="text-xs text-muted-foreground">No shared classes.</p>
+          ) : (
+            <ul className="space-y-1 list-none">
+              {sharedCourses.map((course) => (
+                <li key={course.id}>
+                  <button
+                    type="button"
+                    onClick={() => { router.push(`/app/discussions/${course.id}`); onClose(); }}
+                    className="flex items-center gap-2.5 w-full text-left px-3 py-2 rounded-lg hover:bg-muted transition-colors cursor-pointer"
+                  >
+                    <span className="text-sm text-foreground truncate flex-1">{course.name}</span>
+                    <span className="text-[10px] font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded shrink-0">{platformLabel(course.source)}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {reporting && (
+          <div className="rounded-xl border border-border p-3 space-y-2">
+            <label htmlFor="profile-report-reason" className="text-xs font-medium text-foreground">Why are you reporting {name}?</label>
+            <select
+              id="profile-report-reason"
+              value={reason}
+              onChange={(e) => setReason(e.target.value as ReportReason)}
+              className="w-full px-3 py-2 rounded-lg border border-input-border bg-card text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              {(Object.keys(REPORT_REASONS) as ReportReason[]).map((key) => (
+                <option key={key} value={key}>{REPORT_REASONS[key]}</option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={handleReport}
+              disabled={busy === "report"}
+              className="px-4 py-2 text-sm rounded-xl bg-red-500 text-white hover:bg-red-600 transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-2"
+            >
+              {busy === "report" && <Loader2 size={14} className="animate-spin motion-reduce:animate-none" aria-hidden="true" />}
+              Send report
+            </button>
+          </div>
+        )}
+      </ChatModal>
+
+      <ChatConfirmDialog
+        open={confirmBlock}
+        title={`Block ${name}?`}
+        description="Their messages are hidden for you in every chat. They are not told, and you can unblock them any time from their profile."
+        confirmLabel="Block"
+        destructive
+        loading={busy === "block"}
+        onConfirm={handleBlockToggle}
+        onCancel={() => setConfirmBlock(false)}
+      />
+    </>
   );
 }

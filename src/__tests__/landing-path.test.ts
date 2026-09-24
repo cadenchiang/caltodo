@@ -52,13 +52,13 @@ describe("pickLandingPath", () => {
       expect(pickLandingPath({}, { isMobile: true })).toBe("/app/inbox");
     });
 
-    it("skips Chat too when the earlier items are hidden", () => {
+    it("lands on Chat when the earlier items are hidden (Chat ships on mobile)", () => {
       expect(
         pickLandingPath(
           { hidden_nav_items: ["/app/inbox", "/app/calendar"] },
           { isMobile: true },
         ),
-      ).toBe("/app/inbox");
+      ).toBe("/app/discussions");
     });
 
     it("still honors hidden items among the mobile-eligible routes", () => {

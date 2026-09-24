@@ -134,7 +134,7 @@ describe("the keys match what the app actually writes", () => {
     ["caltodo_hidden_nav_items", "src/hooks/useHiddenNavItems.ts"],
     ["gcal_status", "src/components/calendar/CalendarHeader.tsx"],
     ["discussion_boards_cache_v4", "src/lib/calchat-cache.ts"],
-    ["calchat_last_course", "src/app/app/discussions/[courseId]/ChatPageClient.tsx"],
+    ["calchat_last_course", "src/lib/chat-actions.ts"],
   ])("%s is written by %s", (key, file) => {
     expect(USER_CACHE_KEYS).toContain(key);
     expect(read(file)).toContain(`"${key}"`);
@@ -145,6 +145,8 @@ describe("the keys match what the app actually writes", () => {
     ["calchat_muted_", "src/lib/chat-actions.ts"],
     ["calchat_pinned_", "src/lib/chat-actions.ts"],
     ["calchat_name_", "src/lib/chat-actions.ts"],
+    ["calchat_last_sent_", "src/lib/chat-actions.ts"],
+    ["calchat_hidden_system_", "src/lib/chat-hide.ts"],
     ["gcal-widget-cache:", "src/components/home/widgets/GoogleCalendarWidget.tsx"],
   ])("prefix %s is written by %s", (prefix, file) => {
     expect(USER_CACHE_KEY_PREFIXES).toContain(prefix);

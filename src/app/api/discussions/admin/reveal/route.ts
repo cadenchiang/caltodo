@@ -1,9 +1,13 @@
 /**
- * Admin-only API route for revealing the identity behind anonymous messages.
- * Only the hardcoded admin email can access this endpoint.
+ * Admin-only API route for revealing the identity behind an anonymous
+ * message. Only the hardcoded admin email can access this endpoint.
  *
- * GET /api/discussions/admin/reveal?userId=<uuid>
- * Returns { userName } if the caller is the admin; 403 otherwise.
+ * GET /api/discussions/admin/reveal?messageId=<uuid>
+ * Returns { userName, userAvatar, authorKey } if the caller is the admin.
+ *
+ * Takes a message id, not a user id: clients no longer hold author ids
+ * (audit C2). The author is looked up with the service role and every
+ * reveal is logged with the admin id and the message id.
  */
 
 import { NextResponse } from "next/server";
@@ -13,29 +17,15 @@ import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
 import { isAdmin } from "@/lib/admin";
 
-/**
- * GET /api/discussions/admin/reveal?userId=<uuid>
- *
- * Server-side admin check — only ADMIN_EMAIL can reveal anonymous identities.
- * Returns the target user's full name.
- *
- * @param request - The incoming request with userId query param
- * @returns { userName: string } on success; 401/403/404/500 on error
- */
 export async function GET(request: Request) {
   const supabase = await createClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
-
   if (authError || !user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Server-side admin check — centralized via @/lib/admin
   if (!isAdmin(user.email)) {
-    logger.warn("Admin reveal: unauthorized attempt", {
-      userId: user.id,
-      email: user.email,
-    });
+    logger.warn("Admin reveal: unauthorized attempt", { userId: user.id, email: user.email });
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -45,18 +35,27 @@ export async function GET(request: Request) {
   }
 
   const url = new URL(request.url);
-  const targetUserId = url.searchParams.get("userId");
-
-  if (!targetUserId) {
-    return NextResponse.json({ error: "userId query parameter required" }, { status: 400 });
+  const messageId = url.searchParams.get("messageId");
+  if (!messageId) {
+    return NextResponse.json({ error: "messageId query parameter required" }, { status: 400 });
   }
 
   try {
     const admin = createAdminClient();
-    const { data: targetUser, error: userError } = await admin.auth.admin.getUserById(targetUserId);
+    const { data: message, error: messageError } = await admin
+      .from("chat_messages")
+      .select("id, author_id, author_key, course_id")
+      .eq("id", messageId)
+      .maybeSingle();
 
+    if (messageError || !message) {
+      logger.warn("Admin reveal: message not found", { messageId, adminId: user.id, error: messageError?.message });
+      return NextResponse.json({ error: "Message not found" }, { status: 404 });
+    }
+
+    const { data: targetUser, error: userError } = await admin.auth.admin.getUserById(message.author_id);
     if (userError || !targetUser?.user) {
-      logger.warn("Admin reveal: user not found", { targetUserId, adminId: user.id });
+      logger.warn("Admin reveal: author not found", { messageId, adminId: user.id });
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
@@ -65,18 +64,15 @@ export async function GET(request: Request) {
 
     logger.info("Admin reveal: identity revealed", {
       adminId: user.id,
-      targetUserId,
-      targetName: userName,
+      messageId,
+      courseId: message.course_id,
+      targetUserId: message.author_id,
     });
 
-    return NextResponse.json({ userName, userAvatar });
+    return NextResponse.json({ userName, userAvatar, authorKey: message.author_key });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    logger.error("Admin reveal: unexpected error", {
-      targetUserId,
-      adminId: user.id,
-      error: message,
-    });
+    const errMessage = err instanceof Error ? err.message : String(err);
+    logger.error("Admin reveal: unexpected error", { messageId, adminId: user.id, error: errMessage });
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect } from "react";
+import { useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Lock } from "lucide-react";
+import ChatModal from "@/components/discussions/ChatModal";
 
 interface CalChatLockedModalProps {
   /** Whether the modal is currently visible. */
@@ -12,124 +13,56 @@ interface CalChatLockedModalProps {
 }
 
 /**
- * Modal shown when a user tries to access CalChat without completing onboarding.
- * CalChat requires at least one integration (Canvas, Gradescope, or Pensieve)
- * to be configured.
- *
- * When the tour is active, renders without its own backdrop so the tour overlay
- * provides the dimming instead.
- *
- * @param open - Whether the modal is visible
- * @param onClose - Callback to close the modal
+ * Shown when a user opens chat before completing onboarding. Chat unlocks
+ * when hasCompletedOnboarding() is true: at least one integration is
+ * connected (Canvas, Gradescope, Pensieve, or Google Calendar) or a sync
+ * has run. The copy names exactly that set.
  */
 export default function CalChatLockedModal({ open, onClose }: CalChatLockedModalProps) {
   const router = useRouter();
-  const isTourActive = false; // Tour removed
+  const ctaRef = useRef<HTMLButtonElement>(null);
 
-  /**
-   * Navigates to Settings/Integrations to sync classes.
-   */
+  /** Sends the user to Settings > Integrations to connect a class source. */
   const handleSync = useCallback(() => {
     onClose();
     router.push("/app/settings?section=integrations");
   }, [router, onClose]);
 
-  // Close on Escape
-  useEffect(() => {
-    if (!open) return;
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [open, onClose]);
-
-  if (!open) return null;
-
-  /** Card content shared between tour and non-tour rendering. */
-  const cardContent = (
-    <>
-      {/* Icon */}
-      <div
-        className="flex justify-center mb-4 animate-drop-in"
-        style={{ animationDelay: "150ms" }}
-      >
-        <div className="w-14 h-14 rounded-full bg-orange-500/10 flex items-center justify-center">
-          <Lock size={28} className="text-orange-500" />
-        </div>
-      </div>
-
-      {/* Title */}
-      <h3
-        className="text-lg font-semibold text-foreground text-center mb-2 animate-drop-in"
-        style={{ animationDelay: "220ms" }}
-      >
-        Chat is locked
-      </h3>
-
-      {/* Description */}
-      <p
-        className="text-sm text-muted-foreground text-center mb-5 animate-drop-in"
-        style={{ animationDelay: "290ms" }}
-      >
-        Sync your classes to unlock Chat. Connect Canvas, Gradescope, or Pensive to get started.
-      </p>
-
-      {/* CTA button */}
-      <div
-        className="animate-drop-in"
-        style={{ animationDelay: "360ms" }}
-      >
-        <button
-          onClick={handleSync}
-          className="w-full px-4 py-2.5 bg-foreground text-background rounded-xl text-sm font-medium hover:bg-foreground/90 transition-colors cursor-pointer active:scale-95 transition-transform duration-150"
-        >
-          Sync classes
-        </button>
-      </div>
-
-      {/* Close link */}
-      <div
-        className="animate-drop-in text-center mt-3"
-        style={{ animationDelay: "410ms" }}
-      >
-        <button
-          onClick={onClose}
-          className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-        >
-          Close
-        </button>
-      </div>
-    </>
-  );
-
-  // During tour: render without backdrop so tour overlay provides dimming
-  if (isTourActive) {
-    return (
-      <div className="fixed inset-0 z-[9999] flex items-center justify-center pointer-events-none">
-        <div
-          id="tour-calchat-page"
-          className="bg-popover rounded-2xl border border-border shadow-2xl w-full w-[calc(100%-2rem)] max-w-sm p-6 pointer-events-auto animate-announce-card-in"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {cardContent}
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center backdrop-blur-md animate-announce-backdrop-in"
-      onClick={onClose}
+    <ChatModal
+      open={open}
+      onClose={onClose}
+      title="Chat is locked"
+      size="sm"
+      initialFocusRef={ctaRef}
+      footer={
+        <>
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-sm rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+          >
+            Not now
+          </button>
+          <button
+            ref={ctaRef}
+            type="button"
+            onClick={handleSync}
+            className="px-4 py-2 text-sm rounded-xl bg-blue-500 text-white hover:bg-blue-600 transition-colors cursor-pointer"
+          >
+            Connect a class
+          </button>
+        </>
+      }
     >
-      <div
-        id="tour-calchat-page"
-        className="bg-popover/80 rounded-2xl w-full w-[calc(100%-2rem)] max-w-sm p-6 animate-announce-card-in"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {cardContent}
+      <div className="flex items-start gap-3">
+        <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center shrink-0" aria-hidden="true">
+          <Lock size={18} className="text-muted-foreground" />
+        </div>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          Chat opens once your classes are synced. Connect Canvas, Gradescope, Pensieve, or Google Calendar in Settings and your class chats appear here.
+        </p>
       </div>
-    </div>
+    </ChatModal>
   );
 }

@@ -1,10 +1,14 @@
 /**
- * Tests for POST /api/discussions/leave.
+ * Tests for POST and PATCH /api/discussions/leave.
  *
  * Audit H12: leaving hard-deleted the membership, so the next sync
  * re-created it. The route now soft-deletes (sets deleted_at), which is the
  * record the sync respects, and the migration that makes the chat's read
  * paths honour deleted_at ships alongside it.
+ *
+ * Leave is now "hide" (D3): PATCH clears deleted_at again, and system
+ * courses are refused server-side (D5, finding 24) because the client
+ * hides those per device instead.
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -20,7 +24,7 @@ vi.mock("@/lib/rate-limit", () => ({
   rateLimit: vi.fn().mockReturnValue({ allowed: true }),
 }));
 
-import { POST } from "@/app/api/discussions/leave/route";
+import { POST, PATCH } from "@/app/api/discussions/leave/route";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -29,12 +33,16 @@ const mockCreateAdmin = vi.mocked(createAdminClient);
 
 const ROOT = path.resolve(__dirname, "../..");
 
-/** A user client whose membership lookup resolves to `membership`. */
-function userClient(membership: { id: string } | null) {
+/**
+ * A user client whose membership lookup resolves to `membership` and whose
+ * course lookup reports `source` (the route refuses system courses).
+ */
+function userClient(membership: { id: string } | null, source = "canvas") {
   const lookup = {
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
     is: vi.fn().mockReturnThis(),
+    maybeSingle: vi.fn().mockResolvedValue({ data: { source }, error: null }),
     single: vi.fn().mockResolvedValue({
       data: membership,
       error: membership ? null : { message: "no rows" },
@@ -56,6 +64,25 @@ function adminClient(error: { message: string } | null = null) {
     is: vi.fn().mockResolvedValue({ error }),
   };
   return { from: vi.fn(() => chain), _chain: chain };
+}
+
+/**
+ * Admin client for PATCH: the first from() is the hidden-row lookup, the
+ * second is the update whose terminal call is eq("id", ...).
+ */
+function unhideAdminClient(hidden: { id: string } | null, error: { message: string } | null = null) {
+  const lookup = {
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    not: vi.fn().mockReturnThis(),
+    maybeSingle: vi.fn().mockResolvedValue({ data: hidden, error: null }),
+  };
+  const update = {
+    update: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockResolvedValue({ error }),
+  };
+  let calls = 0;
+  return { from: vi.fn(() => (calls++ === 0 ? lookup : update)), _lookup: lookup, _update: update };
 }
 
 function request(body: unknown) {
@@ -109,6 +136,54 @@ describe("POST /api/discussions/leave", () => {
     mockCreateClient.mockResolvedValue(userClient({ id: "m-1" }) as any);
 
     expect((await POST(request({}))).status).toBe(400);
+  });
+
+  it("refuses to hide a system course and leaves the membership alone", async () => {
+    const user = userClient({ id: "m-1" }, "system");
+    const admin = adminClient();
+    mockCreateClient.mockResolvedValue(user as any);
+    mockCreateAdmin.mockReturnValue(admin as any);
+
+    const res = await POST(request({ courseId: "calyak" }));
+
+    expect(res.status).toBe(403);
+    expect(admin._chain.update).not.toHaveBeenCalled();
+  });
+});
+
+describe("PATCH /api/discussions/leave (unhide)", () => {
+  const patch = (body: unknown) =>
+    new Request("http://localhost/api/discussions/leave", { method: "PATCH", body: JSON.stringify(body) });
+
+  it("clears deleted_at on the hidden membership", async () => {
+    const admin = unhideAdminClient({ id: "m-1" });
+    mockCreateClient.mockResolvedValue(userClient(null) as any);
+    mockCreateAdmin.mockReturnValue(admin as any);
+
+    const res = await PATCH(patch({ courseId: "course-1" }));
+
+    expect(res.status).toBe(200);
+    expect(admin._lookup.not).toHaveBeenCalledWith("deleted_at", "is", null);
+    expect(admin._update.update).toHaveBeenCalledWith({ deleted_at: null });
+    expect(admin._update.eq).toHaveBeenCalledWith("id", "m-1");
+  });
+
+  it("is a 404 when nothing is hidden", async () => {
+    const admin = unhideAdminClient(null);
+    mockCreateClient.mockResolvedValue(userClient(null) as any);
+    mockCreateAdmin.mockReturnValue(admin as any);
+
+    const res = await PATCH(patch({ courseId: "course-1" }));
+
+    expect(res.status).toBe(404);
+    expect(admin._update.update).not.toHaveBeenCalled();
+  });
+
+  it("reports a failed unhide as a 500", async () => {
+    mockCreateClient.mockResolvedValue(userClient(null) as any);
+    mockCreateAdmin.mockReturnValue(unhideAdminClient({ id: "m-1" }, { message: "boom" }) as any);
+
+    expect((await PATCH(patch({ courseId: "course-1" }))).status).toBe(500);
   });
 });
 

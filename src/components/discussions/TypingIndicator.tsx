@@ -20,7 +20,9 @@ export default function TypingIndicator({
 
   return (
     <div
-      className={`flex items-center gap-1 pl-8 overflow-hidden transition-all duration-200 ${active ? "opacity-100 h-4 mt-4 mb-0" : "opacity-0 h-0 mt-0 mb-0"}`}
+      className={`flex items-center gap-1 pl-8 overflow-hidden transition-all duration-200 motion-reduce:transition-none ${active ? "opacity-100 h-4 mt-4 mb-0" : "opacity-0 h-0 mt-0 mb-0"}`}
+      role="status"
+      aria-live="polite"
     >
       {active && (
         <>
@@ -28,25 +30,16 @@ export default function TypingIndicator({
             {[0, 1, 2].map((i) => (
               <span
                 key={i}
-                className="w-[4px] h-[4px] rounded-full bg-muted-foreground/50"
-                style={{
-                  animation: "typing-bounce 1.2s ease-in-out infinite",
-                  animationDelay: `${i * 0.2}s`,
-                }}
+                className="w-[4px] h-[4px] rounded-full bg-muted-foreground"
+                style={{ animation: "typing-bounce 1.2s ease-in-out infinite", animationDelay: `${i * 0.2}s` }}
               />
             ))}
           </span>
-          <span className="text-[10px] text-muted-foreground/50">{label}</span>
+          <span className="text-[11px] text-muted-foreground">{label}</span>
         </>
       )}
 
-      {/* Keyframes injected once via inline style tag */}
-      <style>{`
-        @keyframes typing-bounce {
-          0%, 60%, 100% { transform: translateY(0); }
-          30% { transform: translateY(-4px); }
-        }
-      `}</style>
+      {/* @keyframes typing-bounce and the reduced-motion guard live in globals.css */}
     </div>
   );
 }
@@ -61,10 +54,10 @@ function formatTypingLabel(users: TypingUser[]): string {
   const name = (u: TypingUser) => u.userName ?? "Someone";
 
   if (users.length === 1) {
-    return `${name(users[0])} is typing…`;
+    return `${name(users[0])} is typing`;
   }
   if (users.length === 2) {
-    return `${name(users[0])} and ${name(users[1])} are typing…`;
+    return `${name(users[0])} and ${name(users[1])} are typing`;
   }
-  return `${users.length} people are typing…`;
+  return `${users.length} people are typing`;
 }

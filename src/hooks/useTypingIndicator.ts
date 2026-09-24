@@ -23,17 +23,30 @@ const IDLE_TIMEOUT_MS = 500;
 /** Delay before broadcasting typing to others (avoids single-keystroke flicker). */
 const START_DEBOUNCE_MS = 50;
 
+/** Realtime topic for a room's typing channel. Must match the RLS policy. */
+export function typingTopic(courseId: string): string {
+  return `typing:${courseId}`;
+}
+
 /**
  * Subscribes to a Supabase Presence channel for typing indicators.
  * Exposes the list of other users currently typing, plus start/stop helpers.
  *
+ * The caller decides when to call startTyping; ChatInput never calls it
+ * while anonymous mode is on, so anonymous authors are not identified by
+ * the typing bubble that precedes their message.
+ *
  * @param courseId - The course channel to track typing in
  * @param currentUserId - The local user's ID (excluded from typingUsers)
+ * @param currentUserName - The local user's display name, broadcast with
+ *                          the typing state. Passed in rather than fetched
+ *                          so resuming typing never makes a network call.
  * @returns typingUsers array, startTyping callback, stopTyping callback
  */
 export function useTypingIndicator(
   courseId: string,
   currentUserId: string,
+  currentUserName: string | null,
 ): {
   typingUsers: TypingUser[];
   startTyping: () => void;
@@ -45,13 +58,20 @@ export function useTypingIndicator(
   const startDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isTrackingRef = useRef(false);
   const supabaseRef = useRef(createClient());
+  /** Latest display name, read at broadcast time without re-subscribing. */
+  const userNameRef = useRef(currentUserName);
+  userNameRef.current = currentUserName;
 
   useEffect(() => {
     if (!courseId || !currentUserId) return;
 
     const supabase = supabaseRef.current;
-    const channel = supabase.channel(`typing:${courseId}`, {
-      config: { presence: { key: "user_id" } },
+    // Private: Realtime enforces RLS on realtime.messages, so only course
+    // members can watch or send typing state (migration 20260923000003).
+    // The presence key is the user's own id; an entry whose payload
+    // disagrees with its key is dropped as inconsistent.
+    const channel = supabase.channel(typingTopic(courseId), {
+      config: { private: true, presence: { key: currentUserId } },
     });
 
     channel.on("presence", { event: "sync" }, () => {
@@ -61,6 +81,7 @@ export function useTypingIndicator(
         const presences = state[key];
         if (presences && presences.length > 0) {
           const p = presences[0];
+          if (p.user_id !== key) continue;
           if (p.user_id !== currentUserId) {
             users.push({ userId: p.user_id, userName: p.user_name });
           }
@@ -113,10 +134,9 @@ export function useTypingIndicator(
         // Only broadcast if user is still typing (idle timer hasn't fired)
         if (idleTimerRef.current) {
           isTrackingRef.current = true;
-          const { data: { user } } = await supabaseRef.current.auth.getUser();
           await channel.track({
             user_id: currentUserId,
-            user_name: user?.user_metadata?.full_name ?? null,
+            user_name: userNameRef.current,
           });
         }
       }, START_DEBOUNCE_MS);

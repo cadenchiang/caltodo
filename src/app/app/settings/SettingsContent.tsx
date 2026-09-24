@@ -10,6 +10,7 @@ import PageTransition from "@/components/ui/PageTransition";
 import IntegrationsSection from "@/components/settings/sections/IntegrationsSection";
 import AppearanceSection from "@/components/settings/sections/AppearanceSection";
 import NavigationSection from "@/components/settings/sections/NavigationSection";
+import ChatSection from "@/components/settings/sections/ChatSection";
 
 import AdvancedSection from "@/components/settings/sections/AdvancedSection";
 import {
@@ -31,6 +32,8 @@ function renderSection(sectionId: SettingsSectionId) {
       return <IntegrationsSection />;
     case "appearance":
       return <AppearanceSection />;
+    case "chat":
+      return <ChatSection />;
     case "navigation":
       return <NavigationSection />;
     case "advanced":

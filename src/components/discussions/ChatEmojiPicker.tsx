@@ -11,6 +11,7 @@
 
 import data from "@emoji-mart/data";
 import Picker from "@emoji-mart/react";
+import { useTheme } from "@/contexts/ThemeContext";
 
 interface ChatEmojiPickerProps {
   /** Called with the picked emoji's native character. */
@@ -20,15 +21,20 @@ interface ChatEmojiPickerProps {
 /**
  * Renders the emoji grid.
  *
+ * The picker follows the app's resolved theme (the `.dark` class), not the
+ * OS preference: "auto" made the picker dark inside a light app whenever
+ * the user's OS was dark, and the reverse.
+ *
  * @param onSelect - Receives the native character of the chosen emoji.
  * @returns The picker, sized and themed for the chat input popover.
  */
 export default function ChatEmojiPicker({ onSelect }: ChatEmojiPickerProps) {
+  const { resolvedTheme } = useTheme();
   return (
     <Picker
       data={data}
       onEmojiSelect={(emoji: { native: string }) => onSelect(emoji.native)}
-      theme="auto"
+      theme={resolvedTheme === "dark" ? "dark" : "light"}
       previewPosition="none"
       skinTonePosition="none"
       maxFrequentRows={2}

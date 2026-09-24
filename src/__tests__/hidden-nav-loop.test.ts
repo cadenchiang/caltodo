@@ -19,8 +19,9 @@ import {
 const read = (p: string) => fs.readFileSync(path.join(process.cwd(), p), "utf8");
 
 describe("LANDING_CAPABLE_HREFS", () => {
-  it("is Inbox and Calendar, never a desktop-only route", () => {
-    expect(LANDING_CAPABLE_HREFS).toEqual(["/app/inbox", "/app/calendar"]);
+  it("is Inbox, Calendar, and Chat, never a desktop-only route", () => {
+    // Chat ships on mobile (D1), so it can land a phone too.
+    expect(LANDING_CAPABLE_HREFS).toEqual(["/app/inbox", "/app/calendar", "/app/discussions"]);
   });
 });
 
@@ -31,18 +32,17 @@ describe("canHideNavItem", () => {
   });
 
   it("refuses to hide the last visible landing-capable item, with a reason", () => {
-    expect(canHideNavItem("/app/calendar", new Set(["/app/inbox"]))).toEqual({
+    expect(canHideNavItem("/app/calendar", new Set(["/app/inbox", "/app/discussions"]))).toEqual({
       allowed: false,
       reason: LAST_LANDING_ITEM_REASON,
     });
-    expect(canHideNavItem("/app/inbox", new Set(["/app/calendar"]))).toEqual({
+    expect(canHideNavItem("/app/discussions", new Set(["/app/inbox", "/app/calendar"]))).toEqual({
       allowed: false,
       reason: LAST_LANDING_ITEM_REASON,
     });
   });
 
   it("always allows hiding a desktop-only item", () => {
-    expect(canHideNavItem("/app/discussions", new Set(["/app/inbox", "/app/calendar"]))).toEqual({ allowed: true });
     expect(canHideNavItem("/app/home", new Set(["/app/inbox"]))).toEqual({ allowed: true });
   });
 
@@ -55,13 +55,12 @@ describe("pickLandingPath on mobile", () => {
   it("never returns a desktop-only route, even with everything hidden", () => {
     const everything = { hidden_nav_items: ["/app/home", "/app/inbox", "/app/calendar", "/app/discussions"] };
     const target = pickLandingPath(everything, { isMobile: true });
-    expect(["/app/home", "/app/discussions"]).not.toContain(target);
+    expect(target).not.toBe("/app/home");
     expect(target).toBe("/app/inbox");
   });
 
-  it("with only Inbox and Calendar hidden falls back to Inbox rather than Chat", () => {
-    expect(pickLandingPath({ hidden_nav_items: ["/app/inbox", "/app/calendar"] }, { isMobile: true })).toBe("/app/inbox");
-    // Desktop still gets Chat, so the guard on the client must pass isMobile.
+  it("with Inbox and Calendar hidden lands on Chat on every device", () => {
+    expect(pickLandingPath({ hidden_nav_items: ["/app/inbox", "/app/calendar"] }, { isMobile: true })).toBe("/app/discussions");
     expect(pickLandingPath({ hidden_nav_items: ["/app/inbox", "/app/calendar"] })).toBe("/app/discussions");
   });
 });

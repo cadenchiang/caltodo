@@ -2,24 +2,27 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { Inbox, CalendarDays, Settings, Sun, CalendarRange } from "lucide-react";
+import { Inbox, CalendarDays, MessageCircle, Settings, Sun, CalendarRange } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { useHiddenNavItems } from "@/hooks/useHiddenNavItems";
+import { useCalChatUnread } from "@/hooks/useCalChatUnread";
 
 /**
  * Fixed bottom tab bar for mobile navigation (visible below md breakpoint).
- * Contains Inbox, Calendar, and Settings tabs with active state highlighting.
- * Includes safe-area padding for iPhone home indicator.
+ * Contains Inbox, Calendar, Chat, and Settings tabs with active state
+ * highlighting. Includes safe-area padding for iPhone home indicator.
  *
- * Home (the widget board) and Chat are intentionally absent: both are
- * desktop-only surfaces. MobileRouteGuard bounces direct visits to those
- * routes so the tab bar and the reachable routes stay in agreement.
+ * Home (the widget board) is intentionally absent: it is a desktop-only
+ * surface, and MobileRouteGuard bounces direct visits so the tab bar and
+ * the reachable routes stay in agreement. Chat is present; the bar hides
+ * inside an open room, which has its own back button to the room list.
  */
 export default function MobileTabBar() {
   const pathname = usePathname();
   const [inboxFilter, setInboxFilter] = useState<string>("all");
   useOnboardingStatus();
+  const chatUnread = useCalChatUnread();
   const { isHidden: isNavItemHidden } = useHiddenNavItems();
 
   // Hydrate inbox filter from localStorage after mount to avoid SSR mismatch
@@ -88,6 +91,13 @@ export default function MobileTabBar() {
       href: "/app/calendar",
       icon: CalendarDays,
       badge: false,
+    },
+    {
+      label: "Chat",
+      href: "/app/discussions",
+      icon: MessageCircle,
+      badge: false,
+      badgeCount: chatUnread,
     },
     {
       label: "Settings",

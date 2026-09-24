@@ -1117,11 +1117,12 @@ export default function OnboardingPage() {
     // flow the user has already come out the far side of.
     clearProgress();
     setExiting(true);
-    // New users completing onboarding should never see any welcome/announcement modals.
-    // Persist to server so dismiss state follows the account across devices.
+    // New users completing onboarding should never see the sync/announcement
+    // modals. The chat welcome is NOT pre-dismissed: it carries the community
+    // standards and the anonymity disclosure, and is shown on the first visit
+    // to /app/discussions instead.
     const allDismissed = {
       sync_welcome: true, gcal_announce: true,
-      calchat_welcome: true,
       pensieve_announced: true, calchat_announcement: true,
     };
     fetch("/api/credentials", {
@@ -1135,7 +1136,6 @@ export default function OnboardingPage() {
       localStorage.setItem("calchat_announcement_seen", "true");
       localStorage.setItem("caltodo_sync_dismissed", "true");
       localStorage.setItem("caltodo_gcal_announce_seen", "true");
-      localStorage.setItem("calchat_welcome_accepted", "true");
     } catch {
       /* non-critical */
     }

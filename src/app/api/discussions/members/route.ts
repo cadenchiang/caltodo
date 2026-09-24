@@ -8,10 +8,15 @@ import { createClient } from "@/lib/supabase/server";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/rate-limit";
 
+/** Default and maximum page size for the member list. */
+const DEFAULT_LIMIT = 50;
+const MAX_LIMIT = 200;
+
 /**
- * GET /api/discussions/members?courseId=<uuid>
- * Calls get_course_members() — returns all members with name/avatar.
- * Only works if the calling user is enrolled in the course.
+ * GET /api/discussions/members?courseId=<uuid>&limit=50&offset=0
+ * Calls get_course_members() (name and avatar per member, only for an
+ * enrolled caller) and returns one page of it. The response carries the
+ * total in X-Total-Count so the client knows whether to offer "Show more".
  */
 export async function GET(request: Request) {
   const supabase = await createClient();
@@ -32,6 +37,8 @@ export async function GET(request: Request) {
   if (!courseId) {
     return NextResponse.json({ error: "courseId query parameter required" }, { status: 400 });
   }
+  const limit = Math.min(Math.max(parseInt(url.searchParams.get("limit") || String(DEFAULT_LIMIT), 10) || DEFAULT_LIMIT, 1), MAX_LIMIT);
+  const offset = Math.max(parseInt(url.searchParams.get("offset") || "0", 10) || 0, 0);
 
   try {
     const { data, error } = await supabase.rpc("get_course_members", {
@@ -47,7 +54,10 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Failed to fetch members" }, { status: 500 });
     }
 
-    return NextResponse.json(data ?? []);
+    const all = (data ?? []) as unknown[];
+    return NextResponse.json(all.slice(offset, offset + limit), {
+      headers: { "X-Total-Count": String(all.length) },
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     logger.error("GET /api/discussions/members: unexpected error", {

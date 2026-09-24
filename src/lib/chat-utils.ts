@@ -3,6 +3,8 @@
  * under 300 lines. All functions are stateless and framework-agnostic.
  */
 
+import { writeCache } from "@/hooks/chatCache";
+
 /** Image file extensions to detect in message body URLs. */
 const IMAGE_EXT = /\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i;
 
@@ -127,14 +129,27 @@ export async function prefetchMessages(courseId: string): Promise<void> {
     );
     if (!res.ok) return;
     const data = await res.json();
-    const sorted = [...data].reverse();
-    sessionStorage.setItem(
-      CACHE_PREFIX + courseId,
-      JSON.stringify({ messages: sorted.slice(0, 200), timestamp: Date.now() })
-    );
+    writeCache(courseId, [...data].reverse());
   } catch {
     // Silent failure for prefetch
   }
+}
+
+/** Rooms already prefetched this session; a hover should not refetch. */
+const prefetchedRooms = new Set<string>();
+
+/**
+ * Prefetches a room's messages and members once per session. Called from
+ * the room row on hover / focus so only rooms the user is about to open are
+ * fetched, instead of every room on mount.
+ *
+ * @param courseId - The course UUID
+ */
+export function prefetchRoom(courseId: string): void {
+  if (prefetchedRooms.has(courseId)) return;
+  prefetchedRooms.add(courseId);
+  if (!hasFreshCache(courseId)) void prefetchMessages(courseId);
+  void prefetchMembers(courseId);
 }
 
 /**
