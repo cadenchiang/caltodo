@@ -13,19 +13,35 @@ import { getCachedAssignmentCount } from "@/lib/landing-counts";
  * Overrides root layout title/description with login-specific copy
  * and Open Graph tags for link previews.
  */
-export const metadata: Metadata = {
-  title: "Sign in",
-  description:
-    "Sign in to caltodo. Sync your classes, upload your syllabus, and manage every deadline in one place.",
-  alternates: { canonical: "/login" },
-  openGraph: {
-    title: "Sign in | caltodo",
-    description:
-      "Sign in to caltodo. Sync your classes and manage every deadline in one place.",
-    url: "https://caltodo.me/login",
-    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "caltodo, your assignments synced and organized" }],
-  },
-};
+/**
+ * Title and description follow the mode: /login?signup=true renders the
+ * sign-up form, so its tab should not say "Sign in".
+ *
+ * @param searchParams - Route search params; `signup=true` selects sign-up copy
+ */
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<{ signup?: string }>;
+}): Promise<Metadata> {
+  const { signup } = await searchParams;
+  const isSignup = signup === "true";
+  const title = isSignup ? "Sign up" : "Sign in";
+  const description = isSignup
+    ? "Create your caltodo account. Sync your classes, upload your syllabus, and manage every deadline in one place."
+    : "Sign in to caltodo. Sync your classes, upload your syllabus, and manage every deadline in one place.";
+  return {
+    title,
+    description,
+    alternates: { canonical: "/login" },
+    openGraph: {
+      title: `${title} | caltodo`,
+      description,
+      url: "https://caltodo.me/login",
+      images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "caltodo, your assignments synced and organized" }],
+    },
+  };
+}
 
 /**
  * Two-column login page: white form on the left, muted branding panel on the right.
@@ -42,7 +58,7 @@ export default async function LoginPage() {
         <Link
           href="/"
           aria-label="Back to caltodo home"
-          className="absolute top-5 left-5 sm:top-6 sm:left-6 z-20 inline-flex items-center hover:opacity-70 transition-opacity"
+          className="absolute top-3 left-3 sm:top-4 sm:left-4 z-20 inline-flex items-center justify-center min-h-11 min-w-11 p-2 hover:opacity-70 transition-opacity"
         >
           <img src="/logo.png" alt={BRAND} className="h-7 sm:h-8 w-auto" />
         </Link>

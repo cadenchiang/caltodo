@@ -92,7 +92,7 @@ export default function ContactForm() {
           {status === "sent" && "Thanks, we got it. We will be in touch soon."}
           {status === "error" && (errorMsg || "Something went wrong. Try again.")}
         </p>
-        <Button type="submit" loading={sending} disabled={!message.trim()}>
+        <Button type="submit" size="lg" className="min-h-11" loading={sending} disabled={!message.trim()}>
           {sending ? "Sending..." : "Send"}
         </Button>
       </div>

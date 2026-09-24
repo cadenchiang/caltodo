@@ -68,7 +68,7 @@ export default function AboutPage() {
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Caden Chiang on LinkedIn"
-            className="shrink-0 rounded-full ring-1 ring-border hover:ring-blue-500/40 transition-shadow duration-200"
+            className="shrink-0 inline-flex items-center justify-center min-h-11 min-w-11 rounded-full ring-1 ring-border hover:ring-blue-500/40 transition-shadow duration-200"
           >
             {/* A head-and-shoulders portrait (800x800) rather than the tight
                 face crop it replaced, so the dot shows a person, not a cheek. */}

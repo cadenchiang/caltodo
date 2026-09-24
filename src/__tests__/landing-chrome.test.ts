@@ -38,7 +38,9 @@ describe("LandingNav", () => {
     expect(nav).toContain("useDialog({ open: mobileMenuOpen, onClose: closeMenu })");
     expect(nav).toContain('role="dialog"');
     expect(nav).toContain('aria-modal="true"');
-    expect(nav).toContain('main.setAttribute("aria-hidden", "true")');
+    // Both the page and the footer are hidden from assistive tech while open.
+    expect(nav).toContain('document.querySelectorAll("main, footer")');
+    expect(nav).toContain('el.setAttribute("aria-hidden", "true")');
     expect(nav).toContain("{mobileMenuOpen && (");
   });
 

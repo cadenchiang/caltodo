@@ -60,8 +60,8 @@
   --input-border: #e5e7eb;
   --border-subtle: #f9fafb;
 
-  /* Interactive */
-  --ring: #bfdbfe;
+  /* Interactive. A 3:1 focus ring on white; blue-200 was 1.4:1. */
+  --ring: #0c78bd;
 
   /* Status colors. Fixed across themes on purpose: success, warning and
      danger must read the same in Miffy pink as in Forest green, so they do
@@ -117,7 +117,7 @@
   --input-border: #525252;
   --border-subtle: #404040;
 
-  --ring: #1e3a5f;
+  --ring: #5db3ec;
 
   --hairline: rgba(255, 255, 255, 0.1);
 
@@ -1621,7 +1621,7 @@ textarea:-webkit-autofill {
   --border: #f3f4f6;
   --input-border: #e5e7eb;
   --border-subtle: #f9fafb;
-  --ring: #bfdbfe;
+  --ring: #0c78bd;
 }
 .force-light input,
 .force-light textarea,

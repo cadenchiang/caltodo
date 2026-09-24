@@ -71,10 +71,11 @@ export default function LandingNav({ loggedIn: loggedInProp }: LandingNavProps =
   const { containerRef: menuRef, handleBackdropClick } = useDialog({ open: mobileMenuOpen, onClose: closeMenu });
   useEffect(() => {
     if (!mobileMenuOpen) return;
-    const main = document.querySelector("main");
-    if (!main) return;
-    main.setAttribute("aria-hidden", "true");
-    return () => main.removeAttribute("aria-hidden");
+    // Hide the page behind the menu from assistive tech: main and the footer.
+    const behind = Array.from(document.querySelectorAll("main, footer"));
+    if (behind.length === 0) return;
+    for (const el of behind) el.setAttribute("aria-hidden", "true");
+    return () => { for (const el of behind) el.removeAttribute("aria-hidden"); };
   }, [mobileMenuOpen]);
 
   // Clear any section highlight when leaving the home route.
