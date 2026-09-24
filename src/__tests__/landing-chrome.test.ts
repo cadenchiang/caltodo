@@ -120,6 +120,19 @@ describe("dead landing code", () => {
   });
 });
 
+describe("body font", () => {
+  it("reads the next/font Geist variable directly, with a system fallback stack", () => {
+    // --font-sans lives in @theme inline and resolves var(--font-geist-sans)
+    // at :root, where next/font never defines it, so body fell back to the
+    // system stack. Reading the body-level variable is what applies Geist.
+    const css = read("src/app/globals.css");
+    const start = css.indexOf("\nbody {");
+    const body = css.slice(start, css.indexOf("}", start));
+    expect(body).toMatch(/font-family: var\(--font-geist-sans\), ui-sans-serif, system-ui/);
+    expect(body).not.toContain("var(--font-sans)");
+  });
+});
+
 describe("FadeIn", () => {
   it("renders visible when IntersectionObserver is unavailable", () => {
     expect(canObserve(undefined)).toBe(false);
