@@ -5,6 +5,7 @@ import { AlertTriangle } from "lucide-react";
 import { useCredentials } from "@/components/settings/IntegrationSettings";
 import { useTaskContext } from "@/contexts/TaskContext";
 import { buildHealthIssues, type HealthAction } from "@/lib/integration-health-issues";
+import Button from "@/components/ui/Button";
 
 /**
  * Transparency banner shown at the top of the Integrations settings section.
@@ -51,7 +52,7 @@ export default function IntegrationHealthBanner() {
       className="mb-4 rounded-2xl border border-border bg-card shadow-sm dark:shadow-none overflow-hidden"
     >
       <div className="flex items-center gap-2 px-4 pt-3 pb-2">
-        <AlertTriangle size={14} className="shrink-0 text-amber-500" />
+        <AlertTriangle size={14} className="shrink-0 text-warning" aria-hidden="true" />
         <p className="text-sm font-semibold text-foreground">
           {issues.length === 1
             ? "1 connection needs attention"
@@ -65,13 +66,9 @@ export default function IntegrationHealthBanner() {
               <p className="text-sm text-foreground truncate">{issue.label}</p>
               <p className="text-xs text-muted-foreground truncate">{issue.detail}</p>
             </div>
-            <button
-              type="button"
-              onClick={() => runAction(issue.action)}
-              className="shrink-0 text-xs font-medium px-3 py-1 rounded-lg border border-border text-secondary-foreground hover:bg-muted transition-colors cursor-pointer"
-            >
+            <Button size="sm" variant="secondary" onClick={() => runAction(issue.action)} className="shrink-0">
               {issue.actionLabel}
-            </button>
+            </Button>
           </li>
         ))}
       </ul>
