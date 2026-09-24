@@ -8,6 +8,7 @@ import { getSettingsReturnPath } from "@/lib/settings-return";
 import { useIsMobile } from "@/hooks/useMediaQuery";
 import PageTransition from "@/components/ui/PageTransition";
 import IntegrationsSection from "@/components/settings/sections/IntegrationsSection";
+import NotificationsSection from "@/components/settings/sections/NotificationsSection";
 import AppearanceSection from "@/components/settings/sections/AppearanceSection";
 import NavigationSection from "@/components/settings/sections/NavigationSection";
 
@@ -29,6 +30,8 @@ function renderSection(sectionId: SettingsSectionId) {
   switch (sectionId) {
     case "integrations":
       return <IntegrationsSection />;
+    case "notifications":
+      return <NotificationsSection />;
     case "appearance":
       return <AppearanceSection />;
     case "navigation":

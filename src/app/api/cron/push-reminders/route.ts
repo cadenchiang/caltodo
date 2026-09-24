@@ -1,16 +1,20 @@
 /**
  * GET /api/cron/push-reminders
  *
- * Runs every 15 minutes. For each enabled notification rule:
+ * Invoked once a day by vercel.json ("0 9 * * *"). The route used to assume
+ * a 15-minute cadence and only looked at a 15-minute window, so with a daily
+ * schedule almost every reminder was missed. It now computes reminders for
+ * the next SCAN_WINDOW_MIN (24 hours) per run. For each enabled rule:
  *  - before_deadline: find the user's tasks whose due moment falls inside
- *    [now + minutes_before - 7m, now + minutes_before + 8m] and dispatch
- *    a push for any not yet recorded in notification_dispatches.
- *  - daily_digest: if the rule's time_of_day in the rule's timezone has
- *    just passed (within the last 15m) and we haven't dispatched today's
- *    bucket yet, send a digest of the user's open tasks for today.
+ *    [now + minutes_before - REMINDER_WINDOW_BEFORE_MIN, now + minutes_before
+ *    + SCAN_WINDOW_MIN] and dispatch a push for any not yet recorded in
+ *    notification_dispatches.
+ *  - daily_digest: send today's digest (one per bucket day in the rule's
+ *    timezone) unless it has already gone out. The time_of_day is honoured
+ *    only to the precision of the schedule, which is once a day.
  *
- * Dedup is via UNIQUE (rule_id, task_id, bucket) on notification_dispatches.
- * Protected by CRON_SECRET.
+ * Dedup is via UNIQUE (rule_id, task_id, bucket) on notification_dispatches,
+ * so a denser schedule would not double-send. Protected by CRON_SECRET.
  */
 
 import { NextResponse, type NextRequest } from "next/server";
@@ -20,17 +24,14 @@ import { logger } from "@/lib/logger";
 import type { NotificationRule } from "@/lib/notifications/types";
 import {
   formatLead,
+  isDigestDue,
+  isDueInScanWindow,
   nowInTz,
   parseDueAt,
+  REMINDER_WINDOW_BEFORE_MIN,
+  SCAN_WINDOW_MIN,
   uniqueDays,
 } from "@/lib/notifications/cron-helpers";
-
-/** Plus/minus minutes around the target moment we still consider "match". */
-const REMINDER_WINDOW_BEFORE_MIN = 7;
-const REMINDER_WINDOW_AFTER_MIN = 8;
-
-/** Minutes window after a digest's scheduled time-of-day in which we'll fire. */
-const DIGEST_WINDOW_MIN = 15;
 
 /** Parallel rule processing cap — keeps us inside Vercel's per-request timeout. */
 const CONCURRENCY = 3;
@@ -216,10 +217,10 @@ async function processBeforeDeadline(
   now: Date,
   onDrop: (n: number) => void
 ): Promise<number> {
-  const offsetMs = (rule.minutes_before ?? 0) * 60_000;
-  const target = new Date(now.getTime() + offsetMs);
+  const minutesBefore = rule.minutes_before ?? 0;
+  const target = new Date(now.getTime() + minutesBefore * 60_000);
   const lo = new Date(target.getTime() - REMINDER_WINDOW_BEFORE_MIN * 60_000);
-  const hi = new Date(target.getTime() + REMINDER_WINDOW_AFTER_MIN * 60_000);
+  const hi = new Date(target.getTime() + SCAN_WINDOW_MIN * 60_000);
 
   // Pull a small candidate set: tasks for this user whose due_date is within
   // the broader day window of [lo, hi].
@@ -238,7 +239,7 @@ async function processBeforeDeadline(
   // Filter by exact due moment.
   const eligible = (tasks as TaskRow[]).filter((t) => {
     const at = parseDueAt(t.due_date, t.due_time, rule.timezone);
-    return at !== null && at >= lo && at <= hi;
+    return at !== null && isDueInScanWindow(at, now, minutesBefore);
   });
   if (eligible.length === 0) return 0;
 
@@ -288,9 +289,9 @@ async function processBeforeDeadline(
 
 /**
  * For a "daily_digest" rule: if the configured time-of-day in the rule's
- * timezone is within the last DIGEST_WINDOW_MIN minutes and we haven't
- * already dispatched today's bucket, send a summary push of the user's
- * open tasks due today.
+ * timezone is within one scan window of now and we haven't already
+ * dispatched today's bucket, send a summary push of the user's open tasks
+ * due today.
  *
  * @returns 1 if a digest was sent, else 0.
  */
@@ -304,8 +305,7 @@ async function processDailyDigest(
   const [hh, mm] = (rule.time_of_day ?? "08:00").split(":").map(Number);
   const scheduledMin = hh * 60 + mm;
   const localMin = local.hours * 60 + local.minutes;
-  const diff = localMin - scheduledMin;
-  if (diff < 0 || diff > DIGEST_WINDOW_MIN) return 0;
+  if (!isDigestDue(localMin, scheduledMin)) return 0;
 
   const bucket = local.dateIso; // YYYY-MM-DD in user TZ
   const { data: existing } = await supabase
@@ -343,12 +343,17 @@ async function processDailyDigest(
       { title: "Today's deadlines", body, url: "/app/today", tag: `digest-${bucket}` },
       onDrop
     ));
-  await supabase.from("notification_dispatches").insert({
+  const { error: dispatchError } = await supabase.from("notification_dispatches").insert({
     user_id: rule.user_id,
     rule_id: rule.id,
     task_id: null,
     bucket,
   });
+  if (dispatchError) {
+    logger.error("push-reminders: failed to record digest dispatch (risk of duplicate send)", {
+      ruleId: rule.id, bucket, error: dispatchError.message,
+    });
+  }
   return delivered ? 1 : 0;
 }
 
