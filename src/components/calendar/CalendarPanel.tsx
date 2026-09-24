@@ -1,28 +1,13 @@
 "use client";
 
 /**
- * Self-contained calendar body — month / week / day grids, modals, and
- * navigation controls. No outer chrome (logo / page title / tabs); the
- * caller wraps this with whatever surface it wants. Used by both the
- * inbox page (when viewMode === "calendar") and the legacy
- * /app/calendar route so the two paths share the same code.
+ * Self-contained calendar body: header, the month/week/day views
+ * (CalendarViews), and the task dialogs. No outer chrome; the /app/calendar
+ * route wraps it.
  */
 
 import { useState, useMemo, useEffect } from "react";
-import {
-  addMonths,
-  subMonths,
-  addWeeks,
-  subWeeks,
-  addDays,
-  subDays,
-  format,
-  startOfMonth,
-  endOfMonth,
-  startOfWeek,
-  endOfWeek,
-  parseISO,
-} from "date-fns";
+import { addMonths, subMonths, addWeeks, subWeeks, addDays, subDays, format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, parseISO } from "date-fns";
 import { AlertCircle } from "lucide-react";
 import { useWeekStart } from "@/hooks/useWeekStart";
 import { useTaskContext } from "@/contexts/TaskContext";
@@ -33,11 +18,7 @@ import { expandRepeatingTasks, getRealTaskId } from "@/lib/expand-repeating-task
 import { useGCalEvents } from "@/hooks/useGCalEvents";
 import { useCalendarModals } from "@/hooks/useCalendarModals";
 import CalendarHeader, { type CalendarViewMode, type CalendarMode } from "@/components/calendar/CalendarHeader";
-import CalendarGrid from "@/components/calendar/CalendarGrid";
-import CalendarWeekView from "@/components/calendar/CalendarWeekView";
-import CalendarDayView from "@/components/calendar/CalendarDayView";
-import AssignmentsWeekView from "@/components/calendar/AssignmentsWeekView";
-import AssignmentsDayView from "@/components/calendar/AssignmentsDayView";
+import CalendarViews from "@/components/calendar/CalendarViews";
 import TaskCreateModal from "@/components/tasks/TaskCreateModal";
 import GCalEventCreateModal from "@/components/calendar/GCalEventCreateModal";
 import CreateTypeToggle from "@/components/calendar/CreateTypeToggle";
@@ -45,6 +26,7 @@ import TaskPreviewPopover from "@/components/tasks/TaskPreviewPopover";
 import DayOverflowPopover from "@/components/calendar/DayOverflowPopover";
 import { usePendingInvites } from "@/hooks/usePendingInvites";
 import { getEventDateKey } from "@/lib/gcal/event-utils";
+
 const VIEW_MODE_KEY = "cal-view-mode";
 const CAL_MODE_KEY = "cal-mode";
 
@@ -84,6 +66,37 @@ export default function CalendarPanel() {
   function closeCreateModal() {
     setClearPreviewSignal((n) => n + 1);
     modals.closeAddPopover();
+  }
+
+  /**
+   * Reschedules a task dropped on a month cell. The write is awaited and
+   * announced once, through the undo stack (announce: false on the
+   * calendar's own write), so a failed drop shows only TaskContext's error
+   * toast and a successful one gets a single toast whose Undo is also Cmd+Z.
+   *
+   * @param taskId - The dragged task
+   * @param newDate - Target day as YYYY-MM-DD
+   */
+  async function handleTaskDrop(taskId: string, newDate: string) {
+    const moved = tasks.find((t) => t.id === taskId);
+    if (!moved) return;
+    const previousDueDate = moved.due_date;
+    const previousLock = moved.due_date_manually_edited_at;
+    const written = await updateTask(taskId, { due_date: newDate }, { announce: false });
+    if (!written) return;
+    setRecentlyMovedTaskId(taskId);
+    setTimeout(() => setRecentlyMovedTaskId((id) => (id === taskId ? null : id)), 600);
+    const formattedDate = (() => {
+      try { return format(parseISO(newDate), "EEE, MMM d"); }
+      catch { return newDate; }
+    })();
+    const titlePreview = moved.title.length > 32 ? moved.title.slice(0, 32).trimEnd() + "..." : moved.title;
+    pushUndo({
+      label: `Moved "${titlePreview}" to ${formattedDate}`,
+      undo: async () => {
+        await updateTask(taskId, { due_date: previousDueDate, due_date_manually_edited_at: previousLock }, { announce: false });
+      },
+    });
   }
 
   const { timeMin, timeMax } = useMemo(() => {
@@ -191,98 +204,21 @@ export default function CalendarPanel() {
       </div>
 
       <div className="flex-1 flex flex-col mx-4 md:mx-8 rounded-2xl border border-border bg-card overflow-hidden min-h-0">
-        {viewMode === "month" ? (
-          <CalendarGrid
-            currentMonth={currentDate}
-            tasks={visibleTasks}
-            pendingInvites={pendingInvites}
-            gcalEvents={calendarMode === "calendar" ? gcalEvents : []}
-            calendarColors={calendarColors}
-            calendarMode={calendarMode}
-            addingDate={modals.addingDate}
-            selectedDate={selectedDate}
-            onDayClick={modals.handleDayClick}
-            onDaySelect={setSelectedDate}
-            onTaskClick={modals.handleTaskClick}
-            onShowMore={modals.handleShowMore}
-            activeTaskId={modals.previewTask?.id ?? null}
-            recentlyMovedTaskId={recentlyMovedTaskId}
-            onTaskDrop={async (taskId, newDate) => {
-              const moved = tasks.find((t) => t.id === taskId);
-              if (!moved) return;
-              const previousDueDate = moved.due_date;
-              const previousLock = moved.due_date_manually_edited_at;
-              // The write is awaited and announced once, through the undo
-              // stack (announce: false on the calendar's own write), so a
-              // failed drop shows only TaskContext's error toast and a
-              // successful one gets a single toast whose Undo is also Cmd+Z.
-              const written = await updateTask(taskId, { due_date: newDate }, { announce: false });
-              if (!written) return;
-              setRecentlyMovedTaskId(taskId);
-              setTimeout(() => setRecentlyMovedTaskId((id) => (id === taskId ? null : id)), 600);
-              const formattedDate = (() => {
-                try { return format(parseISO(newDate), "EEE, MMM d"); }
-                catch { return newDate; }
-              })();
-              const titlePreview = moved.title.length > 32 ? moved.title.slice(0, 32).trimEnd() + "..." : moved.title;
-              pushUndo({
-                label: `Moved "${titlePreview}" to ${formattedDate}`,
-                undo: async () => {
-                  await updateTask(taskId, { due_date: previousDueDate, due_date_manually_edited_at: previousLock }, { announce: false });
-                },
-              });
-            }}
-          />
-        ) : viewMode === "week" ? (
-          calendarMode === "assignments" ? (
-            <AssignmentsWeekView
-              currentDate={currentDate}
-              tasks={visibleTasks}
-              pendingInvites={pendingInvites}
-              onDayClick={modals.handleDayClick}
-              onTaskClick={modals.handleTaskClick}
-              activeTaskId={modals.previewTask?.id ?? null}
-            />
-          ) : (
-            <CalendarWeekView
-              currentDate={currentDate}
-              tasks={visibleTasks}
-              pendingInvites={pendingInvites}
-              gcalEvents={gcalEvents}
-              calendarColors={calendarColors}
-              addingDate={modals.addingDate}
-              onDayClick={modals.handleDayClick}
-              onTaskClick={modals.handleTaskClick}
-              onEventCreate={modals.handleTimeGridCreate}
-              clearPreviewSignal={clearPreviewSignal}
-              activeTaskId={modals.previewTask?.id ?? null}
-            />
-          )
-        ) : (
-          calendarMode === "assignments" ? (
-            <AssignmentsDayView
-              currentDate={currentDate}
-              tasks={visibleTasks}
-              pendingInvites={pendingInvites}
-              onAddClick={modals.handleDayClick}
-              onTaskClick={modals.handleTaskClick}
-              activeTaskId={modals.previewTask?.id ?? null}
-            />
-          ) : (
-            <CalendarDayView
-              currentDate={currentDate}
-              tasks={visibleTasks}
-              pendingInvites={pendingInvites}
-              gcalEvents={gcalEvents}
-              calendarColors={calendarColors}
-              onAddClick={modals.handleDayClick}
-              onTaskClick={modals.handleTaskClick}
-              onEventCreate={modals.handleTimeGridCreate}
-              clearPreviewSignal={clearPreviewSignal}
-              activeTaskId={modals.previewTask?.id ?? null}
-            />
-          )
-        )}
+        <CalendarViews
+          viewMode={viewMode}
+          calendarMode={calendarMode}
+          currentDate={currentDate}
+          tasks={visibleTasks}
+          pendingInvites={pendingInvites}
+          gcalEvents={gcalEvents}
+          calendarColors={calendarColors}
+          selectedDate={selectedDate}
+          onDaySelect={setSelectedDate}
+          modals={modals}
+          clearPreviewSignal={clearPreviewSignal}
+          recentlyMovedTaskId={recentlyMovedTaskId}
+          onTaskDrop={handleTaskDrop}
+        />
       </div>
 
       {modals.addingDate && (

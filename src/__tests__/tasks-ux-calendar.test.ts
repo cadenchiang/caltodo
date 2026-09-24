@@ -104,6 +104,14 @@ describe("CalendarPanel", () => {
   });
 });
 
+describe("CalendarViews split", () => {
+  it("keeps CalendarPanel under 300 lines with the view switch in CalendarViews", () => {
+    expect(read("components/calendar/CalendarPanel.tsx").split("\n").length).toBeLessThanOrEqual(300);
+    expect(read("components/calendar/CalendarPanel.tsx")).toContain("<CalendarViews");
+    expect(read("components/calendar/CalendarViews.tsx")).toContain("<AssignmentsWeekView");
+  });
+});
+
 describe("CalendarHeader", () => {
   const src = read("components/calendar/CalendarHeader.tsx");
   it("does not promise a Google Calendar event overlay and uses the primitives", () => {
