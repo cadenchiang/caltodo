@@ -22,6 +22,8 @@ import { timeAgo } from "@/lib/mcp/key-format";
 import McpKeyDialog from "@/components/settings/McpKeyDialog";
 import McpKeyList from "@/components/settings/McpKeyList";
 import { CopyButton, CopyableField } from "@/components/settings/CopyField";
+import Badge from "@/components/ui/Badge";
+import { StatusBadge } from "@/components/settings/integration-status";
 
 /** Path the MCP endpoint is served from. */
 const MCP_PATH = "/api/mcp";
@@ -183,22 +185,18 @@ export default function McpSettings() {
             <p className="text-sm font-semibold text-foreground whitespace-nowrap">
               AI assistants
             </p>
-            <span className="text-[9px] font-medium text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-500/10 px-1.5 py-0.5 rounded-full leading-none whitespace-nowrap">
-              MCP
-            </span>
+            <Badge variant="beta">MCP</Badge>
           </div>
           <p className="text-xs text-muted-foreground truncate">{subtitle}</p>
         </div>
 
         {connected ? (
-          <span className="hidden sm:inline text-xs font-medium px-3 py-1 rounded-lg border border-emerald-200 dark:border-emerald-500/30 text-emerald-600 dark:text-emerald-400 shrink-0">
-            Connected
-          </span>
+          <StatusBadge needsReconnect={false} />
         ) : (
           !isLoading && (
-            <span className="hidden sm:inline text-xs font-semibold px-3 py-1 rounded-lg border border-blue-200 dark:border-blue-500/30 text-blue-500 shrink-0">
+            <Badge variant="info" className="hidden sm:inline-flex shrink-0">
               Set up
-            </span>
+            </Badge>
           )
         )}
         <ChevronDown
