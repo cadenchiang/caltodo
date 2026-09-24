@@ -1,9 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import Popover from "@/components/ui/Popover";
-import Button from "@/components/ui/Button";
-import IconButton from "@/components/ui/IconButton";
+import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight, Unlink, XCircle, Check, Plus } from "lucide-react";
 import CalendarSettingsPopover from "./CalendarSettingsPopover";
 import SyncClassesModal from "./SyncClassesModal";
@@ -13,6 +11,9 @@ import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 
 /** localStorage key matching GoogleCalendarSettings cache. */
 const GCAL_CACHE_KEY = "gcal_status";
+
+/** localStorage key to persist dismissal of the GCal notification badge. */
+const GCAL_BADGE_DISMISSED_KEY = "gcal_badge_dismissed";
 
 /** localStorage key to persist dismissal of the "Sync classes" badge. */
 const SYNC_BADGE_DISMISSED_KEY = "caltodo_sync_badge_dismissed";
@@ -99,7 +100,11 @@ export default function CalendarHeader({
   const [showPopover, setShowPopover] = useState(false);
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [badgeDismissed, setBadgeDismissed] = useState(() => {
+    try { return localStorage.getItem(GCAL_BADGE_DISMISSED_KEY) === "true"; } catch { return false; }
+  });
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     try {
@@ -137,6 +142,22 @@ export default function CalendarHeader({
 
   useEffect(() => { checkGcalStatus(); }, [checkGcalStatus]);
 
+  useEffect(() => {
+    if (!showPopover) return;
+    function handleClickOutside(e: MouseEvent) {
+      const target = e.target as Node;
+      if (
+        popoverRef.current && !popoverRef.current.contains(target) &&
+        buttonRef.current && !buttonRef.current.contains(target)
+      ) {
+        setShowPopover(false);
+        setConfirmDisconnect(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showPopover]);
+
   async function handleDisconnect() {
     if (!confirmDisconnect) {
       setConfirmDisconnect(true);
@@ -162,6 +183,12 @@ export default function CalendarHeader({
     }
   }
 
+  function getPopoverStyle(): React.CSSProperties {
+    if (!buttonRef.current) return {};
+    const rect = buttonRef.current.getBoundingClientRect();
+    return { position: "fixed", top: rect.bottom + 8, left: Math.max(8, rect.left + rect.width / 2 - 110) };
+  }
+
   const VIEW_MODES: CalendarViewMode[] = ["month", "week", "day"];
 
   return (
@@ -170,19 +197,26 @@ export default function CalendarHeader({
       <div className="flex items-center gap-1.5 md:gap-2 min-w-0">
         {/* Add task/event button — white circle */}
         {onAddClick && (
-          <IconButton variant="inverted" aria-label="Add task" title="Add task" onClick={onAddClick}>
+          <button
+            onClick={onAddClick}
+            className="w-8 h-8 rounded-full bg-white dark:bg-white text-gray-900 flex items-center justify-center shadow-sm hover:opacity-80 active:scale-95 transition-all shrink-0"
+            title="Add task or event"
+          >
             <Plus size={16} strokeWidth={2.5} />
-          </IconButton>
+          </button>
         )}
-        <Button variant="secondary" size="sm" onClick={onToday} className="shrink-0">
+        <button
+          onClick={onToday}
+          className="px-2.5 py-1 md:px-3.5 md:py-1.5 text-xs md:text-sm font-medium text-foreground rounded-lg border border-gray-300 dark:border-gray-500 hover:bg-black/5 dark:hover:bg-white/10 hover:scale-[1.04] active:scale-[0.96] transition-transform duration-150 shrink-0"
+        >
           Today
-        </Button>
-        <IconButton aria-label="Previous" onClick={onPrev}>
+        </button>
+        <button onClick={onPrev} className="p-1 md:p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-accent transition-all" aria-label="Previous">
           <ChevronLeft size={18} />
-        </IconButton>
-        <IconButton aria-label="Next" onClick={onNext}>
+        </button>
+        <button onClick={onNext} className="p-1 md:p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-accent transition-all" aria-label="Next">
           <ChevronRight size={18} />
-        </IconButton>
+        </button>
         <h1 className="text-base md:text-xl font-bold text-foreground truncate ml-0.5 md:ml-1">{title}</h1>
 
         {/* "Sync classes" badge for unonboarded users — hidden on mobile.
@@ -198,8 +232,8 @@ export default function CalendarHeader({
               title="Connect your class platforms"
               className="active:scale-95 transition-all relative"
             >
-              <div className="rounded-full bg-blue-500 pl-2.5 pr-3 py-1.5 flex items-center gap-1.5 hover:opacity-80 transition-opacity">
-                <span className="text-xs font-semibold text-white">Sync classes</span>
+              <div className="rounded-full bg-[#0e89d6] pl-2.5 pr-3 py-1.5 flex items-center gap-1.5 hover:opacity-80 transition-opacity">
+                <span className="text-xs font-semibold text-white">Sync Classes</span>
               </div>
             </button>
             <button
@@ -209,7 +243,7 @@ export default function CalendarHeader({
                 setSyncBadgeDismissed(true);
                 try { localStorage.setItem(SYNC_BADGE_DISMISSED_KEY, "true"); } catch { /* ignore */ }
               }}
-              className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-muted text-foreground flex items-center justify-center opacity-0 group-hover/sync:opacity-100 group-focus-within/sync:opacity-100 transition-opacity hover:bg-accent after:absolute after:content-[''] after:-inset-3"
+              className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-gray-200 dark:bg-zinc-700 flex items-center justify-center opacity-0 group-hover/sync:opacity-100 transition-opacity hover:bg-gray-300 dark:hover:bg-zinc-600"
               aria-label="Dismiss"
               title="Dismiss"
             >
@@ -221,33 +255,23 @@ export default function CalendarHeader({
           </div>
         )}
 
-        {/* Google Calendar connection indicator. The calendar only pushes
-            tasks to Google (calendarMode is hardcoded to assignments and the
-            event overlay never mounts), so the copy says "connected", never
-            "synced" or "viewing events". Hidden on mobile. */}
+        {/* GCal synced indicator — just the logo + a green checkmark,
+            no "Synced" copy. Hidden on mobile. Click opens the
+            disconnect popover. */}
         {gcalConnected && (
           <div className="relative shrink-0 hidden md:block ml-2">
             <button
               ref={buttonRef}
               onClick={() => setShowPopover(!showPopover)}
-              className="flex items-center gap-1 px-2 py-1 rounded-full hover:bg-foreground/[0.05] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              aria-label="Google Calendar connected"
-              aria-haspopup="dialog"
-              aria-expanded={showPopover}
-              title="Google Calendar connected"
+              className="flex items-center gap-1 px-2 py-1 rounded-full hover:bg-foreground/[0.05] transition-colors"
+              aria-label="Google Calendar synced"
+              title="Google Calendar synced"
             >
               <GCalIcon size={14} />
-              <Check size={12} strokeWidth={2.75} className="text-success" />
+              <Check size={12} strokeWidth={2.75} className="text-emerald-500" />
             </button>
-            <Popover
-              open={showPopover}
-              onClose={() => { setShowPopover(false); setConfirmDisconnect(false); }}
-              anchorRef={buttonRef}
-              triggerRef={buttonRef}
-              aria-label="Google Calendar"
-              className="p-3.5 min-w-[220px]"
-            >
-              <div>
+            {showPopover && createPortal(
+              <div ref={popoverRef} style={getPopoverStyle()} className="z-[9999] bg-white dark:bg-neutral-800 border border-border rounded-xl shadow-xl dark:shadow-black/40 p-3.5 min-w-[220px] animate-popover-in">
                 {gcalEmail && (
                   <div className="flex items-center gap-2.5 mb-3">
                     {gcalPhotoUrl ? (
@@ -258,10 +282,10 @@ export default function CalendarHeader({
                       </div>
                     )}
                     <span className="text-xs text-foreground font-medium truncate">{gcalEmail}</span>
-                    <Check size={14} className="text-success shrink-0" />
+                    <Check size={14} className="text-emerald-500 shrink-0" />
                   </div>
                 )}
-                <p className="text-xs text-muted-foreground mb-3">Your tasks are added to this Google Calendar.</p>
+                <p className="text-xs text-subtle-foreground mb-3">Viewing events from Google Calendar.</p>
                 <button
                   onClick={handleDisconnect}
                   disabled={disconnecting}
@@ -274,8 +298,9 @@ export default function CalendarHeader({
                   {confirmDisconnect ? <XCircle size={12} /> : <Unlink size={12} />}
                   {confirmDisconnect ? "Click again to confirm" : disconnecting ? "Disconnecting..." : "Disconnect"}
                 </button>
-              </div>
-            </Popover>
+              </div>,
+              document.body
+            )}
           </div>
         )}
         {/* "Connect Google Calendar" badge was removed at the user's
@@ -291,17 +316,15 @@ export default function CalendarHeader({
         <SyncClassesModal open={showSyncClassesModal} onClose={() => setShowSyncClassesModal(false)} />
 
         {/* View mode: Month / Week / Day */}
-        <div className="flex items-center gap-1 p-1 rounded-xl bg-muted/60" role="group" aria-label="Calendar view">
+        <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800">
           {VIEW_MODES.map((mode) => (
             <button
               key={mode}
-              type="button"
               onClick={() => onViewModeChange(mode)}
-              aria-pressed={viewMode === mode}
-              className={`px-2.5 py-1 md:px-4 md:py-1.5 min-h-8 text-xs md:text-sm font-medium capitalize rounded-lg transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+              className={`px-2.5 py-1 md:px-4 md:py-1.5 text-xs md:text-sm font-semibold capitalize transition-all duration-200 ease-out ${
                 viewMode === mode
-                  ? "bg-foreground text-background shadow-sm dark:shadow-none"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "bg-white dark:bg-white text-black shadow-sm"
+                  : "text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-black/5 dark:hover:bg-white/10"
               }`}
             >
               {mode}

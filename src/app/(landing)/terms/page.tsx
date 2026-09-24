@@ -1,44 +1,49 @@
 import type { Metadata } from "next";
-import LegalPage, { LEGAL_LINK, type LegalSection } from "@/components/landing/LegalPage";
-
-/** Shown under the heading; bump whenever the terms text changes. */
-const TERMS_LAST_UPDATED = "September 23, 2026";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Terms of service",
+  title: "Terms of Service - caltodo",
   description: "Terms of service for caltodo, rules and guidelines for using the service.",
   alternates: { canonical: "/terms" },
   openGraph: {
-    title: "Terms of service | caltodo",
+    title: "Terms of Service - caltodo",
     description: "Rules and guidelines for using caltodo.",
     url: "https://caltodo.me/terms",
   },
 };
 
-/** Numbered sections, each its own fade-up block. */
-const SECTIONS: LegalSection[] = [
+interface Section {
+  title: string;
+  body: React.ReactNode;
+}
+
+/**
+ * Each section becomes its own fade-up block to match the Privacy / About
+ * cascading entrance animation.
+ */
+const SECTIONS: Section[] = [
   {
-    title: "1. Acceptance of terms",
+    title: "1. Acceptance of Terms",
     body: (
       <>
         By accessing or using caltodo (&ldquo;the Service&rdquo;), you agree to be bound by these
-        terms of service. If you do not agree, please do not use the Service.
+        Terms of Service. If you do not agree, please do not use the Service.
       </>
     ),
   },
   {
-    title: "2. Description of service",
+    title: "2. Description of Service",
     body: (
       <>
         caltodo is a personal task management application that helps you organize assignments and
-        tasks. It integrates with Google Calendar, Canvas, Gradescope, Pensive, Brightspace,
-        Blackboard, and Google Classroom (when available) to sync your academic deadlines and
-        events, and can extract assignments from syllabus files you upload.
+        tasks. It integrates with Google Calendar, Canvas, and Gradescope to sync your academic
+        deadlines and events.
       </>
     ),
   },
   {
-    title: "3. User accounts",
+    title: "3. User Accounts",
     body: (
       <ul className="list-disc pl-6 space-y-1.5">
         <li>You must sign in with a valid Google account to use the Service.</li>
@@ -48,7 +53,7 @@ const SECTIONS: LegalSection[] = [
     ),
   },
   {
-    title: "4. Acceptable use",
+    title: "4. Acceptable Use",
     body: (
       <>
         <p>You agree not to:</p>
@@ -72,7 +77,7 @@ const SECTIONS: LegalSection[] = [
     ),
   },
   {
-    title: "6. Intellectual property",
+    title: "6. Intellectual Property",
     body: (
       <>
         The Service and its original content, features, and functionality are owned by caltodo and
@@ -82,20 +87,17 @@ const SECTIONS: LegalSection[] = [
     ),
   },
   {
-    title: "7. Third-party integrations and services",
+    title: "7. Third-Party Integrations",
     body: (
       <>
-        The Service integrates with third-party platforms including Google (Calendar and, when
-        available, Classroom), Canvas, Gradescope, Pensive, Brightspace, and Blackboard. Your use
-        of these integrations is subject to the respective third-party terms of service. Syllabus
-        files you upload are processed by Anthropic&rsquo;s Claude API, and product analytics are
-        collected through PostHog, as described in our privacy policy. We are not responsible for
-        the availability or content of third-party services.
+        The Service integrates with third-party platforms including Google, Canvas, and Gradescope.
+        Your use of these integrations is subject to the respective third-party terms
+        of service. We are not responsible for the availability or content of third-party services.
       </>
     ),
   },
   {
-    title: "8. Disclaimer of warranties",
+    title: "8. Disclaimer of Warranties",
     body: (
       <>
         The Service is provided &ldquo;as is&rdquo; and &ldquo;as available&rdquo; without
@@ -105,7 +107,7 @@ const SECTIONS: LegalSection[] = [
     ),
   },
   {
-    title: "9. Limitation of liability",
+    title: "9. Limitation of Liability",
     body: (
       <>
         To the fullest extent permitted by law, caltodo shall not be liable for any indirect,
@@ -126,12 +128,12 @@ const SECTIONS: LegalSection[] = [
     ),
   },
   {
-    title: "11. Changes to terms",
+    title: "11. Changes to Terms",
     body: (
       <>
-        We reserve the right to modify these terms at any time. Changes will be effective upon
+        We reserve the right to modify these Terms at any time. Changes will be effective upon
         posting to this page with an updated &ldquo;Last updated&rdquo; date. Continued use of
-        the Service constitutes acceptance of the revised terms.
+        the Service constitutes acceptance of the revised Terms.
       </>
     ),
   },
@@ -139,8 +141,11 @@ const SECTIONS: LegalSection[] = [
     title: "12. Contact",
     body: (
       <>
-        If you have questions about these terms, contact us at{" "}
-        <a href="mailto:cadenchiang@berkeley.edu" className={LEGAL_LINK}>
+        If you have questions about these Terms, contact us at{" "}
+        <a
+          href="mailto:cadenchiang@berkeley.edu"
+          className="text-[#0e89d6] underline underline-offset-2 hover:text-[#3D8FE8]"
+        >
           cadenchiang@berkeley.edu
         </a>
         .
@@ -150,9 +155,50 @@ const SECTIONS: LegalSection[] = [
 ];
 
 /**
- * Terms of service page. Lives inside the (landing) route group so it
- * inherits the shared nav and footer.
+ * Terms of Service page. Lives inside the (landing) route group so it
+ * inherits the shared LandingNav and renders with the same fade-up
+ * choreography as the rest of the marketing site.
  */
 export default function TermsPage() {
-  return <LegalPage title="Terms of service" lastUpdated={TERMS_LAST_UPDATED} sections={SECTIONS} />;
+  return (
+    <main className="flex-1 px-6 lg:px-10">
+      <div className="max-w-2xl mx-auto pt-12 sm:pt-16 pb-24">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1.5 text-sm text-black/50 hover:text-black mb-8 transition-colors animate-fade-up"
+          style={{ animationDelay: "0ms" }}
+        >
+          <ArrowLeft size={16} strokeWidth={2} />
+          Back
+        </Link>
+        <h1
+          className="text-3xl sm:text-4xl font-bold text-black mb-2 tracking-tight animate-fade-up"
+          style={{ animationDelay: "0ms" }}
+        >
+          Terms of Service
+        </h1>
+        <p
+          className="text-xs sm:text-sm text-black/50 mb-10 animate-fade-up"
+          style={{ animationDelay: "80ms" }}
+        >
+          Last updated May 10, 2026
+        </p>
+
+        <div className="space-y-7 text-sm sm:text-base text-black/80 leading-relaxed">
+          {SECTIONS.map((section, i) => (
+            <section
+              key={section.title}
+              className="animate-fade-up"
+              style={{ animationDelay: `${160 + i * 80}ms` }}
+            >
+              <h2 className="text-base sm:text-lg font-bold text-black mb-2 tracking-tight">
+                {section.title}
+              </h2>
+              <div>{section.body}</div>
+            </section>
+          ))}
+        </div>
+      </div>
+    </main>
+  );
 }

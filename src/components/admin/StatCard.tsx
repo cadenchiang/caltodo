@@ -1,6 +1,6 @@
 /**
  * Reusable stat card component for the admin dashboard.
- * Displays a metric label, value, and optional subtext on a card surface.
+ * Displays a metric label, value, and optional subtext with glass styling.
  */
 
 "use client";
@@ -15,15 +15,17 @@ interface StatCardProps {
 }
 
 /**
- * Renders a metric card.
+ * Renders a glass-styled metric card.
  *
  * @param props - StatCardProps with label, value, and optional subtext
  * @returns A styled stat card element
  */
 export default function StatCard({ label, value, subtext }: StatCardProps) {
   return (
-    <div className="bg-card rounded-2xl border border-border p-5">
-      <p className="text-xs font-medium text-foreground">{label}</p>
+    <div className="glass rounded-2xl border border-border p-5">
+      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+        {label}
+      </p>
       <p className="mt-1 text-2xl font-bold text-foreground">{value}</p>
       {subtext && (
         <p className="mt-1 text-xs text-muted-foreground">{subtext}</p>

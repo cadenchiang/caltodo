@@ -210,7 +210,7 @@ export default function QuoteWidget({ config, onUpdateConfig }: QuoteWidgetProps
               setEditAuthor(isCustom ? customAuthor : "");
               setEditing(true);
             }}
-            className="absolute -top-1 -right-1 p-1.5 rounded-lg bg-card border border-border shadow-sm dark:shadow-none opacity-0 group-hover:opacity-100 transition-opacity hover:bg-accent"
+            className="absolute -top-1 -right-1 p-1.5 rounded-lg bg-card border border-border shadow-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-accent"
             title="Edit quote"
           >
             <Pencil size={12} className="text-foreground" />

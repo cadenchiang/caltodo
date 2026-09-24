@@ -98,7 +98,7 @@ export default function RepeatPicker({
     !options.some((o) => o.interval === interval && o.unit === unit);
 
   return (
-    <div className="bg-popover rounded-xl shadow-2xl border border-border py-1 w-64">
+    <div className="bg-popover rounded-xl shadow-2xl border border-border py-1 w-64 animate-in fade-in zoom-in-95 duration-100">
       {options.map((opt) => (
         <button
           key={opt.label}
@@ -107,7 +107,7 @@ export default function RepeatPicker({
           className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
             isActive(opt)
               ? "bg-accent font-medium text-foreground"
-              : "text-foreground hover:bg-accent"
+              : "text-foreground hover:bg-gray-100 dark:hover:bg-gray-800"
           }`}
         >
           {opt.label}
@@ -129,7 +129,7 @@ export default function RepeatPicker({
         <button
           type="button"
           onClick={onCustom}
-          className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors"
+          className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
         >
           Custom...
         </button>

@@ -136,10 +136,7 @@ export function visibleSourceBadges<T extends { label: string }>(
   badges: T[],
   hidden: Set<string>,
 ): T[] {
-  // The Canvas badge used to be labelled "bCourses"; a dismissal saved
-  // under the old label keeps hiding it.
-  const isHidden = (label: string) => hidden.has(label) || (label === "canvas" && hidden.has("bcourses"));
-  return badges.filter((b) => !isHidden(b.label.toLowerCase()));
+  return badges.filter((b) => !hidden.has(b.label.toLowerCase()));
 }
 
 /**

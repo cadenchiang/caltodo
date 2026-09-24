@@ -7,68 +7,73 @@ import { cn } from "@/lib/utils";
 
 /** Segment definitions for the 3-position theme toggle. */
 const SEGMENTS: { value: ThemePreference; label: string; Icon: typeof Sun }[] = [
-  { value: "light", label: "Light", Icon: Sun },
-  { value: "auto", label: "Auto", Icon: Monitor },
-  { value: "dark", label: "Dark", Icon: Moon },
+  { value: "light", label: "Light mode", Icon: Sun },
+  { value: "auto", label: "Auto (sunset)", Icon: Monitor },
+  { value: "dark", label: "Dark mode", Icon: Moon },
 ];
 
 /**
- * Visible label for a segment. Auto also says what it currently resolves to
- * ("Auto, dark now"), since that is the thing a user checking the toggle
- * wants to know.
- *
- * @param value - The segment's preference
- * @param resolved - The theme currently applied
- * @returns The label text
- */
-export function segmentLabel(value: ThemePreference, resolved: "light" | "dark"): string {
-  const base = SEGMENTS.find((s) => s.value === value)?.label ?? value;
-  return value === "auto" ? `${base} (${resolved} now)` : base;
-}
-
-/**
- * 3-segment theme toggle: Light | Auto | Dark, as a radiogroup with visible
- * labels. Painted with tokens (bg-card, border-border, text-foreground,
- * text-muted-foreground) so it follows every color theme instead of a fixed
- * zinc palette.
+ * 3-segment pill theme toggle: Light | Auto | Dark.
+ * Each segment is an accessible button with an icon.
+ * A sliding highlight indicator animates between positions.
  *
  * @param className - Optional additional CSS classes
  */
 export default function ThemeToggle({ className }: { className?: string }) {
   const { preference, resolvedTheme, setPreference } = useTheme();
-  const activeIndex = Math.max(0, SEGMENTS.findIndex((s) => s.value === preference));
+  const isDark = resolvedTheme === "dark";
+
+  const activeIndex = SEGMENTS.findIndex((s) => s.value === preference);
 
   return (
     <div
-      role="radiogroup"
-      aria-label="Appearance"
-      className={cn("relative inline-flex w-full max-w-md rounded-xl p-1 bg-card border border-border", className)}
+      className={cn(
+        "theme-toggle relative flex w-fit h-11 md:h-9 rounded-full p-1 transition-colors duration-300",
+        isDark
+          ? "bg-zinc-950 border border-zinc-800"
+          : "bg-white border border-zinc-200",
+        className
+      )}
     >
+      {/* Sliding highlight indicator. The step is a CSS var rather than an
+          inline pixel value so it can follow the wider mobile segments. */}
       <div
-        aria-hidden="true"
-        className="absolute top-1 bottom-1 left-1 rounded-lg bg-muted transition-transform duration-200 ease-in-out"
-        style={{
-          width: `calc(${100 / SEGMENTS.length}% - 0.5rem / ${SEGMENTS.length})`,
-          transform: `translateX(calc(${activeIndex} * 100%))`,
-        }}
+        className={cn(
+          "theme-toggle-indicator absolute top-1 left-1 h-9 w-11 md:h-7 md:w-8 rounded-full transition-all duration-300 ease-in-out",
+          isDark ? "bg-zinc-800" : "bg-gray-200"
+        )}
+        style={{ ["--seg-index" as string]: activeIndex }}
+        aria-hidden
       />
-      {SEGMENTS.map(({ value, Icon }) => {
+
+      {/* Segment buttons */}
+      {SEGMENTS.map(({ value, label, Icon }) => {
         const isActive = preference === value;
         return (
           <button
             key={value}
             type="button"
-            role="radio"
-            aria-checked={isActive}
             onClick={() => setPreference(value)}
+            aria-label={label}
+            aria-pressed={isActive}
             className={cn(
-              "relative z-10 flex-1 flex items-center justify-center gap-1.5 h-9 px-3 rounded-lg text-sm font-medium transition-colors cursor-pointer",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              isActive ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+              "relative z-10 flex h-9 w-11 md:h-7 md:w-8 items-center justify-center rounded-full transition-colors duration-200",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
             )}
           >
-            <Icon size={16} strokeWidth={1.8} aria-hidden="true" />
-            <span className="truncate">{segmentLabel(value, resolvedTheme)}</span>
+            <Icon
+              className={cn(
+                "h-4 w-4 transition-colors duration-200",
+                isActive
+                  ? isDark
+                    ? "text-white"
+                    : "text-gray-700"
+                  : isDark
+                    ? "text-zinc-500"
+                    : "text-gray-400"
+              )}
+              strokeWidth={1.5}
+            />
           </button>
         );
       })}

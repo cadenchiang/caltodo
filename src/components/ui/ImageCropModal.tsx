@@ -5,9 +5,6 @@
  * Displays a selected image with an interactive crop area.
  * Returns the cropped image as a Blob via onCrop callback.
  *
- * Built on the Modal primitive so it stacks correctly over another dialog
- * (Escape closes only the cropper, backdrop clicks check their target).
- *
  * @param open - Whether the modal is visible
  * @param imageSrc - Object URL or data URL of the image to crop
  * @param aspect - Aspect ratio for crop area (e.g. 1 = square, 16/9). Default 1.
@@ -17,10 +14,10 @@
  */
 
 import { useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 import Cropper from "react-easy-crop";
 import type { Area } from "react-easy-crop";
-import Modal from "@/components/ui/Modal";
-import Button from "@/components/ui/Button";
+import { X } from "lucide-react";
 
 interface ImageCropModalProps {
   open: boolean;
@@ -117,65 +114,82 @@ export default function ImageCropModal({
       const blob = await getCroppedBlob(imageSrc, croppedAreaPixels);
       onCrop(blob);
     } catch (err) {
-      console.error("[ImageCropModal] crop failed", {
-        error: err instanceof Error ? err.message : String(err),
-        impact: "no image returned; dialog stays open",
-      });
+      console.error("Crop failed:", err);
     } finally {
       setSaving(false);
     }
   }
 
-  return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      title="Crop image"
-      size="sm"
-      footer={
-        <>
-          <Button variant="ghost" onClick={onClose} disabled={saving}>
-            Cancel
-          </Button>
-          <Button onClick={handleSave} loading={saving}>
-            Crop and save
-          </Button>
-        </>
-      }
-    >
-      {/* Crop area: relative + overflow-hidden contain the absolute Cropper */}
-      <div className="relative w-full overflow-hidden rounded-xl bg-black" style={{ height: 300 }}>
-        <Cropper
-          image={imageSrc}
-          crop={crop}
-          zoom={zoom}
-          aspect={aspect || 4 / 3}
-          cropShape={cropShape}
-          onCropChange={setCrop}
-          onZoomChange={setZoom}
-          onCropComplete={onCropComplete}
-          style={{
-            containerStyle: { width: "100%", height: "100%" },
-          }}
-        />
-      </div>
+  if (!open || typeof document === "undefined") return null;
 
-      {/* Zoom slider */}
-      <div className="flex items-center gap-3 pt-3">
-        <label htmlFor="image-crop-zoom" className="text-xs text-muted-foreground">
-          Zoom
-        </label>
-        <input
-          id="image-crop-zoom"
-          type="range"
-          min={1}
-          max={3}
-          step={0.05}
-          value={zoom}
-          onChange={(e) => setZoom(Number(e.target.value))}
-          className="flex-1 h-1 accent-blue-500"
-        />
+  return createPortal(
+    <div className="fixed inset-0 z-[60] flex items-center justify-center">
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/50 animate-announce-backdrop-in" onClick={onClose} />
+
+      {/* Card */}
+      <div className="relative bg-card rounded-2xl shadow-xl w-full w-[calc(100%-2rem)] max-w-sm animate-announce-card-in overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-border">
+          <h2 className="text-base font-semibold text-foreground">Crop Image</h2>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            aria-label="Close"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Crop area — relative + overflow-hidden contain the absolute Cropper */}
+        <div className="relative w-full overflow-hidden bg-black" style={{ height: 300 }}>
+          <Cropper
+            image={imageSrc}
+            crop={crop}
+            zoom={zoom}
+            aspect={aspect || 4 / 3}
+            cropShape={cropShape}
+            onCropChange={setCrop}
+            onZoomChange={setZoom}
+            onCropComplete={onCropComplete}
+            style={{
+              containerStyle: { width: "100%", height: "100%" },
+            }}
+          />
+        </div>
+
+        {/* Zoom slider */}
+        <div className="flex items-center gap-3 px-6 py-3">
+          <span className="text-xs text-muted-foreground">Zoom</span>
+          <input
+            type="range"
+            min={1}
+            max={3}
+            step={0.05}
+            value={zoom}
+            onChange={(e) => setZoom(Number(e.target.value))}
+            className="flex-1 h-1 accent-blue-500"
+          />
+        </div>
+
+        {/* Footer */}
+        <div className="flex justify-end gap-2 p-4 border-t border-border">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="px-4 py-2 text-sm rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors disabled:opacity-50"
+          >
+            {saving ? "Saving…" : "Crop & Save"}
+          </button>
+        </div>
       </div>
-    </Modal>
+    </div>,
+    document.body,
   );
 }

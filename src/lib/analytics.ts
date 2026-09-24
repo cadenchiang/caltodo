@@ -9,6 +9,7 @@ type AnalyticsEvent =
   // Auth
   | "sign_in_submitted"
   | "sign_up_submitted"
+  | "google_oauth_clicked"
   | "auth_error"
   // Onboarding
   | "onboarding_step_viewed"

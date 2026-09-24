@@ -45,23 +45,23 @@ describe("the header reports what is syncing", () => {
 describe("nothing destructive sits on the front of a card", () => {
   it("renders the connected status as a badge, not a button", () => {
     const header = card.slice(card.indexOf("aria-expanded={open}"), card.indexOf("aria-hidden={!open}"));
-    expect(header).toContain("<StatusBadge needsReconnect={needsAttention} />");
+    expect(header).toContain("<span");
     expect(header).not.toContain("Disconnect");
   });
 
-  it("keeps disconnect inside the panel, always visible at reduced emphasis", () => {
-    // Audit 2.5: opacity-0 until hover is invisible on touch, and revealing on
-    // focus-within is not enough there either.
+  it("keeps disconnect inside the panel, quiet until its row is hovered", () => {
     const panel = card.slice(card.indexOf("aria-hidden={!open}"));
     expect(panel).toContain("Disconnect");
-    expect(panel).not.toContain("opacity-0 group-hover");
-    expect(card).not.toContain("focus-visible:opacity-100");
-    expect(panel).toContain('variant="destructive"');
+    expect(panel).toContain("opacity-0 group-hover/row:opacity-100");
+  });
+
+  it("still reveals it to a keyboard user", () => {
+    // opacity-0 alone would make it unreachable without a pointer.
+    expect(card).toContain("focus-visible:opacity-100");
   });
 
   it("confirms before disconnecting, naming the tasks it removes", () => {
-    expect(card).toContain('setPending({ kind: "disconnect" })');
-    expect(card).toContain('import ConfirmDialog from "@/components/ui/ConfirmDialog";');
+    expect(card).toContain("setConfirming(true)");
     expect(card).toMatch(/synced task/);
   });
 });
@@ -79,7 +79,7 @@ describe("Google Calendar gets the same dropdown", () => {
   it("shows the account and its disconnect in the panel", () => {
     const panel = gcal.slice(gcal.indexOf("aria-hidden={!open}"));
     expect(panel).toContain("googleEmail");
-    expect(panel).toContain("aria-label={`Disconnect ${LABEL}`}");
+    expect(panel).toContain("Disconnect Google Calendar");
   });
 
   it("no longer turns the connected badge into a disconnect on hover", () => {
@@ -90,8 +90,7 @@ describe("Google Calendar gets the same dropdown", () => {
   it("keeps its own component, which also drives the post-OAuth setup", () => {
     // Routing connected users to the shared card would stop this mounting and
     // the ?gcal=connected auto-setup would never run.
-    expect(gcal).toContain("useGoogleCalendarConnect");
-    expect(read("src/hooks/useGoogleCalendarConnect.ts")).toContain("autoSetupCalendar");
+    expect(gcal).toContain("autoSetupCalendar");
     expect(read("src/components/settings/IntegrationList.tsx")).toContain("<GoogleCalendarSettings />");
   });
 
@@ -123,7 +122,7 @@ describe("the panel has a structure to read down", () => {
     expect(gcal).toContain("rounded-xl border border-border bg-muted/30");
     // Its "Calendars · n" label is the same shape as an account's "Classes".
     expect(read("src/components/settings/GoogleCalendarList.tsx")).toContain(
-      'text-2xs font-semibold text-foreground'
+      'text-[11px] font-semibold text-foreground'
     );
   });
 });
@@ -135,7 +134,7 @@ describe("an account's classes read as one line", () => {
     // colour: small caps in a subtle grey read as a form legend over the
     // pills rather than as the name of what is under it.
     expect(classes).not.toContain("uppercase");
-    expect(classes).toContain('text-2xs font-semibold text-foreground');
+    expect(classes).toContain('text-[11px] font-semibold text-foreground');
     expect(classes).toContain("Classes{selected.length > 0 ?");
     expect(classes).toContain("justify-between");
     expect(classes).toMatch(/selected\.length > 0 \? "Edit" : "Choose"/);
@@ -159,10 +158,8 @@ describe("an account's classes read as one line", () => {
 
   it("makes the add control blue, since it is the action in the block", () => {
     const gcalList = read("src/components/settings/GoogleCalendarList.tsx");
-    // Token classes, so the accent follows the active theme (audit 2.24).
     for (const file of [card, gcalList]) {
-      expect(file).toContain("bg-blue-500/10 text-blue-500");
-      expect(file).not.toContain("#0e89d6");
+      expect(file).toContain("bg-[#0e89d6]/10 text-[#0e89d6]");
     }
   });
 

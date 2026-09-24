@@ -45,10 +45,10 @@ export default function AssignmentsDayView({
   return (
     <div className="bg-card flex flex-col h-full overflow-hidden">
       {/* Day header — identical treatment to a week-view column header. */}
-      <div className="relative flex flex-col items-center py-2 md:py-2.5 gap-0.5 border-b border-border">
+      <div className="relative flex flex-col items-center py-2 md:py-2.5 gap-0.5 border-b border-gray-200 dark:border-gray-800">
         <span
-          className={`text-2xs font-medium ${
-            isToday ? "text-blue-600 dark:text-blue-400" : "text-muted-foreground"
+          className={`text-[9px] md:text-[11px] font-semibold uppercase ${
+            isToday ? "text-[#0e89d6]" : "text-foreground/60"
           }`}
         >
           {format(currentDate, "EEE")}
@@ -56,7 +56,7 @@ export default function AssignmentsDayView({
         <span
           className={`text-sm md:text-lg font-semibold inline-flex items-center justify-center ${
             isToday
-              ? "w-6 h-6 md:w-8 md:h-8 rounded-full bg-blue-500 text-white"
+              ? "w-6 h-6 md:w-8 md:h-8 rounded-full bg-[#0e89d6] text-white"
               : "text-foreground"
           }`}
         >
@@ -69,8 +69,8 @@ export default function AssignmentsDayView({
             const rect = e.currentTarget.getBoundingClientRect();
             onAddClick(dateStr, new DOMRect(rect.left, rect.bottom + 4, rect.width, 1));
           }}
-          className="absolute top-1.5 right-2 md:top-2 md:right-3 p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-foreground/[0.05] transition-colors after:absolute after:content-[''] after:-inset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          aria-label="Add task"
+          className="absolute top-1.5 right-2 md:top-2 md:right-3 p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-foreground/[0.05] transition-colors"
+          aria-label="Add assignment"
         >
           <Plus size={18} />
         </button>
@@ -87,7 +87,7 @@ export default function AssignmentsDayView({
         <div className="flex flex-col gap-0.5 w-full max-w-xl mx-auto">
           {isEmpty && (
             <p className="text-sm text-muted-foreground py-12 text-center">
-              Nothing due this day
+              No assignments for this day
             </p>
           )}
           {dayTasks.map((task) => (

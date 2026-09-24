@@ -184,13 +184,13 @@ describe("the accounts group", () => {
   it("flags an account whose feed has broken", () => {
     // The flag is assembled here and rendered by the card.
     expect(group).toContain("authFailed: a.auth_failed");
-    expect(card).toMatch(/account\.authFailed &&[\s\S]{0,200}NEEDS_RECONNECT_LABEL/);
+    expect(card).toMatch(/account\.authFailed &&[\s\S]{0,200}Needs reconnecting/);
   });
 
   it("degrades to rendering nothing if the list cannot be loaded", () => {
     // The primary card must still render on its own.
     expect(group).toMatch(/if \(!res\.ok[^)]*\) return;/);
-    expect(group).toMatch(/catch \(err\) \{[\s\S]{0,120}Non-critical/);
+    expect(group).toMatch(/catch \{[\s\S]{0,120}Non-critical/);
   });
 
   it("does not commit a response after the provider has changed", () => {

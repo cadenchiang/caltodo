@@ -1,14 +1,154 @@
 "use client";
 
-import AvailableIntegrationCard from "./AvailableIntegrationCard";
+import { useState } from "react";
+import { createPortal } from "react-dom";
+import { useRouter } from "next/navigation";
+import { useToast } from "@/contexts/ToastContext";
+import { useTaskContext } from "@/contexts/TaskContext";
+import type { IntegrationCredentials } from "@/lib/types";
+
+interface CanvasSettingsProps {
+  credentials: IntegrationCredentials;
+  onUpdate: (updated: IntegrationCredentials) => void;
+  syncing?: boolean;
+  lastSyncedAt?: string | null;
+  syncedCount?: number;
+}
 
 /**
- * Canvas row in the Available group.
- * At Berkeley, Canvas is called bCourses; either connects here.
+ * bCourses (Canvas) integration row card.
+ * Compact layout: logo + title + description + status badge.
+ * Connected badge shows "Disconnect" in red on hover (Twitter/X pattern).
  *
- * A connected Canvas account renders ConnectedIntegrationCard instead, so
- * this card has no connected or disconnect state.
+ * @param credentials - Current integration credentials from parent
+ * @param onUpdate - Callback with updated credentials after disconnect
  */
-export default function CanvasSettings() {
-  return <AvailableIntegrationCard provider="canvas" description="Sync assignments from your Canvas account" />;
+export default function CanvasSettings({ credentials, onUpdate }: CanvasSettingsProps) {
+  const router = useRouter();
+  const { showToast } = useToast();
+  const { tasks, deleteTasksBySource } = useTaskContext();
+  const [disconnecting, setDisconnecting] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const isConnected = credentials.has_canvas_token || Boolean(credentials.canvas_ical_url);
+  // canvas_token_expired is purely age-based (120 days). canvas_auth_failed is
+  // set by the sync engine when Canvas actually rejects the token, which can
+  // happen on day one if it was revoked; it was returned by the API but read
+  // by nothing, so a rejected token showed as connected while never syncing.
+  const isRejected = credentials.has_canvas_token && credentials.canvas_auth_failed === true;
+  const isExpired = (credentials.has_canvas_token && credentials.canvas_token_expired) || isRejected;
+  const sourceTaskCount = tasks.filter((t) => t.source === "canvas").length;
+
+  /**
+   * Disconnects bCourses by clearing the canvas token via API.
+   * Updates parent state and shows confirmation toast.
+   */
+  async function handleDisconnect() {
+    setShowConfirm(false);
+    setDisconnecting(true);
+    try {
+      const res = await fetch("/api/credentials", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ canvas_token: null, canvas_ical_url: null }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to disconnect");
+      }
+      const updated: IntegrationCredentials = await res.json();
+      onUpdate(updated);
+      await deleteTasksBySource("canvas");
+      showToast("bCourses disconnected.");
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Failed to disconnect");
+    } finally {
+      setDisconnecting(false);
+    }
+  }
+
+  return (
+    <div className="rounded-2xl border border-border bg-card px-3 sm:px-4 py-3.5 shadow-sm dark:shadow-none">
+      <div className="flex items-center gap-2.5 sm:gap-3.5">
+        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
+          <img src="/canvas-logo.png" alt="" loading="eager" decoding="sync" fetchPriority="high" className="w-7 h-7 object-contain" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-foreground">Canvas</p>
+          <p className="text-xs text-muted-foreground truncate">
+            {isConnected
+              ? (credentials.has_canvas_token ? "API token" : "Calendar feed")
+              : "Sync assignments from your Canvas account"}
+          </p>
+        </div>
+        {isConnected ? (
+          isExpired ? (
+            <button
+              onClick={() => {
+                // Disconnect first, then redirect to reconnect
+                handleDisconnect();
+                router.push("/app/onboarding?setup=canvas");
+              }}
+              className="text-xs font-semibold text-amber-600 dark:text-amber-400 px-3 py-1 rounded-lg border border-amber-300 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 hover:bg-amber-100 dark:hover:bg-amber-500/20 transition-colors shrink-0 cursor-pointer"
+            >
+              {isRejected ? "Rejected — Reconnect" : "Expired — Reconnect"}
+            </button>
+          ) : (
+            <button
+              onClick={() => setShowConfirm(true)}
+              disabled={disconnecting}
+              aria-label="Disconnect bCourses"
+              className="group min-w-[84px] text-xs font-medium px-3 py-1 rounded-lg shrink-0 border transition-colors cursor-pointer disabled:opacity-60
+                text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30
+                hover:text-red-500 hover:border-red-300 hover:bg-red-50 dark:hover:text-red-400 dark:hover:border-red-500/30 dark:hover:bg-red-500/10"
+            >
+              <span className="group-hover:hidden">{disconnecting ? "Disconnecting..." : "Connected"}</span>
+              <span className="hidden group-hover:inline">Disconnect</span>
+            </button>
+          )
+        ) : (
+          <button
+            onClick={() => router.push("/app/onboarding?setup=canvas")}
+            className="text-xs font-semibold text-blue-500 hover:text-blue-600 dark:hover:text-blue-400 px-3 py-1 rounded-lg border border-blue-200 dark:border-blue-500/30 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors shrink-0 cursor-pointer"
+          >
+            Connect
+          </button>
+        )}
+      </div>
+
+      {showConfirm && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+          <div className="relative bg-card rounded-2xl border border-border shadow-2xl w-[calc(100%-2rem)] max-w-sm p-6 animate-modal-in">
+            <div className="text-center">
+              <h2 className="text-lg font-semibold text-foreground mb-2">
+                Disconnect bCourses?
+              </h2>
+              <p className="text-sm text-muted-foreground mb-6">
+                {sourceTaskCount > 0
+                  ? `This will remove ${sourceTaskCount === 1 ? "1 synced task" : `${sourceTaskCount} synced tasks`} from bCourses. You can reconnect later to sync them again.`
+                  : "No synced tasks to remove. You can reconnect later to sync again."}
+              </p>
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={handleDisconnect}
+                  className="w-full px-4 py-2.5 rounded-xl text-sm font-medium bg-red-500 text-white hover:bg-red-600 transition-all cursor-pointer"
+                >
+                  Disconnect
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowConfirm(false)}
+                  className="w-full px-4 py-2 rounded-xl text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+    </div>
+  );
 }

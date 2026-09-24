@@ -16,7 +16,6 @@ const NAV_HREFS_IN_ORDER = [
   // "/app/home" is withdrawn while the board is reworked; see NAV_ITEMS.
   "/app/inbox",
   "/app/calendar",
-  "/app/discussions",
 ] as const;
 
 /** Last-resort destination if every nav item has somehow been hidden. */
@@ -24,24 +23,23 @@ const FALLBACK_LANDING = "/app/inbox";
 
 /**
  * Routes that don't exist on mobile: the widget board needs a pointer and a
- * wide canvas and is not in the mobile tab bar, so landing a phone on it
+ * wide canvas. It is not in the mobile tab bar, so landing a phone on it
  * would strand the user (MobileRouteGuard bounces them, but redirecting up
- * front avoids the flash). Chat ships on mobile and is not listed.
+ * front avoids the flash).
  */
 const DESKTOP_ONLY_HREFS = new Set<string>(["/app/home"]);
 
 /**
  * Nav items that can serve as a landing page on every device. At least one
- * of these must stay visible: hiding all of them left mobile with nowhere to
- * land, so HiddenRouteRedirect and MobileRouteGuard bounced the user
- * between routes forever.
+ * of these must stay visible: hiding both would leave the user with nowhere
+ * to land, so HiddenRouteRedirect would have no valid target.
  */
 export const LANDING_CAPABLE_HREFS: readonly string[] = NAV_HREFS_IN_ORDER.filter(
   (href) => !DESKTOP_ONLY_HREFS.has(href)
 );
 
 /** Why the last landing-capable nav item cannot be hidden. */
-export const LAST_LANDING_ITEM_REASON = "At least one of Inbox, Calendar, or Chat must stay visible so there is always a page to land on.";
+export const LAST_LANDING_ITEM_REASON = "At least one of Inbox or Calendar must stay visible so there is always a page to land on.";
 
 /**
  * Whether hiding a nav item would leave the user with no landing page.
@@ -85,32 +83,6 @@ export function pickLandingPath(
     return href;
   }
   return FALLBACK_LANDING;
-}
-
-/** Nav routes (and their subroutes) the guards apply to. */
-const GUARDED_HREFS = ["/app/home", "/app/inbox", "/app/calendar", "/app/discussions"] as const;
-
-/**
- * Decides, before the page renders, whether a request for a nav route must
- * be sent elsewhere: the route is hidden in the user's nav settings, or it
- * is desktop-only and the request comes from a phone. Runs in the proxy so
- * the guarded page never paints first; the client guards remain only for
- * a viewport that changes after load.
- *
- * @param pathname - Requested path
- * @param userMetadata - The Supabase user_metadata (carries hidden_nav_items)
- * @param isMobile - Whether the request looks like a phone
- * @returns The path to redirect to, or null when the route may render
- */
-export function resolveGuardedRoute(pathname: string, userMetadata: unknown, isMobile: boolean): string | null {
-  const matched = GUARDED_HREFS.find((href) => pathname === href || pathname.startsWith(href + "/"));
-  if (!matched) return null;
-  const raw = (userMetadata as { hidden_nav_items?: unknown } | null)?.hidden_nav_items;
-  const hidden = new Set(Array.isArray(raw) ? raw.filter((v): v is string => typeof v === "string") : []);
-  const blocked = hidden.has(matched) || (isMobile && DESKTOP_ONLY_HREFS.has(matched));
-  if (!blocked) return null;
-  const target = pickLandingPath(userMetadata, { isMobile });
-  return target === pathname ? null : target;
 }
 
 /**

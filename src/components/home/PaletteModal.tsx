@@ -75,7 +75,7 @@ export default function PaletteModal({
                 onClick={() => setSelected(color)}
                 className={`relative w-10 h-10 rounded-full border-2 transition-all ${
                   selected === color
-                    ? "border-blue-500 scale-110 shadow-md dark:shadow-none"
+                    ? "border-blue-500 scale-110 shadow-md"
                     : "border-border hover:scale-105"
                 }`}
                 style={{ backgroundColor: color }}

@@ -114,3 +114,24 @@ describe("groupCountLabel", () => {
     expect(groupCountLabel(canvas)).toBe("3 of 3");
   });
 });
+
+describe("settings wiring", () => {
+  const section = fs.readFileSync(
+    path.join(ROOT, "src/components/settings/ClassesSection.tsx"),
+    "utf8"
+  );
+
+  it("renders the grouped list rather than a flat chip column", () => {
+    expect(section).toContain("<SelectedClassesByPlatform groups={classGroups} />");
+    expect(section).toContain("buildClassGroups");
+  });
+
+  it("drops the platform count that the groups now state themselves", () => {
+    expect(section).not.toContain("platformCount");
+    expect(section).not.toContain("from ${platformCount} platforms");
+  });
+
+  it("does not render a summary claiming more selected than available", () => {
+    expect(section).toContain("totalAvailable >= totalSelected");
+  });
+});

@@ -1,25 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { IntegrationProvider } from "@/components/settings/IntegrationSettings";
-import { getSettingsReturnLabel, getSettingsReturnPath } from "@/lib/settings-return";
-import { NAV_ITEMS } from "@/lib/constants";
+import { getSettingsReturnPath } from "@/lib/settings-return";
 import { useIsMobile } from "@/hooks/useMediaQuery";
 import PageTransition from "@/components/ui/PageTransition";
 import IntegrationsSection from "@/components/settings/sections/IntegrationsSection";
-import NotificationsSection from "@/components/settings/sections/NotificationsSection";
 import AppearanceSection from "@/components/settings/sections/AppearanceSection";
 import NavigationSection from "@/components/settings/sections/NavigationSection";
-import ChatSection from "@/components/settings/sections/ChatSection";
 
 import AdvancedSection from "@/components/settings/sections/AdvancedSection";
 import {
   SETTINGS_SECTIONS,
   SETTINGS_GROUPS,
-  SETTINGS_GROUP_LABEL,
   DEFAULT_SECTION,
   type SettingsSectionId,
 } from "@/lib/settingsConfig";
@@ -34,12 +29,8 @@ function renderSection(sectionId: SettingsSectionId) {
   switch (sectionId) {
     case "integrations":
       return <IntegrationsSection />;
-    case "notifications":
-      return <NotificationsSection />;
     case "appearance":
       return <AppearanceSection />;
-    case "chat":
-      return <ChatSection />;
     case "navigation":
       return <NavigationSection />;
     case "advanced":
@@ -194,11 +185,15 @@ export default function SettingsContent() {
     return () => clearTimeout(t);
   }, []);
 
-  // Read once per render: the list-level back button names its destination
-  // ("Back to calendar") so it cannot be mistaken for the section-level one,
-  // which says "Settings" because that is where it goes.
-  const returnPath = getSettingsReturnPath();
-  const returnLabel = getSettingsReturnLabel(returnPath, NAV_ITEMS);
+  /** Navigate to a specific section (used by mobile list). */
+  function goToSection(id: SettingsSectionId) {
+    router.push(`/app/settings?section=${id}`);
+  }
+
+  /** Navigate back from section detail (mobile). */
+  function goBackToList() {
+    router.push("/app/settings");
+  }
 
   return (
     <PageTransition>
@@ -221,10 +216,13 @@ export default function SettingsContent() {
                 <>
                   {/* Mobile: section detail with back button */}
                   <div className="px-4 pt-4 pb-2 animate-stagger stagger-1">
-                    <Link href="/app/settings" className={BACK_BUTTON}>
-                      <ChevronLeft size={16} aria-hidden="true" />
+                    <button
+                      onClick={goBackToList}
+                      className={BACK_BUTTON}
+                    >
+                      <ChevronLeft size={16} />
                       <span>Settings</span>
-                    </Link>
+                    </button>
                   </div>
                   <div className="flex-1 overflow-auto px-4 pt-2 pb-8">
                     <div className="max-w-2xl mx-auto animate-section-in">
@@ -236,33 +234,38 @@ export default function SettingsContent() {
                 <>
                   {/* Mobile: section list menu */}
                   <div className="px-4 pt-4 pb-2 animate-stagger stagger-1">
-                    <Link href={returnPath} className={BACK_BUTTON}>
-                      <ChevronLeft size={16} aria-hidden="true" />
-                      <span>{returnLabel}</span>
-                    </Link>
+                    <button
+                      onClick={() => router.push(getSettingsReturnPath())}
+                      className={BACK_BUTTON}
+                    >
+                      <ChevronLeft size={16} />
+                      <span>Settings</span>
+                    </button>
                   </div>
                   <div className="flex-1 overflow-auto px-4 pt-2 pb-8">
                     <div className="max-w-2xl mx-auto space-y-6 animate-stagger stagger-2">
                       {SETTINGS_GROUPS.map((group) => (
-                        <nav key={group} aria-label={group} className="cv-auto-section">
-                          <p className={`${SETTINGS_GROUP_LABEL} px-1 mb-2`}>{group}</p>
+                        <div key={group} className="cv-auto-section">
+                          <p className="text-[11px] font-semibold tracking-wider text-muted-foreground px-1 mb-2">
+                            {group}
+                          </p>
                           <div className="flex flex-col gap-1">
                             {SETTINGS_SECTIONS.filter((s) => s.group === group).map((section) => {
                               const Icon = section.icon;
                               return (
-                                <Link
+                                <button
                                   key={section.id}
-                                  href={`/app/settings?section=${section.id}`}
+                                  onClick={() => goToSection(section.id)}
                                   className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-colors text-foreground hover:bg-accent cursor-pointer active:scale-[0.98]"
                                 >
-                                  <Icon size={16} className="text-muted-foreground shrink-0" aria-hidden="true" />
+                                  <Icon size={16} className="text-foreground/70 shrink-0" />
                                   <span className="flex-1 text-left">{section.label}</span>
-                                  <ChevronRight size={16} className="text-muted-foreground" aria-hidden="true" />
-                                </Link>
+                                  <ChevronRight size={16} className="text-muted-foreground" />
+                                </button>
                               );
                             })}
                           </div>
-                        </nav>
+                        </div>
                       ))}
                     </div>
                   </div>

@@ -9,22 +9,15 @@
  */
 
 /**
- * Entrance delay of the eyebrow line, in ms after mount. Every first-paint
- * delay on the hero is capped at 400 ms (see HERO_DELAYS), so the line no
- * longer waits a full second to appear.
- */
-export const EYEBROW_DELAY_MS = 250;
-
-/**
  * When the roll begins, in ms after mount.
  *
- * The eyebrow enters with `.animate-fade-up` at EYEBROW_DELAY_MS. The roll
- * starts with it, so the line arrives and the digits settle as one gesture.
- * Waiting for the entrance to finish instead left the number still spinning
- * after everything else had come to rest, which read as a separate,
- * tacked-on animation.
+ * The eyebrow enters with `.animate-fade-up` at a 1000ms delay (see
+ * `globals.css`). The roll starts with it, so the line arrives and the digits
+ * settle as one gesture. Waiting for the entrance to finish instead left the
+ * number still spinning a second and a half after everything else had come to
+ * rest, which is what made it read as a separate, tacked-on animation.
  */
-export const ROLL_START_MS = EYEBROW_DELAY_MS;
+export const ROLL_START_MS = 1000;
 
 /**
  * How long the digits take to travel.

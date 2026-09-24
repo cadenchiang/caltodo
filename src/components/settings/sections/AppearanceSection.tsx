@@ -3,7 +3,6 @@
 import { useCallback } from "react";
 import { Check } from "lucide-react";
 import ThemeToggle from "@/components/layout/ThemeToggle";
-import SectionHeading from "@/components/ui/SectionHeading";
 import { useWeekStart } from "@/hooks/useWeekStart";
 import { setWeekStart, type WeekStart } from "@/lib/week-start";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -24,13 +23,6 @@ interface ThemeOption {
   description: string;
   swatches: [string, string, string, string];
 }
-
-/**
- * The active-theme check badge. Brand blue with white text: the previous
- * bg-ring (#bfdbfe) put a white check on pale blue, invisible in light mode.
- */
-export const ACTIVE_THEME_BADGE =
-  "absolute top-2 right-2 w-5 h-5 rounded-full bg-blue-500 text-white flex items-center justify-center";
 
 /** All available themes displayed in the picker grid. */
 const THEME_OPTIONS: ThemeOption[] = [
@@ -135,15 +127,18 @@ export default function AppearanceSection() {
 
   return (
     <section>
-      <SectionHeading title="Appearance" description="Choose your preferred appearance." />
+      <h2 className="text-lg font-semibold text-foreground mb-1">Appearance</h2>
+      <p className="text-xs text-subtle-foreground mb-4">
+        Choose your preferred appearance.
+      </p>
       <ThemeToggle />
 
       {/* Week start — calendars and the date picker both follow this. */}
       <div className="mt-6">
-        <h3 className="text-sm font-medium text-foreground mb-1">
+        <h3 className="text-sm font-medium text-secondary-foreground mb-1">
           Start week on
         </h3>
-        <p className="text-xs text-muted-foreground mb-3">
+        <p className="text-xs text-subtle-foreground mb-3">
           Sets the first column of the calendar and the date picker.
         </p>
         <div
@@ -176,7 +171,7 @@ export default function AppearanceSection() {
 
       {/* Theme Grid */}
       <div className="mt-6">
-        <h3 className="text-sm font-medium text-foreground mb-3">
+        <h3 className="text-sm font-medium text-secondary-foreground mb-3">
           Themes
         </h3>
 
@@ -202,11 +197,11 @@ export default function AppearanceSection() {
             </div>
             <div className="min-w-0">
               <span className="text-xs font-medium text-foreground">caltodo</span>
-              <p className="text-3xs text-muted-foreground leading-tight">Default theme</p>
+              <p className="text-[10px] text-muted-foreground leading-tight">Default theme</p>
             </div>
             {colorTheme === null && (
-              <div className={ACTIVE_THEME_BADGE} aria-hidden="true">
-                <Check size={12} />
+              <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-ring flex items-center justify-center">
+                <Check size={12} className="text-white" />
               </div>
             )}
           </button>
@@ -243,11 +238,11 @@ export default function AppearanceSection() {
                 </div>
                 <div className="min-w-0">
                   <span className="text-xs font-medium text-foreground">{theme.name}</span>
-                  <p className="text-3xs text-muted-foreground leading-tight">{theme.description}</p>
+                  <p className="text-[10px] text-muted-foreground leading-tight">{theme.description}</p>
                 </div>
                 {isActive && (
-                  <div className={ACTIVE_THEME_BADGE} aria-hidden="true">
-                    <Check size={12} />
+                  <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-ring flex items-center justify-center">
+                    <Check size={12} className="text-white" />
                   </div>
                 )}
               </button>

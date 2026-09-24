@@ -2,8 +2,8 @@
  * Tests for the mobile redirect loop when Inbox and Calendar are both hidden.
  *
  * Audit H13: HiddenRouteRedirect asked pickLandingPath without saying it
- * was on mobile, got desktop-only Chat, and MobileRouteGuard sent the user
- * straight back. Settings let both landing-capable items be hidden.
+ * was on mobile, got a desktop-only route, and MobileRouteGuard sent the
+ * user straight back. Settings let both landing-capable items be hidden.
  */
 
 import { describe, it, expect } from "vitest";
@@ -19,9 +19,8 @@ import {
 const read = (p: string) => fs.readFileSync(path.join(process.cwd(), p), "utf8");
 
 describe("LANDING_CAPABLE_HREFS", () => {
-  it("is Inbox, Calendar, and Chat, never a desktop-only route", () => {
-    // Chat ships on mobile (D1), so it can land a phone too.
-    expect(LANDING_CAPABLE_HREFS).toEqual(["/app/inbox", "/app/calendar", "/app/discussions"]);
+  it("is Inbox and Calendar, never a desktop-only route", () => {
+    expect(LANDING_CAPABLE_HREFS).toEqual(["/app/inbox", "/app/calendar"]);
   });
 });
 
@@ -32,11 +31,11 @@ describe("canHideNavItem", () => {
   });
 
   it("refuses to hide the last visible landing-capable item, with a reason", () => {
-    expect(canHideNavItem("/app/calendar", new Set(["/app/inbox", "/app/discussions"]))).toEqual({
+    expect(canHideNavItem("/app/calendar", new Set(["/app/inbox"]))).toEqual({
       allowed: false,
       reason: LAST_LANDING_ITEM_REASON,
     });
-    expect(canHideNavItem("/app/discussions", new Set(["/app/inbox", "/app/calendar"]))).toEqual({
+    expect(canHideNavItem("/app/inbox", new Set(["/app/calendar"]))).toEqual({
       allowed: false,
       reason: LAST_LANDING_ITEM_REASON,
     });
@@ -53,15 +52,15 @@ describe("canHideNavItem", () => {
 
 describe("pickLandingPath on mobile", () => {
   it("never returns a desktop-only route, even with everything hidden", () => {
-    const everything = { hidden_nav_items: ["/app/home", "/app/inbox", "/app/calendar", "/app/discussions"] };
+    const everything = { hidden_nav_items: ["/app/home", "/app/inbox", "/app/calendar"] };
     const target = pickLandingPath(everything, { isMobile: true });
     expect(target).not.toBe("/app/home");
     expect(target).toBe("/app/inbox");
   });
 
-  it("with Inbox and Calendar hidden lands on Chat on every device", () => {
-    expect(pickLandingPath({ hidden_nav_items: ["/app/inbox", "/app/calendar"] }, { isMobile: true })).toBe("/app/discussions");
-    expect(pickLandingPath({ hidden_nav_items: ["/app/inbox", "/app/calendar"] })).toBe("/app/discussions");
+  it("with Inbox and Calendar hidden falls back to Inbox on every device", () => {
+    expect(pickLandingPath({ hidden_nav_items: ["/app/inbox", "/app/calendar"] }, { isMobile: true })).toBe("/app/inbox");
+    expect(pickLandingPath({ hidden_nav_items: ["/app/inbox", "/app/calendar"] })).toBe("/app/inbox");
   });
 });
 

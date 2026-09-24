@@ -163,23 +163,23 @@ export default function CalendarSettingsPopover({
       {open && createPortal(
         <div ref={popRef} style={getPopStyle()} className="z-[9999] bg-popover border border-border rounded-xl shadow-xl dark:shadow-black/40 p-4 min-w-[260px] max-w-[320px] animate-popover-in">
           {/* Mode toggle */}
-          <p className="text-xs font-medium text-foreground mb-2">View</p>
-          <div className="flex items-center border border-border rounded-lg overflow-hidden bg-muted mb-4">
+          <p className="text-xs font-bold text-foreground uppercase mb-2">View Mode</p>
+          <div className="flex items-center border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800 mb-4">
             <button
               onClick={() => onCalendarModeChange("assignments")}
               className={`flex-1 px-3 py-1.5 text-xs font-medium transition-all ${
                 calendarMode === "assignments"
-                  ? "bg-card text-foreground shadow-sm dark:shadow-none"
+                  ? "bg-white dark:bg-gray-700 text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              Tasks
+              Assignments
             </button>
             <button
               onClick={() => onCalendarModeChange("calendar")}
               className={`flex-1 px-3 py-1.5 text-xs font-medium transition-all ${
                 calendarMode === "calendar"
-                  ? "bg-card text-foreground shadow-sm dark:shadow-none"
+                  ? "bg-white dark:bg-gray-700 text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -191,7 +191,7 @@ export default function CalendarSettingsPopover({
           {calendarMode === "calendar" && (
             <>
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-medium text-foreground">Calendars</p>
+                <p className="text-xs font-bold text-foreground uppercase">Calendars</p>
                 {calendars.length > 0 && (() => {
                   const allSelected = calendars.every((c) => c.selected);
                   return (

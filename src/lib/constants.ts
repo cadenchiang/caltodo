@@ -1,15 +1,11 @@
-import { Inbox, CalendarDays, MessageCircle, type LucideIcon } from "lucide-react";
+import { Inbox, CalendarDays, type LucideIcon } from "lucide-react";
 
 /**
- * Navigation items for the sidebar and the mobile tab bar.
+ * Navigation items for the sidebar.
  *
- * Chat (/app/discussions) is the per-class group chat. It ships on every
- * device: the room list is the page below the md breakpoint and a room
- * opens full screen with a back button to the list.
- *
- * Home (the widget board) is withdrawn while it is being reworked:
- * /app/home and everything under src/components/home stay in the tree and
- * keep building, but nothing links to them and the route redirects.
+ * Home (the widget board) is withdrawn the same way while it is being
+ * reworked: /app/home and everything under src/components/home stay in the
+ * tree and keep building, but nothing links to them and the route redirects.
  * Restoring it is putting this entry back and removing the redirect in
  * src/app/app/home/page.tsx.
  */
@@ -27,7 +23,6 @@ export interface NavItem {
 export const NAV_ITEMS: readonly NavItem[] = [
   { label: "Inbox", href: "/app/inbox", icon: Inbox },
   { label: "Calendar", href: "/app/calendar", icon: CalendarDays },
-  { label: "Chat", href: "/app/discussions", icon: MessageCircle },
 ];
 
 /**
@@ -46,35 +41,7 @@ export const TASK_COLORS = [
 ] as const;
 
 /**
- * Human names for the palette, keyed by uppercase hex. Swatch buttons use
- * these as their accessible label so a screen reader says "Blue", not a
- * hex code, and so a Miffy user picking "Blue" gets the theme's blue.
- */
-export const TASK_COLOR_NAMES: Record<string, string> = {
-  "#9CA3AF": "Gray",
-  "#0E89D6": "Blue",
-  "#EF4444": "Red",
-  "#10B981": "Green",
-  "#F59E0B": "Amber",
-  "#8B5CF6": "Violet",
-  "#EC4899": "Pink",
-  "#06B6D4": "Cyan",
-  "#F97316": "Orange",
-};
-
-/**
- * Returns the palette name for a hex colour, or the hex itself for a custom colour.
- *
- * @param hex - Colour as stored ("#0e89d6")
- * @returns "Blue", or the hex when it is not in the palette
- */
-export function getTaskColorName(hex: string): string {
-  return TASK_COLOR_NAMES[hex.toUpperCase()] ?? hex;
-}
-
-/**
- * The one default task colour (brand blue). TaskContext, the create modal
- * and the checkbox fallback all read this rather than their own literal.
+ * Default task color.
  */
 export const DEFAULT_TASK_COLOR = "#0e89d6";
 
@@ -98,6 +65,13 @@ const MIFFY_COLOR_MAP: Record<string, string> = {
   "#D1D5DB": "#f0c0d0", // light gray fallback → soft pink
 };
 
+/**
+ * @deprecated Use getThemeColor(color, colorTheme) instead.
+ */
+export function getMiffyColor(color: string | null | undefined): string {
+  if (!color) return MIFFY_COLOR_MAP["#D1D5DB"];
+  return MIFFY_COLOR_MAP[color.toUpperCase()] ?? MIFFY_COLOR_MAP[color] ?? "#e8729a";
+}
 
 /** Nord theme: muted arctic tones for task colors. */
 const NORD_COLOR_MAP: Record<string, string> = {

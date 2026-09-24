@@ -7,13 +7,13 @@ import { motion } from "framer-motion";
 import { useTheme } from "@/contexts/ThemeContext";
 
 /** Shared layoutId so the active pill animates between any two nav items. */
-const SIDEBAR_PILL_LAYOUT_ID = "caltodo-sidebar-active-pill";
+export const SIDEBAR_PILL_LAYOUT_ID = "caltodo-sidebar-active-pill";
 
 /**
  * Tween used by the active pill. A short ease-out feels instant — spring
  * configurations were adding visible motion lag on tab switches.
  */
-const SIDEBAR_PILL_TRANSITION = { type: "tween" as const, ease: "easeOut" as const, duration: 0.18 };
+export const SIDEBAR_PILL_TRANSITION = { type: "tween" as const, ease: "easeOut" as const, duration: 0.18 };
 
 /**
  * Animated background pill for the active sidebar item. Shares a layoutId
@@ -125,7 +125,6 @@ export default function SidebarNavItem({ label, href, icon: Icon, badge, badgeCo
       prefetch={true}
       onClick={onClick}
       data-nav-href={href}
-      aria-current={isActive ? "page" : undefined}
       className={navItemClasses(isActive, isMiffy)}
     >
       {isActive && <SidebarActivePill />}
@@ -144,7 +143,7 @@ export default function SidebarNavItem({ label, href, icon: Icon, badge, badgeCo
         </span>
       )}
       {badgeText && (
-        <span className="relative z-10 ml-auto px-1.5 py-0.5 rounded-md bg-blue-500 text-white text-3xs font-bold tracking-wide shrink-0">
+        <span className="relative z-10 ml-auto px-1.5 py-0.5 rounded-md bg-[#0e89d6] text-white text-[9px] font-bold tracking-wide shrink-0">
           {badgeText}
         </span>
       )}

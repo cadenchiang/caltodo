@@ -1,74 +1,121 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { MoreVertical, Pencil, X } from "lucide-react";
-import IconButton from "@/components/ui/IconButton";
-import { ACTIONS } from "@/lib/copy";
-import TaskContextMenu from "./TaskContextMenu";
+import { useState, useRef, useEffect } from "react";
+import { Pencil, X, MoreVertical, Trash2, ExternalLink } from "lucide-react";
+/* eslint-disable @typescript-eslint/no-unused-vars */
+// Pencil is still imported in case a future caller wants the edit button.
+import Tooltip from "@/components/ui/Tooltip";
 
+/**
+ * Props for the shared header action bar used in task detail views.
+ */
 interface TaskActionBarProps {
-  /** Opens the full editor. Omitted where the fields edit inline (detail panel). */
+  /**
+   * Called when the edit (pencil) button is clicked. Optional — when
+   * omitted the pencil is hidden entirely (used by the detail panel
+   * where the title is directly editable inline).
+   */
   onEdit?: () => void;
-  /** Deletes the task (single click; the toast carries Undo). Omit to hide. */
+  /** Called when the delete (trash) button is clicked. Optional. */
   onDelete?: () => void;
-  /** Hides the task for a duration ("Hide for..."). Omit to hide. */
-  onSnooze?: (hours: number) => void;
-  /** Closes the panel or popover. */
+  /** Called when the close (X) button is clicked. */
   onClose: () => void;
-  /** Link to the assignment on its platform; shows "Open assignment". */
+  /** If provided, shows "Open assignment" in the overflow menu. */
   sourceUrl?: string | null;
 }
 
 /**
- * Header row for task detail surfaces: optional Edit, an overflow menu
- * (Hide for..., Open assignment, Delete task) and Close. Every control is an
- * IconButton with a label and the menu is the shared TaskContextMenu.
+ * Horizontal row of action buttons for task detail/preview headers.
+ * Renders Pencil (edit), three-dot overflow menu (delete + open assignment), and X (close).
  *
- * @param onEdit - Shows the pencil when provided
- * @param onDelete - Adds Delete task to the menu
- * @param onSnooze - Adds Hide for... to the menu
- * @param onClose - Close handler
- * @param sourceUrl - Adds Open assignment to the menu
+ * @param onEdit - Edit button handler
+ * @param onDelete - Delete button handler (omit to hide in menu)
+ * @param onClose - Close button handler
+ * @param sourceUrl - URL for "Open assignment" menu item (omit/null to hide)
  */
-export default function TaskActionBar({ onEdit, onDelete, onSnooze, onClose, sourceUrl }: TaskActionBarProps) {
+export default function TaskActionBar({
+  onEdit,
+  onDelete,
+  onClose,
+  sourceUrl,
+}: TaskActionBarProps) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const menuBtnRef = useRef<HTMLButtonElement>(null);
-  const hasMenuItems = !!onDelete || !!sourceUrl || !!onSnooze;
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  /** Close menu on outside click. */
+  useEffect(() => {
+    if (!menuOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [menuOpen]);
+
+  const hasMenuItems = !!onDelete || !!sourceUrl;
 
   return (
     <div className="flex items-center justify-end gap-1 px-5 pt-4 pb-2">
       {onEdit && (
-        <IconButton aria-label="Edit task" title="Edit task" onClick={onEdit}>
-          <Pencil size={18} />
-        </IconButton>
+        <Tooltip label="Edit task">
+          <button
+            onClick={onEdit}
+            className="p-2 rounded-lg text-secondary-foreground hover:text-foreground hover:bg-accent transition-colors"
+          >
+            <Pencil size={18} />
+          </button>
+        </Tooltip>
       )}
       {hasMenuItems && (
-        <>
-          <IconButton
-            ref={menuBtnRef}
-            aria-label="More actions"
-            aria-haspopup="menu"
-            aria-expanded={menuOpen}
-            title="More actions"
-            onClick={() => setMenuOpen((v) => !v)}
-          >
-            <MoreVertical size={18} />
-          </IconButton>
-          <TaskContextMenu
-            open={menuOpen}
-            onClose={() => setMenuOpen(false)}
-            anchorRef={menuBtnRef}
-            triggerRef={menuBtnRef}
-            placement="bottom-end"
-            onSnooze={onSnooze}
-            onDelete={onDelete}
-            sourceUrl={sourceUrl}
-          />
-        </>
+        <div ref={menuRef} className="relative flex items-center">
+          <Tooltip label="More options">
+            <button
+              onClick={() => setMenuOpen((p) => !p)}
+              className="p-2 rounded-lg text-secondary-foreground hover:text-foreground hover:bg-accent transition-colors"
+            >
+              <MoreVertical size={18} />
+            </button>
+          </Tooltip>
+          {menuOpen && (
+            <div className="absolute right-0 top-full mt-1 w-48 rounded-xl border border-border bg-popover shadow-lg p-1 z-10">
+              {sourceUrl && (
+                <a
+                  href={sourceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-accent rounded-lg transition-colors"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  <ExternalLink size={14} className="text-muted-foreground" />
+                  Open assignment
+                </a>
+              )}
+              {onDelete && (
+                <button
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onDelete();
+                  }}
+                  className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                >
+                  <Trash2 size={14} />
+                  Delete task
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       )}
-      <IconButton aria-label={ACTIONS.close} title={ACTIONS.close} onClick={onClose}>
-        <X size={18} />
-      </IconButton>
+      <Tooltip label="Close">
+        <button
+          onClick={onClose}
+          className="p-2 rounded-lg text-secondary-foreground hover:text-foreground hover:bg-accent transition-colors"
+        >
+          <X size={18} />
+        </button>
+      </Tooltip>
     </div>
   );
 }

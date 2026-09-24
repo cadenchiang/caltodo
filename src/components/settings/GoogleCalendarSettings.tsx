@@ -1,67 +1,221 @@
 /**
- * Google Calendar integration card.
- * Header is a disclosure once connected; the panel holds the account, a
- * Disconnect action (confirmed through ConfirmDialog), the calendar list, and
- * a Reconnect action whenever the grant needs renewing.
+ * Google Calendar integration row card.
+ * Compact horizontal layout: logo in gray square, title + description, Connected/Connect badge.
+ * Connect triggers OAuth flow; Connected is a static label (disconnect available via calendar header).
+ * Detects ?gcal=connected query param to auto-create calendar and sync.
  */
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+
+import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronDown, ExternalLink } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 import { useCredentials } from "@/components/settings/IntegrationSettings";
-import { useGoogleCalendarConnect } from "@/hooks/useGoogleCalendarConnect";
-import {
-  canAutoSync,
-  isSyncInProgress,
-  markAutoSyncAttempt,
-  publishSyncToastHandlers,
-  runBackgroundSync,
-} from "@/lib/gcal/background-sync";
-import { PROVIDER_LABELS } from "@/lib/copy";
-import Badge from "@/components/ui/Badge";
-import Button from "@/components/ui/Button";
-import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import GoogleAuthWarningModal from "./GoogleAuthWarningModal";
-import GoogleCalendarIcon from "./GoogleCalendarIcon";
 import GoogleCalendarList from "./GoogleCalendarList";
-import { PILL_SHAPE } from "./AccountClasses";
-import { NEEDS_RECONNECT_LABEL, StatusBadge } from "./integration-status";
+import { readSyncStream } from "@/lib/gcal/read-sync-stream";
+
+/**
+ * Module-level ref for showToast so sync can fire toasts after navigation.
+ * Updated every render by the component.
+ */
+let globalShowToast: ((msg: string, opts?: Parameters<ReturnType<typeof useToast>["showToast"]>[1]) => void) | null = null;
+
+/** Module-level ref for updateToastProgress so sync can update progress after navigation. */
+let globalUpdateProgress: ((progress: number) => void) | null = null;
+
+// readSyncStream is now imported from @/lib/gcal/read-sync-stream
+
+/** Whether a module-level background sync is currently in progress. */
+let moduleSyncInProgress = false;
+/** Whether the current module-level sync is silent (auto-sync). Silent syncs don't show a progress bar. */
+let moduleSyncSilent = false;
+/** Callback to notify the mounted component of sync state changes. */
+let onModuleSyncStateChange: ((syncing: boolean, progress: { synced: number; total: number } | null) => void) | null = null;
+/** Timestamp of the last auto-sync attempt. Used to enforce a cooldown so we don't retry endlessly on persistent failures. */
+let lastAutoSyncAt = 0;
+/** Minimum interval (ms) between automatic sync attempts. */
+const AUTO_SYNC_COOLDOWN_MS = 5 * 60_000;
+
+/**
+ * Runs the initial-sync in the background at module level.
+ * Survives component unmount so users can navigate away from the integrations tab.
+ * Uses globalShowToast/globalUpdateProgress for toast notifications.
+ */
+/** Tracks consecutive sync failures to prevent endless retries. */
+let consecutiveSyncFailures = 0;
+const MAX_AUTO_SYNC_FAILURES = 1;
+
+/**
+ * Runs background sync of unsynced tasks to Google Calendar.
+ * When silent=true (auto-sync), suppresses toasts and emits a custom event on failure.
+ * When silent=false (manual), shows progress toasts.
+ *
+ * @param silent - If true, suppresses toast notifications (used for auto-sync)
+ */
+async function runBackgroundSync(silent = false): Promise<void> {
+  if (moduleSyncInProgress) return;
+  moduleSyncInProgress = true;
+  moduleSyncSilent = silent;
+  // Only notify UI for non-silent syncs — silent auto-syncs run invisibly
+  if (!silent) onModuleSyncStateChange?.(true, { synced: 0, total: 0 });
+
+  const toast = (msg: string, opts?: Record<string, unknown>) => {
+    if (!silent) globalShowToast?.(msg, opts as Parameters<NonNullable<typeof globalShowToast>>[1]);
+  };
+  const progress = (p: number) => { if (!silent) globalUpdateProgress?.(p); };
+
+  toast("Syncing tasks to Google Calendar...", { progress: 0 });
+
+  try {
+    const syncRes = await fetch("/api/gcal/initial-sync", { method: "POST" });
+    const contentType = syncRes.headers.get("Content-Type") ?? "";
+
+    if (contentType.includes("application/json")) {
+      const result = await syncRes.json();
+      progress(100);
+      if (syncRes.ok && result.synced === 0 && result.total === 0) {
+        consecutiveSyncFailures = 0;
+        toast("All tasks are already synced.");
+      } else if (!syncRes.ok) {
+        consecutiveSyncFailures++;
+        toast(`Sync failed: ${result.error || syncRes.status}`);
+      }
+      return;
+    }
+
+    const finalResult = await readSyncStream(syncRes, {
+      onProgress: (synced, total) => {
+        if (!silent) onModuleSyncStateChange?.(true, { synced, total });
+        if (total > 0) progress(Math.round((synced / total) * 100));
+      },
+      onDone: () => { if (!silent) onModuleSyncStateChange?.(true, null); },
+    });
+
+    if (!finalResult) {
+      progress(100);
+      consecutiveSyncFailures++;
+      toast("Sync failed: no response stream.");
+      return;
+    }
+
+    if (finalResult.partial) {
+      // The server stopped at its time budget, not on an error. Leave the
+      // failure counter alone (and the cooldown timestamp as set) so the
+      // next visit continues with the remaining tasks.
+      consecutiveSyncFailures = 0;
+      toast(
+        `Synced ${finalResult.synced} of ${finalResult.total} tasks to Google Calendar so far. ` +
+        `The remaining ${finalResult.remaining ?? finalResult.total - finalResult.synced} will continue next time.`
+      );
+    } else if (finalResult.synced > 0) {
+      consecutiveSyncFailures = 0;
+      const msg = finalResult.synced === finalResult.total
+        ? `Synced ${finalResult.synced} task${finalResult.synced === 1 ? "" : "s"} to Google Calendar.`
+        : `Synced ${finalResult.synced} of ${finalResult.total} tasks to Google Calendar.`;
+      toast(msg);
+    } else if (finalResult.total > 0) {
+      consecutiveSyncFailures++;
+      if (!silent) {
+        toast(`Sync failed for all ${finalResult.total} tasks. Check your Google Calendar permissions.`);
+      }
+    } else {
+      consecutiveSyncFailures = 0;
+      toast("All tasks are already synced.");
+    }
+  } catch (err) {
+    console.error("Background sync error:", err);
+    consecutiveSyncFailures++;
+    progress(100);
+    toast("Failed to sync tasks. Please try again.");
+  } finally {
+    moduleSyncInProgress = false;
+    moduleSyncSilent = false;
+    onModuleSyncStateChange?.(false, null);
+  }
+}
+
+/**
+ * Inline Google Calendar logo SVG for brand recognition.
+ *
+ * @param size - Icon dimensions in pixels (default 16)
+ */
+function GoogleCalendarIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 122.88 122.88"
+      className="inline-block shrink-0"
+    >
+      <polygon points="93.78,29.1 29.1,29.1 29.1,93.78 93.78,93.78" fill="#fff" />
+      <polygon points="93.78,122.88 122.88,93.78 93.78,93.78" fill="#EA4335" />
+      <polygon points="122.88,29.1 93.78,29.1 93.78,93.78 122.88,93.78" fill="#FBBC04" />
+      <polygon points="93.78,93.78 29.1,93.78 29.1,122.88 93.78,122.88" fill="#34A853" />
+      <path d="M0,93.78v19.4c0,5.36,4.34,9.7,9.7,9.7h19.4v-29.1H0z" fill="#188038" />
+      <path d="M122.88,29.1V9.7c0-5.36-4.34-9.7-9.7-9.7h-19.4v29.1H122.88z" fill="#1967D2" />
+      <path d="M93.78,0H9.7C4.34,0,0,4.34,0,9.7v84.08h29.1V29.1h64.67V0z" fill="#4285F4" />
+      <path d="M42.37,79.27c-2.42-1.63-4.09-4.02-5-7.17l5.61-2.31c0.51,1.94,1.4,3.44,2.67,4.51c1.26,1.07,2.8,1.59,4.59,1.59c1.84,0,3.41-0.56,4.73-1.67c1.32-1.12,1.98-2.54,1.98-4.26c0-1.76-0.7-3.2-2.09-4.32c-1.39-1.12-3.14-1.67-5.22-1.67H46.4v-5.55h2.91c1.79,0,3.31-0.48,4.54-1.46c1.23-0.97,1.84-2.3,1.84-3.99c0-1.5-0.55-2.7-1.65-3.6s-2.49-1.35-4.18-1.35c-1.65,0-2.96,0.44-3.93,1.32c-0.97,0.88-1.7,2-2.12,3.24l-5.55-2.31c0.74-2.09,2.09-3.93,4.07-5.52c1.98-1.59,4.51-2.39,7.58-2.39c2.27,0,4.32,0.44,6.13,1.32c1.81,0.88,3.23,2.1,4.26,3.65c1.03,1.56,1.54,3.31,1.54,5.25c0,1.98-0.48,3.65-1.43,5.03c-0.95,1.37-2.13,2.43-3.52,3.16v0.33c1.79,0.74,3.36,1.96,4.51,3.52c1.17,1.58,1.76,3.46,1.76,5.66c0,2.2-0.56,4.16-1.67,5.88c-1.12,1.72-2.66,3.08-4.62,4.07c-1.96,0.99-4.17,1.49-6.62,1.49C47.41,81.72,44.79,80.91,42.37,79.27z" fill="#1A73E8" />
+      <path d="M76.83,51.43l-6.16,4.45l-3.08-4.67l11.05-7.97h4.24v37.6h-6.05V51.43z" fill="#1A73E8" />
+    </svg>
+  );
+}
 
 /** localStorage key for caching GCal connection state (used by sidebar/header). */
 const GCAL_CACHE_KEY = "gcal_status";
 
-const LABEL = PROVIDER_LABELS.gcal;
-
 export default function GoogleCalendarSettings() {
   const { showToast, updateToastProgress } = useToast();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { credentials, refresh } = useCredentials();
 
+  // Derive GCal state from the shared credentials context
   const [open, setOpen] = useState(false);
   const connected = !!credentials.has_google_calendar;
   const googleEmail = credentials.google_email ?? null;
   const selectedCalendarId = credentials.google_calendar_id ?? null;
 
+  const [syncing, setSyncing] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
-  const [confirmingDisconnect, setConfirmingDisconnect] = useState(false);
-  /** Whether the token lacks write scope and needs reconnection. */
-  const [scopeNeedsReconnect, setScopeNeedsReconnect] = useState(false);
-
-  const connect = useGoogleCalendarConnect({
-    googleEmail,
-    refresh,
-    openIcon: <ExternalLink size={14} />,
-  });
-  const { oauthConnecting, mountedRef } = connect;
+  const [showAuthWarning, setShowAuthWarning] = useState(false);
+  const [syncProgress, setSyncProgress] = useState<{ synced: number; total: number } | null>(null);
+  // Local override for connected state during OAuth flow (before context refreshes)
+  const [oauthConnecting, setOauthConnecting] = useState(false);
+  /** Whether the user's token lacks write scope and needs reconnection. */
+  const [needsReconnect, setNeedsReconnect] = useState(false);
+  const mountedRef = useRef(true);
+  /** The OAuth popup poll, kept so unmount can stop it. */
+  const popupPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Publish the toast helpers for the module-level background sync, which by
-  // design outlives this component. Done in an effect, not during render.
+  // design outlives this component so the user can navigate away mid-sync.
+  // Done in an effect rather than during render: assigning module state while
+  // rendering is a side effect in the render phase, so a render that never
+  // commits (StrictMode's double render, or a concurrent render React throws
+  // away) would still overwrite the globals. Deliberately not cleared on
+  // unmount — that persistence is the whole point.
   useEffect(() => {
-    publishSyncToastHandlers({ showToast, updateProgress: updateToastProgress });
+    globalShowToast = showToast;
+    globalUpdateProgress = updateToastProgress;
   });
 
-  // Keep the gcal_status localStorage cache in sync for sidebar/header.
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      // A poll left running after navigation would finish the consent flow
+      // on a page the user has left and drag them back to Settings.
+      if (popupPollRef.current) {
+        clearInterval(popupPollRef.current);
+        popupPollRef.current = null;
+      }
+    };
+  }, []);
+
+  // Keep the gcal_status localStorage cache in sync for sidebar/header
   useEffect(() => {
     try {
       localStorage.setItem(GCAL_CACHE_KEY, JSON.stringify({
@@ -70,15 +224,24 @@ export default function GoogleCalendarSettings() {
         email: googleEmail,
         photoUrl: credentials.google_photo_url ?? null,
       }));
-    } catch { /* quota or storage unavailable */ }
+    } catch { /* ignore quota errors */ }
   }, [connected, selectedCalendarId, googleEmail, credentials.google_photo_url]);
 
-  // Check whether the stored token has write scope, once per session.
+  function toast(msg: string, opts?: Parameters<typeof showToast>[1]) {
+    (globalShowToast ?? showToast)(msg, opts);
+  }
+
+  function ifMounted<T>(setter: React.Dispatch<React.SetStateAction<T>>, value: NoInfer<T>) {
+    if (mountedRef.current) setter(value);
+  }
+
+  // Check if existing token has write scope — prompt reconnect if read-only.
+  // Only checks once per session to avoid nagging after a successful reconnect.
   useEffect(() => {
     if (!connected || oauthConnecting) return;
     try {
       if (sessionStorage.getItem("gcal-scope-ok") === "1") return;
-    } catch { /* storage unavailable */ }
+    } catch { /* ignore */ }
     let cancelled = false;
     (async () => {
       try {
@@ -87,46 +250,169 @@ export default function GoogleCalendarSettings() {
         const data = await res.json();
         if (cancelled || !mountedRef.current) return;
         if (data.needsReconnect) {
-          setScopeNeedsReconnect(true);
+          setNeedsReconnect(true);
         } else {
-          try { sessionStorage.setItem("gcal-scope-ok", "1"); } catch { /* storage unavailable */ }
+          try { sessionStorage.setItem("gcal-scope-ok", "1"); } catch { /* ignore */ }
         }
-      } catch (err) {
-        console.warn("GoogleCalendarSettings: scope check failed", {
-          error: err instanceof Error ? err.message : String(err),
-          impact: "the reconnect prompt may be missing until the next visit",
-        });
-      }
+      } catch { /* network error — ignore */ }
     })();
     return () => { cancelled = true; };
-  }, [connected, oauthConnecting, mountedRef]);
+  }, [connected, oauthConnecting]);
 
-  // Auto-sync unsynced tasks on mount, within the module cooldown.
+  // Auto-sync unsynced tasks on mount — no manual banner needed.
+  // Skips if already syncing, during OAuth setup, or within cooldown.
   useEffect(() => {
-    if (!connected || oauthConnecting || !canAutoSync()) return;
+    if (!connected || oauthConnecting || moduleSyncInProgress) return;
+    if (Date.now() - lastAutoSyncAt < AUTO_SYNC_COOLDOWN_MS) return;
+    if (consecutiveSyncFailures >= MAX_AUTO_SYNC_FAILURES) return;
     let cancelled = false;
     (async () => {
       try {
         const res = await fetch("/api/gcal/unsynced-count");
         if (!res.ok || cancelled) return;
         const data = await res.json();
-        if (!cancelled && mountedRef.current && data.count > 0 && !isSyncInProgress()) {
-          markAutoSyncAttempt();
-          void runBackgroundSync(true);
+        if (!cancelled && mountedRef.current && data.count > 0 && !moduleSyncInProgress) {
+          lastAutoSyncAt = Date.now();
+          // Silent auto-sync — no progress bar, runs invisibly in background
+          runBackgroundSync(true);
         }
-      } catch (err) {
-        console.warn("GoogleCalendarSettings: unsynced-count failed", {
-          error: err instanceof Error ? err.message : String(err),
-          impact: "auto-sync skipped this visit",
-        });
-      }
+      } catch { /* network error — ignore silently */ }
     })();
     return () => { cancelled = true; };
-  }, [connected, oauthConnecting, mountedRef]);
+  }, [connected, oauthConnecting]);
+
+  // Register module-level sync callback so sync survives navigation away.
+  // Only show progress bar for non-silent (user-initiated) syncs.
+  useEffect(() => {
+    if (moduleSyncInProgress && !moduleSyncSilent) {
+      setSyncing(true);
+    }
+    onModuleSyncStateChange = (isSyncing, progress) => {
+      if (mountedRef.current) {
+        setSyncing(isSyncing);
+        setSyncProgress(progress);
+      }
+    };
+    return () => { onModuleSyncStateChange = null; };
+  }, []);
+
+  async function autoSetupCalendar() {
+    setSyncing(true);
+    // Fresh OAuth means full scope — skip future scope checks this session
+    try { sessionStorage.setItem("gcal-scope-ok", "1"); } catch { /* ignore */ }
+    toast("Setting up Google Calendar...", { progress: 0 });
+    try {
+      await refresh();
+      // Ensure a dedicated "caltodo" calendar exists. We pass its ID FIRST
+      // in the calendarIds array because the sync code writes events to
+      // calendarIds[0]. This isolates synced assignments from the user's
+      // personal calendars (the fix for the "deploying to personal calendar"
+      // bug).
+      const caltodoRes = await fetch("/api/gcal/ensure-caltodo-calendar", {
+        method: "POST",
+      });
+      let caltodoCalendarId: string | null = null;
+      if (caltodoRes.ok) {
+        const { calendarId } = (await caltodoRes.json()) as { calendarId: string };
+        caltodoCalendarId = calendarId;
+      } else {
+        console.warn("autoSetupCalendar: failed to ensure caltodo calendar; falling back");
+      }
+
+      // Also list user's other calendars so the widget can still read events
+      // from them. Caltodo calendar stays at index 0 (write target).
+      const calListRes = await fetch("/api/gcal/calendars?all=true");
+      const otherIds: string[] = [];
+      if (calListRes.ok) {
+        const calData = await calListRes.json();
+        if (calData.calendars && calData.calendars.length > 0) {
+          for (const c of calData.calendars as Array<{ id: string }>) {
+            if (c.id !== caltodoCalendarId) otherIds.push(c.id);
+          }
+        }
+      }
+
+      const calendarIds = caltodoCalendarId
+        ? [caltodoCalendarId, ...otherIds].slice(0, 10)
+        : otherIds.length > 0
+          ? otherIds.slice(0, 10)
+          : ["primary"];
+
+      const selectRes = await fetch("/api/gcal/select-calendar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ calendarIds }),
+      });
+      if (!selectRes.ok) {
+        const err = await selectRes.json();
+        toast(`Failed to set up calendar: ${err.error || selectRes.status}`);
+        return;
+      }
+      // Existing tasks are synced by the auto-sync effect once oauthConnecting
+      // clears (select-calendar does not report whether any are pending).
+      const gcalUrl = googleEmail
+        ? `https://calendar.google.com/calendar/r?authuser=${encodeURIComponent(googleEmail)}`
+        : "https://calendar.google.com";
+      toast("Google Calendar connected! New tasks will sync automatically.", {
+        action: {
+          label: "Open",
+          icon: <ExternalLink size={14} />,
+          onClick: () => window.open(gcalUrl, "_blank"),
+        },
+      });
+    } catch (err) {
+      console.error("Auto-setup calendar error:", err);
+      toast("Failed to set up calendar. Please try again.");
+    } finally {
+      ifMounted(setSyncing, false);
+      ifMounted(setSyncProgress, null);
+      ifMounted(setOauthConnecting, false);
+      // Refresh shared context so all cards reflect updated state
+      await refresh();
+      // Notify sidebar/header to update GCal badge in the same tab
+      try {
+        window.dispatchEvent(new CustomEvent("gcal-status-change", { detail: { connected: true } }));
+      } catch { /* ignore SSR */ }
+      // Navigate back to integrations section after sync completes, but not
+      // if the user has since left Settings: yanking them back is worse than
+      // leaving the URL as is.
+      if (mountedRef.current) router.replace("/app/settings?section=integrations");
+    }
+  }
+
+  useEffect(() => {
+    const gcalParam = searchParams.get("gcal");
+    // Skip auto-setup if running inside a popup — the opener window handles it
+    if (window.opener) return;
+    if (gcalParam === "connected") {
+      setOauthConnecting(true);
+      autoSetupCalendar();
+      const url = new URL(window.location.href);
+      url.searchParams.delete("gcal");
+      window.history.replaceState({}, "", url.toString());
+    } else if (gcalParam === "error") {
+      const reason = searchParams.get("reason");
+      const messages: Record<string, string> = {
+        denied: "Google Calendar access was denied.",
+        csrf: "Security check failed. Please try again.",
+        token_exchange: "Failed to connect. Please try again.",
+        missing_tokens: "Failed to get tokens from Google. Please try again.",
+        config: "Google Calendar is not configured on this server.",
+        storage: "Failed to save connection. Please try again.",
+      };
+      showToast(messages[reason ?? ""] ?? "Failed to connect Google Calendar.");
+      const url = new URL(window.location.href);
+      url.searchParams.delete("gcal");
+      url.searchParams.delete("reason");
+      window.history.replaceState({}, "", url.toString());
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, showToast]);
 
   /**
-   * Disconnects Google Calendar via API. Clears local state and toasts only
-   * when the server confirmed; any other status leaves the card as is.
+   * Disconnects Google Calendar via API.
+   * Clears local state/cache and shows confirmation toast only when the
+   * server confirmed the disconnect; any other status leaves the card as is.
    */
   async function handleDisconnect() {
     setDisconnecting(true);
@@ -137,34 +423,112 @@ export default function GoogleCalendarSettings() {
         console.error("handleDisconnect: server refused", {
           status: res.status, error: body.error, impact: "tokens still stored, card stays connected",
         });
-        showToast(`Failed to disconnect ${LABEL}: ${body.error || res.status}`, { variant: "error" });
+        showToast(`Failed to disconnect Google Calendar: ${body.error || res.status}`);
         return;
       }
-      try { localStorage.removeItem(GCAL_CACHE_KEY); } catch { /* storage unavailable */ }
+      try { localStorage.removeItem(GCAL_CACHE_KEY); } catch { /* ignore */ }
       await refresh();
+      // Notify header/sidebar to update GCal badge
       try {
         window.dispatchEvent(new CustomEvent("gcal-status-change", { detail: { connected: false } }));
-      } catch { /* not in a browser */ }
-      showToast(`${LABEL} disconnected.`);
+      } catch { /* ignore SSR */ }
+      showToast("Google Calendar disconnected.");
     } catch (err) {
       console.error("handleDisconnect: request failed", { error: err instanceof Error ? err.message : String(err) });
-      showToast(`Failed to disconnect ${LABEL}.`, { variant: "error" });
+      showToast("Failed to disconnect Google Calendar.");
     } finally {
       setDisconnecting(false);
-      setConfirmingDisconnect(false);
     }
   }
 
-  /** Drops the current grant and reopens the connect flow. */
-  async function handleReconnect() {
-    setScopeNeedsReconnect(false);
-    try { sessionStorage.removeItem("gcal-scope-ok"); } catch { /* storage unavailable */ }
-    await handleDisconnect();
-    connect.openAuthWarning();
+  /**
+   * Shows the auth warning modal before starting the OAuth flow.
+   */
+  function handleConnect() {
+    setShowAuthWarning(true);
+  }
+
+  /**
+   * Proceeds with OAuth after user acknowledges the warning.
+   * Desktop: opens Google OAuth in a centered popup, polls for completion.
+   * Mobile: falls back to full-page redirect.
+   */
+  function handleConfirmConnect() {
+    setShowAuthWarning(false);
+    const isDesktop = typeof window !== "undefined" && window.innerWidth >= 768;
+
+    if (!isDesktop) {
+      window.location.href = "/api/gcal/auth";
+      return;
+    }
+
+    const width = 500;
+    const height = 600;
+    const left = window.screenX + (window.outerWidth - width) / 2;
+    const top = window.screenY + (window.outerHeight - height) / 2;
+    const popup = window.open(
+      "/api/gcal/auth",
+      "gcal-auth",
+      `width=${width},height=${height},left=${left},top=${top},popup=true`
+    );
+
+    if (!popup || popup.closed) {
+      // Popup blocked — fall back to full redirect
+      window.location.href = "/api/gcal/auth";
+      return;
+    }
+
+    /**
+     * Polls the popup URL until it navigates back to our origin with
+     * ?gcal=connected or ?gcal=error, then closes the popup and handles the result.
+     * Stored in popupPollRef so unmount can clear it.
+     */
+    if (popupPollRef.current) clearInterval(popupPollRef.current);
+    const stopPolling = () => {
+      if (popupPollRef.current) clearInterval(popupPollRef.current);
+      popupPollRef.current = null;
+    };
+    popupPollRef.current = setInterval(() => {
+      try {
+        if (!popup || popup.closed) {
+          stopPolling();
+          return;
+        }
+
+        const popupUrl = popup.location.href;
+
+        if (popupUrl.includes("gcal=connected")) {
+          stopPolling();
+          popup.close();
+          setOauthConnecting(true);
+          autoSetupCalendar();
+        } else if (popupUrl.includes("gcal=error")) {
+          stopPolling();
+          popup.close();
+          const url = new URL(popupUrl);
+          const reason = url.searchParams.get("reason");
+          const messages: Record<string, string> = {
+            denied: "Google Calendar access was denied.",
+            csrf: "Security check failed. Please try again.",
+            token_exchange: "Failed to connect. Please try again.",
+            missing_tokens: "Failed to get tokens from Google. Please try again.",
+            config: "Google Calendar is not configured on this server.",
+            storage: "Failed to save connection. Please try again.",
+          };
+          showToast(messages[reason ?? ""] ?? "Failed to connect Google Calendar.");
+        }
+      } catch {
+        // Cross-origin — popup is still on Google domain, keep polling
+      }
+    }, 1000);
   }
 
   const isConnectedOrConnecting = connected || oauthConnecting;
-  const needsReconnect = isConnectedOrConnecting && (scopeNeedsReconnect || !!credentials.google_auth_failed);
+
+  // The header is a toggle once connected, matching the other integrations:
+  // the account and the disconnect live in the panel rather than on the front
+  // of the card. While disconnected there is nothing to reveal, so it stays a
+  // plain row with its Connect button.
   const HeaderTag = isConnectedOrConnecting ? "button" : "div";
 
   return (
@@ -172,39 +536,58 @@ export default function GoogleCalendarSettings() {
       <div className="rounded-2xl border border-border bg-card shadow-sm dark:shadow-none overflow-hidden">
         <HeaderTag
           {...(isConnectedOrConnecting
-            ? { onClick: () => setOpen((v) => !v), "aria-expanded": open, type: "button" as const }
+            ? {
+                onClick: () => setOpen((v) => !v),
+                "aria-expanded": open,
+                type: "button" as const,
+              }
             : {})}
           className={`w-full flex items-center gap-2.5 sm:gap-3.5 px-3 sm:px-4 py-3.5 text-left ${
             isConnectedOrConnecting ? "hover:bg-muted/40 transition-colors cursor-pointer" : ""
           }`}
         >
+          {/* Logo */}
           <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
             <GoogleCalendarIcon size={18} />
           </div>
+          {/* Text */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5">
-              <p className="text-sm font-semibold text-foreground whitespace-nowrap">{LABEL}</p>
-              <Badge variant="info">Real-time</Badge>
+              <p className="text-sm font-semibold text-foreground whitespace-nowrap">Google Calendar</p>
+              <span className="text-[9px] font-medium text-blue-500 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 px-1.5 py-0.5 rounded-full leading-none whitespace-nowrap">
+                Real-time
+              </span>
             </div>
             <p className="text-xs text-muted-foreground truncate">
-              {isConnectedOrConnecting && googleEmail ? googleEmail : "Two-way event sync"}
+              {isConnectedOrConnecting && googleEmail
+                ? googleEmail
+                : "Two-way event sync"}
             </p>
           </div>
+          {/* Status. A badge, not a button: disconnecting revokes the grant
+              and is one expand away, like every other integration. */}
           {isConnectedOrConnecting ? (
             <>
-              <StatusBadge needsReconnect={needsReconnect} />
+              <span className="hidden sm:inline text-xs font-medium px-3 py-1 rounded-lg border border-emerald-200 dark:border-emerald-500/30 text-emerald-600 dark:text-emerald-400 shrink-0">
+                Connected
+              </span>
               <ChevronDown
                 size={16}
                 className={`text-muted-foreground shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
               />
             </>
           ) : (
-            <Button size="sm" variant="secondary" onClick={connect.openAuthWarning} className="text-blue-500">
+            <button
+              onClick={handleConnect}
+              className="text-xs font-semibold text-blue-500 hover:text-blue-600 dark:hover:text-blue-400 px-3 py-1 rounded-lg border border-blue-200 dark:border-blue-500/30 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors shrink-0 cursor-pointer"
+            >
               Connect
-            </Button>
+            </button>
           )}
         </HeaderTag>
 
+        {/* Accounts panel. Google Calendar is one OAuth identity, so this is
+            always a single account and there is nothing to add. */}
         {isConnectedOrConnecting && (
           <div
             className={`grid transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
@@ -215,57 +598,64 @@ export default function GoogleCalendarSettings() {
           >
             <div className="overflow-hidden">
               <div className="px-3 sm:px-4 pb-3 pt-3 border-t border-border">
+                {/* One bordered block for the account, matching the shared
+                    card so both read the same way. */}
                 <div className="rounded-xl border border-border bg-muted/30 overflow-hidden">
-                  <div className="flex items-center gap-2 px-3 py-2">
-                    <span className="flex-1 min-w-0 flex">
-                      <span className={`${PILL_SHAPE} font-semibold bg-card border border-border text-foreground`}>
-                        {googleEmail ?? "Google account"}
-                      </span>
-                    </span>
-                    {needsReconnect && (
-                      <>
-                        <span className="text-2xs font-medium text-red-500 shrink-0">{NEEDS_RECONNECT_LABEL}</span>
-                        <Button size="sm" variant="secondary" onClick={handleReconnect} disabled={disconnecting}>
-                          Reconnect
-                        </Button>
-                      </>
-                    )}
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => setConfirmingDisconnect(true)}
-                      disabled={disconnecting}
-                      aria-label={`Disconnect ${LABEL}`}
-                      className="text-muted-foreground"
-                    >
-                      Disconnect
-                    </Button>
-                  </div>
-                  <div className="border-t border-border/60 px-3 py-2">
-                    <GoogleCalendarList onSaved={refresh} />
-                  </div>
+                <div className="group/row flex items-center gap-2 px-3 py-2">
+                  <span className="flex-1 min-w-0 text-xs font-semibold text-foreground truncate">
+                    {googleEmail ?? "Google account"}
+                  </span>
+                  <button
+                    onClick={handleDisconnect}
+                    disabled={disconnecting}
+                    aria-label="Disconnect Google Calendar"
+                    className="shrink-0 text-[11px] font-medium px-2 py-1 rounded-lg text-muted-foreground opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    {disconnecting ? "..." : "Disconnect"}
+                  </button>
+                </div>
+
+                {/* Google Calendar cannot hold a second account - the tokens
+                    are singular credential columns - but it can sync several
+                    calendars, which is what there is to add here. */}
+                <div className="border-t border-border/60 px-3 py-2">
+                  <GoogleCalendarList onSaved={refresh} />
+                </div>
                 </div>
               </div>
             </div>
           </div>
         )}
+
+        {/* Reconnect banner — shown when token has read-only scope */}
+        {needsReconnect && isConnectedOrConnecting && (
+          <div className="mx-4 mb-3 p-2.5 rounded-lg bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20">
+            <p className="text-xs text-amber-800 dark:text-amber-300 mb-1.5">
+              Please reconnect to enable task syncing to Google Calendar.
+            </p>
+            <button
+              onClick={async () => {
+                setNeedsReconnect(false);
+                try { sessionStorage.removeItem("gcal-scope-ok"); } catch { /* ignore */ }
+                await handleDisconnect();
+                handleConnect();
+              }}
+              className="text-xs font-medium text-amber-700 dark:text-amber-400 hover:text-amber-900 dark:hover:text-amber-300 underline underline-offset-2 cursor-pointer"
+            >
+              Reconnect now
+            </button>
+          </div>
+        )}
+
+        {/* Removed in-card sync progress bar — the bottom toast already
+            communicates progress with a percentage, so this strip was
+            redundant and cluttered the settings view. */}
       </div>
 
-      <ConfirmDialog
-        open={confirmingDisconnect}
-        title={`Disconnect ${LABEL}?`}
-        body="Tasks stop syncing to your calendar and the events caltodo created stay where they are. You can reconnect later."
-        confirmLabel="Disconnect"
-        destructive
-        loading={disconnecting}
-        onConfirm={handleDisconnect}
-        onCancel={() => setConfirmingDisconnect(false)}
-      />
-
       <GoogleAuthWarningModal
-        open={connect.showAuthWarning}
-        onContinue={connect.confirmConnect}
-        onCancel={connect.closeAuthWarning}
+        open={showAuthWarning}
+        onContinue={handleConfirmConnect}
+        onCancel={() => setShowAuthWarning(false)}
       />
     </>
   );

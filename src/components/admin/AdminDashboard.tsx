@@ -14,9 +14,6 @@ import RetentionTable from "./RetentionTable";
 import PlatformAdoption from "./PlatformAdoption";
 import TaskStats from "./TaskStats";
 import StatCard from "./StatCard";
-import Button from "@/components/ui/Button";
-import PageHeader from "@/components/ui/PageHeader";
-import type { PlatformAdoptionProps } from "./PlatformAdoption";
 
 /** Shape of GET /api/admin/signups response */
 interface SignupsData {
@@ -40,7 +37,12 @@ interface RetentionData {
 
 /** Shape of GET /api/admin/overview response */
 interface OverviewData {
-  platforms: PlatformAdoptionProps;
+  platforms: {
+    canvas: number;
+    gradescope: number;
+    googleCalendar: number;
+    pensieve: number;
+  };
   taskStats: {
     total: number;
     completed: number;
@@ -56,7 +58,7 @@ interface OverviewData {
  */
 function ChartSkeleton() {
   return (
-    <div className="bg-card rounded-2xl border border-border p-5">
+    <div className="glass rounded-2xl border border-border p-5">
       <div className="animate-pulse space-y-4">
         <div className="h-4 bg-muted rounded w-32" />
         <div className="h-3 bg-muted rounded w-48" />
@@ -74,9 +76,9 @@ function ChartSkeleton() {
  */
 function StatsSkeleton({ count }: { count: number }) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
       {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="bg-card rounded-2xl border border-border p-5">
+        <div key={i} className="glass rounded-2xl border border-border p-5">
           <div className="animate-pulse space-y-2">
             <div className="h-3 bg-muted rounded w-16" />
             <div className="h-7 bg-muted rounded w-12" />
@@ -109,12 +111,6 @@ export default function AdminDashboard() {
       ]);
 
       if (!signupsRes.ok || !retentionRes.ok || !overviewRes.ok) {
-        console.error("AdminDashboard: a dashboard request failed", {
-          signups: signupsRes.status,
-          retention: retentionRes.status,
-          overview: overviewRes.status,
-          impact: "the dashboard shows its error state",
-        });
         setError("Failed to load dashboard data");
         return;
       }
@@ -128,11 +124,7 @@ export default function AdminDashboard() {
       setSignups(signupsJson);
       setRetention(retentionJson);
       setOverview(overviewJson);
-    } catch (err) {
-      console.error("AdminDashboard: dashboard fetch threw", {
-        error: err instanceof Error ? err.message : String(err),
-        impact: "the dashboard shows its error state",
-      });
+    } catch {
       setError("Failed to load dashboard data");
     }
   }, []);
@@ -145,17 +137,16 @@ export default function AdminDashboard() {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center space-y-2">
-          <p className="text-sm text-danger">{error}</p>
-          <Button
-            variant="secondary"
-            size="sm"
+          <p className="text-sm text-red-500">{error}</p>
+          <button
             onClick={() => {
               setError(null);
               fetchData();
             }}
+            className="text-sm text-blue-500 hover:text-blue-600 transition-colors"
           >
             Try again
-          </Button>
+          </button>
         </div>
       </div>
     );
@@ -163,12 +154,18 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Analytics" description="User growth, retention, and platform metrics" />
+      {/* Header */}
+      <div>
+        <h1 className="text-xl font-bold text-foreground">Analytics</h1>
+        <p className="text-sm text-muted-foreground">
+          User growth, retention, and platform metrics
+        </p>
+      </div>
 
       {/* Quick stats row */}
       {signups && retention ? (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <StatCard label="Total users" value={signups.total} />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <StatCard label="Total Users" value={signups.total} />
           <StatCard label="DAU" value={retention.dau} subtext="Last 24h" />
           <StatCard label="WAU" value={retention.wau} subtext="Last 7d" />
           <StatCard

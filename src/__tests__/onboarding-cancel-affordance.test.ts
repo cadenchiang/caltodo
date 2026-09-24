@@ -17,8 +17,8 @@ const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), "utf8");
 const canvas = read("src/components/onboarding/AddCanvasStep.tsx");
 const brightspace = read("src/components/onboarding/BrightspaceStep.tsx");
 
-/** The quiet treatment: a ghost Button, small, beneath the primary. */
-const QUIET_CANCEL = '<Button variant="ghost" size="sm" onClick={onSkip} disabled={saving}>';
+/** The quiet treatment, taken from the step used as the reference. */
+const QUIET_CANCEL = "text-xs font-medium text-muted-foreground hover:text-foreground transition-colors";
 
 describe("the Canvas add step", () => {
   it("no longer gives cancel a raised button of its own", () => {
@@ -28,42 +28,36 @@ describe("the Canvas add step", () => {
   it("no longer sets cancel beside the primary action at equal width", () => {
     // `flex-1` on both halves is what made them equal.
     expect(canvas).not.toMatch(/flex-1[^"]*text-muted-foreground[^"]*rounded-xl/);
+    expect(canvas).not.toContain(">\n              cancel\n");
   });
 
-  it("uses one quiet cancel, defined once", () => {
+  it("uses the same quiet cancel as the reference step", () => {
     expect(canvas).toContain(QUIET_CANCEL);
-    expect(canvas.split(QUIET_CANCEL).length - 1).toBe(1);
+    expect(brightspace).toContain(QUIET_CANCEL);
   });
 
   it("applies it to all three of the step's screens", () => {
-    // Calendar feed, API token, and the course picker each render {cancel}.
-    expect(canvas.split("{cancel}").length - 1).toBe(3);
+    // Calendar feed, API token, and the course picker.
+    expect(canvas.split(QUIET_CANCEL).length - 1).toBe(3);
   });
 
   it("gives the primary action the full width instead", () => {
-    // The feed and token forms own their submit button; the picker has one here.
-    expect(canvas).toMatch(/<Button type="submit" variant="inverted" size="lg" className="w-full"/);
-    for (const form of ["CanvasFeedForm.tsx", "CanvasTokenForm.tsx"]) {
-      expect(read(`src/components/onboarding/${form}`)).toMatch(
-        /<Button type="submit" variant="inverted" size="lg" className="w-full"/
-      );
-    }
+    const primaries = canvas.match(/w-full px-5 py-2\.5 bg-gray-900/g) ?? [];
+    expect(primaries.length).toBe(3);
+    expect(canvas).not.toMatch(/flex-1 px-5 py-2\.5 bg-gray-900/);
   });
 
-  it("keeps cancel disabled while saving", () => {
+  it("still routes cancel to the same handler", () => {
+    expect(canvas.match(/onClick=\{onSkip\}/g)?.length).toBe(3);
+  });
+
+  it("keeps the course picker's cancel disabled while saving", () => {
     // Backing out mid-write would leave the selection half-applied.
-    expect(QUIET_CANCEL).toContain("disabled={saving}");
+    expect(canvas).toMatch(/onClick=\{onSkip\}\s*\n\s*disabled=\{saving\}/);
   });
 
   it("centres the cancel, as the step's own container does", () => {
-    expect(canvas).toContain('<div className="mt-3 text-center">');
-  });
-
-  it("brightspace keeps its quiet cancel too, through the shared feed step", () => {
-    expect(brightspace).toContain("onSkip={onSkip}");
-    const feed = read("src/components/onboarding/FeedUrlStep.tsx");
-    expect(feed).toContain(QUIET_CANCEL);
-    expect(feed).not.toContain("btn-elevated-secondary");
+    expect(canvas).toContain('<div className="text-center">');
   });
 });
 

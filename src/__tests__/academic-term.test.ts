@@ -151,3 +151,21 @@ describe("sync engine wiring", () => {
     expect(engine).toContain('from "@/lib/academic-term"');
   });
 });
+
+describe("class totals", () => {
+  const section = fs.readFileSync(
+    path.join(ROOT, "src/components/settings/ClassesSection.tsx"),
+    "utf8"
+  );
+
+  it("counts syllabus courses on both sides of the N/M summary", () => {
+    // totalSelected has always included them; the denominator did not, so the
+    // summary could claim more selected than available.
+    expect(section).toContain(
+      "cachedTotals.canvas + cachedTotals.gradescope + cachedTotals.pensieve + syllabusCourses.length"
+    );
+    expect(section).toContain(
+      "canvasSelected.length + gsSelected.length + pensieveSelected.length + syllabusCourses.length"
+    );
+  });
+});

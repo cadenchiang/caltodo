@@ -51,43 +51,12 @@ const ToastContext = createContext<ToastContextValue | null>(null);
 
 const DEFAULT_DURATION = 6000;
 const DISMISS_ANIMATION_MS = 300;
-/**
- * Maximum number of toasts visible at once. When the stack is full the oldest
- * toast without an action is evicted; a toast that carries an action (for
- * example "Task deleted / Undo") is never evicted, so the undo stays reachable.
- */
-export const MAX_TOASTS = 3;
-
-/**
- * Trims a toast stack to MAX_TOASTS by dropping the oldest toasts that carry
- * no action. Action toasts are kept even if that leaves the stack over the
- * limit, because losing "Undo" is worse than one extra toast.
- *
- * @param toasts - Stack in display order, oldest first
- * @param onEvict - Called with each evicted toast so its timer can be cleared
- * @returns The trimmed stack
- */
-export function trimToastStack<T extends { action?: unknown }>(
-  toasts: T[],
-  onEvict: (toast: T) => void
-): T[] {
-  const next = [...toasts];
-  let excess = next.length - MAX_TOASTS;
-  for (let i = 0; i < next.length && excess > 0; ) {
-    if (!next[i].action) {
-      onEvict(next[i]);
-      next.splice(i, 1);
-      excess -= 1;
-    } else {
-      i += 1;
-    }
-  }
-  return next;
-}
+/** Maximum number of toasts visible at once. Only one toast renders; new toasts replace the current one. */
+const MAX_TOASTS = 1;
 
 /**
  * Provides toast notification state and rendering to the component tree.
- * Up to MAX_TOASTS stack at once; toasts with an action are never evicted.
+ * Only one toast is visible at a time; a new toast replaces any existing one immediately.
  *
  * @param children - Child components that can call useToast()
  */
@@ -146,8 +115,13 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           }
           return true;
         });
-        // Evict the oldest action-less toasts beyond the limit
-        return trimToastStack([...filtered, newToast], (evicted) => clearTimer(evicted.id));
+        const next = [...filtered, newToast];
+        // Dismiss oldest toasts exceeding the limit
+        while (next.length > MAX_TOASTS) {
+          const oldest = next.shift();
+          if (oldest) clearTimer(oldest.id);
+        }
+        return next;
       });
 
       if (!hasProgress) {
@@ -188,7 +162,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={value}>
       {children}
-      <div className="fixed bottom-36 md:bottom-6 left-0 right-0 z-toast flex justify-center pointer-events-none px-4">
+      <div className="fixed bottom-36 md:bottom-6 left-0 right-0 z-[200] flex justify-center pointer-events-none px-4">
         <div className="relative grid [&>*]:col-start-1 [&>*]:row-start-1 items-end">
           {toasts.map((toast, i) => {
             const depth = toasts.length - 1 - i;

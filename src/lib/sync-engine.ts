@@ -245,13 +245,13 @@ export async function runSync(
     classroomErrors: classroomResult.errors.length,
   });
 
-  // Auto-enroll user into discussion boards for their synced courses.
-  // Uses (source, external_id) as dedup key so name changes don't split boards.
+  // Auto-enroll user into course memberships for their synced courses.
+  // Uses (source, external_id) as dedup key so name changes don't split courses.
   if (budget.exhausted()) {
     logger.warn("runSync: skipping course enrollment, sync budget exhausted", {
       userId,
       elapsedMs: budget.elapsedMs(),
-      impact: "chat memberships not refreshed this run; the next sync retries",
+      impact: "course memberships not refreshed this run; the next sync retries",
     });
   } else try {
     const adminClient = createAdminClient();

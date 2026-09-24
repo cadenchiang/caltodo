@@ -21,9 +21,9 @@ const section = read("src/components/settings/sections/AdvancedSection.tsx");
 describe("useDismissedModals.KEY_MAP", () => {
   it("is exported with every modal's localStorage key", () => {
     expect(Object.keys(KEY_MAP).sort()).toEqual(
-      ["calchat_announcement", "calchat_welcome", "gcal_announce", "pensieve_announced", "sync_welcome"],
+      ["gcal_announce", "pensieve_announced", "sync_welcome"],
     );
-    expect(Object.values(KEY_MAP)).toContain("calchat_welcome_accepted");
+    expect(Object.values(KEY_MAP)).toContain("caltodo_gcal_announce_seen");
   });
 });
 
@@ -41,7 +41,7 @@ describe("Reset Onboarding", () => {
   it("clears every dismissed-modal key rather than one hardcoded key", () => {
     expect(handler).toContain("for (const lsKey of Object.values(DISMISSED_MODAL_KEYS))");
     expect(handler).toContain("localStorage.removeItem(lsKey)");
-    expect(handler).not.toContain('localStorage.removeItem("calchat_welcome_accepted")');
+    expect(handler).not.toMatch(/localStorage\.removeItem\("[a-z_]+"\)/);
   });
 
   it("dispatches the reset event, invalidates credentials, and clears progress", () => {
@@ -57,7 +57,7 @@ describe("Reset Onboarding", () => {
   });
 
   it("reports failure through a toast with the cause", () => {
-    expect(handler).toContain('showToast(`Failed to reset onboarding: ${message}`, { variant: "error" })');
+    expect(handler).toContain("showToast(`Failed to reset onboarding: ${message}`)");
     expect(handler).toContain('console.error("AdvancedSection: reset onboarding failed"');
   });
 });
@@ -66,7 +66,7 @@ describe("Delete All Tasks", () => {
   it("no longer toasts success unconditionally", () => {
     const handler = section.slice(
       section.indexOf("async function handleDeleteAll()"),
-      section.indexOf("// deleteAllTasks reports failure through the context"),
+      section.indexOf("async function handleLogOut()"),
     );
     expect(handler).not.toMatch(/await deleteAllTasks\(\);\s*showToast\("All tasks deleted\."\)/);
     expect(handler).toContain("errorBeforeDeleteRef.current = taskError;");
@@ -76,7 +76,7 @@ describe("Delete All Tasks", () => {
   it("reads the outcome from the context after the delete settles", () => {
     expect(section).toContain("const { tasks, deleteAllTasks, error: taskError } = useTaskContext();");
     expect(section).toContain("const failed = tasks.length > 0 || (taskError !== null && taskError !== errorBeforeDeleteRef.current);");
-    expect(section).toContain('showToast(taskError ? `Failed to delete tasks: ${taskError}` : "Failed to delete tasks.", {');
+    expect(section).toContain('showToast(taskError ? `Failed to delete tasks: ${taskError}` : "Failed to delete tasks.")');
     expect(section).toContain('showToast("All tasks deleted.")');
   });
 });

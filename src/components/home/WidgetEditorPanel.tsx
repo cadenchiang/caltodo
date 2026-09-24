@@ -14,7 +14,6 @@ import {
 import type { LucideIcon } from "lucide-react";
 import type { WidgetInstance } from "@/lib/widget-types";
 import type { GCalCalendarEntry } from "@/lib/types";
-import { useDiscussionBoards } from "@/hooks/useDiscussionBoards";
 import FontPicker from "@/components/ui/FontPicker";
 import SegmentedControl from "@/components/ui/SegmentedControl";
 import ColorPickerPopover from "@/components/ui/ColorPickerPopover";
@@ -135,7 +134,6 @@ export default function WidgetEditorPanel({
   onApplyFontToAll, onApplyBgResetToAll, onApplyTextColorToAll, onApplyBorderToAll, onApplyAccentToAll,
   savedImages, onAddSavedImage,
 }: Props) {
-  const { boards } = useDiscussionBoards();
   const { colorTheme } = useTheme();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -407,7 +405,7 @@ export default function WidgetEditorPanel({
         <button
           onClick={handleDone}
           style={{ height: 30 }}
-          className="px-4 text-sm font-semibold rounded-xl bg-blue-500 text-white hover:bg-blue-500/90 shadow-sm dark:shadow-none active:scale-[0.97] transition-all"
+          className="px-4 text-sm font-semibold rounded-xl bg-blue-500 text-white hover:bg-blue-500/90 shadow-sm active:scale-[0.97] transition-all"
         >
           Done
         </button>

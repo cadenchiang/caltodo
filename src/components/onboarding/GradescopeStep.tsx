@@ -1,16 +1,51 @@
 "use client";
 
-import { useState, useEffect, useRef, type FormEvent } from "react";
-import { ShieldCheck } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Eye, EyeOff, Loader2, Merge, ShieldCheck, ChevronDown } from "lucide-react";
 import { extractCourseCode } from "@/lib/course-name-merge";
 import { useToast } from "@/contexts/ToastContext";
-import Button from "@/components/ui/Button";
-import TextField from "@/components/ui/TextField";
-import CoursePicker from "@/components/onboarding/CoursePicker";
-import GradescopeAuthHelp from "@/components/onboarding/GradescopeAuthHelp";
-import GradescopeMergeDialog from "@/components/onboarding/GradescopeMergeDialog";
-import SecretField from "@/components/onboarding/SecretField";
-import { StepHeading } from "@/components/onboarding/StepChrome";
+
+/**
+ * Collapsible help text for SSO/password issues.
+ * Blue clickable link that expands to show explanation and reset link.
+ */
+function AuthHelpDropdown() {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="mt-3 animate-drop-in">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="text-sm font-medium text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 transition-colors flex items-center gap-1 mx-auto"
+      >
+        don&apos;t see your classes?
+        <ChevronDown
+          size={14}
+          className={`transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+      {open && (
+        <div className="mt-3 text-center animate-drop-in">
+          <p className="text-xs text-muted-foreground leading-relaxed mb-3">
+            if you normally sign in to Gradescope with Google or your school&apos;s SSO, your password
+            won&apos;t work here. you need a Gradescope-specific password.
+          </p>
+          <a
+            href="https://www.gradescope.com/reset_password"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center px-4 py-2 rounded-xl text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 hover:bg-blue-100 dark:hover:bg-blue-500/20 transition-colors"
+          >
+            reset Gradescope password
+          </a>
+          <p className="text-[11px] text-muted-foreground/60 mt-2">
+            then come back and try again with the new password.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface GradescopeCourse {
   id: string;
@@ -39,83 +74,75 @@ interface GradescopeStepProps {
   existingCanvasCourses?: Array<{ id: number; name: string }>;
 }
 
-/** Minimum gap between verification attempts. */
-const VERIFY_COOLDOWN_MS = 2000;
-
 /**
- * Finds Gradescope classes whose course code matches a selected Canvas class.
+ * Gradescope onboarding step with theme-aware styling.
+ * Flow: enter email/password -> verify -> select courses -> save.
  *
- * @param fetched - Classes returned by Gradescope
- * @param canvas - Canvas classes the user already selected
- * @returns The overlapping Gradescope classes, in Gradescope order
+ * @param onNext - Async callback to save credentials; returns true on success
+ * @param onSkip - Callback to skip this step
+ * @param saving - Whether a save operation is in progress
+ * @param error - Current error message to display
+ * @param setError - Callback to set/clear error messages
  */
-export function findOverlappingCourses(
-  fetched: GradescopeCourse[],
-  canvas: Array<{ name: string }> | undefined
-): GradescopeCourse[] {
-  if (!canvas || canvas.length === 0) return [];
-  const codes = new Set(canvas.map((c) => extractCourseCode(c.name)).filter(Boolean) as string[]);
-  return fetched.filter((gc) => {
-    const code = extractCourseCode(gc.name);
-    return Boolean(code && codes.has(code));
-  });
-}
-
-/**
- * Gradescope onboarding step: email and password, verify, pick classes, save.
- *
- * @param onNext - Saves credentials; resolves true on success
- * @param saving - Whether the parent is saving
- * @param setError - Clears or sets the flow-level error
- * @param initialEmail - Draft or stored email; adopted while the field is empty
- * @param existingCanvasCourses - Used to offer merging matching classes
- */
-export default function GradescopeStep({ onNext, saving, setError, initialEmail, initialPassword, initialCourses, initialSelectedIds, onDraftChange, existingCanvasCourses }: GradescopeStepProps) {
+export default function GradescopeStep({ onNext, onSkip, saving, error, setError, initialEmail, initialPassword, initialCourses, initialSelectedIds, onDraftChange, existingCanvasCourses }: GradescopeStepProps) {
   const { showToast } = useToast();
   const [email, setEmail] = useState(initialEmail ?? "");
   const [password, setPassword] = useState(initialPassword ?? "");
+  const [showPassword, setShowPassword] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [courses, setCourses] = useState<GradescopeCourse[] | null>(initialCourses ?? null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set(initialSelectedIds ?? []));
   const [showMergeModal, setShowMergeModal] = useState(false);
-  /** Whether the last verification attempt returned 401 (wrong password or SSO user). */
+  /** Whether the last verification attempt returned 401 (wrong password / SSO user). */
   const [authFailed, setAuthFailed] = useState(false);
+  /** Gradescope courses that overlap with already-selected Canvas courses. */
   const [overlappingCourses, setOverlappingCourses] = useState<GradescopeCourse[]>([]);
+  /** Tracks the timestamp of the last verification attempt for rate limiting. */
   const lastVerifyRef = useRef<number>(0);
 
   // In standalone retry mode the saved email arrives from a fetch after this
   // step has mounted, so the useState initializer above never saw it. Adopt
-  // it when it changes, but only while the field is still empty so a value
-  // the user has started typing is never overwritten.
+  // it when it changes (React's adjust-state-on-prop-change pattern, during
+  // render), but only while the field is still empty so a value the user
+  // has started typing is never overwritten.
   const [seenInitialEmail, setSeenInitialEmail] = useState(initialEmail);
   if (initialEmail !== seenInitialEmail) {
     setSeenInitialEmail(initialEmail);
     if (initialEmail && email === "") setEmail(initialEmail);
   }
 
+  /** Ref tracking latest state for unmount draft reporting. */
   const draftRef = useRef({ email, password, courses, selectedIds: Array.from(selectedIds) });
   useEffect(() => {
     draftRef.current = { email, password, courses, selectedIds: Array.from(selectedIds) };
   });
+  /** Reports draft state to parent on unmount so it persists across step navigation. */
   useEffect(() => {
     return () => { onDraftChange?.(draftRef.current); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /** Verifies credentials by fetching classes; shows the picker on success. */
-  async function handleVerify(e: FormEvent) {
-    e.preventDefault();
+  /**
+   * Verifies credentials by fetching courses from Gradescope.
+   * On success, shows course list with all courses pre-checked.
+   */
+  async function handleVerify() {
     if (!email.trim() || !password.trim()) {
       showToast("Please enter both your email and password.", { variant: "error", duration: 4000 });
       return;
     }
+
+    // Client-side rate limit: 2-second cooldown between attempts
     const now = Date.now();
-    if (now - lastVerifyRef.current < VERIFY_COOLDOWN_MS) return;
+    if (now - lastVerifyRef.current < 2000) {
+      return;
+    }
     lastVerifyRef.current = now;
 
     setVerifying(true);
     setError(null);
     setAuthFailed(false);
+
     try {
       const res = await fetch("/api/gradescope/courses", {
         method: "POST",
@@ -125,69 +152,109 @@ export default function GradescopeStep({ onNext, saving, setError, initialEmail,
       if (!res.ok) {
         if (res.status === 401) {
           setAuthFailed(true);
-          // The help text below explains the SSO case; the toast is the
+          // The help dropdown below explains the SSO case; the toast is the
           // immediate signal that the attempt was rejected.
           showToast("Gradescope rejected that email or password.", { variant: "error", duration: 4000 });
           return;
         }
-        if (res.status >= 500 && res.status < 600) throw new Error("Server error. Please try again later.");
+        if (res.status >= 500 && res.status < 600) {
+          throw new Error("Server error. Please try again later.");
+        }
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error || `Verification failed: ${res.status}`);
       }
       const data = await res.json();
-      const fetched: GradescopeCourse[] = data.courses;
-      setCourses(fetched);
+      const fetchedCourses: GradescopeCourse[] = data.courses;
+      setCourses(fetchedCourses);
       setSelectedIds(new Set());
-      const overlaps = findOverlappingCourses(fetched, existingCanvasCourses);
-      if (overlaps.length > 0) {
-        setOverlappingCourses(overlaps);
-        setShowMergeModal(true);
+
+      // Detect overlapping courses with already-selected Canvas courses
+      if (existingCanvasCourses && existingCanvasCourses.length > 0) {
+        const canvasCodes = new Set(
+          existingCanvasCourses
+            .map((c) => extractCourseCode(c.name))
+            .filter(Boolean) as string[]
+        );
+        const overlaps = fetchedCourses.filter((gc) => {
+          const code = extractCourseCode(gc.name);
+          return code && canvasCodes.has(code);
+        });
+        if (overlaps.length > 0) {
+          setOverlappingCourses(overlaps);
+          setShowMergeModal(true);
+        }
       }
     } catch (err) {
-      if (err instanceof TypeError) showToast("Network error. Check your connection.", { variant: "error", duration: 4000 });
-      else showToast(err instanceof Error ? err.message : String(err), { variant: "error", duration: 4000 });
+      if (err instanceof TypeError) {
+        showToast("Network error. Check your connection.", { variant: "error", duration: 4000 });
+      } else {
+        showToast(err instanceof Error ? err.message : String(err), { variant: "error", duration: 4000 });
+      }
     } finally {
       setVerifying(false);
     }
   }
 
-  /** Saves credentials and the picked classes. */
-  async function handleSaveAndNext(e: FormEvent) {
-    e.preventDefault();
-    if (!courses) return;
-    const selected = courses.filter((c) => selectedIds.has(c.id)).map((c) => ({ id: c.id, name: c.name }));
-    await onNext({ gradescope_email: email.trim(), gradescope_password: password.trim(), selected_gradescope_courses: selected });
-  }
-
+  /**
+   * Toggles a course's selected state.
+   */
   function toggleCourse(id: string) {
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
       return next;
     });
   }
 
-  const canVerify = Boolean(email.trim() && password.trim());
+  /**
+   * Saves credentials and selected courses, then advances to next step.
+   */
+  async function handleSaveAndNext() {
+    if (!courses) return;
+    const selected = courses
+      .filter((c) => selectedIds.has(c.id))
+      .map((c) => ({ id: c.id, name: c.name }));
+
+    const ok = await onNext({
+      gradescope_email: email.trim(),
+      gradescope_password: password.trim(),
+      selected_gradescope_courses: selected,
+    });
+    if (!ok) return;
+  }
 
   return (
-    <div>
-      <StepHeading provider="gradescope" />
+    <div className="text-center">
+      <div className="flex items-center justify-center gap-2 mb-2">
+        <svg width="22" height="22" viewBox="0 0 14 14" fill="none" className="shrink-0">
+          <rect width="14" height="14" rx="3" fill="#3AADA8" />
+          <rect x="1.5" y="8.5" width="2" height="3.5" rx="0.5" fill="white" />
+          <rect x="4.5" y="6.5" width="2" height="5.5" rx="0.5" fill="white" />
+          <rect x="7.5" y="4.5" width="2" height="7.5" rx="0.5" fill="white" />
+          <rect x="10.5" y="2.5" width="2" height="9.5" rx="0.5" fill="white" />
+        </svg>
+        <h2 className="text-lg font-bold text-foreground animate-drop-in">Gradescope</h2>
+      </div>
 
+      {/* Login inputs (no courses loaded yet) */}
       {!courses && (
-        <form onSubmit={handleVerify} noValidate className="text-left">
-          <p className="text-xs text-muted-foreground mb-4 flex items-center gap-1.5">
-            <ShieldCheck size={13} className="shrink-0" aria-hidden="true" />
-            <span>Encrypted with AES-256. Only you can see it.</span>
+        <>
+          <p className="text-xs text-muted-foreground mb-4 animate-drop-in delay-100 flex items-center justify-center gap-1.5">
+            <ShieldCheck size={13} className="shrink-0" />
+            <span>AES-256 encrypted — only you can see it.</span>
           </p>
-          <div className="flex flex-col gap-3 mb-5">
-            <TextField
-              label="School email"
+
+          <div className="flex flex-col gap-3 mb-5 animate-drop-in delay-200">
+            <input
               type="text"
               inputMode="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@school.edu"
+              placeholder="school email"
               autoComplete="new-password"
               autoCorrect="off"
               autoCapitalize="off"
@@ -196,54 +263,163 @@ export default function GradescopeStep({ onNext, saving, setError, initialEmail,
               data-lpignore="true"
               data-1p-ignore
               name="gs-email-nofill"
+              className="w-full px-3 py-2.5 rounded-xl border border-foreground/20 bg-card text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-foreground/50 transition-colors"
             />
-            <SecretField
-              label="Gradescope password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Password"
-              autoComplete="new-password"
-              data-form-type="other"
-              data-lpignore="true"
-              data-1p-ignore
-              name="gs-pass-nofill"
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="password"
+                autoComplete="new-password"
+                data-form-type="other"
+                data-lpignore="true"
+                data-1p-ignore
+                name="gs-pass-nofill"
+                className="w-full px-3 py-2.5 pr-10 rounded-xl border border-foreground/20 bg-card text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-foreground/50 transition-colors"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
+            </div>
           </div>
-          <Button type="submit" variant="inverted" size="lg" className="w-full" loading={verifying} disabled={saving || !canVerify}>
-            {verifying ? "Verifying..." : "Connect"}
-          </Button>
-          {authFailed && <GradescopeAuthHelp />}
-        </form>
+
+          <div className="animate-drop-in delay-300">
+            <button
+              onClick={handleVerify}
+              disabled={verifying || saving || !email.trim() || !password.trim()}
+              className={`w-full px-5 py-2.5 rounded-full text-sm font-semibold border border-transparent flex items-center justify-center gap-2 transition-colors ${
+                !email.trim() || !password.trim()
+                  ? "bg-[#D1D1D6] dark:bg-[#3A3A3C] text-white/70 dark:text-white/40 cursor-not-allowed"
+                  : "bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 disabled:opacity-50"
+              }`}
+            >
+              {verifying && <Loader2 size={14} className="animate-spin" />}
+              {verifying ? "Verifying..." : "Connect"}
+            </button>
+          </div>
+
+          {authFailed && (
+            <AuthHelpDropdown />
+          )}
+        </>
       )}
 
+      {/* Course selection (after verification) */}
       {courses && (
-        <form onSubmit={handleSaveAndNext} noValidate>
-          <CoursePicker
-            courses={courses}
-            selectedIds={selectedIds}
-            onToggle={toggleCourse}
-            onSetSelection={(ids) => setSelectedIds(new Set(ids))}
-            emptyState={<div className="px-3 py-4"><GradescopeAuthHelp /></div>}
-          />
-          <Button type="submit" variant="inverted" size="lg" className="w-full" loading={saving}>
-            {saving ? "Saving..." : selectedIds.size > 0 ? "Save and continue" : "Continue"}
-          </Button>
-        </form>
-      )}
+        <>
+          <div className="mb-4">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-semibold text-foreground">
+                Select Courses to Sync ({selectedIds.size}/{courses.length})
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  if (selectedIds.size === courses.length) {
+                    setSelectedIds(new Set());
+                  } else {
+                    setSelectedIds(new Set(courses.map((c) => c.id)));
+                  }
+                }}
+                className="text-xs font-medium text-[#0e89d6] hover:text-[#3D8FE8] transition-colors"
+              >
+                {selectedIds.size === courses.length ? "Deselect All" : "Select All"}
+              </button>
+            </div>
+            <div className="flex flex-col gap-2 max-h-80 overflow-auto -mx-1 px-1 py-1">
+              {courses.map((course) => {
+                const selected = selectedIds.has(course.id);
+                return (
+                  <button
+                    key={course.id}
+                    type="button"
+                    onClick={() => toggleCourse(course.id)}
+                    className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl bg-white dark:bg-[#2a2a2c] text-foreground border-2 transition-colors duration-150 focus:outline-none ${
+                      selected ? "border-[#0e89d6]" : "border-transparent hover:border-[#0e89d6]/30"
+                    }`}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm font-semibold text-foreground block truncate">{course.name}</span>
+                    </div>
+                    <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-colors ${
+                      selected ? "bg-[#0e89d6]" : "border border-muted-foreground/30"
+                    }`}>
+                      {selected && (
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-white">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+              {courses.length === 0 && (
+                <div className="px-3 py-4">
+                  <AuthHelpDropdown />
+                </div>
+              )}
+            </div>
+          </div>
 
-      <GradescopeMergeDialog
-        open={showMergeModal && overlappingCourses.length > 0}
-        overlapping={overlappingCourses}
-        onDecline={() => setShowMergeModal(false)}
-        onMerge={() => {
-          setSelectedIds((prev) => {
-            const next = new Set(prev);
-            overlappingCourses.forEach((c) => next.add(c.id));
-            return next;
-          });
-          setShowMergeModal(false);
-        }}
-      />
+          <button
+            onClick={handleSaveAndNext}
+            disabled={saving}
+            className="w-full px-5 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-full text-sm font-semibold disabled:opacity-50 btn-elevated-primary"
+          >
+            {saving ? "Saving..." : selectedIds.size > 0 ? "Save & Next" : "Next"}
+          </button>
+        </>
+      )}
+      {/* Merge confirmation modal */}
+      {showMergeModal && overlappingCourses.length > 0 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-card rounded-2xl shadow-2xl border border-border p-5 max-w-sm w-full mx-4 animate-drop-in">
+            <div className="flex items-center gap-2 mb-3">
+              <Merge size={18} className="text-teal-500" />
+              <h3 className="text-sm font-bold text-foreground">Merge with bCourses?</h3>
+            </div>
+            <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
+              These Gradescope courses match classes you already have from bCourses. Would you like to sync them together?
+            </p>
+            <div className="rounded-xl border border-border mb-4 max-h-40 overflow-auto">
+              {overlappingCourses.map((gc) => (
+                <div key={gc.id} className="flex items-center gap-2 px-3 py-2 border-b border-border last:border-0">
+                  <span className="text-sm text-foreground truncate">{gc.name}</span>
+                  <span className="text-[9px] font-medium px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-600 dark:bg-emerald-600/40 dark:text-emerald-400 shrink-0">Gradescope</span>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setShowMergeModal(false)}
+                className="flex-1 px-3 py-2 text-sm text-muted-foreground rounded-xl bg-card border border-border hover:bg-accent transition-colors"
+              >
+                No thanks
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedIds((prev) => {
+                    const next = new Set(prev);
+                    overlappingCourses.forEach((c) => next.add(c.id));
+                    return next;
+                  });
+                  setShowMergeModal(false);
+                }}
+                className="flex-1 px-3 py-2 text-sm font-semibold rounded-xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 btn-elevated-primary"
+              >
+                Merge & select
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

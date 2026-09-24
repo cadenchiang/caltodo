@@ -40,7 +40,7 @@ export async function POST() {
       {
         title: "caltodo",
         body: "Test notification.",
-        url: "/app/inbox",
+        url: "/app/today",
         tag: "test",
       }
     );

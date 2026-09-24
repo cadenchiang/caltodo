@@ -49,11 +49,11 @@ export default function Toast({
     <div
       role="status"
       aria-live="polite"
-      className={`pointer-events-auto relative flex items-center gap-3 rounded-3xl px-5 py-3 text-sm text-white shadow-lg backdrop-blur-md ${bgClass} overflow-hidden max-w-[calc(100vw-2rem)] ${
+      className={`pointer-events-auto relative flex items-center gap-3 rounded-full px-5 py-3 text-sm text-white shadow-lg backdrop-blur-md ${bgClass} overflow-hidden max-w-[calc(100vw-2rem)] ${
         dismissing ? "animate-toast-out" : "animate-toast-in"
       }`}
     >
-      <span className="line-clamp-3 min-w-0">{message}</span>
+      <span className="truncate min-w-0">{message}</span>
 
       {action && (
         <button

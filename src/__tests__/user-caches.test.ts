@@ -42,14 +42,13 @@ beforeEach(() => {
     caltodo_user_profile: "{}",
     caltodo_friends_cache: "[]",
     gcal_status: "{}",
-    "calchat_read_at_course-1": "1",
     "gcal-widget-cache:primary": "{}",
     // Device preferences, not user data: must survive.
     theme: "dark",
     "inbox-view-mode": "board",
     caltodo_sync_dismissed: "true",
   });
-  session = fakeStorage({ "chat_messages_cache_course-1": "[]", other: "x" });
+  session = fakeStorage({ other: "x" });
   vi.stubGlobal("window", { localStorage: local, sessionStorage: session });
   vi.spyOn(console, "info").mockImplementation(() => {});
   vi.spyOn(console, "error").mockImplementation(() => {});
@@ -70,11 +69,9 @@ describe("clearUserCaches", () => {
     expect(local.getItem("gcal_status")).toBeNull();
   });
 
-  it("drops prefixed per-course and per-widget keys", () => {
+  it("drops prefixed per-widget keys", () => {
     clearUserCaches();
-    expect(local.getItem("calchat_read_at_course-1")).toBeNull();
     expect(local.getItem("gcal-widget-cache:primary")).toBeNull();
-    expect(session.getItem("chat_messages_cache_course-1")).toBeNull();
   });
 
   it("leaves device preferences and unrelated keys alone", () => {
@@ -95,7 +92,7 @@ describe("clearUserCaches", () => {
     clearUserCaches();
     expect(console.info).toHaveBeenCalledWith(
       "[user-caches] cleared on sign-out",
-      { local: 7, session: 1 },
+      { local: 6, session: 0 },
     );
   });
 
@@ -125,34 +122,20 @@ describe("the keys match what the app actually writes", () => {
     ["caltodo_tasks_cache", "src/contexts/TaskContext.tsx"],
     ["caltodo_last_auto_sync_at", "src/contexts/TaskContext.tsx"],
     ["caltodo_user_profile", "src/components/layout/Sidebar.tsx"],
-    ["caltodo_friends_cache", "src/components/profile/profile-utils.ts"],
-    ["caltodo_suggestions_cache", "src/components/profile/profile-utils.ts"],
+    ["caltodo_friends_cache", "src/components/settings/sections/ProfileSection.tsx"],
+    ["caltodo_suggestions_cache", "src/components/settings/sections/ProfileSection.tsx"],
     ["caltodo_credentials_cache", "src/components/settings/IntegrationSettings.tsx"],
+    ["caltodo_calendar_token_cache", "src/components/settings/CalendarFeedSettings.tsx"],
+    ["caltodo_course_totals", "src/components/settings/ClassesSection.tsx"],
+    ["caltodo_sync_course_selections", "src/app/app/inbox/page.tsx"],
     ["caltodo_hidden_nav_items", "src/hooks/useHiddenNavItems.ts"],
     ["gcal_status", "src/components/calendar/CalendarHeader.tsx"],
-    ["discussion_boards_cache_v4", "src/lib/calchat-cache.ts"],
-    ["calchat_last_course", "src/lib/chat-actions.ts"],
   ])("%s is written by %s", (key, file) => {
     expect(USER_CACHE_KEYS).toContain(key);
     expect(read(file)).toContain(`"${key}"`);
   });
 
   it.each([
-    // Their writers (CalendarFeedSettings, ClassesSection) were dead code and
-    // are deleted; the keys stay listed so old browsers are still cleaned.
-    ["caltodo_calendar_token_cache"],
-    ["caltodo_course_totals"],
-  ])("%s is a legacy key that is still cleared", (key) => {
-    expect(USER_CACHE_KEYS).toContain(key);
-  });
-
-  it.each([
-    ["calchat_read_at_", "src/lib/chat-actions.ts"],
-    ["calchat_muted_", "src/lib/chat-actions.ts"],
-    ["calchat_pinned_", "src/lib/chat-actions.ts"],
-    ["calchat_name_", "src/lib/chat-actions.ts"],
-    ["calchat_last_sent_", "src/lib/chat-actions.ts"],
-    ["calchat_hidden_system_", "src/lib/chat-hide.ts"],
     ["gcal-widget-cache:", "src/components/home/widgets/GoogleCalendarWidget.tsx"],
   ])("prefix %s is written by %s", (prefix, file) => {
     expect(USER_CACHE_KEY_PREFIXES).toContain(prefix);

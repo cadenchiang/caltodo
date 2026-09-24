@@ -1,6 +1,6 @@
 "use client";
 
-import ProfileSection from "@/components/profile/ProfileSection";
+import ProfileSection from "@/components/settings/sections/ProfileSection";
 import PageTransition from "@/components/ui/PageTransition";
 
 /**

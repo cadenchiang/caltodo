@@ -41,7 +41,7 @@ export interface PushPayload {
   title: string;
   /** Notification body text. */
   body: string;
-  /** Optional URL the SW navigates to on click; defaults to /app/inbox. */
+  /** Optional URL the SW navigates to on click; defaults to /app/today. */
   url?: string;
   /** Optional tag — same tag replaces prior notification (no stacking). */
   tag?: string;

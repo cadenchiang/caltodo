@@ -4,10 +4,10 @@
  * Keeps desktop-only routes off mobile.
  *
  * Home (the drag-and-drop widget board) is built for a pointer and a wide
- * canvas and is not in the mobile tab bar. Without a guard it was still
+ * canvas; it is not in the mobile tab bar. Without a guard it was still
  * reachable on a phone via history, a bookmark, a shared link, or the
- * post-login landing path, landing the user on a surface with no way back
- * except the browser's back button. Chat ships on mobile and is not guarded.
+ * post-login landing path — landing the user on a surface with no way back
+ * except the browser's back button.
  *
  * Redirects to Inbox, which is the mobile home. Desktop is untouched: the
  * check is a matchMedia query on the same 768px breakpoint Tailwind's `md`

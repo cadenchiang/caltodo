@@ -57,7 +57,7 @@ export default function CalendarGCalItem({ event, calendarColor }: CalendarGCalI
           e.stopPropagation();
           setPopoverAnchor(e.currentTarget.getBoundingClientRect());
         }}
-        className={`w-full text-left flex items-center gap-1 px-1 py-0 rounded hover:bg-muted hover:brightness-110 hover:-translate-y-px transition-all overflow-hidden cursor-pointer h-[16px] ${isDeclined ? "opacity-40" : ""}`}
+        className={`w-full text-left flex items-center gap-1 px-1 py-0 rounded hover:bg-gray-100 dark:hover:bg-white/10 hover:brightness-110 hover:-translate-y-px transition-all overflow-hidden cursor-pointer h-[16px] ${isDeclined ? "opacity-40" : ""}`}
         title={event.summary}
         aria-label={`${event.summary}${!event.allDay ? `, ${timeStr}` : ""}${event.location ? `, ${event.location}` : ""}`}
       >

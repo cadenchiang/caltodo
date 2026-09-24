@@ -1,24 +1,40 @@
 "use client";
 
 /**
- * Self-contained calendar body: header, the month/week/day views
- * (CalendarViews), and the task dialogs. No outer chrome; the /app/calendar
- * route wraps it.
+ * Self-contained calendar body — month / week / day grids, modals, and
+ * navigation controls. No outer chrome (logo / page title / tabs); the
+ * caller wraps this with whatever surface it wants. Used by both the
+ * inbox page (when viewMode === "calendar") and the legacy
+ * /app/calendar route so the two paths share the same code.
  */
 
-import { useState, useMemo, useEffect } from "react";
-import { addMonths, subMonths, addWeeks, subWeeks, addDays, subDays, format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, parseISO } from "date-fns";
-import { AlertCircle } from "lucide-react";
+import { useState, useMemo, useEffect, useRef } from "react";
+import {
+  addMonths,
+  subMonths,
+  addWeeks,
+  subWeeks,
+  addDays,
+  subDays,
+  format,
+  startOfMonth,
+  endOfMonth,
+  startOfWeek,
+  endOfWeek,
+  parseISO,
+} from "date-fns";
 import { useWeekStart } from "@/hooks/useWeekStart";
 import { useTaskContext } from "@/contexts/TaskContext";
-import { useUndo } from "@/contexts/UndoContext";
-import EmptyState from "@/components/ui/EmptyState";
-import Button from "@/components/ui/Button";
+import { useToast } from "@/contexts/ToastContext";
 import { expandRepeatingTasks, getRealTaskId } from "@/lib/expand-repeating-tasks";
 import { useGCalEvents } from "@/hooks/useGCalEvents";
 import { useCalendarModals } from "@/hooks/useCalendarModals";
 import CalendarHeader, { type CalendarViewMode, type CalendarMode } from "@/components/calendar/CalendarHeader";
-import CalendarViews from "@/components/calendar/CalendarViews";
+import CalendarGrid from "@/components/calendar/CalendarGrid";
+import CalendarWeekView from "@/components/calendar/CalendarWeekView";
+import CalendarDayView from "@/components/calendar/CalendarDayView";
+import AssignmentsWeekView from "@/components/calendar/AssignmentsWeekView";
+import AssignmentsDayView from "@/components/calendar/AssignmentsDayView";
 import TaskCreateModal from "@/components/tasks/TaskCreateModal";
 import GCalEventCreateModal from "@/components/calendar/GCalEventCreateModal";
 import CreateTypeToggle from "@/components/calendar/CreateTypeToggle";
@@ -26,37 +42,125 @@ import TaskPreviewPopover from "@/components/tasks/TaskPreviewPopover";
 import DayOverflowPopover from "@/components/calendar/DayOverflowPopover";
 import { usePendingInvites } from "@/hooks/usePendingInvites";
 import { getEventDateKey } from "@/lib/gcal/event-utils";
+import { Check } from "lucide-react";
 
 const VIEW_MODE_KEY = "cal-view-mode";
 const CAL_MODE_KEY = "cal-mode";
 
 /**
- * Reads the saved calendar view before the first render so the skeleton and
- * the first paint already show the user's view (no month-then-week flip).
- *
- * @returns The saved view, or "month"
+ * Mini Google Calendar logo (24x24 multi-color svg). Inline so the
+ * Synced pill renders without pulling the full CalendarHeader.
  */
-function readSavedViewMode(): CalendarViewMode {
-  if (typeof window === "undefined") return "month";
-  try {
-    const saved = localStorage.getItem(VIEW_MODE_KEY);
-    if (saved === "month" || saved === "week" || saved === "day") return saved;
-  } catch { /* localStorage unavailable */ }
-  return "month";
+function GCalLogo({ size = 12 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 122.88 122.88" className="shrink-0">
+      <polygon points="93.78,29.1 29.1,29.1 29.1,93.78 93.78,93.78" fill="#fff" />
+      <polygon points="93.78,122.88 122.88,93.78 93.78,93.78" fill="#EA4335" />
+      <polygon points="122.88,29.1 93.78,29.1 93.78,93.78 122.88,93.78" fill="#FBBC04" />
+      <polygon points="93.78,93.78 29.1,93.78 29.1,122.88 93.78,122.88" fill="#34A853" />
+      <path d="M0,93.78v19.4c0,5.36,4.34,9.7,9.7,9.7h19.4v-29.1H0z" fill="#188038" />
+      <path d="M122.88,29.1V9.7c0-5.36-4.34-9.7-9.7-9.7h-19.4v29.1H122.88z" fill="#1967D2" />
+      <path d="M93.78,0H9.7C4.34,0,0,4.34,0,9.7v84.08h29.1V29.1h64.67V0z" fill="#4285F4" />
+    </svg>
+  );
 }
 
 export default function CalendarPanel() {
   const weekStart = useWeekStart();
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [viewMode, setViewMode] = useState<CalendarViewMode>(readSavedViewMode);
+  const [viewMode, setViewMode] = useState<CalendarViewMode>("month");
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  // Hardcoded on purpose: the Google Calendar overlay mode ("calendar",
-  // with the time grid, event popovers and event create modal) never
-  // mounts. The tree is kept so it can be switched back on, but no header
-  // copy may promise it. See caltodo-ux-audit-2026-09-23.md, section 4.
   const calendarMode = "assignments" as CalendarMode;
-  const { tasks, error, addTask, updateTask, deleteTask, toggleComplete, fetchTasks, recolorTasks } = useTaskContext();
-  const { pushUndo } = useUndo();
+  /** Google Calendar sync state. Seeded from localStorage cache for
+   *  instant hydration; refetched in background and written back. */
+  const initialGcal = (() => {
+    if (typeof window === "undefined") return { connected: false, email: null as string | null, photoUrl: null as string | null };
+    try {
+      const raw = localStorage.getItem("gcal_status");
+      if (!raw) return { connected: false, email: null, photoUrl: null };
+      const p = JSON.parse(raw) as { connected?: boolean; email?: string | null; photoUrl?: string | null };
+      return { connected: !!p.connected, email: p.email ?? null, photoUrl: p.photoUrl ?? null };
+    } catch {
+      return { connected: false, email: null, photoUrl: null };
+    }
+  })();
+  const [gcalConnected, setGcalConnected] = useState(initialGcal.connected);
+  const [gcalEmail, setGcalEmail] = useState<string | null>(initialGcal.email);
+  const [gcalPhotoUrl, setGcalPhotoUrl] = useState<string | null>(initialGcal.photoUrl);
+  const [showGcalPopover, setShowGcalPopover] = useState(false);
+  const [confirmDisconnect, setConfirmDisconnect] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
+  const gcalBtnRef = useRef<HTMLButtonElement>(null);
+  const gcalPopoverRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/credentials").then(async (res) => {
+      if (!res.ok || cancelled) return;
+      try {
+        const data = await res.json();
+        if (cancelled) return;
+        const connected = !!data.google_calendar_id;
+        setGcalConnected(connected);
+        setGcalEmail(data.google_email ?? null);
+        setGcalPhotoUrl(data.google_photo_url ?? null);
+        try {
+          localStorage.setItem("gcal_status", JSON.stringify({
+            connected,
+            calendarId: data.google_calendar_id ?? null,
+            email: data.google_email ?? null,
+            photoUrl: data.google_photo_url ?? null,
+          }));
+        } catch { /* quota / private */ }
+      } catch { /* non-critical */ }
+    }).catch(() => { /* offline / non-critical */ });
+    return () => { cancelled = true; };
+  }, []);
+
+  // Close popover on outside click
+  useEffect(() => {
+    if (!showGcalPopover) return;
+    function handleClick(e: MouseEvent) {
+      const target = e.target as Node;
+      if (
+        gcalBtnRef.current && !gcalBtnRef.current.contains(target) &&
+        gcalPopoverRef.current && !gcalPopoverRef.current.contains(target)
+      ) {
+        setShowGcalPopover(false);
+        setConfirmDisconnect(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showGcalPopover]);
+
+  async function handleGcalDisconnect() {
+    if (!confirmDisconnect) {
+      setConfirmDisconnect(true);
+      setTimeout(() => setConfirmDisconnect(false), 3000);
+      return;
+    }
+    setConfirmDisconnect(false);
+    setDisconnecting(true);
+    try {
+      const res = await fetch("/api/gcal/disconnect", { method: "POST" });
+      if (res.ok) {
+        setGcalConnected(false);
+        setShowGcalPopover(false);
+        try { localStorage.removeItem("gcal_status"); } catch { /* ignore */ }
+        showToast("Google Calendar disconnected.");
+      } else {
+        showToast("Failed to disconnect. Please try again.");
+      }
+    } catch {
+      showToast("Failed to disconnect. Please try again.");
+    } finally {
+      setDisconnecting(false);
+    }
+  }
+
+  const { tasks, error, addTask, updateTask, deleteTask, toggleComplete } = useTaskContext();
+  const { showToast } = useToast();
   const { invites: pendingInvites } = usePendingInvites();
   const [recentlyMovedTaskId, setRecentlyMovedTaskId] = useState<string | null>(null);
 
@@ -66,37 +170,6 @@ export default function CalendarPanel() {
   function closeCreateModal() {
     setClearPreviewSignal((n) => n + 1);
     modals.closeAddPopover();
-  }
-
-  /**
-   * Reschedules a task dropped on a month cell. The write is awaited and
-   * announced once, through the undo stack (announce: false on the
-   * calendar's own write), so a failed drop shows only TaskContext's error
-   * toast and a successful one gets a single toast whose Undo is also Cmd+Z.
-   *
-   * @param taskId - The dragged task
-   * @param newDate - Target day as YYYY-MM-DD
-   */
-  async function handleTaskDrop(taskId: string, newDate: string) {
-    const moved = tasks.find((t) => t.id === taskId);
-    if (!moved) return;
-    const previousDueDate = moved.due_date;
-    const previousLock = moved.due_date_manually_edited_at;
-    const written = await updateTask(taskId, { due_date: newDate }, { announce: false });
-    if (!written) return;
-    setRecentlyMovedTaskId(taskId);
-    setTimeout(() => setRecentlyMovedTaskId((id) => (id === taskId ? null : id)), 600);
-    const formattedDate = (() => {
-      try { return format(parseISO(newDate), "EEE, MMM d"); }
-      catch { return newDate; }
-    })();
-    const titlePreview = moved.title.length > 32 ? moved.title.slice(0, 32).trimEnd() + "..." : moved.title;
-    pushUndo({
-      label: `Moved "${titlePreview}" to ${formattedDate}`,
-      undo: async () => {
-        await updateTask(taskId, { due_date: previousDueDate, due_date_manually_edited_at: previousLock }, { announce: false });
-      },
-    });
   }
 
   const { timeMin, timeMax } = useMemo(() => {
@@ -130,6 +203,8 @@ export default function CalendarPanel() {
 
   useEffect(() => {
     try {
+      const saved = localStorage.getItem(VIEW_MODE_KEY) as CalendarViewMode | null;
+      if (saved && ["month", "week", "day"].includes(saved)) setViewMode(saved);
       localStorage.removeItem(CAL_MODE_KEY);
     } catch { /* ignore */ }
   }, []);
@@ -179,13 +254,15 @@ export default function CalendarPanel() {
   return (
     <div className="flex flex-col flex-1 bg-background">
       {error && (
-        <EmptyState
-          icon={<AlertCircle size={20} />}
-          title={error}
-          description="Check your connection and try again."
-          action={<Button variant="inverted" onClick={() => fetchTasks()}>Try again</Button>}
-          className="shrink-0"
-        />
+        <div className="flex flex-col items-center justify-center py-8 px-4 text-center shrink-0">
+          <p className="text-sm text-muted-foreground mb-4">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 text-sm font-medium rounded-lg bg-gray-900 text-white dark:bg-white dark:text-gray-900 hover:opacity-90 transition-opacity"
+          >
+            Refresh
+          </button>
+        </div>
       )}
 
       <div className="px-4 md:px-8 pt-4 md:pt-5 pb-3 shrink-0">
@@ -203,22 +280,98 @@ export default function CalendarPanel() {
         />
       </div>
 
-      <div className="flex-1 flex flex-col mx-4 md:mx-8 rounded-2xl border border-border bg-card overflow-hidden min-h-0">
-        <CalendarViews
-          viewMode={viewMode}
-          calendarMode={calendarMode}
-          currentDate={currentDate}
-          tasks={visibleTasks}
-          pendingInvites={pendingInvites}
-          gcalEvents={gcalEvents}
-          calendarColors={calendarColors}
-          selectedDate={selectedDate}
-          onDaySelect={setSelectedDate}
-          modals={modals}
-          clearPreviewSignal={clearPreviewSignal}
-          recentlyMovedTaskId={recentlyMovedTaskId}
-          onTaskDrop={handleTaskDrop}
-        />
+      <div className="flex-1 flex flex-col mx-4 md:mx-8 rounded-2xl border border-gray-200/80 dark:border-gray-700/50 bg-white dark:bg-[#141414] overflow-hidden min-h-0">
+        {viewMode === "month" ? (
+          <CalendarGrid
+            currentMonth={currentDate}
+            tasks={visibleTasks}
+            pendingInvites={pendingInvites}
+            gcalEvents={calendarMode === "calendar" ? gcalEvents : []}
+            calendarColors={calendarColors}
+            calendarMode={calendarMode}
+            addingDate={modals.addingDate}
+            selectedDate={selectedDate}
+            onDayClick={modals.handleDayClick}
+            onDaySelect={setSelectedDate}
+            onTaskClick={modals.handleTaskClick}
+            onShowMore={modals.handleShowMore}
+            activeTaskId={modals.previewTask?.id ?? null}
+            recentlyMovedTaskId={recentlyMovedTaskId}
+            onTaskDrop={(taskId, newDate) => {
+              const moved = tasks.find((t) => t.id === taskId);
+              if (!moved) return;
+              const previousDueDate = moved.due_date;
+              const previousLock = moved.due_date_manually_edited_at;
+              void updateTask(taskId, { due_date: newDate });
+              setRecentlyMovedTaskId(taskId);
+              setTimeout(() => {
+                setRecentlyMovedTaskId((id) => (id === taskId ? null : id));
+              }, 600);
+              const formattedDate = (() => {
+                try { return format(parseISO(newDate), "EEE, MMM d"); }
+                catch { return newDate; }
+              })();
+              const titlePreview = moved.title.length > 32 ? moved.title.slice(0, 32).trimEnd() + "…" : moved.title;
+              showToast(`Moved “${titlePreview}” to ${formattedDate}`, {
+                action: {
+                  label: "Undo",
+                  onClick: () => {
+                    void updateTask(taskId, { due_date: previousDueDate, due_date_manually_edited_at: previousLock });
+                  },
+                },
+              });
+            }}
+          />
+        ) : viewMode === "week" ? (
+          calendarMode === "assignments" ? (
+            <AssignmentsWeekView
+              currentDate={currentDate}
+              tasks={visibleTasks}
+              pendingInvites={pendingInvites}
+              onDayClick={modals.handleDayClick}
+              onTaskClick={modals.handleTaskClick}
+              activeTaskId={modals.previewTask?.id ?? null}
+            />
+          ) : (
+            <CalendarWeekView
+              currentDate={currentDate}
+              tasks={visibleTasks}
+              pendingInvites={pendingInvites}
+              gcalEvents={gcalEvents}
+              calendarColors={calendarColors}
+              addingDate={modals.addingDate}
+              onDayClick={modals.handleDayClick}
+              onTaskClick={modals.handleTaskClick}
+              onEventCreate={modals.handleTimeGridCreate}
+              clearPreviewSignal={clearPreviewSignal}
+              activeTaskId={modals.previewTask?.id ?? null}
+            />
+          )
+        ) : (
+          calendarMode === "assignments" ? (
+            <AssignmentsDayView
+              currentDate={currentDate}
+              tasks={visibleTasks}
+              pendingInvites={pendingInvites}
+              onAddClick={modals.handleDayClick}
+              onTaskClick={modals.handleTaskClick}
+              activeTaskId={modals.previewTask?.id ?? null}
+            />
+          ) : (
+            <CalendarDayView
+              currentDate={currentDate}
+              tasks={visibleTasks}
+              pendingInvites={pendingInvites}
+              gcalEvents={gcalEvents}
+              calendarColors={calendarColors}
+              onAddClick={modals.handleDayClick}
+              onTaskClick={modals.handleTaskClick}
+              onEventCreate={modals.handleTimeGridCreate}
+              clearPreviewSignal={clearPreviewSignal}
+              activeTaskId={modals.previewTask?.id ?? null}
+            />
+          )
+        )}
       </div>
 
       {modals.addingDate && (
@@ -227,7 +380,7 @@ export default function CalendarPanel() {
             open={calendarMode === "assignments" || modals.createType === "task"}
             keepMounted={calendarMode !== "assignments"}
             onClose={closeCreateModal}
-            onAdd={(task) => { closeCreateModal(); return addTask(task); }}
+            onAdd={(task) => { addTask(task); closeCreateModal(); }}
             defaultDate={modals.addingDate}
             defaultTime={modals.addingTime}
             createTypeToggle={
@@ -268,9 +421,9 @@ export default function CalendarPanel() {
         editTask={modals.editModalTask}
         onSave={async (id, updates) => { await updateTask(id, updates); }}
         onDelete={async (id) => { await deleteTask(id); modals.closeEditModal(); }}
-        onSaveColorForClass={(courseName, color) => {
-          const ids = tasks.filter((t) => (t.course_name || "General") === courseName).map((t) => t.id);
-          return recolorTasks(ids, color);
+        onSaveColorForClass={async (courseName, color) => {
+          const matching = tasks.filter(t => (t.course_name || "General") === courseName);
+          for (const t of matching) await updateTask(t.id, { color });
         }}
       />
 
@@ -283,8 +436,6 @@ export default function CalendarPanel() {
           anchorRect={modals.overflowRect}
           onClose={modals.closeOverflow}
           onTaskClick={(task, rect) => { modals.handleTaskClick(task, rect); }}
-          onAdd={modals.handleDayClick}
-          activeTaskId={modals.previewTask?.id ?? null}
         />
       )}
     </div>

@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
   const url = body.url?.trim();
   if (!url || !PENSIEVE_URL_REGEX.test(url)) {
     return NextResponse.json(
-      { error: "Invalid Pensive URL." },
+      { error: "Invalid Pensieve URL." },
       { status: 400 }
     );
   }

@@ -21,10 +21,10 @@ export default function GuidesIndexPage() {
   return (
     <main className="flex-1 px-6 lg:px-10">
       <div className="max-w-2xl mx-auto pt-12 sm:pt-16 pb-24">
-        <h1 className="text-3xl sm:text-4xl font-bold text-foreground mb-3 tracking-tight">
+        <h1 className="text-3xl sm:text-4xl font-bold text-black mb-3 tracking-tight">
           Guides
         </h1>
-        <p className="text-sm sm:text-xl font-sans font-medium leading-snug text-muted-foreground mb-10">
+        <p className="text-sm sm:text-xl font-sans font-medium leading-snug text-black/70 mb-10">
           How to get every deadline out of Canvas, Gradescope, and your syllabus
           and into one place.
         </p>
@@ -33,13 +33,13 @@ export default function GuidesIndexPage() {
           {GUIDES.map((g) => (
             <li key={g.slug}>
               <Link href={`/guides/${g.slug}`} className="group block">
-                <h2 className="text-lg sm:text-xl font-bold text-foreground tracking-tight group-hover:underline">
+                <h2 className="text-lg sm:text-xl font-bold text-black tracking-tight group-hover:underline">
                   {g.title}
                 </h2>
-                <p className="text-sm sm:text-base font-sans font-medium leading-snug text-muted-foreground mt-1">
+                <p className="text-sm sm:text-base font-sans font-medium leading-snug text-black/60 mt-1">
                   {g.description}
                 </p>
-                <span className="inline-flex items-center gap-1 text-sm font-semibold text-foreground mt-2">
+                <span className="inline-flex items-center gap-1 text-sm font-semibold text-black mt-2">
                   Read <ArrowRight className="w-4 h-4" />
                 </span>
               </Link>

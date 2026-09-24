@@ -28,7 +28,7 @@ export default function EditToggleButton({ editing, onToggle, id }: EditToggleBu
       style={editing ? { height: 30 } : { width: 30, height: 30 }}
       className={`flex items-center justify-center text-sm font-semibold shrink-0 ${
         editing
-          ? "px-4 rounded-xl bg-blue-500 text-white hover:bg-blue-500/90 shadow-sm dark:shadow-none"
+          ? "px-4 rounded-xl bg-blue-500 text-white hover:bg-blue-500/90 shadow-sm"
           : "rounded-full bg-transparent text-foreground hover:bg-foreground/[0.04]"
       }`}
       aria-label={editing ? "Done editing" : "Edit"}

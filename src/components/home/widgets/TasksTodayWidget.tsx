@@ -217,8 +217,8 @@ export default function TasksTodayWidget({ config }: TasksTodayWidgetProps) {
         open={showAddModal}
         onClose={() => setShowAddModal(false)}
         onAdd={(task) => {
+          addTask(task);
           setShowAddModal(false);
-          return addTask(task);
         }}
         defaultDate={viewMode === "today" ? todayStr : null}
       />

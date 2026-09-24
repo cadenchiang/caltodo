@@ -91,17 +91,13 @@ describe("the settings card", () => {
     expect(card).not.toContain('"Paused"');
   });
 
-  it("makes the header a real button with aria-expanded once it can expand (audit 2.13)", () => {
-    // A <button> never selects its text on double-click, which is what the
-    // old select-none div was papering over.
-    expect(card).toContain('const HeaderTag = enabled ? "button" : "div";');
-    expect(card).toContain('"aria-expanded": open');
-    expect(card).not.toContain("select-none");
+  it("does not select the header text when it is clicked to toggle", () => {
+    expect(card).toMatch(/py-3\.5 text-left transition-colors select-none/);
   });
 
   it("does not call a failing sync Connected in the header", () => {
-    expect(card).toContain("<StatusBadge needsReconnect={authFailed} />");
-    expect(card).not.toContain("Needs reconnect\n");
+    expect(card).toContain("Needs reconnect");
+    expect(card.indexOf("authFailed ? (")).toBeLessThan(card.indexOf(">\n                Connected"));
   });
 
   it("defaults the flag so it is never undefined", () => {

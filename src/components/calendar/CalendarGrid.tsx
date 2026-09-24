@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import {
   startOfMonth,
   endOfMonth,
@@ -10,7 +11,6 @@ import {
 } from "date-fns";
 import type { Task, PendingInvite, GCalEvent } from "@/lib/types";
 import { useWeekStart } from "@/hooks/useWeekStart";
-import { useIsMobile } from "@/hooks/useMediaQuery";
 import { weekdayLabels } from "@/lib/week-start";
 import { getEventDateKey } from "@/lib/gcal/event-utils";
 import CalendarDayCell from "./CalendarDayCell";
@@ -73,7 +73,14 @@ export default function CalendarGrid({
   const days = eachDayOfInterval({ start: calStart, end: calEnd });
   const rowCount = days.length / 7;
 
-  const isMobile = useIsMobile();
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
   const tasksByDate: Record<string, Task[]> = {};
   for (const task of tasks) {

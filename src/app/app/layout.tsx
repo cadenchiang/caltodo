@@ -15,10 +15,7 @@ import { logger } from "@/lib/logger";
 import { GET_CLAIMS_OPTIONS } from "@/lib/supabase/jwks";
 import { SpotifyPlayerProvider } from "@/contexts/SpotifyPlayerContext";
 
-import { PresenceProvider } from "@/contexts/PresenceContext";
-
 import CanvasTokenExpiredModal from "@/components/ui/CanvasTokenExpiredModal";
-import GlobalChatNotifier from "@/components/ui/GlobalChatNotifier";
 import NewAssignmentsModal from "@/components/ui/NewAssignmentsModal";
 import HiddenRouteRedirect from "@/components/layout/HiddenRouteRedirect";
 import MobileRouteGuard from "@/components/layout/MobileRouteGuard";
@@ -118,7 +115,6 @@ export default async function AppLayout({
         {/* Inside the toasts, because an undo announces itself through one. */}
         <UndoProvider>
         <LabelColorsProvider initialUserId={user.id} initialColors={initialColors}>
-          <PresenceProvider>
           <CredentialsSeed credentials={initialCredentials} />
           <TaskProvider initialTasks={initialTasks}>
             <SpotifyPlayerProvider>
@@ -136,11 +132,9 @@ export default async function AppLayout({
             <MobileRouteGuard />
             <RouteHistoryTracker />
             <CanvasTokenExpiredModal />
-            <GlobalChatNotifier />
             <NewAssignmentsModal />
             </SpotifyPlayerProvider>
           </TaskProvider>
-          </PresenceProvider>
         </LabelColorsProvider>
         </UndoProvider>
       </ToastProvider>

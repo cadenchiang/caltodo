@@ -14,7 +14,7 @@ import type { SyncResult, SyncSourceResult } from "@/lib/types";
 const SOURCES: ReadonlyArray<{ key: keyof SyncResult; label: string }> = [
   { key: "canvas", label: "Canvas" },
   { key: "gradescope", label: "Gradescope" },
-  { key: "pensieve", label: "Pensive" },
+  { key: "pensieve", label: "Pensieve" },
   { key: "brightspace", label: "Brightspace" },
   { key: "blackboard", label: "Blackboard" },
   { key: "classroom", label: "Classroom" },

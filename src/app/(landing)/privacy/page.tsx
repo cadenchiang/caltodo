@@ -1,34 +1,40 @@
 import type { Metadata } from "next";
-import LegalPage, { LEGAL_LINK, type LegalSection } from "@/components/landing/LegalPage";
-
-/** Shown under the heading; bump whenever the policy text changes. */
-const PRIVACY_LAST_UPDATED = "September 23, 2026";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Privacy policy",
-  description: "Privacy policy for caltodo: how we collect, use, and protect your data.",
+  title: "Privacy Policy - caltodo",
+  description: "Privacy policy for caltodo, how we collect, use, and protect your data.",
   alternates: { canonical: "/privacy" },
   openGraph: {
-    title: "Privacy policy | caltodo",
+    title: "Privacy Policy - caltodo",
     description: "How caltodo collects, uses, and protects your data.",
     url: "https://caltodo.me/privacy",
   },
 };
 
-/** Numbered sections, each its own fade-up block. */
-const SECTIONS: LegalSection[] = [
+interface Section {
+  title: string;
+  body: React.ReactNode;
+}
+
+/**
+ * Each section becomes its own fade-up block. Keeping the structure simple
+ * so the animation cascade stays uniform across both legal pages.
+ */
+const SECTIONS: Section[] = [
   {
     title: "1. Introduction",
     body: (
       <>
         caltodo (&ldquo;we&rdquo;, &ldquo;our&rdquo;, or &ldquo;us&rdquo;) is a personal task
-        management application. This privacy policy explains how we collect, use, and protect
+        management application. This Privacy Policy explains how we collect, use, and protect
         your information when you use our service at caltodo.me.
       </>
     ),
   },
   {
-    title: "2. Information we collect",
+    title: "2. Information We Collect",
     body: (
       <>
         <p>We collect the following information when you use caltodo:</p>
@@ -44,29 +50,15 @@ const SECTIONS: LegalSection[] = [
           </li>
           <li>
             <span className="font-semibold">Course platform data:</span> if you connect Canvas
-            (called bCourses at Berkeley), Gradescope, Pensive, Brightspace, Blackboard, or Google
-            Classroom (when available), we access your course list and assignments to import them
-            as tasks. For Canvas, Pensive, Brightspace and Blackboard this is the calendar feed
-            URL or API token you provide; for Gradescope it is the email and password you provide,
-            which we store encrypted.
-          </li>
-          <li>
-            <span className="font-semibold">Syllabus files:</span> if you upload a syllabus (PDF or
-            image), we send the file to Anthropic&rsquo;s Claude API to extract assignments and
-            due dates. The file is used only for that extraction.
+            (bCourses) or Gradescope, we access your course assignments to import them as tasks.
           </li>
           <li>
             <span className="font-semibold">Task data:</span> tasks, due dates, completion status,
             and other information you create within the app.
           </li>
-          <li>
-            <span className="font-semibold">Usage data:</span> we use PostHog for product
-            analytics, including autocapture of page views and clicks, so we can see which
-            features are used and where the app breaks.
-          </li>
         </ul>
         <p className="mt-3">
-          All data is stored per account using unique identifiers. Your tasks, completion history,
+          All data is stored per-account using unique identifiers. Your tasks, completion history,
           and course data are never reviewed, analyzed, or accessed by caltodo staff for any
           reason other than technical support you explicitly request.
         </p>
@@ -74,32 +66,30 @@ const SECTIONS: LegalSection[] = [
     ),
   },
   {
-    title: "3. How we use your information",
+    title: "3. How We Use Your Information",
     body: (
       <ul className="list-disc pl-6 space-y-1.5">
         <li>To provide and maintain the caltodo service.</li>
-        <li>To sync your tasks with Google Calendar and your course platforms.</li>
-        <li>To extract assignments from syllabus files you upload.</li>
+        <li>To sync your tasks with Google Calendar and course platforms.</li>
         <li>To authenticate your identity and manage your account.</li>
-        <li>To understand how the product is used and fix problems, through analytics.</li>
       </ul>
     ),
   },
   {
-    title: "4. Data storage and security",
+    title: "4. Data Storage and Security",
     body: (
       <>
         Your data is stored securely using Supabase, which provides encryption at rest and in
-        transit. Gradescope passwords and Google Calendar tokens are encrypted before they are
-        stored. We do not sell your personal data. Task data is isolated per account and cannot
-        be cross-referenced between users. We employ row-level security policies so each user can
-        only access their own data: no other user, and no caltodo administrator, can view your
-        tasks or personal information through the application.
+        transit. We do not sell, share, or distribute your personal data to third parties. Task
+        data is isolated per account and cannot be cross-referenced between users. We employ
+        row-level security policies so each user can only access their own data — no other user,
+        and no caltodo administrator, can view your tasks or personal information through the
+        application.
       </>
     ),
   },
   {
-    title: "5. Google API services",
+    title: "5. Google API Services",
     body: (
       <>
         caltodo&rsquo;s use and transfer of information received from Google APIs adheres to the{" "}
@@ -107,18 +97,18 @@ const SECTIONS: LegalSection[] = [
           href="https://developers.google.com/terms/api-services-user-data-policy"
           target="_blank"
           rel="noopener noreferrer"
-          className={LEGAL_LINK}
+          className="text-[#0e89d6] underline underline-offset-2 hover:text-[#3D8FE8]"
         >
           Google API Services User Data Policy
         </a>
-        , including the Limited Use requirements. We only access Google Calendar and Google
-        Classroom data that you explicitly authorize, and we do not use this data for advertising
-        or any purpose unrelated to providing the caltodo service.
+        , including the Limited Use requirements. We only access Google Calendar data that you
+        explicitly authorize, and we do not use this data for advertising or any purpose unrelated
+        to providing the caltodo service.
       </>
     ),
   },
   {
-    title: "6. Data retention and deletion",
+    title: "6. Data Retention and Deletion",
     body: (
       <>
         We retain your data for as long as your account is active. You can request deletion of
@@ -128,43 +118,29 @@ const SECTIONS: LegalSection[] = [
     ),
   },
   {
-    title: "7. Third-party services",
+    title: "7. Third-Party Services",
     body: (
       <>
-        <p>We use the following third-party services to run caltodo:</p>
+        <p>We use the following third-party services:</p>
         <ul className="list-disc pl-6 space-y-1.5 mt-3">
           <li>
-            <span className="font-semibold">Google:</span> sign-in (OAuth), Google Calendar, and
-            Google Classroom when available.
+            <span className="font-semibold">Google OAuth:</span> for authentication and calendar access.
           </li>
           <li>
-            <span className="font-semibold">Supabase:</span> data storage and authentication.
+            <span className="font-semibold">Supabase:</span> for data storage and authentication.
           </li>
           <li>
-            <span className="font-semibold">Vercel:</span> hosting and web analytics.
-          </li>
-          <li>
-            <span className="font-semibold">PostHog:</span> product analytics, including
-            autocapture of page views and clicks.
-          </li>
-          <li>
-            <span className="font-semibold">Anthropic:</span> the Claude API that reads syllabus
-            files you upload to extract assignments.
-          </li>
-          <li>
-            <span className="font-semibold">Canvas, Gradescope, Pensive, Brightspace, and
-            Blackboard:</span> the course platforms we fetch your assignments from, using the
-            credentials or feed URLs you provide.
+            <span className="font-semibold">Vercel:</span> for hosting and analytics.
           </li>
         </ul>
       </>
     ),
   },
   {
-    title: "8. Changes to this policy",
+    title: "8. Changes to This Policy",
     body: (
       <>
-        We may update this privacy policy from time to time. We will notify users of any material
+        We may update this Privacy Policy from time to time. We will notify users of any material
         changes by updating the &ldquo;Last updated&rdquo; date at the top of this page.
       </>
     ),
@@ -173,9 +149,12 @@ const SECTIONS: LegalSection[] = [
     title: "9. Contact",
     body: (
       <>
-        If you have questions about this privacy policy or wish to request data deletion, contact
+        If you have questions about this Privacy Policy or wish to request data deletion, contact
         us at{" "}
-        <a href="mailto:cadenchiang@berkeley.edu" className={LEGAL_LINK}>
+        <a
+          href="mailto:cadenchiang@berkeley.edu"
+          className="text-[#0e89d6] underline underline-offset-2 hover:text-[#3D8FE8]"
+        >
           cadenchiang@berkeley.edu
         </a>
         .
@@ -185,9 +164,50 @@ const SECTIONS: LegalSection[] = [
 ];
 
 /**
- * Privacy policy page. Lives inside the (landing) route group so it inherits
- * the shared nav and footer.
+ * Privacy Policy page. Lives inside the (landing) route group so it inherits
+ * the shared LandingNav and renders with the same fade-up choreography as
+ * /about and /contact.
  */
 export default function PrivacyPage() {
-  return <LegalPage title="Privacy policy" lastUpdated={PRIVACY_LAST_UPDATED} sections={SECTIONS} />;
+  return (
+    <main className="flex-1 px-6 lg:px-10">
+      <div className="max-w-2xl mx-auto pt-12 sm:pt-16 pb-24">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1.5 text-sm text-black/50 hover:text-black mb-8 transition-colors animate-fade-up"
+          style={{ animationDelay: "0ms" }}
+        >
+          <ArrowLeft size={16} strokeWidth={2} />
+          Back
+        </Link>
+        <h1
+          className="text-3xl sm:text-4xl font-bold text-black mb-2 tracking-tight animate-fade-up"
+          style={{ animationDelay: "0ms" }}
+        >
+          Privacy Policy
+        </h1>
+        <p
+          className="text-xs sm:text-sm text-black/50 mb-10 animate-fade-up"
+          style={{ animationDelay: "80ms" }}
+        >
+          Last updated February 19, 2026
+        </p>
+
+        <div className="space-y-7 text-sm sm:text-base text-black/80 leading-relaxed">
+          {SECTIONS.map((section, i) => (
+            <section
+              key={section.title}
+              className="animate-fade-up"
+              style={{ animationDelay: `${160 + i * 80}ms` }}
+            >
+              <h2 className="text-base sm:text-lg font-bold text-black mb-2 tracking-tight">
+                {section.title}
+              </h2>
+              <div>{section.body}</div>
+            </section>
+          ))}
+        </div>
+      </div>
+    </main>
+  );
 }

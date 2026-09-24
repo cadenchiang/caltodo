@@ -6,7 +6,6 @@
 
 "use client";
 
-import { providerLabel } from "@/lib/copy";
 import StatCard from "./StatCard";
 
 interface SourceBreakdown {
@@ -33,8 +32,13 @@ interface TaskStatsProps {
  * @returns Human-readable label
  */
 function formatSource(source: string): string {
-  if (source === "manual") return "Manual";
-  return providerLabel(source).charAt(0).toUpperCase() + providerLabel(source).slice(1);
+  const labels: Record<string, string> = {
+    manual: "Manual",
+    canvas: "Canvas",
+    gradescope: "Gradescope",
+    pensieve: "Pensive",
+  };
+  return labels[source] ?? source.charAt(0).toUpperCase() + source.slice(1);
 }
 
 /**
@@ -51,20 +55,20 @@ export default function TaskStats({
 }: TaskStatsProps) {
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatCard label="Total tasks" value={total.toLocaleString()} />
+      <div className="grid grid-cols-3 gap-4">
+        <StatCard label="Total Tasks" value={total.toLocaleString()} />
         <StatCard label="Completed" value={completed.toLocaleString()} />
         <StatCard
-          label="Completion rate"
+          label="Completion Rate"
           value={`${completionRate}%`}
           subtext={`${completed} of ${total}`}
         />
       </div>
 
       {bySource.length > 0 && (
-        <div className="bg-card rounded-2xl border border-border p-5">
+        <div className="glass rounded-2xl border border-border p-5">
           <h3 className="text-sm font-semibold text-foreground mb-3">
-            Tasks by source
+            Tasks by Source
           </h3>
           <div className="space-y-3">
             {bySource.map((src) => {

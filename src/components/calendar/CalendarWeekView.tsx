@@ -120,7 +120,7 @@ export default function CalendarWeekView({
           The mobile fallback skips all-day content (matching the prior
           behavior) but keeps the per-column headers. */}
       <div
-        className="grid grid-cols-7 border-b border-border shrink-0 bg-card"
+        className="grid grid-cols-7 border-b border-gray-200 dark:border-gray-700/50 shrink-0 bg-card"
         style={{ marginLeft: !isMobile ? "56px" : "0" }}
       >
         {days.map((day, i) => {
@@ -139,15 +139,15 @@ export default function CalendarWeekView({
           return (
             <div
               key={dateStr}
-              className={`p-1 flex flex-col gap-0.5 ${isLastCol ? "" : "border-r"} border-border`}
+              className={`p-1 flex flex-col gap-0.5 ${isLastCol ? "" : "border-r"} border-gray-200 dark:border-gray-700/50`}
               onDoubleClick={(e) => {
                 const rect = new DOMRect(e.clientX - 40, e.clientY, 80, 1);
                 onDayClick(dateStr, rect);
               }}
             >
               <div className="flex flex-col items-center py-1.5 md:py-2.5 gap-0.5">
-                <span className={`text-2xs font-medium ${
-                  isToday ? "text-blue-600 dark:text-blue-400" : "text-muted-foreground"
+                <span className={`text-[9px] md:text-[11px] font-semibold uppercase ${
+                  isToday ? "text-[#0e89d6]" : "text-foreground/60"
                 }`}>
                   <span className="md:hidden">{format(day, "EEEEE")}</span>
                   <span className="hidden md:inline">{format(day, "EEE")}</span>
@@ -155,7 +155,7 @@ export default function CalendarWeekView({
                 <span
                   className={`text-sm md:text-lg font-semibold inline-flex items-center justify-center ${
                     isToday
-                      ? "w-6 h-6 md:w-8 md:h-8 rounded-full bg-blue-500 text-white"
+                      ? "w-6 h-6 md:w-8 md:h-8 rounded-full bg-[#0e89d6] text-white"
                       : "text-foreground"
                   }`}
                 >
@@ -255,7 +255,7 @@ function MobileWeekContent({
         return (
           <div
             key={dateStr}
-            className={`${isLastCol ? "" : "border-r"} border-input-border p-1 flex flex-col gap-1.5 hover:bg-muted/30 transition-colors`}
+            className={`${isLastCol ? "" : "border-r"} border-gray-300 dark:border-gray-600 p-1 flex flex-col gap-1.5 hover:bg-muted/30 transition-colors`}
             onClick={(e) => {
               const rect = e.currentTarget.getBoundingClientRect();
               onDayClick(dateStr, new DOMRect(rect.left, rect.bottom + 4, rect.width, 1));

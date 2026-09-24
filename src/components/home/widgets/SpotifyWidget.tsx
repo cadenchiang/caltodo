@@ -171,7 +171,7 @@ export default function SpotifyWidget({ config, onUpdateConfig }: SpotifyWidgetP
           type="button"
           onClick={() => setModalOpen(true)}
           aria-label="Change Spotify link"
-          className="absolute top-2 left-2 w-7 h-7 rounded-md flex items-center justify-center bg-background/80 backdrop-blur-sm text-foreground/70 hover:text-foreground hover:bg-background opacity-0 group-hover:opacity-100 transition-all shadow-sm dark:shadow-none"
+          className="absolute top-2 left-2 w-7 h-7 rounded-md flex items-center justify-center bg-background/80 backdrop-blur-sm text-foreground/70 hover:text-foreground hover:bg-background opacity-0 group-hover:opacity-100 transition-all shadow-sm"
         >
           <Pencil size={12} />
         </button>

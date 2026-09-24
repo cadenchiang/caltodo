@@ -10,9 +10,8 @@
  */
 
 import { useEffect, useState } from "react";
-import { Check, Loader2 } from "lucide-react";
+import { Loader2, Check } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
-import Button, { buttonClasses } from "@/components/ui/Button";
 
 /** A Classroom course as returned by /api/classroom. */
 interface ClassroomCourse {
@@ -137,7 +136,7 @@ export default function ClassroomStep({
           </p>
           <a
             href="/api/gcal/auth?classroom=1"
-            className={buttonClasses("inverted", "lg", "w-full")}
+            className="inline-flex w-full items-center justify-center px-5 py-2.5 rounded-full text-sm font-semibold bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 transition-colors"
           >
             Connect Google
           </a>
@@ -152,7 +151,7 @@ export default function ClassroomStep({
           </p>
           <a
             href="/api/gcal/auth?classroom=1"
-            className={buttonClasses("inverted", "lg", "w-full")}
+            className="inline-flex w-full items-center justify-center px-5 py-2.5 rounded-full text-sm font-semibold bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 transition-colors"
           >
             Allow Classroom access
           </a>
@@ -207,24 +206,27 @@ export default function ClassroomStep({
             </>
           )}
 
-          <Button
-            variant="inverted"
-            size="lg"
-            className="w-full"
+          <button
             onClick={handleConnect}
-            loading={saving}
-            disabled={courses.length === 0}
+            disabled={saving || courses.length === 0}
+            className={`w-full px-5 py-2.5 rounded-full text-sm font-semibold flex items-center justify-center gap-2 transition-colors ${
+              courses.length === 0
+                ? "bg-[#D1D1D6] dark:bg-[#3A3A3C] text-white/70 dark:text-white/40 cursor-not-allowed"
+                : "bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 disabled:opacity-50"
+            }`}
           >
+            {saving && <Loader2 size={14} className="animate-spin" />}
             {saving ? "Saving..." : "Connect"}
-          </Button>
+          </button>
         </div>
       )}
 
-      <div className="mt-3 text-center">
-        <Button variant="ghost" size="sm" onClick={onSkip}>
-          {skipLabel}
-        </Button>
-      </div>
+      <button
+        onClick={onSkip}
+        className="mt-3 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+      >
+        {skipLabel}
+      </button>
     </div>
   );
 }

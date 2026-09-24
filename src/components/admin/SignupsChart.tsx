@@ -57,23 +57,12 @@ export default function SignupsChart({ daily, total }: SignupsChartProps) {
         const res = await fetch(
           `/api/admin/signups?date=${encodeURIComponent(data.date)}`
         );
-        if (!res.ok) {
-          console.error("SignupsChart: hourly drill-down refused", {
-            date: data.date,
-            status: res.status,
-            impact: "the daily view stays; the user can click again",
-          });
-          return;
-        }
+        if (!res.ok) return;
         const json = await res.json();
         setDrillDate(data.date);
         setHourly(json.hourly);
-      } catch (err) {
-        console.error("SignupsChart: hourly drill-down failed", {
-          date: data.date,
-          error: err instanceof Error ? err.message : String(err),
-          impact: "the daily view stays; the user can click again",
-        });
+      } catch {
+        // Silently fail — user can try again
       } finally {
         setLoading(false);
       }
@@ -103,7 +92,7 @@ export default function SignupsChart({ daily, total }: SignupsChartProps) {
   // Hourly drill-down view
   if (drillDate && hourly) {
     return (
-      <div className="bg-card rounded-2xl border border-border p-5">
+      <div className="glass rounded-2xl border border-border p-5">
         <div className="flex items-center gap-3 mb-4">
           <button
             onClick={handleBack}
@@ -114,7 +103,7 @@ export default function SignupsChart({ daily, total }: SignupsChartProps) {
           </button>
           <div>
             <h3 className="text-sm font-semibold text-foreground">
-              Hourly signups, {formatDate(drillDate)}
+              {formatDate(drillDate)} — Hourly Signups
             </h3>
             <p className="text-xs text-muted-foreground">
               {hourly.reduce((sum, h) => sum + h.count, 0)} signups
@@ -166,14 +155,14 @@ export default function SignupsChart({ daily, total }: SignupsChartProps) {
 
   // Daily view
   return (
-    <div className="bg-card rounded-2xl border border-border p-5">
+    <div className="glass rounded-2xl border border-border p-5">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="text-sm font-semibold text-foreground">
-            Daily signups
+            Daily Signups
           </h3>
           <p className="text-xs text-muted-foreground">
-            Last 30 days, {total} total users
+            Last 30 days — {total} total users
           </p>
         </div>
         {loading && (
@@ -227,7 +216,7 @@ export default function SignupsChart({ daily, total }: SignupsChartProps) {
           />
         </AreaChart>
       </ResponsiveContainer>
-      <p className="mt-2 text-2xs text-muted-foreground text-center">
+      <p className="mt-2 text-[11px] text-muted-foreground text-center">
         Click a day to see hourly breakdown
       </p>
     </div>

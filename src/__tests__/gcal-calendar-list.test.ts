@@ -107,9 +107,8 @@ describe("what Google Calendar's add control offers", () => {
     // create and orphan every existing event (audit H15).
     expect(list).toContain("const writeCalendarId = loaded?.selectedIds[0] ?? null;");
     expect(list).toContain("calendar.id === writeCalendarId ? (");
-    // The reason is visible helper text, not a title tooltip (audit 2.28).
-    expect(list).not.toContain("title=");
-    expect(list).toContain("so it cannot be removed. The others are read only.");
+    expect(list).toContain("Tasks are written to this calendar, so it cannot be removed.");
+    expect(list).toContain("The others are read only.");
     expect(list).not.toContain("loaded!.selectedIds.length === 1");
   });
 

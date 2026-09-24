@@ -159,9 +159,7 @@ export type AdditionalCanvasAccountInput = Omit<AdditionalCanvasAccount, "token"
 export interface DismissedModals {
   sync_welcome?: boolean;
   gcal_announce?: boolean;
-  calchat_welcome?: boolean;
   pensieve_announced?: boolean;
-  calchat_announcement?: boolean;
 }
 
 /**
@@ -417,107 +415,6 @@ export interface CourseMembership {
   id: string;
   user_id: string;
   course_id: string;
-  joined_at: string;
-}
-
-/**
- * A chat message in a course group chat.
- * Author name/avatar are denormalized at insert time for Realtime delivery.
- *
- * @param id - UUID primary key
- * @param course_id - FK to the courses table
- * @param author_id - The message author's auth ID
- * @param author_name - Display name stored at insert time
- * @param author_avatar - Avatar URL stored at insert time
- * @param body - Message body text (1-5000 chars)
- * @param created_at - ISO timestamp of creation
- * @param updated_at - ISO timestamp of last edit
- */
-export interface ChatMessage {
-  id: string;
-  course_id: string;
-  /**
-   * Keyed server-side hash of (author, course). The same person has the
-   * same key within a chat and a different key in another chat. Clients
-   * never receive author_id (audit C2); own messages are recognised by
-   * comparing against the viewer's own key for the room.
-   */
-  author_key: string;
-  author_name?: string | null;
-  author_avatar?: string | null;
-  body: string;
-  created_at: string;
-  updated_at: string;
-  /** UUID of the message this is a reply to (null if not a reply). */
-  reply_to_id?: string | null;
-  /** Client-generated id that matches the optimistic bubble to the server row. */
-  client_nonce?: string | null;
-  /** Client-only delivery status for optimistic UI. */
-  _status?: "sending" | "delivered" | "failed";
-}
-
-/**
- * Presence state for a user in a course chat channel.
- *
- * @param user_id - The user's auth ID
- * @param user_name - Display name
- * @param user_avatar - Avatar URL
- * @param online_at - ISO timestamp of when presence was established
- * @param status - User-set status: "online", "idle", or "dnd". Defaults to "online" if absent.
- */
-export interface ChatPresence {
-  user_id: string;
-  user_name: string | null;
-  user_avatar: string | null;
-  online_at: string;
-  status?: "online" | "idle" | "dnd";
-}
-
-/**
- * A member avatar preview for board cards.
- */
-export interface MemberPreview {
-  name: string | null;
-  avatar: string | null;
-}
-
-/**
- * A course board summary for the board list view.
- *
- * @param course - The course record
- * @param message_count - Number of chat messages in this course
- * @param last_message_body - Preview of the most recent message
- * @param last_message_author - Author name of the most recent message
- * @param last_message_at - Timestamp of the most recent message
- * @param member_count - Number of enrolled members
- * @param member_avatars - First 5 member avatars for preview
- * @param hidden - True when the user hid this chat (membership soft-deleted).
- *                 Hidden rooms are listed so they can be unhidden, but they
- *                 carry no stats, are not subscribed to, and never notify.
- * @param sources - Platforms the room's underlying course rows came from
- *                  (e.g. ["canvas", "gradescope"]) for the platform badge
- * @param past - True when the course name carries a term before the current one
- */
-export interface DiscussionBoard {
-  course: Course;
-  message_count: number;
-  last_message_body?: string | null;
-  last_message_author?: string | null;
-  last_message_at?: string | null;
-  member_count: number;
-  member_avatars: MemberPreview[];
-  hidden?: boolean;
-  sources?: string[];
-  past?: boolean;
-}
-
-/**
- * A course member with profile info.
- */
-export interface CourseMemberProfile {
-  user_id: string;
-  user_name: string | null;
-  user_avatar: string | null;
   joined_at: string;
 }
 

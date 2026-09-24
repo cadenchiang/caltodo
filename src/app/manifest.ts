@@ -20,7 +20,7 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: "caltodo",
     description:
       "Sync your classes, upload your syllabus, and manage every deadline in one place.",
-    start_url: "/app/inbox",
+    start_url: "/app/today",
     scope: "/",
     display: "standalone",
     orientation: "portrait",

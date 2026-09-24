@@ -22,8 +22,6 @@ import { timeAgo } from "@/lib/mcp/key-format";
 import McpKeyDialog from "@/components/settings/McpKeyDialog";
 import McpKeyList from "@/components/settings/McpKeyList";
 import { CopyButton, CopyableField } from "@/components/settings/CopyField";
-import Badge from "@/components/ui/Badge";
-import { StatusBadge } from "@/components/settings/integration-status";
 
 /** Path the MCP endpoint is served from. */
 const MCP_PATH = "/api/mcp";
@@ -106,7 +104,7 @@ export default function McpSettings() {
       mutate({ keys: [created.record, ...keys] }, { revalidate: false });
       setDialogOpen(false);
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Failed to create API key", { variant: "error" });
+      showToast(err instanceof Error ? err.message : "Failed to create API key");
     } finally {
       setCreating(false);
     }
@@ -135,7 +133,7 @@ export default function McpSettings() {
       const { record } = await res.json();
       mutate({ keys: keys.map((k) => (k.id === id ? record : k)) }, { revalidate: false });
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Failed to rename key", { variant: "error" });
+      showToast(err instanceof Error ? err.message : "Failed to rename key");
     }
   }
 
@@ -152,13 +150,13 @@ export default function McpSettings() {
       mutate({ keys: keys.filter((k) => k.id !== id) }, { revalidate: false });
       showToast("API key revoked.");
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Failed to revoke API key", { variant: "error" });
+      showToast(err instanceof Error ? err.message : "Failed to revoke API key");
     }
   }
 
   /** Summary line under the card title. */
   const subtitle = isLoading
-    ? "Loading..."
+    ? "Loading…"
     : error
       ? "Couldn't load your keys"
       : connected
@@ -170,7 +168,7 @@ export default function McpSettings() {
 
   return (
     <div className="rounded-2xl border border-border bg-card shadow-sm dark:shadow-none overflow-hidden">
-      {/* Header row, mirroring the other integration cards on this page. */}
+      {/* Header row — mirrors the other integration cards on this page. */}
       <button
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
@@ -185,18 +183,22 @@ export default function McpSettings() {
             <p className="text-sm font-semibold text-foreground whitespace-nowrap">
               AI assistants
             </p>
-            <Badge variant="beta">MCP</Badge>
+            <span className="text-[9px] font-medium text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-500/10 px-1.5 py-0.5 rounded-full leading-none whitespace-nowrap">
+              MCP
+            </span>
           </div>
           <p className="text-xs text-muted-foreground truncate">{subtitle}</p>
         </div>
 
         {connected ? (
-          <StatusBadge needsReconnect={false} />
+          <span className="hidden sm:inline text-xs font-medium px-3 py-1 rounded-lg border border-emerald-200 dark:border-emerald-500/30 text-emerald-600 dark:text-emerald-400 shrink-0">
+            Connected
+          </span>
         ) : (
           !isLoading && (
-            <Badge variant="info" className="hidden sm:inline-flex shrink-0">
+            <span className="hidden sm:inline text-xs font-semibold px-3 py-1 rounded-lg border border-blue-200 dark:border-blue-500/30 text-blue-500 shrink-0">
               Set up
-            </Badge>
+            </span>
           )
         )}
         <ChevronDown
@@ -228,7 +230,7 @@ export default function McpSettings() {
           {newKey && (
             <div className="rounded-xl border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 p-3 animate-row-fade-in">
               <p className="text-xs font-medium text-emerald-800 dark:text-emerald-300 mb-2">
-                Copy this key now. It will not be shown again.
+                Copy this key now — it will not be shown again.
               </p>
               <div className="flex items-center gap-1.5 pl-3 pr-1.5 py-1.5 rounded-lg border border-emerald-200 dark:border-emerald-500/30 bg-card">
                 <input
@@ -253,7 +255,7 @@ export default function McpSettings() {
             <p className="text-xs font-medium text-foreground mb-1.5">API keys</p>
 
             {isLoading ? (
-              <p className="text-xs text-muted-foreground py-2">Loading...</p>
+              <p className="text-xs text-muted-foreground py-2">Loading…</p>
             ) : error ? (
               <p className="text-xs text-red-500 py-2">
                 {error instanceof Error ? error.message : "Failed to load API keys"}

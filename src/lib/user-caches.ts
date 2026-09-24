@@ -25,33 +25,19 @@ export const USER_CACHE_KEYS: readonly string[] = [
   "caltodo_credentials_cache",
   "caltodo_calendar_token_cache",
   "caltodo_course_totals",
-  // No longer written (the inbox's own sync modal was removed); kept so
-  // sign-out still clears it for accounts that used the old build.
   "caltodo_sync_course_selections",
   "caltodo_hidden_nav_items",
   "gcal_status",
-  "discussion_boards_cache_v4",
-  "calchat_last_course",
 ];
 
-/** localStorage key prefixes for per-course, per-user chat and widget state. */
+/** localStorage key prefixes for per-user widget and board state. */
 export const USER_CACHE_KEY_PREFIXES: readonly string[] = [
   "gcal-widget-cache:",
-  "calchat_read_at_",
-  "calchat_muted_",
-  "calchat_pinned_",
-  "calchat_name_",
-  "calchat_last_sent_",
-  "calchat_hidden_system_",
   "caltodo_board_completed_",
 ];
 
-/** sessionStorage key prefixes holding one user's data. */
-export const USER_SESSION_KEY_PREFIXES: readonly string[] = [
-  "chat_messages_cache_",
-  "chat_members_cache_",
-  "calchat_author_key_",
-];
+/** sessionStorage key prefixes holding one user's data. None at present. */
+export const USER_SESSION_KEY_PREFIXES: readonly string[] = [];
 
 /**
  * Removes every key in `storage` that matches the given names or prefixes.

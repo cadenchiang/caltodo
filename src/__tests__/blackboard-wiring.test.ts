@@ -7,7 +7,6 @@
  * since Blackboard was built to mirror it.
  */
 
-import { DISCLOSURE_META } from "@/lib/integration-disclosure";
 import { describe, it, expect } from "vitest";
 import * as fs from "fs";
 import * as path from "path";
@@ -123,7 +122,7 @@ describe("onboarding", () => {
   const page = read("src/app/app/onboarding/page.tsx");
 
   it("is offered on the platform picker", () => {
-    expect(read("src/components/onboarding/PlatformsStep.tsx")).toMatch(/\{ id: "blackboard", label: PROVIDER_LABELS\.blackboard/);
+    expect(page).toMatch(/\{ id: "blackboard", label: "Blackboard"/);
   });
 
   it("is a known step and a known platform", () => {
@@ -153,18 +152,15 @@ describe("onboarding", () => {
   });
 
   it("counts its assignments on the done step", () => {
-    // The recap totals come from buildSyncStats, whose source list must
-    // include blackboard or its count silently drops out of the recap.
-    const stats = fs.readFileSync(path.join(ROOT, "src/lib/onboarding-sync-stats.ts"), "utf8");
-    expect(page).toContain("buildSyncStats({");
-    expect(stats).toMatch(/\{ key: "blackboard" \}/);
+    expect(page).toMatch(/syncResult\?\.blackboard\?\.synced/);
   });
 });
 
 describe("settings", () => {
-  it("renders a card in the available group", () => {
+  it("renders a card where credentials are in scope", () => {
     const list = read("src/components/settings/IntegrationList.tsx");
-    expect(list).toMatch(/<BlackboardSettings \/>/);
+    expect(list).toMatch(/<BlackboardSettings/);
+    expect(list).toMatch(/credentials,$/m);
   });
 
   it("is listed as an integration the user can connect", () => {
@@ -175,13 +171,10 @@ describe("settings", () => {
     expect(PROVIDER_META.blackboard.setupRoute).toBe("blackboard");
   });
 
-  it("disconnecting clears the URL and removes its tasks through the shared card", () => {
-    // The provider card only renders while unconnected; the connected card
-    // reads the disconnect payload and task source from DISCLOSURE_META.
-    expect(DISCLOSURE_META.blackboard.disconnectPayload).toEqual({ blackboard_calendar_url: null });
-    expect(DISCLOSURE_META.blackboard.taskSource).toBe("blackboard");
-    const card = read("src/components/settings/ConnectedIntegrationCard.tsx");
-    expect(card).toContain("deleteTasksBySource(meta.taskSource)");
+  it("disconnecting clears the URL and removes its tasks", () => {
+    const card = read("src/components/settings/BlackboardSettings.tsx");
+    expect(card).toMatch(/blackboard_calendar_url: null/);
+    expect(card).toMatch(/deleteTasksBySource\("blackboard"\)/);
   });
 
   it("shows as a connected platform in settings", () => {

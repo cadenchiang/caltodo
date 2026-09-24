@@ -1,53 +1,38 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { FileText, Trash2 } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 import { useTaskContext } from "@/contexts/TaskContext";
-import Button from "@/components/ui/Button";
-import ConfirmDialog from "@/components/ui/ConfirmDialog";
-import IconButton from "@/components/ui/IconButton";
-import { PROVIDER_LABELS } from "@/lib/copy";
-
-/** Sentinel for "every syllabus upload" in the confirm target. */
-const ALL = "all";
-
-/** Course name used when an imported task carries none. */
-const UNTITLED = "Untitled syllabus";
 
 /**
- * Wording for the confirm dialog body.
+ * Syllabus integration row card.
+ * Groups imported tasks by course_name so users can delete individual
+ * syllabus uploads without losing tasks from other uploads.
+ * "Upload" / "Upload Another" navigates to syllabus onboarding step.
  *
- * @param target - A course name, or ALL
- * @param count - Tasks that will be removed
- * @returns "all 3 imported tasks" or '2 tasks from "CS 61A"'
- */
-export function removalPhrase(target: string, count: number): string {
-  const noun = count === 1 ? "task" : "tasks";
-  return target === ALL ? `all ${count} imported ${noun}` : `${count} ${noun} from "${target}"`;
-}
-
-/**
- * Syllabus card. A syllabus is a PDF the user uploaded, not an account, so
- * the card carries no connection status or disconnect: it offers Upload and an
- * always-visible "Remove tasks" action per upload (grouped by course name).
+ * Follows the same card pattern as PensieveSettings/CanvasSettings.
  */
 export default function SyllabusSettings() {
   const router = useRouter();
   const { showToast } = useToast();
   const { tasks, deleteTasksBySource, deleteSyllabusTasksByCourse } = useTaskContext();
-  const [removing, setRemoving] = useState(false);
-  /** Which course, or ALL, the confirm dialog is about. */
+  const [disconnecting, setDisconnecting] = useState(false);
+  /** Which course or "all" to confirm deletion for. */
   const [confirmTarget, setConfirmTarget] = useState<string | null>(null);
 
-  const syllabusTasks = useMemo(() => tasks.filter((t) => t.source === "syllabus"), [tasks]);
+  const syllabusTasks = useMemo(
+    () => tasks.filter((t) => t.source === "syllabus"),
+    [tasks]
+  );
 
   /** Groups syllabus tasks by course_name, sorted alphabetically. */
   const courseGroups = useMemo(() => {
     const map = new Map<string, number>();
     for (const t of syllabusTasks) {
-      const name = t.course_name || UNTITLED;
+      const name = t.course_name || "Untitled Syllabus";
       map.set(name, (map.get(name) || 0) + 1);
     }
     return Array.from(map.entries())
@@ -58,14 +43,15 @@ export default function SyllabusSettings() {
   const totalCount = syllabusTasks.length;
 
   /**
-   * Deletes tasks for a specific course or every syllabus task.
+   * Deletes tasks for a specific course or all syllabus tasks.
    *
-   * @param target - course_name to delete, or ALL
+   * @param target - course_name to delete, or "all" for everything
    */
   async function handleDelete(target: string) {
-    setRemoving(true);
+    setConfirmTarget(null);
+    setDisconnecting(true);
     try {
-      if (target === ALL) {
+      if (target === "all") {
         await deleteTasksBySource("syllabus");
         showToast("All syllabus tasks removed.");
       } else {
@@ -73,29 +59,33 @@ export default function SyllabusSettings() {
         showToast(`Removed tasks from "${target}".`);
       }
     } catch (err) {
-      console.error("SyllabusSettings: remove failed", {
-        target,
-        error: err instanceof Error ? err.message : String(err),
-        impact: "the imported tasks are still present",
-      });
-      showToast(err instanceof Error ? err.message : "Failed to remove tasks", { variant: "error" });
+      showToast(err instanceof Error ? err.message : "Failed to remove tasks");
     } finally {
-      setRemoving(false);
-      setConfirmTarget(null);
+      setDisconnecting(false);
     }
   }
 
-  const confirmCount =
-    confirmTarget === ALL ? totalCount : courseGroups.find((g) => g.name === confirmTarget)?.count ?? 0;
+  /** Count for the current confirm target. */
+  const confirmCount = confirmTarget === "all"
+    ? totalCount
+    : courseGroups.find((g) => g.name === confirmTarget)?.count ?? 0;
+
+  const confirmLabel = confirmTarget === "all"
+    ? `all ${totalCount} imported task${totalCount === 1 ? "" : "s"}`
+    : `${confirmCount} task${confirmCount === 1 ? "" : "s"} from "${confirmTarget}"`;
 
   return (
     <div className="rounded-2xl border border-border bg-card px-3 sm:px-4 py-3.5 shadow-sm dark:shadow-none">
       <div className="flex items-center gap-2.5 sm:gap-3.5">
+        {/* Neutral tile, matching the other integration cards. Purple made
+            Syllabus read as a distinct brand alongside Canvas and Gradescope,
+            which have their own; it is a file the user uploaded, not a
+            platform. */}
         <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
-          <FileText size={20} className="text-secondary-foreground" aria-hidden="true" />
+          <FileText size={20} className="text-secondary-foreground" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-foreground">{PROVIDER_LABELS.syllabus}</p>
+          <p className="text-sm font-semibold text-foreground">Syllabus</p>
           <p className="text-xs text-muted-foreground truncate">
             {totalCount === 0
               ? "Assignments from a PDF"
@@ -105,66 +95,91 @@ export default function SyllabusSettings() {
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <Button size="sm" variant="secondary" onClick={() => router.push("/app/onboarding?setup=syllabus")}>
-            {totalCount > 0 ? "Upload another" : "Upload"}
-          </Button>
+          <button
+            onClick={() => router.push("/app/onboarding?setup=syllabus")}
+            className="text-xs font-medium text-secondary-foreground hover:text-foreground px-3 py-1 rounded-lg border border-border hover:bg-muted/60 transition-colors cursor-pointer"
+          >
+            {totalCount > 0 ? "Upload Another" : "Upload"}
+          </button>
           {totalCount > 0 && courseGroups.length <= 1 && (
-            <Button
-              size="sm"
-              variant="destructive"
-              onClick={() => setConfirmTarget(ALL)}
-              disabled={removing}
-              className="text-muted-foreground"
+            <button
+              onClick={() => setConfirmTarget("all")}
+              disabled={disconnecting}
+              aria-label="Disconnect Syllabus"
+              className="group min-w-[84px] text-xs font-medium px-3 py-1 rounded-lg border transition-colors cursor-pointer disabled:opacity-60
+                text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30
+                hover:text-red-500 hover:border-red-300 hover:bg-red-50 dark:hover:text-red-400 dark:hover:border-red-500/30 dark:hover:bg-red-500/10"
             >
-              Remove tasks
-            </Button>
+              <span className="group-hover:hidden">{disconnecting ? "..." : "Connected"}</span>
+              <span className="hidden group-hover:inline">Disconnect</span>
+            </button>
           )}
         </div>
       </div>
 
+      {/* Per-course breakdown when multiple syllabuses uploaded */}
       {courseGroups.length > 1 && (
         <div className="mt-3 pt-3 border-t border-border space-y-2">
           {courseGroups.map((group) => (
             <div key={group.name} className="flex items-center justify-between gap-2 px-1">
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-medium text-foreground truncate">{group.name}</p>
-                <p className="text-2xs text-muted-foreground">
+                <p className="text-[11px] text-muted-foreground">
                   {group.count} task{group.count === 1 ? "" : "s"}
                 </p>
               </div>
-              <IconButton
-                size="sm"
-                aria-label={`Remove tasks from ${group.name}`}
+              <button
                 onClick={() => setConfirmTarget(group.name)}
-                disabled={removing}
-                className="hover:text-red-500"
+                disabled={disconnecting}
+                className="text-muted-foreground hover:text-red-500 dark:hover:text-red-400 transition-colors cursor-pointer disabled:opacity-60 p-1 rounded-md hover:bg-red-50 dark:hover:bg-red-500/10"
+                aria-label={`Remove ${group.name}`}
               >
                 <Trash2 size={14} />
-              </IconButton>
+              </button>
             </div>
           ))}
-          <Button
-            size="sm"
-            variant="destructive"
-            onClick={() => setConfirmTarget(ALL)}
-            disabled={removing}
-            className="w-full"
+          <button
+            onClick={() => setConfirmTarget("all")}
+            disabled={disconnecting}
+            className="w-full text-[11px] font-medium text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg py-1.5 transition-colors cursor-pointer disabled:opacity-60"
           >
-            Remove all syllabus tasks
-          </Button>
+            Remove All
+          </button>
         </div>
       )}
 
-      <ConfirmDialog
-        open={confirmTarget !== null}
-        title="Remove syllabus tasks?"
-        body={`This removes ${removalPhrase(confirmTarget ?? ALL, confirmCount)}. You can upload again later.`}
-        confirmLabel="Remove"
-        destructive
-        loading={removing}
-        onConfirm={() => confirmTarget && handleDelete(confirmTarget)}
-        onCancel={() => setConfirmTarget(null)}
-      />
+      {confirmTarget && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setConfirmTarget(null)} />
+          <div className="relative bg-card rounded-2xl border border-border shadow-2xl w-[calc(100%-2rem)] max-w-sm p-6 animate-modal-in">
+            <div className="text-center">
+              <h2 className="text-lg font-semibold text-foreground mb-2">
+                Remove syllabus tasks?
+              </h2>
+              <p className="text-sm text-muted-foreground mb-6">
+                This will remove {confirmLabel}. You can upload again later.
+              </p>
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => handleDelete(confirmTarget)}
+                  className="w-full px-4 py-2.5 rounded-xl text-sm font-medium bg-red-500 text-white hover:bg-red-600 transition-all cursor-pointer"
+                >
+                  Remove
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmTarget(null)}
+                  className="w-full px-4 py-2 rounded-xl text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

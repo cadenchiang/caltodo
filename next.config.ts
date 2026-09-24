@@ -35,12 +35,6 @@ const withSerwist = withSerwistInit({
 const nextConfig: NextConfig = {
   serverExternalPackages: ["@tensorflow/tfjs", "nsfwjs", "sharp"],
 
-  // Dev only. Without this, a page opened at http://127.0.0.1:3000 never
-  // hydrates: Next refuses the HMR websocket from that origin, so no click
-  // handler attaches and the Google sign-in button does nothing. Browser
-  // automation reaches the dev server by IP, not by "localhost".
-  allowedDevOrigins: ["127.0.0.1"],
-
   // Empty Turbopack config silences the "webpack config but no turbopack
   // config" error. Serwist's webpack plugin is disabled in dev (see above),
   // so dev can run under Turbopack safely; builds are run with --webpack.

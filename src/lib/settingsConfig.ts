@@ -1,11 +1,9 @@
-import { Bell, Plug, Palette, Wrench, LayoutList, MessageCircle, type LucideIcon } from "lucide-react";
+import { Plug, Palette, Wrench, LayoutList, type LucideIcon } from "lucide-react";
 
 /** Valid settings section identifiers. */
 export type SettingsSectionId =
   | "integrations"
-  | "notifications"
   | "appearance"
-  | "chat"
   | "navigation"
   | "advanced";
 
@@ -33,19 +31,10 @@ export interface SettingsSection {
  */
 export const SETTINGS_SECTIONS: SettingsSection[] = [
   { id: "integrations", label: "Integrations", icon: Plug, group: "General" },
-  { id: "notifications", label: "Notifications", icon: Bell, group: "General" },
   { id: "appearance", label: "Appearance", icon: Palette, group: "System" },
-  { id: "chat", label: "Chat", icon: MessageCircle, group: "System" },
   { id: "navigation", label: "Navigation", icon: LayoutList, group: "System" },
   { id: "advanced", label: "Advanced", icon: Wrench, group: "System" },
 ];
-
-/**
- * The one recipe for a settings group label, on the sidebar and the mobile
- * list alike. Sentence case, foreground colour, never tracking-wider gray
- * (UI_STYLE_GUIDE.md, Color System rules).
- */
-export const SETTINGS_GROUP_LABEL = "text-xs font-medium text-foreground";
 
 /** Default section shown when no search param is provided (desktop). */
 export const DEFAULT_SECTION: SettingsSectionId = "integrations";

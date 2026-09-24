@@ -11,7 +11,6 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isAdmin } from "@/lib/admin";
 import { logger } from "@/lib/logger";
-import { countSyllabusUsers } from "@/lib/admin-overview-helpers";
 import { rateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
@@ -24,11 +23,6 @@ export interface PlatformAdoptionData {
   gradescope: number;
   googleCalendar: number;
   pensieve: number;
-  brightspace: number;
-  blackboard: number;
-  classroom: number;
-  /** Users with at least one task imported from a syllabus. */
-  syllabus: number;
 }
 
 /**
@@ -72,7 +66,7 @@ export async function GET() {
     const { data: credentials, error: credError } = await adminClient
       .from("integration_credentials")
       .select(
-        "canvas_token, gradescope_email, google_access_token_encrypted, pensieve_calendar_url, brightspace_calendar_url, blackboard_calendar_url, classroom_enabled"
+        "canvas_token, gradescope_email, google_access_token_encrypted, pensieve_calendar_url"
       );
 
     // Track whether any query failed so the dashboard can flag under-reported
@@ -92,37 +86,28 @@ export async function GET() {
       gradescope: 0,
       googleCalendar: 0,
       pensieve: 0,
-      brightspace: 0,
-      blackboard: 0,
-      classroom: 0,
-      syllabus: 0,
     };
 
     if (credentials) {
       for (const cred of credentials) {
         if (cred.canvas_token) platforms.canvas++;
         if (cred.gradescope_email) platforms.gradescope++;
-        // Connection = OAuth token present, not google_calendar_id (that is
-        // the later calendar selection); matches mobile/credentials.
+        // Connection = OAuth token present, not google_calendar_id (that's the
+        // later calendar selection) — matches mobile/credentials.
         if (cred.google_access_token_encrypted) platforms.googleCalendar++;
         if (cred.pensieve_calendar_url) platforms.pensieve++;
-        if (cred.brightspace_calendar_url) platforms.brightspace++;
-        if (cred.blackboard_calendar_url) platforms.blackboard++;
-        if (cred.classroom_enabled) platforms.classroom++;
       }
     }
 
-    // Query tasks for completion stats; paginate to avoid Supabase's
-    // 1000-row default limit. user_id is read so Syllabus adoption (users
-    // with at least one imported task) can be counted from the same pass.
-    const allTasks: Array<{ is_completed: boolean; source: string | null; user_id: string }> = [];
+    // Query tasks for completion stats — paginate to avoid Supabase 1000-row default limit
+    const allTasks: Array<{ is_completed: boolean; source: string | null }> = [];
     const PAGE_SIZE = 1000;
     let offset = 0;
 
     while (true) {
       const { data: page, error: taskError } = await adminClient
         .from("tasks")
-        .select("is_completed, source, user_id")
+        .select("is_completed, source")
         // A stable order keeps pages from overlapping or skipping rows.
         .order("id", { ascending: true })
         .range(offset, offset + PAGE_SIZE - 1);
@@ -171,8 +156,6 @@ export async function GET() {
     taskStats.bySource = Array.from(sourceMap.entries())
       .map(([source, stats]) => ({ source, ...stats }))
       .sort((a, b) => b.count - a.count);
-
-    platforms.syllabus = countSyllabusUsers(allTasks);
 
     logger.info("GET /api/admin/overview — success", {
       platforms,

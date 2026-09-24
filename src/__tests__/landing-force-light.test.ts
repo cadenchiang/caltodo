@@ -16,9 +16,7 @@ const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), "utf8");
 
 describe("landing layout", () => {
   it("applies force-light like /login does", () => {
-    // The layout renders through LandingShell, which owns the wrapper.
-    expect(read("src/app/(landing)/layout.tsx")).toContain("<LandingShell>{children}</LandingShell>");
-    expect(read("src/components/landing/LandingShell.tsx")).toMatch(/className="[^"]*\bbg-white\b[^"]*\bforce-light\b/);
+    expect(read("src/app/(landing)/layout.tsx")).toMatch(/className="[^"]*\bbg-white\b[^"]*\bforce-light\b/);
     expect(read("src/app/login/page.tsx")).toMatch(/className="[^"]*\bforce-light\b/);
   });
 
@@ -32,11 +30,10 @@ describe("landing layout", () => {
 describe("billing success copy", () => {
   const page = read("src/app/app/billing/success/page.tsx");
 
-  it("redirects into the app instead of naming a settings destination", () => {
-    // The page is a redirect now (audit 2.27); it renders no links at all.
+  it("points at a settings destination that exists", () => {
     expect(page).not.toContain("Settings &rarr; Account");
-    expect(page).toContain("redirect(BILLING_SUCCESS_REDIRECT)");
-    // The billing portal still returns to settings.
+    expect(page).toContain('<Link href="/app/settings"');
+    // The billing portal returns to the same place.
     expect(read("src/app/api/stripe/portal/route.ts")).toContain("return_url: `${origin}/app/settings`");
   });
 

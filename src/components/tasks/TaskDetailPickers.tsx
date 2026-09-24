@@ -136,7 +136,7 @@ export default function TaskDetailPickers({
   const { colorFor, setColor, hasStoredColor } = useLabelColors();
   /** A tag's colour: chosen if there is one, derived from the name if not. */
   const tagColor = (tag: string) => colorFor("tag", tag);
-  /** A class's colour: chosen, else the colour its tasks already use. */
+  /** A class's colour: chosen, else the colour its assignments already use. */
   const classColor = (name: string) => colorFor("class", name, courseColor(name, courseColors));
 
   // The dismissed set lives on the device, not in React, so it is read as an
@@ -160,7 +160,7 @@ export default function TaskDetailPickers({
    * Dismisses a source badge on every task.
    *
    * @param label - Badge label as displayed, e.g. "bCourses"
-   * @remarks The badge says where the task came from, so nothing about
+   * @remarks The badge says where the assignment came from, so nothing about
    *          the task changes; only whether the pill is drawn. Stored per
    *          device, like the other display preferences.
    */
@@ -181,7 +181,7 @@ export default function TaskDetailPickers({
   }
 
   /**
-   * Retires a tag from every task that carries it.
+   * Retires a tag from every assignment that carries it.
    *
    * @param tag - Tag to delete, as displayed
    * @remarks Tags are derived from tasks, so there is no tag row to delete on
@@ -194,7 +194,7 @@ export default function TaskDetailPickers({
   }
 
   /**
-   * Clears a class from every task that carries it.
+   * Clears a class from every assignment that carries it.
    *
    * @param name - Class name to delete, as stored
    * @remarks A class from a synced platform comes back on the next sync,
@@ -220,7 +220,7 @@ export default function TaskDetailPickers({
                 onCommit={(values) => save({ course_name: values[0] ?? null })}
                 allowCreate
                 onDelete={handleDeleteCourse}
-                deleteHint="Remove this class from every task"
+                deleteHint="Remove this class from every assignment"
                 colorFor={classColor}
                 onColorChange={(name, c) => void setColor("class", name, c)}
                 isColorStored={(name) => hasStoredColor("class", name)}
@@ -252,7 +252,7 @@ export default function TaskDetailPickers({
                 onCommit={(values) => save({ tags: values })}
                 allowCreate
                 onDelete={handleDeleteTag}
-                deleteHint="Remove this tag from every task"
+                deleteHint="Remove this tag from every assignment"
                 colorFor={tagColor}
                 onColorChange={(tag, c) => void setColor("tag", tag, c)}
                 isColorStored={(tag) => hasStoredColor("tag", tag)}
@@ -287,7 +287,7 @@ export default function TaskDetailPickers({
                     label={tag}
                     color={tagColor(tag)}
                     onRemove={() => handleRemoveTag(tag)}
-                    removeHint={`Remove ${tag} from this task`}
+                    removeHint={`Remove ${tag} from this assignment`}
                   />
                 ))}
               </span>

@@ -4,27 +4,27 @@
  * A connected integration, with its accounts behind a dropdown.
  *
  * Mirrors the AI assistants (MCP) card on the same page: the whole header is
- * the toggle, the status is a badge, and everything you can act on lives in
- * the panel underneath. Disconnecting and removing an extra account both go
- * through ConfirmDialog, and the controls are always visible at reduced
- * emphasis rather than revealed on hover, which touch screens cannot do.
+ * the toggle, the status is a plain badge, and everything you can act on lives
+ * in the panel underneath.
+ *
+ * That placement is the point. Disconnecting used to be the front-of-card
+ * "Connected" badge turning red on hover, so the control that deletes every
+ * synced task from a platform sat under the pointer on the way past. It now
+ * takes a deliberate expand first. The "add another account" plus that briefly
+ * lived in the header is gone for the same reason: account management is one
+ * job and it belongs in one place.
  */
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, Plus } from "lucide-react";
+import { ChevronDown, Plus, X } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 import { useTaskContext } from "@/contexts/TaskContext";
 import type { IntegrationCredentials } from "@/lib/types";
 import { DISCLOSURE_META, type DisclosureProvider } from "@/lib/integration-disclosure";
-import { PROVIDER_META } from "@/lib/integration-providers";
 import { addRouteForCatalogId, accountNounForCatalogId } from "@/lib/integration-catalog";
 import { hasCourseSelection, type SelectableCourse } from "@/lib/course-selection";
-import Button from "@/components/ui/Button";
-import ConfirmDialog from "@/components/ui/ConfirmDialog";
-import Badge from "@/components/ui/Badge";
 import AccountClasses, { PILL_SHAPE } from "./AccountClasses";
-import { NEEDS_RECONNECT_LABEL, StatusBadge } from "./integration-status";
 
 /** One account listed in the dropdown, whichever store it came from. */
 export interface DisclosureAccount {
@@ -58,19 +58,6 @@ interface ConnectedIntegrationCardProps {
   onSaveCourses?: (accountId: string, courses: SelectableCourse[]) => Promise<void>;
 }
 
-/** Which confirmation is open: the primary disconnect, or one extra account. */
-type Pending = { kind: "disconnect" } | { kind: "remove"; account: DisclosureAccount } | null;
-
-/**
- * Wording for how many tasks a removal takes with it.
- *
- * @param count - Tasks that will be removed
- * @returns "1 synced task" or "N synced tasks"
- */
-export function syncedTaskPhrase(count: number): string {
-  return count === 1 ? "1 synced task" : `${count} synced tasks`;
-}
-
 /**
  * Renders the collapsed row and, when expanded, this integration's accounts.
  *
@@ -95,35 +82,31 @@ export default function ConnectedIntegrationCard({
   const { showToast } = useToast();
   const { tasks, deleteTasksBySource } = useTaskContext();
   const [open, setOpen] = useState(false);
-  const [pending, setPending] = useState<Pending>(null);
+  const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
 
   const meta = DISCLOSURE_META[provider];
   const addRoute = addRouteForCatalogId(provider);
   const noun = accountNounForCatalogId(provider);
-  const needsAttention = accounts.some((a) => a.authFailed);
+  const needsAttention = meta.authFailed(credentials);
   const syncedCount = tasks.filter((t) => t.source === meta.taskSource).length;
 
+  // How many classes this integration syncs, across all of its accounts. Shown
+  // in the collapsed header because it is the thing worth knowing without
+  // expanding: an integration that is connected but syncing nothing looks
+  // identical to a healthy one otherwise.
   const classCount = accounts.reduce((n, a) => n + (a.selectedCourses?.length ?? 0), 0);
   const hasClasses = accounts.some((a) => a.selectedCourses !== null);
-  const classSummary = hasClasses ? `${classCount} ${classCount === 1 ? "class" : "classes"}` : "";
-
-  /**
-   * How many tasks one extra account would take with it. Only extra Canvas
-   * accounts namespace their tasks (external_id "<account id>:..."), so only
-   * they can be counted; feed accounts merge into the provider's tasks.
-   */
-  function extraAccountTaskCount(account: DisclosureAccount): number | null {
-    if (provider !== "canvas") return null;
-    const prefix = `${account.id}:`;
-    return tasks.filter((t) => t.source === "canvas" && (t.external_id ?? "").startsWith(prefix)).length;
-  }
+  const classSummary = hasClasses
+    ? `${classCount} ${classCount === 1 ? "class" : "classes"}`
+    : "";
 
   /**
    * Disconnects the primary account: clears its credentials, then removes the
    * tasks it synced. Extra accounts are removed through onRemoveAccount.
    */
   async function handleDisconnect() {
+    setConfirming(false);
     setBusy("primary");
     try {
       const res = await fetch("/api/credentials", {
@@ -140,15 +123,9 @@ export default function ConnectedIntegrationCard({
       await deleteTasksBySource(meta.taskSource);
       showToast(`${label} disconnected.`);
     } catch (err) {
-      console.error("ConnectedIntegrationCard: disconnect failed", {
-        provider,
-        error: err instanceof Error ? err.message : String(err),
-        impact: "credentials and tasks were left in place",
-      });
-      showToast(err instanceof Error ? err.message : "Failed to disconnect", { variant: "error" });
+      showToast(err instanceof Error ? err.message : "Failed to disconnect");
     } finally {
       setBusy(null);
-      setPending(null);
     }
   }
 
@@ -160,41 +137,44 @@ export default function ConnectedIntegrationCard({
       await onRemoveAccount(id);
     } finally {
       setBusy(null);
-      setPending(null);
     }
   }
-
-  /** Sends the user to this provider's setup step to re-enter its connection. */
-  function reconnect() {
-    router.push(`/app/onboarding?setup=${PROVIDER_META[provider].setupRoute}`);
-  }
-
-  const removing = pending?.kind === "remove" ? pending.account : null;
-  const removingCount = removing ? extraAccountTaskCount(removing) : null;
 
   return (
     <div className="rounded-2xl border border-border bg-card shadow-sm dark:shadow-none overflow-hidden">
       <button
-        type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         className="w-full flex items-center gap-2.5 sm:gap-3.5 px-3 sm:px-4 py-3.5 text-left hover:bg-muted/40 transition-colors cursor-pointer"
       >
-        <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl ${meta.logoTileClassName} flex items-center justify-center shrink-0 overflow-hidden`}>
+        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
           <img src={meta.logo} alt="" loading="eager" decoding="sync" className={meta.logoClassName} />
         </div>
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
             <p className="text-sm font-semibold text-foreground">{label}</p>
-            {accounts.length > 1 && <Badge variant="neutral">{accounts.length}</Badge>}
+            {accounts.length > 1 && (
+              <span className="text-[10px] font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full leading-none shrink-0">
+                {accounts.length}
+              </span>
+            )}
           </div>
           <p className="text-xs text-muted-foreground truncate">
             {[meta.subtitle(credentials), classSummary].filter(Boolean).join(" · ")}
           </p>
         </div>
 
-        <StatusBadge needsReconnect={needsAttention} />
+        {/* A badge, not a button: disconnecting is inside the panel. */}
+        {needsAttention ? (
+          <span className="hidden sm:inline text-xs font-medium px-3 py-1 rounded-lg border border-red-200 dark:border-red-500/30 text-red-500 shrink-0">
+            Needs reconnecting
+          </span>
+        ) : (
+          <span className="hidden sm:inline text-xs font-medium px-3 py-1 rounded-lg border border-emerald-200 dark:border-emerald-500/30 text-emerald-600 dark:text-emerald-400 shrink-0">
+            Connected
+          </span>
+        )}
         <ChevronDown
           size={16}
           className={`text-muted-foreground shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
@@ -210,48 +190,47 @@ export default function ConnectedIntegrationCard({
       >
         <div className="overflow-hidden">
           <div className="px-3 sm:px-4 pb-3 pt-3 border-t border-border space-y-2">
+            {/* One bordered block per account. A flat stack of rows gave the
+                account, its classes, and the add control the same weight and
+                the same left edge, so a second account was indistinguishable
+                from a second section of the first. */}
             {accounts.map((account) => (
               <div key={account.id} className="rounded-xl border border-border bg-muted/30 overflow-hidden">
-                <div className="flex flex-wrap items-center gap-2 px-3 py-2">
-                  <span className="flex-1 min-w-0 flex">
-                    <span className={`${PILL_SHAPE} font-semibold bg-card border border-border text-foreground`}>
-                      {account.label}
-                    </span>
+                <div className="group/row flex items-center gap-2 px-3 py-2">
+                {/* A pill, like the classes under it: the account label is a
+                    value on this card, not a heading over it. */}
+                <span className="flex-1 min-w-0 flex">
+                  <span className={`${PILL_SHAPE} font-semibold bg-card border border-border text-foreground`}>
+                    {account.label}
                   </span>
-                  {account.authFailed && (
-                    <>
-                      <span className="text-2xs font-medium text-red-500 shrink-0">{NEEDS_RECONNECT_LABEL}</span>
-                      <Button size="sm" variant="secondary" onClick={reconnect} disabled={busy !== null}>
-                        Reconnect
-                      </Button>
-                    </>
-                  )}
-                  {account.isPrimary ? (
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => setPending({ kind: "disconnect" })}
-                      disabled={busy !== null}
-                      loading={busy === "primary"}
-                      className="text-muted-foreground"
-                    >
-                      Disconnect
-                    </Button>
-                  ) : (
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => setPending({ kind: "remove", account })}
-                      disabled={busy !== null}
-                      loading={busy === account.id}
-                      aria-label={`Remove ${account.label}`}
-                      className="text-muted-foreground"
-                    >
-                      Remove
-                    </Button>
-                  )}
+                </span>
+                {account.authFailed && (
+                  <span className="text-[11px] font-medium text-red-500 shrink-0">
+                    Needs reconnecting
+                  </span>
+                )}
+                {account.isPrimary ? (
+                  <button
+                    onClick={() => setConfirming(true)}
+                    disabled={busy !== null}
+                    className="shrink-0 text-[11px] font-medium px-2 py-1 rounded-lg text-muted-foreground opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    {busy === "primary" ? "..." : "Disconnect"}
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => handleRemove(account.id)}
+                    disabled={busy !== null}
+                    aria-label={`Remove ${account.label}`}
+                    className="shrink-0 p-1 rounded-lg text-muted-foreground opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
                 </div>
 
+                {/* This account's classes, which only exist per account
+                    because the course endpoints are scoped by account_id. */}
                 {account.selectedCourses !== null && onSaveCourses && hasCourseSelection(provider) && (
                   <div className="border-t border-border/60 px-3 py-2">
                     <AccountClasses
@@ -265,13 +244,14 @@ export default function ConnectedIntegrationCard({
               </div>
             ))}
 
+            {/* Outside the account blocks: this adds a new one rather than
+                acting on any of them. */}
             {addRoute && noun && (
               <div className="pt-0.5">
                 <button
-                  type="button"
                   onClick={() => router.push(`/app/onboarding?setup=${addRoute}`)}
                   aria-label={`Add another ${noun}`}
-                  className={`${PILL_SHAPE} gap-1 cursor-pointer bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 transition-colors`}
+                  className={`${PILL_SHAPE} gap-1 cursor-pointer bg-[#0e89d6]/10 text-[#0e89d6] hover:bg-[#0e89d6]/20 transition-colors`}
                 >
                   <Plus size={12} className="shrink-0" />
                   Add another {shortNoun(noun)}
@@ -282,37 +262,14 @@ export default function ConnectedIntegrationCard({
         </div>
       </div>
 
-      <ConfirmDialog
-        open={pending?.kind === "disconnect"}
-        title={`Disconnect ${label}?`}
-        body={
-          syncedCount > 0
-            ? `This removes ${syncedTaskPhrase(syncedCount)} from ${label}. You can reconnect later to sync them again.`
-            : "No synced tasks to remove. You can reconnect later to sync again."
-        }
-        confirmLabel="Disconnect"
-        destructive
-        loading={busy === "primary"}
-        onConfirm={handleDisconnect}
-        onCancel={() => setPending(null)}
-      />
-
-      <ConfirmDialog
-        open={removing !== null}
-        title={`Remove ${removing?.label ?? "this account"}?`}
-        body={
-          removingCount === null
-            ? "Its assignments stop syncing. Tasks already synced stay until the next sync."
-            : removingCount > 0
-              ? `This removes ${syncedTaskPhrase(removingCount)} from ${removing?.label}. You can add it again later.`
-              : "No synced tasks to remove. You can add it again later."
-        }
-        confirmLabel="Remove"
-        destructive
-        loading={removing !== null && busy === removing.id}
-        onConfirm={() => removing && handleRemove(removing.id)}
-        onCancel={() => setPending(null)}
-      />
+      {confirming && (
+        <DisconnectConfirm
+          label={label}
+          syncedCount={syncedCount}
+          onCancel={() => setConfirming(false)}
+          onConfirm={handleDisconnect}
+        />
+      )}
     </div>
   );
 }
@@ -324,9 +281,62 @@ export default function ConnectedIntegrationCard({
  * @returns Just the thing being added, e.g. "school".
  * @remarks The card's title is directly above this row and already says which
  *          provider it is, so "Add another Canvas school" under a card titled
- *          Canvas says it twice. The full noun stays on the accessible name.
+ *          Canvas says it twice. The full noun stays on the accessible name,
+ *          where there is no title nearby to supply it.
  */
 function shortNoun(noun: string): string {
   const [first, ...rest] = noun.split(" ");
   return rest.length > 0 ? rest.join(" ") : first;
+}
+
+/**
+ * Confirmation before a disconnect, which also deletes that platform's tasks.
+ *
+ * @param label - Provider name.
+ * @param syncedCount - How many tasks will be removed.
+ * @param onCancel - Dismisses without disconnecting.
+ * @param onConfirm - Performs the disconnect.
+ */
+function DisconnectConfirm({
+  label,
+  syncedCount,
+  onCancel,
+  onConfirm,
+}: {
+  label: string;
+  syncedCount: number;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onCancel} />
+      <div className="relative bg-card rounded-2xl border border-border shadow-2xl w-[calc(100%-2rem)] max-w-sm p-6 animate-modal-in">
+        <div className="text-center">
+          <h2 className="text-lg font-semibold text-foreground mb-2">Disconnect {label}?</h2>
+          <p className="text-sm text-muted-foreground mb-6">
+            {syncedCount > 0
+              ? `This will remove ${syncedCount === 1 ? "1 synced task" : `${syncedCount} synced tasks`} from ${label}. You can reconnect later to sync them again.`
+              : "No synced tasks to remove. You can reconnect later to sync again."}
+          </p>
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={onConfirm}
+              className="w-full px-4 py-2.5 rounded-xl text-sm font-medium bg-red-500 text-white hover:bg-red-600 transition-all cursor-pointer"
+            >
+              Disconnect
+            </button>
+            <button
+              type="button"
+              onClick={onCancel}
+              className="w-full px-4 py-2 rounded-xl text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }

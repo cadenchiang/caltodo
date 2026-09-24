@@ -7,7 +7,7 @@ import type { PrecacheEntry, SerwistGlobalConfig } from "serwist";
 import { Serwist } from "serwist";
 
 /**
- * Service worker entry for the caltodo PWA.
+ * Service worker entry for CalTodo PWA.
  *
  * Built by @serwist/next at `next build` and emitted to /public/sw.js.
  * Uses Serwist's defaultCache recipe (Workbox-derived) for static assets,
@@ -57,27 +57,27 @@ self.addEventListener("push", (event: PushEvent) => {
   try {
     payload = event.data.json();
   } catch {
-    payload = { title: "caltodo", body: event.data.text() };
+    payload = { title: "CalTodo", body: event.data.text() };
   }
-  const title = payload.title || "caltodo";
+  const title = payload.title || "CalTodo";
   event.waitUntil(
     self.registration.showNotification(title, {
       body: payload.body || "",
       tag: payload.tag,
       icon: "/pwa-icon-192.png",
       badge: "/pwa-icon-192.png",
-      data: { url: payload.url || "/app/inbox" },
+      data: { url: payload.url || "/app/today" },
     })
   );
 });
 
 /**
- * Notification click — focuses an existing caltodo tab/window if open,
+ * Notification click — focuses an existing CalTodo tab/window if open,
  * otherwise opens a new one at the URL stored in the notification's data.
  */
 self.addEventListener("notificationclick", (event: NotificationEvent) => {
   event.notification.close();
-  const target = (event.notification.data as { url?: string } | null)?.url || "/app/inbox";
+  const target = (event.notification.data as { url?: string } | null)?.url || "/app/today";
   event.waitUntil(
     (async () => {
       const all = await self.clients.matchAll({ type: "window", includeUncontrolled: true });

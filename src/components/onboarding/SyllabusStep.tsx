@@ -1,20 +1,17 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect, type FormEvent } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
+import { Upload, FileText } from "lucide-react";
 import { useTaskContext } from "@/contexts/TaskContext";
 import { useToast } from "@/contexts/ToastContext";
 import type { ExtractedAssignment } from "@/app/api/syllabus/extract/route";
-import Button from "@/components/ui/Button";
 import SyllabusPreview from "./SyllabusPreview";
 import type { SelectableAssignment } from "./SyllabusPreview";
 import SyllabusExtracting, {
   estimateExtractionTime,
   STATUS_MESSAGES,
 } from "./SyllabusExtracting";
-import SyllabusDropzone, { validateSyllabusFile } from "./SyllabusDropzone";
-import { ErrorBanner, StepHeading } from "./StepChrome";
-import { MOCK_ASSIGNMENTS, MOCK_COURSE_NAME, shouldLoadSyllabusMock } from "./syllabusMock";
 
 interface SyllabusStepProps {
   onNext: (payload: Record<string, never>) => Promise<boolean>;
@@ -30,6 +27,32 @@ interface SyllabusStepProps {
    */
   onImported?: (summary: { count: number; courseName: string | null }) => void;
 }
+
+/** Maximum file size in bytes (10 MB). */
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
+const ACCEPTED_TYPES = ["application/pdf", "image/png", "image/jpeg", "image/webp"];
+
+/** Sample assignments for dev preview (loaded via ?mock=true query param). */
+const MOCK_ASSIGNMENTS: SelectableAssignment[] = [
+  { title: "Homework 1: Introduction to Algorithms", description: "Covers chapters 1-3", due_date: "2026-01-15", due_time: "23:59", points_possible: 100, selected: true },
+  { title: "Homework 2: Sorting & Searching", description: "Merge sort, quicksort, binary search", due_date: "2026-01-22", due_time: "23:59", points_possible: 100, selected: true },
+  { title: "Project 1: Data Structures", description: "Implement a balanced BST", due_date: "2026-02-05", due_time: "23:59", points_possible: 200, selected: true },
+  { title: "Midterm 1", description: null, due_date: "2026-02-12", due_time: "14:00", points_possible: 150, selected: true },
+  { title: "Homework 3: Graph Algorithms", description: "BFS, DFS, shortest paths", due_date: "2026-02-19", due_time: "23:59", points_possible: 100, selected: true },
+  { title: "Homework 4: Dynamic Programming", description: "Knapsack, LCS, edit distance", due_date: "2026-02-26", due_time: "23:59", points_possible: 100, selected: true },
+  { title: "Project 2: Network Flow", description: "Max flow / min cut implementation", due_date: "2026-03-12", due_time: "23:59", points_possible: 200, selected: true },
+  { title: "Homework 5: NP-Completeness", description: "Reductions and proofs", due_date: "2026-03-19", due_time: "23:59", points_possible: 100, selected: true },
+  { title: "Midterm 2", description: null, due_date: "2026-03-26", due_time: "14:00", points_possible: 150, selected: true },
+  { title: "Homework 6: Approximation Algorithms", description: "Vertex cover, TSP", due_date: "2026-04-02", due_time: "23:59", points_possible: 100, selected: true },
+  { title: "Homework 7: Randomized Algorithms", description: null, due_date: "2026-04-09", due_time: "23:59", points_possible: 100, selected: true },
+  { title: "Project 3: Final Project", description: "Open-ended algorithmic project", due_date: "2026-04-23", due_time: "23:59", points_possible: 300, selected: true },
+  { title: "Homework 8: Review Problems", description: "Comprehensive review", due_date: "2026-04-16", due_time: "23:59", points_possible: 100, selected: true },
+  { title: "Homework 9: Advanced Topics", description: "Streaming, online algorithms", due_date: null, due_time: null, points_possible: 100, selected: true },
+  { title: "Reading Quiz 1", description: null, due_date: "2026-01-10", due_time: "09:00", points_possible: 10, selected: false },
+  { title: "Reading Quiz 2", description: null, due_date: "2026-01-24", due_time: "09:00", points_possible: 10, selected: false },
+  { title: "Final Exam", description: "Comprehensive final", due_date: "2026-05-07", due_time: "10:00", points_possible: 250, selected: true },
+  { title: "Extra Credit: Research Paper Review", description: "Review a recent algorithms paper", due_date: null, due_time: null, points_possible: 50, selected: true },
+];
 
 /**
  * Syllabus upload and assignment extraction step.
@@ -54,6 +77,7 @@ export default function SyllabusStep({ onNext, onSkip, error, setError, onPhaseC
     return () => { if (previewUrl) URL.revokeObjectURL(previewUrl); };
   }, [previewUrl]);
   const [fileBase64, setFileBase64] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [phase, setPhase] = useState<"upload" | "extracting" | "preview">("upload");
 
   // The parent lays the page out (wide preview, no Skip control) from the
@@ -82,6 +106,7 @@ export default function SyllabusStep({ onNext, onSkip, error, setError, onPhaseC
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const estimatedMsRef = useRef<number>(15_000);
   const [importing, setImporting] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
 
   /** Clears all extraction-related intervals. */
   function clearExtractionIntervals() {
@@ -93,12 +118,11 @@ export default function SyllabusStep({ onNext, onSkip, error, setError, onPhaseC
 
   useEffect(() => () => clearExtractionIntervals(), []);
 
-  // Dev-only: ?mock=true previews the review table without calling the API.
-  // Gated on NODE_ENV so the param is inert in production.
+  // Dev-only: load mock data via ?mock=true to preview UI without API call
   useEffect(() => {
-    if (shouldLoadSyllabusMock(searchParams, process.env.NODE_ENV) && phase === "upload") {
+    if (searchParams.get("mock") === "true" && phase === "upload") {
       setFile(new File(["mock"], "CS170_Syllabus.pdf", { type: "application/pdf" }));
-      setCourseName(MOCK_COURSE_NAME);
+      setCourseName("CS 170: Efficient Algorithms");
       setAssignments(MOCK_ASSIGNMENTS);
       setPhase("preview");
     }
@@ -116,9 +140,12 @@ export default function SyllabusStep({ onNext, onSkip, error, setError, onPhaseC
   /** Validates type/size and reads the file as base64. */
   const processFile = useCallback((f: File) => {
     setError(null);
-    const problem = validateSyllabusFile(f);
-    if (problem) {
-      showToast(problem, { variant: "error", duration: 4000 });
+    if (!ACCEPTED_TYPES.includes(f.type)) {
+      showToast("Unsupported file type. Please upload a PDF, PNG, JPG, or WebP file.", { variant: "error", duration: 4000 });
+      return;
+    }
+    if (f.size > MAX_FILE_SIZE) {
+      showToast("File too large. Maximum size is 10 MB.", { variant: "error", duration: 4000 });
       return;
     }
     setFile(f);
@@ -154,8 +181,7 @@ export default function SyllabusStep({ onNext, onSkip, error, setError, onPhaseC
   }
 
   /** Calls the extraction API with progress simulation, then transitions to preview. */
-  async function handleExtract(e?: FormEvent) {
-    e?.preventDefault();
+  async function handleExtract() {
     if (!file || !fileBase64) return;
     setError(null);
     estimatedMsRef.current = estimateExtractionTime(file.size);
@@ -257,22 +283,96 @@ export default function SyllabusStep({ onNext, onSkip, error, setError, onPhaseC
 
   // ---- Phase 1: Upload ----
   return (
-    <form onSubmit={handleExtract} noValidate>
-      <StepHeading
-        provider="syllabus"
-        title="Syllabus"
-        description="Upload a PDF or screenshot of your course syllabus and we will pull out the assignments."
-      />
+    <div>
+      <div className="flex items-center justify-center gap-2 mb-4">
+        <div className="w-[22px] h-[22px] rounded bg-purple-100 dark:bg-purple-500/15 flex items-center justify-center shrink-0">
+          <FileText size={14} className="text-purple-500" />
+        </div>
+        <h2 className="text-lg font-bold text-foreground animate-drop-in">
+          Syllabus
+        </h2>
+      </div>
+      <p className="text-sm text-muted-foreground mb-6 animate-drop-in delay-100 text-center">
+        Upload a PDF or screenshot of your course syllabus to automatically extract assignments.
+      </p>
 
-      <SyllabusDropzone file={file} previewUrl={previewUrl} onFile={processFile} />
-
-      <div className="mt-4">
-        <ErrorBanner message={error} />
+      <div
+        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragOver(false);
+          const droppedFile = e.dataTransfer.files[0];
+          if (droppedFile) processFile(droppedFile);
+        }}
+        onClick={() => fileInputRef.current?.click()}
+        className={`animate-drop-in delay-150 border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-colors ${
+          dragOver
+            ? "border-purple-500"
+            : file
+            ? "border-purple-400"
+            : "border-foreground/20"
+        }`}
+      >
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".pdf,.png,.jpg,.jpeg,.webp"
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) processFile(f); }}
+          className="hidden"
+        />
+        {file ? (
+          <div className="flex flex-col items-center gap-2">
+            {/* Show the document itself, so it is obvious which syllabus is
+                about to be read. pointer-events-none keeps the whole dropzone
+                clickable for swapping the file. */}
+            {previewUrl ? (
+              <div className="w-28 h-36 rounded-lg border border-border bg-card overflow-hidden shadow-sm pointer-events-none">
+                {file.type === "application/pdf" ? (
+                  <embed
+                    src={`${previewUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
+                    type="application/pdf"
+                    className="w-full h-full"
+                  />
+                ) : (
+                  <img src={previewUrl} alt="" className="w-full h-full object-cover" />
+                )}
+              </div>
+            ) : (
+              <FileText size={32} className="text-purple-500" />
+            )}
+            <p className="text-sm font-semibold text-foreground max-w-full truncate px-2">
+              {file.name}
+            </p>
+            <p className="text-xs text-foreground">
+              {(file.size / 1024 / 1024).toFixed(1)} MB
+            </p>
+            <p className="text-xs font-medium text-[#0e89d6]">Click to choose a different file</p>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center gap-2">
+            <Upload size={32} className="text-foreground" />
+            <p className="text-sm font-semibold text-foreground">Drag &amp; drop your syllabus here</p>
+            <p className="text-xs text-foreground">PDF, PNG, JPG, or WebP (max 10 MB)</p>
+          </div>
+        )}
       </div>
 
-      <Button type="submit" variant="inverted" size="lg" className="w-full mt-2" disabled={!file || !fileBase64}>
-        Extract assignments
-      </Button>
-    </form>
+      {error && (
+        <div className="bg-red-500/10 text-red-400 text-sm p-3 rounded-xl mt-4">{error}</div>
+      )}
+
+      <button
+        onClick={handleExtract}
+        disabled={!file}
+        className={`w-full mt-6 px-5 py-2.5 rounded-full text-sm font-semibold border border-transparent transition-colors animate-drop-in delay-200 ${
+          !file
+            ? "bg-[#D1D1D6] dark:bg-[#3A3A3C] text-white/70 dark:text-white/40 cursor-not-allowed"
+            : "bg-gray-900 dark:bg-white text-white dark:text-gray-900 cursor-pointer"
+        }`}
+      >
+        Extract Assignments
+      </button>
+    </div>
   );
 }

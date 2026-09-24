@@ -8,8 +8,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { buildHealthIssues, CLASSROOM_RECONNECT_URL } from "@/lib/integration-health-issues";
-import { CLASSROOM_AVAILABLE } from "@/lib/classroom-availability";
+import { buildHealthIssues } from "@/lib/integration-health-issues";
 import type { IntegrationCredentials, SyncResult } from "@/lib/types";
 
 /** A user with nothing connected and nothing wrong. */
@@ -253,83 +252,5 @@ describe("buildHealthIssues: other integrations", () => {
     });
 
     expect(issues).toEqual([]);
-  });
-});
-
-describe("buildHealthIssues: Blackboard and Classroom (audit 2.14)", () => {
-  it("reports a broken Blackboard feed with a setup action", () => {
-    const issues = buildHealthIssues(
-      creds({ blackboard_calendar_url: "https://bb.example.edu/feed.ics", blackboard_auth_failed: true }),
-      null
-    );
-    expect(issues).toEqual([
-      {
-        id: "blackboard",
-        label: "Blackboard",
-        detail: "Feed stopped loading",
-        actionLabel: "Update URL",
-        action: { kind: "setup", provider: "blackboard" },
-      },
-    ]);
-  });
-
-  it("reports a fresh in-session Blackboard failure with the sync's error", () => {
-    const issues = buildHealthIssues(
-      creds({ blackboard_calendar_url: "https://bb.example.edu/feed.ics" }),
-      { ...CLEAN_SYNC, blackboard: { synced: 0, errors: ["Feed returned 403"] } }
-    );
-    expect(issues.map((i) => i.detail)).toEqual(["Feed returned 403"]);
-  });
-
-  it("reports a Classroom scope failure only while Classroom is offered", () => {
-    const issues = buildHealthIssues(
-      creds({ classroom_enabled: true, classroom_auth_failed: true }),
-      null
-    );
-    if (CLASSROOM_AVAILABLE) {
-      expect(issues).toEqual([
-        {
-          id: "classroom",
-          label: "Google Classroom",
-          detail: "Google has not granted Classroom access",
-          actionLabel: "Reconnect",
-          action: { kind: "href", url: CLASSROOM_RECONNECT_URL },
-        },
-      ]);
-    } else {
-      expect(issues).toEqual([]);
-    }
-    expect(CLASSROOM_RECONNECT_URL).toBe("/api/gcal/auth?classroom=1");
-  });
-});
-
-describe("buildHealthIssues: terminology (audit 2.15)", () => {
-  it("labels Canvas rows \"Canvas\", never bCourses", () => {
-    const issues = buildHealthIssues(
-      creds({
-        has_canvas_token: true,
-        canvas_auth_failed: true,
-        canvas_ical_url: null,
-      }),
-      null
-    );
-    expect(issues[0].label).toBe("Canvas");
-    const feed = buildHealthIssues(
-      creds({ canvas_ical_url: "https://x/feed.ics", canvas_ical_failed: true }),
-      null
-    );
-    expect(feed[0].label).toBe("Canvas (calendar feed)");
-    for (const issue of [...issues, ...feed]) {
-      expect(issue.label).not.toMatch(/bCourses/);
-      expect(issue.detail).not.toContain("\u2014");
-    }
-  });
-
-  it("spells Pensive without the second e", () => {
-    const issues = buildHealthIssues(
-      creds({ pensieve_calendar_url: "https://p/feed.ics", pensieve_auth_failed: true }),
-      null
-    );
-    expect(issues[0].label).toBe("Pensive");
   });
 });
