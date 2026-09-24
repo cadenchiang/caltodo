@@ -49,29 +49,29 @@ function formatLastLogin(iso: string): string {
 export default function RetentionTable({ users }: RetentionTableProps) {
   if (users.length === 0) {
     return (
-      <div className="glass rounded-2xl border border-border p-6 text-center text-sm text-muted-foreground">
+      <div className="bg-card rounded-2xl border border-border p-6 text-center text-sm text-muted-foreground">
         No login data available
       </div>
     );
   }
 
   return (
-    <div className="glass rounded-2xl border border-border overflow-hidden">
+    <div className="bg-card rounded-2xl border border-border overflow-hidden">
       <div className="px-5 py-3 border-b border-border">
         <h3 className="text-sm font-semibold text-foreground">
-          Top Users by Login Frequency
+          Top users by login frequency
         </h3>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-left text-xs text-muted-foreground uppercase tracking-wide">
+            <tr className="text-left text-xs text-foreground">
               <th className="px-5 py-3 font-medium">User</th>
               <th className="px-5 py-3 font-medium text-right">Logins</th>
               <th className="px-5 py-3 font-medium text-right">
-                Active Days
+                Active days
               </th>
-              <th className="px-5 py-3 font-medium text-right">Last Login</th>
+              <th className="px-5 py-3 font-medium text-right">Last login</th>
             </tr>
           </thead>
           <tbody>
