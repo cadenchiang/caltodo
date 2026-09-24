@@ -30,10 +30,11 @@ describe("landing layout", () => {
 describe("billing success copy", () => {
   const page = read("src/app/app/billing/success/page.tsx");
 
-  it("points at a settings destination that exists", () => {
+  it("redirects into the app instead of naming a settings destination", () => {
+    // The page is a redirect now (audit 2.27); it renders no links at all.
     expect(page).not.toContain("Settings &rarr; Account");
-    expect(page).toContain('<Link href="/app/settings"');
-    // The billing portal returns to the same place.
+    expect(page).toContain("redirect(BILLING_SUCCESS_REDIRECT)");
+    // The billing portal still returns to settings.
     expect(read("src/app/api/stripe/portal/route.ts")).toContain("return_url: `${origin}/app/settings`");
   });
 

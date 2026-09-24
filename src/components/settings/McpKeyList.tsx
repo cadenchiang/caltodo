@@ -4,8 +4,8 @@
  * The list of a user's MCP API keys, one row each.
  *
  * A row shows what the key can do, what it is called, when it was last used and
- * when it lapses. The name is editable in place; revoking takes a second click
- * to confirm.
+ * when it lapses. The name is editable in place; revoking opens a confirmation
+ * dialog.
  *
  * Split out of McpSettings so that card stays under the file-length limit.
  */
@@ -15,9 +15,7 @@ import { Trash2, Pencil } from "lucide-react";
 import type { McpKeyRecord } from "@/lib/mcp/api-keys";
 import { SCOPE_LABELS } from "@/lib/mcp/scopes";
 import { keyUsageLine } from "@/lib/mcp/key-format";
-
-/** How long the revoke button stays armed before reverting, in ms. */
-const CONFIRM_WINDOW_MS = 3000;
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 
 /**
  * Colours the access badge by how much the key can do.
@@ -54,20 +52,20 @@ export default function McpKeyList({
 }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftLabel, setDraftLabel] = useState("");
-  const [confirmRevoke, setConfirmRevoke] = useState<string | null>(null);
+  /** The key whose revoke confirmation is open. */
+  const [revoking, setRevoking] = useState<McpKeyRecord | null>(null);
+  const [revokeInFlight, setRevokeInFlight] = useState(false);
 
-  /** Revokes a key, requiring a second click within the confirm window. */
-  function handleRevoke(id: string) {
-    if (confirmRevoke !== id) {
-      setConfirmRevoke(id);
-      setTimeout(
-        () => setConfirmRevoke((cur) => (cur === id ? null : cur)),
-        CONFIRM_WINDOW_MS
-      );
-      return;
+  /** Revokes the key in the open confirmation, then closes it. */
+  async function confirmRevoke() {
+    if (!revoking) return;
+    setRevokeInFlight(true);
+    try {
+      await onRevoke(revoking.id);
+    } finally {
+      setRevokeInFlight(false);
+      setRevoking(null);
     }
-    setConfirmRevoke(null);
-    void onRevoke(id);
   }
 
   /** Commits an in-place rename and leaves edit mode. */
@@ -91,7 +89,7 @@ export default function McpKeyList({
                 <span className="text-muted-foreground">••••••••</span>
               </p>
               <span
-                className={`shrink-0 px-1.5 py-0.5 rounded-md border text-[10px] font-medium ${badgeClasses(
+                className={`shrink-0 px-1.5 py-0.5 rounded-md border text-3xs font-medium ${badgeClasses(
                   key.scope
                 )}`}
               >
@@ -111,10 +109,10 @@ export default function McpKeyList({
                   if (e.key === "Enter") commitRename(key.id);
                   if (e.key === "Escape") setEditingId(null);
                 }}
-                className="mt-0.5 w-full max-w-[14rem] px-1.5 py-0.5 rounded border border-input-border bg-card text-[11px] text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                className="mt-0.5 w-full max-w-[14rem] px-1.5 py-0.5 rounded border border-input-border bg-card text-2xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
             ) : (
-              <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+              <p className="text-2xs text-muted-foreground flex items-center gap-1">
                 <button
                   type="button"
                   onClick={() => {
@@ -133,19 +131,26 @@ export default function McpKeyList({
           </div>
 
           <button
-            onClick={() => handleRevoke(key.id)}
-            className={`shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
-              confirmRevoke === key.id
-                ? "text-red-600 dark:text-red-400 bg-red-500/10"
-                : "text-muted-foreground hover:text-red-500 hover:bg-red-500/10"
-            }`}
+            type="button"
+            onClick={() => setRevoking(key)}
+            className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer text-muted-foreground hover:text-red-500 hover:bg-red-500/10"
             aria-label={`Revoke key ${key.keyPrefix}`}
           >
             <Trash2 size={12} />
-            {confirmRevoke === key.id ? "Confirm" : "Revoke"}
+            Revoke
           </button>
         </li>
       ))}
+      <ConfirmDialog
+        open={revoking !== null}
+        title={`Revoke ${revoking?.label ?? "this key"}?`}
+        body="Any assistant using this key loses access right away. This cannot be undone."
+        confirmLabel="Revoke key"
+        destructive
+        loading={revokeInFlight}
+        onConfirm={confirmRevoke}
+        onCancel={() => setRevoking(null)}
+      />
     </ul>
   );
 }

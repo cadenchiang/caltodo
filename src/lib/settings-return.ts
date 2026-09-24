@@ -47,3 +47,24 @@ export function getSettingsReturnPath(): string {
   }
   return FALLBACK;
 }
+
+/** Fallback destination name when the path matches no nav item. */
+const FALLBACK_LABEL = "Back to inbox";
+
+/**
+ * Labels the settings back button with its destination, so it never reads
+ * as a second "Settings" beside the section-level back button.
+ *
+ * @param pathWithQuery - The return path, as getSettingsReturnPath returns it
+ * @param navItems - Nav entries to match by href prefix (label + href)
+ * @returns "Back to inbox", "Back to calendar", or "Back to <label>"
+ */
+export function getSettingsReturnLabel(
+  pathWithQuery: string,
+  navItems: ReadonlyArray<{ label: string; href: string }>
+): string {
+  const path = pathWithQuery.split("?")[0];
+  const match = navItems.find((item) => path === item.href || path.startsWith(`${item.href}/`));
+  if (!match) return FALLBACK_LABEL;
+  return `Back to ${match.label.toLowerCase()}`;
+}

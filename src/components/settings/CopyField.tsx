@@ -44,7 +44,7 @@ export function CopyButton({
       showToast(`${label} copied.`);
       setTimeout(() => setCopied(false), COPIED_FEEDBACK_MS);
     } catch {
-      showToast(`Failed to copy ${label.toLowerCase()}.`);
+      showToast(`Failed to copy ${label.toLowerCase()}.`, { variant: "error" });
     }
   }
 

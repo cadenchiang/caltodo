@@ -14,15 +14,19 @@ import path from "node:path";
 const read = (p: string) => fs.readFileSync(path.join(process.cwd(), p), "utf8");
 
 describe("CanvasSettings", () => {
-  const card = read("src/components/settings/CanvasSettings.tsx");
-
-  it("treats a rejected token like an expired one", () => {
-    expect(card).toContain("credentials.canvas_auth_failed === true");
-    expect(card).toMatch(/const isExpired = .*\|\| isRejected;/);
+  it("treats a rejected token like an expired one on the connected card", () => {
+    // The provider card only renders while unconnected; the connected card's
+    // status comes from DISCLOSURE_META.canvas.authFailed.
+    const disclosure = read("src/lib/integration-disclosure.ts");
+    expect(disclosure).toContain("!!c.canvas_auth_failed || !!c.canvas_token_expired");
   });
 
   it("says rejected rather than expired when that is what happened", () => {
-    expect(card).toContain('isRejected ? "Rejected — Reconnect" : "Expired — Reconnect"');
+    const issues = read("src/lib/integration-health-issues.ts");
+    expect(issues).toContain("Canvas rejected your access token");
+    // The rejection branch is checked before the age heuristic.
+    const body = issues.slice(issues.indexOf("export function buildHealthIssues"));
+    expect(body.indexOf("credentials.canvas_auth_failed")).toBeLessThan(body.indexOf("credentials.canvas_token_expired"));
   });
 
   it("is fed the flag by the credentials API", () => {

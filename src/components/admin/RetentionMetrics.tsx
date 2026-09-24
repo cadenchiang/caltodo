@@ -31,7 +31,7 @@ export default function RetentionMetrics({
   stickiness,
 }: RetentionMetricsProps) {
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
       <StatCard label="DAU" value={dau} subtext="Last 24 hours" />
       <StatCard label="WAU" value={wau} subtext="Last 7 days" />
       <StatCard label="MAU" value={mau} subtext="Last 30 days" />

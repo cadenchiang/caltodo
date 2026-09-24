@@ -4,8 +4,11 @@
  * Google Classroom integration card.
  *
  * Classroom rides on the Google Calendar OAuth grant, so there is no separate
- * connect flow — but holding the scope is not consent to sync, so coursework
+ * connect flow. Holding the scope is not consent to sync, so coursework
  * stays off until the user turns it on here and picks their classes.
+ *
+ * The header is a real button with aria-expanded once the card can expand,
+ * matching ConnectedIntegrationCard.
  */
 
 import { useState } from "react";
@@ -15,6 +18,10 @@ import { ChevronDown, Check, RefreshCw } from "lucide-react";
 import { CLASSROOM_AVAILABLE } from "@/lib/classroom-availability";
 import { useToast } from "@/contexts/ToastContext";
 import { useCredentials } from "@/components/settings/IntegrationSettings";
+import { PROVIDER_LABELS } from "@/lib/copy";
+import Badge from "@/components/ui/Badge";
+import Button from "@/components/ui/Button";
+import { StatusBadge } from "./integration-status";
 
 /** A Classroom course as returned by /api/classroom. */
 interface ClassroomCourse {
@@ -99,7 +106,12 @@ export default function GoogleClassroomSettings() {
       }
       await refresh();
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Failed to save Classroom settings");
+      console.error("GoogleClassroomSettings: save failed", {
+        patch,
+        error: err instanceof Error ? err.message : String(err),
+        impact: "the Classroom setting is unchanged",
+      });
+      showToast(err instanceof Error ? err.message : "Failed to save Classroom settings", { variant: "error" });
     } finally {
       setSaving(false);
     }
@@ -121,13 +133,15 @@ export default function GoogleClassroomSettings() {
       ? "All classes"
       : `${selected.length} class${selected.length === 1 ? "" : "es"}`;
 
+  // The header is a toggle only once there is a panel to reveal; while
+  // Classroom is off there is nothing under it, so it stays a plain row.
+  const HeaderTag = enabled ? "button" : "div";
+
   return (
     <div className="rounded-2xl border border-border bg-card shadow-sm dark:shadow-none overflow-hidden">
-      <div
-        onClick={() => { if (enabled) setOpen((v) => !v); }}
-        // select-none: clicking a div to toggle it otherwise selects the
-        // text under the pointer on a double-click, which read as a glitch.
-        className={`w-full flex items-center gap-2.5 sm:gap-3.5 px-3 sm:px-4 py-3.5 text-left transition-colors select-none ${
+      <HeaderTag
+        {...(enabled ? { onClick: () => setOpen((v) => !v), "aria-expanded": open, type: "button" as const } : {})}
+        className={`w-full flex items-center gap-2.5 sm:gap-3.5 px-3 sm:px-4 py-3.5 text-left transition-colors ${
           enabled ? "hover:bg-muted/40 cursor-pointer" : ""
         }`}
       >
@@ -137,7 +151,7 @@ export default function GoogleClassroomSettings() {
 
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-foreground whitespace-nowrap">
-            Google Classroom
+            {PROVIDER_LABELS.classroom}
           </p>
           <p className="text-xs text-muted-foreground truncate">{subtitle}</p>
         </div>
@@ -147,15 +161,7 @@ export default function GoogleClassroomSettings() {
             {/* A green "Connected" over a sync that fails every run is the
                 lie this card used to tell; the header says what the sync
                 engine knows, without needing the card opened. */}
-            {authFailed ? (
-              <span className="hidden sm:inline text-xs font-semibold px-3 py-1 rounded-lg border border-amber-300 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 shrink-0">
-                Needs reconnect
-              </span>
-            ) : (
-              <span className="hidden sm:inline text-xs font-medium px-3 py-1 rounded-lg border border-emerald-200 dark:border-emerald-500/30 text-emerald-600 dark:text-emerald-400 shrink-0">
-                Connected
-              </span>
-            )}
+            <StatusBadge needsReconnect={authFailed} />
             <ChevronDown
               size={16}
               className={`text-muted-foreground shrink-0 transition-transform duration-200 ${
@@ -164,21 +170,21 @@ export default function GoogleClassroomSettings() {
             />
           </>
         ) : CLASSROOM_AVAILABLE ? (
-          <button
+          <Button
+            size="sm"
+            variant="secondary"
             onClick={() => router.push("/app/onboarding?setup=classroom")}
-            className="text-xs font-semibold text-blue-500 hover:text-blue-600 dark:hover:text-blue-400 px-3 py-1 rounded-lg border border-blue-200 dark:border-blue-500/30 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors shrink-0 cursor-pointer"
+            className="text-blue-500"
           >
             Connect
-          </button>
+          </Button>
         ) : (
           // Google has not verified the app for the Classroom scopes, so its
           // consent screen rejects the request. A "Connect" that cannot
           // connect is worse than saying so. See lib/classroom-availability.
-          <span className="text-xs font-medium px-3 py-1 rounded-lg border border-border text-muted-foreground shrink-0">
-            Coming soon
-          </span>
+          <Badge variant="neutral">Coming soon</Badge>
         )}
-      </div>
+      </HeaderTag>
 
       <div
         className={`grid transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
@@ -209,7 +215,7 @@ export default function GoogleClassroomSettings() {
                 <p className="text-xs font-medium text-foreground mb-1.5">Classes</p>
 
                 {isLoading ? (
-                  <p className="text-xs text-muted-foreground py-2">Loading your classes…</p>
+                  <p className="text-xs text-muted-foreground py-2">Loading your classes...</p>
                 ) : fetchError ? (
                   <div className="text-xs py-2">
                     <p className="text-red-500 mb-1.5">{fetchError.message}</p>
@@ -263,13 +269,15 @@ export default function GoogleClassroomSettings() {
               </div>
             )}
 
-            <button
+            <Button
+              size="sm"
+              variant="destructive"
               onClick={() => void save({ enabled: false })}
               disabled={saving}
-              className="text-xs font-medium text-muted-foreground hover:text-red-500 transition-colors cursor-pointer disabled:opacity-60"
+              className="text-muted-foreground"
             >
               Turn off Classroom sync
-            </button>
+            </Button>
           </div>
         </div>
       </div>

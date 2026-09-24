@@ -57,7 +57,7 @@ describe("Reset Onboarding", () => {
   });
 
   it("reports failure through a toast with the cause", () => {
-    expect(handler).toContain("showToast(`Failed to reset onboarding: ${message}`)");
+    expect(handler).toContain('showToast(`Failed to reset onboarding: ${message}`, { variant: "error" })');
     expect(handler).toContain('console.error("AdvancedSection: reset onboarding failed"');
   });
 });
@@ -66,7 +66,7 @@ describe("Delete All Tasks", () => {
   it("no longer toasts success unconditionally", () => {
     const handler = section.slice(
       section.indexOf("async function handleDeleteAll()"),
-      section.indexOf("async function handleLogOut()"),
+      section.indexOf("// deleteAllTasks reports failure through the context"),
     );
     expect(handler).not.toMatch(/await deleteAllTasks\(\);\s*showToast\("All tasks deleted\."\)/);
     expect(handler).toContain("errorBeforeDeleteRef.current = taskError;");
@@ -76,7 +76,7 @@ describe("Delete All Tasks", () => {
   it("reads the outcome from the context after the delete settles", () => {
     expect(section).toContain("const { tasks, deleteAllTasks, error: taskError } = useTaskContext();");
     expect(section).toContain("const failed = tasks.length > 0 || (taskError !== null && taskError !== errorBeforeDeleteRef.current);");
-    expect(section).toContain('showToast(taskError ? `Failed to delete tasks: ${taskError}` : "Failed to delete tasks.")');
+    expect(section).toContain('showToast(taskError ? `Failed to delete tasks: ${taskError}` : "Failed to delete tasks.", {');
     expect(section).toContain('showToast("All tasks deleted.")');
   });
 });

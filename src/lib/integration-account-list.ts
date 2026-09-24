@@ -9,7 +9,7 @@
  */
 
 import type { IntegrationCredentials } from "@/lib/types";
-import type { DisclosureProvider } from "@/lib/integration-disclosure";
+import { DISCLOSURE_META, type DisclosureProvider } from "@/lib/integration-disclosure";
 import { accountDisplayName, isFeedProvider } from "@/lib/integration-providers";
 import {
   COURSE_SELECTION,
@@ -96,7 +96,10 @@ export function buildAccountList(
       id: "primary",
       label: primaryLabel(provider, credentials),
       isPrimary: true,
-      authFailed: false,
+      // The primary account's flags live on the credential columns, which
+      // DISCLOSURE_META already knows how to read. Hardcoding false here is
+      // why the primary row could never say "Needs reconnecting".
+      authFailed: DISCLOSURE_META[provider].authFailed(credentials),
       selectedCourses: primaryCourses(provider, credentials),
     },
     ...(provider === "canvas"

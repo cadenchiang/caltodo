@@ -75,7 +75,10 @@ describe("karma is gone", () => {
   it("is not fetched or rendered anywhere", () => {
     const files = [
       "src/components/discussions/UserProfileModal.tsx",
-      "src/components/settings/sections/ProfileSection.tsx",
+      // ProfileSection moved to components/profile/ in the settings pass.
+      "src/components/profile/ProfileSection.tsx",
+      "src/components/profile/ProfileHeader.tsx",
+      "src/components/profile/UserViewerModal.tsx",
     ];
     for (const f of files) {
       const src = read(f);

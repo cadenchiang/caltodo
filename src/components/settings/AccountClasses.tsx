@@ -13,6 +13,9 @@
  * The inline editor put a scrolling checkbox list inside a card that was
  * already inside a dropdown, so the list it offered was a few rows tall and
  * every tick moved the accounts under it.
+ *
+ * Only Done saves. Cancel, Escape, the backdrop and the close button restore
+ * the previous selection, and Done stays disabled while nothing has changed.
  */
 
 import { useCallback, useState } from "react";
@@ -23,6 +26,19 @@ import { COURSE_SELECTION, type SelectableCourse } from "@/lib/course-selection"
 import { seedSelection } from "@/lib/course-selection-diff";
 
 /**
+ * Whether two id sets differ.
+ *
+ * @param a - One selection
+ * @param b - The other
+ * @returns True when either set holds an id the other lacks
+ */
+export function selectionsDiffer(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
+  if (a.size !== b.size) return true;
+  for (const id of a) if (!b.has(id)) return true;
+  return false;
+}
+
+/**
  * Shape of a pill in this card, without any colour.
  *
  * Exported so the account label and the "add another account" control can be
@@ -31,7 +47,7 @@ import { seedSelection } from "@/lib/course-selection-diff";
  * source order, not to the order they are written in.
  */
 export const PILL_SHAPE =
-  "inline-flex items-center max-w-[240px] truncate px-2.5 py-1 rounded-full text-[11px] font-medium";
+  "inline-flex items-center max-w-[240px] truncate px-2.5 py-1 rounded-full text-2xs font-medium";
 
 /** Shared pill styling for a class name. */
 export const CLASS_PILL = `${PILL_SHAPE} bg-muted text-muted-foreground`;
@@ -66,6 +82,8 @@ export default function AccountClasses({
   const [loading, setLoading] = useState(false);
   const [available, setAvailable] = useState<SelectableCourse[] | null>(null);
   const [draft, setDraft] = useState<Set<string>>(() => new Set(selected.map((c) => String(c.id))));
+  /** The draft as it was when the picker opened, so Cancel can restore it. */
+  const [opened, setOpened] = useState<Set<string>>(() => new Set());
   const [saving, setSaving] = useState(false);
 
   const meta = COURSE_SELECTION[provider];
@@ -96,12 +114,18 @@ export default function AccountClasses({
       setAvailable(courses);
       return courses;
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Failed to load classes");
+      console.error("AccountClasses: course list failed to load", {
+        provider,
+        accountId,
+        error: err instanceof Error ? err.message : String(err),
+        impact: "the picker did not open",
+      });
+      showToast(err instanceof Error ? err.message : "Failed to load classes", { variant: "error" });
       return null;
     } finally {
       setLoading(false);
     }
-  }, [meta.coursesEndpoint, accountId, showToast]);
+  }, [meta.coursesEndpoint, accountId, provider, showToast]);
 
   /**
    * Opens the picker, fetching the course list the first time only.
@@ -124,7 +148,9 @@ export default function AccountClasses({
     // on stored ids, which an account connected by calendar feed does not
     // share with its course endpoint, so the picker opened with every class
     // unticked and closing it saved that emptiness back.
-    setDraft(seedSelection(courses, selected));
+    const seeded = seedSelection(courses, selected);
+    setDraft(seeded);
+    setOpened(seeded);
     setEditing(true);
   }
 
@@ -138,13 +164,17 @@ export default function AccountClasses({
     });
   }
 
+  /** Closes the picker and restores the selection it opened with. */
+  function cancel() {
+    setEditing(false);
+    setDraft(opened);
+  }
+
   /**
-   * Closes the picker and persists the draft.
+   * Closes the picker and persists the draft. Only Done reaches here.
    *
-   * The modal applies each tick to the draft as it is made and saves on
-   * close, so there is no separate confirm step. A failed save drops the
-   * draft back to the stored selection, because that is what the pills below
-   * still show.
+   * A failed save drops the draft back to the stored selection, because that
+   * is what the pills below still show.
    */
   async function commit() {
     setEditing(false);
@@ -154,7 +184,13 @@ export default function AccountClasses({
       await onSave(available.filter((c) => draft.has(String(c.id))));
     } catch (err) {
       setDraft(new Set(selected.map((c) => String(c.id))));
-      showToast(err instanceof Error ? err.message : "Failed to save classes");
+      console.error("AccountClasses: save failed", {
+        provider,
+        accountId,
+        error: err instanceof Error ? err.message : String(err),
+        impact: "the stored selection is unchanged",
+      });
+      showToast(err instanceof Error ? err.message : "Failed to save classes", { variant: "error" });
     } finally {
       setSaving(false);
     }
@@ -176,13 +212,14 @@ export default function AccountClasses({
           beneath it. Left-aligning the label, the count and the action in
           one line gave the block no column edge to read down. */}
       <div className="flex items-center justify-between gap-2 mb-1.5">
-        <p className="text-[11px] font-semibold text-foreground">
+        <p className="text-2xs font-semibold text-foreground">
           Classes{selected.length > 0 ? ` · ${selected.length}` : ""}
         </p>
         <button
+          type="button"
           onClick={startEditing}
           disabled={loading || saving}
-          className="text-[11px] font-medium text-[#0e89d6] hover:underline cursor-pointer shrink-0 disabled:opacity-50 disabled:cursor-default"
+          className="text-2xs font-medium text-blue-500 hover:underline cursor-pointer shrink-0 disabled:opacity-50 disabled:cursor-default"
         >
           {loading ? "Loading..." : saving ? "Saving..." : selected.length > 0 ? "Edit" : "Choose"}
         </button>
@@ -197,13 +234,15 @@ export default function AccountClasses({
           ))}
         </div>
       ) : (
-        <p className="text-[11px] text-subtle-foreground">No classes selected</p>
+        <p className="text-2xs text-muted-foreground">No classes selected</p>
       )}
 
       {editing && available && (
         <CourseSelectModal
           open
-          onClose={commit}
+          onClose={cancel}
+          onDone={commit}
+          doneDisabled={!selectionsDiffer(draft, opened)}
           title="Select classes"
           courses={available.map((c) => ({ id: String(c.id), name: c.name }))}
           selectedIds={draft}
