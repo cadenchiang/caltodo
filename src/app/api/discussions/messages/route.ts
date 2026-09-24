@@ -19,23 +19,10 @@ import { containsBlockedContent } from "@/lib/content-moderation";
 import { checkSpam, checkDuplicate } from "@/lib/spam-detection";
 import { hasCompletedOnboarding } from "@/lib/check-onboarding";
 import { computeAuthorKey } from "@/lib/chat-author-key";
-import { attachmentPaths, attachmentUrlPrefix, CHAT_ATTACHMENTS_BUCKET } from "@/lib/chat-attachments";
 import { MESSAGE_COLUMNS, AUTHOR_KEY_HEADER, MAX_MESSAGE_LENGTH } from "@/lib/chat-message-shape";
+import { isMember, removeAttachments } from "@/lib/chat-message-server";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-type UserClient = Awaited<ReturnType<typeof createClient>>;
-
-/** Membership check shared by every method. */
-async function isMember(supabase: UserClient, userId: string, courseId: string): Promise<boolean> {
-  const { data } = await supabase
-    .from("course_memberships")
-    .select("id")
-    .eq("user_id", userId)
-    .eq("course_id", courseId)
-    .single();
-  return !!data;
-}
 
 /**
  * GET /api/discussions/messages?courseId=<uuid>&limit=50&before=<iso>
@@ -277,22 +264,8 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "Failed to delete message" }, { status: 500 });
     }
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-    const paths = supabaseUrl ? attachmentPaths(msg.body, attachmentUrlPrefix(supabaseUrl)) : [];
-    if (paths.length > 0) {
-      const { error: storageError } = await admin.storage.from(CHAT_ATTACHMENTS_BUCKET).remove(paths);
-      if (storageError) {
-        logger.error("DELETE /api/discussions/messages: attachment cleanup failed", {
-          userId: user.id,
-          messageId,
-          paths,
-          cause: storageError.message,
-          impact: "message removed but its files remain in storage",
-        });
-      }
-    }
-
-    logger.info("DELETE /api/discussions/messages: deleted", { userId: user.id, messageId, courseId: msg.course_id, attachmentsRemoved: paths.length });
+    const removed = await removeAttachments(admin, user.id, messageId, msg.body);
+    logger.info("DELETE /api/discussions/messages: deleted", { userId: user.id, messageId, courseId: msg.course_id, attachmentsRemoved: removed });
     return NextResponse.json({ success: true });
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err);

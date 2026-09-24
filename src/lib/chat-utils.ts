@@ -3,6 +3,8 @@
  * under 300 lines. All functions are stateless and framework-agnostic.
  */
 
+import { writeCache } from "@/hooks/chatCache";
+
 /** Image file extensions to detect in message body URLs. */
 const IMAGE_EXT = /\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i;
 
@@ -127,11 +129,7 @@ export async function prefetchMessages(courseId: string): Promise<void> {
     );
     if (!res.ok) return;
     const data = await res.json();
-    const sorted = [...data].reverse();
-    sessionStorage.setItem(
-      CACHE_PREFIX + courseId,
-      JSON.stringify({ messages: sorted.slice(0, 200), timestamp: Date.now() })
-    );
+    writeCache(courseId, [...data].reverse());
   } catch {
     // Silent failure for prefetch
   }
