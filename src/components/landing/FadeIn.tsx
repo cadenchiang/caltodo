@@ -4,8 +4,21 @@ import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * Wraps children in a subtle scroll-triggered fade-in + slight upward slide.
- * Uses IntersectionObserver to detect when the element enters the viewport.
+ * Whether scroll-triggered reveals can run at all. When the browser has no
+ * IntersectionObserver the content must simply be visible: an element that
+ * waits for an observer that never fires stays invisible forever.
+ *
+ * @param win - The window-like object to inspect (injected for tests)
+ * @returns True when IntersectionObserver exists
+ */
+export function canObserve(win: { IntersectionObserver?: unknown } | undefined): boolean {
+  return typeof win?.IntersectionObserver === "function";
+}
+
+/**
+ * Wraps children in a subtle scroll-triggered fade-in and slight upward
+ * slide. Renders visible immediately when IntersectionObserver is missing.
+ * The global prefers-reduced-motion rule collapses the transition.
  *
  * @param children - React children to wrap.
  * @param className - Optional additional class names.
@@ -26,6 +39,12 @@ export default function FadeIn({
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
+    if (!canObserve(window)) {
+      // One-shot: flips once on mount and never again, so it cannot cascade.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setIsVisible(true);
+      return;
+    }
 
     const observer = new IntersectionObserver(
       ([entry]) => {

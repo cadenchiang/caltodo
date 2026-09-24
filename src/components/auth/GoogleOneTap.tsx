@@ -98,8 +98,7 @@ export default function GoogleOneTap() {
         if (creds) {
           router.push("/app/inbox");
         } else {
-          // Same flag the callback sets for a first sign-in.
-          router.push("/app/onboarding?welcome=1");
+          router.push("/app/onboarding");
         }
       }
     },
