@@ -9,9 +9,8 @@
  */
 
 import { useRef, useState } from "react";
-import { Check } from "lucide-react";
-import { TASK_COLORS } from "@/lib/constants";
 import Popover from "@/components/ui/Popover";
+import ColorSwatchGrid from "@/components/tasks/shared/ColorSwatchGrid";
 
 interface ColorSwatchPickerProps {
   /** The colour currently shown. */
@@ -58,24 +57,14 @@ export default function ColorSwatchPicker({ color, label, onChange, isStored }: 
         triggerRef={triggerRef}
         className="absolute left-0 top-full mt-1 z-[60]"
       >
-        <div className="bg-popover rounded-xl shadow-2xl border border-border p-2 w-[9.5rem]">
-          <div className="grid grid-cols-5 gap-1.5">
-            {TASK_COLORS.map((c) => (
-              <button
-                key={c}
-                type="button"
-                onClick={() => {
-                  onChange(c);
-                  setOpen(false);
-                }}
-                aria-label={`Use ${c}`}
-                className="w-6 h-6 rounded-full flex items-center justify-center ring-offset-2 ring-offset-popover hover:ring-2 hover:ring-foreground/30 transition-shadow"
-                style={{ backgroundColor: c }}
-              >
-                {c.toLowerCase() === color.toLowerCase() && <Check size={12} className="text-white" strokeWidth={3} />}
-              </button>
-            ))}
-          </div>
+        <div className="p-2 w-[9.5rem]">
+          <ColorSwatchGrid
+            value={color}
+            onSelect={(c) => {
+              onChange(c);
+              setOpen(false);
+            }}
+          />
           {isStored && (
             <button
               type="button"
@@ -83,7 +72,7 @@ export default function ColorSwatchPicker({ color, label, onChange, isStored }: 
                 onChange(null);
                 setOpen(false);
               }}
-              className="mt-2 w-full text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+              className="mt-2 w-full text-2xs text-muted-foreground hover:text-foreground transition-colors"
             >
               Use default
             </button>

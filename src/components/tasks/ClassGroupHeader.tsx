@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { createPortal } from "react-dom";
-import { ChevronRight, MoreVertical, Pencil, Palette, RotateCcw, Trash2, Plus } from "lucide-react";
-import { TASK_COLORS } from "@/lib/constants";
+import { ChevronRight, MoreVertical, Plus } from "lucide-react";
+import IconButton from "@/components/ui/IconButton";
+import ClassMenu from "./shared/ClassMenu";
 
 interface ClassGroupHeaderProps {
   /** Original course_name key used for alias lookup. */
@@ -31,9 +31,9 @@ interface ClassGroupHeaderProps {
 }
 
 /**
- * Collapsible group header for class-sorted list view.
- * Shows chevron, display name, task count, and a 3-dot menu
- * with rename, reset name, change color, and delete class options.
+ * Collapsible group header for the class-sorted list view. The toggle is a
+ * real button with aria-expanded, and the add and options controls are
+ * revealed on hover and on keyboard focus. Options open the shared ClassMenu.
  *
  * @param props - ClassGroupHeaderProps
  */
@@ -53,29 +53,8 @@ export default function ClassGroupHeader({
   const [showMenu, setShowMenu] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState(displayName);
-  const [showColorGrid, setShowColorGrid] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const menuBtnRef = useRef<HTMLButtonElement>(null);
-  const menuDropdownRef = useRef<HTMLDivElement>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
-
-  // Close menu on outside click
-  useEffect(() => {
-    if (!showMenu) return;
-    function handleClick(e: MouseEvent) {
-      const target = e.target as Node;
-      if (
-        menuBtnRef.current && !menuBtnRef.current.contains(target) &&
-        !menuDropdownRef.current?.contains(target)
-      ) {
-        setShowMenu(false);
-        setShowColorGrid(false);
-        setShowDeleteConfirm(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [showMenu]);
 
   // Focus input when editing starts
   useEffect(() => {
@@ -90,195 +69,85 @@ export default function ClassGroupHeader({
     if (!editing) setEditValue(displayName);
   }, [displayName, editing]);
 
-  /**
-   * Commits the rename and exits edit mode.
-   * Saves the alias if the name changed.
-   */
+  /** Commits the rename and exits edit mode. Saves the alias if the name changed. */
   function commitRename() {
     const trimmed = editValue.trim();
-    if (trimmed && trimmed !== displayName) {
-      onRename(groupName, trimmed);
-    }
+    if (trimmed && trimmed !== displayName) onRename(groupName, trimmed);
     setEditing(false);
   }
 
   return (
-    <div className="flex items-center -ml-3 pl-3 pr-3 py-1.5 mt-1 rounded-xl group">
-      {/* Chevron toggle - pulled into left padding zone so title aligns with TaskCheckbox */}
-      <button
-        onClick={onToggle}
-        className="shrink-0 -ml-4 p-0.5 hover:opacity-80 transition-opacity"
-        aria-label={isCollapsed ? "Expand group" : "Collapse group"}
-      >
-        <ChevronRight
-          size={12}
-          className={`text-secondary-foreground transition-transform duration-200 ${
-            !isCollapsed ? "rotate-90" : ""
-          }`}
-        />
-      </button>
-
-      {/* Group name (editable via menu, not inline click) */}
+    <div className="group flex items-center -ml-3 pl-3 pr-3 py-1.5 mt-1 rounded-xl focus-within:bg-foreground/[0.035] dark:focus-within:bg-foreground/[0.07]">
       {editing ? (
-        <input
-          ref={editInputRef}
-          value={editValue}
-          onChange={(e) => setEditValue(e.target.value)}
-          onBlur={commitRename}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") commitRename();
-            if (e.key === "Escape") { setEditValue(displayName); setEditing(false); }
-          }}
-          className="text-sm font-semibold text-foreground bg-transparent border-b border-blue-500 outline-none min-w-0 py-0 flex-1"
-        />
+        <>
+          <ChevronRight size={12} className="shrink-0 -ml-4 mr-0.5 text-secondary-foreground rotate-90" aria-hidden="true" />
+          <label htmlFor={`rename-${groupName}`} className="sr-only">
+            Rename {displayName}
+          </label>
+          <input
+            id={`rename-${groupName}`}
+            ref={editInputRef}
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            onBlur={commitRename}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") commitRename();
+              if (e.key === "Escape") { setEditValue(displayName); setEditing(false); }
+            }}
+            className="text-sm font-semibold text-foreground bg-transparent border-b border-blue-500 outline-none min-w-0 py-0 flex-1"
+          />
+        </>
       ) : (
         <button
+          type="button"
           onClick={onToggle}
-          className="text-sm font-semibold text-foreground truncate text-left hover:opacity-80 transition-opacity"
+          aria-expanded={!isCollapsed}
+          className="flex items-center flex-1 min-w-0 -ml-4 min-h-11 -my-2 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          {displayName}
+          <ChevronRight
+            size={12}
+            className={`shrink-0 text-secondary-foreground transition-transform duration-200 ${!isCollapsed ? "rotate-90" : ""}`}
+            aria-hidden="true"
+          />
+          <span className="text-sm font-semibold text-foreground truncate ml-0.5">{displayName}</span>
+          <span className="text-xs text-subtle-foreground ml-1.5 shrink-0">{count}</span>
         </button>
       )}
 
-      {/* Spacer to push count + actions to far right */}
-      <div className="flex-1" />
-
-      {/* Task count */}
-      <span className="text-xs text-subtle-foreground mr-1 shrink-0">{count}</span>
-
-      {/* Add task to this class */}
-      {onAddTask && (
-        <button
-          onClick={() => onAddTask(groupName)}
-          className="p-1 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-          title="Add task to this class"
+      {/* Actions: revealed on hover and when anything in the row has focus. */}
+      <div className="ml-auto flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
+        {onAddTask && (
+          <IconButton size="sm" bleed aria-label={`Add task to ${displayName}`} title="Add task to this class" onClick={() => onAddTask(groupName)}>
+            <Plus size={14} />
+          </IconButton>
+        )}
+        <IconButton
+          ref={menuBtnRef}
+          size="sm"
+          bleed
+          aria-label={`Options for ${displayName}`}
+          aria-haspopup="menu"
+          aria-expanded={showMenu}
+          title="Group options"
+          onClick={() => setShowMenu((v) => !v)}
         >
-          <Plus size={14} />
-        </button>
-      )}
+          <MoreVertical size={14} />
+        </IconButton>
+      </div>
 
-      {/* 3-dot menu button */}
-      <button
-        ref={menuBtnRef}
-        onClick={() => {
-          setShowMenu(!showMenu);
-          setShowColorGrid(false);
-          setShowDeleteConfirm(false);
-        }}
-        className="p-1 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-        title="Group options"
-      >
-        <MoreVertical size={14} />
-      </button>
-
-      {/* Portaled dropdown menu */}
-      {showMenu && menuBtnRef.current && createPortal(
-        <div
-          ref={menuDropdownRef}
-          className="fixed z-[9999] rounded-xl shadow-2xl border border-border overflow-hidden animate-in min-w-[150px] bg-popover"
-          style={{
-            top: menuBtnRef.current.getBoundingClientRect().bottom + 4,
-            left: Math.min(
-              menuBtnRef.current.getBoundingClientRect().left,
-              window.innerWidth - 170
-            ),
-          }}
-        >
-          {/* Rename */}
-          <button
-            onClick={() => {
-              setEditValue(displayName);
-              setEditing(true);
-              setShowMenu(false);
-            }}
-            className="flex items-center gap-2 w-full text-left px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-          >
-            <Pencil size={13} />
-            Rename
-          </button>
-          {/* Reset name */}
-          {hasAlias && (
-            <button
-              onClick={() => {
-                onResetName(groupName);
-                setShowMenu(false);
-              }}
-              className="flex items-center gap-2 w-full text-left px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-            >
-              <RotateCcw size={13} />
-              Reset name
-            </button>
-          )}
-          {/* Change color */}
-          {onColorChange && (
-            <>
-              <button
-                onClick={() => setShowColorGrid(!showColorGrid)}
-                className="flex items-center gap-2 w-full text-left px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-              >
-                <Palette size={13} />
-                Change color
-              </button>
-              {showColorGrid && (
-                <div className="flex gap-1.5 px-3 py-2 flex-wrap">
-                  {TASK_COLORS.map((c) => (
-                    <button
-                      key={c}
-                      onClick={() => {
-                        onColorChange(groupName, c);
-                        setShowMenu(false);
-                        setShowColorGrid(false);
-                      }}
-                      className="w-5 h-5 rounded-full hover:scale-110 transition-all"
-                      style={{ backgroundColor: c }}
-                    />
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-          {/* Delete class */}
-          {onDeleteClass && groupName !== "General" && (
-            <>
-              <div className="border-t border-border my-1" />
-              {!showDeleteConfirm ? (
-                <button
-                  onClick={() => setShowDeleteConfirm(true)}
-                  className="flex items-center gap-2 w-full text-left px-3 py-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
-                >
-                  <Trash2 size={13} />
-                  Delete class
-                </button>
-              ) : (
-                <div className="px-3 py-2">
-                  <p className="text-xs text-muted-foreground mb-2">
-                    Delete {count} task{count !== 1 ? "s" : ""}?
-                  </p>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => {
-                        onDeleteClass(groupName);
-                        setShowMenu(false);
-                        setShowDeleteConfirm(false);
-                      }}
-                      className="text-xs px-2.5 py-1 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors"
-                    >
-                      Delete
-                    </button>
-                    <button
-                      onClick={() => setShowDeleteConfirm(false)}
-                      className="text-xs px-2.5 py-1 rounded-lg border border-border text-muted-foreground hover:bg-accent transition-colors"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </div>,
-        document.body
-      )}
+      <ClassMenu
+        open={showMenu}
+        onClose={() => setShowMenu(false)}
+        anchorRef={menuBtnRef}
+        placement="bottom-end"
+        name={groupName}
+        hasAlias={hasAlias}
+        taskCount={count}
+        onRename={() => { setEditValue(displayName); setEditing(true); }}
+        onResetName={() => onResetName(groupName)}
+        onColorChange={onColorChange}
+        onDeleteClass={onDeleteClass}
+      />
     </div>
   );
 }
