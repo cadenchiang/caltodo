@@ -60,7 +60,7 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
     } catch { /* ignore */ }
   }, []);
 
-  // Listen for profile updates dispatched from ProfileSection
+  // Listen for profile updates dispatched from components/profile/ProfileHeader
   useEffect(() => {
     function handleProfileUpdate(e: Event) {
       const detail = (e as CustomEvent).detail;
@@ -93,7 +93,7 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
   }, [activeFromUrl, optimisticSection]);
   const activeSettingsSection: SettingsSectionId = optimisticSection ?? activeFromUrl;
 
-  // Cache user profile to localStorage so ProfileSection can read it
+  // Cache user profile to localStorage so components/profile/ProfileHeader can read it
   useEffect(() => {
     try {
       localStorage.setItem("caltodo_user_profile", JSON.stringify({ email, fullName, avatarUrl }));
