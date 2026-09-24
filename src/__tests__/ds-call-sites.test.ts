@@ -45,8 +45,10 @@ describe("migrated modals", () => {
     expect(src).not.toContain("<X ");
   });
 
-  it("TaskCreateModal sits on the overlay layer so it stacks above Modal", () => {
-    expect(read("components/tasks/TaskCreateModal.tsx")).toContain("fixed inset-0 z-overlay flex justify-center");
+  it("TaskCreateModal is built on Modal (which owns the overlay layer)", () => {
+    const src = read("components/tasks/TaskCreateModal.tsx");
+    expect(src).toContain('import Modal from "@/components/ui/Modal";');
+    expect(src).not.toContain("createPortal");
   });
 });
 

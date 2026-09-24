@@ -112,6 +112,10 @@ export default function Popover({
         onCloseRef.current();
       } else if (event.key === "Tab" && node) {
         trapTab(event, node);
+        // The panel owns focus while open. Without this a Modal underneath
+        // (whose trap listens on document) would see the Tab too and yank
+        // focus back to its own first control.
+        event.stopPropagation();
       }
     }
     node.addEventListener("keydown", onKeyDown);

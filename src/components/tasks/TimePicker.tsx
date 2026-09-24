@@ -14,7 +14,7 @@ import {
   from24h,
   to24h,
   sanitizeTimeDigits,
-  parseHourInput,
+  parseHourInput24,
   parseMinuteInput,
   stepHour,
   stepMinute,
@@ -58,11 +58,14 @@ export default function TimePicker({
     onChange(to24h(nextHour, nextMinute, nextAmPm));
   }
 
-  /** Commits the hour draft, falling back to the current hour when empty. */
+  /**
+   * Commits the hour draft, falling back to the current hour when empty.
+   * Typing 13 to 23 flips the meridiem to PM ("14" is 2 PM, not noon).
+   */
   function commitHour() {
-    const parsed = hourDraft === null ? null : parseHourInput(hourDraft);
+    const parsed = hourDraft === null ? null : parseHourInput24(hourDraft);
     setHourDraft(null);
-    commit(parsed ?? hour12, minute, ampm);
+    commit(parsed?.hour12 ?? hour12, minute, parsed?.ampm ?? ampm);
   }
 
   /** Commits the minute draft, falling back to the current minute when empty. */
@@ -183,7 +186,8 @@ export default function TimePicker({
         <button
           type="button"
           onClick={() => commit(hour12, minute, ampm === "AM" ? "PM" : "AM")}
-          className="w-10 h-8 rounded-lg bg-accent text-xs font-medium text-foreground hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors cursor-pointer"
+          aria-label={`Switch to ${ampm === "AM" ? "PM" : "AM"}`}
+          className="w-10 h-8 rounded-lg bg-accent text-xs font-medium text-foreground hover:bg-blue-50 dark:hover:bg-blue-600/20 transition-colors cursor-pointer"
         >
           {ampm}
         </button>
@@ -195,7 +199,7 @@ export default function TimePicker({
           <button
             type="button"
             onClick={() => onChange(null)}
-            className="text-[10px] text-subtle-foreground hover:text-secondary-foreground transition-colors shrink-0 cursor-pointer"
+            className="text-3xs text-muted-foreground hover:text-foreground transition-colors shrink-0 cursor-pointer"
           >
             Clear
           </button>

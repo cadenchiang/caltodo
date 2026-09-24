@@ -201,12 +201,18 @@ export default function TaskDetailPanel({ task, onClose, onSave, onDelete }: Tas
                 timeValue={task.due_time}
                 repeatInterval={task.repeat_interval}
                 repeatUnit={task.repeat_unit}
+                repeatEndDate={task.repeat_end_date}
+                repeatEndCount={task.repeat_end_count}
                 onCommit={(d) =>
                   save({
                     due_date: d.date,
                     due_time: d.time,
                     repeat_interval: d.repeatInterval,
                     repeat_unit: d.repeatUnit,
+                    // The end condition is edited in the same picker, so it
+                    // is saved with the rest instead of being shown and dropped.
+                    repeat_end_date: d.repeatEndDate,
+                    repeat_end_count: d.repeatEndCount,
                   })
                 }
                 onDone={close}
