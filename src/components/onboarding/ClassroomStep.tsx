@@ -12,7 +12,7 @@
 import { useEffect, useState } from "react";
 import { Check, Loader2 } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
-import Button from "@/components/ui/Button";
+import Button, { buttonClasses } from "@/components/ui/Button";
 
 /** A Classroom course as returned by /api/classroom. */
 interface ClassroomCourse {
@@ -137,7 +137,7 @@ export default function ClassroomStep({
           </p>
           <a
             href="/api/gcal/auth?classroom=1"
-            className="inline-flex w-full items-center justify-center px-5 py-2.5 rounded-full text-sm font-semibold bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 transition-colors"
+            className={buttonClasses("inverted", "lg", "w-full")}
           >
             Connect Google
           </a>
@@ -152,7 +152,7 @@ export default function ClassroomStep({
           </p>
           <a
             href="/api/gcal/auth?classroom=1"
-            className="inline-flex w-full items-center justify-center px-5 py-2.5 rounded-full text-sm font-semibold bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 transition-colors"
+            className={buttonClasses("inverted", "lg", "w-full")}
           >
             Allow Classroom access
           </a>

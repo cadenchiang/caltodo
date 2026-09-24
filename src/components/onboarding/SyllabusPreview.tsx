@@ -368,7 +368,7 @@ export default function SyllabusPreview({
               }
               className="text-xs font-medium text-blue-500 hover:text-blue-600 cursor-pointer"
             >
-              {allSelected ? "Deselect All" : "Select All"}
+              {allSelected ? "Deselect all" : "Select all"}
             </button>
           </div>
 

@@ -41,7 +41,7 @@ declare global {
  * Not mounted while a session already exists: with auto_select the prompt
  * would otherwise sign an already-signed-in visitor (on /?landing=1) in again.
  *
- * Renders nothing — Google controls the One Tap UI overlay.
+ * Renders nothing; Google controls the One Tap UI overlay.
  */
 export default function GoogleOneTap() {
   const router = useRouter();
@@ -107,7 +107,7 @@ export default function GoogleOneTap() {
 
   useEffect(() => {
     if (initializedRef.current) return;
-    // Desktop only — One Tap UI is designed for larger screens
+    // Desktop only: One Tap UI is designed for larger screens
     if (typeof window === "undefined" || window.innerWidth < 768) return;
 
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;

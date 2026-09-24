@@ -294,7 +294,7 @@ export default function LandingNav({ loggedIn: loggedInProp }: LandingNavProps =
         </div>
 
         {/* Right: CTAs, public-state default, upgrades to "Open app" if signed in.
-            On mobile, "Login" is hidden to save space; it lives inside the menu. */}
+            On mobile, "Sign in" is hidden to save space; it lives inside the menu. */}
         <div className="justify-self-end flex items-center gap-1 sm:gap-1.5">
           {loggedIn ? (
             <Link href="/app/inbox" className={NAV_CTA}>

@@ -10,7 +10,10 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Loader2, Check } from "lucide-react";
+import { Check } from "lucide-react";
+import Button from "@/components/ui/Button";
+import { ErrorBanner } from "@/components/onboarding/StepChrome";
+import { SKIP_LABEL } from "@/lib/copy";
 import GoogleAuthWarningModal from "@/components/settings/GoogleAuthWarningModal";
 import { setUpConnectedCalendar } from "@/lib/gcal/connect-setup";
 import { describeOAuthError } from "@/lib/gcal/oauth-return";
@@ -224,15 +227,12 @@ export default function CalendarStep({ onNext, onSkip }: CalendarStepProps) {
       {phase === "connected" ? (
         <div className="animate-drop-in delay-200">
           <div className="rounded-xl border border-border px-4 py-3 mb-5 flex items-center gap-2 text-sm text-foreground">
-            <Check size={15} className="text-green-600 shrink-0" />
+            <Check size={15} className="text-success shrink-0" aria-hidden="true" />
             Google Calendar connected. Your tasks will sync automatically.
           </div>
-          <button
-            onClick={onNext}
-            className="w-full px-4 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-sm font-semibold btn-elevated-primary"
-          >
+          <Button variant="inverted" size="lg" className="w-full" onClick={onNext}>
             Continue
-          </button>
+          </Button>
         </div>
       ) : (
         <div className="animate-drop-in delay-200">
@@ -241,29 +241,27 @@ export default function CalendarStep({ onNext, onSkip }: CalendarStepProps) {
             assignments stay separate from your personal events.
           </div>
 
-          {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
+          <ErrorBanner message={error} />
 
-          <button
+          <Button
+            variant="inverted"
+            size="lg"
+            className="w-full"
             onClick={() => setShowAuthWarning(true)}
-            disabled={busy}
-            className="w-full px-4 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2 btn-elevated-primary"
+            loading={busy}
           >
-            {busy && <Loader2 size={14} className="animate-spin" />}
             {phase === "connecting"
               ? "Waiting for Google..."
               : phase === "settingUp"
                 ? "Setting up your calendar..."
                 : "Connect Google Calendar"}
-          </button>
+          </Button>
 
-          <button
-            type="button"
-            onClick={onSkip}
-            disabled={phase === "settingUp"}
-            className="w-full mt-3 text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-          >
-            Skip for now
-          </button>
+          <div className="mt-3 text-center">
+            <Button variant="ghost" size="sm" onClick={onSkip} disabled={phase === "settingUp"}>
+              {SKIP_LABEL}
+            </Button>
+          </div>
         </div>
       )}
 

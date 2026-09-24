@@ -5,7 +5,7 @@ import Hero from "@/components/landing/Hero";
  * Render the marketing homepage statically and refresh at most hourly (ISR).
  *
  * Previously this route called `supabase.auth.getUser()` on every request,
- * which reads cookies and forced fully-dynamic rendering — an auth round-trip
+ * which reads cookies and forced fully-dynamic rendering, an auth round-trip
  * on the TTFB of every landing visit. Authenticated users are already
  * redirected away from `/` by the proxy, and the Hero doesn't use the auth
  * state, so the page can be statically generated and edge-cached for an

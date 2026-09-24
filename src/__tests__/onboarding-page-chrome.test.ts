@@ -138,4 +138,44 @@ describe("onboarding components", () => {
       expect(src, file).not.toContain(EM_DASH);
     }
   });
+
+  it("uses one skip idiom and one primary-button idiom across every step", () => {
+    const dir = path.join(ROOT, "src/components/onboarding");
+    for (const file of readdirSync(dir).filter((f) => f.endsWith("Step.tsx"))) {
+      const src = read(`src/components/onboarding/${file}`);
+      // No hand-rolled inverted button; every primary goes through Button.
+      expect(src, file).not.toContain("bg-gray-900 dark:bg-white text-white dark:text-gray-900");
+      expect(src, file).not.toContain("btn-elevated-primary");
+      // Skip controls, where a step renders one, use the glossary label.
+      expect(src, file).not.toMatch(/>\s*Skip for now\s*</);
+    }
+  });
+
+  it("uses Title Case nowhere in step headings or buttons", () => {
+    for (const file of ["CalendarStep.tsx", "ClassroomStep.tsx", "SyllabusPreview.tsx", "SyllabusExtracting.tsx"]) {
+      const src = read(`src/components/onboarding/${file}`);
+      expect(src, file).not.toMatch(/"(Select|Deselect) All"/);
+      expect(src, file).not.toMatch(/Save & Next|Extract Assignments|Let's Go|Get Started/);
+    }
+  });
+});
+
+describe("landing pages and contact form", () => {
+  it("contact form has visible labels, no gray uppercase, and an announced outcome", () => {
+    const form = read("src/components/landing/ContactForm.tsx");
+    expect(form).toContain("<TextField");
+    expect(form).toContain("<TextArea");
+    expect(form).not.toContain("uppercase");
+    expect(form).toContain('aria-live="polite"');
+    expect(form).not.toMatch(/#0e89d6|#f6f5f4|text-gray-/);
+  });
+
+  it("about, contact and guides use tokens, no brand hex, delays capped at 400 ms", () => {
+    for (const rel of ["src/app/(landing)/about/page.tsx", "src/app/(landing)/contact/page.tsx", "src/app/(landing)/guides/page.tsx"]) {
+      const src = read(rel);
+      expect(src, rel).not.toMatch(/#0e89d6|#3D8FE8|#f6f5f4|text-black\b/);
+      expect(src, rel).not.toContain(EM_DASH);
+      for (const m of src.matchAll(/animationDelay: "(\d+)ms"/g)) expect(Number(m[1]), rel).toBeLessThanOrEqual(400);
+    }
+  });
 });

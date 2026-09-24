@@ -62,7 +62,7 @@ export default function SyncedCount({ count }: SyncedCountProps) {
     /*
       Inline-grid with both children stacked in the one cell, aligned on their
       baselines. The earlier version laid the digits over the sizer with
-      `absolute top-0`, which lines up the two *boxes* — and number-flow's box
+      `absolute top-0`, which lines up the two *boxes*, and number-flow's box
       is not the text's box. It forces `line-height: 1` on itself and pads each
       digit by half the fade mask, so anchoring at the top parked the figure
       2.5px below the sentence it sits in. Letting grid do baseline alignment

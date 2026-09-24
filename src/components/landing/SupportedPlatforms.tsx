@@ -57,7 +57,7 @@ export default function SupportedPlatforms() {
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="inline-flex items-center gap-1.5 text-sm sm:text-base font-semibold text-[#0e89d6] hover:text-[#0b6ea9] transition-colors cursor-pointer"
+        className="inline-flex items-center gap-1.5 text-sm sm:text-base font-semibold text-blue-500 hover:text-blue-600 transition-colors cursor-pointer min-h-11 rounded"
       >
         See which platforms
         <ChevronDown
@@ -83,11 +83,11 @@ export default function SupportedPlatforms() {
                 ) : (
                   // Neutral tile, as in Settings: a syllabus is a file the
                   // student uploaded, not a platform with a brand of its own.
-                  <span className="w-5 h-5 rounded bg-black/[0.06] flex items-center justify-center shrink-0">
-                    <FileText size={12} className="text-black/50" />
+                  <span className="w-5 h-5 rounded bg-muted flex items-center justify-center shrink-0">
+                    <FileText size={12} className="text-secondary-foreground" aria-hidden="true" />
                   </span>
                 )}
-                <span className="text-sm text-black/70 truncate">{p.label}</span>
+                <span className="text-sm text-muted-foreground truncate">{p.label}</span>
               </li>
             ))}
           </ul>
