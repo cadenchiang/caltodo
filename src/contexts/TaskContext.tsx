@@ -31,6 +31,7 @@ import { readHiddenTags, hideTag } from "@/lib/hidden-tags";
 import { findNewAssignments } from "@/lib/new-assignments";
 import { collectSyncErrors, describeSyncedCounts } from "@/lib/sync-result-summary";
 import { formatSnoozeDuration } from "@/lib/snooze";
+import { DEFAULT_TASK_COLOR } from "@/lib/constants";
 
 /** localStorage key and version for stale-while-revalidate task caching. */
 const CACHE_KEY = "caltodo_tasks_cache";
@@ -74,7 +75,7 @@ function setCachedTasks(tasks: Task[]): void {
     localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
   } catch (err) {
     if (err instanceof DOMException && err.name === "QuotaExceededError") {
-      console.warn("[TaskContext] localStorage quota exceeded — task cache not persisted");
+      console.warn("[TaskContext] localStorage quota exceeded; task cache not persisted");
     }
   }
 }
@@ -748,7 +749,7 @@ export function TaskProvider({
       due_date: taskData.due_date ?? null,
       due_time: taskData.due_time ?? null,
       is_completed: false,
-      color: taskData.color ?? "#0e89d6",
+      color: taskData.color ?? DEFAULT_TASK_COLOR,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       source: null,

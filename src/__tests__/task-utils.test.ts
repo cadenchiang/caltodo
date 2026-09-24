@@ -134,10 +134,10 @@ describe("getSourceBadges", () => {
     expect(getSourceBadges(makeTask())).toEqual([]);
   });
 
-  it("returns bCourses badge for canvas source", () => {
+  it("returns the Canvas badge for canvas source", () => {
     const badges = getSourceBadges(makeTask({ source: "canvas" }));
     expect(badges).toHaveLength(1);
-    expect(badges[0].label).toBe("bCourses");
+    expect(badges[0].label).toBe("Canvas");
   });
 
   it("returns Pensieve badge for pensieve source", () => {

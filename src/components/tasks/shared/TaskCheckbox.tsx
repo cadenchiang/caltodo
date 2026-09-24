@@ -61,8 +61,8 @@ export default function TaskCheckbox({
         isLg ? "mt-1" : ""
       }`}
       style={{
-        backgroundColor: isCompleted ? (color || "#D1D5DB") : "transparent",
-        border: isCompleted ? "none" : `${borderWidth} solid ${color || "#D1D5DB"}`,
+        backgroundColor: isCompleted ? (color || "var(--subtle-foreground)") : "transparent",
+        border: isCompleted ? "none" : `${borderWidth} solid ${color || "var(--subtle-foreground)"}`,
       }}
       aria-label={isCompleted ? "Mark incomplete" : "Mark complete"}
     >
@@ -89,7 +89,7 @@ export default function TaskCheckbox({
         >
           <path
             d="M1 4L3.5 6.5L9 1"
-            stroke={color || "#D1D5DB"}
+            stroke={color || "var(--subtle-foreground)"}
             strokeWidth={strokeWidth}
             strokeLinecap="round"
             strokeLinejoin="round"

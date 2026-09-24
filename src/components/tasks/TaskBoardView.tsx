@@ -181,7 +181,7 @@ export default function TaskBoardView({
         <EmptyState
           icon={<LayoutGrid size={20} />}
           title="No tasks yet"
-          description="Add one, or sync your classes to pull in assignments."
+          description="Add one, or sync your classes to bring in their tasks."
           action={<Button onClick={() => setEmptyStateCreateOpen(true)}>Add task</Button>}
         />
         <TaskCreateModal

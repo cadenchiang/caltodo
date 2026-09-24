@@ -1,5 +1,6 @@
 import { format } from "date-fns";
 import type { Task } from "@/lib/types";
+import { PROVIDER_LABELS } from "@/lib/copy";
 
 /**
  * Formats a 24-hour time string "HH:MM" to 12-hour format "h:mm AM/PM".
@@ -156,9 +157,9 @@ export function getSourceBadges(task: Task): { label: string; className: string 
 
   if (task.source) {
     const map: Record<string, { label: string; cls: string }> = {
-      canvas: { label: "bCourses", cls: "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-600/40" },
-      pensieve: { label: "Pensive", cls: "text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-600/40" },
-      gradescope: { label: "Gradescope", cls: "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-600/40" },
+      canvas: { label: PROVIDER_LABELS.canvas, cls: "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-600/40" },
+      pensieve: { label: PROVIDER_LABELS.pensieve, cls: "text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-600/40" },
+      gradescope: { label: PROVIDER_LABELS.gradescope, cls: "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-600/40" },
     };
     const entry = map[task.source];
     if (entry) badges.push({ label: entry.label, className: entry.cls });

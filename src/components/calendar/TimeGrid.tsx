@@ -209,7 +209,7 @@ export default function TimeGrid({
     <div ref={scrollRef} className="flex-1 overflow-y-auto relative">
       <div className="flex" style={{ minHeight: `${totalHeight}px` }}>
         {/* Hour labels gutter */}
-        <div className="w-14 shrink-0 relative border-r border-gray-200 dark:border-gray-700/50" style={{ height: `${totalHeight}px` }}>
+        <div className="w-14 shrink-0 relative border-r border-border" style={{ height: `${totalHeight}px` }}>
           {hours.map((hour) => {
             const top = (hour - effectiveRange.startHour) * rowHeight;
             const label = hour === 0 ? "12 AM" : hour < 12 ? `${hour} AM` : hour === 12 ? "12 PM" : `${hour - 12} PM`;
@@ -233,7 +233,7 @@ export default function TimeGrid({
             return (
               <div
                 key={`line-${hour}`}
-                className="absolute left-0 right-0 border-t border-gray-200 dark:border-gray-700/50"
+                className="absolute left-0 right-0 border-t border-border"
                 style={{ top: `${top}px` }}
               />
             );
@@ -269,7 +269,7 @@ export default function TimeGrid({
             return (
               <div
                 key={i}
-                className={`flex-1 relative ${i < columns.length - 1 ? "border-r border-gray-200 dark:border-gray-700/50" : ""}`}
+                className={`flex-1 relative ${i < columns.length - 1 ? "border-r border-border" : ""}`}
                 style={{ height: `${totalHeight}px`, overflowX: "hidden" }}
 
                 onClick={() => clearPreview()}

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { X, Check } from "lucide-react";
+import Button from "@/components/ui/Button";
 
 interface CourseItem<T extends string | number> {
   id: T;
@@ -181,7 +182,7 @@ export default function CourseSelectModal<T extends string | number>({
                             <div
                               className="w-4 h-4 rounded shrink-0 flex items-center justify-center transition-all duration-150"
                               style={{
-                                backgroundColor: checked ? (group.color || "#0e89d6") : "transparent",
+                                backgroundColor: checked ? (group.color || "var(--color-blue-500)") : "transparent",
                                 border: checked ? "none" : "1.5px solid var(--input-border)",
                               }}
                             >
@@ -215,7 +216,7 @@ export default function CourseSelectModal<T extends string | number>({
                     <div
                       className="w-4 h-4 rounded shrink-0 flex items-center justify-center transition-all duration-150"
                       style={{
-                        backgroundColor: checked ? "#0e89d6" : "transparent",
+                        backgroundColor: checked ? "var(--color-blue-500)" : "transparent",
                         border: checked ? "none" : "1.5px solid var(--input-border)",
                       }}
                     >
@@ -243,12 +244,9 @@ export default function CourseSelectModal<T extends string | number>({
 
         {/* Footer */}
         <div className="px-5 py-3.5 border-t border-border shrink-0 sm:rounded-b-2xl">
-          <button
-            onClick={handleClose}
-            className="w-full px-4 py-2 rounded-xl text-sm font-medium bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:opacity-90 transition-all cursor-pointer"
-          >
+          <Button variant="inverted" className="w-full" onClick={handleClose}>
             Done
-          </button>
+          </Button>
         </div>
       </div>
     </div>,

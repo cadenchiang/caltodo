@@ -107,7 +107,7 @@ export default function RepeatPicker({
           className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
             isActive(opt)
               ? "bg-accent font-medium text-foreground"
-              : "text-foreground hover:bg-gray-100 dark:hover:bg-gray-800"
+              : "text-foreground hover:bg-accent"
           }`}
         >
           {opt.label}
@@ -129,7 +129,7 @@ export default function RepeatPicker({
         <button
           type="button"
           onClick={onCustom}
-          className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+          className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors"
         >
           Custom...
         </button>

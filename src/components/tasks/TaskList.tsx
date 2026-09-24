@@ -20,7 +20,7 @@ import { ITEMS_PER_SECTION, groupByCourse, partitionTasks } from "./task-list-he
 
 /** Copy for the empty list, keyed by the inbox filter. */
 const EMPTY_COPY: Record<"all" | "today" | "7days", { title: string; description: string }> = {
-  all: { title: "No tasks yet", description: "Add one, or sync your classes to pull in assignments." },
+  all: { title: "No tasks yet", description: "Add one, or sync your classes to bring in their tasks." },
   today: { title: "Nothing due today", description: "Anything due today or overdue shows up here." },
   "7days": { title: "Nothing due in the next 7 days", description: "Tasks due this week show up here." },
 };
