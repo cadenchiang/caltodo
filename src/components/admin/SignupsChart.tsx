@@ -227,7 +227,7 @@ export default function SignupsChart({ daily, total }: SignupsChartProps) {
           />
         </AreaChart>
       </ResponsiveContainer>
-      <p className="mt-2 text-[11px] text-muted-foreground text-center">
+      <p className="mt-2 text-2xs text-muted-foreground text-center">
         Click a day to see hourly breakdown
       </p>
     </div>

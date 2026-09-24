@@ -89,7 +89,7 @@ export default function McpKeyList({
                 <span className="text-muted-foreground">••••••••</span>
               </p>
               <span
-                className={`shrink-0 px-1.5 py-0.5 rounded-md border text-[10px] font-medium ${badgeClasses(
+                className={`shrink-0 px-1.5 py-0.5 rounded-md border text-3xs font-medium ${badgeClasses(
                   key.scope
                 )}`}
               >
@@ -109,10 +109,10 @@ export default function McpKeyList({
                   if (e.key === "Enter") commitRename(key.id);
                   if (e.key === "Escape") setEditingId(null);
                 }}
-                className="mt-0.5 w-full max-w-[14rem] px-1.5 py-0.5 rounded border border-input-border bg-card text-[11px] text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                className="mt-0.5 w-full max-w-[14rem] px-1.5 py-0.5 rounded border border-input-border bg-card text-2xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
             ) : (
-              <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+              <p className="text-2xs text-muted-foreground flex items-center gap-1">
                 <button
                   type="button"
                   onClick={() => {
