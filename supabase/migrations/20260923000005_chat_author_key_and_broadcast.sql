@@ -16,7 +16,7 @@
 --      so a direct PostgREST insert cannot forge a key.
 --
 -- SECRET: the API computes keys with CHAT_AUTHOR_SECRET (Node HMAC-SHA256,
--- hex). The database uses the setting app.settings.chat_author_secret.
+-- hex). The database reads the same value from Vault (name chat_author_secret).
 -- Set both to the same value BEFORE applying this migration:
 --   alter database postgres set app.settings.chat_author_secret = '<value>';
 -- Without it, both sides fall back to the documented development default
@@ -31,21 +31,35 @@
 create extension if not exists pgcrypto with schema extensions;
 
 -- 1 + 5. Key function shared by the backfill and the guard trigger.
+-- The secret lives in Supabase Vault under the name chat_author_secret
+-- (placeholder GUCs cannot be set without superuser on Supabase). The
+-- function is SECURITY DEFINER so callers never read the vault directly;
+-- only the derived key leaves it. Falls back to a documented dev value when
+-- the vault entry is missing (local dev only).
 create or replace function public.chat_author_key(p_author_id uuid, p_course_id uuid)
 returns text
 language sql
 stable
+security definer
 set search_path = ''
 as $$
   select encode(
     extensions.hmac(
       convert_to(p_author_id::text || ':' || p_course_id::text, 'utf8'),
-      convert_to(coalesce(nullif(current_setting('app.settings.chat_author_secret', true), ''), 'caltodo-dev-chat-author-secret'), 'utf8'),
+      convert_to(
+        coalesce(
+          (select s.decrypted_secret from vault.decrypted_secrets s where s.name = 'chat_author_secret' limit 1),
+          'caltodo-dev-chat-author-secret'
+        ),
+        'utf8'
+      ),
       'sha256'
     ),
     'hex'
   );
 $$;
+revoke all on function public.chat_author_key(uuid, uuid) from public, anon;
+grant execute on function public.chat_author_key(uuid, uuid) to authenticated, service_role;
 
 alter table public.chat_messages add column if not exists author_key text;
 alter table public.chat_messages add column if not exists client_nonce text;

@@ -18,7 +18,9 @@
 -- the channels, or those subscriptions are refused. The code tolerates
 -- the reverse only in that it fails closed (no presence, no typing).
 
-alter table realtime.messages enable row level security;
+-- realtime.messages already has row level security enabled on Supabase
+-- (Realtime authorization depends on it) and the postgres role does not own
+-- the table, so only the policies are created here.
 
 -- Course id parsed out of the topic, or NULL for a topic the chat does not own.
 create or replace function public.chat_topic_course_id(topic text)

@@ -1,0 +1,8 @@
+-- Placeholder for a migration applied out of band on 2026-09-24.
+--
+-- The applied statement stored the chat author secret in Supabase Vault
+-- under the name chat_author_secret (vault.create_secret). The value is
+-- the same as CHAT_AUTHOR_SECRET in Vercel and is deliberately not
+-- committed. public.chat_author_key() (20260923000005) reads it from
+-- vault.decrypted_secrets. A fresh environment needs that Vault entry
+-- created by hand before 20260923000005 runs.
