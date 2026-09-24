@@ -3,7 +3,7 @@ import ContactForm from "@/components/landing/ContactForm";
 import { ArrowUpRight } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Contact - caltodo",
+  title: "Contact",
   description: "Get in touch with the caltodo team.",
   alternates: { canonical: "/contact" },
 };

@@ -54,8 +54,11 @@ describe("LandingNav", () => {
 });
 
 describe("landing layout and footer", () => {
-  it("renders the footer once for every landing page", () => {
-    expect(layout).toContain("<LandingFooter />");
+  it("renders the footer once for every landing page, and on the 404", () => {
+    const shell = read("src/components/landing/LandingShell.tsx");
+    expect(shell).toContain("<LandingFooter />");
+    expect(layout).toContain("<LandingShell>{children}</LandingShell>");
+    expect(read("src/app/not-found.tsx")).toContain("<LandingShell>");
     expect(hero).not.toContain("<footer");
   });
 

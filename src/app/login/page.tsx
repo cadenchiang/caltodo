@@ -12,16 +12,16 @@ import { ToastProvider } from "@/contexts/ToastContext";
  * and Open Graph tags for link previews.
  */
 export const metadata: Metadata = {
-  title: "Log In - caltodo",
+  title: "Sign in",
   description:
-    "Log in to caltodo. Sync your classes, upload your syllabus, and manage every deadline in one place.",
+    "Sign in to caltodo. Sync your classes, upload your syllabus, and manage every deadline in one place.",
   alternates: { canonical: "/login" },
   openGraph: {
-    title: "Log In - caltodo",
+    title: "Sign in | caltodo",
     description:
-      "Log in to caltodo. Sync your classes and manage every deadline in one place.",
+      "Sign in to caltodo. Sync your classes and manage every deadline in one place.",
     url: "https://caltodo.me/login",
-    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "caltodo — your assignments, synced and organized" }],
+    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "caltodo, your assignments synced and organized" }],
   },
 };
 

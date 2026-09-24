@@ -3,10 +3,17 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowRight } from "lucide-react";
 import { SCHOOLS, getSchool } from "@/lib/seo/schools";
+import { buttonClasses } from "@/components/ui/button-recipe";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
 }
+
+/**
+ * Unknown slugs are 404s at the routing layer, so neither generateMetadata
+ * nor the page runs on the not-found path.
+ */
+export const dynamicParams = false;
 
 /**
  * Pre-renders a page for every school in the registry.
@@ -55,32 +62,32 @@ export default async function SchoolPage({ params }: PageProps) {
   return (
     <main className="flex-1 px-6 lg:px-10">
       <div className="max-w-2xl mx-auto pt-12 sm:pt-16 pb-24">
-        <h1 className="text-3xl sm:text-4xl font-bold text-black mb-4 tracking-tight">
+        <h1 className="text-3xl sm:text-4xl font-bold text-foreground mb-4 tracking-tight">
           caltodo for {school.name}
         </h1>
-        <p className="text-sm sm:text-xl font-sans font-medium leading-snug text-black mb-10">
+        <p className="text-sm sm:text-xl font-sans font-medium leading-snug text-foreground mb-10">
           Every {school.name} assignment from Canvas, Gradescope, and your
           syllabus, in one list that stays up to date on its own.
         </p>
 
         <section className="mb-9">
-          <h2 className="text-lg sm:text-2xl font-bold text-black mb-3 tracking-tight">
+          <h2 className="text-lg sm:text-2xl font-bold text-foreground mb-3 tracking-tight">
             Connecting {school.name} Canvas
           </h2>
-          <p className="text-sm sm:text-base font-sans font-medium leading-relaxed text-black/70 mb-3">
+          <p className="text-sm sm:text-base font-sans font-medium leading-relaxed text-muted-foreground mb-3">
             {school.name} runs Canvas at{" "}
-            <span className="font-semibold text-black">{school.canvasHost}</span>.
+            <span className="font-semibold text-foreground">{school.canvasHost}</span>.
             caltodo reads your personal calendar feed from there, so it sees
             every course you are enrolled in without needing your password.
           </p>
           <ol className="list-decimal pl-5 mt-3 flex flex-col gap-2">
-            <li className="text-sm sm:text-base font-sans font-medium leading-relaxed text-black/70">
+            <li className="text-sm sm:text-base font-sans font-medium leading-relaxed text-muted-foreground">
               Sign in at {school.canvasHost} and open Calendar.
             </li>
-            <li className="text-sm sm:text-base font-sans font-medium leading-relaxed text-black/70">
-              Click &quot;Calendar Feed&quot; at the bottom right and copy the URL.
+            <li className="text-sm sm:text-base font-sans font-medium leading-relaxed text-muted-foreground">
+              Click &quot;Calendar feed&quot; at the bottom right and copy the URL.
             </li>
-            <li className="text-sm sm:text-base font-sans font-medium leading-relaxed text-black/70">
+            <li className="text-sm sm:text-base font-sans font-medium leading-relaxed text-muted-foreground">
               Paste it into caltodo during setup. Your assignments import
               immediately.
             </li>
@@ -88,30 +95,30 @@ export default async function SchoolPage({ params }: PageProps) {
         </section>
 
         <section className="mb-9">
-          <h2 className="text-lg sm:text-2xl font-bold text-black mb-3 tracking-tight">
+          <h2 className="text-lg sm:text-2xl font-bold text-foreground mb-3 tracking-tight">
             The deadlines Canvas leaves out
           </h2>
-          <p className="text-sm sm:text-base font-sans font-medium leading-relaxed text-black/70 mb-3">
+          <p className="text-sm sm:text-base font-sans font-medium leading-relaxed text-muted-foreground mb-3">
             A Canvas feed carries titles and due dates. It does not carry
             Gradescope, which many {school.name} courses use for problem sets
             and exams, and it does not carry anything that exists only in a
             syllabus schedule.
           </p>
-          <p className="text-sm sm:text-base font-sans font-medium leading-relaxed text-black/70">
-            caltodo reads all three and merges them, with submission status
-            attached, so what you see is the actual workload rather than the
-            part of it Canvas happens to know about.
+          <p className="text-sm sm:text-base font-sans font-medium leading-relaxed text-muted-foreground">
+            caltodo reads all three and merges them, so what you see is the
+            actual workload rather than the part of it Canvas happens to know
+            about.
           </p>
         </section>
 
         <Link
           href="/login"
-          className="inline-flex items-center gap-2 px-5 py-2.5 bg-gray-900 text-white rounded-full text-sm font-semibold"
+          className={buttonClasses("inverted", "lg")}
         >
-          Get started free <ArrowRight className="w-4 h-4" />
+          Get started free <ArrowRight className="w-4 h-4" aria-hidden="true" />
         </Link>
 
-        <p className="text-xs text-black/40 mt-8">
+        <p className="text-xs text-muted-foreground mt-8">
           caltodo is not affiliated with or endorsed by {school.name}. Canvas
           and Gradescope are trademarks of their respective owners.
         </p>

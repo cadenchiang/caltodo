@@ -16,7 +16,9 @@ const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), "utf8");
 
 describe("landing layout", () => {
   it("applies force-light like /login does", () => {
-    expect(read("src/app/(landing)/layout.tsx")).toMatch(/className="[^"]*\bbg-white\b[^"]*\bforce-light\b/);
+    // The layout renders through LandingShell, which owns the wrapper.
+    expect(read("src/app/(landing)/layout.tsx")).toContain("<LandingShell>{children}</LandingShell>");
+    expect(read("src/components/landing/LandingShell.tsx")).toMatch(/className="[^"]*\bbg-white\b[^"]*\bforce-light\b/);
     expect(read("src/app/login/page.tsx")).toMatch(/className="[^"]*\bforce-light\b/);
   });
 

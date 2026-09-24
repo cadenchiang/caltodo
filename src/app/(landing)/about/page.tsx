@@ -4,7 +4,7 @@ import Image from "next/image";
 import { ArrowRight, MapPin } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "About - caltodo",
+  title: "About",
   description:
     "caltodo pulls every assignment from every platform into one place so you stop missing deadlines that were hiding in plain sight.",
   alternates: { canonical: "/about" },
