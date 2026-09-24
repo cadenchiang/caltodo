@@ -60,8 +60,10 @@ describe("updateTask records every user edit", () => {
 
   it("announces with the revert after the write succeeds", () => {
     const push = ctx.indexOf("pushUndo({\n        label: summary.label,");
-    expect(push).toBeGreaterThan(ctx.indexOf("if (updateError) {"));
-    expect(ctx).toContain("undo: () => updateTask(id, summary.revert, { announce: false }),");
+    const failureBranch = ctx.indexOf("if (updateError || !written) {");
+    expect(failureBranch).toBeGreaterThan(-1);
+    expect(push).toBeGreaterThan(failureBranch);
+    expect(ctx).toContain("await updateTask(id, summary.revert, { announce: false });");
   });
 
   it("drops a write that changes nothing", () => {

@@ -45,20 +45,24 @@ describe("migrated modals", () => {
     expect(src).not.toContain("<X ");
   });
 
-  it("TaskCreateModal sits on the overlay layer so it stacks above Modal", () => {
-    expect(read("components/tasks/TaskCreateModal.tsx")).toContain("fixed inset-0 z-overlay flex justify-center");
+  it("TaskCreateModal is built on Modal (which owns the overlay layer)", () => {
+    const src = read("components/tasks/TaskCreateModal.tsx");
+    expect(src).toContain('import Modal from "@/components/ui/Modal";');
+    expect(src).not.toContain("createPortal");
   });
 });
 
 describe("popover backgrounds", () => {
   it.each([
-    ["components/tasks/TaskAddPopover.tsx", "overflow-visible bg-popover rounded-2xl"],
     ["components/onboarding/SearchableSelect.tsx", "mt-1 w-full bg-popover border"],
     ["components/discussions/ChatInput.tsx", "z-30 bg-popover shadow-xl rounded-xl"],
-    ["components/tasks/TaskItem.tsx", 'className="fixed z-50 bg-popover rounded-lg shadow-xl'],
-    ["components/tasks/TaskItem.tsx", "ml-1 bg-popover rounded-lg shadow-xl"],
-    ["components/tasks/TaskBoardView.tsx", 'className="fixed z-50 bg-popover rounded-lg shadow-xl'],
-    ["components/calendar/DayOverflowPopover.tsx", "bg-popover overflow-hidden animate-in"],
+    // TaskItem's menus now render through TaskContextMenu, which uses the
+    // Popover primitive (POPOVER_SURFACE carries bg-popover).
+    ["components/tasks/shared/TaskContextMenu.tsx", 'import Popover, { POPOVER_SURFACE } from "@/components/ui/Popover";'],
+    // Board card and column menus also render through the Popover primitive.
+    ["components/tasks/board/BoardTaskCard.tsx", 'import TaskContextMenu from "../shared/TaskContextMenu";'],
+    ["components/tasks/board/BoardColumn.tsx", 'import ClassMenu from "../shared/ClassMenu";'],
+    ["components/calendar/DayOverflowPopover.tsx", "pointer-events-auto bg-popover border border-border"],
   ])("%s paints bg-popover", (file, needle) => {
     expect(read(file)).toContain(needle);
   });
@@ -74,7 +78,7 @@ describe("dark-mode shadow rule", () => {
     ["components/home/widgets/PomodoroWidget.tsx", 1],
     ["components/home/widgets/SpotifyWidget.tsx", 1],
     ["components/tasks/DatePicker.tsx", 1],
-    ["components/calendar/CalendarHeader.tsx", 2],
+    ["components/calendar/CalendarHeader.tsx", 1],
     ["components/calendar/CalendarSettingsPopover.tsx", 2],
   ])("%s has %i dark:shadow-none", (file, count) => {
     const matches = read(file).match(/dark:shadow-none/g) ?? [];

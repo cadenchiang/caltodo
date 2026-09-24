@@ -1,18 +1,19 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
-import { createPortal } from "react-dom";
-import { Camera, Check, Loader2, X } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Camera, Check } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 import { usePresence, type UserStatus } from "@/contexts/PresenceContext";
 import { classifyImage } from "@/lib/nsfw-check";
 import ImageCropModal from "@/components/ui/ImageCropModal";
+import Modal from "@/components/ui/Modal";
+import Button from "@/components/ui/Button";
 
 /** Status option config for the picker. */
 const STATUS_OPTIONS: { value: UserStatus; label: string; color: string }[] = [
   { value: "online", label: "Online", color: "bg-green-500" },
   { value: "idle", label: "Idle", color: "bg-yellow-500" },
-  { value: "dnd", label: "Do Not Disturb", color: "bg-red-500" },
+  { value: "dnd", label: "Do not disturb", color: "bg-red-500" },
 ];
 
 interface EditProfileModalProps {
@@ -33,6 +34,11 @@ interface EditProfileModalProps {
  * Uploads avatar via /api/account/avatar, saves name via PUT /api/account/name.
  * Dispatches "profile-updated" CustomEvent on success for sidebar sync.
  *
+ * Built on the Modal primitive (dialog role, focus trap, Escape, scroll
+ * lock). The image cropper is rendered as a sibling of the profile dialog,
+ * not inside its backdrop, so clicks in the crop dialog no longer bubble to
+ * the profile modal's close handler (audit section 4, blocker).
+ *
  * @param open - Controls modal visibility
  * @param onClose - Callback to dismiss the modal
  * @param avatarUrl - Current avatar URL
@@ -49,7 +55,6 @@ export default function EditProfileModal({
   const { showToast } = useToast();
   const { userStatuses, setStatus, currentUserId } = usePresence();
   const currentStatus = (currentUserId ? userStatuses.get(currentUserId) : undefined) ?? "online";
-  const [closing, setClosing] = useState(false);
   const [localAvatar, setLocalAvatar] = useState(avatarUrl ?? null);
   const [nameInput, setNameInput] = useState(fullName ?? "");
   const [uploading, setUploading] = useState(false);
@@ -64,34 +69,8 @@ export default function EditProfileModal({
       setLocalAvatar(avatarUrl ?? null);
       setNameInput(fullName ?? "");
       setImgError(false);
-      setClosing(false);
     }
   }, [open, avatarUrl, fullName]);
-
-  // Focus name input on open
-  useEffect(() => {
-    if (open && nameInputRef.current) {
-      setTimeout(() => nameInputRef.current?.focus(), 150);
-    }
-  }, [open]);
-
-  /**
-   * Animates the modal closed then calls onClose.
-   */
-  const handleClose = useCallback(() => {
-    setClosing(true);
-    setTimeout(() => onClose(), 150);
-  }, [onClose]);
-
-  // Close on Escape
-  useEffect(() => {
-    if (!open) return;
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") handleClose();
-    }
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [open, handleClose]);
 
   /**
    * Returns a high-resolution version of an avatar URL.
@@ -133,7 +112,7 @@ export default function EditProfileModal({
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) {
-      showToast("File too large. Max 5 MB.");
+      showToast("File too large. Max 5 MB.", { variant: "error" });
       if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
@@ -154,7 +133,7 @@ export default function EditProfileModal({
     const file = new File([blob], "avatar.jpg", { type: blob.type });
     const nsfwResult = await classifyImage(file);
     if (nsfwResult.isSensitive) {
-      showToast("This image cannot be used as a profile photo.");
+      showToast("This image cannot be used as a profile photo.", { variant: "error" });
       return;
     }
 
@@ -170,7 +149,12 @@ export default function EditProfileModal({
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        showToast(data.error || "Failed to upload photo.");
+        console.error("[EditProfileModal] avatar upload rejected", {
+          status: res.status,
+          error: data.error,
+          impact: "avatar unchanged",
+        });
+        showToast(data.error || "Couldn't upload the photo.", { variant: "error" });
         return;
       }
 
@@ -189,8 +173,12 @@ export default function EditProfileModal({
 
       window.dispatchEvent(new CustomEvent("profile-updated", { detail: { avatarUrl: avatar_url } }));
       showToast("Profile photo updated.");
-    } catch {
-      showToast("Failed to upload photo.");
+    } catch (err) {
+      console.error("[EditProfileModal] avatar upload failed", {
+        error: err instanceof Error ? err.message : String(err),
+        impact: "avatar unchanged",
+      });
+      showToast("Couldn't upload the photo.", { variant: "error" });
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -204,7 +192,7 @@ export default function EditProfileModal({
   async function handleSaveName() {
     const trimmed = nameInput.trim();
     if (!trimmed || trimmed === fullName) {
-      handleClose();
+      onClose();
       return;
     }
 
@@ -218,7 +206,12 @@ export default function EditProfileModal({
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        showToast(data.error || "Failed to update name.");
+        console.error("[EditProfileModal] name update rejected", {
+          status: res.status,
+          error: data.error,
+          impact: "name unchanged",
+        });
+        showToast(data.error || "Couldn't update the name.", { variant: "error" });
         return;
       }
 
@@ -233,43 +226,27 @@ export default function EditProfileModal({
 
       window.dispatchEvent(new CustomEvent("profile-updated", { detail: { fullName: trimmed } }));
       showToast("Name updated.");
-      handleClose();
-    } catch {
-      showToast("Failed to update name.");
+      onClose();
+    } catch (err) {
+      console.error("[EditProfileModal] name update failed", {
+        error: err instanceof Error ? err.message : String(err),
+        impact: "name unchanged",
+      });
+      showToast("Couldn't update the name.", { variant: "error" });
     } finally {
       setSavingName(false);
     }
   }
 
-  if (!open) return null;
-
-  return createPortal(
-    <div
-      className={`fixed inset-0 z-50 flex items-center justify-center bg-black/50 transition-opacity duration-150 ${
-        closing ? "opacity-0" : "animate-announce-backdrop-in"
-      }`}
-      onClick={handleClose}
-    >
-      <div
-        className={`relative bg-card rounded-2xl border border-border shadow-2xl w-[380px] max-w-[90vw] overflow-hidden transition-all duration-150 ${
-          closing ? "scale-95 opacity-0" : "animate-announce-card-in"
-        }`}
-        onClick={(e) => e.stopPropagation()}
+  return (
+    <>
+      <Modal
+        open={open}
+        onClose={onClose}
+        title="Edit profile"
+        size="sm"
+        initialFocusRef={nameInputRef}
       >
-        {/* Close button */}
-        <button
-          onClick={handleClose}
-          className="absolute top-3 right-3 z-10 p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-accent transition-colors cursor-pointer"
-          aria-label="Close"
-        >
-          <X size={16} />
-        </button>
-
-        {/* Header */}
-        <div className="px-5 pt-5 pb-3">
-          <h3 className="text-base font-semibold text-foreground">Edit Profile</h3>
-        </div>
-
         {/* Avatar */}
         <div className="flex justify-center pb-4">
           <button
@@ -277,6 +254,7 @@ export default function EditProfileModal({
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
             className="relative w-24 h-24 rounded-full overflow-hidden flex items-center justify-center shrink-0 group cursor-pointer disabled:cursor-wait"
+            aria-label="Change profile photo"
             title="Change profile photo"
           >
             <div className="absolute inset-0 bg-muted" />
@@ -293,7 +271,7 @@ export default function EditProfileModal({
                 {getInitials()}
               </div>
             )}
-            <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity">
               {uploading ? (
                 <div className="w-5 h-5 border-2 border-white/60 border-t-white rounded-full animate-spin" />
               ) : (
@@ -311,11 +289,12 @@ export default function EditProfileModal({
         </div>
 
         {/* Name input */}
-        <div className="px-5 pb-3">
-          <label className="text-xs font-medium text-muted-foreground mb-1 block">
-            Display Name
+        <div className="pb-3">
+          <label htmlFor="edit-profile-name" className="text-xs font-medium text-muted-foreground mb-1 block">
+            Display name
           </label>
           <input
+            id="edit-profile-name"
             ref={nameInputRef}
             type="text"
             value={nameInput}
@@ -331,25 +310,24 @@ export default function EditProfileModal({
 
         {/* Email (read-only) */}
         {email && (
-          <div className="px-5 pb-4">
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">
-              Email
-            </label>
+          <div className="pb-4">
+            <p className="text-xs font-medium text-muted-foreground mb-1">Email</p>
             <p className="text-sm text-muted-foreground truncate">{email}</p>
           </div>
         )}
 
         {/* Status picker */}
-        <div className="px-5 pb-4">
-          <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
+        <div className="pb-4">
+          <p className="text-xs font-medium text-muted-foreground mb-1.5" id="edit-profile-status">
             Status
-          </label>
-          <div className="flex gap-1.5">
+          </p>
+          <div className="flex gap-1.5" role="group" aria-labelledby="edit-profile-status">
             {STATUS_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
                 type="button"
                 onClick={() => setStatus(opt.value)}
+                aria-pressed={currentStatus === opt.value}
                 className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors ${
                   currentStatus === opt.value
                     ? "border-blue-500 bg-blue-500/10 text-foreground"
@@ -363,22 +341,18 @@ export default function EditProfileModal({
           </div>
         </div>
 
-        {/* Save button */}
-        <div className="px-5 pb-5">
-          <button
-            onClick={handleSaveName}
-            disabled={savingName}
-            className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-foreground text-background text-sm font-medium hover:bg-foreground/90 disabled:opacity-40 transition-all"
-          >
-            {savingName ? (
-              <Loader2 size={14} className="animate-spin" />
-            ) : (
-              <Check size={14} />
-            )}
-            Save
-          </button>
-        </div>
-      </div>
+        <Button
+          variant="inverted"
+          onClick={handleSaveName}
+          loading={savingName}
+          leadingIcon={<Check size={14} />}
+          className="w-full"
+        >
+          Save
+        </Button>
+      </Modal>
+
+      {/* Sibling of the profile dialog on purpose: see the component docstring. */}
       <ImageCropModal
         open={!!cropSrc}
         imageSrc={cropSrc || ""}
@@ -390,7 +364,6 @@ export default function EditProfileModal({
           setCropSrc(null);
         }}
       />
-    </div>,
-    document.body
+    </>
   );
 }

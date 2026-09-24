@@ -265,7 +265,7 @@ async function processBeforeDeadline(
       (await fanout(
         supabase,
         subs,
-        { title: task.title || "Upcoming deadline", body, url: "/app/today", tag: `task-${task.id}` },
+        { title: task.title || "Upcoming deadline", body, url: `/app/inbox?task=${task.id}`, tag: `task-${task.id}` },
         onDrop
       ));
     // Always record the dispatch so we don't loop even if no subs. Log a failed
@@ -340,7 +340,7 @@ async function processDailyDigest(
     (await fanout(
       supabase,
       subs,
-      { title: "Today's deadlines", body, url: "/app/today", tag: `digest-${bucket}` },
+      { title: "Today's deadlines", body, url: "/app/inbox?filter=today", tag: `digest-${bucket}` },
       onDrop
     ));
   const { error: dispatchError } = await supabase.from("notification_dispatches").insert({

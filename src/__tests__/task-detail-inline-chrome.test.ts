@@ -132,8 +132,8 @@ describe("a row's value sits on the same centre line as its icon", () => {
     const pickers = read("src/components/tasks/TaskDetailPickers.tsx");
     const rows = (panel.match(/<div className=\{ROW_VALUE_COLUMN\}>/g) ?? []).length +
       (pickers.match(/<div className=\{ROW_VALUE_COLUMN\}>/g) ?? []).length;
-    // Link, class, tags, description.
-    expect(rows).toBe(4);
+    // Link, class, tags, description, share.
+    expect(rows).toBe(5);
     expect(panel).not.toContain('<div className="min-w-0 flex-1">');
     expect(pickers).not.toContain('<div className="min-w-0 flex-1">');
     // The extracted rows keep the same column, so the two files cannot drift.

@@ -33,6 +33,12 @@ interface DatePickerProps {
   value: string | null;
   timeValue?: string | null;
   onChange: (date: string | null) => void;
+  /**
+   * Fires after a click on a grid day, a preset or Clear date, and not after
+   * a typed date. Callers that close the picker on a pick use this so typing
+   * a month does not slam the picker shut mid-entry.
+   */
+  onPick?: () => void;
   onTimeChange?: (time: string | null) => void;
   /** Current repeat interval (null = no repeat). */
   repeatInterval?: number | null;
@@ -82,6 +88,7 @@ export default function DatePicker({
   value,
   timeValue,
   onChange,
+  onPick,
   onTimeChange,
   repeatInterval,
   repeatUnit,
@@ -219,7 +226,7 @@ export default function DatePicker({
             <button
               key={dateStr}
               type="button"
-              onClick={() => onChange(dateStr)}
+              onClick={() => { onChange(dateStr); onPick?.(); }}
               className={`w-8 h-8 text-xs rounded-full flex items-center justify-center mx-auto transition-all ${
                 isSelected
                   ? "bg-blue-500 text-white shadow-sm dark:shadow-none"
@@ -481,7 +488,7 @@ export default function DatePicker({
           <button
             key={p.label}
             type="button"
-            onClick={() => onChange(p.date)}
+            onClick={() => { onChange(p.date); onPick?.(); }}
             className={`text-xs font-medium py-1.5 px-2 rounded-lg transition-all truncate ${
               value === p.date
                 ? "bg-blue-500 text-white"
@@ -496,7 +503,7 @@ export default function DatePicker({
       {/* Clear date button */}
       <button
         type="button"
-        onClick={() => { onChange(null); onTimeChange?.(null); }}
+        onClick={() => { onChange(null); onTimeChange?.(null); onPick?.(); }}
         className="mt-1.5 w-full text-xs text-subtle-foreground hover:text-secondary-foreground py-1 rounded-lg hover:bg-accent transition-all"
       >
         Clear date

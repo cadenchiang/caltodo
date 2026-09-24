@@ -1,6 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { pickLandingPath, isMobileRequest } from "@/lib/landing-path";
+import { pickLandingPath, isMobileRequest, resolveGuardedRoute } from "@/lib/landing-path";
 import { GET_CLAIMS_OPTIONS } from "@/lib/supabase/jwks";
 
 /**
@@ -75,13 +75,35 @@ export async function proxy(request: NextRequest) {
     return redirectResponse;
   }
 
+  // Hidden nav routes and desktop-only routes on a phone redirect here,
+  // before the page paints, instead of in a client effect after it did.
+  // hidden_nav_items rides in the JWT's user_metadata, so no extra fetch.
+  if (user && pathname.startsWith("/app")) {
+    const target = resolveGuardedRoute(pathname, user.user_metadata, isMobileRequest(request.headers));
+    if (target) {
+      const url = request.nextUrl.clone();
+      url.pathname = target;
+      const redirectResponse = NextResponse.redirect(url);
+      supabaseResponse.cookies.getAll().forEach((cookie) => {
+        redirectResponse.cookies.set(cookie.name, cookie.value, cookie);
+      });
+      return redirectResponse;
+    }
+  }
+
   return supabaseResponse;
 }
 
 export const config = {
-  // Only run the proxy on the auth-transition routes where a redirect is
-  // needed. /app/** routes are protected by the server layout's session
-  // check, so we skip the Supabase getUser() network call on every tab
-  // switch inside the app — that was ~100ms per nav.
-  matcher: ["/", "/login"],
+  // The auth-transition routes plus the four guarded nav routes. getClaims
+  // verifies the JWT locally against cached keys, so this is not the
+  // ~100ms getUser() round trip that used to keep the proxy off /app.
+  matcher: [
+    "/",
+    "/login",
+    "/app/home/:path*",
+    "/app/inbox/:path*",
+    "/app/calendar/:path*",
+    "/app/discussions/:path*",
+  ],
 };

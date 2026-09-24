@@ -79,7 +79,7 @@ export default function CalendarDayView({
     <div className="overflow-hidden bg-card flex flex-col h-full relative">
       {/* All-day section: task bars + all-day GCal events */}
       {hasAllDayContent && (
-        <div className="shrink-0 border-b border-gray-300 dark:border-gray-500 p-3 md:p-4">
+        <div className="shrink-0 border-b border-input-border p-3 md:p-4">
           <div className="flex flex-col gap-1 max-w-xl">
             {dayTasks.map((task) => (
               <CalendarTaskBar key={task.id} task={task} onClick={onTaskClick} isActive={task.id === activeTaskId} />

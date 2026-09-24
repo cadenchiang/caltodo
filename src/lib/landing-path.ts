@@ -87,6 +87,32 @@ export function pickLandingPath(
   return FALLBACK_LANDING;
 }
 
+/** Nav routes (and their subroutes) the guards apply to. */
+const GUARDED_HREFS = ["/app/home", "/app/inbox", "/app/calendar", "/app/discussions"] as const;
+
+/**
+ * Decides, before the page renders, whether a request for a nav route must
+ * be sent elsewhere: the route is hidden in the user's nav settings, or it
+ * is desktop-only and the request comes from a phone. Runs in the proxy so
+ * the guarded page never paints first; the client guards remain only for
+ * a viewport that changes after load.
+ *
+ * @param pathname - Requested path
+ * @param userMetadata - The Supabase user_metadata (carries hidden_nav_items)
+ * @param isMobile - Whether the request looks like a phone
+ * @returns The path to redirect to, or null when the route may render
+ */
+export function resolveGuardedRoute(pathname: string, userMetadata: unknown, isMobile: boolean): string | null {
+  const matched = GUARDED_HREFS.find((href) => pathname === href || pathname.startsWith(href + "/"));
+  if (!matched) return null;
+  const raw = (userMetadata as { hidden_nav_items?: unknown } | null)?.hidden_nav_items;
+  const hidden = new Set(Array.isArray(raw) ? raw.filter((v): v is string => typeof v === "string") : []);
+  const blocked = hidden.has(matched) || (isMobile && DESKTOP_ONLY_HREFS.has(matched));
+  if (!blocked) return null;
+  const target = pickLandingPath(userMetadata, { isMobile });
+  return target === pathname ? null : target;
+}
+
 /**
  * Best-effort mobile detection for server-side redirects, where there is no
  * viewport to measure. Prefers the `sec-ch-ua-mobile` client hint (sent by

@@ -128,7 +128,6 @@ describe("the keys match what the app actually writes", () => {
     ["caltodo_friends_cache", "src/components/profile/profile-utils.ts"],
     ["caltodo_suggestions_cache", "src/components/profile/profile-utils.ts"],
     ["caltodo_credentials_cache", "src/components/settings/IntegrationSettings.tsx"],
-    ["caltodo_sync_course_selections", "src/app/app/inbox/page.tsx"],
     ["caltodo_hidden_nav_items", "src/hooks/useHiddenNavItems.ts"],
     ["gcal_status", "src/components/calendar/CalendarHeader.tsx"],
     ["discussion_boards_cache_v4", "src/lib/calchat-cache.ts"],

@@ -1,5 +1,6 @@
 import { format } from "date-fns";
 import type { Task } from "@/lib/types";
+import { PROVIDER_LABELS } from "@/lib/copy";
 
 /**
  * Formats a 24-hour time string "HH:MM" to 12-hour format "h:mm AM/PM".
@@ -71,9 +72,9 @@ export function getUrgencyClass(urgency: DateUrgency, isCompleted = false): stri
  * @param dueDate - ISO date string ("YYYY-MM-DD") or null
  * @param dueTime - 24-hour time string ("HH:MM") or null
  * @returns Object with dateLabel, timeLabel, and className, or null if no date
- * @remarks Legacy consumer of getRelativeDateLabel. The className values are the
- *          older 400-step colors that TaskItem keys its Miffy swap on; new
- *          chips should use DueDatePill / getUrgencyClass instead.
+ * @remarks Wraps getRelativeDateLabel and getUrgencyClass, so the classes are
+ *          the AA-passing 600-step light / 400-step dark pair. New chips
+ *          should use DueDatePill directly.
  */
 export function getDueDateInfo(
   dueDate: string | null,
@@ -82,17 +83,10 @@ export function getDueDateInfo(
   if (!dueDate) return null;
 
   const { label, urgency } = getRelativeDateLabel(dueDate);
-  const timeLabel = dueTime ? formatTime12h(dueTime) : null;
-
-  if (urgency === "overdue") {
-    // timeLabel is suppressed (no clock time on a past task) so the
-    // pill stays short.
-    return { dateLabel: label, timeLabel: null, className: "text-red-400" };
-  }
-  if (urgency === "soon") {
-    return { dateLabel: label, timeLabel, className: "text-blue-400" };
-  }
-  return { dateLabel: label, timeLabel, className: "text-subtle-foreground" };
+  // timeLabel is suppressed on an overdue task (no clock time on a past
+  // task) so the pill stays short.
+  const timeLabel = dueTime && urgency !== "overdue" ? formatTime12h(dueTime) : null;
+  return { dateLabel: label, timeLabel, className: getUrgencyClass(urgency) };
 }
 
 /**
@@ -163,9 +157,9 @@ export function getSourceBadges(task: Task): { label: string; className: string 
 
   if (task.source) {
     const map: Record<string, { label: string; cls: string }> = {
-      canvas: { label: "bCourses", cls: "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-600/40" },
-      pensieve: { label: "Pensive", cls: "text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-600/40" },
-      gradescope: { label: "Gradescope", cls: "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-600/40" },
+      canvas: { label: PROVIDER_LABELS.canvas, cls: "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-600/40" },
+      pensieve: { label: PROVIDER_LABELS.pensieve, cls: "text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-600/40" },
+      gradescope: { label: PROVIDER_LABELS.gradescope, cls: "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-600/40" },
     };
     const entry = map[task.source];
     if (entry) badges.push({ label: entry.label, className: entry.cls });

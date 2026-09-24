@@ -93,6 +93,27 @@ export function parseHourInput(raw: string): number | null {
 }
 
 /**
+ * Interprets typed digits as an hour, honouring 24-hour entry.
+ *
+ * @param raw - Sanitised digits from the hour field
+ * @returns The 12-hour value and, when the digits decide it, the meridiem;
+ *          null while the field is empty
+ * @remarks "14" means 2 PM, "0" means 12 AM, "12" keeps the current
+ *          meridiem (it is ambiguous), and anything above 23 clamps to 11 PM.
+ *          The previous behaviour clamped "14" to 12, so typing an afternoon
+ *          hour committed noon.
+ */
+export function parseHourInput24(raw: string): { hour12: number; ampm: "AM" | "PM" | null } | null {
+  const digits = sanitizeTimeDigits(raw);
+  if (digits === "") return null;
+  const n = Math.min(Number(digits), 23);
+  if (n === 0) return { hour12: 12, ampm: "AM" };
+  if (n === 12) return { hour12: 12, ampm: null };
+  if (n > 12) return { hour12: n - 12, ampm: "PM" };
+  return { hour12: n, ampm: null };
+}
+
+/**
  * Interprets typed digits as a minute.
  *
  * @param raw - Sanitised digits from the minute field
