@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { Inbox, Sun, CalendarRange, ChevronLeft } from "lucide-react";
 import { NAV_ITEMS } from "@/lib/constants";
 import { getSettingsReturnPath } from "@/lib/settings-return";
-import { SETTINGS_SECTIONS, SETTINGS_GROUPS, DEFAULT_SECTION, type SettingsSectionId } from "@/lib/settingsConfig";
+import { SETTINGS_SECTIONS, SETTINGS_GROUPS, SETTINGS_GROUP_LABEL, DEFAULT_SECTION, type SettingsSectionId } from "@/lib/settingsConfig";
 import SidebarNavItem, { navItemClasses, SidebarActivePill } from "./SidebarNavItem";
 import ProfilePopup from "./ProfilePopup";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -156,20 +156,22 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
             </div>
             <hr className="border-border my-1" />
             {SETTINGS_GROUPS.map((group) => (
-              <div key={group}>
-                <p className="px-3 pt-3 pb-1 text-[10px] font-semibold tracking-wider text-foreground/60">
-                  {group}
-                </p>
+              <nav key={group} aria-label={group}>
+                <p className={`px-3 pt-3 pb-1 ${SETTINGS_GROUP_LABEL}`}>{group}</p>
                 {SETTINGS_SECTIONS.filter((s) => s.group === group).map((section) => {
                   const Icon = section.icon;
                   const isActive = activeSettingsSection === section.id;
                   return (
-                    <button
+                    <Link
                       key={section.id}
-                      onClick={() => {
+                      href={`/app/settings?section=${section.id}`}
+                      aria-current={isActive ? "page" : undefined}
+                      onClick={(e) => {
                         // Move the pill synchronously (no waiting on URL),
                         // then schedule the URL update + SettingsContent
-                        // re-render as a non-urgent transition.
+                        // re-render as a non-urgent transition. The href
+                        // stays real for middle-click and assistive tech.
+                        e.preventDefault();
                         setOptimisticSection(section.id);
                         startSectionTransition(() => {
                           router.replace(`/app/settings?section=${section.id}`, { scroll: false });
@@ -178,12 +180,12 @@ export default function Sidebar({ avatarUrl, fullName, email }: SidebarProps) {
                       className={`w-full cursor-pointer ${navItemClasses(isActive, isMiffy)}`}
                     >
                       {isActive && <SidebarActivePill />}
-                      <Icon size={16} className="relative z-10 shrink-0" />
+                      <Icon size={16} className="relative z-10 shrink-0" aria-hidden="true" />
                       <span className="relative z-10">{section.label}</span>
-                    </button>
+                    </Link>
                   );
                 })}
-              </div>
+              </nav>
             ))}
           </div>
         ) : (

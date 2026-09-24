@@ -38,5 +38,12 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
   { id: "advanced", label: "Advanced", icon: Wrench, group: "System" },
 ];
 
+/**
+ * The one recipe for a settings group label, on the sidebar and the mobile
+ * list alike. Sentence case, foreground colour, never tracking-wider gray
+ * (UI_STYLE_GUIDE.md, Color System rules).
+ */
+export const SETTINGS_GROUP_LABEL = "text-xs font-medium text-foreground";
+
 /** Default section shown when no search param is provided (desktop). */
 export const DEFAULT_SECTION: SettingsSectionId = "integrations";
