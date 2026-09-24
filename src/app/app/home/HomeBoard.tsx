@@ -36,9 +36,9 @@ const TEMPLATE_SEED_FLAG = "caltodo_template_board_seeded_v6";
 
 /**
  * @param embedded When true, skip the outer -mx/-my negative margins that
- * normally escape the parent <main>'s padding. Used by BoardLockedScreen
- * which applies its own escape on a wrapper — without this flag the two
- * sets of negative margins compound and push content off the viewport.
+ * normally escape the parent <main>'s padding. For a parent that applies
+ * its own escape on a wrapper; without this flag the two sets of negative
+ * margins compound and push content off the viewport.
  */
 interface HomeBoardProps {
   embedded?: boolean;
@@ -274,13 +274,8 @@ export default function HomeBoard({ embedded = false }: HomeBoardProps = {}) {
 
   // Don't render grid until localStorage is hydrated (avoids layout flash).
   // Show a ghost skeleton matching the board layout so first paint has shape.
-  //
-  // Embedded inside BoardLockedScreen, render nothing during the unhydrated
-  // window: the paywall card sits on top with a translucent backdrop, and a
-  // skeleton bleeding through would read as "the app is still loading"
-  // instead of "you're paywalled". The paywall is what the user should see
-  // on first paint; the blurred real board only matters once it's actually
-  // there to blur.
+  // When embedded, the parent owns the loading treatment, so render nothing
+  // during the unhydrated window.
   if (!hydrated) {
     if (embedded) return null;
     return (
