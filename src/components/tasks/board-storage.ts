@@ -5,16 +5,16 @@
  */
 
 /** Shared localStorage key for column/group name aliases. */
-export const COLUMN_ALIASES_KEY = "caltodo_board_column_aliases";
+const COLUMN_ALIASES_KEY = "caltodo_board_column_aliases";
 
 /** localStorage key for saved board column order. */
-export const COLUMN_ORDER_KEY = "caltodo_board_column_order";
+const COLUMN_ORDER_KEY = "caltodo_board_column_order";
 
 /** localStorage key for completed task auto-hide duration (in hours). */
-export const COMPLETED_HIDE_KEY = "caltodo_completed_hide_hours";
+const COMPLETED_HIDE_KEY = "caltodo_completed_hide_hours";
 
 /** Default auto-hide duration: 24 hours. */
-export const DEFAULT_HIDE_HOURS = 24;
+const DEFAULT_HIDE_HOURS = 24;
 
 /** Preset auto-hide options shown in the settings menu. */
 export const HIDE_OPTIONS = [

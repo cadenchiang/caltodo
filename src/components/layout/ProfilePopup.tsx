@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Settings, MessageCircle, Check } from "lucide-react";
 import ContactModal from "@/components/ui/ContactModal";
 import EditProfileModal from "@/components/ui/EditProfileModal";
 import SignOutConfirmModal from "@/components/ui/SignOutConfirmModal";
+import Popover from "@/components/ui/Popover";
+import { AUTH } from "@/lib/copy";
 import { clearUserCaches } from "@/lib/user-caches";
 
 interface ProfilePopupProps {
@@ -16,8 +18,9 @@ interface ProfilePopupProps {
 }
 
 /**
- * Avatar button that opens an animated popup with user info,
- * Settings link, and Log Out button. Closes on outside click.
+ * Avatar button that opens a popup with user info, a Settings link and a
+ * Sign out button. Built on Popover: Escape and outside click close it,
+ * focus moves in and back, and the trigger carries aria-expanded.
  *
  * @param avatarUrl - Google avatar URL or null for initials fallback
  * @param fullName - User's full name from Google metadata
@@ -29,21 +32,7 @@ export default function ProfilePopup({ avatarUrl, fullName, email }: ProfilePopu
   const [showContact, setShowContact] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
-  const popupRef = useRef<HTMLDivElement>(null);
-
-  // Close on outside click
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (popupRef.current && !popupRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-
-    if (open) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [open]);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   /**
    * Generates initials from the user's full name.
@@ -87,12 +76,16 @@ export default function ProfilePopup({ avatarUrl, fullName, email }: ProfilePopu
   }
 
   return (
-    <div ref={popupRef} className="relative">
+    <div className="relative">
       {/* Avatar button */}
       <button
+        ref={triggerRef}
+        type="button"
         onClick={() => setOpen(!open)}
-        className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center transition-all hover:ring-2 hover:ring-ring"
+        className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center transition-all hover:ring-2 hover:ring-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         aria-label="Profile menu"
+        aria-haspopup="dialog"
+        aria-expanded={open}
       >
         {avatarUrl && !imgError ? (
           <Image
@@ -128,7 +121,7 @@ export default function ProfilePopup({ avatarUrl, fullName, email }: ProfilePopu
         email={email}
       />
 
-      {/* Sign out confirmation modal — opens when user clicks "Log out" */}
+      {/* Sign out confirmation modal, opened from the Sign out row */}
       <SignOutConfirmModal
         open={showSignOutConfirm}
         onConfirm={handleLogOut}
@@ -137,13 +130,17 @@ export default function ProfilePopup({ avatarUrl, fullName, email }: ProfilePopu
       />
 
       {/* Popup — Notion-style two-section layout: workspace card on top,
-          account row in the middle, hover-only Log out row at the bottom.
+          account row in the middle, Sign out row at the bottom.
           Sizing: 288px gives Settings + Contact buttons room to sit side by
           side without truncating either label. */}
-      {open && (
-        <div
-          className="absolute bottom-full left-0 mb-2 z-50 w-[min(288px,calc(100vw-16px))] bg-popover text-foreground rounded-xl shadow-2xl border border-border overflow-hidden animate-in"
-        >
+      <Popover
+        open={open}
+        onClose={() => setOpen(false)}
+        triggerRef={triggerRef}
+        aria-label="Profile"
+        className="absolute bottom-full left-0 mb-2 z-dropdown w-[min(288px,calc(100vw-16px))] text-foreground overflow-hidden"
+      >
+        <div>
           {/* Top: workspace-style header card */}
           <div className="p-3">
             <div className="flex items-center gap-3 px-1 pt-1 pb-3">
@@ -217,7 +214,7 @@ export default function ProfilePopup({ avatarUrl, fullName, email }: ProfilePopu
                       referrerPolicy="no-referrer"
                     />
                   ) : (
-                    <span className="text-[10px] font-semibold text-foreground">{getInitials()}</span>
+                    <span className="text-3xs font-semibold text-foreground">{getInitials()}</span>
                   )}
                 </div>
                 <p className="text-sm text-foreground truncate flex-1 min-w-0">{email}</p>
@@ -239,11 +236,11 @@ export default function ProfilePopup({ avatarUrl, fullName, email }: ProfilePopu
               disabled={signingOut}
               className="w-full text-left px-2 py-2 text-sm text-foreground rounded-md hover:bg-accent transition-colors disabled:opacity-60 cursor-pointer"
             >
-              Log out
+              {AUTH.signOut}
             </button>
           </div>
         </div>
-      )}
+      </Popover>
     </div>
   );
 }

@@ -67,7 +67,7 @@ export function toDateStr(date: Date): string {
  * @param tasks - Tasks to sort
  * @returns New sorted array (does not mutate input)
  */
-export function sortByDueDate(tasks: Task[]): Task[] {
+function sortByDueDate(tasks: Task[]): Task[] {
   return [...tasks].sort((a, b) => {
     if (!a.due_date && !b.due_date) {
       return (a.sort_order ?? Infinity) - (b.sort_order ?? Infinity);

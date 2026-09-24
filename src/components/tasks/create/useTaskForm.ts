@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { Task, TaskInsert, TaskUpdate } from "@/lib/types";
 import { DEFAULT_TASK_COLOR } from "@/lib/constants";
 
-export type RepeatUnit = "day" | "week" | "month";
+type RepeatUnit = "day" | "week" | "month";
 
 /** Every field the task editor edits. */
 export interface TaskFormState {

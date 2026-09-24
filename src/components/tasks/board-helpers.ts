@@ -9,7 +9,7 @@ import { isSnoozed } from "@/lib/snooze";
 import { GENERAL_GROUP } from "./shared/ClassMenu";
 
 /** Default column name for tasks without a course_name. */
-export const GENERAL_COLUMN = GENERAL_GROUP;
+const GENERAL_COLUMN = GENERAL_GROUP;
 
 /** One column's tint set. Values are CSS colours (hex, rgba or var()). */
 export interface ColumnAccent {
@@ -24,7 +24,7 @@ export interface ColumnAccent {
  * from a stable hash of its name; the blue slot reads the theme's accent so
  * it follows the colour theme like the rest of the app.
  */
-export const COLUMN_PALETTE: ColumnAccent[] = [
+const COLUMN_PALETTE: ColumnAccent[] = [
   { dot: "#A78BFA", bg: "rgba(167,139,250,0.16)", subtle: "rgba(167,139,250,0.03)", text: "#7C3AED" }, // violet
   { dot: "#F59E0B", bg: "rgba(245,158,11,0.16)", subtle: "rgba(245,158,11,0.03)", text: "#B45309" }, // amber
   {
@@ -40,7 +40,7 @@ export const COLUMN_PALETTE: ColumnAccent[] = [
 ];
 
 /** Accent for the General column and for unparsable colours. */
-export const NEUTRAL_ACCENT: ColumnAccent = {
+const NEUTRAL_ACCENT: ColumnAccent = {
   dot: "var(--subtle-foreground)",
   bg: "color-mix(in srgb, var(--muted-foreground) 16%, transparent)",
   subtle: "color-mix(in srgb, var(--muted-foreground) 3%, transparent)",
@@ -187,7 +187,7 @@ export function groupByDate(tasks: Task[], now: Date = new Date()): Map<string, 
  * @param tasks - Tasks to sort
  * @returns New sorted array
  */
-export function sortByDueDate(tasks: Task[]): Task[] {
+function sortByDueDate(tasks: Task[]): Task[] {
   return [...tasks].sort((a, b) => {
     if (!a.due_date && !b.due_date) return 0;
     if (!a.due_date) return 1;

@@ -6,7 +6,7 @@
  * every syncing toggle; calendar skeleton flipped view after mount.
  */
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { resolveGuardedRoute } from "@/lib/landing-path";
 
@@ -87,5 +87,20 @@ describe("perf and skeletons", () => {
     const src = read("app/app/calendar/loading.tsx");
     expect(src).toContain("-m-4 md:-m-10");
     expect(src).toContain("mx-4 md:mx-8 rounded-2xl border border-border bg-card");
+  });
+});
+
+describe("ProfilePopup and knip cleanup", () => {
+  it("ProfilePopup is a Popover with aria-expanded and glossary copy", () => {
+    const src = read("components/layout/ProfilePopup.tsx");
+    expect(src).toContain('import Popover from "@/components/ui/Popover";');
+    expect(src).toContain("aria-expanded={open}");
+    expect(src).toContain("{AUTH.signOut}");
+    expect(src).not.toContain("Log out");
+  });
+  it("deletes the unused TagPicker and Tooltip", () => {
+    expect(existsSync(path.resolve(__dirname, "../components/tasks/TagPicker.tsx"))).toBe(false);
+    expect(existsSync(path.resolve(__dirname, "../components/ui/Tooltip.tsx"))).toBe(false);
+    expect(read("lib/constants.ts")).not.toContain("getMiffyColor");
   });
 });

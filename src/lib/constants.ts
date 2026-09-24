@@ -98,13 +98,6 @@ const MIFFY_COLOR_MAP: Record<string, string> = {
   "#D1D5DB": "#f0c0d0", // light gray fallback → soft pink
 };
 
-/**
- * @deprecated Use getThemeColor(color, colorTheme) instead.
- */
-export function getMiffyColor(color: string | null | undefined): string {
-  if (!color) return MIFFY_COLOR_MAP["#D1D5DB"];
-  return MIFFY_COLOR_MAP[color.toUpperCase()] ?? MIFFY_COLOR_MAP[color] ?? "#e8729a";
-}
 
 /** Nord theme: muted arctic tones for task colors. */
 const NORD_COLOR_MAP: Record<string, string> = {

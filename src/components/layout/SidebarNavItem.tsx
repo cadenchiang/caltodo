@@ -7,13 +7,13 @@ import { motion } from "framer-motion";
 import { useTheme } from "@/contexts/ThemeContext";
 
 /** Shared layoutId so the active pill animates between any two nav items. */
-export const SIDEBAR_PILL_LAYOUT_ID = "caltodo-sidebar-active-pill";
+const SIDEBAR_PILL_LAYOUT_ID = "caltodo-sidebar-active-pill";
 
 /**
  * Tween used by the active pill. A short ease-out feels instant — spring
  * configurations were adding visible motion lag on tab switches.
  */
-export const SIDEBAR_PILL_TRANSITION = { type: "tween" as const, ease: "easeOut" as const, duration: 0.18 };
+const SIDEBAR_PILL_TRANSITION = { type: "tween" as const, ease: "easeOut" as const, duration: 0.18 };
 
 /**
  * Animated background pill for the active sidebar item. Shares a layoutId
